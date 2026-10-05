@@ -302,3 +302,55 @@ compressed form, so the region is a generic repeated-bytes one that LZ compresse
 better (see `docs/evidence/phase7b-skeptic-review.md`). Complete cost remains
 authoritative, and the shared-plaintext geometry is necessary but not sufficient
 (ReportLab and pdfTeX prove it). No candidate changed.
+
+---
+
+# Amendment (2026-10-05) — Phase 7.0c generic-compressor baseline ladder
+
+> **New, separately scoped measurement — nothing above is rewritten.** Receipt:
+> `evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/`; driver
+> `tools/baselines.sh`; full 27-row table `baseline-table.md`. No wire format,
+> candidate, or decode path changed.
+
+Phase 7.0/7.0b measured VOLE's candidates only against `BYTE_RANS`, a whole-file
+**order-0 byte-rANS** lane with no LZ. A win over `BYTE_RANS` is not a generic
+compression result. The ladder adds `gzip -9`, `zstd -19 --long=27`, `xz -9e` and
+`brotli -q 11` (each round-trip verified lossless against the source) over both
+corpora, and compares them to the **best VOLE lane** — the minimum complete
+serialized `.voldoc` size across the auto winner, `RAW`, `RLE`, `BYTE_RANS` and
+every forced structural kind (`pdf-physical`, `pdf-channels`, `pdf-layout`,
+`pdf-layout-rans`, `pdf-deflate-replay`, `pdf-deflate-replay-rans`). Every auto
+winner is `verify` + `decode`/`cmp` byte-exact.
+
+**Overall (27 files): the best VOLE lane beats `gzip`/`zstd`/`xz`/`brotli` on 0
+files.** The best generic compressor is smaller than the best VOLE lane on every
+file, by **460,320 bytes** in total (`phase7` +410,355 over 23 files; `producers`
++49,965 over 4 files):
+
+| corpus | files | VOLE beats gzip | zstd | xz | brotli | any generic | Δ bytes vs best generic |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| phase7 | 23 | 0 | 0 | 0 | 0 | **0** | +410,355 |
+| producers | 4 | 0 | 0 | 0 | 0 | **0** | +49,965 |
+| **overall** | **27** | **0** | **0** | **0** | **0** | **0** | **+460,320** |
+
+The two files the sharing narrative rested on:
+
+| file | source | gzip -9 | zstd -19 | xz -9e | brotli -q11 | BYTE_RANS | best VOLE | lane | VOLE − best generic |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |
+| `cairo-vector.pdf` | 58,424 | 17,382 | 16,836 | 16,852 | **16,670** | 58,711 | 34,574 | `PDF_DEFLATE_REPLAY_RANS` | **+17,904** |
+| `_synthetic/flate.pdf` | 57,513 | 22,426 | 20,171 | 18,884 | 18,891 | 49,291 | 36,102 | `PDF_DEFLATE_REPLAY_RANS` | **+17,218** |
+
+On the Cairo file the "winning" 34,574 B is **2.07×** the best generic result
+(16,670 B brotli); on `flate.pdf` the 36,102 B is **1.91×** the best generic
+(18,884 B xz). The ladder independently reproduces the Phase-7.0b reviewer's LZ
+figures (`gzip -9` = 17,382 B, `xz -9e` = 16,852 B). The best VOLE lane *does*
+beat `BYTE_RANS` on 13/27 files — but `BYTE_RANS` is the weak order-0 baseline, so
+that is not a compression result.
+
+**Verdict: RECORDED (baseline ladder).** Prior "wins" were relative to a weak
+order-0 baseline and do not survive a generic-compressor comparison: on the honest
+ladder (the complete file must losslessly recover the original, so all
+framing/model overhead is charged) VOLE loses to every generic compressor on every
+file tested. VOLE's byte-exact structural reconstruction is unchanged; its
+*compression* claim does not survive on this corpus. No candidate is adopted,
+removed, or changed.

@@ -94,6 +94,19 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   - `tools/pdf-producers-analyze.py` reduces the `deflate-stats` and complete-cost
     court outputs to a per-producer analysis. No wire format, candidate, or
     decode path changed.
+- Phase 7.0c — generic-compressor baseline ladder:
+  - A pinned, opt-in `baseline` `Dockerfile` stage / compose service
+    (`vole-document/baseline:1.99.0`, derived from the `dev` stage on base
+    `rust:1.99.0-slim-bookworm@sha256:452176c0…`, so rustc/cargo match the
+    measurement binary) adding the generic compressors `gzip`, `zstd`, `xz` and
+    `brotli` (plus `jq`). It is deliberately **not** part of any fast gate.
+  - `tools/baselines.sh` records, for every corpus file, the source size and the
+    smallest **lossless** complete-file size for `gzip -9`, `zstd -19 --long=27`,
+    `xz -9e` and `brotli -q 11` (each decompressed and `cmp`'d against the source
+    before it is scored), plus the complete serialized `.voldoc` size of every
+    VOLE lane (auto, `raw`, `rle`, `byte-rans`, and every forced structural kind).
+    `tools/baselines.jq`, `tools/baselines-merge.jq` and `tools/baselines-table.jq`
+    reduce and render the JSON table.
 - Phase 7.1 — coverage-guided fuzzing:
   - A standalone `cargo-fuzz` package in `fuzz/` (kept out of `cargo package` by
     `exclude = ["fuzz", "research", "evidence"]`) with ten libFuzzer targets:
@@ -260,6 +273,21 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   Receipt under `evidence/campaigns/2026-10-05-phase7-producers-e071250/` (prose
   amendment); review `docs/evidence/phase7b-skeptic-review.md`; baseline ladder in
   `docs/evidence/phase7-corpus-report.md`. `results.json` is not rewritten.
+- Campaign `2026-10-05-phase7-baselines-7b9f662` (verdict RECORDED; measurement,
+  no new candidate) — the **generic-compressor baseline ladder** over 27 corpus
+  files (phase7 23 + producers 4), comparing complete files against `gzip -9`,
+  `zstd -19 --long=27`, `xz -9e`, `brotli -q 11` (each round-trip verified
+  lossless) and the best VOLE lane (minimum over auto/raw/rle/byte-rans and every
+  forced structural kind). **The best VOLE lane beats gzip/zstd/xz/brotli on 0
+  files**; the best generic is smaller on every file, **+460,320 B** in total
+  (phase7 +410,355; producers +49,965). On `cairo-vector.pdf` the best VOLE
+  34,574 B is **2.07×** brotli's 16,670 B; on `_synthetic/flate.pdf` 36,102 B is
+  **1.91×** xz's 18,884 B. Prior "wins" were relative to the weak order-0
+  `BYTE_RANS` lane (VOLE still beats `BYTE_RANS` on 13/27, which is not a
+  compression result) and do not survive the generic ladder. All 27 auto winners
+  `verify` + `cmp` byte-exact. Receipt under
+  `evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/` (full table
+  `baseline-table.md`); report section in `docs/evidence/phase7-corpus-report.md`.
 - Campaign `2026-10-05-phase6-0d0bb79` (DRA v8, verdict PASS; the earlier
   `2026-10-05-phase6-ec92c1a` receipt is retained): a 12-file corpus; every
   auto winner round-trips byte-exactly (`cmp` + `verify`, `all_exact=true`); the

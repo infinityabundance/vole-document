@@ -62,6 +62,7 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | Phase-6 replay court (`--force pdf-deflate-replay[-rans]`) | **Measured** | `tools/phase6-court.sh`; campaign `2026-10-05-phase6-0d0bb79` |
 | Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; amendment campaign `2026-10-05-phase7-corpus-b-c4eb77e` (supersedes `2026-10-05-phase7-corpus-f1f8d26`); 24/24 replayed, 0 declined; diagnostic only, no new candidate |
 | Generator-family Flate corpus (`producers`: ReportLab/Cairo/LibreOffice/pdfTeX) | **Measured (claim corrected 7.0c)** | campaign `2026-10-05-phase7-producers-e071250`; 87/87 replayed; `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` on Cairo (58,711 → 34,574, −24,137 B) but the Cairo file is a **repeated-identical-bytes harness artifact** (six byte-identical streams), and generic LZ does ~2× better (gzip -9 17,382 B; xz -9e 16,852 B); the "first authoring-generator witness" claim is withdrawn; no candidate changed |
+| Generic-compressor baseline ladder (gzip/zstd/xz/brotli vs VOLE) | **Measured — the honest comparison** | campaign `2026-10-05-phase7-baselines-7b9f662`; `tools/baselines.sh` + opt-in `baseline` image; **VOLE beats gzip/zstd/xz/brotli on 0/27 files** (+460,320 B vs the best generic); prior "wins" were relative to the weak order-0 `BYTE_RANS` lane |
 | PDF structural adapters (Phases 7–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
@@ -488,6 +489,37 @@ Receipt:
 script `tools/pdf-corpus-producers.sh`; ledger
 [`evidence/corpus/phase7-producers/provenance.json`](evidence/corpus/phase7-producers/provenance.json).
 
+### Generic-compressor baseline ladder (Phase 7.0c) measured results
+
+Phase 7.0/7.0b measured VOLE only against `BYTE_RANS`, a whole-file **order-0
+byte-rANS** lane with no LZ. Phase 7.0c adds the honest comparison: a pinned,
+opt-in `baseline` image (the pinned `dev` base plus `gzip`, `zstd`, `xz`, `brotli`,
+`jq`) and `tools/baselines.sh`, which for every corpus file records the smallest
+lossless complete-file size for `gzip -9`, `zstd -19 --long=27`, `xz -9e` and
+`brotli -q 11` (each round-trip verified) and the complete serialized `.voldoc`
+size of every VOLE lane, then compares against the best VOLE lane.
+
+**Result: on 27 corpus files the best VOLE lane beats gzip/zstd/xz/brotli on 0
+files.** The best generic compressor is smaller on every file, by **+460,320 B**
+total (phase7 +410,355 over 23 files; producers +49,965 over 4). On the Cairo file
+the "winning" 34,574 B is **2.07×** brotli's 16,670 B; on `flate.pdf` the 36,102 B
+is **1.91×** xz's 18,884 B:
+
+```text
+cairo-vector.pdf        source 58424  gzip 17382  zstd 16836  xz 16852  brotli 16670  BYTE_RANS 58711  best VOLE 34574  (+17904 vs brotli)
+_synthetic/flate.pdf    source 57513  gzip 22426  zstd 20171  xz 18884  brotli 18891  BYTE_RANS 49291  best VOLE 36102  (+17218 vs xz)
+```
+
+Prior "wins" were relative to a weak order-0 baseline and do not survive the
+generic ladder. VOLE's byte-exact structural reconstruction is unchanged; its
+*compression* claim does not survive on this corpus. All 27 auto winners are
+`verify` + `cmp` byte-exact; no candidate or wire format changed. Review:
+[`docs/evidence/phase7b-skeptic-review.md`](docs/evidence/phase7b-skeptic-review.md).
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/`](evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/)
+(full per-file table `baseline-table.md`); driver `tools/baselines.sh`.
+
 ## Quick start (Docker only)
 
 All project commands run inside pinned containers. The host only invokes Docker.
@@ -504,6 +536,12 @@ docker compose run --rm --no-TTY dev cargo fmt --all --check
 # MSRV gate (Rust 1.89)
 docker compose build msrv
 docker compose run --rm --no-TTY msrv cargo build --locked
+
+# Generic-compressor baseline ladder (Phase 7.0c; opt-in baseline image)
+docker compose build baseline
+docker compose run --rm --no-TTY dev cargo build --locked --all-features
+docker compose run --rm --no-TTY -e BASELINE_CORPUS=phase7 baseline \
+  sh tools/baselines.sh /tmp/baselines.json evidence/corpus/phase7
 
 # Phase 1 exact court (writes an evidence receipt)
 docker compose run --rm --no-TTY dev sh tools/phase1-court.sh
