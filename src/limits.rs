@@ -22,6 +22,8 @@ pub struct Limits {
     pub max_graph_ops: u32,
     /// Maximum repeat count for a single `REPEAT_LAST` instruction.
     pub max_repeat_count: u64,
+    /// Maximum number of symbols in a single entropy channel.
+    pub max_channel_symbols: u64,
 }
 
 impl Limits {
@@ -34,6 +36,7 @@ impl Limits {
         max_object_count: 1 << 20,
         max_graph_ops: 1 << 20,
         max_repeat_count: 1 << 32,
+        max_channel_symbols: 1 << 40,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -45,6 +48,7 @@ impl Limits {
         max_object_count: 1 << 16,
         max_graph_ops: 1 << 16,
         max_repeat_count: 1 << 24,
+        max_channel_symbols: 1 << 26,
     };
 }
 
