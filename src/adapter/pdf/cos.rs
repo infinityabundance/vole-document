@@ -53,6 +53,59 @@ pub fn dict_has_length(input: &[u8], lex: &[Span], dict_lo: u64, dict_hi: u64) -
     find_length_name(input, lex, dict_lo, dict_hi).is_some()
 }
 
+/// The value of a key whose value is a name (e.g. `/Type /XRef`).
+///
+/// The key is matched as a `Name` span equal to `/<key>` fully inside
+/// `[dict_lo, dict_hi)`; the value must be a `Name` span. Returns the raw bytes
+/// after the value's leading `/` (the slash is not included), or `None` when the
+/// key is absent or its value is not a simple name. Strings and comments can
+/// never be mistaken for a key or value because only `Name` spans are inspected.
+pub fn dict_name_value<'a>(
+    input: &'a [u8],
+    lex: &[Span],
+    dict_lo: u64,
+    dict_hi: u64,
+    key: &[u8],
+) -> Option<&'a [u8]> {
+    let name = find_name_key(input, lex, dict_lo, dict_hi, key)?;
+    let t = next_significant(lex, name + 1, dict_hi)?;
+    let sp = lex[t];
+    if sp.kind != SpanKind::Name {
+        return None;
+    }
+    span_bytes(input, sp)?.strip_prefix(b"/")
+}
+
+/// The value of a key that is either a direct non-negative integer or an
+/// indirect reference of shape `int int R`.
+///
+/// The key is matched exactly as in [`dict_name_value`]. Returns
+/// [`LengthValue::Direct`] for a bare integer, [`LengthValue::Indirect`] for the
+/// reference shape, and `None` when the key is absent or its value is neither.
+/// Only simple token shapes are considered; nothing is re-parsed from strings.
+pub fn dict_int_or_ref(
+    input: &[u8],
+    lex: &[Span],
+    dict_lo: u64,
+    dict_hi: u64,
+    key: &[u8],
+) -> Option<LengthValue> {
+    let name = find_name_key(input, lex, dict_lo, dict_hi, key)?;
+    let t0 = next_significant(lex, name + 1, dict_hi)?;
+    let number = integer_of(input, lex[t0])?;
+
+    // The reference shape `int Whitespace int Whitespace R` takes precedence.
+    if let Some(t1) = next_significant(lex, t0 + 1, dict_hi)
+        && let Some(generation) = integer_of(input, lex[t1])
+        && let Some(t2) = next_significant(lex, t1 + 1, dict_hi)
+        && is_regular_r(input, lex[t2])
+    {
+        return Some(LengthValue::Indirect { number, generation });
+    }
+
+    Some(LengthValue::Direct(number))
+}
+
 /// Interpret the significant tokens of an object body `[body_lo, body_hi)` as a
 /// single bare non-negative decimal integer.
 ///
@@ -89,11 +142,17 @@ pub fn body_as_u64(input: &[u8], lex: &[Span], body_lo: u64, body_hi: u64) -> Op
 
 /// Index of a `Name` span equal to `/Length` fully inside `[lo, hi)`.
 fn find_length_name(input: &[u8], lex: &[Span], lo: u64, hi: u64) -> Option<usize> {
+    find_name_key(input, lex, lo, hi, b"Length")
+}
+
+/// Index of a `Name` span equal to `/<key>` fully inside `[lo, hi)`.
+fn find_name_key(input: &[u8], lex: &[Span], lo: u64, hi: u64, key: &[u8]) -> Option<usize> {
     lex.iter().position(|sp| {
         sp.kind == SpanKind::Name
             && sp.start >= lo
             && sp.start.checked_add(sp.len).is_some_and(|end| end <= hi)
-            && span_bytes(input, *sp) == Some(b"/Length".as_slice())
+            && span_bytes(input, *sp)
+                .is_some_and(|b| b.len() == key.len() + 1 && b[0] == b'/' && &b[1..] == key)
     })
 }
 
@@ -207,6 +266,87 @@ mod tests {
         let spans = lexed(input);
         assert_eq!(dict_length(input, &spans, 0, input.len() as u64), None);
         assert!(!dict_has_length(input, &spans, 0, input.len() as u64));
+    }
+
+    #[test]
+    fn dict_name_value_reads_xref_and_objstm_types() {
+        let xref = b"<< /Type /XRef /Length 4 >>";
+        let spans = lexed(xref);
+        assert_eq!(
+            dict_name_value(xref, &spans, 0, xref.len() as u64, b"Type"),
+            Some(b"XRef".as_slice())
+        );
+
+        let objstm = b"<< /Type /ObjStm /N 3 >>";
+        let spans = lexed(objstm);
+        assert_eq!(
+            dict_name_value(objstm, &spans, 0, objstm.len() as u64, b"Type"),
+            Some(b"ObjStm".as_slice())
+        );
+    }
+
+    #[test]
+    fn dict_name_value_absent_key_and_non_name_value_return_none() {
+        let absent = b"<< /Foo /XRef >>";
+        let spans = lexed(absent);
+        assert_eq!(
+            dict_name_value(absent, &spans, 0, absent.len() as u64, b"Type"),
+            None
+        );
+
+        let non_name = b"<< /Type 5 >>";
+        let spans = lexed(non_name);
+        assert_eq!(
+            dict_name_value(non_name, &spans, 0, non_name.len() as u64, b"Type"),
+            None
+        );
+    }
+
+    #[test]
+    fn dict_name_value_inside_string_is_not_a_key() {
+        let input = b"<< /X ( /Type /XRef ) >>";
+        let spans = lexed(input);
+        assert_eq!(
+            dict_name_value(input, &spans, 0, input.len() as u64, b"Type"),
+            None
+        );
+    }
+
+    #[test]
+    fn dict_int_or_ref_reads_direct_and_reference() {
+        let direct = b"<< /Prev 1234 >>";
+        let spans = lexed(direct);
+        assert_eq!(
+            dict_int_or_ref(direct, &spans, 0, direct.len() as u64, b"Prev"),
+            Some(LengthValue::Direct(1234))
+        );
+
+        let reference = b"<< /Prev 7 0 R >>";
+        let spans = lexed(reference);
+        assert_eq!(
+            dict_int_or_ref(reference, &spans, 0, reference.len() as u64, b"Prev"),
+            Some(LengthValue::Indirect {
+                number: 7,
+                generation: 0,
+            })
+        );
+    }
+
+    #[test]
+    fn dict_int_or_ref_rejects_non_integer_and_absent() {
+        let name_value = b"<< /Prev /X >>";
+        let spans = lexed(name_value);
+        assert_eq!(
+            dict_int_or_ref(name_value, &spans, 0, name_value.len() as u64, b"Prev"),
+            None
+        );
+
+        let absent = b"<< /Size 4 >>";
+        let spans = lexed(absent);
+        assert_eq!(
+            dict_int_or_ref(absent, &spans, 0, absent.len() as u64, b"Prev"),
+            None
+        );
     }
 
     #[test]

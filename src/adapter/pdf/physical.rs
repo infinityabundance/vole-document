@@ -24,7 +24,9 @@
 use crate::error::{Error, Result};
 use crate::limits::Limits;
 
-use super::cos::{LengthValue, body_as_u64, dict_has_length, dict_length};
+use super::cos::{
+    LengthValue, body_as_u64, dict_has_length, dict_int_or_ref, dict_length, dict_name_value,
+};
 use super::lexer::lex;
 use super::span::{Span, SpanKind};
 
@@ -68,6 +70,23 @@ pub struct PhysicalSpan {
     pub kind: PhysicalKind,
 }
 
+/// The structural role of an indirect object, inferred from its leading
+/// dictionary.
+///
+/// The classification is deliberately conservative: only a leading `<<...>>`
+/// dictionary whose `/Type` is a simple name is inspected, so anything ambiguous
+/// remains [`ObjRole::Generic`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjRole {
+    /// An ordinary object, or one whose role could not be established.
+    Generic,
+    /// An object whose leading dictionary is `/Type /XRef` (a cross-reference
+    /// stream).
+    XRefStream,
+    /// An object whose leading dictionary is `/Type /ObjStm` (an object stream).
+    ObjectStream,
+}
+
 /// An indirect object discovered in file order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PdfObjectSpan {
@@ -79,6 +98,8 @@ pub struct PdfObjectSpan {
     pub start: u64,
     /// Offset just past the closing `endobj`.
     pub end: u64,
+    /// Structural role inferred from the leading dictionary.
+    pub role: ObjRole,
 }
 
 /// How a stream's data length was determined.
@@ -111,11 +132,18 @@ pub struct PdfStreamSpan {
 
 /// One incremental-update revision, delimited by a terminating `%%EOF`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RevisionRange {
+pub struct RevisionInfo {
+    /// Zero-based position of the revision in file order.
+    pub index: u32,
     /// First byte of the revision.
     pub start: u64,
     /// Byte just past the terminating `%%EOF` comment.
     pub end: u64,
+    /// The recorded `startxref` value whose keyword lies in this revision.
+    pub startxref: Option<u64>,
+    /// The resolved `/Prev` offset of this revision's cross-reference anchor, if
+    /// any.
+    pub prev: Option<u64>,
 }
 
 /// The physical summary of a PDF input.
@@ -127,8 +155,8 @@ pub struct PdfPhysical {
     pub objects: Vec<PdfObjectSpan>,
     /// Resolved stream payload spans, in file order.
     pub streams: Vec<PdfStreamSpan>,
-    /// Revision ranges delimited by `%%EOF`, in file order.
-    pub revisions: Vec<RevisionRange>,
+    /// Revision records delimited by `%%EOF`, in file order.
+    pub revisions: Vec<RevisionInfo>,
     /// Recorded `startxref` values, in file order.
     pub startxref: Vec<u64>,
     /// Offsets of `%%EOF` markers, in file order.
@@ -247,8 +275,7 @@ pub fn scan(input: &[u8], limits: Limits) -> Result<PdfPhysical> {
         i += 1;
     }
 
-    let mut physical = state.finish();
-    physical.revisions = revisions_from(input, &physical.eofs, &spans);
+    let physical = state.finish(input, &spans);
     physical.validate(declared_len)?;
     Ok(physical)
 }
@@ -259,8 +286,9 @@ struct ScanState {
     objects: Vec<PdfObjectSpan>,
     streams: Vec<PdfStreamSpan>,
     obj_bodies: Vec<ObjBody>,
-    startxref: Vec<u64>,
+    startxref: Vec<(u64, u64)>,
     eofs: Vec<u64>,
+    trailer_dicts: Vec<(u64, u64)>,
     header: Option<(u64, u64)>,
 }
 
@@ -273,6 +301,7 @@ impl ScanState {
             obj_bodies,
             startxref: Vec::new(),
             eofs: Vec::new(),
+            trailer_dicts: Vec::new(),
             header: None,
         }
     }
@@ -281,13 +310,21 @@ impl ScanState {
         self.builder.push(start, len, kind)
     }
 
-    fn finish(self) -> PdfPhysical {
+    fn finish(self, input: &[u8], spans: &[Span]) -> PdfPhysical {
+        let revisions = build_revisions(
+            input,
+            spans,
+            &self.eofs,
+            &self.objects,
+            &self.startxref,
+            &self.trailer_dicts,
+        );
         PdfPhysical {
             spans: self.builder.spans,
             objects: self.objects,
             streams: self.streams,
-            revisions: Vec::new(),
-            startxref: self.startxref,
+            revisions,
+            startxref: self.startxref.iter().map(|&(_, value)| value).collect(),
             eofs: self.eofs,
             header: self.header,
         }
@@ -305,6 +342,7 @@ impl ScanState {
     ) -> Result<usize> {
         let obj_header_start = spans[i].start;
         let obj_kw_end = spans[i + 4].start + spans[i + 4].len;
+        let role = leading_dict_role(input, spans, i + 5);
         self.push(
             obj_header_start,
             obj_kw_end - obj_header_start,
@@ -373,6 +411,7 @@ impl ScanState {
                     generation,
                     start: obj_header_start,
                     end: spans[m].start + spans[m].len,
+                    role,
                 });
                 Ok(m + 1)
             }
@@ -435,7 +474,10 @@ impl ScanState {
             && spans[dict_idx].kind == SpanKind::DictOpen
             && let Some(close) = matching_dict_close(spans, dict_idx)
         {
-            end = spans[close].start + spans[close].len;
+            let lo = spans[dict_idx].start;
+            let hi = spans[close].start + spans[close].len;
+            self.trailer_dicts.push((lo, hi));
+            end = hi;
             next = close + 1;
         }
         if end > start {
@@ -454,7 +496,7 @@ impl ScanState {
             let start = spans[i].start;
             let end = spans[i + 2].start + spans[i + 2].len;
             self.push(start, end - start, PhysicalKind::StartXref)?;
-            self.startxref.push(value);
+            self.startxref.push((start, value));
             return Ok(Some(i + 3));
         }
         Ok(None)
@@ -836,18 +878,111 @@ fn byte_at(input: &[u8], offset: u64) -> Option<u8> {
         .and_then(|i| input.get(i).copied())
 }
 
-/// Build revision ranges from the `%%EOF` offsets. `end` is the byte just past
+/// Build revision records from the `%%EOF` offsets. `end` is the byte just past
 /// the comment; `start` is `0` for the first revision, otherwise the previous
 /// revision's end advanced by at most one optional EOL.
-fn revisions_from(input: &[u8], eofs: &[u64], spans: &[Span]) -> Vec<RevisionRange> {
+fn build_revisions(
+    input: &[u8],
+    spans: &[Span],
+    eofs: &[u64],
+    objects: &[PdfObjectSpan],
+    startxref: &[(u64, u64)],
+    trailers: &[(u64, u64)],
+) -> Vec<RevisionInfo> {
     let mut out = Vec::with_capacity(eofs.len());
     let mut start = 0u64;
-    for &e in eofs {
+    for (index, &e) in eofs.iter().enumerate() {
         let end = span_end_at(spans, e).unwrap_or(e);
-        out.push(RevisionRange { start, end });
+        let startxref = startxref
+            .iter()
+            .find(|&&(keyword, _)| keyword >= start && keyword < end)
+            .map(|&(_, value)| value);
+        let prev = resolve_prev(input, spans, start, end, objects, trailers);
+        out.push(RevisionInfo {
+            index: index as u32,
+            start,
+            end,
+            startxref,
+            prev,
+        });
         start = end + eol_len_after(input, end);
     }
     out
+}
+
+/// Resolve a revision's `/Prev` offset from its cross-reference anchor: the
+/// classic `trailer` dict if present in the revision, otherwise an `XRefStream`
+/// object's leading dict. A direct integer is used as-is; a reference is mapped
+/// to the referenced object's offset when that object exists. Returns `None` when
+/// there is no anchor, no `/Prev`, or an unresolvable reference.
+fn resolve_prev(
+    input: &[u8],
+    spans: &[Span],
+    rev_start: u64,
+    rev_end: u64,
+    objects: &[PdfObjectSpan],
+    trailers: &[(u64, u64)],
+) -> Option<u64> {
+    let trailer = trailers
+        .iter()
+        .rev()
+        .find(|&&(lo, _)| lo >= rev_start && lo < rev_end);
+    let (dict_lo, dict_hi) = match trailer {
+        Some(&(lo, hi)) => (lo, hi),
+        None => {
+            let object = objects.iter().find(|o| {
+                o.role == ObjRole::XRefStream && o.start >= rev_start && o.start < rev_end
+            })?;
+            leading_dict_range_at(input, spans, object.start)?
+        }
+    };
+    match dict_int_or_ref(input, spans, dict_lo, dict_hi, b"Prev") {
+        Some(LengthValue::Direct(n)) => Some(n),
+        Some(LengthValue::Indirect { number, generation }) => objects
+            .iter()
+            .find(|o| o.number == number && o.generation == generation)
+            .map(|o| o.start),
+        None => None,
+    }
+}
+
+/// Range `[lo, hi)` of the `<<...>>` dictionary immediately following the `obj`
+/// keyword (skipping whitespace/comments), or `None` if the next significant
+/// token is not a dict opener.
+fn leading_dict_range(spans: &[Span], after: usize) -> Option<(u64, u64)> {
+    let mut j = after;
+    while j < spans.len() && matches!(spans[j].kind, SpanKind::Whitespace | SpanKind::Comment) {
+        j += 1;
+    }
+    if j >= spans.len() || spans[j].kind != SpanKind::DictOpen {
+        return None;
+    }
+    let close = matching_dict_close(spans, j)?;
+    Some((spans[j].start, spans[close].start + spans[close].len))
+}
+
+/// Classify an object by its leading dictionary's `/Type`. Conservative: only a
+/// simple name value yields a non-generic role.
+fn leading_dict_role(input: &[u8], spans: &[Span], after: usize) -> ObjRole {
+    let Some((lo, hi)) = leading_dict_range(spans, after) else {
+        return ObjRole::Generic;
+    };
+    match dict_name_value(input, spans, lo, hi, b"Type") {
+        Some(name) if name == b"XRef".as_slice() => ObjRole::XRefStream,
+        Some(name) if name == b"ObjStm".as_slice() => ObjRole::ObjectStream,
+        _ => ObjRole::Generic,
+    }
+}
+
+/// Range `[lo, hi)` of the leading dictionary of the object whose introducer
+/// starts at `start`, or `None` if no object introducer begins there.
+fn leading_dict_range_at(input: &[u8], spans: &[Span], start: u64) -> Option<(u64, u64)> {
+    let idx = spans.partition_point(|sp| sp.start < start);
+    if idx >= spans.len() || spans[idx].start != start {
+        return None;
+    }
+    obj_header_at(input, spans, idx)?;
+    leading_dict_range(spans, idx + 5)
 }
 
 /// End offset of the span containing `offset`, if the offset lies within one.
@@ -1194,18 +1329,101 @@ mod tests {
         assert_eq!(
             p.revisions,
             vec![
-                RevisionRange {
+                RevisionInfo {
+                    index: 0,
                     start: 0,
                     end: rev1_end,
+                    startxref: None,
+                    prev: None,
                 },
-                RevisionRange {
+                RevisionInfo {
+                    index: 1,
                     start: rev1_end + 1,
                     end: rev2_end,
+                    startxref: None,
+                    prev: None,
                 },
             ]
         );
         assert_eq!(rev2_end, pdf.len() as u64);
         assert_eq!(p.objects.len(), 2);
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn classic_xref_revision_records_startxref_and_no_prev() {
+        let pdf = canonical_pdf();
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+        assert_eq!(p.revisions.len(), 1);
+        let r = p.revisions[0];
+        assert_eq!(r.index, 0);
+        assert_eq!(r.start, 0);
+        assert_eq!(r.end, pdf.len() as u64);
+        assert_eq!(r.startxref, Some(321));
+        assert_eq!(r.prev, None);
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn incremental_classic_trailer_prev_resolves_to_first_xref() {
+        let rev1 = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\nxref\n0 2\n0000000000 65535 f \n0000000009 00000 n \ntrailer\n<< /Size 2 /Root 1 0 R >>\nstartxref\n9\n%%EOF\n";
+        let x1 = rev1
+            .windows(4)
+            .position(|w| w == b"xref")
+            .expect("xref present") as u64;
+        let rev2 = format!(
+            "2 0 obj\n<< /Type /Pages >>\nendobj\nxref\n0 3\n0000000000 65535 f \n0000000009 00000 n \n0000000042 00000 n \ntrailer\n<< /Size 3 /Prev {x1} /Root 1 0 R >>\nstartxref\n777\n%%EOF"
+        );
+        let mut pdf = Vec::new();
+        pdf.extend_from_slice(rev1);
+        pdf.extend_from_slice(rev2.as_bytes());
+
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+        assert_eq!(p.revisions.len(), 2);
+        assert_eq!(p.revisions[0].index, 0);
+        assert_eq!(p.revisions[0].startxref, Some(9));
+        assert_eq!(p.revisions[0].prev, None);
+        assert_eq!(p.revisions[1].index, 1);
+        assert_eq!(p.revisions[1].startxref, Some(777));
+        assert_eq!(p.revisions[1].prev, Some(x1));
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn xref_stream_anchor_prev_reference_is_resolved() {
+        let rev1 = b"%PDF-1.5\n1 0 obj\n<< >>\nendobj\nstartxref\n0\n%%EOF\n";
+        let rev2 = b"2 0 obj\n<< /Type /XRef /Prev 3 0 R >>\nendobj\n3 0 obj\n<< >>\nendobj\nstartxref\n0\n%%EOF";
+        let mut pdf = Vec::new();
+        pdf.extend_from_slice(rev1);
+        pdf.extend_from_slice(rev2);
+        let obj3_start = pdf
+            .windows(8)
+            .position(|w| w == b"3 0 obj\n")
+            .expect("object 3 present") as u64;
+
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+        assert_eq!(p.revisions.len(), 2);
+        assert_eq!(p.revisions[0].prev, None);
+        assert_eq!(p.revisions[1].prev, Some(obj3_start));
+        assert_eq!(
+            p.objects.iter().find(|o| o.number == 2).unwrap().role,
+            ObjRole::XRefStream
+        );
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn object_roles_are_classified_from_leading_dict() {
+        let pdf = b"%PDF-1.5\n1 0 obj\n<< /Type /Catalog >>\nendobj\n2 0 obj\n<< /Type /XRef >>\nendobj\n3 0 obj\n<< /Type /ObjStm /N 0 >>\nendobj\n4 0 obj\n<< /Foo /Bar >>\nendobj\n5 0 obj\n<< /Type 5 >>\nendobj\n6 0 obj\n42\nendobj\n7 0 obj\n<< /Foo ( /Type /XRef ) >>\nendobj\n".to_vec();
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+        let role = |n: u64| p.objects.iter().find(|o| o.number == n).unwrap().role;
+        assert_eq!(role(1), ObjRole::Generic);
+        assert_eq!(role(2), ObjRole::XRefStream);
+        assert_eq!(role(3), ObjRole::ObjectStream);
+        assert_eq!(role(4), ObjRole::Generic);
+        assert_eq!(role(5), ObjRole::Generic);
+        assert_eq!(role(6), ObjRole::Generic);
+        assert_eq!(role(7), ObjRole::Generic);
         p.validate(pdf.len() as u64).unwrap();
     }
 

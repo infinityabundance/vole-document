@@ -9,10 +9,12 @@ pub mod lexer;
 pub mod physical;
 pub mod span;
 
-pub use cos::{LengthValue, body_as_u64, dict_has_length, dict_length};
+pub use cos::{
+    LengthValue, body_as_u64, dict_has_length, dict_int_or_ref, dict_length, dict_name_value,
+};
 pub use lexer::{LexIssue, LexResult, lex};
 pub use physical::{
-    LengthSource, PdfObjectSpan, PdfPhysical, PdfStreamSpan, PhysicalKind, PhysicalSpan,
-    RevisionRange, scan,
+    LengthSource, ObjRole, PdfObjectSpan, PdfPhysical, PdfStreamSpan, PhysicalKind, PhysicalSpan,
+    RevisionInfo, scan,
 };
 pub use span::{Span, SpanKind, SpanSet};
