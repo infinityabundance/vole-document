@@ -384,6 +384,8 @@ fn describe_op(op: &Op) -> String {
             payload_channel_count,
             ..
         } => format!("INTERLEAVE_CHANNELS({first_payload_channel},{payload_channel_count})"),
+        Op::MarkOffset { slot } => format!("MARK_OFFSET({slot})"),
+        Op::EmitOffset { slot, width } => format!("EMIT_OFFSET({slot},{width})"),
     }
 }
 

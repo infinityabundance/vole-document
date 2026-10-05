@@ -22,7 +22,7 @@ use crate::limits::Limits;
 /// new universe string. The `universe_id` in the header is the first 16 bytes
 /// of SHA-256 over this string.
 pub const UNIVERSE: &str =
-    "vole-document;universe;phase-4;exact-bytes;dra-3;opaque+entropy+pdf+channels";
+    "vole-document;universe;phase-5;exact-bytes;dra-4;opaque+entropy+pdf+channels+offsets";
 
 /// First 16 bytes of SHA-256 over a universe declaration string.
 pub fn universe_id_from_str(universe: &str) -> [u8; 16] {
