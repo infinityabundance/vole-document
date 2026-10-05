@@ -20,7 +20,9 @@ pub use channels::{KIND_COUNT, TokenChannelPlan, join, kind_from_id, kind_id, sp
 pub use cos::{
     LengthValue, body_as_u64, dict_has_length, dict_int_or_ref, dict_length, dict_name_value,
 };
-pub use layout::propose_pdf_layout;
+#[cfg(feature = "rans")]
+pub use layout::propose_pdf_layout_rans;
+pub use layout::{build_layout_plan, propose_pdf_layout};
 pub use lexer::{LexIssue, LexResult, lex};
 pub use physical::{
     LengthSource, ObjRole, PdfObjectSpan, PdfPhysical, PdfStreamSpan, PhysicalKind, PhysicalSpan,

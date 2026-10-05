@@ -51,7 +51,10 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | PDF layout candidate (`PDF_LAYOUT`) | **Recorded (rejected on cost)** | campaign `2026-10-05-phase5-7193001`; byte-exact and predicts xref offsets/`startxref`, but loses to RAW/`BYTE_RANS` on DRA framing cost (ADR-0011) |
 | Packed segment framing (`PACK_SEGMENTS`, DRA v5) | **Implemented** | `src/dra/op.rs`; opcode `0x08`, one op + a compact varint item table over a single data object, amortizing per-segment framing |
 | PDF layout on packed framing (layout-v2) | **Recorded (beats RAW at scale, rejected vs `BYTE_RANS`)** | campaign `2026-10-05-phase5-4521778`; packed+coalesced layout beats RAW on `many.pdf` (10,069 vs 10,215) but still loses to `BYTE_RANS` (5,181); residual stored literally (ADR-0012) |
+| `PACKED_CHANNELS` DRA op (DRA v6) | **Implemented** | opcode `0x09`; reconstructs from a data channel + a plan channel (serialized item table) with a declared output length validated at eval; universe → `phase5-8` |
+| PDF layout + rANS (`PDF_LAYOUT_RANS`) | **Recorded — rejected vs `BYTE_RANS`** | campaign `2026-10-05-phase5-8-cf8048d`; byte-exact, but wins 0 / loses 8 / declines 3 head-to-head (ADR-0013) |
 | Phase-5 forced-candidate court (`--force pdf-layout`) | **Measured** | `tools/phase5-court.sh`; campaigns `2026-10-05-phase5-7193001` and `2026-10-05-phase5-4521778` |
+| Phase-5.8 forced-candidate court (`--force pdf-layout-rans`) | **Measured** | `tools/phase5-8-court.sh`; campaign `2026-10-05-phase5-8-cf8048d` |
 | PDF structural adapters (Phases 6–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
@@ -242,6 +245,43 @@ layered model — not more literal packing. This is recorded as a partial positi
 Receipt:
 [`evidence/campaigns/2026-10-05-phase5-4521778/`](evidence/campaigns/2026-10-05-phase5-4521778/).
 
+### Layout + rANS residual (Phase 5.8) measured results
+
+Phase 5.8 builds the lever ADR-0012 named: the `PACKED_CHANNELS` DRA op (opcode
+`0x09`, DRA **v6**, universe
+`phase5-8;…;dra-6;…+packed+packed-channels`) reconstructs from a **data channel**
+plus a **plan channel** (the serialized item table) with a declared output length
+validated at eval, and the `PDF_LAYOUT_RANS` candidate codes the layout plan's
+data object and its item table each as their own order-0 rANS channel. The sealed
+campaign `2026-10-05-phase5-8-cf8048d` runs the forced-candidate ablation over the
+11-file corpus:
+
+```text
+A0 RAW               = 81591
+A2 + BYTE_RANS       = 48818
+A6 + PDF_LAYOUT_RANS = 48818     leave-one-out layout+rANS delta = 0
+```
+
+Forced sizes:
+
+```text
+classic.pdf  RAW 683  BYTE_RANS 728  PDF_LAYOUT 731  PDF_LAYOUT_RANS 883
+bigtext.pdf  RAW 65903  BYTE_RANS 38174  PDF_LAYOUT_RANS 38341
+many.pdf     RAW 10235  BYTE_RANS 5201  PDF_LAYOUT 10089  PDF_LAYOUT_RANS 5914
+```
+
+On `many.pdf` the layout+rANS size breaks down as data 7,877, plan 1,815, models
+645, payload 4,775. Head-to-head against `BYTE_RANS`: **win 0, lose 8, declined
+3**. The honest conclusion: layout+rANS does **not** beat `BYTE_RANS`. Channel 0
+codes nearly the whole file — the same job `BYTE_RANS` does with one channel — so
+the plan channel (1,815 B on `many.pdf`) plus a second model are added metadata
+`BYTE_RANS` never pays. Three phases (4, 5, 5.7) plus this one converge: at the
+tested scale, PDF structural proceduralization does not beat a whole-file order-0
+rANS lane.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase5-8-cf8048d/`](evidence/campaigns/2026-10-05-phase5-8-cf8048d/).
+
 ## Quick start (Docker only)
 
 All project commands run inside pinned containers. The host only invokes Docker.
@@ -277,8 +317,9 @@ vole-document capabilities
 
 `encode --force KIND` forces the complete-cost court to consider only one
 candidate family (`raw`, `rle`, `byte-rans`, `pdf-physical`, `pdf-channels`,
-`pdf-layout`) for honest per-mechanism ablation; it never bypasses exactness,
-and it fails with a typed usage error when the input does not propose that kind.
+`pdf-layout`, `pdf-layout-rans`) for honest per-mechanism ablation; it never
+bypasses exactness, and it fails with a typed usage error when the input does not
+propose that kind.
 
 ## Repository layout
 

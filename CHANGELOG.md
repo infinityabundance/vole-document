@@ -2,6 +2,59 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.7] — unreleased
+
+### Added
+
+- Phase 5.8 — layout + rANS residual:
+  - `PACKED_CHANNELS` DRA op (opcode `0x09`), bumping the DRA graph to version
+    `6`. It reconstructs output from a **data** entropy channel interpreted by a
+    serialized item table carried in a **plan** entropy channel, with a declared
+    output length validated at evaluation. Unknown tags, truncation, unmarked
+    slots, bad widths, literal overruns, missing channels, a declared-length
+    mismatch, and unconsumed data are rejected with typed errors before an inexact
+    result is ever returned.
+  - `PDF_LAYOUT_RANS` candidate: codes the layout plan's literal data object
+    (channel 0) and `encode_items` of its item table (channel 1) each as their own
+    order-0 byte-rANS channel with its own model, reconstructed by one
+    `PACKED_CHANNELS` op. Byte-exact and verified serialize → parse → materialize →
+    byte-compare before it is returned.
+  - `encode --force` accepts `pdf-layout-rans`.
+- Phase-5.8 universe string
+  `vole-document;universe;phase5-8;exact-bytes;dra-6;opaque+entropy+pdf+channels+offsets+packed+packed-channels`.
+- Courts: layout+rANS gates in `src/adapter/pdf/layout.rs`, the `PACKED_CHANNELS`
+  evaluator gates in `src/dra/program.rs`, and the Phase-5.8 forced-candidate
+  ablation court `tools/phase5-8-court.sh` over the 11-file corpus.
+
+### Measured
+
+- Campaign `2026-10-05-phase5-8-cf8048d` (verdict PASS): an 11-file corpus; every
+  auto winner round-trips byte-exactly (`cmp` + `verify`).
+- Cumulative ladder (serialized `.voldoc` bytes): A0 RAW = 81,591;
+  A2 +BYTE_RANS = 48,818; A6 +PDF_LAYOUT_RANS = 48,818. Leave-one-out layout+rANS
+  delta = 0; layout+rANS wins 0 of 8 head-to-head comparisons and is never the
+  auto winner.
+- Forced sizes: `classic.pdf` RAW **683** / `BYTE_RANS` **728** / `PDF_LAYOUT`
+  **731** / `PDF_LAYOUT_RANS` **883**; `bigtext.pdf` RAW **65,903** /
+  `BYTE_RANS` **38,174** / `PDF_LAYOUT_RANS` **38,341**; `many.pdf` RAW **10,235**
+  / `BYTE_RANS` **5,201** / `PDF_LAYOUT` **10,089** / `PDF_LAYOUT_RANS` **5,914**
+  (breakdown: data 7,877, plan 1,815, models 645, payload 4,775).
+- **Recorded negative result:** head-to-head against `BYTE_RANS` the layout+rANS
+  candidate wins 0, loses 8, and is declined by 3 files. Channel 0 codes nearly
+  the whole file — the same job `BYTE_RANS` does with one channel — while the plan
+  channel plus a second model are added metadata `BYTE_RANS` never pays.
+  `PDF_LAYOUT_RANS` stays implemented and available but is **rejected by the
+  complete-cost court**. Receipt under
+  `evidence/campaigns/2026-10-05-phase5-8-cf8048d/`.
+
+### Notes
+
+- The wire format remains **PROVISIONAL** and is not frozen v1. `PACKED_CHANNELS`
+  (DRA v6) is exact and bounded; `PDF_LAYOUT_RANS` is `RECORDED (rejected vs
+  BYTE_RANS)`. This is the fourth converging negative (ADR-0010, ADR-0011,
+  ADR-0012, ADR-0013): at the tested scale, PDF structural proceduralization does
+  not beat a whole-file order-0 rANS lane.
+
 ## [0.1.0-alpha.6] — unreleased
 
 ### Added

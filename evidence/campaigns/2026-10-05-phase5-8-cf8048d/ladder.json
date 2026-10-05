@@ -1,0 +1,38 @@
+{
+  "campaign": "2026-10-05-phase5-8-cf8048d",
+  "units": "bytes",
+  "corpus_files": 11,
+  "A0": 81591,
+  "A1": 81591,
+  "A2": 48818,
+  "A3": 48818,
+  "A4": 48818,
+  "A5": 48818,
+  "A6": 48818,
+  "ladder_map": {
+    "A0": "RAW",
+    "A1": "min(RAW,RLE)",
+    "A2": "min(A1,BYTE_RANS)",
+    "A3": "min(A2,PDF_PHYSICAL)",
+    "A4": "min(A3,PDF_CHANNELS)",
+    "A5": "min(A4,PDF_LAYOUT)",
+    "A6": "min(A5,PDF_LAYOUT_RANS)"
+  },
+  "A6_without_layout_rans": 48818,
+  "leave_one_out_layout_rans_delta": 0,
+  "winners_count": {
+    "RAW": 8,
+    "RLE": 0,
+    "BYTE_RANS": 3,
+    "PDF_PHYSICAL": 0,
+    "PDF_CHANNELS": 0,
+    "PDF_LAYOUT": 0,
+    "PDF_LAYOUT_RANS": 0
+  },
+  "layout_rans_vs_byte_rans": {
+    "win": 0,
+    "lose": 8,
+    "tie": 0,
+    "declined": 3
+  }
+}

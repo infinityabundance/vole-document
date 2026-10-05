@@ -70,6 +70,20 @@ pub enum Op {
         /// Ordered items describing the reconstruction.
         items: Vec<PackItem>,
     },
+    /// Reconstruct output from a *data* entropy channel interpreted by a
+    /// serialized item table carried in a *plan* entropy channel. This lets one
+    /// layout plan travel through rANS-coded channels instead of a literal data
+    /// object, so the plan and its data pay entropy-coding cost together. The
+    /// plan channel holds exactly [`encode_items`] of the item table, and the
+    /// data channel must be consumed exactly.
+    PackedChannels {
+        /// Index into the descriptor's entropy channel table for the data.
+        data_channel: u32,
+        /// Index into the descriptor's entropy channel table for the plan.
+        plan_channel: u32,
+        /// Exact reconstructed output length; must equal the produced length.
+        declared_output_len: u64,
+    },
 }
 
 /// One item in a [`Op::PackSegments`] item table.
@@ -110,6 +124,8 @@ pub const OP_MARK_OFFSET: u8 = 0x06;
 pub const OP_EMIT_OFFSET: u8 = 0x07;
 /// Opcode byte for [`Op::PackSegments`].
 pub const OP_PACK_SEGMENTS: u8 = 0x08;
+/// Opcode byte for [`Op::PackedChannels`].
+pub const OP_PACKED_CHANNELS: u8 = 0x09;
 
 /// Item tag for [`PackItem::Literal`].
 const PACK_ITEM_LITERAL: u8 = 0x01;
@@ -163,28 +179,19 @@ impl Op {
                 out.push(*width);
             }
             Op::PackSegments { data_object, items } => {
-                let count = u32::try_from(items.len())
-                    .map_err(|_| Error::resource_limit("packed item table exceeds 4 GiB"))?;
                 out.push(OP_PACK_SEGMENTS);
                 out.extend_from_slice(&data_object.to_le_bytes());
-                out.extend_from_slice(&count.to_le_bytes());
-                for item in items {
-                    match item {
-                        PackItem::Literal { len } => {
-                            out.push(PACK_ITEM_LITERAL);
-                            write_leb128_u32(*len, out);
-                        }
-                        PackItem::Mark { slot } => {
-                            out.push(PACK_ITEM_MARK);
-                            out.push(*slot);
-                        }
-                        PackItem::Emit { slot, width } => {
-                            out.push(PACK_ITEM_EMIT);
-                            out.push(*slot);
-                            out.push(*width);
-                        }
-                    }
-                }
+                write_item_table(items, out)?;
+            }
+            Op::PackedChannels {
+                data_channel,
+                plan_channel,
+                declared_output_len,
+            } => {
+                out.push(OP_PACKED_CHANNELS);
+                out.extend_from_slice(&data_channel.to_le_bytes());
+                out.extend_from_slice(&plan_channel.to_le_bytes());
+                out.extend_from_slice(&declared_output_len.to_le_bytes());
             }
         }
         Ok(())
@@ -253,46 +260,125 @@ impl Op {
             OP_PACK_SEGMENTS => {
                 let data_object = read_u32(data, pos)?;
                 let item_count = read_u32(data, pos)?;
-                if item_count > limits.max_graph_ops {
-                    return Err(Error::resource_limit(format!(
-                        "packed item count {item_count} exceeds limit {}",
-                        limits.max_graph_ops
-                    )));
-                }
-                let mut items = Vec::with_capacity(item_count.min(4096) as usize);
-                for _ in 0..item_count {
-                    let tag = *data
-                        .get(*pos)
-                        .ok_or_else(|| Error::invalid_graph("truncated packed item"))?;
-                    *pos += 1;
-                    match tag {
-                        PACK_ITEM_LITERAL => {
-                            let len = read_leb128_u32(data, pos)?;
-                            items.push(PackItem::Literal { len });
-                        }
-                        PACK_ITEM_MARK => {
-                            let slot = read_u8(data, pos)?;
-                            items.push(PackItem::Mark { slot });
-                        }
-                        PACK_ITEM_EMIT => {
-                            let slot = read_u8(data, pos)?;
-                            let width = read_u8(data, pos)?;
-                            items.push(PackItem::Emit { slot, width });
-                        }
-                        other => {
-                            return Err(Error::invalid_graph(format!(
-                                "unknown packed item tag {other:#04x}"
-                            )));
-                        }
-                    }
-                }
+                let items = read_items(data, pos, item_count, limits)?;
                 Ok(Op::PackSegments { data_object, items })
+            }
+            OP_PACKED_CHANNELS => {
+                let data_channel = read_u32(data, pos)?;
+                let plan_channel = read_u32(data, pos)?;
+                let declared_output_len = read_u64(data, pos)?;
+                Ok(Op::PackedChannels {
+                    data_channel,
+                    plan_channel,
+                    declared_output_len,
+                })
             }
             other => Err(Error::invalid_graph(format!(
                 "unknown DRA opcode {other:#04x}"
             ))),
         }
     }
+}
+
+/// Encode `items` into the shared packed-item wire form
+/// `[item_count u32 LE][items...]`.
+///
+/// This is the canonical codec used by both [`Op::PackSegments`] (inline in the
+/// graph record) and [`Op::PackedChannels`] (carried in a plan entropy channel),
+/// so the two never diverge.
+pub fn encode_items(items: &[PackItem]) -> Result<Vec<u8>> {
+    let mut out = Vec::with_capacity(4 + items.len() * 3);
+    write_item_table(items, &mut out)?;
+    Ok(out)
+}
+
+/// Decode a complete `[item_count u32 LE][items...]` table from `bytes`.
+///
+/// Bounded: rejects truncation, unknown item tags, a count above
+/// [`Limits::max_graph_ops`], and trailing bytes past the table.
+pub fn decode_items(bytes: &[u8], limits: Limits) -> Result<Vec<PackItem>> {
+    if bytes.len() < 4 {
+        return Err(Error::invalid_graph("truncated packed item table header"));
+    }
+    let count = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+    let mut pos = 4usize;
+    let items = read_items(bytes, &mut pos, count, limits)?;
+    if pos != bytes.len() {
+        return Err(Error::invalid_graph(format!(
+            "packed item table has {} trailing bytes",
+            bytes.len() - pos
+        )));
+    }
+    Ok(items)
+}
+
+/// Append the full item table (`[item_count u32 LE][items...]`) to `out`.
+fn write_item_table(items: &[PackItem], out: &mut Vec<u8>) -> Result<()> {
+    let count = u32::try_from(items.len())
+        .map_err(|_| Error::resource_limit("packed item table exceeds 4 GiB"))?;
+    out.extend_from_slice(&count.to_le_bytes());
+    write_items_into(items, out)
+}
+
+/// Append the item list (without the count prefix) to `out`.
+fn write_items_into(items: &[PackItem], out: &mut Vec<u8>) -> Result<()> {
+    for item in items {
+        match item {
+            PackItem::Literal { len } => {
+                out.push(PACK_ITEM_LITERAL);
+                write_leb128_u32(*len, out);
+            }
+            PackItem::Mark { slot } => {
+                out.push(PACK_ITEM_MARK);
+                out.push(*slot);
+            }
+            PackItem::Emit { slot, width } => {
+                out.push(PACK_ITEM_EMIT);
+                out.push(*slot);
+                out.push(*width);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Decode `count` items from `data[*pos..]`, advancing `*pos`. Shared by the
+/// inline [`Op::PackSegments`] table and [`decode_items`].
+fn read_items(data: &[u8], pos: &mut usize, count: u32, limits: Limits) -> Result<Vec<PackItem>> {
+    if count > limits.max_graph_ops {
+        return Err(Error::resource_limit(format!(
+            "packed item count {count} exceeds limit {}",
+            limits.max_graph_ops
+        )));
+    }
+    let mut items = Vec::with_capacity(count.min(4096) as usize);
+    for _ in 0..count {
+        let tag = *data
+            .get(*pos)
+            .ok_or_else(|| Error::invalid_graph("truncated packed item"))?;
+        *pos += 1;
+        match tag {
+            PACK_ITEM_LITERAL => {
+                let len = read_leb128_u32(data, pos)?;
+                items.push(PackItem::Literal { len });
+            }
+            PACK_ITEM_MARK => {
+                let slot = read_u8(data, pos)?;
+                items.push(PackItem::Mark { slot });
+            }
+            PACK_ITEM_EMIT => {
+                let slot = read_u8(data, pos)?;
+                let width = read_u8(data, pos)?;
+                items.push(PackItem::Emit { slot, width });
+            }
+            other => {
+                return Err(Error::invalid_graph(format!(
+                    "unknown packed item tag {other:#04x}"
+                )));
+            }
+        }
+    }
+    Ok(items)
 }
 
 fn read_u8(data: &[u8], pos: &mut usize) -> Result<u8> {
@@ -337,6 +423,19 @@ fn read_leb128_u32(data: &[u8], pos: &mut usize) -> Result<u32> {
         }
     }
     Err(Error::invalid_graph("LEB128 varint overflows u32"))
+}
+
+fn read_u64(data: &[u8], pos: &mut usize) -> Result<u64> {
+    let end = pos
+        .checked_add(8)
+        .ok_or_else(|| Error::invalid_graph("operand offset overflow"))?;
+    if end > data.len() {
+        return Err(Error::invalid_graph("truncated instruction operand"));
+    }
+    let mut buf = [0u8; 8];
+    buf.copy_from_slice(&data[*pos..end]);
+    *pos = end;
+    Ok(u64::from_le_bytes(buf))
 }
 
 fn read_u32(data: &[u8], pos: &mut usize) -> Result<u32> {
@@ -391,6 +490,16 @@ mod tests {
                 PackItem::Literal { len: 300 },
                 PackItem::Emit { slot: 0, width: 3 },
             ],
+        });
+        roundtrip(Op::PackedChannels {
+            data_channel: 0,
+            plan_channel: 1,
+            declared_output_len: 9,
+        });
+        roundtrip(Op::PackedChannels {
+            data_channel: 3,
+            plan_channel: 4,
+            declared_output_len: u64::MAX,
         });
     }
 

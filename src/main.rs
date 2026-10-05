@@ -32,7 +32,7 @@ USAGE:
     vole-document capabilities
 
 KIND (for encode --force): raw | rle | byte-rans | pdf-physical | pdf-channels |
-    pdf-layout
+    pdf-layout | pdf-layout-rans
     Forces the complete-cost court to consider only that candidate family, for
     honest per-mechanism ablation. Fails when the input does not propose it.
 
@@ -176,8 +176,9 @@ fn parse_force_kind(s: &str) -> Result<CandidateKind> {
         "pdf-physical" => Ok(CandidateKind::PdfPhysical),
         "pdf-channels" => Ok(CandidateKind::PdfChannels),
         "pdf-layout" => Ok(CandidateKind::PdfLayout),
+        "pdf-layout-rans" => Ok(CandidateKind::PdfLayoutRans),
         other => Err(Error::usage(format!(
-            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout"
+            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans"
         ))),
     }
 }
@@ -391,6 +392,11 @@ fn describe_op(op: &Op) -> String {
         Op::PackSegments { data_object, items } => {
             format!("PACK_SEGMENTS({data_object},{})", items.len())
         }
+        Op::PackedChannels {
+            data_channel,
+            plan_channel,
+            declared_output_len,
+        } => format!("PACKED_CHANNELS({data_channel},{plan_channel},{declared_output_len})"),
     }
 }
 
