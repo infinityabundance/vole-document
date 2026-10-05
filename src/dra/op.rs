@@ -45,6 +45,21 @@ pub enum Op {
         /// Number of payload channels; valid kinds are `0..payload_channel_count`.
         payload_channel_count: u8,
     },
+    /// Record the current output position (a u64) into the named slot. Emits no
+    /// output bytes; the recorded value is available to later [`Op::EmitOffset`]
+    /// instructions.
+    MarkOffset {
+        /// Slot index; must be below [`crate::dra::program::MAX_OFFSET_SLOTS`].
+        slot: u8,
+    },
+    /// Emit the decimal form of a previously marked output position, left
+    /// zero-padded to exactly `width` bytes.
+    EmitOffset {
+        /// Slot index marked by an earlier [`Op::MarkOffset`].
+        slot: u8,
+        /// Exact output width in bytes.
+        width: u8,
+    },
 }
 
 /// Opcode byte for [`Op::EmitObject`].
@@ -57,6 +72,10 @@ pub const OP_REPEAT_LAST: u8 = 0x03;
 pub const OP_DECODE_CHANNEL: u8 = 0x04;
 /// Opcode byte for [`Op::InterleaveChannels`].
 pub const OP_INTERLEAVE_CHANNELS: u8 = 0x05;
+/// Opcode byte for [`Op::MarkOffset`].
+pub const OP_MARK_OFFSET: u8 = 0x06;
+/// Opcode byte for [`Op::EmitOffset`].
+pub const OP_EMIT_OFFSET: u8 = 0x07;
 
 impl Op {
     /// Encode this instruction into `out`.
@@ -92,6 +111,15 @@ impl Op {
                 out.extend_from_slice(&lengths_channel.to_le_bytes());
                 out.extend_from_slice(&first_payload_channel.to_le_bytes());
                 out.push(*payload_channel_count);
+            }
+            Op::MarkOffset { slot } => {
+                out.push(OP_MARK_OFFSET);
+                out.push(*slot);
+            }
+            Op::EmitOffset { slot, width } => {
+                out.push(OP_EMIT_OFFSET);
+                out.push(*slot);
+                out.push(*width);
             }
         }
         Ok(())
@@ -148,11 +176,28 @@ impl Op {
                     payload_channel_count,
                 })
             }
+            OP_MARK_OFFSET => {
+                let slot = read_u8(data, pos)?;
+                Ok(Op::MarkOffset { slot })
+            }
+            OP_EMIT_OFFSET => {
+                let slot = read_u8(data, pos)?;
+                let width = read_u8(data, pos)?;
+                Ok(Op::EmitOffset { slot, width })
+            }
             other => Err(Error::invalid_graph(format!(
                 "unknown DRA opcode {other:#04x}"
             ))),
         }
     }
+}
+
+fn read_u8(data: &[u8], pos: &mut usize) -> Result<u8> {
+    let v = *data
+        .get(*pos)
+        .ok_or_else(|| Error::invalid_graph("truncated instruction operand"))?;
+    *pos += 1;
+    Ok(v)
 }
 
 fn read_u32(data: &[u8], pos: &mut usize) -> Result<u32> {
@@ -195,6 +240,10 @@ mod tests {
             first_payload_channel: 2,
             payload_channel_count: 3,
         });
+        roundtrip(Op::MarkOffset { slot: 0 });
+        roundtrip(Op::MarkOffset { slot: 15 });
+        roundtrip(Op::EmitOffset { slot: 0, width: 1 });
+        roundtrip(Op::EmitOffset { slot: 7, width: 20 });
     }
 
     #[test]

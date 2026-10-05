@@ -5,7 +5,15 @@ use crate::error::{Error, Result};
 use crate::limits::Limits;
 
 /// DRA version carried in the graph record.
-pub const DRA_VERSION: u8 = 3;
+pub const DRA_VERSION: u8 = 4;
+
+/// Number of positional-offset slots addressable by [`Op::MarkOffset`] and
+/// [`Op::EmitOffset`]. Slot indices must be strictly below this bound.
+///
+/// The bound is 256 so the PDF layout candidate can mark one slot per indirect
+/// object (indices `0..=254`) while reserving slot `255` for the most recent
+/// classic `xref` section start. Slot indices remain `u8` on the wire.
+pub const MAX_OFFSET_SLOTS: usize = 256;
 
 /// Who is the reconstruction authority for an output interval.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -146,6 +154,8 @@ impl Program {
         let mut total: u64 = 0;
         let mut last_len: u64 = 0;
         let mut have_last = false;
+        // Which positional slots have been marked earlier in program order.
+        let mut marked = [false; MAX_OFFSET_SLOTS];
 
         for op in &self.ops {
             match op {
@@ -235,6 +245,48 @@ impl Program {
                     last_len = len;
                     have_last = true;
                 }
+                Op::MarkOffset { slot } => {
+                    let idx = *slot as usize;
+                    if idx >= MAX_OFFSET_SLOTS {
+                        return Err(Error::invalid_graph(format!(
+                            "MARK_OFFSET slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
+                        )));
+                    }
+                    // Bookkeeping only: contributes no output bytes and does not
+                    // disturb the pending "last block" for REPEAT_LAST.
+                    marked[idx] = true;
+                }
+                Op::EmitOffset { slot, width } => {
+                    let idx = *slot as usize;
+                    if idx >= MAX_OFFSET_SLOTS {
+                        return Err(Error::invalid_graph(format!(
+                            "EMIT_OFFSET slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
+                        )));
+                    }
+                    if *width == 0 || *width > 20 {
+                        return Err(Error::invalid_graph(format!(
+                            "EMIT_OFFSET width {width} is outside 1..=20"
+                        )));
+                    }
+                    if !marked[idx] {
+                        return Err(Error::invalid_graph(format!(
+                            "EMIT_OFFSET references unmarked slot {slot}"
+                        )));
+                    }
+                    // The value is a decimal number left-zero-padded to `width`,
+                    // so the predicted contribution is exactly `width` bytes.
+                    let len = *width as u64;
+                    total = total
+                        .checked_add(len)
+                        .ok_or_else(|| Error::resource_limit("output length overflow"))?;
+                    spans.push(Span {
+                        start: total - len,
+                        len,
+                        authority: Authority::Generated,
+                    });
+                    last_len = len;
+                    have_last = true;
+                }
                 Op::RepeatLast { count } => {
                     if !have_last {
                         return Err(Error::invalid_graph(
@@ -312,6 +364,9 @@ impl Program {
         let mut out: Vec<u8> = Vec::with_capacity(cap);
         let mut have_last = false;
         let mut block_len: usize = 0;
+        // Recorded output positions and their marked state.
+        let mut slots = [0u64; MAX_OFFSET_SLOTS];
+        let mut marked = [false; MAX_OFFSET_SLOTS];
 
         for op in &self.ops {
             match op {
@@ -414,6 +469,48 @@ impl Program {
                             )));
                         }
                     }
+                    block_len = out.len() - start;
+                    have_last = true;
+                }
+                Op::MarkOffset { slot } => {
+                    let idx = *slot as usize;
+                    if idx >= MAX_OFFSET_SLOTS {
+                        return Err(Error::invalid_graph(format!(
+                            "MARK_OFFSET slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
+                        )));
+                    }
+                    slots[idx] = out.len() as u64;
+                    marked[idx] = true;
+                }
+                Op::EmitOffset { slot, width } => {
+                    let idx = *slot as usize;
+                    if idx >= MAX_OFFSET_SLOTS {
+                        return Err(Error::invalid_graph(format!(
+                            "EMIT_OFFSET slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
+                        )));
+                    }
+                    if *width == 0 || *width > 20 {
+                        return Err(Error::invalid_graph(format!(
+                            "EMIT_OFFSET width {width} is outside 1..=20"
+                        )));
+                    }
+                    if !marked[idx] {
+                        return Err(Error::invalid_graph(format!(
+                            "EMIT_OFFSET references unmarked slot {slot}"
+                        )));
+                    }
+                    let digits = slots[idx].to_string();
+                    if digits.len() > *width as usize {
+                        return Err(Error::invalid_graph(format!(
+                            "EMIT_OFFSET slot {slot} value {} needs {} bytes but width is {width}",
+                            slots[idx],
+                            digits.len()
+                        )));
+                    }
+                    let start = out.len();
+                    out.extend(std::iter::repeat_n(b'0', *width as usize - digits.len()));
+                    out.extend_from_slice(digits.as_bytes());
+                    debug_assert_eq!(out.len() - start, *width as usize);
                     block_len = out.len() - start;
                     have_last = true;
                 }
@@ -742,6 +839,123 @@ mod tests {
             vec![Span {
                 start: 0,
                 len: 8,
+                authority: Authority::Generated,
+            }]
+        );
+    }
+
+    #[test]
+    fn mark_emit_roundtrip() {
+        // MarkOffset after "abc" records position 3; the later EmitOffset
+        // renders it as a zero-padded 3-byte decimal, so the digits are "003".
+        let p = Program::new(vec![
+            Op::Inline {
+                bytes: b"abc".to_vec(),
+            },
+            Op::MarkOffset { slot: 0 },
+            Op::Inline {
+                bytes: b"def".to_vec(),
+            },
+            Op::EmitOffset { slot: 0, width: 3 },
+        ]);
+        let (len, cov) = p.analyze_objects(&[], Limits::DEFAULT).unwrap();
+        assert_eq!(len, 9);
+        cov.validate(9).unwrap();
+        assert_eq!(p.eval(&[], &[], Limits::DEFAULT).unwrap(), b"abcdef003");
+
+        // Byte round-trip of both new instructions through the graph record.
+        let enc = p.encode().unwrap();
+        assert_eq!(Program::decode(&enc, Limits::DEFAULT).unwrap(), p);
+
+        // EmitOffset is a valid "last block" for a following REPEAT_LAST, with
+        // block length equal to `width`.
+        let p2 = Program::new(vec![
+            Op::MarkOffset { slot: 0 },
+            Op::EmitOffset { slot: 0, width: 2 },
+            Op::RepeatLast { count: 1 },
+        ]);
+        let (len2, cov2) = p2.analyze_objects(&[], Limits::DEFAULT).unwrap();
+        assert_eq!(len2, 4);
+        cov2.validate(4).unwrap();
+        assert_eq!(p2.eval(&[], &[], Limits::DEFAULT).unwrap(), b"0000");
+    }
+
+    #[test]
+    fn emit_zero_pads() {
+        // A position of 0 rendered at width 3 is entirely zero-padded.
+        let p = Program::new(vec![
+            Op::MarkOffset { slot: 1 },
+            Op::EmitOffset { slot: 1, width: 3 },
+        ]);
+        let (len, cov) = p.analyze_objects(&[], Limits::DEFAULT).unwrap();
+        assert_eq!(len, 3);
+        cov.validate(3).unwrap();
+        assert_eq!(p.eval(&[], &[], Limits::DEFAULT).unwrap(), b"000");
+    }
+
+    #[test]
+    fn emit_width_too_small_errors() {
+        // Analysis predicts the bounded width, but the marked position 10 needs
+        // two digits; materialization must refuse rather than emit a truncated
+        // (wrong-width) value.
+        let p = Program::new(vec![
+            Op::Inline {
+                bytes: b"0123456789".to_vec(),
+            },
+            Op::MarkOffset { slot: 0 },
+            Op::EmitOffset { slot: 0, width: 1 },
+        ]);
+        let (len, _) = p.analyze_objects(&[], Limits::DEFAULT).unwrap();
+        assert_eq!(len, 11);
+        let e = p.eval(&[], &[], Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn emit_unmarked_slot_errors() {
+        // Emitting a slot that was never marked earlier in program order is
+        // rejected statically by analysis.
+        let p = Program::new(vec![Op::EmitOffset { slot: 0, width: 4 }]);
+        let e = p.analyze_objects(&[], Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn mark_slot_bound_covers_every_u8_slot() {
+        // `MAX_OFFSET_SLOTS == 256`, so every `u8` slot (0..=255) is in range.
+        // The old out-of-range case (slot 16) is now valid, and the reserved
+        // top slot `255` analyzes cleanly.
+        let p = Program::new(vec![Op::MarkOffset { slot: 16 }]);
+        let (len, _) = p.analyze_objects(&[], Limits::DEFAULT).unwrap();
+        assert_eq!(len, 0);
+
+        let p = Program::new(vec![
+            Op::MarkOffset { slot: 255 },
+            Op::EmitOffset {
+                slot: 255,
+                width: 1,
+            },
+        ]);
+        let (len, _) = p.analyze_objects(&[], Limits::DEFAULT).unwrap();
+        assert_eq!(len, 1);
+    }
+
+    #[test]
+    fn analyze_predicts_width_bytes() {
+        // The predicted contribution is exactly `width`, regardless of the
+        // eventual digit count, and the authority is Generated.
+        let p = Program::new(vec![
+            Op::MarkOffset { slot: 3 },
+            Op::EmitOffset { slot: 3, width: 7 },
+        ]);
+        let (len, cov) = p.analyze_objects(&[], Limits::DEFAULT).unwrap();
+        assert_eq!(len, 7);
+        cov.validate(7).unwrap();
+        assert_eq!(
+            cov.spans,
+            vec![Span {
+                start: 0,
+                len: 7,
                 authority: Authority::Generated,
             }]
         );

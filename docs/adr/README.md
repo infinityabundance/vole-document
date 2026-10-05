@@ -15,6 +15,7 @@ the written rationale that must survive chat history.
 | [0008](0008-entropyfs-optional.md) | EntropyFS is optional; standalone form is sacred | Accepted (impl Phase 9) |
 | [0009](0009-pdf-byte-authority.md) | PDF physical bytes are the authority; oracles are not | Accepted (impl Phase 3–8) |
 | [0010](0010-typed-channels-rejected.md) | Typed lexical channels are rejected by complete cost | Accepted — recorded negative result (Phase 4) |
+| [0011](0011-layout-prediction-framing.md) | Layout prediction is exact but loses to DRA op framing | Accepted — recorded negative result (Phase 5) |
 
 ## Adding an ADR
 

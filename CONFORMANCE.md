@@ -16,17 +16,19 @@
 | PDF channels | `tests/pdf_channels.rs` | Phase-4 gates: channel transposition (`join(split(x)) == x`); a forced typed-channel descriptor is byte-exact and its cost fully charged (models + payload non-zero, attribution sums to the serialized length); the honest `large_text_channels_compete` experiment forces RAW/BYTE_RANS/PDF_CHANNELS side by side and records the sizes, asserting only exactness and determinism — never that channels win |
 | PDF oracle (script) | `tools/pdf-oracle.sh` | qpdf 11.3 differential court over a deterministic corpus: `qpdf --check` valid, object-number set agreement, `pdfinfo` page count; qpdf is an oracle, never the byte authority |
 | Phase-4 ablation (script) | `tools/phase4-court.sh` | forced-candidate ablation via `encode --force KIND` (`raw`, `rle`, `byte-rans`, `pdf-physical`, `pdf-channels`) over the deterministic corpus: per-kind forced sizes, the cumulative ladder A0..A4, and the leave-one-out channel delta; every auto winner is `cmp`ed and `verify`ed byte-exact |
+| PDF layout | `tests/pdf_layout.rs` | Phase-5 gates: the positional DRA ops (`MARK_OFFSET`/`EMIT_OFFSET`, DRA v4) round-trip and are bounded to 256 slots; a forced `PDF_LAYOUT` descriptor is byte-exact with fully charged cost; `classic.pdf` really marks positions and emits predicted offsets; a deliberately wrong source offset falls back to a literal and is never predicted; cross-reference streams, non-PDFs, and >255-object tables decline; identical input is deterministic; hostile corruption yields a typed error, never a panic; and the honest rejection gate asserts `PDF_LAYOUT` **loses** the complete-cost court on `classic.pdf` while the real winner round-trips exactly |
+| Phase-5 ablation (script) | `tools/phase5-court.sh` | forced-candidate ablation via `encode --force KIND` (`raw`, `rle`, `byte-rans`, `pdf-physical`, `pdf-channels`, `pdf-layout`) over the deterministic corpus: per-kind forced sizes, the cumulative ladder A0..A5, the leave-one-out layout delta, and the classic-xref subset compared against the auto winner; every auto winner is `cmp`ed and `verify`ed byte-exact, and the qpdf oracle is re-checked |
 
-Test counts (inside the pinned `dev` image): **260** with all features (the
-default set), **216** with `--no-default-features` (the rANS-dependent
-integration courts are skipped), of which **191** are library unit tests (with
+Test counts (inside the pinned `dev` image): **280** with all features (the
+default set), **236** with `--no-default-features` (the rANS-dependent
+integration courts are skipped), of which **204** are library unit tests (with
 all features).
 
 `encode --force KIND` is the ablation surface: it runs the *same* complete-cost
 court over a one-element candidate set (`KIND` in `raw`, `rle`, `byte-rans`,
-`pdf-physical`, `pdf-channels`). Forcing selects a lane; it never bypasses
-serialization, decoding, or the byte-compare, and a kind the input does not
-propose fails with a typed usage error (recorded as `null`), not a fabricated
+`pdf-physical`, `pdf-channels`, `pdf-layout`). Forcing selects a lane; it never
+bypasses serialization, decoding, or the byte-compare, and a kind the input does
+not propose fails with a typed usage error (recorded as `null`), not a fabricated
 result.
 
 Run everything:
@@ -69,8 +71,11 @@ channel decoder, and the coverage certificate (`tests/property.rs`,
 lexical cover and physical scanner over hostile random bytes (`tests/pdf.rs`).
 Phase 4 additionally exercises the typed-channel transposition and the
 `INTERLEAVE_CHANNELS` evaluator, including corrupt, misaligned, and overrunning
-channels (`tests/pdf_channels.rs`).
-Still planned for later phases: an xref parser · a stream-boundary parser ·
+channels (`tests/pdf_channels.rs`). Phase 5 additionally exercises the positional
+DRA ops and the classic-xref layout builder, including unmarked-slot and
+width-bound rejection, wrong-offset fallback, decline preconditions, and hostile
+corruption (`tests/pdf_layout.rs`).
+Still planned for later phases: a stream-boundary parser ·
 DEFLATE replay wrapper · partial materializer.
 
 Useful properties: never panic · bounded failure · round trip · descriptor

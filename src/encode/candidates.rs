@@ -31,6 +31,9 @@ pub enum CandidateKind {
     PdfPhysical = 3,
     /// PDF typed lexical channels, each entropy-coded (Phase 4).
     PdfChannels = 4,
+    /// PDF classic cross-reference offsets regenerated from marked positions
+    /// (Phase 5).
+    PdfLayout = 5,
 }
 
 impl CandidateKind {
@@ -42,6 +45,7 @@ impl CandidateKind {
             CandidateKind::ByteRans => "BYTE_RANS",
             CandidateKind::PdfPhysical => "PDF_PHYSICAL",
             CandidateKind::PdfChannels => "PDF_CHANNELS",
+            CandidateKind::PdfLayout => "PDF_LAYOUT",
         }
     }
 }
@@ -58,10 +62,10 @@ pub struct Candidate {
 /// Generate the complete bounded candidate set for `input`.
 ///
 /// Every candidate that currently applies is returned: RAW (always), then RLE,
-/// BYTE_RANS, PDF_PHYSICAL, and PDF_CHANNELS, each only when its generator can
-/// express the input within `limits`. Order is deterministic and matches the
-/// [`CandidateKind`] discriminant order, so the court's final tie-break is
-/// stable.
+/// BYTE_RANS, PDF_PHYSICAL, PDF_CHANNELS, and PDF_LAYOUT, each only when its
+/// generator can express the input within `limits`. Order is deterministic and
+/// matches the [`CandidateKind`] discriminant order, so the court's final
+/// tie-break is stable.
 ///
 /// This is the honest ablation surface: forcing a single kind must select from
 /// exactly the same set the unforced court would have priced.
@@ -83,6 +87,9 @@ pub fn propose_all(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
     #[cfg(feature = "rans")]
     if let Some(pdf_channels) = crate::adapter::pdf::propose_pdf_channels(input, limits)? {
         out.push(pdf_channels);
+    }
+    if let Some(pdf_layout) = crate::adapter::pdf::propose_pdf_layout(input, limits)? {
+        out.push(pdf_layout);
     }
     Ok(out)
 }

@@ -1,0 +1,697 @@
+//! PDF layout candidate: regenerate classic cross-reference entry offsets and
+//! the `startxref` value from positions marked during materialization.
+//!
+//! This is the first Phase-5 candidate that replaces literal structural bytes
+//! with *procedurally determined* ones. The mechanism is deliberately narrow and
+//! conservative:
+//!
+//! * It applies only to files that already carry a classic cross-reference
+//!   section ([`PhysicalKind::XrefSection`]) and contain no
+//!   [`ObjRole::XRefStream`] object. Anything else declines (`Ok(None)`).
+//! * It marks each indirect object's introducer offset with
+//!   [`Op::MarkOffset`] (slot = the object's index in [`PdfPhysical::objects`])
+//!   and, for every `n`-status xref entry whose 10-digit offset field equals the
+//!   marked position of its target object, emits that field with
+//!   [`Op::EmitOffset`] rather than storing the digits literally.
+//! * The most recent `xref` section start is marked in the reserved slot
+//!   [`XREF_SLOT`] (`255`); each `startxref` value is regenerated from it only
+//!   when the emitted position equals the source value.
+//! * Whenever a precondition fails — a non-standard offset field, a mismatched
+//!   position, a malformed table, too many objects — the site (or the whole
+//!   section) falls back to a literal [`Op::Inline`]. Prediction never invents
+//!   bytes: a fallback is always byte-exact, and a prediction is only emitted
+//!   when it reproduces the source digits exactly.
+//!
+//! After building the program the candidate is verified end-to-end (serialize,
+//! parse, materialize, byte-compare) before it is returned; if that round trip
+//! is not exact, the proposal declines rather than emitting an inexact
+//! candidate.
+
+use crate::SOURCE_FORMAT_PDF;
+use crate::container::{Descriptor, UNIVERSE};
+use crate::dra::{Op, Program};
+use crate::encode::candidates::{Candidate, CandidateKind};
+use crate::error::Result;
+use crate::integrity::sha256;
+use crate::limits::Limits;
+
+use super::physical::{ObjRole, PdfObjectSpan, PhysicalKind, scan};
+
+/// Reserved slot index for the most recent classic `xref` section start.
+pub const XREF_SLOT: u8 = u8::MAX;
+
+/// Largest number of indirect objects that can be marked (indices `0..=254`),
+/// leaving slot `255` free for [`XREF_SLOT`].
+pub const MAX_MARKED_OBJECTS: usize = XREF_SLOT as usize;
+
+/// Propose a layout candidate that regenerates xref offsets / startxref, or
+/// `None`.
+///
+/// Declines (`Ok(None)`) whenever a precondition fails or the built program does
+/// not materialize byte-for-byte. See the module documentation for the algorithm.
+pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
+    let physical = match scan(input, limits) {
+        Ok(p) => p,
+        Err(_) => return Ok(None),
+    };
+
+    // Precondition: a classic cross-reference section must exist, and no
+    // cross-reference stream may be present.
+    if !physical
+        .spans
+        .iter()
+        .any(|s| s.kind == PhysicalKind::XrefSection)
+    {
+        return Ok(None);
+    }
+    if physical
+        .objects
+        .iter()
+        .any(|o| o.role == ObjRole::XRefStream)
+    {
+        return Ok(None);
+    }
+    if physical.objects.len() > MAX_MARKED_OBJECTS {
+        return Ok(None);
+    }
+
+    let mut ops: Vec<Op> = Vec::new();
+    // Simulated output position. The physical cover is contiguous, so this
+    // tracks the source offset of the next byte exactly.
+    let mut pos: u64 = 0;
+    let mut slot_value = [0u64; 256];
+    let mut slot_marked = [false; 256];
+    let mut xref_predicted: u64 = 0;
+    let mut xref_literal: u64 = 0;
+    let mut startxref_predicted: u64 = 0;
+
+    for span in &physical.spans {
+        let start = span.start as usize;
+        let end = start + span.len as usize;
+        let bytes = &input[start..end];
+
+        if pos != span.start {
+            // A non-contiguous simulation would break the offset contract; bail.
+            return Ok(None);
+        }
+
+        match span.kind {
+            PhysicalKind::ObjHeader => {
+                if let Some(idx) = object_index_at(&physical.objects, span.start) {
+                    let slot = idx as u8;
+                    ops.push(Op::MarkOffset { slot });
+                    slot_value[slot as usize] = pos;
+                    slot_marked[slot as usize] = true;
+                }
+                ops.push(Op::Inline {
+                    bytes: bytes.to_vec(),
+                });
+                pos += span.len;
+            }
+            PhysicalKind::XrefSection => {
+                // Mark this section's start in the reserved slot, then emit.
+                ops.push(Op::MarkOffset { slot: XREF_SLOT });
+                slot_value[XREF_SLOT as usize] = pos;
+                slot_marked[XREF_SLOT as usize] = true;
+
+                match parse_classic_xref(bytes) {
+                    Some(pieces) => {
+                        for piece in pieces {
+                            match piece {
+                                XrefPiece::Literal { start, len } => {
+                                    if len > 0 {
+                                        ops.push(Op::Inline {
+                                            bytes: bytes[start..start + len].to_vec(),
+                                        });
+                                        pos += len as u64;
+                                    }
+                                }
+                                XrefPiece::Entry {
+                                    start,
+                                    number,
+                                    offset,
+                                    in_use,
+                                } => {
+                                    let slot = if in_use {
+                                        offset.and_then(|value| {
+                                            predicted_slot(
+                                                &physical.objects,
+                                                &slot_value,
+                                                &slot_marked,
+                                                number,
+                                                value,
+                                            )
+                                        })
+                                    } else {
+                                        None
+                                    };
+                                    match slot {
+                                        Some(slot) => {
+                                            ops.push(Op::EmitOffset { slot, width: 10 });
+                                            pos += 10;
+                                            ops.push(Op::Inline {
+                                                bytes: bytes[start + 10..start + 20].to_vec(),
+                                            });
+                                            pos += 10;
+                                            xref_predicted += 1;
+                                        }
+                                        None => {
+                                            ops.push(Op::Inline {
+                                                bytes: bytes[start..start + 20].to_vec(),
+                                            });
+                                            pos += 20;
+                                            xref_literal += 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    None => {
+                        // Not a classic table we understand: literal whole section.
+                        ops.push(Op::Inline {
+                            bytes: bytes.to_vec(),
+                        });
+                        pos += span.len;
+                    }
+                }
+            }
+            PhysicalKind::StartXref => match predict_startxref(bytes, &slot_value, &slot_marked) {
+                Some((prefix_len, width)) => {
+                    if prefix_len > 0 {
+                        ops.push(Op::Inline {
+                            bytes: bytes[..prefix_len].to_vec(),
+                        });
+                        pos += prefix_len as u64;
+                    }
+                    ops.push(Op::EmitOffset {
+                        slot: XREF_SLOT,
+                        width,
+                    });
+                    pos += width as u64;
+                    startxref_predicted += 1;
+                }
+                None => {
+                    ops.push(Op::Inline {
+                        bytes: bytes.to_vec(),
+                    });
+                    pos += span.len;
+                }
+            },
+            _ => {
+                ops.push(Op::Inline {
+                    bytes: bytes.to_vec(),
+                });
+                pos += span.len;
+            }
+        }
+    }
+
+    let format_basis = format!(
+        "pdf-layout;objects={};xref_predicted={};xref_literal={};startxref_predicted={}",
+        physical.objects.len(),
+        xref_predicted,
+        xref_literal,
+        startxref_predicted
+    );
+
+    let descriptor = Descriptor {
+        universe: UNIVERSE.to_string(),
+        source_format: SOURCE_FORMAT_PDF,
+        format_basis,
+        models: vec![],
+        channels: vec![],
+        objects: vec![],
+        program: Program::new(ops),
+        source_sha256: sha256(input),
+        source_len: input.len() as u64,
+    };
+
+    let candidate = Candidate {
+        kind: CandidateKind::PdfLayout,
+        descriptor,
+    };
+
+    // Verify byte-exactness through the normative decoder before returning. An
+    // inexact program must never be emitted.
+    let (encoded, _) = candidate.descriptor.serialize()?;
+    let parsed = match Descriptor::parse(&encoded, limits) {
+        Ok(p) => p,
+        Err(_) => return Ok(None),
+    };
+    let out = match crate::materialize::materialize(&parsed, limits) {
+        Ok(o) => o,
+        Err(_) => return Ok(None),
+    };
+    if out != input {
+        return Ok(None);
+    }
+
+    Ok(Some(candidate))
+}
+
+/// Index of the first object whose introducer starts at `start`.
+fn object_index_at(objects: &[PdfObjectSpan], start: u64) -> Option<usize> {
+    objects.iter().position(|o| o.start == start)
+}
+
+/// The slot marking the target object `number` at position `value`, if any
+/// earlier [`Op::MarkOffset`] recorded exactly that position.
+fn predicted_slot(
+    objects: &[PdfObjectSpan],
+    slot_value: &[u64; 256],
+    slot_marked: &[bool; 256],
+    number: u64,
+    value: u64,
+) -> Option<u8> {
+    objects.iter().enumerate().find_map(|(i, o)| {
+        let slot = i as u8;
+        (o.number == number && slot_marked[slot as usize] && slot_value[slot as usize] == value)
+            .then_some(slot)
+    })
+}
+
+/// Predict a whole `startxref` span: the trailing run of decimal digits is the
+/// value. Returns `(prefix_len, width)` when the value equals the marked `xref`
+/// position and its width is in `1..=20`.
+fn predict_startxref(
+    bytes: &[u8],
+    slot_value: &[u64; 256],
+    slot_marked: &[bool; 256],
+) -> Option<(usize, u8)> {
+    if !slot_marked[XREF_SLOT as usize] {
+        return None;
+    }
+    let mut i = bytes.len();
+    while i > 0 && bytes[i - 1].is_ascii_digit() {
+        i -= 1;
+    }
+    let width = bytes.len() - i;
+    if width == 0 || width > 20 {
+        return None;
+    }
+    let value = parse_digits(&bytes[i..])?;
+    if value != slot_value[XREF_SLOT as usize] {
+        return None;
+    }
+    Some((i, width as u8))
+}
+
+/// One ordered slice of a classic `xref` section: either literal bytes or a
+/// 20-byte entry whose offset field may be regenerated.
+enum XrefPiece {
+    /// Verbatim bytes `[start, start + len)` of the section.
+    Literal { start: usize, len: usize },
+    /// A 20-byte entry `[start, start + 20)`.
+    Entry {
+        /// Offset of the entry within the section.
+        start: usize,
+        /// Target object number (`subsection_start + i`).
+        number: u64,
+        /// Parsed value of the 10-digit offset field, if it is all digits.
+        offset: Option<u64>,
+        /// Whether the status byte is `n` (in use).
+        in_use: bool,
+    },
+}
+
+/// Parse a classic cross-reference table from a section's bytes, returning an
+/// ordered tiling of the section. Returns `None` (so the caller emits the whole
+/// section literally) when the bytes do not match the classic grammar.
+///
+/// Grammar accepted: `xref` EOL, then one or more `<start> <count>` EOL headers
+/// each followed by exactly `count` 20-byte entries of the shape
+/// `10-digit-offset SP 5-digit-generation SP status 2-byte-EOL`. The two EOL
+/// bytes may be `CR LF`, `LF CR`, `SP LF`, or `SP CR`.
+fn parse_classic_xref(bytes: &[u8]) -> Option<Vec<XrefPiece>> {
+    if !bytes.starts_with(b"xref") {
+        return None;
+    }
+    let mut pieces = Vec::new();
+    let mut pos = 4usize;
+
+    // EOL after the `xref` keyword.
+    let eol = eol_len(&bytes[pos..])?;
+    pieces.push(XrefPiece::Literal {
+        start: 0,
+        len: pos + eol,
+    });
+    pos += eol;
+
+    let mut any = false;
+    while pos < bytes.len() {
+        // Subsection header: `<start> <count>` EOL.
+        let header_start = pos;
+        let (start, after_start) = parse_uint_at(bytes, pos)?;
+        pos = after_start;
+        let spaces_start = pos;
+        while pos < bytes.len() && bytes[pos] == b' ' {
+            pos += 1;
+        }
+        if pos == spaces_start {
+            return None;
+        }
+        let (count, after_count) = parse_uint_at(bytes, pos)?;
+        pos = after_count;
+        let eol = eol_len(&bytes[pos..])?;
+        let header_end = pos + eol;
+        pieces.push(XrefPiece::Literal {
+            start: header_start,
+            len: header_end - header_start,
+        });
+        pos = header_end;
+
+        for i in 0..count {
+            let end = pos.checked_add(20)?;
+            if end > bytes.len() {
+                return None;
+            }
+            let entry = &bytes[pos..end];
+            if !is_entry_shape(entry) {
+                return None;
+            }
+            let number = start.checked_add(i)?;
+            let in_use = entry[17] == b'n';
+            let offset = parse_digits(&entry[0..10]);
+            pieces.push(XrefPiece::Entry {
+                start: pos,
+                number,
+                offset,
+                in_use,
+            });
+            pos = end;
+        }
+        any = true;
+    }
+
+    if !any || pos != bytes.len() {
+        return None;
+    }
+    Some(pieces)
+}
+
+/// Whether a 20-byte window matches the classic cross-reference entry shape.
+fn is_entry_shape(entry: &[u8]) -> bool {
+    if entry.len() != 20 {
+        return false;
+    }
+    if entry[10] != b' ' || entry[16] != b' ' {
+        return false;
+    }
+    if !entry[11..16].iter().all(u8::is_ascii_digit) {
+        return false;
+    }
+    if entry[17] != b'n' && entry[17] != b'f' {
+        return false;
+    }
+    matches!(
+        (entry[18], entry[19]),
+        (b'\r', b'\n') | (b'\n', b'\r') | (b' ', b'\n') | (b' ', b'\r')
+    )
+}
+
+/// Length of an end-of-line marker at the start of `bytes`, if any.
+fn eol_len(bytes: &[u8]) -> Option<usize> {
+    match bytes {
+        [b'\r', b'\n', ..] => Some(2),
+        [b'\n', ..] | [b'\r', ..] => Some(1),
+        _ => None,
+    }
+}
+
+/// Parse a non-negative decimal integer at `at`, returning `(value, next)`.
+fn parse_uint_at(bytes: &[u8], at: usize) -> Option<(u64, usize)> {
+    let mut i = at;
+    let mut value: u64 = 0;
+    while i < bytes.len() && bytes[i].is_ascii_digit() {
+        value = value
+            .checked_mul(10)?
+            .checked_add(u64::from(bytes[i] - b'0'))?;
+        i += 1;
+    }
+    if i == at {
+        return None;
+    }
+    Some((value, i))
+}
+
+/// Parse an all-digit slice as a non-negative decimal integer.
+fn parse_digits(digits: &[u8]) -> Option<u64> {
+    if digits.is_empty() {
+        return None;
+    }
+    let mut value: u64 = 0;
+    for &b in digits {
+        if !b.is_ascii_digit() {
+            return None;
+        }
+        value = value.checked_mul(10)?.checked_add(u64::from(b - b'0'))?;
+    }
+    Some(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::adapter::pdf::samples::{is_negative_control, sample_pdfs};
+    use crate::container::Descriptor;
+
+    fn sample(name: &str) -> Vec<u8> {
+        sample_pdfs()
+            .into_iter()
+            .find(|(n, _)| *n == name)
+            .unwrap_or_else(|| panic!("sample {name} missing"))
+            .1
+    }
+
+    fn basis_field(basis: &str, key: &str) -> Option<u64> {
+        basis.split(';').find_map(|part| {
+            let (k, v) = part.split_once('=')?;
+            (k == key).then(|| v.parse().ok()).flatten()
+        })
+    }
+
+    fn assert_materializes_exactly(name: &str, bytes: &[u8]) {
+        let cand = propose_pdf_layout(bytes, Limits::DEFAULT)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{name} must propose a layout candidate"));
+        assert_eq!(cand.kind, CandidateKind::PdfLayout);
+        assert_eq!(cand.descriptor.source_format, SOURCE_FORMAT_PDF);
+        assert_eq!(cand.descriptor.source_len, bytes.len() as u64);
+        assert!(cand.descriptor.objects.is_empty());
+        assert!(cand.descriptor.models.is_empty());
+        assert!(cand.descriptor.channels.is_empty());
+
+        let (encoded, _) = cand.descriptor.serialize().unwrap();
+        let parsed = Descriptor::parse(&encoded, Limits::DEFAULT).unwrap();
+        let out = crate::materialize::materialize(&parsed, Limits::DEFAULT).unwrap();
+        assert_eq!(out, bytes, "{name} layout candidate materializes exactly");
+        assert_eq!(sha256(&out), sha256(bytes), "{name} layout sha");
+    }
+
+    #[test]
+    fn layout_is_exact_on_corpus() {
+        let mut accepted = 0usize;
+        for (name, bytes) in sample_pdfs() {
+            if is_negative_control(name) {
+                assert!(
+                    propose_pdf_layout(&bytes, Limits::DEFAULT)
+                        .unwrap()
+                        .is_none(),
+                    "{name} is not a classic-xref PDF and must decline"
+                );
+                continue;
+            }
+            if propose_pdf_layout(&bytes, Limits::DEFAULT)
+                .unwrap()
+                .is_some()
+            {
+                assert_materializes_exactly(name, &bytes);
+                accepted += 1;
+            }
+        }
+        assert!(
+            accepted >= 3,
+            "expected several accepted classic-xref samples, found {accepted}"
+        );
+    }
+
+    #[test]
+    fn layout_predicts_some_xref_offsets() {
+        let bytes = sample("classic.pdf");
+        let cand = propose_pdf_layout(&bytes, Limits::DEFAULT)
+            .unwrap()
+            .unwrap();
+        let emits = cand
+            .descriptor
+            .program
+            .ops
+            .iter()
+            .filter(|op| matches!(op, Op::EmitOffset { .. }))
+            .count();
+        assert!(emits > 0, "classic.pdf must predict at least one offset");
+        let predicted = basis_field(&cand.descriptor.format_basis, "xref_predicted")
+            .expect("format basis must report xref_predicted");
+        assert!(predicted > 0, "xref prediction count must be positive");
+    }
+
+    #[test]
+    fn layout_falls_back_on_bad_offset() {
+        // Object 1's real offset is `off1`, but the xref entry records a wrong
+        // value. The entry must stay literal. `startxref` is still correct, so it
+        // is the only predicted offset in the whole program.
+        let mut b: Vec<u8> = Vec::new();
+        b.extend_from_slice(b"%PDF-1.4\n");
+        let off1 = b.len() as u64;
+        b.extend_from_slice(b"1 0 obj\n<< /Type /Catalog >>\nendobj\n");
+        let xref = b.len() as u64;
+        let wrong = off1 + 3;
+        b.extend_from_slice(
+            format!("xref\n0 2\n0000000000 65535 f \n{wrong:010} 00000 n \n").as_bytes(),
+        );
+        b.extend_from_slice(
+            format!("trailer\n<< /Size 2 /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n").as_bytes(),
+        );
+
+        let cand = propose_pdf_layout(&b, Limits::DEFAULT).unwrap().unwrap();
+        assert_eq!(
+            basis_field(&cand.descriptor.format_basis, "xref_predicted"),
+            Some(0),
+            "a mismatched offset must never be predicted"
+        );
+
+        // The only EmitOffset is the correctly predicted `startxref` value.
+        let emits = cand
+            .descriptor
+            .program
+            .ops
+            .iter()
+            .filter(|op| matches!(op, Op::EmitOffset { .. }))
+            .count();
+        assert_eq!(
+            emits, 1,
+            "only startxref is predicted; bad entry is literal"
+        );
+
+        let (encoded, _) = cand.descriptor.serialize().unwrap();
+        let parsed = Descriptor::parse(&encoded, Limits::DEFAULT).unwrap();
+        let out = crate::materialize::materialize(&parsed, Limits::DEFAULT).unwrap();
+        assert_eq!(out, b, "fallback must still be byte-exact");
+    }
+
+    #[test]
+    fn layout_declines_on_xref_stream() {
+        let bytes = sample("xrefstream.pdf");
+        assert!(
+            propose_pdf_layout(&bytes, Limits::DEFAULT)
+                .unwrap()
+                .is_none(),
+            "an xref-stream PDF must decline the layout candidate"
+        );
+    }
+
+    /// Build a classic-xref PDF with `n` indirect objects and correct offsets.
+    fn classic_with_objects(n: usize) -> Vec<u8> {
+        let mut b: Vec<u8> = Vec::new();
+        b.extend_from_slice(b"%PDF-1.4\n");
+        let mut offsets = Vec::with_capacity(n);
+        for number in 1..=n {
+            offsets.push(b.len() as u64);
+            b.extend_from_slice(format!("{number} 0 obj\n<< >>\nendobj\n").as_bytes());
+        }
+        let xref = b.len() as u64;
+        b.extend_from_slice(format!("xref\n0 {}\n", n + 1).as_bytes());
+        b.extend_from_slice(b"0000000000 65535 f \n");
+        for &off in &offsets {
+            b.extend_from_slice(format!("{off:010} 00000 n \n").as_bytes());
+        }
+        b.extend_from_slice(
+            format!(
+                "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n",
+                n + 1
+            )
+            .as_bytes(),
+        );
+        b
+    }
+
+    #[test]
+    fn layout_declines_when_too_many_objects() {
+        assert!(
+            propose_pdf_layout(&classic_with_objects(256), Limits::DEFAULT)
+                .unwrap()
+                .is_none(),
+            "256 objects exceeds the 255 markable slots"
+        );
+        // 255 objects still fit: indices 0..=254, slot 255 reserved for xref.
+        assert!(
+            propose_pdf_layout(&classic_with_objects(255), Limits::DEFAULT)
+                .unwrap()
+                .is_some(),
+            "255 objects must still be markable"
+        );
+    }
+
+    #[test]
+    fn layout_deterministic() {
+        for name in ["classic.pdf", "bigtext.pdf"] {
+            let bytes = sample(name);
+            let a = propose_pdf_layout(&bytes, Limits::DEFAULT)
+                .unwrap()
+                .unwrap()
+                .descriptor
+                .serialize()
+                .unwrap()
+                .0;
+            let b = propose_pdf_layout(&bytes, Limits::DEFAULT)
+                .unwrap()
+                .unwrap()
+                .descriptor
+                .serialize()
+                .unwrap()
+                .0;
+            assert_eq!(a, b, "{name} layout bytes must be deterministic");
+        }
+    }
+
+    #[test]
+    fn layout_measurements_report() {
+        for (name, bytes) in sample_pdfs() {
+            let Some(cand) = propose_pdf_layout(&bytes, Limits::DEFAULT).unwrap() else {
+                eprintln!("layout[{name}]: declined");
+                continue;
+            };
+            let (layout_bytes, _) = cand.descriptor.serialize().unwrap();
+            let predicted =
+                basis_field(&cand.descriptor.format_basis, "xref_predicted").unwrap_or(0);
+            let literal = basis_field(&cand.descriptor.format_basis, "xref_literal").unwrap_or(0);
+            let startxref =
+                basis_field(&cand.descriptor.format_basis, "startxref_predicted").unwrap_or(0);
+            eprintln!(
+                "layout[{name}] source={} xref_predicted={predicted} xref_literal={literal} \
+                 startxref_predicted={startxref} layout={}",
+                bytes.len(),
+                layout_bytes.len(),
+            );
+        }
+
+        for name in ["classic.pdf", "bigtext.pdf"] {
+            let bytes = sample(name);
+            let (raw_bytes, _) =
+                crate::encode::encode_with(&bytes, Limits::DEFAULT, Some(CandidateKind::Raw))
+                    .unwrap();
+            #[cfg(feature = "rans")]
+            let (byte_rans_bytes, _) =
+                crate::encode::encode_with(&bytes, Limits::DEFAULT, Some(CandidateKind::ByteRans))
+                    .unwrap();
+            #[cfg(not(feature = "rans"))]
+            let byte_rans_bytes: Vec<u8> = Vec::new();
+            eprintln!(
+                "baseline[{name}] source={} raw={} byte_rans={}",
+                bytes.len(),
+                raw_bytes.len(),
+                byte_rans_bytes.len()
+            );
+        }
+    }
+}

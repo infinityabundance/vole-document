@@ -47,7 +47,10 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | Compact entropy model wire v2 (sparse/dense, smaller chosen) | **Measured** | `src/entropy/model.rs`; campaign `2026-10-05-phase4-3840bc4` |
 | Forced-candidate ablation (`encode --force KIND`) | **Measured** | `tools/phase4-court.sh`; campaign `2026-10-05-phase4-3840bc4` |
 | PDF typed channels (`PDF_CHANNELS`) | **Recorded (rejected on corpus)** | campaign `2026-10-05-phase4-3840bc4`; exact but loses to `BYTE_RANS` on complete cost (ADR-0010) |
-| PDF structural adapters (Phases 5–8) | Planned | — |
+| Positional DRA ops (`MARK_OFFSET` / `EMIT_OFFSET`, DRA v4) | **Implemented** | `src/dra/op.rs`; `tests/pdf_layout.rs` |
+| PDF layout candidate (`PDF_LAYOUT`) | **Recorded (rejected on cost)** | campaign `2026-10-05-phase5-7193001`; byte-exact and predicts xref offsets/`startxref`, but loses to RAW/`BYTE_RANS` on DRA framing cost (ADR-0011) |
+| Phase-5 forced-candidate court (`--force pdf-layout`) | **Measured** | `tools/phase5-court.sh`; campaign `2026-10-05-phase5-7193001` |
+| PDF structural adapters (Phases 6–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
 | Partial materialization (Phase 11) | Planned | — |
@@ -157,6 +160,44 @@ models — that is Phase 5+ work (ADR-0010).
 Receipt:
 [`evidence/campaigns/2026-10-05-phase4-3840bc4/`](evidence/campaigns/2026-10-05-phase4-3840bc4/).
 
+### Phase 5 measured results
+
+Phase 5 adds **positional DRA ops** (`MARK_OFFSET` / `EMIT_OFFSET`, DRA v4)
+and the first candidate that replaces literal structural bytes with
+*procedurally determined* ones: the classic cross-reference **layout** lane
+(`PDF_LAYOUT`), which marks each indirect object's introducer offset and the
+`xref` section start, then regenerates the 10-digit xref entry offsets and the
+`startxref` value from those marks. The sealed campaign
+`2026-10-05-phase5-7193001` runs the forced-candidate ablation
+(`encode --force KIND`) over a deterministic 10-file corpus:
+
+```text
+A0 RAW            = 71116
+A1 + RLE          = 71116
+A2 + BYTE_RANS    = 43377
+A3 + PDF_PHYSICAL = 43377
+A4 + PDF_CHANNELS = 43377
+A5 + PDF_LAYOUT   = 43377     leave-one-out layout delta = 0
+```
+
+All 10 files round-trip byte-exactly through their auto winner (`cmp` +
+`verify`); auto winners are RAW = 8, `BYTE_RANS` = 2, and `PDF_PHYSICAL` /
+`PDF_CHANNELS` / `PDF_LAYOUT` = 0. **The prediction works and the descriptor is
+exact** — `classic.pdf` regenerates 3 of 4 xref entry offsets plus the
+`startxref`, and `incremental.pdf` regenerates 5 of 7 entries plus two
+`startxref` values — but the lane still **loses to RAW and `BYTE_RANS` on
+complete cost**: `classic.pdf` 798 vs RAW 659, and `bigtext.pdf` 66,066 vs RAW
+65,879 / `BYTE_RANS` 38,150. Layout wins 0 of the 7 classic-xref files. The
+reason is framing, not prediction: the DRA pays a `MarkOffset` per object and
+per xref section plus an `EmitOffset` per predicted entry, and that per-segment
+op framing (tag + operand length) costs more than the ~7 digits saved per
+predicted offset at document scale. The predicted structure is right; the
+reconstruction *container* is too expensive. This is recorded honestly as a
+negative result (ADR-0011) and a format-design input for later phases.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase5-7193001/`](evidence/campaigns/2026-10-05-phase5-7193001/).
+
 ## Quick start (Docker only)
 
 All project commands run inside pinned containers. The host only invokes Docker.
@@ -191,9 +232,9 @@ vole-document capabilities
 ```
 
 `encode --force KIND` forces the complete-cost court to consider only one
-candidate family (`raw`, `rle`, `byte-rans`, `pdf-physical`, `pdf-channels`) for
-honest per-mechanism ablation; it never bypasses exactness, and it fails with a
-typed usage error when the input does not propose that kind.
+candidate family (`raw`, `rle`, `byte-rans`, `pdf-physical`, `pdf-channels`,
+`pdf-layout`) for honest per-mechanism ablation; it never bypasses exactness,
+and it fails with a typed usage error when the input does not propose that kind.
 
 ## Repository layout
 

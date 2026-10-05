@@ -37,7 +37,9 @@ are evidence.
 | Compact entropy model wire v2 (sparse\|dense, smaller chosen) | 4 | ADOPTED | per-channel model overhead 7,224 → 1,981 B; legacy v1 dense still decodable |
 | Forced-candidate ablation (`encode --force KIND`) | 4 | ADOPTED | one-element complete-cost court; `tools/phase4-court.sh`; forcing never bypasses exactness |
 | PDF typed channels (`PDF_CHANNELS`) | 4 | RECORDED (rejected) | campaign `2026-10-05-phase4-3840bc4`; exact but loses to `BYTE_RANS` on complete cost (bigtext 46,432 vs 38,142; ladder delta 0) |
-| PDF xref/`startxref`/`/Length`/revision proceduralization | 5 | PROPOSED | high-value target; structural compression not yet measured |
+| Positional DRA ops (`MARK_OFFSET` / `EMIT_OFFSET`, DRA v4) | 5 | IMPLEMENTED | opcodes `0x06` / `0x07`; `MAX_OFFSET_SLOTS = 256`, slot 255 reserved for the xref section start; universe → phase-5 |
+| PDF classic-xref layout (`PDF_LAYOUT`) | 5 | RECORDED (rejected on cost) | campaign `2026-10-05-phase5-7193001`; byte-exact and predicts xref offsets/`startxref`, but loses to RAW/`BYTE_RANS` on DRA op framing cost (ADR-0011) |
+| PDF `/Length`/revision proceduralization and stream replay | 5+ | PROPOSED | structural compression beyond xref offsets is not yet measured |
 | Exact DEFLATE replay (`preflate-rs`) | 6 | PROPOSED | candidate, per-stream, exactness first |
 | Nested PDF content proceduralization | 7 | PROPOSED | the clearest embodiment of the thesis |
 | PDF grammar/templates | 8 | PROPOSED | must pay definition cost |
@@ -53,13 +55,53 @@ map, and object roles) is `ADOPTED` as of Phase 3 (campaign
 `2026-10-05-phase3-486aa17`). The typed lexical-channel lane
 (`split`/`join`, `INTERLEAVE_CHANNELS`, `PDF_CHANNELS`) is `IMPLEMENTED` and
 measured as of Phase 4, but `PDF_CHANNELS` is **`RECORDED (rejected)`**: it is
-exact and available, yet loses to `BYTE_RANS` on complete cost. PDF **structural
-compression** — xref/`startxref`/`/Length` proceduralization, stream replay, and
-typed residuals — and every cross-document mechanism remain `PROPOSED`
-(Phases 5+). Phase 2 measured only the order-0 typed byte entropy floor over an
-opaque mixed corpus; Phase 4 showed that coarse lexical transposition plus
-per-channel order-0 models does not beat a monolithic order-0 channel, and the
-literal PDF candidate deliberately loses to RAW in Phase 3.
+exact and available, yet loses to `BYTE_RANS` on complete cost. Phase 5 adds the
+positional DRA ops (`MARK_OFFSET` / `EMIT_OFFSET`, DRA v4, `IMPLEMENTED`) and the
+classic-xref layout lane (`PDF_LAYOUT`), which is **`RECORDED (rejected on
+cost)`**: it is byte-exact and genuinely predicts xref offsets and `startxref`,
+but the per-segment DRA op framing costs more than the digits it saves, so it
+loses to RAW/`BYTE_RANS` (campaign `2026-10-05-phase5-7193001`, ADR-0011). PDF
+structural compression beyond xref offsets — `/Length`/revision
+proceduralization, stream replay, and typed residuals — and every cross-document
+mechanism remain `PROPOSED` (Phases 6+). Phase 2 measured only the order-0 typed
+byte entropy floor over an opaque mixed corpus; Phase 4 showed that coarse
+lexical transposition plus per-channel order-0 models does not beat a monolithic
+order-0 channel, and Phase 5 showed that correct structural prediction does not
+pay while each predicted field still needs its own framed DRA op.
+
+### Phase 5 scope and the recorded layout rejection
+
+- **Mechanism.** Phase 5 introduces two positional DRA ops, `MARK_OFFSET`
+  (`0x06`) and `EMIT_OFFSET` (`0x07`), bumping the DRA graph to **version 4**.
+  `MARK_OFFSET` records the current output position into one of 256 bounded slots
+  (slot 255 reserved for the xref section start); `EMIT_OFFSET` emits a marked
+  position as a fixed-width, zero-padded decimal field. Both are bounded and
+  non-Turing-complete like the rest of the DRA.
+- **Candidate.** `PDF_LAYOUT` marks each indirect object's introducer offset and
+  the classic `xref` section start, then regenerates each 10-digit xref entry
+  offset and the `startxref` value from those marks. It applies only to
+  classic-cross-reference PDFs with no cross-reference stream and no more than
+  255 markable objects; every other file declines. Whenever a precondition fails
+  (a mismatched offset, a malformed table, too many objects) the site falls back
+  to a literal `INLINE` — a wrong source offset is never predicted or invented.
+- **Prediction is correct and the descriptor is exact.** On the sealed corpus,
+  `classic.pdf` regenerates 3 of 4 xref entry offsets plus the `startxref`, and
+  `incremental.pdf` regenerates 5 of 7 entries plus two `startxref` values. Every
+  forced layout descriptor serializes, parses back, and materializes
+  byte-for-byte.
+- **Complete-cost verdict — rejected on cost.** The cumulative ladder is A0 =
+  71,116, A1 = 71,116, A2 = A3 = A4 = A5 = 43,377, the leave-one-out layout delta
+  is 0, and `PDF_LAYOUT` wins 0 items (0 of 7 classic-xref files). Forced sizes:
+  `classic.pdf` 798 vs RAW 659; `bigtext.pdf` 66,066 vs RAW 65,879 / `BYTE_RANS`
+  38,150.
+- **Why.** The DRA pays a `MarkOffset` per object and per xref section plus an
+  `EmitOffset` per predicted entry. Each such op carries fixed per-segment
+  framing (a tag byte plus operand bytes) in the reconstruction program, and that
+  framing exceeds the ~7 digits a predicted offset saves at document scale. The
+  predicted structure is right; the reconstruction *container* is too expensive.
+  `PDF_LAYOUT` stays implemented and available but loses; the negative result and
+  its framing analysis are preserved (campaign `2026-10-05-phase5-7193001`,
+  ADR-0011).
 
 ### Phase 4 scope and the recorded typed-channel rejection
 
