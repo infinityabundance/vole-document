@@ -91,6 +91,7 @@ import sys
 sys.path.insert(0, sys.argv[6])
 from reportlab import rl_config
 rl_config.invariant = 1
+rl_config.useA85 = 0
 rl_config.pageCompression = 1
 from reportlab.pdfgen import canvas
 from content import content_lines
@@ -324,7 +325,7 @@ record() {
 
 if [ "$have_reportlab" -eq 1 ]; then
   record "reportlab-multipage.pdf" "ReportLab" "$RL_V" \
-    "python3 gen_reportlab.py reportlab-multipage.pdf pages=$RL_PAGES cols=$RL_COLS lines/col=$RL_LINES seed=$CONTENT_SEED (canvas, pageCompression=1, rl_config.invariant=1)" \
+    "python3 gen_reportlab.py reportlab-multipage.pdf pages=$RL_PAGES cols=$RL_COLS lines/col=$RL_LINES seed=$CONTENT_SEED (canvas, pageCompression=1, useA85=0, rl_config.invariant=1)" \
     "$(sha_of "$TMP/det1/reportlab-multipage.pdf")" "$(sha_of "$TMP/det2/reportlab-multipage.pdf")"
 else
   echo "SKIP ReportLab (python3-reportlab not available)"
