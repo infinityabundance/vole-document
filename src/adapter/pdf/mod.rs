@@ -12,6 +12,8 @@ pub mod physical;
 pub mod samples;
 pub mod span;
 
+#[cfg(feature = "rans")]
+pub use adapter::propose_pdf_channels;
 pub use adapter::{detect, propose_pdf};
 pub use channels::{KIND_COUNT, TokenChannelPlan, join, kind_from_id, kind_id, split};
 pub use cos::{

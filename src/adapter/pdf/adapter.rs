@@ -23,6 +23,13 @@ use crate::error::Result;
 use crate::integrity::sha256;
 use crate::limits::Limits;
 
+#[cfg(feature = "rans")]
+use crate::entropy::{
+    CODER_ORDER0_BYTE_RANS, CODER_VERSION_1, EntropyChannelDescriptor, EntropyModel, encode_channel,
+};
+
+#[cfg(feature = "rans")]
+use super::channels::KIND_COUNT;
 use super::physical::{PdfPhysical, scan};
 
 /// Validated PDF detection: a `%PDF-` header AND at least one indirect object
@@ -100,6 +107,107 @@ pub fn propose_pdf(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
 
     Ok(Some(Candidate {
         kind: CandidateKind::PdfPhysical,
+        descriptor,
+    }))
+}
+
+/// Propose a typed-channel PDF candidate, or `None` if the file cannot be split
+/// (not a validated PDF, or too many tokens).
+///
+/// The validated lexical cover is transposed into fixed parallel channels and
+/// each channel is entropy-coded independently with its own order-0 byte-rANS
+/// model. Reconstruction is a single [`Op::InterleaveChannels`] that replays the
+/// kind/length sequence against the per-kind payload channels, so exactness holds
+/// by construction; the complete-cost court still decides whether the extra model
+/// records pay for themselves.
+///
+/// Fixed channel layout (indices are a wire contract of this candidate):
+///
+/// - channel `0` — kinds, one kind byte per token;
+/// - channel `1` — lengths, four little-endian bytes per token;
+/// - channels `2..2+KIND_COUNT` — `payloads[k]` for kind `k`, all of them, even
+///   when empty.
+#[cfg(feature = "rans")]
+pub fn propose_pdf_channels(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
+    if !detect(input, limits) {
+        return Ok(None);
+    }
+    let plan = match super::channels::split(input, limits)? {
+        Some(p) => p,
+        None => return Ok(None),
+    };
+
+    // Build the raw channel streams in the fixed layout. `kinds` and `lengths`
+    // are aligned one entry per token; the payload streams are already aligned
+    // per kind by `split`.
+    let mut streams: Vec<Vec<u8>> = Vec::with_capacity(2 + KIND_COUNT);
+    streams.push(plan.kinds.clone());
+    let mut lengths = Vec::with_capacity(plan.lengths.len() * 4);
+    for &len in &plan.lengths {
+        lengths.extend_from_slice(&len.to_le_bytes());
+    }
+    streams.push(lengths);
+    for payload in &plan.payloads {
+        streams.push(payload.clone());
+    }
+
+    // Encode each channel with a model normalized from its own byte histogram.
+    // An empty stream yields the canonical uniform model and an empty capsule.
+    let mut models = Vec::with_capacity(streams.len());
+    let mut channels = Vec::with_capacity(streams.len());
+    for stream in &streams {
+        let mut counts = [0u64; crate::entropy::ALPHABET];
+        for &b in stream {
+            counts[b as usize] += 1;
+        }
+        let model = EntropyModel::from_counts(&counts, 12)?;
+        let scale_bits = model.scale_bits;
+        let capsule = encode_channel(&model, stream)?;
+        let model_id = models.len() as u32;
+        models.push(model);
+        channels.push(EntropyChannelDescriptor {
+            coder: CODER_ORDER0_BYTE_RANS,
+            coder_version: CODER_VERSION_1,
+            scale_bits,
+            lane_count: 1,
+            model_id,
+            symbol_count: capsule.symbol_count,
+            decoded_length: capsule.decoded_length,
+            initial_state: capsule.initial_state,
+            payload: capsule.payload,
+        });
+    }
+
+    let first_payload_channel = 2;
+    let payload_channel_count = KIND_COUNT as u8;
+    let program = Program::new(vec![Op::InterleaveChannels {
+        kinds_channel: 0,
+        lengths_channel: 1,
+        first_payload_channel,
+        payload_channel_count,
+    }]);
+
+    let format_basis = format!(
+        "pdf-channels;kinds={};tokens={};channels={}",
+        KIND_COUNT,
+        plan.token_count(),
+        channels.len()
+    );
+
+    let descriptor = Descriptor {
+        universe: UNIVERSE.to_string(),
+        source_format: SOURCE_FORMAT_PDF,
+        format_basis,
+        models,
+        channels,
+        objects: vec![],
+        program,
+        source_sha256: sha256(input),
+        source_len: input.len() as u64,
+    };
+
+    Ok(Some(Candidate {
+        kind: CandidateKind::PdfChannels,
         descriptor,
     }))
 }
@@ -200,5 +308,109 @@ mod tests {
             propose_pdf(&pdf, limits).unwrap().is_none(),
             "a multi-span PDF cannot fit in a one-op graph"
         );
+    }
+
+    #[cfg(feature = "rans")]
+    #[test]
+    fn pdf_channels_exact() {
+        use crate::adapter::pdf::samples::{is_negative_control, sample_pdfs};
+
+        let mut checked = 0usize;
+        for (name, bytes) in sample_pdfs() {
+            if is_negative_control(name) {
+                continue;
+            }
+            let cand = propose_pdf_channels(&bytes, Limits::DEFAULT)
+                .unwrap()
+                .unwrap_or_else(|| panic!("{name} must propose a typed-channel candidate"));
+            assert_eq!(cand.kind, CandidateKind::PdfChannels);
+
+            let (encoded, _) = cand.descriptor.serialize().unwrap();
+            let parsed = Descriptor::parse(&encoded, Limits::DEFAULT).unwrap();
+            let out = crate::materialize::materialize(&parsed, Limits::DEFAULT).unwrap();
+            assert_eq!(
+                out, bytes,
+                "{name} typed channels must materialize byte-for-byte"
+            );
+            assert_eq!(sha256(&out), sha256(&bytes), "{name} typed-channel sha");
+            checked += 1;
+        }
+        assert!(
+            checked >= 3,
+            "must force exactness on at least three samples"
+        );
+    }
+
+    #[cfg(feature = "rans")]
+    #[test]
+    fn pdf_channels_none_for_non_pdf() {
+        use crate::adapter::pdf::samples::{is_negative_control, sample_pdfs};
+
+        let mut seen = 0usize;
+        for (name, bytes) in sample_pdfs() {
+            if !is_negative_control(name) {
+                continue;
+            }
+            assert!(
+                propose_pdf_channels(&bytes, Limits::DEFAULT)
+                    .unwrap()
+                    .is_none(),
+                "{name} must decline the typed-channel candidate"
+            );
+            seen += 1;
+        }
+        assert_eq!(seen, 2, "both negative controls must be exercised");
+        assert!(
+            propose_pdf_channels(b"%PDF-1.7\n", Limits::DEFAULT)
+                .unwrap()
+                .is_none(),
+            "a header-only file is not a validated PDF"
+        );
+    }
+
+    #[cfg(feature = "rans")]
+    #[test]
+    fn pdf_channels_deterministic() {
+        use crate::adapter::pdf::samples::{is_negative_control, sample_pdfs};
+
+        for (name, bytes) in sample_pdfs() {
+            if is_negative_control(name) {
+                continue;
+            }
+            let a = propose_pdf_channels(&bytes, Limits::DEFAULT)
+                .unwrap()
+                .unwrap()
+                .descriptor
+                .serialize()
+                .unwrap()
+                .0;
+            let b = propose_pdf_channels(&bytes, Limits::DEFAULT)
+                .unwrap()
+                .unwrap()
+                .descriptor
+                .serialize()
+                .unwrap()
+                .0;
+            assert_eq!(a, b, "{name} typed-channel bytes must be deterministic");
+        }
+    }
+
+    #[cfg(feature = "rans")]
+    #[test]
+    fn report_court_winner_per_sample() {
+        use crate::adapter::pdf::samples::sample_pdfs;
+
+        for (name, bytes) in sample_pdfs() {
+            let (encoded, report) = crate::encode::encode(&bytes, Limits::DEFAULT).unwrap();
+            let (out, _) = crate::materialize::decode_to_bytes(&encoded, Limits::DEFAULT).unwrap();
+            assert_eq!(out, bytes, "{name} court winner must be exact");
+            eprintln!(
+                "court[{name}]: winner={} source={} encoded={} ratio={:.3}",
+                report.kind.name(),
+                report.source_len,
+                report.encoded_len,
+                report.compression_ratio()
+            );
+        }
     }
 }
