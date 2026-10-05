@@ -61,7 +61,7 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | **Adopted — first structural win** | campaign `2026-10-05-phase6-0d0bb79`; `flate.pdf` 36,102 vs `BYTE_RANS` 49,291 (**−13,189 B**) (ADR-0015) |
 | Phase-6 replay court (`--force pdf-deflate-replay[-rans]`) | **Measured** | `tools/phase6-court.sh`; campaign `2026-10-05-phase6-0d0bb79` |
 | Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; amendment campaign `2026-10-05-phase7-corpus-b-c4eb77e` (supersedes `2026-10-05-phase7-corpus-f1f8d26`); 24/24 replayed, 0 declined; diagnostic only, no new candidate |
-| Generator-family Flate corpus (`producers`: ReportLab/Cairo/LibreOffice/pdfTeX) | **Measured** | campaign `2026-10-05-phase7-producers-e071250`; 87/87 replayed; `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` on **Cairo** (58,711 → 34,574, −24,137 B) — the first **authoring-generator** witness; ReportLab/pdfTeX lose, LibreOffice declines to share; no candidate changed |
+| Generator-family Flate corpus (`producers`: ReportLab/Cairo/LibreOffice/pdfTeX) | **Measured (claim corrected 7.0c)** | campaign `2026-10-05-phase7-producers-e071250`; 87/87 replayed; `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` on Cairo (58,711 → 34,574, −24,137 B) but the Cairo file is a **repeated-identical-bytes harness artifact** (six byte-identical streams), and generic LZ does ~2× better (gzip -9 17,382 B; xz -9e 16,852 B); the "first authoring-generator witness" claim is withdrawn; no candidate changed |
 | PDF structural adapters (Phases 7–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
@@ -460,17 +460,28 @@ pdftex-doc.pdf          BYTE_RANS  24435 -> PDF_DEFLATE_REPLAY_RANS  35098  (+10
 libreoffice-export.pdf  BYTE_RANS  72791 -> PDF_DEFLATE_REPLAY_RANS 375265 (+302474)  lose
 ```
 
-**Cairo — a genuine authoring generator — wins.** For a repeated page it emits six
-byte-identical page content streams; the shared-channel lane stores that plaintext
-once and replay-rANS beats `BYTE_RANS` under complete cost by **24,137 B**, and the
-unforced court selects it. This is the **first authoring-generator witness** of the
-Phase-6 win region (Phase 7.0 had only self-authored fixtures). ReportLab and pdfTeX
-emit the same shared geometry yet **lose** at complete cost (framing overhead on a
-small file; already-tight streams), and LibreOffice shares nothing — shared plaintext
-is necessary but **not sufficient**. The win is **conditional** on repeated identical
-page content and is **not** a population claim; complete cost is authoritative and
-the `deflate-stats` dedup aggregate is a diagnostic that over-states wins. No
-candidate or wire format changed.
+**Correction (Phase 7.0c): the Cairo "win" is a harness repeated-bytes artifact.**
+An independent adversarial review found that `tools/pdf-corpus-producers.sh` draws
+**one identical page six times** (no per-page variation), so Cairo emits six streams
+whose **compressed bytes are identical *and* whose plaintexts are identical**. The
+court therefore cannot distinguish plaintext-sharing from plain compressed-byte
+repetition, and generic LZ captures far more of the same redundancy: on
+`cairo-vector.pdf`, `gzip -9` = **17,382 B**, `zlib -9` = 17,376 B and `xz -9e` =
+**16,852 B** — about **half** the 34,574 B reported as the "winning"
+`PDF_DEFLATE_REPLAY_RANS` size. `BYTE_RANS` is a weak order-0 baseline with no LZ, so
+the −24,137 B delta is a win over an order-0 lane on repeated identical bytes. The
+phrases "a genuine authoring application does produce the win region", "the producer
+creates the geometry" and "first authoring-generator witness" are **withdrawn**.
+Correct characterization: *our deterministic generator repeated one identical page
+six times; Cairo emitted six byte-identical streams (compressed bytes and plaintext
+both identical); this witnesses a repeated-identical-bytes region already captured
+better by generic LZ, not the shared-plaintext-vs-distinct-compression mechanism.*
+ReportLab and pdfTeX are the same story (identical repeats) and **lose** at complete
+cost; LibreOffice shares nothing. The delta is **conditional** on repeated identical
+page content and is **not** a population claim; prior "wins" were measured against a
+weak order-0 baseline and the generic ladder (below) is the honest comparison. No
+candidate or wire format changed. Review:
+[`docs/evidence/phase7b-skeptic-review.md`](docs/evidence/phase7b-skeptic-review.md).
 
 Receipt:
 [`evidence/campaigns/2026-10-05-phase7-producers-e071250/`](evidence/campaigns/2026-10-05-phase7-producers-e071250/);

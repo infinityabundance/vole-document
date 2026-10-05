@@ -117,6 +117,32 @@ its content is strongly compressed).
 exact-replay acceptance is 87/87 = 1.000; `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS`
 under complete cost on **1/4** — the Cairo vector output, by 24,137 B — while
 ReportLab (small-file framing), pdfTeX (tight streams) and LibreOffice (no sharing)
-lose. A genuine authoring generator **does** produce the shared-plaintext win region
-(on a repeated-page document); whether real-world authoring output does so often
-enough to matter remains open and is a Phase-7.2 question.
+lose.
+
+---
+
+## Amendment (2026-10-05, Phase 7.0c) — the Cairo "win" is a harness artifact
+
+> **This amendment is added in front of the frozen measurement; it rewrites no
+> `results.json`, `court-results.jsonl`, `manifest.json` or `environment.json`. The
+> headline and verdict prose above are superseded by what follows.**
+
+An independent adversarial review (Phase 7.0b) falsified the claim that "a genuine
+authoring application produces the win region" and that Cairo is a "first
+authoring-generator witness". `tools/pdf-corpus-producers.sh` draws **one identical
+page six times** (no per-page variation), so Cairo emits six streams whose
+**compressed bytes are identical *and* whose plaintexts are identical**. The court
+cannot distinguish plaintext-sharing from plain compressed-byte repetition, and a
+generic LZ captures far more of the same redundancy: on `cairo-vector.pdf`,
+`gzip -9` = 17,382 B, `zlib9` = 17,376 B and `xz -9e` = 16,852 B — about **half** the
+34,574 B reported here as a win. `BYTE_RANS` is a weak order-0 baseline with no LZ.
+
+Correct characterization: *our deterministic generator repeated one identical page
+six times; Cairo emitted six byte-identical streams (compressed bytes and plaintext
+both identical); this witnesses a repeated-identical-bytes region already captured
+better by generic LZ, not the shared-plaintext-vs-distinct-compression mechanism.*
+The "producer creates the geometry" framing is withdrawn. See
+`docs/evidence/phase7b-skeptic-review.md` and the generic-compressor baseline ladder
+in `docs/evidence/phase7-corpus-report.md` and campaign
+`evidence/campaigns/2026-10-05-phase7-baselines-<shortsha>/`. No wire format,
+candidate, or decode path changed.

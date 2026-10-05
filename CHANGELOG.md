@@ -242,18 +242,24 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   each from the same deterministic content document. Exact-replay acceptance is
   **87/87 = 1.000** (corpus-wide `correction/compressed` p10/p50/p90 =
   0.034759/0.047945/0.068028). Under complete cost `PDF_DEFLATE_REPLAY_RANS` vs
-  `BYTE_RANS`: **win 1 / lose 3 / decline 0**. **Cairo — a genuine authoring
-  generator — wins by 24,137 B (58,711 → 34,574)** because it emits six
-  byte-identical page content streams for a repeated page; **this is the first
-  authoring-generator witness** of the Phase-6/7.0 shared-plaintext win region.
-  ReportLab (small file, ~3.8 KB framing overhead) and pdfTeX (already-tight
-  streams) also emit shared plaintext but lose complete cost (−3,312 B / −10,663 B);
-  LibreOffice shares nothing (350,513 → 350,453) and loses by 302,474 B. The win is
-  **conditional** on repeated identical page content and is **not** a population
-  claim; qpdf appears only as an `/ID` normalizer. All 4 auto winners `verify` +
-  `cmp` byte-exact. Receipt under
-  `evidence/campaigns/2026-10-05-phase7-producers-e071250/`; new report section in
-  `docs/evidence/phase7-corpus-report.md`.
+  `BYTE_RANS`: **win 1 / lose 3 / decline 0** (Cairo −24,137 B, 58,711 → 34,574;
+  ReportLab −3,312 B; pdfTeX −10,663 B; LibreOffice −302,474 B). **Corrected in
+  Phase 7.0c:** the Cairo delta is a **repeated-identical-bytes harness artifact** —
+  `tools/pdf-corpus-producers.sh` draws one identical page six times, so Cairo emits
+  six streams whose compressed bytes are identical *and* whose plaintexts are
+  identical; a generic LZ captures ~2× more (`gzip -9` 17,382 B, `zlib -9`
+  17,376 B, `xz -9e` 16,852 B) and `BYTE_RANS` is a weak order-0 baseline with no
+  LZ. The withdrawn claims ("a genuine authoring application produces the win
+  region", "the producer creates the geometry", "first authoring-generator
+  witness") are corrected: *our generator repeated one identical page six times;
+  Cairo emitted six byte-identical streams — a repeated-bytes region already
+  captured better by generic LZ, not the
+  shared-plaintext-vs-distinct-compression mechanism.* The delta is **conditional**
+  on repeated identical page content and is **not** a population claim; qpdf appears
+  only as an `/ID` normalizer. All 4 auto winners `verify` + `cmp` byte-exact.
+  Receipt under `evidence/campaigns/2026-10-05-phase7-producers-e071250/` (prose
+  amendment); review `docs/evidence/phase7b-skeptic-review.md`; baseline ladder in
+  `docs/evidence/phase7-corpus-report.md`. `results.json` is not rewritten.
 - Campaign `2026-10-05-phase6-0d0bb79` (DRA v8, verdict PASS; the earlier
   `2026-10-05-phase6-ec92c1a` receipt is retained): a 12-file corpus; every
   auto winner round-trips byte-exactly (`cmp` + `verify`, `all_exact=true`); the
@@ -306,15 +312,17 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   (shared plaintext) is not produced by the tested transformers. It is scoped to
   locally generated files and makes no population claim; qpdf and Ghostscript are
   transformers, not authoring applications.
-- The Phase-7.0b generator-family corpus **locates the win region on a real
-  authoring generator for the first time**: Cairo's repeated-page vector output
-  wins complete cost by 24,137 B. This still does not change any adoption and is
-  still not a population claim — it is one locally generated file per family, and
-  the win is conditional on the input repeating an identical page, which is what
-  makes whole-stream plaintext sharing possible. ReportLab and pdfTeX emit the
-  same shared geometry yet lose complete cost, which keeps the finding honest:
-  shared plaintext is necessary but not sufficient; the complete-cost court still
-  decides.
+- The Phase-7.0b Cairo case is **not** a real-authoring-generator witness; an
+  independent adversarial review (Phase 7.0c,
+  `docs/evidence/phase7b-skeptic-review.md`) falsified that framing. Our generator
+  repeated one identical page six times, so Cairo's six streams are byte-identical
+  in compressed bytes *and* plaintext; the court cannot separate plaintext-sharing
+  from compressed-byte repetition, and generic LZ does about twice as well as the
+  "winning" 34,574 B on that file. This still does not change any adoption. It is
+  not a population claim, and the enabling condition (a shared plaintext that is
+  independently re-coded or weakly coded) remains unproven on real authoring
+  output; the generic-compressor baseline ladder (Phase 7.0c) is the honest
+  comparison.
 - Fuzzing is **evidence, not a proof of absence**: the Phase-7.1 campaign is
   bounded to 60 s per target. Nine zero-crash targets mean no crash was observed
   in that budget on that build, not that none exists. Both `deflate_replay`

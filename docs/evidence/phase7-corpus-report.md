@@ -249,7 +249,10 @@ byte-reproducible run to run; LibreOffice is **not** (run-varying metadata).
 **Exact-replay acceptance 87/87 = 1.000** (0 declines). A large naive→dedup gap means
 the producer emitted a plaintext **shared across whole streams**: ReportLab, Cairo
 and pdfTeX do (six byte-identical repeated-page streams each); LibreOffice does not
-(350,513 → 350,453).
+(350,513 → 350,453). **Because our deterministic generator draws one identical page
+six times with no per-page variation, those six streams are byte-identical in the
+*compressed* bytes as well as the plaintext**, so a naive→dedup gap here cannot by
+itself distinguish plaintext-sharing from plain compressed-byte repetition.
 
 ## Complete-cost court (`PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS`)
 
@@ -263,20 +266,39 @@ and pdfTeX do (six byte-identical repeated-page streams each); LibreOffice does 
 Court totals: **win 1 / lose 3 / decline 0**; all 4 files `verify` + byte-compare
 round-trip exact.
 
-**A genuine authoring application does produce the win region.** Cairo emits six
-byte-identical page content streams for a repeated page; the shared-channel lane
-stores that plaintext once and `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` under
-complete cost by **24,137 B** (58,711 → 34,574), and the unforced court selects it.
-Phase 7.0 had only self-authored witnesses; this is the **first
-authoring-generator witness**. ReportLab and pdfTeX emit the same shared geometry but
-**lose** complete cost: ReportLab's file is small (10.9 KB) so ~3.8 KB of DRA/model
-framing swamps the 6-way dedup (its dedup diagnostic 10,649 B even undercuts its
-11,144 B `BYTE_RANS`, which is exactly why the diagnostic is not the decision), and
-pdfTeX's already-tight streams make `BYTE_RANS` cheaper than rANS(plaintext)+corr.
-LibreOffice shares nothing and loses badly.
+> **Correction (2026-10-05, Phase 7.0c).** The paragraph this replaces claimed that
+> "a genuine authoring application does produce the win region" and called Cairo the
+> "first authoring-generator witness of the shared-plaintext win region". An
+> independent adversarial review found that to be a **harness artifact**, and the
+> claim is withdrawn. Correct characterization: *our deterministic generator repeated
+> one identical page six times; Cairo emitted six byte-identical streams (compressed
+> bytes and plaintext both identical); this witnesses a repeated-identical-bytes
+> region already captured better by generic LZ, not the
+> shared-plaintext-vs-distinct-compression mechanism.* On this file `gzip -9` =
+> 17,382 B, `zlib9` = 17,376 B and `xz -9e` = 16,852 B — about **half** the 34,574 B
+> that `PDF_DEFLATE_REPLAY_RANS` reports as a "win". `BYTE_RANS` is a weak order-0
+> baseline with no LZ, so the −24,137 B delta is a win over an order-0 lane on
+> repeated identical bytes. It is **not** evidence that a real authoring application
+> produces the shared-plaintext win region. See
+> `docs/evidence/phase7b-skeptic-review.md`.
 
-**Scope.** The win is **conditional** on the input document repeating an identical
-page (a legitimate pattern, and our deterministic input); it is **not** a population
-claim and does not show that arbitrary real-world authoring output wins. Complete
-cost remains authoritative, and the shared-plaintext geometry is necessary but not
-sufficient (ReportLab and pdfTeX prove it). No candidate changed.
+**What the court actually shows.** Cairo emits six byte-identical page content
+streams for a repeated page; the shared-channel lane stores that plaintext once and
+`PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` under complete cost by **24,137 B**
+(58,711 → 34,574), and the unforced court selects it. That delta is real, but it is a
+win over a **weak order-0** baseline on a **repeated-identical-bytes** region, not on
+the shared-plaintext-vs-distinct-compression mechanism. ReportLab and pdfTeX emit the
+same shared geometry but **lose** complete cost: ReportLab's file is small (10.9 KB)
+so ~3.8 KB of DRA/model framing swamps the 6-way dedup (its dedup diagnostic
+10,649 B even undercuts its 11,144 B `BYTE_RANS`, which is exactly why the diagnostic
+is not the decision), and pdfTeX's already-tight streams make `BYTE_RANS` cheaper than
+rANS(plaintext)+corr. LibreOffice shares nothing and loses badly.
+
+**Scope.** The measured delta is **conditional** on the input document repeating an
+identical page (a legitimate pattern, and our deterministic input); it is **not** a
+population claim and does not show that arbitrary real-world authoring output wins.
+The independent review shows the repeated page here is also byte-identical in its
+compressed form, so the region is a generic repeated-bytes one that LZ compresses far
+better (see `docs/evidence/phase7b-skeptic-review.md`). Complete cost remains
+authoritative, and the shared-plaintext geometry is necessary but not sufficient
+(ReportLab and pdfTeX prove it). No candidate changed.
