@@ -63,6 +63,22 @@ Rules:
 - Freeze a phase contract before implementing; have a *different* subagent audit
   the implementation against the frozen contract afterward.
 
+## Branching and integration
+
+- One branch per phase, named `phaseN` (never a single long-lived `staging`
+  branch). Decompose the phase into subphases and **commit and push after each
+  subphase** so progress survives context loss.
+- Merge into `main` with `--no-ff` only when the phase is honestly complete and
+  every gate is green. Tag the release (`vX.Y.Z-alpha.N`) as the durable record.
+- **Delete the phase branch locally and on the remote as soon as it is merged**
+  (`git branch -d phaseN`; `git push origin --delete phaseN`). Do not leave
+  merged branches lying around. The tag preserves the history, so nothing is
+  lost; run `git fetch --prune` and confirm `git branch --no-merged main` is
+  empty before deleting.
+- Keep the working tree clean on `main`; container-run scripts may leave
+  root-owned files, so `chown` them back before host git operations and never
+  merge while committed-but-untracked files are present.
+
 ## Claim discipline
 
 Do not write or imply: "the true generating program was discovered"; "residuals
