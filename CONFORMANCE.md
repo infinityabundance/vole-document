@@ -26,12 +26,12 @@
 | Flate correction-ratio harness (Phase 7.0) | `tests/deflate_stats.rs` | `deflate_stats` is diagnostics-only and never changes what the complete-cost court selects. On the real-zlib `flate.pdf`: exactly 6 `FlateDecode` streams, all replayed, aggregate `compressed_bytes` equals the sum of stream `data_len`, every replayed stream carries a non-empty plaintext, correction and rANS cost, and each correction is strictly smaller than its stream; the **deduplicated** shared-channel aggregate is strictly below the naive per-stream sum for a file whose plaintexts repeat; a non-PDF yields `is_pdf:false` with no streams and a zeroed summary (never an error); a PDF with no `FlateDecode` streams reports zero streams |
 | Producer corpus + ratio campaign (Phase 7.0, script) | `tools/pdf-corpus.sh` | builds a locally-generated producer-stratified Flate corpus (Ghostscript `pdfwrite` at five `/PDFSETTINGS`, qpdf in four modes, a hand-written stored-block-zlib base, plus the Phase-3 synthetic set), validates every produced PDF with `qpdf --check`, records a provenance ledger (producer, version, exact command, SHA-256, `license:"locally-generated"`), and captures `deflate-stats` over every corpus PDF; the campaign `2026-10-05-phase7-corpus-f1f8d26` is sealed (no new candidate adopted; declines recorded verbatim) |
 
-Test counts (inside the pinned `dev` image): **321** passing with `--all-features`
-(0 failed, 1 ignored), of which **236** are library unit tests (plus 1 ignored);
-**304** passing with the default feature set (`default = ["rans"]`, permissive-only;
-the replay courts are skipped), of which **228** are library unit tests; and
-**257** passing with `--no-default-features` (the rANS- and replay-dependent
-integration courts are skipped).
+Test counts (inside the pinned `dev` image): **326** passing with `--all-features`
+(0 failed, 1 ignored), of which **238** are library unit tests (plus 1 ignored);
+**306** passing with the default feature set (`default = ["rans"]`, permissive-only;
+the replay courts are skipped), of which **230** are library unit tests; and
+**259** passing with `--no-default-features`, of which **208** are library unit
+tests (the rANS- and replay-dependent integration courts are skipped).
 
 `encode --force KIND` is the ablation surface: it runs the *same* complete-cost
 court over a one-element candidate set (`KIND` in `raw`, `rle`, `byte-rans`,
