@@ -72,7 +72,7 @@ Requirements enforced by `Descriptor::parse`:
 ## Graph (reconstruction program)
 
 ```text
-graph := version:u8=5 op_count:u32 op*
+graph := version:u8=6 op_count:u32 op*
 op    := EMIT_OBJECT(0x01)        u32_object_id
        | INLINE(0x02)             u32_len [u8;len]
        | REPEAT_LAST(0x03)        u32_count
@@ -82,6 +82,7 @@ op    := EMIT_OBJECT(0x01)        u32_object_id
        | MARK_OFFSET(0x06)        u8_slot
        | EMIT_OFFSET(0x07)        u8_slot u8_width
        | PACK_SEGMENTS(0x08)       u32_data_object u32_item_count item*
+       | PACKED_CHANNELS(0x09)     u32_data_channel u32_plan_channel u64_declared_output_len
 
 item  := LITERAL(0x01)  u32_leb128_len
        | MARK(0x02)      u8_slot
@@ -155,6 +156,19 @@ Semantics:
   `CoverageViolation`). Like every other op it is deterministic and
   non-Turing-complete, and it never invents bytes: an `Emit` is only present when
   the builder verified the marked position reproduces the source digits.
+- `PACKED_CHANNELS` (introduced in DRA version 6) reconstructs output from a
+  **data entropy channel** interpreted by a serialized item table carried in a
+  **plan entropy channel** (authority: **EntropyChannel** for both).
+  `data_channel` is the index of the channel holding the literal data object;
+  `plan_channel` is the index of the channel holding exactly
+  [`encode_items`](src/dra/op.rs) of the item table (the same
+  `Literal`/`Mark`/`Emit` item codec as `PACK_SEGMENTS`); `declared_output_len`
+  is the exact expected output length. Evaluation decodes both channels, runs the
+  item table over the data (the data object must be consumed **exactly**), and
+  rejects a produced length other than `declared_output_len`, a missing channel, an
+  unknown item tag, a truncation, an unmarked slot, a bad width, a literal overrun,
+  or unconsumed data (`InvalidGraph` / `CoverageViolation`). Like every other op it
+  is deterministic and non-Turing-complete, and it never invents bytes.
 
 ## Coverage certificate (checked invariant, not stored bytes)
 
@@ -173,15 +187,18 @@ class of bugs at the representation boundary.
 
 ## Universe declaration
 
-The Phase-5.7 (Phase-6 preparation) universe string is:
+The Phase-5.8 universe string is:
 
 ```text
-vole-document;universe;phase6-prep;exact-bytes;dra-5;opaque+entropy+pdf+channels+offsets
+vole-document;universe;phase5-8;exact-bytes;dra-6;opaque+entropy+pdf+channels+offsets+packed+packed-channels
 ```
 
 The header's `universe_id` is the first 16 bytes of `SHA-256` over this string.
 Any change to an opcode, coder, limit semantic, adapter meaning, or hash semantic
-requires a new universe string. This supersedes the Phase-5 string
+requires a new universe string. This supersedes the Phase-5.7 (Phase-6
+preparation) string
+(`vole-document;universe;phase6-prep;exact-bytes;dra-5;opaque+entropy+pdf+channels+offsets`),
+which superseded the Phase-5 string
 (`vole-document;universe;phase-5;exact-bytes;dra-4;opaque+entropy+pdf+channels+offsets`),
 which superseded the Phase-4 string
 (`vole-document;universe;phase-4;exact-bytes;dra-3;opaque+entropy+pdf+channels`).
@@ -266,7 +283,7 @@ the renormalization payload; the total record payload length must equal
 A channel is never a bare seed: the model, decoder state, payload, and counts
 are all required to reconstruct bytes (see [`docs/adr/0006-rans-substrate.md`](docs/adr/0006-rans-substrate.md)).
 
-## PDF layout candidate (Phase 5, rebuilt on packed framing in Phase 5.7)
+## PDF layout candidate (Phase 5, rebuilt on packed framing in Phase 5.7, entropy-coded in Phase 5.8)
 
 The `PDF_LAYOUT` candidate (`source_format = 1`) applies only to PDFs with a
 classic cross-reference section and **no** cross-reference stream, and with at
@@ -298,7 +315,17 @@ RAW at scale** (`many.pdf` 10,069 vs 10,215), which the per-segment lane never d
 but it is still dominated by `BYTE_RANS` (5,181) because the residual data object
 is stored literally; layout wins 0 of the 8 classic-xref samples and the
 leave-one-out layout delta is 0 (campaign `2026-10-05-phase5-4521778`). See
-`PROJECT_STATE.md` and ADR-0012. This section is **PROVISIONAL**.
+`PROJECT_STATE.md` and ADR-0012.
+
+The Phase-5.8 variant `PDF_LAYOUT_RANS` keeps the same `LayoutPlan` but carries it
+through the `PACKED_CHANNELS` op (`0x09`): channel 0 holds the plan's literal data
+object and channel 1 holds `encode_items` of the item table, each order-0
+byte-rANS coded with its own `MODEL` (model ids 0 and 1, `scale_bits` 12). It is
+likewise byte-exact and is recorded, not adopted — head-to-head against
+`BYTE_RANS` it wins 0, loses 8, and is declined by 3 files, because channel 0
+codes nearly the whole file while the plan channel (1,815 B on `many.pdf`) and the
+second model are added metadata `BYTE_RANS` never pays (campaign
+`2026-10-05-phase5-8-cf8048d`, ADR-0013). This section is **PROVISIONAL**.
 
 ## Feature policy
 

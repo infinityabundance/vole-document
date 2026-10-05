@@ -19,18 +19,20 @@
 | PDF layout | `tests/pdf_layout.rs` | Phase-5 gates: the positional DRA ops (`MARK_OFFSET`/`EMIT_OFFSET`, DRA v4) round-trip and are bounded to 256 slots; a forced `PDF_LAYOUT` descriptor is byte-exact with fully charged cost; `classic.pdf` really marks positions and emits predicted offsets; a deliberately wrong source offset falls back to a literal and is never predicted; cross-reference streams, non-PDFs, and >255-object tables decline; identical input is deterministic; hostile corruption yields a typed error, never a panic; and the honest rejection gate asserts `PDF_LAYOUT` **loses** the complete-cost court on `classic.pdf` while the real winner round-trips exactly |
 | Packed framing (Phase 5.7) | `src/dra/op.rs`, `src/adapter/pdf/layout.rs`, `tests/pdf_layout.rs` | `PACK_SEGMENTS` (opcode `0x08`, DRA v5) round-trips and rejects unknown tags, truncation, unmarked slots, bad widths, literal overruns, and unconsumed data; layout-v2 is one packed item table over one data object with adjacent literals coalesced; `many.pdf` (hundreds of xref entries) predicts ≥100 offsets and is byte-exact; forced layout-v2 beats RAW at scale but still loses to `BYTE_RANS`, asserted honestly |
 | Phase-5.7 packed-framing court (script) | `tools/phase5-court.sh` | forced-candidate ablation (`encode --force KIND`) including `pdf-layout` (layout-v2) over the enlarged 11-file corpus: per-kind forced sizes, cumulative ladder A0..A5, leave-one-out layout delta, and the classic-xref subset; every auto winner is `cmp`ed and `verify`ed byte-exact, the qpdf oracle is re-checked, and the campaign `2026-10-05-phase5-4521778` is sealed |
+| Packed channels (Phase 5.8) | `src/dra/op.rs`, `src/dra/program.rs`, `src/adapter/pdf/layout.rs` | `PACKED_CHANNELS` (opcode `0x09`, DRA v6) round-trips and rejects unknown item tags, truncation, unmarked slots, bad widths, literal overruns, missing channels, a declared-length mismatch, and unconsumed data; layout+rANS is one data channel plus one plan channel (serialized item table) with two models; `classic.pdf`/`bigtext.pdf`/`many.pdf` are byte-exact and deterministic, non-PDF and cross-reference-stream inputs decline, and the honest gate records that layout+rANS loses to `BYTE_RANS` |
+| Phase-5.8 layout+rANS court (script) | `tools/phase5-8-court.sh` | forced-candidate ablation (`encode --force KIND`) including `pdf-layout-rans` over the 11-file corpus: per-kind forced sizes, cumulative ladder A0..A6, leave-one-out layout+rANS delta, and head-to-head win/lose/decline vs `BYTE_RANS`; every auto winner is `cmp`ed and `verify`ed byte-exact, the qpdf oracle is re-checked, and the campaign `2026-10-05-phase5-8-cf8048d` is sealed |
 
-Test counts (inside the pinned `dev` image): **287** with all features (the
-`default` set), **243** with `--no-default-features` (the rANS-dependent
-integration courts are skipped), of which **211** are library unit tests (with
+Test counts (inside the pinned `dev` image): **295** with all features (the
+`default` set), **248** with `--no-default-features` (the rANS-dependent
+integration courts are skipped), of which **219** are library unit tests (with
 all features).
 
 `encode --force KIND` is the ablation surface: it runs the *same* complete-cost
 court over a one-element candidate set (`KIND` in `raw`, `rle`, `byte-rans`,
-`pdf-physical`, `pdf-channels`, `pdf-layout`). Forcing selects a lane; it never
-bypasses serialization, decoding, or the byte-compare, and a kind the input does
-not propose fails with a typed usage error (recorded as `null`), not a fabricated
-result.
+`pdf-physical`, `pdf-channels`, `pdf-layout`, `pdf-layout-rans`). Forcing selects
+a lane; it never bypasses serialization, decoding, or the byte-compare, and a kind
+the input does not propose fails with a typed usage error (recorded as `null`), not
+a fabricated result.
 
 Run everything:
 
@@ -78,7 +80,11 @@ width-bound rejection, wrong-offset fallback, decline preconditions, and hostile
 corruption (`tests/pdf_layout.rs`). Phase 5.7 additionally exercises the
 `PACK_SEGMENTS` item-table parser and evaluator (unknown tags, truncation,
 unmarked slots, bad widths, literal overruns, and unconsumed data) and the
-coalesced layout-v2 builder (`tests/pdf_layout.rs`).
+coalesced layout-v2 builder (`tests/pdf_layout.rs`). Phase 5.8 additionally
+exercises the `PACKED_CHANNELS` item-table-over-channels evaluator (declared-length
+mismatch, missing channels, truncated plan, unconsumed data) and the layout+rANS
+candidate builder (two-channel exactness, determinism, and decline) in
+`src/dra/program.rs` and `src/adapter/pdf/layout.rs`.
 Still planned for later phases: a stream-boundary parser ·
 DEFLATE replay wrapper · partial materializer.
 

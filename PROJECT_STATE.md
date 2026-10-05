@@ -41,6 +41,8 @@ are evidence.
 | PDF classic-xref layout (`PDF_LAYOUT`) | 5 | RECORDED (rejected on cost) | campaign `2026-10-05-phase5-7193001`; byte-exact and predicts xref offsets/`startxref`, but loses to RAW/`BYTE_RANS` on DRA op framing cost (ADR-0011) |
 | Packed segment framing (`PACK_SEGMENTS`, DRA v5) | 5.7 | IMPLEMENTED | opcode `0x08`; one op + a compact varint item table over a single data object amortizes per-segment framing; universe → `phase6-prep` |
 | PDF layout on packed framing (layout-v2, coalesced) | 5.7 | RECORDED (beats RAW at scale, rejected vs `BYTE_RANS`) | campaign `2026-10-05-phase5-4521778`; packed+coalesced layout beats RAW on `many.pdf` (10,069 vs 10,215), but the residual data object is stored literally so it loses to `BYTE_RANS` (5,181) and is never the auto winner (ADR-0012) |
+| `PACKED_CHANNELS` DRA op (DRA v6) | 5.8 | IMPLEMENTED | opcode `0x09`; reconstructs from a data channel + a plan channel (serialized item table) with a declared output length validated at eval; universe → `phase5-8` |
+| PDF layout + rANS (`PDF_LAYOUT_RANS`) | 5.8 | RECORDED (rejected vs `BYTE_RANS`) | campaign `2026-10-05-phase5-8-cf8048d`; byte-exact, but head-to-head wins 0 / loses 8 / declines 3, and the A6 rung adds a plan channel + a second model that `BYTE_RANS` never pays (ADR-0013) |
 | PDF `/Length`/revision proceduralization and stream replay | 5+ | PROPOSED | structural compression beyond xref offsets is not yet measured |
 | Exact DEFLATE replay (`preflate-rs`) | 6 | PROPOSED | candidate, per-stream, exactness first |
 | Nested PDF content proceduralization | 7 | PROPOSED | the clearest embodiment of the thesis |
@@ -68,15 +70,18 @@ literal coalescing: packed layout prediction now **beats RAW at scale**
 (`many.pdf` 10,069 vs 10,215) but still loses to `BYTE_RANS`, because the residual
 data object is stored literally (campaign `2026-10-05-phase5-4521778`, ADR-0012).
 PDF structural compression beyond xref offsets — `/Length`/revision
-proceduralization, stream replay, and **entropy-coded residuals** — and every
-cross-document mechanism remain `PROPOSED` (Phases 6+). Phase 2 measured only the
-order-0 typed byte entropy floor over an opaque mixed corpus; Phase 4 showed that
-coarse lexical transposition plus per-channel order-0 models does not beat a
-monolithic order-0 channel; Phase 5 showed that correct structural prediction does
-not pay while each predicted field still needs its own framed DRA op; and Phase
-5.7 showed that packing that framing makes prediction beat RAW at scale but that
-prediction must be composed with entropy coding of the residual to beat a
-monolithic order-0 channel.
+proceduralization and stream replay — and every cross-document mechanism remain
+`PROPOSED` (Phases 6+). Phase 2 measured only the order-0 typed byte entropy floor
+over an opaque mixed corpus; Phase 4 showed that coarse lexical transposition plus
+per-channel order-0 models does not beat a monolithic order-0 channel; Phase 5
+showed that correct structural prediction does not pay while each predicted field
+still needs its own framed DRA op; Phase 5.7 showed that packing that framing
+makes prediction beat RAW at scale; and Phase 5.8 composed prediction with
+entropy coding of the residual (`PACKED_CHANNELS`, DRA v6) yet still does not beat
+a monolithic order-0 channel, because the plan channel and a second model are
+added metadata the monolithic lane never pays. These four results converge: at
+the tested scale, PDF structural proceduralization does not beat a whole-file
+order-0 rANS lane.
 
 ### Phase 5.7 scope and the packed-framing threshold
 
@@ -105,6 +110,48 @@ monolithic order-0 channel.
   the residual** — structural prediction composed with an rANS residual, the
   paper's layered model — not to pack the literals further. Recorded as a measured,
   partial positive (campaign `2026-10-05-phase5-4521778`, ADR-0012).
+
+### Phase 5.8 scope and the converging negatives
+
+- **Mechanism.** Phase 5.8 adds the `PACKED_CHANNELS` DRA op (opcode `0x09`),
+  bumping the DRA graph to **version 6** and moving the universe to
+  `phase5-8;exact-bytes;dra-6;opaque+entropy+pdf+channels+offsets+packed+packed-channels`.
+  It reconstructs output from a **data entropy channel** interpreted by a
+  serialized item table carried in a **plan entropy channel**, with a declared
+  output length validated at evaluation. Both channels use the same
+  `Literal`/`Mark`/`Emit` item codec as `PACK_SEGMENTS`; the data object must be
+  consumed exactly.
+- **Candidate.** `PDF_LAYOUT_RANS` keeps the layout plan but codes the plan's
+  literal data object (channel 0) and `encode_items` of its item table
+  (channel 1) each as their own order-0 byte-rANS channel with its own model.
+- **Complete-cost verdict — rejected vs `BYTE_RANS`.** The candidate is exact and
+  fully charged, but head-to-head it wins **0**, loses **8**, and is declined by
+  **3** of 11 files; the ladder A0 RAW 81,591 → A2 +`BYTE_RANS` 48,818 →
+  A6 +`PDF_LAYOUT_RANS` 48,818 does not move below A5, and the leave-one-out
+  layout+rANS delta is **0**. Forced sizes: `classic.pdf` RAW 683 / `BYTE_RANS`
+  728 / `PDF_LAYOUT` 731 / `PDF_LAYOUT_RANS` 883; `bigtext.pdf` RAW 65,903 /
+  `BYTE_RANS` 38,174 / `PDF_LAYOUT_RANS` 38,341; `many.pdf` RAW 10,235 /
+  `BYTE_RANS` 5,201 / `PDF_LAYOUT_RANS` 5,914 (breakdown: data 7,877, plan 1,815,
+  models 645, payload 4,775).
+- **Why.** Channel 0 entropy-codes nearly the whole file against a single global
+  histogram — the same job `BYTE_RANS` performs with one channel — while the plan
+  channel (1,815 B on `many.pdf`) plus a second model are pure added metadata the
+  monolithic lane never pays. The structural prediction removes fewer bytes than
+  the plan channel adds, so `PDF_LAYOUT_RANS` stays above `BYTE_RANS` wherever it
+  is proposed. Recorded honestly (campaign `2026-10-05-phase5-8-cf8048d`,
+  ADR-0013).
+- **Converging negatives (Phases 4 / 5 / 5.7 / 5.8).** Four independent mechanisms
+  now point at the same conclusion on this deterministic corpus: coarse typed
+  lexical channels do not beat a whole-file order-0 model (Phase 4, ADR-0010);
+  correct structural layout prediction does not pay while each field needs a
+  framed op (Phase 5, ADR-0011); amortizing that framing lets prediction beat RAW
+  at scale but not order-0 entropy coding (Phase 5.7, ADR-0012); and entropy-coding
+  the residual as separate channels still loses to `BYTE_RANS` because the plan
+  itself is added metadata (Phase 5.8, ADR-0013). At the tested scale, PDF
+  structural proceduralization does not beat a whole-file order-0 rANS lane. A
+  future win requires documents with far more predictable structure, a plan that
+  costs less than it saves, or a candidate that removes structure **without**
+  adding a per-site plan (e.g. a canonical/parametric layout).
 
 ### Phase 5 scope and the recorded layout rejection
 
