@@ -1,11 +1,11 @@
 //! Reconstruction program, coverage certificate, and bounded evaluation.
 
-use crate::dra::op::Op;
+use crate::dra::op::{Op, PackItem};
 use crate::error::{Error, Result};
 use crate::limits::Limits;
 
 /// DRA version carried in the graph record.
-pub const DRA_VERSION: u8 = 4;
+pub const DRA_VERSION: u8 = 5;
 
 /// Number of positional-offset slots addressable by [`Op::MarkOffset`] and
 /// [`Op::EmitOffset`]. Slot indices must be strictly below this bound.
@@ -317,6 +317,79 @@ impl Program {
                     have_last = false;
                     last_len = 0;
                 }
+                Op::PackSegments { data_object, items } => {
+                    let data_len = *object_lens.get(*data_object as usize).ok_or_else(|| {
+                        Error::invalid_graph(format!(
+                            "graph references missing object {data_object}"
+                        ))
+                    })?;
+                    let mut literal_total: u64 = 0;
+                    let mut produced: u64 = 0;
+                    // Which slots have been marked earlier in item order.
+                    let mut marked = [false; MAX_OFFSET_SLOTS];
+                    for item in items {
+                        match item {
+                            PackItem::Literal { len } => {
+                                literal_total =
+                                    literal_total.checked_add(*len as u64).ok_or_else(|| {
+                                        Error::resource_limit("packed literal length overflow")
+                                    })?;
+                                produced = produced.checked_add(*len as u64).ok_or_else(|| {
+                                    Error::resource_limit("output length overflow")
+                                })?;
+                            }
+                            PackItem::Mark { slot } => {
+                                let idx = *slot as usize;
+                                if idx >= MAX_OFFSET_SLOTS {
+                                    return Err(Error::invalid_graph(format!(
+                                        "PACK_SEGMENTS mark slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
+                                    )));
+                                }
+                                marked[idx] = true;
+                            }
+                            PackItem::Emit { slot, width } => {
+                                let idx = *slot as usize;
+                                if idx >= MAX_OFFSET_SLOTS {
+                                    return Err(Error::invalid_graph(format!(
+                                        "PACK_SEGMENTS emit slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
+                                    )));
+                                }
+                                if *width == 0 || *width > 20 {
+                                    return Err(Error::invalid_graph(format!(
+                                        "PACK_SEGMENTS emit width {width} is outside 1..=20"
+                                    )));
+                                }
+                                if !marked[idx] {
+                                    return Err(Error::invalid_graph(format!(
+                                        "PACK_SEGMENTS emit references unmarked slot {slot}"
+                                    )));
+                                }
+                                produced =
+                                    produced.checked_add(*width as u64).ok_or_else(|| {
+                                        Error::resource_limit("output length overflow")
+                                    })?;
+                            }
+                        }
+                    }
+                    if literal_total > data_len {
+                        return Err(Error::invalid_graph(format!(
+                            "PACK_SEGMENTS literal runs total {literal_total} bytes but data object {data_object} holds {data_len}"
+                        )));
+                    }
+                    total = total
+                        .checked_add(produced)
+                        .ok_or_else(|| Error::resource_limit("output length overflow"))?;
+                    if produced > 0 {
+                        spans.push(Span {
+                            start: total - produced,
+                            len: produced,
+                            authority: Authority::Generated,
+                        });
+                    }
+                    // A following REPEAT_LAST repeats the whole produced block.
+                    last_len = produced;
+                    have_last = true;
+                }
             }
             if total > limits.max_output_bytes {
                 return Err(Error::resource_limit(format!(
@@ -530,6 +603,81 @@ impl Program {
                     }
                     have_last = false;
                     block_len = 0;
+                }
+                Op::PackSegments { data_object, items } => {
+                    let data = objects.get(*data_object as usize).ok_or_else(|| {
+                        Error::invalid_graph(format!(
+                            "graph references missing object {data_object}"
+                        ))
+                    })?;
+                    let start = out.len();
+                    let mut cursor: usize = 0;
+                    let mut slots: [Option<u64>; MAX_OFFSET_SLOTS] = [None; MAX_OFFSET_SLOTS];
+                    for item in items {
+                        match item {
+                            PackItem::Literal { len } => {
+                                let len = *len as usize;
+                                let end = cursor.checked_add(len).ok_or_else(|| {
+                                    Error::invalid_graph("packed data cursor overflow")
+                                })?;
+                                if end > data.len() {
+                                    return Err(Error::invalid_graph(format!(
+                                        "packed literal reads {len} bytes past data object ({cursor}..{end} of {})",
+                                        data.len()
+                                    )));
+                                }
+                                out.extend_from_slice(&data[cursor..end]);
+                                cursor = end;
+                            }
+                            PackItem::Mark { slot } => {
+                                let idx = *slot as usize;
+                                if idx >= MAX_OFFSET_SLOTS {
+                                    return Err(Error::invalid_graph(format!(
+                                        "PACK_SEGMENTS mark slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
+                                    )));
+                                }
+                                slots[idx] = Some(out.len() as u64);
+                            }
+                            PackItem::Emit { slot, width } => {
+                                let idx = *slot as usize;
+                                if idx >= MAX_OFFSET_SLOTS {
+                                    return Err(Error::invalid_graph(format!(
+                                        "PACK_SEGMENTS emit slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
+                                    )));
+                                }
+                                if *width == 0 || *width > 20 {
+                                    return Err(Error::invalid_graph(format!(
+                                        "PACK_SEGMENTS emit width {width} is outside 1..=20"
+                                    )));
+                                }
+                                let value = slots[idx].ok_or_else(|| {
+                                    Error::invalid_graph(format!(
+                                        "PACK_SEGMENTS emit references unmarked slot {slot}"
+                                    ))
+                                })?;
+                                let digits = value.to_string();
+                                if digits.len() > *width as usize {
+                                    return Err(Error::invalid_graph(format!(
+                                        "PACK_SEGMENTS slot {slot} value {value} needs {} bytes but width is {width}",
+                                        digits.len()
+                                    )));
+                                }
+                                out.extend(std::iter::repeat_n(
+                                    b'0',
+                                    *width as usize - digits.len(),
+                                ));
+                                out.extend_from_slice(digits.as_bytes());
+                            }
+                        }
+                    }
+                    if cursor != data.len() {
+                        return Err(Error::invalid_graph(format!(
+                            "PACK_SEGMENTS did not fully consume data object {data_object} ({cursor} of {})",
+                            data.len()
+                        )));
+                    }
+                    block_len = out.len() - start;
+                    have_last = true;
                 }
             }
             if out.len() as u64 > limits.max_output_bytes {
@@ -959,5 +1107,164 @@ mod tests {
                 authority: Authority::Generated,
             }]
         );
+    }
+
+    #[test]
+    fn pack_roundtrip() {
+        let objects = objs(&[b"abcdef"]);
+        let p = Program::new(vec![Op::PackSegments {
+            data_object: 0,
+            items: vec![
+                PackItem::Literal { len: 3 },
+                PackItem::Mark { slot: 0 },
+                PackItem::Literal { len: 3 },
+                PackItem::Emit { slot: 0, width: 3 },
+            ],
+        }]);
+        let (len, cov) = p.analyze_objects(&objects, Limits::DEFAULT).unwrap();
+        assert_eq!(len, 9);
+        cov.validate(9).unwrap();
+        assert_eq!(
+            cov.spans,
+            vec![Span {
+                start: 0,
+                len: 9,
+                authority: Authority::Generated,
+            }]
+        );
+        assert_eq!(
+            p.eval(&objects, &[], Limits::DEFAULT).unwrap(),
+            b"abcdef003"
+        );
+
+        // Round-trip through the graph record (exercises the varint item wire).
+        let enc = p.encode().unwrap();
+        assert_eq!(Program::decode(&enc, Limits::DEFAULT).unwrap(), p);
+    }
+
+    #[test]
+    fn pack_varint_long_len() {
+        // A literal length above the one-byte LEB128 range must round-trip.
+        let data: Vec<u8> = (0..300u32).map(|i| i as u8).collect();
+        let objects = vec![data.clone()];
+        let p = Program::new(vec![Op::PackSegments {
+            data_object: 0,
+            items: vec![PackItem::Literal { len: 300 }],
+        }]);
+        let (len, _) = p.analyze_objects(&objects, Limits::DEFAULT).unwrap();
+        assert_eq!(len, 300);
+        assert_eq!(p.eval(&objects, &[], Limits::DEFAULT).unwrap(), data);
+        let enc = p.encode().unwrap();
+        assert_eq!(Program::decode(&enc, Limits::DEFAULT).unwrap(), p);
+    }
+
+    #[test]
+    fn pack_rejects_unconsumed_data() {
+        let objects = objs(&[b"abcdef"]);
+        let p = Program::new(vec![Op::PackSegments {
+            data_object: 0,
+            items: vec![PackItem::Literal { len: 3 }],
+        }]);
+        // Analysis only charges the literals; the shortfall is caught in eval.
+        let (len, _) = p.analyze_objects(&objects, Limits::DEFAULT).unwrap();
+        assert_eq!(len, 3);
+        let e = p.eval(&objects, &[], Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn pack_rejects_emit_before_mark() {
+        let objects = objs(&[b"abc"]);
+        let p = Program::new(vec![Op::PackSegments {
+            data_object: 0,
+            items: vec![PackItem::Emit { slot: 0, width: 2 }],
+        }]);
+        let e = p.analyze_objects(&objects, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn pack_rejects_bad_slot_width() {
+        let objects = objs(&[b"abc"]);
+        let too_wide = Program::new(vec![Op::PackSegments {
+            data_object: 0,
+            items: vec![
+                PackItem::Mark { slot: 0 },
+                PackItem::Emit { slot: 0, width: 21 },
+            ],
+        }]);
+        let e = too_wide
+            .analyze_objects(&objects, Limits::DEFAULT)
+            .unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+
+        let zero_width = Program::new(vec![Op::PackSegments {
+            data_object: 0,
+            items: vec![
+                PackItem::Mark { slot: 0 },
+                PackItem::Emit { slot: 0, width: 0 },
+            ],
+        }]);
+        let e = zero_width
+            .analyze_objects(&objects, Limits::DEFAULT)
+            .unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn analyze_predicts_pack_length() {
+        let objects = objs(&[b"abcdef"]);
+        let items = vec![
+            PackItem::Literal { len: 2 },
+            PackItem::Mark { slot: 1 },
+            PackItem::Literal { len: 4 },
+            PackItem::Emit { slot: 1, width: 5 },
+        ];
+        let p = Program::new(vec![Op::PackSegments {
+            data_object: 0,
+            items: items.clone(),
+        }]);
+        // 2 + 4 literal bytes plus a width-5 emitted field = 11, all Generated.
+        let (len, cov) = p.analyze_objects(&objects, Limits::DEFAULT).unwrap();
+        assert_eq!(len, 11);
+        assert_eq!(
+            cov.spans,
+            vec![Span {
+                start: 0,
+                len: 11,
+                authority: Authority::Generated,
+            }]
+        );
+        // The whole packed block is the unit of a following REPEAT_LAST.
+        let p2 = Program::new(vec![
+            Op::PackSegments {
+                data_object: 0,
+                items,
+            },
+            Op::RepeatLast { count: 1 },
+        ]);
+        let (len2, cov2) = p2.analyze_objects(&objects, Limits::DEFAULT).unwrap();
+        assert_eq!(len2, 22);
+        cov2.validate(22).unwrap();
+        // "ab" + (mark=2) "cdef" + "00002", repeated once.
+        assert_eq!(
+            p2.eval(&objects, &[], Limits::DEFAULT).unwrap(),
+            b"abcdef00002abcdef00002"
+        );
+    }
+
+    #[test]
+    fn dra_version_is_five() {
+        assert_eq!(DRA_VERSION, 5);
+        let p = Program::new(vec![Op::Inline {
+            bytes: b"x".to_vec(),
+        }]);
+        let enc = p.encode().unwrap();
+        assert_eq!(enc[0], DRA_VERSION);
+        // A stale prior-version graph record is rejected, not misparsed.
+        let mut stale = enc.clone();
+        stale[0] = DRA_VERSION - 1;
+        let e = Program::decode(&stale, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::UnsupportedVersion);
     }
 }

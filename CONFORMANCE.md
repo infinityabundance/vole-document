@@ -17,11 +17,12 @@
 | PDF oracle (script) | `tools/pdf-oracle.sh` | qpdf 11.3 differential court over a deterministic corpus: `qpdf --check` valid, object-number set agreement, `pdfinfo` page count; qpdf is an oracle, never the byte authority |
 | Phase-4 ablation (script) | `tools/phase4-court.sh` | forced-candidate ablation via `encode --force KIND` (`raw`, `rle`, `byte-rans`, `pdf-physical`, `pdf-channels`) over the deterministic corpus: per-kind forced sizes, the cumulative ladder A0..A4, and the leave-one-out channel delta; every auto winner is `cmp`ed and `verify`ed byte-exact |
 | PDF layout | `tests/pdf_layout.rs` | Phase-5 gates: the positional DRA ops (`MARK_OFFSET`/`EMIT_OFFSET`, DRA v4) round-trip and are bounded to 256 slots; a forced `PDF_LAYOUT` descriptor is byte-exact with fully charged cost; `classic.pdf` really marks positions and emits predicted offsets; a deliberately wrong source offset falls back to a literal and is never predicted; cross-reference streams, non-PDFs, and >255-object tables decline; identical input is deterministic; hostile corruption yields a typed error, never a panic; and the honest rejection gate asserts `PDF_LAYOUT` **loses** the complete-cost court on `classic.pdf` while the real winner round-trips exactly |
-| Phase-5 ablation (script) | `tools/phase5-court.sh` | forced-candidate ablation via `encode --force KIND` (`raw`, `rle`, `byte-rans`, `pdf-physical`, `pdf-channels`, `pdf-layout`) over the deterministic corpus: per-kind forced sizes, the cumulative ladder A0..A5, the leave-one-out layout delta, and the classic-xref subset compared against the auto winner; every auto winner is `cmp`ed and `verify`ed byte-exact, and the qpdf oracle is re-checked |
+| Packed framing (Phase 5.7) | `src/dra/op.rs`, `src/adapter/pdf/layout.rs`, `tests/pdf_layout.rs` | `PACK_SEGMENTS` (opcode `0x08`, DRA v5) round-trips and rejects unknown tags, truncation, unmarked slots, bad widths, literal overruns, and unconsumed data; layout-v2 is one packed item table over one data object with adjacent literals coalesced; `many.pdf` (hundreds of xref entries) predicts ≥100 offsets and is byte-exact; forced layout-v2 beats RAW at scale but still loses to `BYTE_RANS`, asserted honestly |
+| Phase-5.7 packed-framing court (script) | `tools/phase5-court.sh` | forced-candidate ablation (`encode --force KIND`) including `pdf-layout` (layout-v2) over the enlarged 11-file corpus: per-kind forced sizes, cumulative ladder A0..A5, leave-one-out layout delta, and the classic-xref subset; every auto winner is `cmp`ed and `verify`ed byte-exact, the qpdf oracle is re-checked, and the campaign `2026-10-05-phase5-4521778` is sealed |
 
-Test counts (inside the pinned `dev` image): **280** with all features (the
-default set), **236** with `--no-default-features` (the rANS-dependent
-integration courts are skipped), of which **204** are library unit tests (with
+Test counts (inside the pinned `dev` image): **287** with all features (the
+`default` set), **243** with `--no-default-features` (the rANS-dependent
+integration courts are skipped), of which **211** are library unit tests (with
 all features).
 
 `encode --force KIND` is the ablation surface: it runs the *same* complete-cost
@@ -74,7 +75,10 @@ Phase 4 additionally exercises the typed-channel transposition and the
 channels (`tests/pdf_channels.rs`). Phase 5 additionally exercises the positional
 DRA ops and the classic-xref layout builder, including unmarked-slot and
 width-bound rejection, wrong-offset fallback, decline preconditions, and hostile
-corruption (`tests/pdf_layout.rs`).
+corruption (`tests/pdf_layout.rs`). Phase 5.7 additionally exercises the
+`PACK_SEGMENTS` item-table parser and evaluator (unknown tags, truncation,
+unmarked slots, bad widths, literal overruns, and unconsumed data) and the
+coalesced layout-v2 builder (`tests/pdf_layout.rs`).
 Still planned for later phases: a stream-boundary parser ·
 DEFLATE replay wrapper · partial materializer.
 

@@ -1,0 +1,13 @@
+{
+  "campaign": "2026-10-05-phase5-4521778",
+  "utc_date": "2026-10-05T11:35:59Z",
+  "git_commit": "452177842fcecacb02d981bda9a3645761652a2a",
+  "git_dirty_tracked": "0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "63b6a994ea42df401490f3c7b91c03f54f41fde9f98a47de882152e49ce107cc",
+  "binary_sha256": "d349a4169834566475f23c493f38a63dcc967597fc7c49344ae75735f2479f83",
+  "arch": "x86_64",
+  "command": "docker compose run --rm --no-TTY dev sh tools/phase5-court.sh"
+}

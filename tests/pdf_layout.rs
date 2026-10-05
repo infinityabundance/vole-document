@@ -21,6 +21,7 @@ use vole_document::adapter::pdf::propose_pdf_layout;
 use vole_document::adapter::pdf::samples::sample_pdfs;
 use vole_document::container::Descriptor;
 use vole_document::dra::Op;
+use vole_document::dra::op::PackItem;
 use vole_document::encode;
 use vole_document::encode::candidates::{Candidate, CandidateKind};
 use vole_document::integrity::sha256;
@@ -161,6 +162,19 @@ fn forced_layout(src: &[u8]) -> Candidate {
         .unwrap_or_else(|| panic!("layout must be proposed for this input"))
 }
 
+/// The item table of the layout candidate's single `PackSegments` op.
+fn layout_items(cand: &Candidate) -> &[PackItem] {
+    cand.descriptor
+        .program
+        .ops
+        .iter()
+        .find_map(|op| match op {
+            Op::PackSegments { items, .. } => Some(items.as_slice()),
+            _ => None,
+        })
+        .expect("layout program is one PackSegments op")
+}
+
 /// Assert the authoritative exact triple for a serialized descriptor.
 fn assert_exact(encoded: &[u8], src: &[u8], label: &str) {
     let (out, parsed) = materialize::decode_to_bytes(encoded, Limits::DEFAULT)
@@ -189,8 +203,15 @@ fn forced_layout_is_exact() {
         assert_eq!(cand.kind, CandidateKind::PdfLayout, "[{name}] kind");
         assert_eq!(
             cand.descriptor.objects.len(),
-            0,
-            "[{name}] all bytes live in the graph"
+            1,
+            "[{name}] all literal bytes live in one packed data object"
+        );
+        assert!(
+            matches!(
+                cand.descriptor.program.ops.as_slice(),
+                [Op::PackSegments { .. }]
+            ),
+            "[{name}] reconstruction is one packed item table"
         );
         assert!(cand.descriptor.models.is_empty(), "[{name}] no models");
         assert!(cand.descriptor.channels.is_empty(), "[{name}] no channels");
@@ -213,25 +234,20 @@ fn forced_layout_is_exact() {
     }
 }
 
-/// `classic.pdf` must contain both kinds of offset instruction: positions are
-/// marked and predicted entries are emitted.
+/// `classic.pdf` must contain both kinds of packed item: positions are marked
+/// and predicted entries are emitted.
 #[test]
 fn layout_predicts_entries() {
     let src = corpus("classic.pdf");
     let cand = forced_layout(&src);
-    let emits = cand
-        .descriptor
-        .program
-        .ops
+    let items = layout_items(&cand);
+    let emits = items
         .iter()
-        .filter(|op| matches!(op, Op::EmitOffset { .. }))
+        .filter(|item| matches!(item, PackItem::Emit { .. }))
         .count();
-    let marks = cand
-        .descriptor
-        .program
-        .ops
+    let marks = items
         .iter()
-        .filter(|op| matches!(op, Op::MarkOffset { .. }))
+        .filter(|item| matches!(item, PackItem::Mark { .. }))
         .count();
     assert!(emits >= 1, "classic.pdf must emit at least one offset");
     assert!(marks >= 1, "classic.pdf must mark at least one position");
@@ -254,16 +270,11 @@ fn layout_bad_offset_falls_back() {
         "a mismatched offset must never be predicted"
     );
 
-    // The wrong 10-digit field survives verbatim as inline literal bytes.
-    let mut inline: Vec<u8> = Vec::new();
-    for op in &cand.descriptor.program.ops {
-        if let Op::Inline { bytes } = op {
-            inline.extend_from_slice(bytes);
-        }
-    }
+    // The wrong 10-digit field survives verbatim in the packed data object.
+    let data = &cand.descriptor.objects[0];
     assert!(
-        inline.windows(wrong.len()).any(|w| w == wrong.as_bytes()),
-        "the wrong offset must be emitted literally"
+        data.windows(wrong.len()).any(|w| w == wrong.as_bytes()),
+        "the wrong offset must be stored literally"
     );
 
     let (encoded, _) = cand.descriptor.serialize().unwrap();
@@ -363,19 +374,15 @@ fn layout_hostile() {
         ),
     }
 
-    // (b) Corrupt at a layer that passes CRC: mutate a decoded inline literal and
+    // (b) Corrupt at a layer that passes CRC: mutate the packed data object and
     // re-serialize, which recomputes every record CRC.
     let mut parsed = Descriptor::parse(&encoded, Limits::DEFAULT).unwrap();
     let victim = parsed
         .descriptor
-        .program
-        .ops
+        .objects
         .iter_mut()
-        .find_map(|op| match op {
-            Op::Inline { bytes } if !bytes.is_empty() => Some(bytes),
-            _ => None,
-        })
-        .expect("the layout program carries inline literals");
+        .find(|obj| !obj.is_empty())
+        .expect("the layout program carries a packed data object");
     victim[0] ^= 0xFF;
     let (reserialized, _) = parsed.descriptor.serialize().unwrap();
     match materialize::decode_to_bytes(&reserialized, Limits::DEFAULT) {

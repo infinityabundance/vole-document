@@ -2,6 +2,53 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.6] — unreleased
+
+### Added
+
+- Phase 5.7 — packed segment framing (Phase-6 preparation):
+  - `PACK_SEGMENTS` DRA op (opcode `0x08`), bumping the DRA graph to version `5`.
+    One op carries a compact item table over a single data object —
+    `Literal { len }` (a `u32` LEB128 varint), `Mark { slot }`, and
+    `Emit { slot, width }` — so per-segment op framing is paid once instead of
+    once per span. The data object must be consumed exactly; unknown tags,
+    truncation, unmarked slots, bad widths, overruns, and unconsumed data are
+    rejected before allocation.
+  - Layout candidate rebuilt on the packed op (**layout-v2**) with **literal
+    coalescing**, which merges adjacent literal runs (on `many.pdf`, 200 objects,
+    9,881 B, the item table fell from **1,413 to 805** items).
+  - A large classic-xref scale sample (`many.pdf`, hundreds of xref entries) to
+    expose the scaling win.
+- Phase-5.7 universe string
+  `vole-document;universe;phase6-prep;exact-bytes;dra-5;opaque+entropy+pdf+channels+offsets`.
+- Courts: packed-op/layout-v2 gates in `tests/pdf_layout.rs` and the extended
+  forced-candidate ablation court `tools/phase5-court.sh` over the enlarged
+  corpus.
+
+### Measured
+
+- Campaign `2026-10-05-phase5-4521778` (verdict PASS): an 11-file corpus; every
+  auto winner round-trips byte-exactly (`cmp` + `verify`).
+- Cumulative ladder (serialized `.voldoc` bytes): A0 RAW = 81,371;
+  A2 +BYTE_RANS = 48,598; A5 +PDF_LAYOUT = 48,598. Leave-one-out layout delta = 0;
+  layout wins 0 of 8 classic-xref samples and is never the auto winner.
+- Forced sizes: `many.pdf` layout-v2 **10,069** vs RAW **10,215** (layout now
+  **beats RAW by 146 B** at scale) vs `BYTE_RANS` 5,181; `classic.pdf` layout 711
+  vs RAW 663; `bigtext.pdf` layout 65,929 vs RAW 65,883 / `BYTE_RANS` 38,154.
+- **Measured partial positive:** packed framing plus coalescing makes structural
+  layout prediction beat RAW at document scale, but the residual data object is
+  still stored literally, so an order-0 `BYTE_RANS` lane dominates it. The
+  remaining lever is to entropy-code the residual (structural prediction
+  composed with rANS on the residual), not to pack literals further. Receipt
+  under `evidence/campaigns/2026-10-05-phase5-4521778/`.
+
+### Notes
+
+- The wire format remains **PROVISIONAL** and is not frozen v1. The packed op and
+  layout-v2 are exact and bounded; layout-v2 is `RECORDED (rejected vs
+  BYTE_RANS)` with the residual-entropy-coded form `PROPOSED` (Phase 6+). See
+  ADR-0012.
+
 ## [0.1.0-alpha.5] — unreleased
 
 ### Added

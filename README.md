@@ -49,7 +49,9 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | PDF typed channels (`PDF_CHANNELS`) | **Recorded (rejected on corpus)** | campaign `2026-10-05-phase4-3840bc4`; exact but loses to `BYTE_RANS` on complete cost (ADR-0010) |
 | Positional DRA ops (`MARK_OFFSET` / `EMIT_OFFSET`, DRA v4) | **Implemented** | `src/dra/op.rs`; `tests/pdf_layout.rs` |
 | PDF layout candidate (`PDF_LAYOUT`) | **Recorded (rejected on cost)** | campaign `2026-10-05-phase5-7193001`; byte-exact and predicts xref offsets/`startxref`, but loses to RAW/`BYTE_RANS` on DRA framing cost (ADR-0011) |
-| Phase-5 forced-candidate court (`--force pdf-layout`) | **Measured** | `tools/phase5-court.sh`; campaign `2026-10-05-phase5-7193001` |
+| Packed segment framing (`PACK_SEGMENTS`, DRA v5) | **Implemented** | `src/dra/op.rs`; opcode `0x08`, one op + a compact varint item table over a single data object, amortizing per-segment framing |
+| PDF layout on packed framing (layout-v2) | **Recorded (beats RAW at scale, rejected vs `BYTE_RANS`)** | campaign `2026-10-05-phase5-4521778`; packed+coalesced layout beats RAW on `many.pdf` (10,069 vs 10,215) but still loses to `BYTE_RANS` (5,181); residual stored literally (ADR-0012) |
+| Phase-5 forced-candidate court (`--force pdf-layout`) | **Measured** | `tools/phase5-court.sh`; campaigns `2026-10-05-phase5-7193001` and `2026-10-05-phase5-4521778` |
 | PDF structural adapters (Phases 6–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
@@ -197,6 +199,48 @@ negative result (ADR-0011) and a format-design input for later phases.
 
 Receipt:
 [`evidence/campaigns/2026-10-05-phase5-7193001/`](evidence/campaigns/2026-10-05-phase5-7193001/).
+
+### Packed framing (Phase 5.7) measured results
+
+Phase 5.7 attacks the framing root cause directly. The `PACK_SEGMENTS` DRA op
+(opcode `0x08`, bumping the DRA graph to **version 5**, universe
+`phase6-prep;…;dra-5;…+packed`) amortizes per-segment framing: instead of one
+tagged op per literal run, it carries **one op plus a compact varint item table**
+(`Literal` varint-length / `Mark` / `Emit`) over a single data object. The layout
+candidate was rebuilt on this op (**layout-v2**), and literal coalescing (5.7.2b)
+merges adjacent literal runs: on `many.pdf` (200 objects, 9,881 B) the item table
+fell from **1,413 to 805** items.
+
+The sealed campaign `2026-10-05-phase5-4521778` runs the forced-candidate
+ablation over an 11-file corpus:
+
+```text
+A0 RAW            = 81371
+A2 + BYTE_RANS    = 48598
+A5 + PDF_LAYOUT   = 48598     leave-one-out layout delta = 0
+```
+
+Forced sizes:
+
+```text
+many.pdf     layout-v2 10069   RAW 10215   BYTE_RANS 5181   (layout beats RAW by 146 B)
+classic.pdf  layout      711   RAW   663
+bigtext.pdf  layout    65929   RAW 65883   BYTE_RANS 38154
+```
+
+Packed framing plus coalescing makes **structural layout prediction beat RAW at
+scale** (`many.pdf` 10,069 vs 10,215), which the per-segment Phase-5 framing never
+managed. It is still **not adopted**: it loses to `BYTE_RANS` (5,181), wins 0 of
+the 8 classic-xref samples, and the leave-one-out layout delta is 0, so layout is
+never the auto winner. The honest conclusion is that the framing is fixed, but the
+residual data object is stored **literally**, so any order-0 entropy lane
+dominates it. The remaining lever is to entropy-code the residual data object —
+structural prediction **composed with** rANS on the residual, which is the paper's
+layered model — not more literal packing. This is recorded as a partial positive
+(ADR-0012).
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase5-4521778/`](evidence/campaigns/2026-10-05-phase5-4521778/).
 
 ## Quick start (Docker only)
 

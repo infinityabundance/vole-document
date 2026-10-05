@@ -23,6 +23,7 @@ pub fn sample_pdfs() -> Vec<(&'static str, Vec<u8>)> {
         ("traptext.pdf", trap_text()),
         ("trapstream.pdf", trap_stream()),
         ("bigtext.pdf", big_text_pdf()),
+        ("many.pdf", many_objects_pdf()),
         ("malformed.pdf", malformed()),
         ("notpdf.bin", not_pdf()),
     ]
@@ -281,6 +282,28 @@ fn big_text_pdf() -> Vec<u8> {
     w.buf
 }
 
+/// A classic cross-reference PDF with many tiny indirect objects: `OBJECTS`
+/// bodies of the form `N 0 obj\n<< /K n >>\nendobj\n`, each written with its own
+/// byte offset, followed by a matching classic `xref` table, trailer, and
+/// `startxref`.
+///
+/// This is the scale sample for the layout candidate: with one xref entry per
+/// object, per-entry framing dominates at small object counts, so this file is
+/// where amortizing that framing over a single packed item table either pays off
+/// or does not. `MANY_OBJECTS` is kept below the 255 markable-slot limit so
+/// the candidate is genuinely accepted; the object count still exceeds the
+/// 100-entry threshold the scaling test pins.
+const MANY_OBJECTS: u64 = 200;
+fn many_objects_pdf() -> Vec<u8> {
+    let mut w = Writer::new();
+    w.text("%PDF-1.4\n");
+    for number in 1..=MANY_OBJECTS {
+        w.obj(number, 0, format!("<< /K {number} >>").as_bytes());
+    }
+    w.classic_trailer(MANY_OBJECTS + 1, " /Root 1 0 R");
+    w.buf
+}
+
 /// Truncated and without any `%%EOF`: the header and one complete object are
 /// present, but the file ends mid-object. Detection must decline.
 fn malformed() -> Vec<u8> {
@@ -303,7 +326,7 @@ mod tests {
     use crate::limits::Limits;
     use crate::materialize::decode_to_bytes;
 
-    const EXPECTED_NAMES: [&str; 10] = [
+    const EXPECTED_NAMES: [&str; 11] = [
         "classic.pdf",
         "xrefstream.pdf",
         "objstm.pdf",
@@ -312,6 +335,7 @@ mod tests {
         "traptext.pdf",
         "trapstream.pdf",
         "bigtext.pdf",
+        "many.pdf",
         "malformed.pdf",
         "notpdf.bin",
     ];
