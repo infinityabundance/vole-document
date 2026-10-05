@@ -80,6 +80,28 @@ fn flate_sample_stats_are_self_consistent() {
     assert_eq!(stats.summary.correction_bytes, corr_sum);
     assert_eq!(stats.summary.rans_plaintext_bytes, rans_sum);
 
+    // `flate.pdf` repeats plaintexts across streams (p1 appears four times at
+    // levels 0/1/6/9), so the deduplicated shared-channel aggregate must be
+    // strictly cheaper than the naive per-stream sum, and never larger.
+    let naive_rans_full = stats
+        .summary
+        .rans_plaintext_bytes
+        .saturating_add(stats.summary.correction_bytes);
+    assert!(stats.summary.replayed_rans_dedup_bytes > 0);
+    assert!(
+        stats.summary.replayed_rans_dedup_bytes <= naive_rans_full,
+        "the deduped aggregate ({}) may never exceed the naive per-stream sum ({})",
+        stats.summary.replayed_rans_dedup_bytes,
+        naive_rans_full
+    );
+    assert!(
+        stats.summary.replayed_rans_dedup_bytes < naive_rans_full,
+        "flate.pdf shares plaintext across streams, so dedup ({}) must be \
+         strictly below the naive per-stream sum ({})",
+        stats.summary.replayed_rans_dedup_bytes,
+        naive_rans_full
+    );
+
     // Ratios are self-consistent with the aggregate integers.
     assert_eq!(
         stats.summary.compressed_bytes, compressed_sum,

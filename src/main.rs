@@ -369,6 +369,15 @@ fn cmd_pdf_make_samples(dir: &Path) -> Result<()> {
 /// reported with `"is_pdf":false` and no streams (exit 0). Ratios are rendered
 /// as fixed-point decimals computed with integer arithmetic only; they are
 /// diagnostics and never a persisted representation.
+///
+/// Two aggregate complete-cost figures are reported so shared plaintext is not
+/// overcounted: `replayed_rans_full_bytes` is the **naive per-stream** sum
+/// (each stream pays its own rANS plaintext cost plus its own correction), while
+/// `replayed_rans_dedup_bytes` charges each **unique** plaintext (rANS) and each
+/// **unique** correction blob once, mirroring what the shared-channel
+/// `PDF_DEFLATE_REPLAY_RANS` candidate actually stores. The deduped figure is
+/// therefore ≤ the naive one, with equality exactly when no plaintext or
+/// correction repeats.
 #[cfg(feature = "deflate-replay")]
 fn cmd_deflate_stats(inputs: &[PathBuf], limits: Limits) -> Result<()> {
     for input in inputs {
@@ -385,6 +394,7 @@ fn deflate_stats_json(input: &Path, stats: &pdf::DeflateStats) -> String {
     let s = &stats.summary;
     let replayed_full = s.plaintext_bytes.saturating_add(s.correction_bytes);
     let replayed_rans_full = s.rans_plaintext_bytes.saturating_add(s.correction_bytes);
+    let replayed_rans_dedup = s.replayed_rans_dedup_bytes;
     format!(
         concat!(
             "{{",
@@ -401,7 +411,8 @@ fn deflate_stats_json(input: &Path, stats: &pdf::DeflateStats) -> String {
             "\"rans_plaintext_bytes\":{},",
             "\"correction_over_compressed\":{},",
             "\"replayed_full_bytes\":{},",
-            "\"replayed_rans_full_bytes\":{}",
+            "\"replayed_rans_full_bytes\":{},",
+            "\"replayed_rans_dedup_bytes\":{}",
             "}}",
             "}}"
         ),
@@ -418,6 +429,7 @@ fn deflate_stats_json(input: &Path, stats: &pdf::DeflateStats) -> String {
         ratio6(s.correction_bytes, s.compressed_bytes),
         replayed_full,
         replayed_rans_full,
+        replayed_rans_dedup,
     )
 }
 

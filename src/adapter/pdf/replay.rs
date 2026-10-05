@@ -24,7 +24,7 @@
 //!
 //! Neither is assumed profitable; the complete-cost court decides.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::SOURCE_FORMAT_PDF;
 use crate::container::{Descriptor, UNIVERSE};
@@ -334,6 +334,14 @@ pub struct DeflateSummary {
     /// Sum of `rans_plaintext_bytes` over replayed streams (per stream, not
     /// deduplicated; a diagnostic upper bound, not the shared-channel cost).
     pub rans_plaintext_bytes: u64,
+    /// Deduplicated complete cost of the `PDF_DEFLATE_REPLAY_RANS` shape: the
+    /// order-0 rANS size of each **unique** plaintext (charged once, however
+    /// many streams reproduce it) plus the length of each **unique** correction
+    /// blob. This mirrors what the shared-channel candidate actually stores, so
+    /// it is ≤ the naive per-stream sum
+    /// `rans_plaintext_bytes + correction_bytes`. Zero when the `rans` feature
+    /// is disabled (the plaintext channels are not built).
+    pub replayed_rans_dedup_bytes: u64,
 }
 
 /// The `deflate-stats` view of one input.
@@ -366,6 +374,11 @@ pub fn deflate_stats(input: &[u8], limits: Limits) -> Result<DeflateStats> {
     let physical = scan(input, limits)?;
     let mut streams: Vec<StreamStats> = Vec::new();
     let mut summary = DeflateSummary::default();
+    // Content-deduplicated accounting mirroring the shared-channel candidate:
+    // one rANS charge per unique plaintext and one byte charge per unique
+    // correction blob, however many streams reproduce them.
+    let mut unique_plaintexts: HashSet<Vec<u8>> = HashSet::new();
+    let mut unique_corrections: HashSet<Vec<u8>> = HashSet::new();
 
     for stream in &physical.streams {
         if stream.filter != FilterClass::FlateDecode {
@@ -403,6 +416,12 @@ pub fn deflate_stats(input: &[u8], limits: Limits) -> Result<DeflateStats> {
                     summary.plaintext_bytes += plaintext_bytes;
                     summary.correction_bytes += correction_bytes;
                     summary.rans_plaintext_bytes += st.rans_plaintext_bytes.unwrap_or(0);
+                    if unique_corrections.insert(plan.corrections.clone()) {
+                        summary.replayed_rans_dedup_bytes += correction_bytes;
+                    }
+                    if unique_plaintexts.insert(plan.plaintext.clone()) {
+                        summary.replayed_rans_dedup_bytes += st.rans_plaintext_bytes.unwrap_or(0);
+                    }
                 }
                 Err(reason) => st.decline_reason = Some(reason.name()),
             },
