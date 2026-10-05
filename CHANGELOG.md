@@ -106,28 +106,38 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   hand-written stored-block-zlib base, and the Phase-3 synthetic set. The census
   rose 17 → 24 because the old over-read had swallowed whole stream objects
   (every qpdf-generated file was undercounted; `qpdf-preserve-objectstreams.pdf`
-  had reported zero). The Phase-6 win region now appears on qpdf transformer
-  output too (`qpdf-preserve-objectstreams.pdf` deduped rANS 55,531 vs naive
-  111,062) alongside the hand-written/synthetic fixtures (`hand-base2.pdf`
-  55,531 vs 111,062; `flate.pdf` 34,051 vs 89,437). Scoped to locally generated
-  files; qpdf/Ghostscript are transformers, not authoring apps; browser/office/TeX
+  had reported zero). The Phase-6 win region appears **only in our own
+  hand-authored fixtures** (`hand-base2.pdf` deduped rANS 55,531 vs naive
+  111,062; `flate.pdf` 34,051 vs 89,437). `qpdf-preserve-objectstreams.pdf`
+  shows the same 111,062 → 55,531 geometry only because qpdf copied and
+  renumbered the fixture's two byte-identical raw streams — the fixture already
+  wins 112,011 → 56,885 and qpdf adds +41 B, so **99.93% of that win is
+  inherited**, not produced by a transformer. Corpus-wide `correction/compressed`
+  p50 is **0.014716** (p10 0.000320 / p90 0.097360); `0.004518` is the
+  `pdf-make-samples` subset median only. Scoped to locally generated files;
+  qpdf/Ghostscript are transformers, not authoring apps; browser/office/TeX
   families remain a recorded gap. Report: `docs/evidence/phase7-corpus-report.md`.
 - Campaign `2026-10-05-phase7-court-99dc72e` (verdict RECORDED; measurement, no
   new candidate) — the decisive **complete-cost court** over the 23-file locally
   generated corpus, running `encode` and the forced lanes
   (`raw`/`byte-rans`/`pdf-deflate-replay`/`pdf-deflate-replay-rans`) and comparing
   complete serialized `.voldoc` sizes. `PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS`:
-  **win 3 / lose 8 / decline 12**. The wins are exactly the Phase-6
-  shared-plaintext geometry: `qpdf-preserve-objectstreams.pdf` (qpdf 11.3.0;
-  112,147 → 56,980, **−55,167 B** — the only real-producer transformer output that
-  wins), `hand-base2.pdf` (112,011 → 56,885, −55,126 B) and `_synthetic/flate.pdf`
-  (49,291 → 36,102, −13,189 B). All 5 Ghostscript variants and both qpdf
-  compression variants lose; the 12 files with no replayable Flate lane decline.
-  Every auto winner is `verify`'d and `cmp`'d byte-exact (23/23). qpdf corpus
-  outputs are byte-reproducible (`--deterministic-id`); Ghostscript outputs are
-  not. The corpus is locally generated and is **not** a population sample;
-  qpdf/Ghostscript are transformers. Receipt under
-  `evidence/campaigns/2026-10-05-phase7-court-99dc72e/`.
+  **win 3 / lose 8 / decline 12 — all 3 wins self-authored.** The wins are exactly
+  the Phase-6 shared-plaintext geometry: `hand-base2.pdf` (112,011 → 56,885,
+  −55,126 B), `_synthetic/flate.pdf` (49,291 → 36,102, −13,189 B), and
+  `qpdf-preserve-objectstreams.pdf` (112,147 → 56,980, −55,167 B) — the last only
+  because qpdf `--object-streams=preserve` copied the fixture's two byte-identical
+  raw streams; the fixture already wins 112,011 → 56,885 B and qpdf adds +41 B, so
+  **99.93% of that win is inherited** and it is **not** a real-producer result.
+  Every **genuinely transformed** producer output loses or declines: all 5
+  Ghostscript variants and both qpdf compression variants lose, and the 12 files
+  with no replayable Flate lane decline. The Phase-6 win is real and byte-exact,
+  but its enabling condition (shared plaintext) is **not produced by the tested
+  transformers**, motivating Phase 7.2 (nested content proceduralization). Every
+  auto winner is `verify`'d and `cmp`'d byte-exact (23/23). `--deterministic-id`
+  is a `/ID`-only normalization (55,165 B no-flag vs 55,167 B flagged). The corpus
+  is locally generated and is **not** a population sample; qpdf/Ghostscript are
+  transformers. Receipt under `evidence/campaigns/2026-10-05-phase7-court-99dc72e/`.
 - Campaign `2026-10-05-phase6-0d0bb79` (DRA v8, verdict PASS; the earlier
   `2026-10-05-phase6-ec92c1a` receipt is retained): a 12-file corpus; every
   auto winner round-trips byte-exactly (`cmp` + `verify`, `all_exact=true`); the
@@ -159,8 +169,11 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
 
 - The wire format remains **PROVISIONAL** and is not frozen v1. `DEFLATE_REPLAY`
   (DRA v8; `replay_codec`-tagged, statically resource-bounded — ADR-0016) is exact
-  and bounded; `PDF_DEFLATE_REPLAY_RANS` is `ADOPTED` as a
-  winning candidate and `PDF_DEFLATE_REPLAY` is `RECORDED (rejected vs
+  and bounded; `PDF_DEFLATE_REPLAY_RANS` is `ADOPTED` as a winning candidate
+  **when shared plaintext is present** (the candidate is implemented and proposed
+  for every lone-`FlateDecode` input; the tested evidence for the enabling
+  condition is our self-authored fixtures, not real producer output) and
+  `PDF_DEFLATE_REPLAY` is `RECORDED (rejected vs
   BYTE_RANS)`. This is the first PDF structural candidate to beat a whole-file
   order-0 rANS lane; the earlier converging negatives (ADR-0010–ADR-0013) apply
   to proceduralizing *plain* syntax, while exact replay attacks bytes that are
@@ -171,9 +184,12 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   `UnsupportedFeature` (see ADR-0014 for the LGPL consequence).
 - The Phase-7.0 complete-cost court over the producer corpus does not change any
   adoption: it confirms the Phase-6 win region under complete cost on 3/23
-  locally generated files (two shared-plaintext fixtures and one qpdf transformer
-  output). It is scoped to locally generated files and makes no population claim;
-  qpdf and Ghostscript are transformers, not authoring applications.
+  locally generated files, **all three self-authored** (two shared-plaintext
+  fixtures plus a `--object-streams=preserve` copy of one). Every genuinely
+  transformed producer output loses or declines, so the enabling condition
+  (shared plaintext) is not produced by the tested transformers. It is scoped to
+  locally generated files and makes no population claim; qpdf and Ghostscript are
+  transformers, not authoring applications.
 
 ## [0.1.0-alpha.7] — unreleased
 

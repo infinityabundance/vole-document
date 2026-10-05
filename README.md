@@ -364,10 +364,17 @@ On 24 `FlateDecode` streams (re-measured after the Stage-A lexer stream-boundary
 fix): **24 replayed, 0 declined (acceptance 1.000)**. The pre-fix run saw only 17
 streams (11 replayed, 6 declined); the census rose because the old over-read had
 swallowed whole stream objects (every qpdf-generated file was undercounted;
-`qpdf-preserve-objectstreams.pdf` had reported zero). The Phase-6 win region now
-reproduces on qpdf transformer output too (`qpdf-preserve-objectstreams.pdf`:
-deduped rANS 55,531 vs naive 111,062) alongside the hand-written/synthetic
-fixtures (`hand-base2.pdf`: 55,531 vs 111,062; `flate.pdf`: 34,051 vs 89,437).
+`qpdf-preserve-objectstreams.pdf` had reported zero). The Phase-6 win region
+appears **only in our own hand-authored fixtures** (`hand-base2.pdf`: deduped
+rANS 55,531 vs naive 111,062; `flate.pdf`: 34,051 vs 89,437). The same geometry
+in `qpdf-preserve-objectstreams.pdf` (55,531 vs 111,062) is present **only
+because qpdf `--object-streams=preserve` copied and renumbered the two
+byte-identical raw streams already authored in `hand-base2.pdf`** (confirmed via
+`qpdf --raw-stream-data`: all four stream hashes are `ec028dc1…`); the fixture
+already wins 112,011 → 56,885 B and qpdf adds +41 B, so **99.93% of the reported
+qpdf win is inherited**. No genuinely transformed producer output exhibits the
+region. Corpus-wide `correction/compressed` p10/p50/p90 = 0.000320 / **0.014716**
+/ 0.097360; the `0.004518` median is the `pdf-make-samples` subset only.
 The six former declines were all `not_zlib` **because of a scanner locality
 limitation** — the lexer's `find_endstream` required an EOL before `endstream`,
 which Ghostscript omits (spec "should", qpdf-tolerated) — not because those
@@ -389,9 +396,9 @@ is a diagnostic; the court decides. A second sealed campaign
 `tools/pdf-court.sh`) runs the real CLI over all 23 locally generated corpus
 files — unforced and with `--force raw|byte-rans|pdf-deflate-replay|pdf-deflate-replay-rans`
 — and compares complete serialized `.voldoc` sizes. `PDF_DEFLATE_REPLAY_RANS` vs
-`BYTE_RANS`: **win 3, lose 8, decline 12**. The wins are exactly the Phase-6
-shared-plaintext geometry, and in all three the unforced court picks
-`PDF_DEFLATE_REPLAY_RANS`:
+`BYTE_RANS`: **win 3, lose 8, decline 12 — all 3 wins self-authored**. The wins
+are exactly the Phase-6 shared-plaintext geometry, and in all three the unforced
+court picks `PDF_DEFLATE_REPLAY_RANS`:
 
 ```text
 qpdf-preserve-objectstreams.pdf  BYTE_RANS 112147 -> PDF_DEFLATE_REPLAY_RANS 56980  (-55167)
@@ -399,19 +406,27 @@ hand-base2.pdf                   BYTE_RANS 112011 -> PDF_DEFLATE_REPLAY_RANS 568
 _synthetic/flate.pdf             BYTE_RANS  49291 -> PDF_DEFLATE_REPLAY_RANS 36102  (-13189)
 ```
 
-`qpdf-preserve-objectstreams.pdf` (qpdf 11.3.0) is the **only real-producer
-transformer output** where replay-rANS wins under complete cost; it is the
-hand-written shared-plaintext geometry surviving a qpdf
-`--object-streams=preserve` transform, not an authoring-application result. Every
-Ghostscript variant and both qpdf compression variants **lose** (unique,
-strongly-compressed plaintext), and the 12 files with no replayable Flate lane
-**decline** (a forced lane the input does not propose is a typed `Usage` error,
-recorded `null`). All 23 auto winners are `verify` + `cmp` byte-exact. The corpus
-is **locally generated** and is **not a population sample**; qpdf and Ghostscript
-are **transformers, not authoring applications**, and browser/PDFium,
-LibreOffice, pdfTeX and Adobe outputs remain a recorded gap. qpdf corpus outputs
-are now byte-reproducible (`--deterministic-id`); Ghostscript outputs are not
-(per-run `/ID`). No candidate is adopted and no wire format changed.
+The reported "qpdf win" is not a transformed-producer result:
+`qpdf --object-streams=preserve` copied and renumbered the two byte-identical raw
+streams (`ec028dc1…`) already authored in our `hand-base2.pdf` fixture (the
+fixture wins 112,011 → 56,885 B; qpdf adds only **+41 B**, so **99.93% of the
+55,167 B win is inherited**). Every **genuinely transformed** producer output
+loses or declines on this corpus: all 5 Ghostscript variants and both qpdf
+compression variants (unique, strongly-compressed plaintext) **lose**, and the 12
+files with no replayable Flate lane **decline** (a forced lane the input does not
+propose is a typed `Usage` error, recorded `null`). So on this locally generated
+corpus exact replay **wins 3 / loses 8 / declines 12, and all 3 wins are
+self-authored** (two fixtures plus a preserved copy of one). `--deterministic-id`
+is a `/ID`-only normalization (55,165 B no-flag vs 55,167 B flagged): it makes
+the court reproducible but neither creates nor destroys the win. The Phase-6 win
+is real and byte-exact, but its enabling condition (a plaintext shared across
+streams with a large/weakly-coded appearance) is **not produced by the tested
+transformers**, which motivates Phase 7.2 (nested content proceduralization). All
+23 auto winners are `verify` + `cmp` byte-exact. The corpus is **locally
+generated** and is **not a population sample**; qpdf and Ghostscript are
+**transformers, not authoring applications**, and browser/PDFium, LibreOffice,
+pdfTeX and Adobe outputs remain a recorded gap. No candidate is adopted and no
+wire format changed.
 
 Receipt:
 [`evidence/campaigns/2026-10-05-phase7-court-99dc72e/`](evidence/campaigns/2026-10-05-phase7-court-99dc72e/).

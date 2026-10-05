@@ -123,3 +123,37 @@ qpdf transformer output (`qpdf-preserve-objectstreams`, by 55,167 B). It loses o
 all 5 Ghostscript variants and both qpdf compression variants, and declines on
 the 12 files with no replayable Flate lane (1 qpdf + 11 synthetic). The corpus is
 not a population sample; qpdf is a transformer.
+
+---
+
+## Forward amendment (2026-10-05) — independent adversarial review: producer framing corrected
+
+An independent adversarial reviewer (Phase 7.0) reproduced the numbers in this
+receipt and **falsified the producer framing**, not the measurement. The durable
+record is `docs/evidence/phase7-skeptic-review.md`.
+
+- **Provenance.** The shared plaintext in `qpdf-preserve-objectstreams.pdf` is
+authored in our fixture `hand-base2.pdf` (`tools/pdf-corpus.sh` writes objects
+5 and 6 as two copies of the same hand-built stored-block zlib payload);
+`qpdf --object-streams=preserve` merely copied and renumbered it. The raw streams
+are **byte-identical** (`ec028dc1…`, confirmed via
+`qpdf --show-object=N --raw-stream-data`); the fixture already wins
+112,011 → 56,885 B and qpdf adds only +41 B, so **99.93% of the 55,167 B win is
+inherited from our fixture, not produced by qpdf**.
+- **Consequence.** Every genuinely transformed producer output on this corpus
+**loses or declines**: all 5 Ghostscript outputs, both qpdf re-compressions, and
+`hand-base1.pdf` lose (8 total); 12 files with no replayable Flate lane decline.
+The court is **win 3 / lose 8 / decline 12, all 3 wins self-authored** (or a
+preserved copy of one). The phrase "The only **real-producer transformer output**
+on which replay-rANS wins" above is **superseded**: the qpdf file is a preserved
+copy of a self-authored fixture, not an unmodified producer artifact.
+- **`--deterministic-id`.** A `/ID`-only normalization; it neither creates nor
+destroys the win (55,165 B no-flag vs 55,167 B flagged). Kept for
+reproducibility.
+- **Corrected statistic.** `correction/compressed` corpus-wide **p50 = 0.014716**
+(p10 0.000320, p90 0.097360); the value 0.004518 is the `pdf-make-samples` subset
+median only, not a corpus-wide median.
+- **Conclusion.** The Phase-6 win is real and byte-exact, but its enabling
+condition (shared plaintext) is **not produced by the tested transformers**; this
+motivates Phase 7.2 (nested content proceduralization). `results.json` is not
+rewritten.

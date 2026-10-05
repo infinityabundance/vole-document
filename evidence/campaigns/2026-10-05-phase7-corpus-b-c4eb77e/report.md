@@ -197,3 +197,19 @@ fixtures. No new candidate is adopted.
 > the 12 files with no replayable Flate lane. Every auto winner verifies and
 > materializes byte-for-byte (23/23). This report's ratio numbers stand; the
 > court is the decisive complete-cost measurement. No candidate is adopted.
+
+---
+
+## Forward amendment (2026-10-05) — producer framing corrected (independent adversarial review)
+
+An independent adversarial reviewer (Phase 7.0) showed that the Phase-6 win
+region does **not** "appear on a transformer producer output" as this report's
+§"Does the Phase-6 win region appear on producer output?" states. The shared
+plaintext in `qpdf-preserve-objectstreams.pdf` is authored in our fixture
+`hand-base2.pdf`; `qpdf --object-streams=preserve` copied and renumbered it
+(byte-identical raw streams `ec028dc1…`), so **99.93% of the reported qpdf win is
+inherited** and no genuinely transformed producer output exhibits or wins on the
+region. Also, `correction/compressed` corpus-wide **p50 = 0.014716**; the value
+`0.004518` is the `pdf-make-samples` subset median only. Full record:
+`docs/evidence/phase7-skeptic-review.md`. No measured number is changed and
+`results.json` is not rewritten.
