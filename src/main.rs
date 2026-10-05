@@ -13,6 +13,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use vole_document::adapter::pdf;
 use vole_document::container::UNIVERSE;
 use vole_document::dra::Op;
+use vole_document::encode::candidates::CandidateKind;
 use vole_document::error::{Error, Result};
 use vole_document::limits::Limits;
 use vole_document::{encode, integrity, materialize};
@@ -21,7 +22,7 @@ const USAGE: &str = "\
 vole-document — byte-exact procedural document storage
 
 USAGE:
-    vole-document encode     INPUT            OUTPUT.voldoc
+    vole-document encode [--force KIND] INPUT  OUTPUT.voldoc
     vole-document decode     INPUT.voldoc     OUTPUT
     vole-document materialize INPUT.voldoc    OUTPUT
     vole-document verify     INPUT.voldoc
@@ -29,6 +30,10 @@ USAGE:
     vole-document pdf-inspect INPUT
     vole-document pdf-make-samples DIR
     vole-document capabilities
+
+KIND (for encode --force): raw | rle | byte-rans | pdf-physical | pdf-channels
+    Forces the complete-cost court to consider only that candidate family, for
+    honest per-mechanism ablation. Fails when the input does not propose it.
 
 EXIT CODES:
     0 ok   2 usage   3 io   4 invalid-container   5 unsupported-version
@@ -65,11 +70,7 @@ fn run(args: &[String]) -> Result<()> {
             Ok(())
         }
         "capabilities" => cmd_capabilities(),
-        "encode" => {
-            let input = arg(args, 2, "INPUT")?;
-            let output = arg(args, 3, "OUTPUT.voldoc")?;
-            cmd_encode(&input, &output, limits)
-        }
+        "encode" => cmd_encode_args(args, limits),
         "decode" | "materialize" => {
             let input = arg(args, 2, "INPUT.voldoc")?;
             let output = arg(args, 3, "OUTPUT")?;
@@ -103,18 +104,80 @@ fn arg(args: &[String], idx: usize, name: &str) -> Result<PathBuf> {
         .ok_or_else(|| Error::usage(format!("missing argument {name}")))
 }
 
-fn cmd_encode(input: &Path, output: &Path, limits: Limits) -> Result<()> {
+fn cmd_encode(
+    input: &Path,
+    output: &Path,
+    limits: Limits,
+    force: Option<CandidateKind>,
+) -> Result<()> {
     let source = fs::read(input)?;
     if source.len() as u64 > limits.max_input_bytes {
         return Err(Error::resource_limit(
             "input exceeds configured input limit",
         ));
     }
-    let (bytes, report) = encode::encode(&source, limits)?;
+    let (bytes, report) = encode::encode_with(&source, limits, force)?;
     write_atomic(output, &bytes)?;
 
     println!("{}", report_json(&report));
     Ok(())
+}
+
+/// Parse the `encode` subcommand arguments: an optional `--force KIND` flag and
+/// the two positional paths `INPUT` and `OUTPUT.voldoc`.
+///
+/// The flag accepts either `--force KIND` or `--force=KIND` and may appear
+/// before or after the positionals, so existing `encode IN OUT` invocations are
+/// unchanged.
+fn cmd_encode_args(args: &[String], limits: Limits) -> Result<()> {
+    let mut force: Option<CandidateKind> = None;
+    let mut positional: Vec<&str> = Vec::new();
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        if a == "--force" {
+            let kind = args
+                .get(i + 1)
+                .ok_or_else(|| Error::usage("--force requires a KIND argument"))?;
+            force = Some(parse_force_kind(kind)?);
+            i += 2;
+        } else if let Some(kind) = a.strip_prefix("--force=") {
+            force = Some(parse_force_kind(kind)?);
+            i += 1;
+        } else {
+            positional.push(a);
+            i += 1;
+        }
+    }
+    let input = positional
+        .first()
+        .map(PathBuf::from)
+        .ok_or_else(|| Error::usage("missing argument INPUT"))?;
+    let output = positional
+        .get(1)
+        .map(PathBuf::from)
+        .ok_or_else(|| Error::usage("missing argument OUTPUT.voldoc"))?;
+    if positional.len() > 2 {
+        return Err(Error::usage(format!(
+            "unexpected extra argument {:?}",
+            positional[2]
+        )));
+    }
+    cmd_encode(&input, &output, limits, force)
+}
+
+/// Map a `--force` KIND spelling to a [`CandidateKind`].
+fn parse_force_kind(s: &str) -> Result<CandidateKind> {
+    match s {
+        "raw" => Ok(CandidateKind::Raw),
+        "rle" => Ok(CandidateKind::Rle),
+        "byte-rans" => Ok(CandidateKind::ByteRans),
+        "pdf-physical" => Ok(CandidateKind::PdfPhysical),
+        "pdf-channels" => Ok(CandidateKind::PdfChannels),
+        other => Err(Error::usage(format!(
+            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels"
+        ))),
+    }
 }
 
 fn cmd_decode(input: &Path, output: &Path, limits: Limits) -> Result<()> {

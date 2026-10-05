@@ -55,10 +55,17 @@ pub struct Candidate {
     pub descriptor: Descriptor,
 }
 
-/// Generate the bounded candidate set for `input`.
+/// Generate the complete bounded candidate set for `input`.
 ///
-/// Order is deterministic: RAW first, then RLE when it is expressible.
-pub fn propose(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
+/// Every candidate that currently applies is returned: RAW (always), then RLE,
+/// BYTE_RANS, PDF_PHYSICAL, and PDF_CHANNELS, each only when its generator can
+/// express the input within `limits`. Order is deterministic and matches the
+/// [`CandidateKind`] discriminant order, so the court's final tie-break is
+/// stable.
+///
+/// This is the honest ablation surface: forcing a single kind must select from
+/// exactly the same set the unforced court would have priced.
+pub fn propose_all(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
     let mut out = vec![Candidate {
         kind: CandidateKind::Raw,
         descriptor: opaque::propose(input, limits)?,
@@ -78,6 +85,14 @@ pub fn propose(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
         out.push(pdf_channels);
     }
     Ok(out)
+}
+
+/// Generate the bounded candidate set for `input`.
+///
+/// Thin alias for [`propose_all`] kept for existing callers; it proposes exactly
+/// the same set in the same order.
+pub fn propose(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
+    propose_all(input, limits)
 }
 
 /// Propose an inline-run + `REPEAT_LAST` representation of `input`.
