@@ -30,6 +30,8 @@ pub struct Limits {
     pub max_channel_count: u32,
     /// Maximum encoded size of a single entropy model payload.
     pub max_entropy_model_bytes: u32,
+    /// Maximum number of lexical spans produced for a PDF input.
+    pub max_pdf_spans: u32,
 }
 
 impl Limits {
@@ -46,6 +48,7 @@ impl Limits {
         max_model_count: 1 << 16,
         max_channel_count: 1 << 16,
         max_entropy_model_bytes: 4096,
+        max_pdf_spans: 1 << 26,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -61,6 +64,7 @@ impl Limits {
         max_model_count: 1 << 12,
         max_channel_count: 1 << 12,
         max_entropy_model_bytes: 4096,
+        max_pdf_spans: 1 << 16,
     };
 }
 
