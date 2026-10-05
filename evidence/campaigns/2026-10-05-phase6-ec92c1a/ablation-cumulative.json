@@ -1,0 +1,42 @@
+{
+  "campaign": "2026-10-05-phase6-ec92c1a",
+  "units": "bytes",
+  "corpus_files": 12,
+  "A0": 139614,
+  "A1": 139614,
+  "A2": 98224,
+  "A3": 98224,
+  "A4": 98224,
+  "A5": 98224,
+  "A6": 98224,
+  "A7": 98224,
+  "A8": 85029,
+  "ladder_map": {
+    "A0": "RAW",
+    "A1": "min(RAW,RLE)",
+    "A2": "min(A1,BYTE_RANS)",
+    "A3": "min(A2,PDF_PHYSICAL)",
+    "A4": "min(A3,PDF_CHANNELS)",
+    "A5": "min(A4,PDF_LAYOUT)",
+    "A6": "min(A5,PDF_LAYOUT_RANS)",
+    "A7": "min(A6,PDF_DEFLATE_REPLAY)",
+    "A8": "min(A7,PDF_DEFLATE_REPLAY_RANS)"
+  },
+  "winners_count": {
+    "RAW": 8,
+    "RLE": 0,
+    "BYTE_RANS": 3,
+    "PDF_PHYSICAL": 0,
+    "PDF_CHANNELS": 0,
+    "PDF_LAYOUT": 0,
+    "PDF_LAYOUT_RANS": 0,
+    "PDF_DEFLATE_REPLAY": 0,
+    "PDF_DEFLATE_REPLAY_RANS": 1
+  },
+  "replay_rans_vs_byte_rans": {
+    "win": 1,
+    "lose": 0,
+    "tie": 0,
+    "declined": 11
+  }
+}

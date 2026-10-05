@@ -1,0 +1,7 @@
+{
+  "campaign": "2026-10-05-phase6-ec92c1a",
+  "all_controls_exact": true,
+  "controls": [{"name":"malformed.pdf","control":"non_pdf","source_len":85,"auto_winner":"RAW","byte_compare":"equal","verify_ok":true,"deflate_replay_declined":true,"deflate_replay_rans_declined":true},{"name":"notpdf.bin","control":"non_pdf","source_len":41,"auto_winner":"RAW","byte_compare":"equal","verify_ok":true,"deflate_replay_declined":true,"deflate_replay_rans_declined":true}],
+  "replay_decline_count": 11,
+  "note": "replay declines are the corpus files whose forced pdf_deflate_replay_rans size is null in results.json"
+}
