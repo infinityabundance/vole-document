@@ -18,11 +18,14 @@ express.
 Phase 6 implemented that plan:
 
 - the `DEFLATE_REPLAY` DRA op (opcode `0x0A`), bumping the DRA graph to
-  **version 7** and moving the universe to
-  `phase6;exact-bytes;dra-7;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay`.
-  It reconstructs exactly `recreate_whole_deflate_stream(plaintext,
-  corrections)` for the raw DEFLATE middle of a stream, with a
-  `declared_output_len` validated at evaluation;
+  **version 8** and moving the universe to
+  `phase6;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental`.
+  The op carries an explicit `replay_codec` tag
+  (`REPLAY_DEFLATE_PREFLATE_0_7_6`) that names the experimental, version-coupled
+  correction representation; an unknown tag fails closed. It reconstructs exactly
+  `recreate_whole_deflate_stream(plaintext, corrections)` for the raw DEFLATE
+  middle of a stream, with a `declared_output_len` validated at evaluation and
+  statically bounded by `2*P + 1024` before the engine runs (ADR-0016);
 - stream discovery by VOLE's own byte-authoritative physical scanner plus a lone
   `/FlateDecode` classification — `preflate` never decides stream boundaries;
 - two candidates: `PDF_DEFLATE_REPLAY` (plaintexts are raw, content-deduplicated
@@ -46,30 +49,30 @@ a candidate that can win.** Unlike every earlier PDF structural candidate, exact
 DEFLATE replay of a shared, entropy-coded plaintext that *also* includes a
 large/weakly-coded appearance **beats `BYTE_RANS`** on the measured fixture.
 
-Measured campaign `2026-10-05-phase6-ec92c1a` over the deterministic 12-file
-corpus (verdict PASS; every auto winner round-trips byte-exactly through
+Measured campaign `2026-10-05-phase6-0d0bb79` (DRA v8) over the deterministic
+12-file corpus (verdict PASS; every auto winner round-trips byte-exactly through
 `cmp` + `verify`, `all_exact=true`):
 
-- **On `flate.pdf` (57,513 B): `PDF_DEFLATE_REPLAY_RANS` = 36,068 B, a 13,195 B
-  win over `BYTE_RANS` = 49,263 B** (and a 21,812 B win over RAW = 57,880 B). The
+- **On `flate.pdf` (57,513 B): `PDF_DEFLATE_REPLAY_RANS` = 36,102 B, a 13,189 B
+  win over `BYTE_RANS` = 49,291 B** (and a 21,806 B win over RAW = 57,908 B). The
   rANS lane is the auto winner and the only file on which a replay lane is even
   proposed.
-- **The raw-plaintext variant loses.** `PDF_DEFLATE_REPLAY` = 56,702 B, 7,439 B
+- **The raw-plaintext variant loses.** `PDF_DEFLATE_REPLAY` = 56,736 B, 7,445 B
   *larger* than `BYTE_RANS`, because the plaintext of a strongly-compressed
   stream is nearly as large as the stream bytes it replaces, and the plaintext
   is expensive to store literally even after object deduplication.
-- **The ladder moves for the first time.** A0 RAW = 139,614; A2 +`BYTE_RANS` =
-  98,224; A6 +`PDF_LAYOUT_RANS` = 98,224; A7 +`PDF_DEFLATE_REPLAY` = 98,224;
-  A8 +`PDF_DEFLATE_REPLAY_RANS` = **85,029** (step delta −13,195). The
-  **leave-one-out delta for the rANS replay mechanism is −13,195 B**; the
+- **The ladder moves for the first time.** A0 RAW = 139,950; A2 +`BYTE_RANS` =
+  98,560; A6 +`PDF_LAYOUT_RANS` = 98,560; A7 +`PDF_DEFLATE_REPLAY` = 98,560;
+  A8 +`PDF_DEFLATE_REPLAY_RANS` = **85,371** (step delta −13,189). The
+  **leave-one-out delta for the rANS replay mechanism is −13,189 B**; the
   raw-replay and layout+rANS leave-one-out deltas are 0.
 - **Head-to-head vs `BYTE_RANS`: win 1, lose 0, decline 11.** The other eleven
   files have no lone `FlateDecode` stream and decline the lane, which is
   recorded verbatim and never scored as a win.
 - **The winner's cost is dominated by its one channel.** The `flate.pdf`
-  breakdown is header 64 / universe 121 / format 70 / record framing 204 /
-  objects 639 / graph 1,498 / models 689 / entropy payload 32,723 / integrity 40
-  / trailer 20 = 36,068. The descriptor replays all six streams
+  breakdown is header 64 / universe 149 / format 70 / record framing 204 /
+  objects 639 / graph 1,504 / models 689 / entropy payload 32,723 / integrity 40
+  / trailer 20 = 36,102. The descriptor replays all six streams
   (`streams=6 replayed=6`) and codes their three unique plaintexts as three
   order-0 channels (`channels=3 objects=6`); only `p1` is shared (across four
   streams), while `p2` and `p3` are unique.
@@ -95,8 +98,8 @@ corpus (verdict PASS; every auto winner round-trips byte-exactly through
   controls below.
 - **The correction state pays for itself.** The stored correction blobs plus two
   literal zlib fragments (header + Adler-32, 6 B each) are small next to the
-  bitstream bytes they replace; the graph and object framing (1,498 + 639 B) is
-  the fixed container cost, and it is more than covered by the 13,195 B saved.
+  bitstream bytes they replace; the graph and object framing (1,504 + 639 B) is
+  the fixed container cost, and it is more than covered by the 13,189 B saved.
 - **This is a different layer from the converging negatives.** Phases 4–5.8 all
   proceduralize *plain* syntax that `BYTE_RANS` already models well. Exact replay
   proceduralizes bytes that are *already entropy-coded* — the region where an
@@ -106,7 +109,8 @@ corpus (verdict PASS; every auto winner round-trips byte-exactly through
 ## Scope — honest characterization
 
 These are measured, scoped results for *one synthetic composed fixture*, at
-commit `ec92c1a`. They are **not** a general compression claim:
+commit `0d0bb79` (DRA v8 re-baseline; the original v7 measurement is
+`ec92c1a`). They are **not** a general compression claim:
 
 - **Winning region (conjunctive):** a plaintext that is **shared across
   streams** **and** whose appearances include at least one **large/weakly-coded**
@@ -144,6 +148,13 @@ coded" reading of the winning region. Each uses the same complete-cost court;
 | four identical level-9 streams (shared, strong) | 13,914 | 20,403 | replay loses (sharing **alone** loses) |
 | `flate.pdf` with the level-0 stream replaced by a level-6 stream | 29,375 | 36,027 | replay loses (strong appearances) |
 
+These four controls were measured independently under the pre-v8 universe
+(dra-7) on fixtures not part of the sealed 12-file corpus. Under DRA v8 every
+descriptor gains the 28-byte `-experimental` universe record and one codec-tag
+byte per replayed stream, so each absolute number shifts up by a small constant;
+no verdict or ratio ordering changes. They are retained verbatim as the
+independent review's evidence.
+
 The win therefore requires **both** conjuncts simultaneously: the plaintext must
 be shared across streams **and** at least one of its appearances must be
 large/weakly coded. This boundary is characterized on synthetic fixtures, not by
@@ -168,12 +179,30 @@ a population (see also `docs/evidence/phase6-skeptic-review.md`).
   re-coding the plaintext, and both are directions a successor phase would test
   rather than established general mechanisms.
 - **Dependency note.** The `deflate-replay` feature transitively pulls
-  LGPL-3.0-or-later `cabac`; see ADR-0014. The feature is optional; a build with
-  `--no-default-features --features rans` omits the lane entirely and rejects the
-  op with `UnsupportedFeature`.
-- **Preserve the evidence.** Campaign `2026-10-05-phase6-ec92c1a` (results,
+  LGPL-3.0-or-later `cabac`; see ADR-0014. The feature is **opt-in** (the default
+  build is permissive-only, `default = ["rans"]`); a build without it omits the
+  lane entirely and rejects the op with `UnsupportedFeature`.
+- **Resource bound.** Decode-time replay is statically bounded: a declared output
+  above `2*P + 1024` for a `P`-byte plaintext is rejected before the engine runs,
+  and the plaintext/corrections inputs are bounded by `max_record_len`; see
+  ADR-0016. The correction representation is tagged `REPLAY_DEFLATE_PREFLATE_0_7_6`
+  and is explicit experimental/version-coupled wire semantics, not frozen v1.
+- **Preserve the evidence.** Campaign `2026-10-05-phase6-0d0bb79` (results,
   cumulative and leave-one-out ablations, verification triples, negative
-  controls, qpdf oracle) remains under `evidence/campaigns/`.
+  controls, qpdf oracle) is under `evidence/campaigns/`; the earlier
+  `2026-10-05-phase6-ec92c1a` receipt (DRA v7) is retained as a historical
+  amendment reference.
+
+## Amendment (Phase 6.7, 2026-10-05) — DRA v8 re-baseline
+
+The three priority fixes (ADR-0007/ADR-0016: `replay_codec` tag; ADR-0016:
+static resource bound; ADR-0014: opt-in feature) changed the universe string, so
+the campaign was re-run byte-for-byte at commit `0d0bb79` into the new receipt
+`2026-10-05-phase6-0d0bb79`. Every size shifts by the fixed universe/codec-tag
+increase (e.g. the `flate.pdf` winner moves 36,068 → 36,102 B, the win
+13,195 → 13,189 B), the verdict remains **PASS**, and the `PDF_DEFLATE_REPLAY_RANS`
+win over `BYTE_RANS` persists (`win 1, lose 0, decline 11`). The original
+`ec92c1a` receipt is not rewritten; the numbers above are the v8 re-baseline.
 
 ## References
 
@@ -181,5 +210,6 @@ a population (see also `docs/evidence/phase6-skeptic-review.md`).
 - ADR-0013: layout + rANS does not beat whole-file order-0 rANS (the prior
   converging negative)
 - ADR-0014: `preflate-rs` pulls LGPL-3.0-or-later `cabac`
-- Campaign `2026-10-05-phase6-ec92c1a`
+- ADR-0016: decode-time DEFLATE replay is statically resource-bounded
+- Campaign `2026-10-05-phase6-0d0bb79` (v8) and `2026-10-05-phase6-ec92c1a` (v7)
 - `tools/phase6-court.sh`; `tests/pdf_deflate.rs`

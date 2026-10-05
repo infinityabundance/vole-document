@@ -57,6 +57,13 @@ correction state. It is a **candidate**, never a blanket transform.
 - Universe string becomes:
   `vole-document;universe;phase6;exact-bytes;dra-7;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay`
 
+> **Post-implementation note (Phase 6.7).** This frozen contract records the
+> Phase-6 plan as written (DRA v7). The shipped op is now DRA **v8** with a
+> `replay_codec` tag and the universe
+> `…;dra-8;…;deflate-replay-preflate-0.7.6-experimental`, plus a static decode-time
+> resource bound. See ADR-0007, ADR-0014, ADR-0016, and `SPEC.md` for the current
+> normative description.
+
 ### Encoder analysis (never authority)
 
 - Flate discovery uses **VOLE's own** scanned stream spans (`PdfStreamSpan`)

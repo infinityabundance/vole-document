@@ -26,12 +26,14 @@ library.
 - Allow `LGPL-3.0-or-later` in `deny.toml` as an **explicit, commented exception**
   tied to `preflate-rs` → `cabac`, and document the consequence rather than hide
   it.
-- Keep `deflate-replay` an **optional cargo feature**. It is enabled by the
-  default feature set (per the Phase-6 plan) so the PDF golden path and the CLI
-  exercise replay out of the box; a distributor that must ship an artifact free of
-  copyleft may build with `--no-default-features --features rans` and the replay
-  mechanism is simply absent (descriptors that require it then fail closed with
-  `UnsupportedFeature`).
+- Keep `deflate-replay` an **optional, OPT-IN cargo feature**, *not* part of the
+  default feature set: the default build is `default = ["rans"]`, so it is
+  **permissive-only** and pulls no copyleft code. Enable replay explicitly with
+  `--features deflate-replay` (or `--all-features`). A distributor that builds the
+  default feature set, or the explicitly permissive-only
+  `--no-default-features --features rans`, ships an artifact containing no LGPL
+  code; a descriptor that requires replay then fails closed with
+  `UnsupportedFeature` rather than being reinterpreted.
 - Record the exception in the README, CHANGELOG, and this ADR so no downstream
   user is surprised.
 

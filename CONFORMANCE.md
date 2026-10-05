@@ -21,13 +21,15 @@
 | Phase-5.7 packed-framing court (script) | `tools/phase5-court.sh` | forced-candidate ablation (`encode --force KIND`) including `pdf-layout` (layout-v2) over the enlarged 11-file corpus: per-kind forced sizes, cumulative ladder A0..A5, leave-one-out layout delta, and the classic-xref subset; every auto winner is `cmp`ed and `verify`ed byte-exact, the qpdf oracle is re-checked, and the campaign `2026-10-05-phase5-4521778` is sealed |
 | Packed channels (Phase 5.8) | `src/dra/op.rs`, `src/dra/program.rs`, `src/adapter/pdf/layout.rs` | `PACKED_CHANNELS` (opcode `0x09`, DRA v6) round-trips and rejects unknown item tags, truncation, unmarked slots, bad widths, literal overruns, missing channels, a declared-length mismatch, and unconsumed data; layout+rANS is one data channel plus one plan channel (serialized item table) with two models; `classic.pdf`/`bigtext.pdf`/`many.pdf` are byte-exact and deterministic, non-PDF and cross-reference-stream inputs decline, and the honest gate records that layout+rANS loses to `BYTE_RANS` |
 | Phase-5.8 layout+rANS court (script) | `tools/phase5-8-court.sh` | forced-candidate ablation (`encode --force KIND`) including `pdf-layout-rans` over the 11-file corpus: per-kind forced sizes, cumulative ladder A0..A6, leave-one-out layout+rANS delta, and head-to-head win/lose/decline vs `BYTE_RANS`; every auto winner is `cmp`ed and `verify`ed byte-exact, the qpdf oracle is re-checked, and the campaign `2026-10-05-phase5-8-cf8048d` is sealed |
-| PDF DEFLATE replay (Phase 6) | `tests/pdf_deflate.rs` | `DEFLATE_REPLAY` (DRA v7) and the two replay candidates: both replay variants are proposed for `flate.pdf` and every serialized descriptor reproduces the source byte-for-byte (length + digest + `cmp` + deep `verify`); shared plaintext is stored once (6 streams → strictly fewer unique plaintext channels); the rANS-plaintext lane beats the raw-plaintext lane; the unforced court on `flate.pdf` is byte-exact with an unknown winner tolerated; forcing a replay lane on a Flate-less PDF or a non-PDF is a typed `Usage` decline; replay proposal is deterministic; hostile correction blobs fail closed with a typed `CodecReplay`/`InvalidGraph` and never panic or silently reconstruct; and the lexer stream-opacity change regresses no sample |
-| Phase-6 replay court (script) | `tools/phase6-court.sh` | forced-candidate ablation (`encode --force KIND`) including `pdf-deflate-replay` and `pdf-deflate-replay-rans` over the 12-file corpus: per-kind forced sizes, cumulative ladder A0..A8, leave-one-out deltas for both replay mechanisms, and a head-to-head win/lose/decline vs `BYTE_RANS`; every auto winner is `cmp`ed and `verify`ed byte-exact, negative controls and typed declines are recorded verbatim, the qpdf oracle is re-checked, and the campaign `2026-10-05-phase6-ec92c1a` is sealed |
+| PDF DEFLATE replay (Phase 6) | `tests/pdf_deflate.rs` | `DEFLATE_REPLAY` (DRA v8, `replay_codec`-tagged) and the two replay candidates: both replay variants are proposed for `flate.pdf` and every serialized descriptor reproduces the source byte-for-byte (length + digest + `cmp` + deep `verify`); shared plaintext is stored once (6 streams → strictly fewer unique plaintext channels); the rANS-plaintext lane beats the raw-plaintext lane; the unforced court on `flate.pdf` is byte-exact with an unknown winner tolerated; forcing a replay lane on a Flate-less PDF or a non-PDF is a typed `Usage` decline; replay proposal is deterministic; hostile correction blobs fail closed with a typed `CodecReplay`/`InvalidGraph` and never panic or silently reconstruct; a graph record naming an unknown `replay_codec` is rejected as `UnsupportedFeature`; a declared replay output above the static `2*P+1024` bound is rejected before the engine runs (ADR-0016); and the lexer stream-opacity change regresses no sample |
+| Phase-6 replay court (script) | `tools/phase6-court.sh` | forced-candidate ablation (`encode --force KIND`) including `pdf-deflate-replay` and `pdf-deflate-replay-rans` over the 12-file corpus: per-kind forced sizes, cumulative ladder A0..A8, leave-one-out deltas for both replay mechanisms, and a head-to-head win/lose/decline vs `BYTE_RANS`; every auto winner is `cmp`ed and `verify`ed byte-exact, negative controls and typed declines are recorded verbatim, the qpdf oracle is re-checked, and the campaign `2026-10-05-phase6-0d0bb79` is sealed (the earlier DRA-v7 receipt `2026-10-05-phase6-ec92c1a` is retained as a historical amendment reference) |
 
-Test counts (inside the pinned `dev` image): **320** passing with all features
-(the `default` set; 0 failed, 1 ignored), of which **235** are library unit tests
-(plus 1 ignored); **256** passing with `--no-default-features` (the rANS- and
-replay-dependent integration courts are skipped).
+Test counts (inside the pinned `dev` image): **321** passing with `--all-features`
+(0 failed, 1 ignored), of which **236** are library unit tests (plus 1 ignored);
+**304** passing with the default feature set (`default = ["rans"]`, permissive-only;
+the replay courts are skipped), of which **228** are library unit tests; and
+**257** passing with `--no-default-features` (the rANS- and replay-dependent
+integration courts are skipped).
 
 `encode --force KIND` is the ablation surface: it runs the *same* complete-cost
 court over a one-element candidate set (`KIND` in `raw`, `rle`, `byte-rans`,
@@ -67,6 +69,12 @@ docker compose run --rm --no-TTY dev cargo fmt --all --check
    descriptors materialize byte-for-byte; without it, channel-free descriptors
    still materialize exactly and channel-bearing ones fail closed with
    `UnsupportedFeature` (never a silent reinterpretation).
+10. **Opt-in replay and its bounds**: the default build is permissive-only
+    (`default = ["rans"]`); the DEFLATE replay stack is opt-in. At decode time a
+    `DEFLATE_REPLAY` op names its semantics with a `replay_codec` tag (unknown id
+    ⇒ `UnsupportedFeature`), rejects a declared output above the static
+    raw-DEFLATE bound `2*P+1024` for a `P`-byte plaintext *before* running the
+    engine (ADR-0016), and bounds plaintext/corrections by `max_record_len`.
 
 ## Fuzz targets (added as parsers land)
 
