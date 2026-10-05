@@ -1,0 +1,41 @@
+{
+  "campaign": "2026-10-05-phase7-court-99dc72e",
+  "amends": "2026-10-05-phase7-corpus-b-c4eb77e",
+  "phase": "Phase 7.0 — complete-cost court over the producer corpus (PDF_DEFLATE_REPLAY_RANS vs BYTE_RANS)",
+  "claim": "Under the real complete-cost court (serialized .voldoc size, verify + byte-compare) PDF_DEFLATE_REPLAY_RANS beats BYTE_RANS on 3/23 locally generated files: qpdf-preserve-objectstreams.pdf (qpdf 11.3.0 transformer output) by 55,167 B (112,147 -> 56,980), hand-base2.pdf by 55,126 B, and _synthetic/flate.pdf by 13,189 B. It loses on all 5 Ghostscript variants and both qpdf compression variants, and declines on the 12 files with no replayable Flate lane (1 qpdf + 11 synthetic). Every one of the 23 auto winners verifies and materializes byte-for-byte. The corpus is locally generated and is not a population sample; qpdf and Ghostscript are transformers, not authoring applications.",
+  "git_commit": "99dc72e7cba108322454a59d1e3776ac5a2a4986",
+  "git_dirty_tracked": "0",
+  "dirty_note": "No tracked modifications at measurement time. Two untracked files were added: tools/pdf-court.sh (driver) and this receipt.",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "tools_base_image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "ec8313a91baa81eebd13ed98b2cdc5abe43251c0c45caca3bba2df2441ee1039",
+  "binary_sha256": "e79d893e7557b1492b267ee6acb315c14b08fb7fb08105f53b98583ce8fab949",
+  "command": "docker compose run --rm --no-TTY dev sh -c 'sh tools/pdf-court.sh evidence/scratch/court evidence/corpus/phase7/*.pdf evidence/corpus/phase7/_synthetic/*'",
+  "oracles": {"qpdf": "11.3.0", "ghostscript": "10.00.0"},
+  "artifacts": {
+    "corpus.json": "8b0c69ad43de8e5c8217d5b99f178cf201637955be5361bea7dc3580811f2c94",
+    "results.json": "6c3f697d045f1f35e80b64cac59d3b312fe75bed936652e02d8c5210d4997b6d",
+    "environment.json": "a8266142c5886e8752b58db45c42f68ec334be27e019adb8967c39846b36744a",
+    "report.md": "dfa6cc9e63eb0220999c29648552095067d350d583a6564085d0a6d30cbdfc5a",
+    "court-results.jsonl": "4d6ec260f31c13cbaf342bf53a5ef3c95d33a0d23745b9e672bbd99fb300556f"
+  },
+  "corpus_ledger": {
+    "provenance": "evidence/corpus/phase7/provenance.json",
+    "provenance_sha256": "c18dd78804fc04fe14d2bcd1ceba39f3157ec214a93e03166fc2ac6f623db1db",
+    "deflate_stats_jsonl": "evidence/corpus/phase7/deflate-stats.jsonl",
+    "deflate_stats_sha256": "5fb4a8a8faeb928f7d903d9154ee08b7ea464b8d146397dcf2ae6080596bf4b1",
+    "generator": "tools/pdf-corpus.sh",
+    "generator_sha256": "8a390368e35d28ca6c141d98fa24f22b23a9c680437ebd84bfd19f1a835f3c29",
+    "court_driver": "tools/pdf-court.sh",
+    "court_driver_sha256": "3b0d1f678e574d91d7d41a00bfcea661eaffc0745c46198e6ab10ffc8dda39d0"
+  },
+  "determinism": {
+    "qpdf_outputs_byte_reproducible": true,
+    "ghostscript_outputs_byte_reproducible": false,
+    "note": "Two consecutive tools/pdf-corpus.sh runs produced identical sha256 for all qpdf-*.pdf, hand-*.pdf and _synthetic/* files. The five gs-*.pdf outputs differ (embedded per-run /ID + timestamp); byte length and FlateDecode compressed_bytes are stable."
+  },
+  "verdict": "RECORDED"
+}

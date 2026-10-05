@@ -1,0 +1,27 @@
+{
+  "campaign": "2026-10-05-phase7-court-99dc72e",
+  "amends": "2026-10-05-phase7-corpus-b-c4eb77e",
+  "phase": "Phase 7.0 — complete-cost court over the producer corpus (PDF_DEFLATE_REPLAY_RANS vs BYTE_RANS)",
+  "utc_date": "2026-10-05T13:37:11Z",
+  "git_commit": "99dc72e7cba108322454a59d1e3776ac5a2a4986",
+  "git_dirty_tracked": "0",
+  "dirty_note": "At measurement time the working tree had no tracked modifications; only two untracked files were added (the court driver tools/pdf-court.sh and this receipt). The measured binary is unchanged from the c4eb77e lexer-fix lineage (binary_sha256 matches the prior receipt).",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "tools_base_image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "ec8313a91baa81eebd13ed98b2cdc5abe43251c0c45caca3bba2df2441ee1039",
+  "binary_sha256": "e79d893e7557b1492b267ee6acb315c14b08fb7fb08105f53b98583ce8fab949",
+  "features": "deflate-replay,rans (cargo build --all-features)",
+  "oracles": {
+    "qpdf": "11.3.0",
+    "ghostscript": "10.00.0"
+  },
+  "commands": [
+    "docker compose run --rm --no-TTY dev sh -c 'cargo build --quiet --all-features && ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic'",
+    "docker compose run --rm --no-TTY tools sh tools/pdf-corpus.sh",
+    "docker compose run --rm --no-TTY dev sh -c 'sh tools/pdf-court.sh evidence/scratch/court evidence/corpus/phase7/*.pdf evidence/corpus/phase7/_synthetic/*'"
+  ],
+  "determinism_check": "tools/pdf-corpus.sh was run twice consecutively; sha256sum over evidence/corpus/phase7/*.pdf and _synthetic/*.pdf was identical for every qpdf-*.pdf, hand-*.pdf and _synthetic/* file. The five gs-*.pdf outputs differed between runs (Ghostscript embeds a per-run /ID and timestamp); their byte lengths and every FlateDecode compressed_bytes are stable."
+}

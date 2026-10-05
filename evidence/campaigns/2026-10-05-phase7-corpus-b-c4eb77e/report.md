@@ -180,3 +180,20 @@ document level under the conjunctive shared-*and*-weak geometry above.
 `not_zlib` declines and corrects the stream census (17 → 24); the Phase-6 win
 geometry now appears on qpdf transformer output as well as the hand/synthetic
 fixtures. No new candidate is adopted.
+
+---
+
+> **Forward amendment 2026-10-05 — complete-cost court.** This ratio diagnostic
+> was followed by a real court over the same corpus in the `dev` image, sealed at
+> `evidence/campaigns/2026-10-05-phase7-court-99dc72e/` (code commit `99dc72e`).
+> It runs `encode` (auto) and the four forced lanes (`raw`, `byte-rans`,
+> `pdf-deflate-replay`, `pdf-deflate-replay-rans`) on every corpus file and
+> compares complete serialized `.voldoc` sizes. **Result:**
+> `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` on 3/23 files — the two
+> shared-plaintext fixtures (`hand-base2.pdf` by 55,126 B, `_synthetic/flate.pdf`
+> by 13,189 B) and one qpdf transformer output
+> (`qpdf-preserve-objectstreams.pdf` by **55,167 B**, 112,147 → 56,980) — loses on
+> all 5 Ghostscript variants and both qpdf compression variants, and declines on
+> the 12 files with no replayable Flate lane. Every auto winner verifies and
+> materializes byte-for-byte (23/23). This report's ratio numbers stand; the
+> court is the decisive complete-cost measurement. No candidate is adopted.
