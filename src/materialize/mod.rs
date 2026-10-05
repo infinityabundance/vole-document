@@ -4,6 +4,8 @@
 //! checks the reconstructed length, and checks the archival digest. It never
 //! searches, guesses, optimizes, or invokes external tools.
 
+pub mod observation;
+
 use crate::container::{Descriptor, ParsedDescriptor};
 use crate::error::{Error, Result};
 use crate::integrity::{sha256, to_hex};
