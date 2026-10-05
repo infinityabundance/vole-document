@@ -208,3 +208,75 @@ this corpus, which motivates Phase 7.2 (nested content proceduralization).
 Ghostscript are **transformers** (not authoring applications), and
 browser/PDFium, LibreOffice, pdfTeX and Adobe outputs remain a recorded gap. No
 wire format, candidate, or decode path changed; no new candidate is adopted.
+
+---
+
+# Amendment (2026-10-05) — Phase 7.0b generator-family corpus
+
+> **New, separately scoped corpus — nothing above is rewritten.** Phase 7.0's
+> decisive gap was that the tested producers (qpdf, Ghostscript) are *transformers*
+> that never produce the shared plaintext the win region needs. Phase 7.0b adds four
+> real *authoring generators* and re-asks the question.
+>
+> Generation script: `tools/pdf-corpus-producers.sh`; ledger:
+> `evidence/corpus/phase7-producers/provenance.json`; raw measurement:
+> `evidence/corpus/phase7-producers/deflate-stats.jsonl`; sealed receipt:
+> `evidence/campaigns/2026-10-05-phase7-producers-e071250/`. No wire format,
+> candidate, or decode path changed.
+
+## New producers and how they ran
+
+All four families were **actually added and run** (none skipped): ReportLab 3.6.12,
+Cairo 1.20.1 / libcairo 1.16.0, LibreOffice Writer 7.4.7.2, pdfTeX
+3.141592653-2.6-1.40.24 (TeX Live 2022). They run in the separate, opt-in
+`producers` image (`debian:bookworm-slim@sha256:3783cc01…`, the same digest as
+`tools`; image tag `vole-document/producers:bookworm`, ~724 MB, ~38 s cold build).
+The separate stage keeps the fast `tools` semantic gate unchanged. Each output was
+`qpdf --check`'d; `/ID` normalization
+(`qpdf --deterministic-id --stream-data=preserve --object-streams=preserve`) was
+applied only where it left every `/FlateDecode` payload byte-identical (ReportLab,
+Cairo, LibreOffice); pdfTeX kept its raw output. ReportLab, Cairo and pdfTeX are
+byte-reproducible run to run; LibreOffice is **not** (run-varying metadata).
+
+| producer | file | Flate streams | reproducible | `corr/comp` p10/p50/p90 | naive rANS | dedup rANS |
+| --- | --- | ---: | --- | --- | ---: | ---: |
+| ReportLab | `reportlab-multipage.pdf` | 6 | yes | 0.054451 / 0.054451 / 0.054451 | 63,894 | 10,649 |
+| Cairo | `cairo-vector.pdf` | 8 | yes | 0.010858 / 0.068028 / 0.115662 | 123,799 | 29,334 |
+| LibreOffice | `libreoffice-export.pdf` | 63 | no | 0.034759 / 0.041039 / 0.058663 | 350,513 | 350,453 |
+| pdfTeX | `pdftex-doc.pdf` | 10 | yes | 0.003134 / 0.055013 / 0.086036 | 104,299 | 32,579 |
+| **overall** | 4 files | 87 | — | **0.034759 / 0.047945 / 0.068028** | — | — |
+
+**Exact-replay acceptance 87/87 = 1.000** (0 declines). A large naive→dedup gap means
+the producer emitted a plaintext **shared across whole streams**: ReportLab, Cairo
+and pdfTeX do (six byte-identical repeated-page streams each); LibreOffice does not
+(350,513 → 350,453).
+
+## Complete-cost court (`PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS`)
+
+| producer | `BYTE_RANS` | `PDF_DEFLATE_REPLAY_RANS` | Δ | verdict | auto winner |
+| --- | ---: | ---: | ---: | --- | --- |
+| **Cairo** | 58,711 | **34,574** | **+24,137** | **WIN** | `PDF_DEFLATE_REPLAY_RANS` |
+| ReportLab | 11,144 | 14,456 | −3,312 | lose | `BYTE_RANS` |
+| pdfTeX | 24,435 | 35,098 | −10,663 | lose | `RAW` (24,017) |
+| LibreOffice | 72,791 | 375,265 | −302,474 | lose | `BYTE_RANS` |
+
+Court totals: **win 1 / lose 3 / decline 0**; all 4 files `verify` + byte-compare
+round-trip exact.
+
+**A genuine authoring application does produce the win region.** Cairo emits six
+byte-identical page content streams for a repeated page; the shared-channel lane
+stores that plaintext once and `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` under
+complete cost by **24,137 B** (58,711 → 34,574), and the unforced court selects it.
+Phase 7.0 had only self-authored witnesses; this is the **first
+authoring-generator witness**. ReportLab and pdfTeX emit the same shared geometry but
+**lose** complete cost: ReportLab's file is small (10.9 KB) so ~3.8 KB of DRA/model
+framing swamps the 6-way dedup (its dedup diagnostic 10,649 B even undercuts its
+11,144 B `BYTE_RANS`, which is exactly why the diagnostic is not the decision), and
+pdfTeX's already-tight streams make `BYTE_RANS` cheaper than rANS(plaintext)+corr.
+LibreOffice shares nothing and loses badly.
+
+**Scope.** The win is **conditional** on the input document repeating an identical
+page (a legitimate pattern, and our deterministic input); it is **not** a population
+claim and does not show that arbitrary real-world authoring output wins. Complete
+cost remains authoritative, and the shared-plaintext geometry is necessary but not
+sufficient (ReportLab and pdfTeX prove it). No candidate changed.

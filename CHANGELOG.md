@@ -73,6 +73,27 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
     invocation, so the qpdf corpus outputs are byte-reproducible across runs.
     Ghostscript `pdfwrite` output is not (it embeds a per-run `/ID` and
     timestamp); the caveat is recorded in `provenance.json`.
+- Phase 7.0b — generator-family Flate corpus (real *authoring* generators):
+  - A separate, opt-in `producers` `Dockerfile` stage / compose service
+    (`vole-document/producers:bookworm`, base
+    `debian:bookworm-slim@sha256:3783cc01…` — the same digest as `tools`)
+    carrying generators with distinct DEFLATE behaviour: **ReportLab 3.6.12**,
+    **Cairo 1.20.1/libcairo 1.16.0**, **LibreOffice Writer 7.4.7.2**, **pdfTeX
+    3.141592653-2.6-1.40.24** (plus qpdf 11.3.0 for `/ID` normalization). It is
+    deliberately **not** part of the fast `tools` gate; the image grows to
+    ~724 MB. All four families built and ran; none was skipped.
+  - `tools/pdf-corpus-producers.sh` generates one PDF per available family from
+    the same deterministic content document as `tools/pdf-corpus.sh`, fingerprints
+    every `/FlateDecode` payload (`qpdf --json` + `qpdf --show-object
+    --raw-stream-data`), applies `qpdf --deterministic-id --stream-data=preserve
+    --object-streams=preserve` **only** when it leaves every payload
+    byte-identical, builds each family twice to record byte-reproducibility,
+    `qpdf --check`s every output, and writes a provenance ledger. LibreOffice
+    output is not byte-reproducible (run-varying metadata); the caveat is
+    recorded. The regenerable `.pdf` bytes are gitignored; no third-party bytes.
+  - `tools/pdf-producers-analyze.py` reduces the `deflate-stats` and complete-cost
+    court outputs to a per-producer analysis. No wire format, candidate, or
+    decode path changed.
 - Phase 7.1 — coverage-guided fuzzing:
   - A standalone `cargo-fuzz` package in `fuzz/` (kept out of `cargo package` by
     `exclude = ["fuzz", "research", "evidence"]`) with ten libFuzzer targets:
@@ -214,6 +235,25 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   is a `/ID`-only normalization (55,165 B no-flag vs 55,167 B flagged). The corpus
   is locally generated and is **not** a population sample; qpdf/Ghostscript are
   transformers. Receipt under `evidence/campaigns/2026-10-05-phase7-court-99dc72e/`.
+- Campaign `2026-10-05-phase7-producers-e071250` (verdict RECORDED; measurement,
+  no new candidate) — the Phase-7.0b **generator-family** corpus and complete-cost
+  court over four real *authoring generators* (ReportLab 3.6.12, Cairo
+  1.20.1/libcairo 1.16.0, LibreOffice Writer 7.4.7.2, pdfTeX 3.141592653-2.6-1.40.24),
+  each from the same deterministic content document. Exact-replay acceptance is
+  **87/87 = 1.000** (corpus-wide `correction/compressed` p10/p50/p90 =
+  0.034759/0.047945/0.068028). Under complete cost `PDF_DEFLATE_REPLAY_RANS` vs
+  `BYTE_RANS`: **win 1 / lose 3 / decline 0**. **Cairo — a genuine authoring
+  generator — wins by 24,137 B (58,711 → 34,574)** because it emits six
+  byte-identical page content streams for a repeated page; **this is the first
+  authoring-generator witness** of the Phase-6/7.0 shared-plaintext win region.
+  ReportLab (small file, ~3.8 KB framing overhead) and pdfTeX (already-tight
+  streams) also emit shared plaintext but lose complete cost (−3,312 B / −10,663 B);
+  LibreOffice shares nothing (350,513 → 350,453) and loses by 302,474 B. The win is
+  **conditional** on repeated identical page content and is **not** a population
+  claim; qpdf appears only as an `/ID` normalizer. All 4 auto winners `verify` +
+  `cmp` byte-exact. Receipt under
+  `evidence/campaigns/2026-10-05-phase7-producers-e071250/`; new report section in
+  `docs/evidence/phase7-corpus-report.md`.
 - Campaign `2026-10-05-phase6-0d0bb79` (DRA v8, verdict PASS; the earlier
   `2026-10-05-phase6-ec92c1a` receipt is retained): a 12-file corpus; every
   auto winner round-trips byte-exactly (`cmp` + `verify`, `all_exact=true`); the
@@ -266,6 +306,15 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   (shared plaintext) is not produced by the tested transformers. It is scoped to
   locally generated files and makes no population claim; qpdf and Ghostscript are
   transformers, not authoring applications.
+- The Phase-7.0b generator-family corpus **locates the win region on a real
+  authoring generator for the first time**: Cairo's repeated-page vector output
+  wins complete cost by 24,137 B. This still does not change any adoption and is
+  still not a population claim — it is one locally generated file per family, and
+  the win is conditional on the input repeating an identical page, which is what
+  makes whole-stream plaintext sharing possible. ReportLab and pdfTeX emit the
+  same shared geometry yet lose complete cost, which keeps the finding honest:
+  shared plaintext is necessary but not sufficient; the complete-cost court still
+  decides.
 - Fuzzing is **evidence, not a proof of absence**: the Phase-7.1 campaign is
   bounded to 60 s per target. Nine zero-crash targets mean no crash was observed
   in that budget on that build, not that none exists. Both `deflate_replay`

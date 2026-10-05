@@ -61,6 +61,7 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | **Adopted — first structural win** | campaign `2026-10-05-phase6-0d0bb79`; `flate.pdf` 36,102 vs `BYTE_RANS` 49,291 (**−13,189 B**) (ADR-0015) |
 | Phase-6 replay court (`--force pdf-deflate-replay[-rans]`) | **Measured** | `tools/phase6-court.sh`; campaign `2026-10-05-phase6-0d0bb79` |
 | Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; amendment campaign `2026-10-05-phase7-corpus-b-c4eb77e` (supersedes `2026-10-05-phase7-corpus-f1f8d26`); 24/24 replayed, 0 declined; diagnostic only, no new candidate |
+| Generator-family Flate corpus (`producers`: ReportLab/Cairo/LibreOffice/pdfTeX) | **Measured** | campaign `2026-10-05-phase7-producers-e071250`; 87/87 replayed; `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` on **Cairo** (58,711 → 34,574, −24,137 B) — the first **authoring-generator** witness; ReportLab/pdfTeX lose, LibreOffice declines to share; no candidate changed |
 | PDF structural adapters (Phases 7–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
@@ -430,6 +431,51 @@ wire format changed.
 
 Receipt:
 [`evidence/campaigns/2026-10-05-phase7-court-99dc72e/`](evidence/campaigns/2026-10-05-phase7-court-99dc72e/).
+
+### Generator-family Flate corpus (Phase 7.0b) measured results
+
+The Phase-7.0 gap was that qpdf and Ghostscript are **transformers** and never emit
+the shared plaintext the win region needs. Phase 7.0b adds a separate, opt-in
+`producers` image (`Dockerfile` stage + compose service, base
+`debian:bookworm-slim@sha256:3783cc01…`, the same digest as `tools`; ~724 MB) with
+four real **authoring generators**: ReportLab 3.6.12, Cairo 1.20.1/libcairo 1.16.0,
+LibreOffice Writer 7.4.7.2, and pdfTeX 3.141592653-2.6-1.40.24. All four ran.
+`tools/pdf-corpus-producers.sh` generates one PDF per family from the same
+deterministic content document as `tools/pdf-corpus.sh`, fingerprints every
+`/FlateDecode` payload, and applies
+`qpdf --deterministic-id --stream-data=preserve --object-streams=preserve` only when
+it leaves every payload byte-identical (ReportLab, Cairo, LibreOffice; pdfTeX kept
+raw). ReportLab/Cairo/pdfTeX are byte-reproducible; LibreOffice is not.
+
+`deflate-stats`: **87 Flate streams, 87 replayed, 0 declined → acceptance 1.000**;
+corpus-wide `correction/compressed` p10/p50/p90 = 0.034759 / 0.047945 / 0.068028.
+
+Complete-cost court: `PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS` — **win 1 / lose 3 /
+decline 0**:
+
+```text
+cairo-vector.pdf        BYTE_RANS  58711 -> PDF_DEFLATE_REPLAY_RANS  34574  (-24137)  WIN
+reportlab-multipage.pdf BYTE_RANS  11144 -> PDF_DEFLATE_REPLAY_RANS  14456  (+3312)   lose
+pdftex-doc.pdf          BYTE_RANS  24435 -> PDF_DEFLATE_REPLAY_RANS  35098  (+10663)  lose
+libreoffice-export.pdf  BYTE_RANS  72791 -> PDF_DEFLATE_REPLAY_RANS 375265 (+302474)  lose
+```
+
+**Cairo — a genuine authoring generator — wins.** For a repeated page it emits six
+byte-identical page content streams; the shared-channel lane stores that plaintext
+once and replay-rANS beats `BYTE_RANS` under complete cost by **24,137 B**, and the
+unforced court selects it. This is the **first authoring-generator witness** of the
+Phase-6 win region (Phase 7.0 had only self-authored fixtures). ReportLab and pdfTeX
+emit the same shared geometry yet **lose** at complete cost (framing overhead on a
+small file; already-tight streams), and LibreOffice shares nothing — shared plaintext
+is necessary but **not sufficient**. The win is **conditional** on repeated identical
+page content and is **not** a population claim; complete cost is authoritative and
+the `deflate-stats` dedup aggregate is a diagnostic that over-states wins. No
+candidate or wire format changed.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase7-producers-e071250/`](evidence/campaigns/2026-10-05-phase7-producers-e071250/);
+script `tools/pdf-corpus-producers.sh`; ledger
+[`evidence/corpus/phase7-producers/provenance.json`](evidence/corpus/phase7-producers/provenance.json).
 
 ## Quick start (Docker only)
 

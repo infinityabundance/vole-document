@@ -1,0 +1,33 @@
+{
+  "campaign": "2026-10-05-phase7-producers-e071250",
+  "phase": "Phase 7.0b — generator-family Flate corpus (ReportLab, Cairo, LibreOffice, pdfTeX): does a genuine authoring generator produce the shared-plaintext win region?",
+  "utc_date": "2026-10-05T15:08:41Z",
+  "git_commit": "e0712503696b2b2cb609e83d75d820faf175ad92",
+  "git_dirty_tracked": "0",
+  "dirty_note": "No tracked modifications at measurement time except the corpus this phase adds; no src/wire/candidate file changed (binary_sha256 unchanged across the phase). Only new corpus/tooling/evidence files are untracked/added.",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "producers_base_image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "producers_image": "vole-document/producers:bookworm@sha256:9cdbaed0b9d0cec0ba36237566dd409b0261b91554346cb72e91ede3eddcb0b2",
+  "tools_base_image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "ec8313a91baa81eebd13ed98b2cdc5abe43251c0c45caca3bba2df2441ee1039",
+  "binary_sha256": "fd14c0c6ff4add5de1f2e0f3afffa23f1a9e3f5991eacf498a9c467945bd81ae",
+  "features": "deflate-replay,rans (cargo build --all-features)",
+  "oracles": {
+    "reportlab": "3.6.12",
+    "cairo": "1.20.1/libcairo 1.16.0",
+    "libreoffice": "7.4.7.2",
+    "pdftex": "3.141592653-2.6-1.40.24",
+    "qpdf": "11.3.0"
+  },
+  "commands": [
+    "docker compose build producers",
+    "docker compose run --rm --no-TTY producers sh tools/pdf-corpus-producers.sh",
+    "docker compose run --rm --no-TTY dev sh -c './target/debug/vole-document deflate-stats evidence/corpus/phase7-producers/*.pdf > evidence/corpus/phase7-producers/deflate-stats.jsonl'",
+    "docker compose run --rm --no-TTY dev sh -c 'sh tools/pdf-court.sh evidence/scratch/court-producers evidence/corpus/phase7-producers/*.pdf'",
+    "python3 tools/pdf-producers-analyze.py evidence/corpus/phase7-producers/deflate-stats.jsonl evidence/campaigns/2026-10-05-phase7-producers-e071250/court-results.jsonl evidence/corpus/phase7-producers/provenance.json"
+  ],
+  "determinism_check": "Each family is generated twice by tools/pdf-corpus-producers.sh and the two SHA-256s compared: reportlab-multipage.pdf, cairo-vector.pdf and pdftex-doc.pdf are byte-reproducible (r=2 identical); libreoffice-export.pdf is NOT (LibreOffice embeds run-varying metadata), recorded in provenance.json as byte_reproducible=false. qpdf /ID normalization ('--deterministic-id --stream-data=preserve --object-streams=preserve') is applied per file ONLY when every Flate payload stays byte-identical (proven by a sorted payload-hash multiset computed with qpdf --json + qpdf --show-object --raw-stream-data)."
+}
