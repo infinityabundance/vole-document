@@ -1,0 +1,11 @@
+{
+  "campaign": "2026-10-05-phase3-486aa17",
+  "pdf_count": 8,
+  "valid_pdf_count": 7,
+  "negative_control_count": 2,
+  "total_spans": 171,
+  "total_objects": 19,
+  "total_revisions": 8,
+  "all_covered": true,
+  "all_exact": true
+}
