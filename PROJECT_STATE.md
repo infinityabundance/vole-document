@@ -7,6 +7,11 @@ are evidence.
 
 ## Status vocabulary
 
+**Current release:** `0.1.0-alpha.9` (Phase 7 — hardening plus partial
+materialization). Exactness is unchanged; whole-file compression is a recorded
+loss against generic lossless tools (ADR-0017); the pivoted result is a scoped
+random-access decode-CPU win with an explicit no-I/O-win v1 caveat (ADR-0018).
+
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED`).
 

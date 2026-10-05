@@ -22,6 +22,12 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 
 ## Status
 
+Current release: **`0.1.0-alpha.9`** (Phase 7). Exactness is unchanged
+(`materialize(descriptor) == original_bytes`); whole-file compression remains a
+recorded loss against generic lossless tools (ADR-0017), and the pivoted Phase-7
+result is a scoped random-access **decode-CPU** win with an explicit no-I/O-win
+v1 caveat (ADR-0018).
+
 | Area | State | Evidence |
 |---|---|---|
 | Exact `.voldoc` container (framing, header, records) | **Implemented** | `src/container/`, unit + conformance courts |
@@ -63,6 +69,8 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; amendment campaign `2026-10-05-phase7-corpus-b-c4eb77e` (supersedes `2026-10-05-phase7-corpus-f1f8d26`); 24/24 replayed, 0 declined; diagnostic only, no new candidate |
 | Generator-family Flate corpus (`producers`: ReportLab/Cairo/LibreOffice/pdfTeX) | **Measured (claim corrected 7.0c)** | campaign `2026-10-05-phase7-producers-e071250`; 87/87 replayed; `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` on Cairo (58,711 → 34,574, −24,137 B) but the Cairo file is a **repeated-identical-bytes harness artifact** (six byte-identical streams), and generic LZ does ~2× better (gzip -9 17,382 B; xz -9e 16,852 B); the "first authoring-generator witness" claim is withdrawn; no candidate changed |
 | Generic-compressor baseline ladder (gzip/zstd/xz/brotli vs VOLE) | **Measured — the honest comparison** | campaign `2026-10-05-phase7-baselines-7b9f662`; `tools/baselines.sh` + opt-in `baseline` image; **VOLE beats gzip/zstd/xz/brotli on 0/27 files** (+460,320 B vs the best generic); prior "wins" were relative to the weak order-0 `BYTE_RANS` lane |
+| Coverage-guided fuzzing (`cargo-fuzz`, ten targets) | **Measured** | campaign `2026-10-05-phase7-fuzz-ca6a92b`; pinned `nightly-bookworm-slim-2026-10-04` + `cargo-fuzz 0.13.2`; 9/10 targets zero-crash; two upstream `preflate-rs` findings (F1 mitigated + regression test; F2 contained on the decode path by process isolation, ADR-0016) |
+| Process-isolated DEFLATE replay (`__replay-worker`) | **Implemented** | `replay_bounded` runs `preflate` in a child under `RLIMIT_AS` + a wall-clock timeout; knobs `VOLE_REPLAY_WORKER`/`VOLE_REPLAY_MEM_MB`/`VOLE_REPLAY_TIMEOUT_MS`; a library embedder without a worker keeps the in-process residual |
 | Partial materialization (`OBSERVATION_INDEX` + `view`) | **Measured — scoped positive (decode CPU, no I/O win)** | campaign `2026-10-05-phase7-partial-a5764c9`; 18/18 queries byte-exact; mid/late queries touch ~0.41–0.43 MB (`descriptor_bytes_traversed` alone; its `entropy_bytes_decoded` breakdown is a subset already counted there and must not be added) vs gzip inflating `a+len` (late region 1.4–2.3 %, ~2–5× faster than gzip, ~4–13× than xz); **v1 reads the whole descriptor, so on-disk I/O is not reduced** and it loses in the early region (≤ ~8–16 MiB) (ADR-0018) |
 | Deterministic large corpus generator (`pdf-make-large`) | **Tooling** | encode-time subcommand; classic-xref PDF of `OBJECTS` (default 800) distinct zlib `FlateDecode` streams, ≥32 MiB, correct by construction; bytes gitignored |
 | PDF structural adapters (Phases 7–8) | Planned | — |
