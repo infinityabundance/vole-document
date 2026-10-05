@@ -25,7 +25,8 @@ use crate::error::{Error, Result};
 use crate::limits::Limits;
 
 use super::cos::{
-    LengthValue, body_as_u64, dict_has_length, dict_int_or_ref, dict_length, dict_name_value,
+    FilterClass, LengthValue, body_as_u64, dict_filter, dict_has_length, dict_int_or_ref,
+    dict_length, dict_name_value,
 };
 use super::lexer::lex;
 use super::span::{Span, SpanKind};
@@ -128,6 +129,8 @@ pub struct PdfStreamSpan {
     pub data_len: u64,
     /// How `data_len` was established.
     pub length_source: LengthSource,
+    /// Classification of the stream dictionary's `/Filter` entry.
+    pub filter: FilterClass,
 }
 
 /// One incremental-update revision, delimited by a terminating `%%EOF`.
@@ -397,6 +400,7 @@ impl ScanState {
                         data_start: rs.data_start,
                         data_len: rs.data_len,
                         length_source: rs.source,
+                        filter: rs.filter,
                     });
                 } else {
                     let body_end = spans[m].start;
@@ -669,6 +673,7 @@ struct ResolvedStream {
     data_len: u64,
     endstream: usize,
     source: LengthSource,
+    filter: FilterClass,
 }
 
 /// One prior pass over the lexical cover records every object's body range using
@@ -754,13 +759,15 @@ fn resolve_stream(
 
     let mut resolved: Option<ResolvedStream> = None;
     let mut source = LengthSource::Fallback;
+    let mut filter = FilterClass::Absent;
 
     if let Some((open, close)) = preceding_dict(spans, s, lower) {
         let dict_lo = spans[open].start;
         let dict_hi = spans[close].start + spans[close].len;
+        filter = dict_filter(input, spans, dict_lo, dict_hi);
         match dict_length(input, spans, dict_lo, dict_hi) {
             Some(LengthValue::Direct(n)) => {
-                if let Some(rs) = verify_direct(input, spans, kw_end, n) {
+                if let Some(rs) = verify_direct(input, spans, kw_end, n, filter) {
                     resolved = Some(rs);
                     source = LengthSource::Direct;
                 }
@@ -768,7 +775,7 @@ fn resolve_stream(
             Some(LengthValue::Indirect { number, generation }) => {
                 if let Some((lo, hi)) = lookup_body(bodies, number, generation)
                     && let Some(n) = body_as_u64(input, spans, lo, hi)
-                    && let Some(rs) = verify_direct(input, spans, kw_end, n)
+                    && let Some(rs) = verify_direct(input, spans, kw_end, n, filter)
                 {
                     resolved = Some(rs);
                     source = LengthSource::Indirect;
@@ -801,6 +808,7 @@ fn resolve_stream(
         data_len: spans[k].start - data_start,
         endstream: k,
         source,
+        filter,
     })
 }
 
@@ -824,7 +832,13 @@ fn preceding_dict(spans: &[Span], s: usize, lower: usize) -> Option<(usize, usiz
 /// Verify a direct length `n` against the bytes after `stream`: exactly one EOL
 /// must follow the keyword, and after `n` bytes an optional EOL must reach a
 /// `Regular` `endstream`. A lone CR after `stream` is not a valid EOL.
-fn verify_direct(input: &[u8], spans: &[Span], kw_end: u64, n: u64) -> Option<ResolvedStream> {
+fn verify_direct(
+    input: &[u8],
+    spans: &[Span],
+    kw_end: u64,
+    n: u64,
+    filter: FilterClass,
+) -> Option<ResolvedStream> {
     let eol = post_stream_eol_len(input, kw_end)?;
     let data_start = kw_end + eol;
     let data_end = data_start.checked_add(n)?;
@@ -843,6 +857,7 @@ fn verify_direct(input: &[u8], spans: &[Span], kw_end: u64, n: u64) -> Option<Re
         data_len: n,
         endstream: k,
         source: LengthSource::Direct,
+        filter,
     })
 }
 
@@ -1264,6 +1279,25 @@ mod tests {
         assert_eq!(s.data_len, 5);
         assert_eq!(slice_of(&pdf, s), b"hello");
         p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn stream_filter_classification_reads_flate_and_absent() {
+        let flate = b"%PDF-1.5\n1 0 obj\n<< /Length 5 /Filter /FlateDecode >>\nstream\nhello\nendstream\nendobj\n"
+            .to_vec();
+        let p = scan(&flate, Limits::DEFAULT).unwrap();
+        let s = only_stream(&p);
+        assert_eq!(s.filter, FilterClass::FlateDecode);
+        assert_eq!(slice_of(&flate, s), b"hello");
+        p.validate(flate.len() as u64).unwrap();
+
+        let absent =
+            b"%PDF-1.5\n1 0 obj\n<< /Length 5 >>\nstream\nhello\nendstream\nendobj\n".to_vec();
+        let p = scan(&absent, Limits::DEFAULT).unwrap();
+        let s = only_stream(&p);
+        assert_eq!(s.filter, FilterClass::Absent);
+        assert_eq!(slice_of(&absent, s), b"hello");
+        p.validate(absent.len() as u64).unwrap();
     }
 
     #[test]

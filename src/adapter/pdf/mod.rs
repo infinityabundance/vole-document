@@ -18,7 +18,8 @@ pub use adapter::propose_pdf_channels;
 pub use adapter::{detect, propose_pdf};
 pub use channels::{KIND_COUNT, TokenChannelPlan, join, kind_from_id, kind_id, split};
 pub use cos::{
-    LengthValue, body_as_u64, dict_has_length, dict_int_or_ref, dict_length, dict_name_value,
+    FilterClass, LengthValue, body_as_u64, dict_filter, dict_has_length, dict_int_or_ref,
+    dict_length, dict_name_value,
 };
 #[cfg(feature = "rans")]
 pub use layout::propose_pdf_layout_rans;
