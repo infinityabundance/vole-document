@@ -31,7 +31,8 @@ USAGE:
     vole-document pdf-make-samples DIR
     vole-document capabilities
 
-KIND (for encode --force): raw | rle | byte-rans | pdf-physical | pdf-channels
+KIND (for encode --force): raw | rle | byte-rans | pdf-physical | pdf-channels |
+    pdf-layout
     Forces the complete-cost court to consider only that candidate family, for
     honest per-mechanism ablation. Fails when the input does not propose it.
 
@@ -174,8 +175,9 @@ fn parse_force_kind(s: &str) -> Result<CandidateKind> {
         "byte-rans" => Ok(CandidateKind::ByteRans),
         "pdf-physical" => Ok(CandidateKind::PdfPhysical),
         "pdf-channels" => Ok(CandidateKind::PdfChannels),
+        "pdf-layout" => Ok(CandidateKind::PdfLayout),
         other => Err(Error::usage(format!(
-            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels"
+            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout"
         ))),
     }
 }
