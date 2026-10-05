@@ -291,9 +291,11 @@ mod tests {
             propose_rle(&input, limits).unwrap().is_none(),
             "100 single-byte runs cannot fit in a one-op graph"
         );
-        // The RAW candidate still reconstructs exactly under these limits.
+        // With RLE declined, the court must fall back to another exact lane.
+        // (The compact v2 model makes BYTE_RANS the winner here; whether it or
+        // RAW wins depends on model cost, so only "not RLE" is pinned.)
         let (bytes, report) = crate::encode::encode(&input, limits).unwrap();
-        assert_eq!(report.kind, CandidateKind::Raw);
+        assert_ne!(report.kind, CandidateKind::Rle);
         assert_exact(&bytes, &input, limits);
     }
 

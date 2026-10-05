@@ -11,16 +11,31 @@ use crate::error::{Error, Result};
 
 /// Supported alphabet size (bytes).
 pub const ALPHABET: usize = 256;
-/// Model wire version.
+/// Legacy model wire version (dense-only, `[1][scale_bits][count=256][u16 x 256]`).
 pub const MODEL_VERSION_1: u8 = 1;
+/// Compact model wire version (sparse/dense form selection).
+pub const MODEL_VERSION_2: u8 = 2;
 /// Minimum / maximum scale bits. Frequencies must fit in u16, so <= 15.
 pub const MIN_SCALE_BITS: u8 = 1;
 pub const MAX_SCALE_BITS: u8 = 15;
 
-/// Bytes preceding the frequency table: `version`, `scale_bits`, `count`.
-const MODEL_HEADER_LEN: usize = 4;
-/// Total canonical encoded length: header plus `ALPHABET` little-endian u16s.
-const MODEL_ENCODED_LEN: usize = MODEL_HEADER_LEN + ALPHABET * 2;
+/// v2 form selector: sparse `[symbol u8][freq u16]` entries for present symbols.
+const MODEL_FORM_SPARSE: u8 = 0;
+/// v2 form selector: full dense 256-entry `u16` frequency table.
+const MODEL_FORM_DENSE: u8 = 1;
+
+/// Legacy v1 header: `version`, `scale_bits`, `count`.
+const MODEL_V1_HEADER_LEN: usize = 4;
+/// Legacy v1 total length: header plus `ALPHABET` little-endian u16s.
+const MODEL_V1_ENCODED_LEN: usize = MODEL_V1_HEADER_LEN + ALPHABET * 2;
+/// v2 header: `version`, `form`, `scale_bits`.
+const MODEL_V2_HEADER_LEN: usize = 3;
+/// v2 payload prefix: `count` little-endian u16.
+const MODEL_V2_COUNT_LEN: usize = 2;
+/// v2 sparse entry: `symbol` u8 plus `freq` little-endian u16.
+const MODEL_V2_SPARSE_ENTRY_LEN: usize = 3;
+/// v2 dense total length: header plus `count` plus `ALPHABET` little-endian u16s.
+const MODEL_V2_DENSE_LEN: usize = MODEL_V2_HEADER_LEN + MODEL_V2_COUNT_LEN + ALPHABET * 2;
 
 /// A normalized frequency table over the byte alphabet.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -170,78 +185,131 @@ impl EntropyModel {
         })
     }
 
-    /// Canonical wire encoding (little-endian):
-    /// `[version u8 = 1][scale_bits u8][count u16 = 256][freq u16 x 256]`.
-    ///
-    /// The model is validated before serialization so that `encode` cannot emit
-    /// a non-canonical table.
-    pub fn encode(&self) -> Result<Vec<u8>> {
-        if !(MIN_SCALE_BITS..=MAX_SCALE_BITS).contains(&self.scale_bits) {
-            let (min, max) = (MIN_SCALE_BITS, MAX_SCALE_BITS);
-            return Err(Error::invalid_model(format!(
-                "scale_bits {} outside {min}..={max}",
-                self.scale_bits
-            )));
-        }
+    /// Structural and arithmetic validation shared by every serializer.
+    fn validate(&self) -> Result<()> {
+        Self::validate_scale_bits(self.scale_bits)?;
         if self.frequencies.len() != ALPHABET {
             return Err(Error::invalid_model(format!(
                 "expected {ALPHABET} frequencies, got {}",
                 self.frequencies.len()
             )));
         }
-        let target = u64::from(self.total());
-        if self.frequency_sum() != target {
+        if self.frequency_sum() != u64::from(self.total()) {
             return Err(Error::invalid_model(
                 "frequencies do not sum to 1 << scale_bits",
             ));
         }
-
-        let mut out = Vec::with_capacity(MODEL_ENCODED_LEN);
-        out.push(MODEL_VERSION_1);
-        out.push(self.scale_bits);
-        out.extend_from_slice(&(ALPHABET as u16).to_le_bytes());
-        for &f in &self.frequencies {
-            let f =
-                u16::try_from(f).map_err(|_| Error::invalid_model("frequency does not fit u16"))?;
-            out.extend_from_slice(&f.to_le_bytes());
-        }
-        Ok(out)
+        Ok(())
     }
 
-    /// Parse and validate a canonical model; `bytes` must be exactly consumed.
-    pub fn decode(bytes: &[u8]) -> Result<EntropyModel> {
-        if bytes.len() < MODEL_HEADER_LEN {
-            return Err(Error::invalid_model("model shorter than header"));
-        }
-        let version = bytes[0];
-        if version != MODEL_VERSION_1 {
-            return Err(Error::unsupported_version(format!(
-                "model version {version}, expected {MODEL_VERSION_1}"
-            )));
-        }
-        let scale_bits = bytes[1];
+    /// Reject `scale_bits` outside [`MIN_SCALE_BITS`]..=[`MAX_SCALE_BITS`].
+    fn validate_scale_bits(scale_bits: u8) -> Result<()> {
         if !(MIN_SCALE_BITS..=MAX_SCALE_BITS).contains(&scale_bits) {
             let (min, max) = (MIN_SCALE_BITS, MAX_SCALE_BITS);
             return Err(Error::invalid_model(format!(
                 "scale_bits {scale_bits} outside {min}..={max}"
             )));
         }
+        Ok(())
+    }
+
+    /// Canonical wire encoding, **version 2** (little-endian):
+    /// `[version u8 = 2][form u8][scale_bits u8]` followed by the form payload.
+    ///
+    /// * form `0` (SPARSE): `[present_count u16][symbol u8][freq u16] * n`, with
+    ///   `symbol` strictly ascending and `freq >= 1`.
+    /// * form `1` (DENSE): `[count u16 = 256][freq u16] * 256`.
+    ///
+    /// The strictly smaller serialization is emitted; on a tie DENSE is chosen
+    /// so the mapping from model to bytes stays deterministic. The model is
+    /// validated before serialization so `encode` cannot emit a bad table.
+    pub fn encode(&self) -> Result<Vec<u8>> {
+        self.validate()?;
+
+        // Sparse cost is header + count + one 3-byte entry per present symbol.
+        let present: Vec<(u8, u16)> = self
+            .frequencies
+            .iter()
+            .enumerate()
+            .filter(|&(_, &f)| f > 0)
+            .map(|(i, &f)| {
+                let f = u16::try_from(f)
+                    .map_err(|_| Error::invalid_model("frequency does not fit u16"))?;
+                Ok((i as u8, f))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let sparse_len = MODEL_V2_HEADER_LEN + MODEL_V2_COUNT_LEN + present.len() * 3;
+
+        if sparse_len < MODEL_V2_DENSE_LEN {
+            let mut out = Vec::with_capacity(sparse_len);
+            out.push(MODEL_VERSION_2);
+            out.push(MODEL_FORM_SPARSE);
+            out.push(self.scale_bits);
+            let count = u16::try_from(present.len())
+                .map_err(|_| Error::invalid_model("present count does not fit u16"))?;
+            out.extend_from_slice(&count.to_le_bytes());
+            for (symbol, freq) in present {
+                out.push(symbol);
+                out.extend_from_slice(&freq.to_le_bytes());
+            }
+            Ok(out)
+        } else {
+            let mut out = Vec::with_capacity(MODEL_V2_DENSE_LEN);
+            out.push(MODEL_VERSION_2);
+            out.push(MODEL_FORM_DENSE);
+            out.push(self.scale_bits);
+            out.extend_from_slice(&(ALPHABET as u16).to_le_bytes());
+            for &f in &self.frequencies {
+                let f = u16::try_from(f)
+                    .map_err(|_| Error::invalid_model("frequency does not fit u16"))?;
+                out.extend_from_slice(&f.to_le_bytes());
+            }
+            Ok(out)
+        }
+    }
+
+    /// Parse and validate a canonical model; `bytes` must be exactly consumed.
+    ///
+    /// Both legacy version 1 (dense) and version 2 (sparse or dense) are
+    /// accepted. All failures are typed as
+    /// [`ErrorClass::InvalidModel`](crate::error::ErrorClass::InvalidModel) or
+    /// [`ErrorClass::UnsupportedVersion`](crate::error::ErrorClass::UnsupportedVersion).
+    pub fn decode(bytes: &[u8]) -> Result<EntropyModel> {
+        let Some(&version) = bytes.first() else {
+            return Err(Error::invalid_model("empty model"));
+        };
+        match version {
+            MODEL_VERSION_1 => Self::decode_v1(bytes),
+            MODEL_VERSION_2 => Self::decode_v2(bytes),
+            other => Err(Error::unsupported_version(format!(
+                "model version {other}, expected {MODEL_VERSION_1} or {MODEL_VERSION_2}"
+            ))),
+        }
+    }
+
+    /// Legacy version 1: `[1][scale_bits][count u16 = 256][freq u16 x 256]`.
+    fn decode_v1(bytes: &[u8]) -> Result<EntropyModel> {
+        if bytes.len() < MODEL_V1_HEADER_LEN {
+            return Err(Error::invalid_model("model shorter than v1 header"));
+        }
+        let scale_bits = bytes[1];
+        Self::validate_scale_bits(scale_bits)?;
         let count = u16::from_le_bytes([bytes[2], bytes[3]]);
         if count as usize != ALPHABET {
             return Err(Error::invalid_model(format!(
-                "declared count {count}, expected {ALPHABET}"
+                "v1 declared count {count}, expected {ALPHABET}"
             )));
         }
-        if bytes.len() != MODEL_ENCODED_LEN {
+        if bytes.len() != MODEL_V1_ENCODED_LEN {
             return Err(Error::invalid_model(
-                "model length does not match declared count (trailing or truncated)",
+                "v1 model length does not match declared count (trailing or truncated)",
             ));
         }
 
         let target = u64::from(1u32 << scale_bits);
         let mut frequencies = Vec::with_capacity(ALPHABET);
         let mut sum: u64 = 0;
-        let (chunks, _rest) = bytes[MODEL_HEADER_LEN..].as_chunks::<2>();
+        let (chunks, _rest) = bytes[MODEL_V1_HEADER_LEN..].as_chunks::<2>();
         for chunk in chunks {
             let f = u32::from(u16::from_le_bytes(*chunk));
             sum += u64::from(f);
@@ -249,7 +317,112 @@ impl EntropyModel {
         }
         if sum != target {
             return Err(Error::invalid_model(
-                "frequencies do not sum to 1 << scale_bits",
+                "v1 frequencies do not sum to 1 << scale_bits",
+            ));
+        }
+        Ok(EntropyModel {
+            scale_bits,
+            frequencies,
+        })
+    }
+
+    /// Version 2: `[2][form][scale_bits]` followed by the form payload.
+    fn decode_v2(bytes: &[u8]) -> Result<EntropyModel> {
+        if bytes.len() < MODEL_V2_HEADER_LEN {
+            return Err(Error::invalid_model("model shorter than v2 header"));
+        }
+        let form = bytes[1];
+        let scale_bits = bytes[2];
+        Self::validate_scale_bits(scale_bits)?;
+        let target = u64::from(1u32 << scale_bits);
+        match form {
+            MODEL_FORM_SPARSE => Self::decode_v2_sparse(bytes, scale_bits, target),
+            MODEL_FORM_DENSE => Self::decode_v2_dense(bytes, scale_bits, target),
+            other => Err(Error::invalid_model(format!(
+                "model form {other} is not 0 (sparse) or 1 (dense)"
+            ))),
+        }
+    }
+
+    /// v2 sparse payload: `[present_count u16]` then `[symbol u8][freq u16]`.
+    fn decode_v2_sparse(bytes: &[u8], scale_bits: u8, target: u64) -> Result<EntropyModel> {
+        let prefix = MODEL_V2_HEADER_LEN + MODEL_V2_COUNT_LEN;
+        if bytes.len() < prefix {
+            return Err(Error::invalid_model("sparse model shorter than its count"));
+        }
+        let present_count = u16::from_le_bytes([bytes[3], bytes[4]]) as usize;
+        if present_count > ALPHABET {
+            return Err(Error::invalid_model(format!(
+                "sparse present_count {present_count} exceeds alphabet {ALPHABET}"
+            )));
+        }
+        let expected = prefix + present_count * MODEL_V2_SPARSE_ENTRY_LEN;
+        if bytes.len() != expected {
+            return Err(Error::invalid_model(
+                "sparse entry count does not match payload (trailing or truncated)",
+            ));
+        }
+
+        let mut frequencies = vec![0u32; ALPHABET];
+        let mut sum: u64 = 0;
+        let mut previous: Option<u8> = None;
+        for entry in bytes[prefix..].as_chunks::<MODEL_V2_SPARSE_ENTRY_LEN>().0 {
+            let symbol = entry[0];
+            let freq = u32::from(u16::from_le_bytes([entry[1], entry[2]]));
+            if let Some(prev) = previous
+                && symbol <= prev
+            {
+                return Err(Error::invalid_model(
+                    "sparse symbols must be strictly ascending and unique",
+                ));
+            }
+            if freq == 0 {
+                return Err(Error::invalid_model("sparse frequency must be >= 1"));
+            }
+            previous = Some(symbol);
+            sum += u64::from(freq);
+            frequencies[symbol as usize] = freq;
+        }
+
+        if sum != target {
+            return Err(Error::invalid_model(
+                "sparse frequencies do not sum to 1 << scale_bits",
+            ));
+        }
+        Ok(EntropyModel {
+            scale_bits,
+            frequencies,
+        })
+    }
+
+    /// v2 dense payload: `[count u16 = 256]` then 256 little-endian u16s.
+    fn decode_v2_dense(bytes: &[u8], scale_bits: u8, target: u64) -> Result<EntropyModel> {
+        let prefix = MODEL_V2_HEADER_LEN + MODEL_V2_COUNT_LEN;
+        if bytes.len() < prefix {
+            return Err(Error::invalid_model("dense model shorter than its count"));
+        }
+        let count = u16::from_le_bytes([bytes[3], bytes[4]]);
+        if count as usize != ALPHABET {
+            return Err(Error::invalid_model(format!(
+                "dense declared count {count}, expected {ALPHABET}"
+            )));
+        }
+        if bytes.len() != MODEL_V2_DENSE_LEN {
+            return Err(Error::invalid_model(
+                "dense model length does not match its count (trailing or truncated)",
+            ));
+        }
+
+        let mut frequencies = Vec::with_capacity(ALPHABET);
+        let mut sum: u64 = 0;
+        for chunk in bytes[prefix..].as_chunks::<2>().0 {
+            let f = u32::from(u16::from_le_bytes(*chunk));
+            sum += u64::from(f);
+            frequencies.push(f);
+        }
+        if sum != target {
+            return Err(Error::invalid_model(
+                "dense frequencies do not sum to 1 << scale_bits",
             ));
         }
         Ok(EntropyModel {
@@ -355,10 +528,81 @@ mod tests {
         for bits in [8u8, 12, 15] {
             let model = EntropyModel::from_counts(&counts, bits).expect("ok");
             let bytes = model.encode().expect("ok");
-            assert_eq!(bytes.len(), MODEL_ENCODED_LEN);
+            // Five present symbols select the sparse form.
+            assert_eq!(bytes[0], MODEL_VERSION_2);
+            assert_eq!(bytes[1], MODEL_FORM_SPARSE);
+            assert_eq!(bytes.len(), MODEL_V2_HEADER_LEN + 2 + 5 * 3);
             let decoded = EntropyModel::decode(&bytes).expect("ok");
             assert_eq!(decoded, model);
+            // The winner's own form re-encodes identically.
+            assert_eq!(decoded.encode().expect("ok"), bytes);
         }
+    }
+
+    #[test]
+    fn sparse_form_chosen_for_low_alphabet() {
+        let counts = counts_with(&[(0, 5), (255, 3)]);
+        let model = EntropyModel::from_counts(&counts, 12).expect("ok");
+        let bytes = model.encode().expect("ok");
+        assert_eq!(bytes[0], MODEL_VERSION_2);
+        assert_eq!(bytes[1], MODEL_FORM_SPARSE);
+        assert_eq!(bytes.len(), MODEL_V2_HEADER_LEN + 2 + 2 * 3);
+        assert_eq!(EntropyModel::decode(&bytes).expect("ok"), model);
+    }
+
+    #[test]
+    fn dense_form_chosen_for_full_alphabet() {
+        let model = EntropyModel::uniform(8).expect("ok");
+        let bytes = model.encode().expect("ok");
+        assert_eq!(bytes[0], MODEL_VERSION_2);
+        assert_eq!(bytes[1], MODEL_FORM_DENSE);
+        assert_eq!(bytes.len(), MODEL_V2_DENSE_LEN);
+        assert_eq!(EntropyModel::decode(&bytes).expect("ok"), model);
+    }
+
+    #[test]
+    fn decode_accepts_legacy_v1_dense() {
+        let model = EntropyModel::uniform(8).expect("ok");
+        // Hand-build the legacy v1 wire form.
+        let mut bytes = Vec::with_capacity(MODEL_V1_ENCODED_LEN);
+        bytes.push(MODEL_VERSION_1);
+        bytes.push(model.scale_bits);
+        bytes.extend_from_slice(&(ALPHABET as u16).to_le_bytes());
+        for &f in &model.frequencies {
+            bytes.extend_from_slice(&(f as u16).to_le_bytes());
+        }
+        assert_eq!(bytes.len(), MODEL_V1_ENCODED_LEN);
+        assert_eq!(EntropyModel::decode(&bytes).expect("ok"), model);
+    }
+
+    #[test]
+    fn encode_is_deterministic() {
+        let counts = counts_with(&[(0, 17), (3, 5), (7, 250), (255, 1)]);
+        let model = EntropyModel::from_counts(&counts, 12).expect("ok");
+        let a = model.encode().expect("ok");
+        let b = model.encode().expect("ok");
+        assert_eq!(a, b);
+        assert_eq!(a[0], MODEL_VERSION_2);
+    }
+
+    #[test]
+    fn sparse_decode_rejects_unsorted_or_duplicate_symbols() {
+        let counts = counts_with(&[(1, 5), (2, 3)]);
+        let model = EntropyModel::from_counts(&counts, 12).expect("ok");
+        let bytes = model.encode().expect("ok");
+        assert_eq!(bytes[1], MODEL_FORM_SPARSE);
+        assert_eq!(bytes.len(), MODEL_V2_HEADER_LEN + 2 + 2 * 3);
+
+        // Duplicate: second entry's symbol forced equal to the first's.
+        let mut duplicate = bytes.clone();
+        duplicate[8] = duplicate[5];
+        assert!(EntropyModel::decode(&duplicate).is_err());
+
+        // Unsorted: swap the two entries so symbols descend.
+        let mut swapped = bytes.clone();
+        swapped[5..8].copy_from_slice(&bytes[8..11]);
+        swapped[8..11].copy_from_slice(&bytes[5..8]);
+        assert!(EntropyModel::decode(&swapped).is_err());
     }
 
     #[test]
@@ -375,7 +619,7 @@ mod tests {
     #[test]
     fn decode_rejects_bad_version() {
         let mut bytes = EntropyModel::uniform(8).expect("ok").encode().expect("ok");
-        bytes[0] = 2;
+        bytes[0] = 3;
         let err = EntropyModel::decode(&bytes).expect_err("must reject");
         assert_eq!(err.class(), crate::error::ErrorClass::UnsupportedVersion);
     }
