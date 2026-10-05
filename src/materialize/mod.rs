@@ -5,20 +5,17 @@
 //! searches, guesses, optimizes, or invokes external tools.
 
 use crate::container::{Descriptor, ParsedDescriptor};
-use crate::entropy::rans::{Capsule, decode_channel};
 use crate::error::{Error, Result};
 use crate::integrity::{sha256, to_hex};
 use crate::limits::Limits;
 
-/// Materialize the exact source bytes for a parsed descriptor.
-///
-/// Enforces, in order: program bounds (via `eval`), reconstructed length, and
-/// whole-source SHA-256.
-pub fn materialize(parsed: &ParsedDescriptor, limits: Limits) -> Result<Vec<u8>> {
-    let d = &parsed.descriptor;
+/// Decode every entropy channel in table order, each against the model it
+/// references. Each channel's model must already have been cross-validated by
+/// `Descriptor::parse`.
+#[cfg(feature = "rans")]
+fn decode_channels(d: &Descriptor, limits: Limits) -> Result<Vec<Vec<u8>>> {
+    use crate::entropy::rans::{Capsule, decode_channel};
 
-    // Decode every entropy channel in table order. Each channel must name a
-    // model that was already cross-validated by `Descriptor::parse`.
     let mut channels: Vec<Vec<u8>> = Vec::with_capacity(d.channels.len());
     for channel in &d.channels {
         let model = d.models.get(channel.model_id as usize).ok_or_else(|| {
@@ -35,6 +32,32 @@ pub fn materialize(parsed: &ParsedDescriptor, limits: Limits) -> Result<Vec<u8>>
         };
         channels.push(decode_channel(model, &capsule, limits)?);
     }
+    Ok(channels)
+}
+
+/// Without the `rans` feature there is no entropy decoder. A descriptor with no
+/// channels is still exactly materializable (the RAW/RLE floor); one that
+/// declares channels is refused as an explicit capability limit rather than
+/// silently reinterpreted.
+#[cfg(not(feature = "rans"))]
+fn decode_channels(d: &Descriptor, _limits: Limits) -> Result<Vec<Vec<u8>>> {
+    if d.channels.is_empty() {
+        Ok(Vec::new())
+    } else {
+        Err(Error::unsupported_feature(
+            "this build was compiled without the `rans` feature",
+        ))
+    }
+}
+
+/// Materialize the exact source bytes for a parsed descriptor.
+///
+/// Enforces, in order: program bounds (via `eval`), reconstructed length, and
+/// whole-source SHA-256.
+pub fn materialize(parsed: &ParsedDescriptor, limits: Limits) -> Result<Vec<u8>> {
+    let d = &parsed.descriptor;
+
+    let channels = decode_channels(d, limits)?;
 
     let out = d.program.eval(&d.objects, &channels, limits)?;
     if out.len() as u64 != d.source_len {

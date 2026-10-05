@@ -8,6 +8,7 @@ use crate::SOURCE_FORMAT_OPAQUE;
 use crate::adapter::opaque;
 use crate::container::{Descriptor, UNIVERSE};
 use crate::dra::{Op, Program};
+#[cfg(feature = "rans")]
 use crate::entropy::{
     CODER_ORDER0_BYTE_RANS, CODER_VERSION_1, EntropyChannelDescriptor, EntropyModel, encode_channel,
 };
@@ -59,6 +60,7 @@ pub fn propose(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
     if let Some(rle) = propose_rle(input, limits)? {
         out.push(rle);
     }
+    #[cfg(feature = "rans")]
     if let Some(byte_rans) = propose_byte_rans(input, limits)? {
         out.push(byte_rans);
     }
@@ -140,6 +142,7 @@ pub fn propose_rle(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
 ///
 /// Determinism follows from the pure `from_counts` normalizer and from
 /// `encode_channel`, which both depend only on their inputs.
+#[cfg(feature = "rans")]
 pub fn propose_byte_rans(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
     if input.is_empty() || input.len() as u64 > limits.max_channel_symbols {
         return Ok(None);
@@ -281,6 +284,7 @@ mod tests {
         assert_exact(&bytes, &input, limits);
     }
 
+    #[cfg(feature = "rans")]
     #[test]
     fn byte_rans_wins_on_text() {
         let input = b"The quick brown fox jumps over the lazy dog. ".repeat(1500);
@@ -295,6 +299,7 @@ mod tests {
         assert_exact(&bytes, &input, Limits::DEFAULT);
     }
 
+    #[cfg(feature = "rans")]
     #[test]
     fn byte_rans_exact_on_all_byte_values() {
         // Exercise every byte value through the channel. A uniform `0..=255`
@@ -326,6 +331,7 @@ mod tests {
         assert_eq!(a, b, ".voldoc bytes must be identical across encodes");
     }
 
+    #[cfg(feature = "rans")]
     #[test]
     fn byte_rans_declines_empty() {
         assert!(
@@ -334,6 +340,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "rans")]
     #[test]
     fn model_cost_is_charged() {
         // On a two-byte input the 516-byte canonical model cannot pay for

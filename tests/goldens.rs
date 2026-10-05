@@ -1,3 +1,4 @@
+#![cfg(feature = "rans")]
 //! Subphase 2.7 — independent reference oracle + frozen golden fixtures.
 //!
 //! Part A builds a *from-scratch*, integer-only byte-rANS decoder (the oracle)

@@ -1,3 +1,4 @@
+#![cfg(feature = "rans")]
 //! Phase-2 entropy court: negative controls and acceptance gates.
 //!
 //! Every test here is tied to a predeclared gate in
