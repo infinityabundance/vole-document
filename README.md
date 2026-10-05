@@ -88,9 +88,10 @@ The canonical model's bytes are charged like any other bytes, so on tiny or
 high-entropy inputs order-0 rANS loses to RAW/RLE as required — this is a scoped
 measurement on one deterministic corpus, not a general compression claim.
 
-The entropy substrate is optional in the build: `default = ["rans"]`, and a
-channel-bearing descriptor decoded without the feature returns an explicit
-`UnsupportedFeature`, never a silent reinterpretation.
+The entropy substrate is optional in the build: `default = ["rans", "deflate-replay"]`,
+and a channel-bearing or replay-bearing descriptor decoded without the required
+feature returns an explicit `UnsupportedFeature`, never a silent
+reinterpretation.
 
 Receipt:
 [`evidence/campaigns/2026-10-05-phase2-f6af30b/`](evidence/campaigns/2026-10-05-phase2-f6af30b/).
@@ -340,3 +341,10 @@ receipts by hash.
 
 Dual-licensed under either MIT or Apache-2.0, at your option. See
 [`LICENSE-MIT`](LICENSE-MIT) and [`LICENSE-APACHE`](LICENSE-APACHE).
+
+**Third-party license note.** The `deflate-replay` feature (Phase 6) depends on
+`preflate-rs`, which depends on `cabac`, licensed **LGPL-3.0-or-later**. Rust links
+statically by default, so a binary built with that feature contains LGPL code and
+carries the corresponding obligations. Build with
+`--no-default-features --features rans` for an artifact without it. See
+[ADR-0014](docs/adr/0014-lgpl-cabac-dependency.md).

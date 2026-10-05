@@ -16,6 +16,9 @@ the written rationale that must survive chat history.
 | [0009](0009-pdf-byte-authority.md) | PDF physical bytes are the authority; oracles are not | Accepted (impl Phase 3–8) |
 | [0010](0010-typed-channels-rejected.md) | Typed lexical channels are rejected by complete cost | Accepted — recorded negative result (Phase 4) |
 | [0011](0011-layout-prediction-framing.md) | Layout prediction is exact but loses to DRA op framing | Accepted — recorded negative result (Phase 5) |
+| [0012](0012-packed-framing-threshold.md) | Packed segment framing is the layout threshold | Accepted (Phase 5.7) |
+| [0013](0013-layout-rans-not-profitable.md) | Layout + rANS does not beat whole-file order-0 rANS | Accepted — recorded negative result (Phase 5.8) |
+| [0014](0014-lgpl-cabac-dependency.md) | `preflate-rs` pulls an LGPL-3.0-or-later dependency (`cabac`) | Accepted — documented policy exception (Phase 6) |
 
 ## Adding an ADR
 

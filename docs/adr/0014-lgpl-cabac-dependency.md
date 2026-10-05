@@ -1,0 +1,47 @@
+# ADR-0014: `preflate-rs` pulls an LGPL-3.0-or-later dependency (`cabac`)
+
+- **Status:** Accepted — documented dependency-policy exception
+- **Date:** 2026-10-05
+
+## Context
+
+Phase 6 integrates `preflate-rs = "=0.7.6"` as the exact DEFLATE replay engine
+(ADR-0007). Running the dependency gate (`cargo deny check`) in the pinned
+`policy` container surfaced two license facts that were not in the earlier
+allow-list:
+
+- `unicode-ident` is `(MIT OR Apache-2.0) AND Unicode-3.0` — a standard,
+  permissive proc-macro dependency of `syn`.
+- `cabac = 0.15.0`, a **normal, non-optional** dependency of `preflate-rs`, is
+  licensed **LGPL-3.0-or-later**.
+
+`cabac` is compiled into any artifact that enables the `deflate-replay` feature.
+Rust links statically by default, so the LGPL applies to the combined binary in
+the way LGPL does for statically linked works, not merely as a dynamically linked
+library.
+
+## Decision
+
+- Allow `Unicode-3.0` in `deny.toml` (permissive).
+- Allow `LGPL-3.0-or-later` in `deny.toml` as an **explicit, commented exception**
+  tied to `preflate-rs` → `cabac`, and document the consequence rather than hide
+  it.
+- Keep `deflate-replay` an **optional cargo feature**. It is enabled by the
+  default feature set (per the Phase-6 plan) so the PDF golden path and the CLI
+  exercise replay out of the box; a distributor that must ship an artifact free of
+  copyleft may build with `--no-default-features --features rans` and the replay
+  mechanism is simply absent (descriptors that require it then fail closed with
+  `UnsupportedFeature`).
+- Record the exception in the README, CHANGELOG, and this ADR so no downstream
+  user is surprised.
+
+## Consequences
+
+- The crate's own source remains `MIT OR Apache-2.0`. The **combined binary** built
+  with the `deflate-replay` feature additionally contains LGPL-3.0-or-later code
+  (`cabac`). Redistributing that binary carries LGPL obligations.
+- Replacing `preflate-rs` with a permissively licensed exact-DEFLATE-replay engine
+  would remove the exception; none is known today. If one appears, revisit this
+  ADR and supersede it.
+- `cargo deny` remains fail-closed for any *other* license: only these two named
+  licenses are added to the allow-list.
