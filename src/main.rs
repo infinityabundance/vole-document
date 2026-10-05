@@ -316,6 +316,11 @@ fn describe_op(op: &Op) -> String {
         Op::Inline { bytes } => format!("INLINE({})", bytes.len()),
         Op::RepeatLast { count } => format!("REPEAT_LAST({count})"),
         Op::DecodeChannel { channel_id } => format!("DECODE_CHANNEL({channel_id})"),
+        Op::InterleaveChannels {
+            first_payload_channel,
+            payload_channel_count,
+            ..
+        } => format!("INTERLEAVE_CHANNELS({first_payload_channel},{payload_channel_count})"),
     }
 }
 

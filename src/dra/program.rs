@@ -5,7 +5,7 @@ use crate::error::{Error, Result};
 use crate::limits::Limits;
 
 /// DRA version carried in the graph record.
-pub const DRA_VERSION: u8 = 2;
+pub const DRA_VERSION: u8 = 3;
 
 /// Who is the reconstruction authority for an output interval.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -200,6 +200,41 @@ impl Program {
                     last_len = len;
                     have_last = true;
                 }
+                Op::InterleaveChannels {
+                    first_payload_channel,
+                    payload_channel_count,
+                    ..
+                } => {
+                    let first = *first_payload_channel as usize;
+                    let count = *payload_channel_count as usize;
+                    let end = first
+                        .checked_add(count)
+                        .ok_or_else(|| Error::invalid_graph("interleave channel range overflow"))?;
+                    if end > channel_lens.len() {
+                        return Err(Error::invalid_graph(format!(
+                            "interleave payload channel range {first}..{end} exceeds {} channels",
+                            channel_lens.len()
+                        )));
+                    }
+                    let mut len: u64 = 0;
+                    for &seg in &channel_lens[first..end] {
+                        len = len
+                            .checked_add(seg)
+                            .ok_or_else(|| Error::resource_limit("interleave length overflow"))?;
+                    }
+                    total = total
+                        .checked_add(len)
+                        .ok_or_else(|| Error::resource_limit("output length overflow"))?;
+                    if len > 0 {
+                        spans.push(Span {
+                            start: total - len,
+                            len,
+                            authority: Authority::Generated,
+                        });
+                    }
+                    last_len = len;
+                    have_last = true;
+                }
                 Op::RepeatLast { count } => {
                     if !have_last {
                         return Err(Error::invalid_graph(
@@ -301,6 +336,85 @@ impl Program {
                     })?;
                     block_len = ch.len();
                     out.extend_from_slice(ch);
+                    have_last = true;
+                }
+                Op::InterleaveChannels {
+                    kinds_channel,
+                    lengths_channel,
+                    first_payload_channel,
+                    payload_channel_count,
+                } => {
+                    let kinds = channels.get(*kinds_channel as usize).ok_or_else(|| {
+                        Error::invalid_graph(format!(
+                            "graph references missing entropy channel {kinds_channel}"
+                        ))
+                    })?;
+                    let lengths = channels.get(*lengths_channel as usize).ok_or_else(|| {
+                        Error::invalid_graph(format!(
+                            "graph references missing entropy channel {lengths_channel}"
+                        ))
+                    })?;
+                    let token_count = kinds.len();
+                    let required = token_count
+                        .checked_mul(4)
+                        .ok_or_else(|| Error::invalid_graph("interleave lengths overflow"))?;
+                    if lengths.len() != required {
+                        return Err(Error::invalid_graph(format!(
+                            "interleave length channel has {} bytes but {required} are required",
+                            lengths.len()
+                        )));
+                    }
+                    let first = *first_payload_channel as usize;
+                    let count = *payload_channel_count as usize;
+                    let end = first
+                        .checked_add(count)
+                        .ok_or_else(|| Error::invalid_graph("interleave channel range overflow"))?;
+                    if end > channels.len() {
+                        return Err(Error::invalid_graph(format!(
+                            "interleave payload channel range {first}..{end} exceeds {} channels",
+                            channels.len()
+                        )));
+                    }
+                    let start = out.len();
+                    let mut cursors = vec![0usize; count];
+                    for (i, chunk) in lengths.as_chunks::<4>().0.iter().enumerate() {
+                        let k = kinds[i] as usize;
+                        if k >= count {
+                            return Err(Error::invalid_graph(format!(
+                                "interleave token {i} names kind {k} outside 0..{count}"
+                            )));
+                        }
+                        let l = u32::from_le_bytes(*chunk) as usize;
+                        let ch = &channels[first + k];
+                        let cursor = cursors[k];
+                        let seg_end = cursor.checked_add(l).ok_or_else(|| {
+                            Error::invalid_graph("interleave payload cursor overflow")
+                        })?;
+                        if seg_end > ch.len() {
+                            return Err(Error::invalid_graph(format!(
+                                "interleave token {i} reads {l} bytes past channel {} ({cursor}..{seg_end} of {})",
+                                first + k,
+                                ch.len()
+                            )));
+                        }
+                        out.extend_from_slice(&ch[cursor..seg_end]);
+                        cursors[k] = seg_end;
+                        if out.len() as u64 > limits.max_output_bytes {
+                            return Err(Error::resource_limit(
+                                "output exceeds materialization limit",
+                            ));
+                        }
+                    }
+                    for (k, &cursor) in cursors.iter().enumerate() {
+                        let ch_len = channels[first + k].len();
+                        if cursor != ch_len {
+                            return Err(Error::invalid_graph(format!(
+                                "interleave payload channel {} was not fully consumed ({cursor} of {ch_len})",
+                                first + k
+                            )));
+                        }
+                    }
+                    block_len = out.len() - start;
                     have_last = true;
                 }
                 Op::RepeatLast { count } => {
@@ -506,5 +620,130 @@ mod tests {
         let enc = p.encode().unwrap();
         let back = Program::decode(&enc, Limits::DEFAULT).unwrap();
         assert_eq!(p, back);
+    }
+
+    fn le_lengths(lens: &[u32]) -> Vec<u8> {
+        let mut v = Vec::with_capacity(lens.len() * 4);
+        for &l in lens {
+            v.extend_from_slice(&l.to_le_bytes());
+        }
+        v
+    }
+
+    fn interleave_op() -> Op {
+        Op::InterleaveChannels {
+            kinds_channel: 0,
+            lengths_channel: 1,
+            first_payload_channel: 2,
+            payload_channel_count: 2,
+        }
+    }
+
+    /// Channels: kinds `[0,1,0,1]`, lengths `[2,3,1,2]`, and two payload
+    /// channels. Token order interleaves to `ab` `def` `c` `gh` = "abdefcgh".
+    fn interleave_channels() -> Vec<Vec<u8>> {
+        vec![
+            vec![0, 1, 0, 1],
+            le_lengths(&[2, 3, 1, 2]),
+            b"abc".to_vec(),
+            b"defgh".to_vec(),
+        ]
+    }
+
+    #[test]
+    fn interleave_roundtrip() {
+        let channels = interleave_channels();
+        let p = Program::new(vec![interleave_op()]);
+        let (len, cov) = p.analyze_inputs(&[], &channels, Limits::DEFAULT).unwrap();
+        assert_eq!(len, 8);
+        cov.validate(8).unwrap();
+        assert_eq!(
+            cov.spans,
+            vec![Span {
+                start: 0,
+                len: 8,
+                authority: Authority::Generated,
+            }]
+        );
+        assert_eq!(
+            p.eval(&[], &channels, Limits::DEFAULT).unwrap(),
+            b"abdefcgh"
+        );
+
+        // Byte round-trip of the instruction through the graph record.
+        let enc = p.encode().unwrap();
+        assert_eq!(Program::decode(&enc, Limits::DEFAULT).unwrap(), p);
+
+        // The op is also the "last block" for a following REPEAT_LAST.
+        let p2 = Program::new(vec![interleave_op(), Op::RepeatLast { count: 1 }]);
+        let (len2, cov2) = p2.analyze_inputs(&[], &channels, Limits::DEFAULT).unwrap();
+        assert_eq!(len2, 16);
+        cov2.validate(16).unwrap();
+        assert_eq!(
+            p2.eval(&[], &channels, Limits::DEFAULT).unwrap(),
+            b"abdefcghabdefcgh"
+        );
+    }
+
+    #[test]
+    fn interleave_rejects_bad_channel_index() {
+        // Payload range past the end of the channel table: rejected by analyze.
+        let p = Program::new(vec![Op::InterleaveChannels {
+            kinds_channel: 0,
+            lengths_channel: 1,
+            first_payload_channel: 2,
+            payload_channel_count: 3,
+        }]);
+        let short = vec![vec![0u8], le_lengths(&[0]), vec![0u8]];
+        let e = p.analyze_inputs(&[], &short, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+
+        // A token kind that names a channel outside the payload range: rejected
+        // by eval (analyze only reasons about channel lengths).
+        let channels = vec![vec![2u8], le_lengths(&[1]), b"x".to_vec(), b"y".to_vec()];
+        let p = Program::new(vec![interleave_op()]);
+        let e = p.eval(&[], &channels, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn interleave_rejects_unconsumed_payload() {
+        // kind 0 length 1 consumes only one byte of a two-byte payload channel.
+        let channels = vec![vec![0u8], le_lengths(&[1]), b"ab".to_vec(), b"z".to_vec()];
+        let p = Program::new(vec![interleave_op()]);
+        let e = p.eval(&[], &channels, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn interleave_lengths_must_be_4x_tokens() {
+        // Two kind tokens but only one length (4 bytes instead of 8).
+        let channels = vec![vec![0u8, 0u8], le_lengths(&[1]), b"ab".to_vec()];
+        let p = Program::new(vec![Op::InterleaveChannels {
+            kinds_channel: 0,
+            lengths_channel: 1,
+            first_payload_channel: 2,
+            payload_channel_count: 1,
+        }]);
+        let e = p.eval(&[], &channels, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn interleave_predicts_from_channel_lens() {
+        let p = Program::new(vec![interleave_op()]);
+        // Only payload channel lengths (3 + 5) contribute; the kinds (4) and
+        // lengths (16) channels are inputs, not output.
+        let channel_lens = [4u64, 16, 3, 5];
+        let (len, cov) = p.analyze(&[], &channel_lens, Limits::DEFAULT).unwrap();
+        assert_eq!(len, 8);
+        assert_eq!(
+            cov.spans,
+            vec![Span {
+                start: 0,
+                len: 8,
+                authority: Authority::Generated,
+            }]
+        );
     }
 }

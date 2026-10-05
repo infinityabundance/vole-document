@@ -31,6 +31,20 @@ pub enum Op {
         /// Index into the descriptor's entropy channel table.
         channel_id: u32,
     },
+    /// Reconstruct bytes by interleaving a contiguous range of per-kind payload
+    /// channels. A *kind* channel holds one kind byte per token; a *lengths*
+    /// channel holds one little-endian `u32` per token; payload channel
+    /// `first_payload_channel + k` carries the token spans whose kind is `k`.
+    InterleaveChannels {
+        /// Channel holding one kind byte per token.
+        kinds_channel: u32,
+        /// Channel holding four little-endian length bytes per token.
+        lengths_channel: u32,
+        /// First channel of the contiguous per-kind payload channel range.
+        first_payload_channel: u32,
+        /// Number of payload channels; valid kinds are `0..payload_channel_count`.
+        payload_channel_count: u8,
+    },
 }
 
 /// Opcode byte for [`Op::EmitObject`].
@@ -41,6 +55,8 @@ pub const OP_INLINE: u8 = 0x02;
 pub const OP_REPEAT_LAST: u8 = 0x03;
 /// Opcode byte for [`Op::DecodeChannel`].
 pub const OP_DECODE_CHANNEL: u8 = 0x04;
+/// Opcode byte for [`Op::InterleaveChannels`].
+pub const OP_INTERLEAVE_CHANNELS: u8 = 0x05;
 
 impl Op {
     /// Encode this instruction into `out`.
@@ -64,6 +80,18 @@ impl Op {
             Op::DecodeChannel { channel_id } => {
                 out.push(OP_DECODE_CHANNEL);
                 out.extend_from_slice(&channel_id.to_le_bytes());
+            }
+            Op::InterleaveChannels {
+                kinds_channel,
+                lengths_channel,
+                first_payload_channel,
+                payload_channel_count,
+            } => {
+                out.push(OP_INTERLEAVE_CHANNELS);
+                out.extend_from_slice(&kinds_channel.to_le_bytes());
+                out.extend_from_slice(&lengths_channel.to_le_bytes());
+                out.extend_from_slice(&first_payload_channel.to_le_bytes());
+                out.push(*payload_channel_count);
             }
         }
         Ok(())
@@ -104,6 +132,21 @@ impl Op {
             OP_DECODE_CHANNEL => {
                 let id = read_u32(data, pos)?;
                 Ok(Op::DecodeChannel { channel_id: id })
+            }
+            OP_INTERLEAVE_CHANNELS => {
+                let kinds_channel = read_u32(data, pos)?;
+                let lengths_channel = read_u32(data, pos)?;
+                let first_payload_channel = read_u32(data, pos)?;
+                let payload_channel_count = *data
+                    .get(*pos)
+                    .ok_or_else(|| Error::invalid_graph("truncated instruction operand"))?;
+                *pos += 1;
+                Ok(Op::InterleaveChannels {
+                    kinds_channel,
+                    lengths_channel,
+                    first_payload_channel,
+                    payload_channel_count,
+                })
             }
             other => Err(Error::invalid_graph(format!(
                 "unknown DRA opcode {other:#04x}"
@@ -146,6 +189,12 @@ mod tests {
         roundtrip(Op::RepeatLast { count: 1_000_000 });
         roundtrip(Op::Inline { bytes: Vec::new() });
         roundtrip(Op::DecodeChannel { channel_id: 3 });
+        roundtrip(Op::InterleaveChannels {
+            kinds_channel: 0,
+            lengths_channel: 1,
+            first_payload_channel: 2,
+            payload_channel_count: 3,
+        });
     }
 
     #[test]
