@@ -55,7 +55,12 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | PDF layout + rANS (`PDF_LAYOUT_RANS`) | **Recorded — rejected vs `BYTE_RANS`** | campaign `2026-10-05-phase5-8-cf8048d`; byte-exact, but wins 0 / loses 8 / declines 3 head-to-head (ADR-0013) |
 | Phase-5 forced-candidate court (`--force pdf-layout`) | **Measured** | `tools/phase5-court.sh`; campaigns `2026-10-05-phase5-7193001` and `2026-10-05-phase5-4521778` |
 | Phase-5.8 forced-candidate court (`--force pdf-layout-rans`) | **Measured** | `tools/phase5-8-court.sh`; campaign `2026-10-05-phase5-8-cf8048d` |
-| PDF structural adapters (Phases 6–8) | Planned | — |
+| Lexer stream opacity (`stream`+EOL opaque span) | **Adopted** | campaign `2026-10-05-phase6-0d0bb79`; stream-data bytes are a byte-authoritative span, so `/FlateDecode` stream spans are exact |
+| `DEFLATE_REPLAY` DRA op (DRA v8) | **Implemented** | `src/dra/op.rs`; opcode `0x0A`, explicit `replay_codec` tag (`preflate-0.7.6-experimental`), exact raw-DEFLATE replay from `(plaintext, corrections)` with a declared output length statically bounded before the engine runs, `catch_unwind`-isolated, mandatory feature bit (opt-in `deflate-replay` cargo feature) |
+| Exact DEFLATE replay, raw plaintext (`PDF_DEFLATE_REPLAY`) | **Recorded — rejected vs `BYTE_RANS`** | campaign `2026-10-05-phase6-0d0bb79`; byte-exact, but on `flate.pdf` 56,736 vs `BYTE_RANS` 49,291 (plaintext ≈ bitstream) |
+| Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | **Adopted — first structural win** | campaign `2026-10-05-phase6-0d0bb79`; `flate.pdf` 36,102 vs `BYTE_RANS` 49,291 (**−13,189 B**) (ADR-0015) |
+| Phase-6 replay court (`--force pdf-deflate-replay[-rans]`) | **Measured** | `tools/phase6-court.sh`; campaign `2026-10-05-phase6-0d0bb79` |
+| PDF structural adapters (Phases 7–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
 | Partial materialization (Phase 11) | Planned | — |
@@ -88,9 +93,11 @@ The canonical model's bytes are charged like any other bytes, so on tiny or
 high-entropy inputs order-0 rANS loses to RAW/RLE as required — this is a scoped
 measurement on one deterministic corpus, not a general compression claim.
 
-The entropy substrate is optional in the build: `default = ["rans"]`, and a
-channel-bearing descriptor decoded without the feature returns an explicit
-`UnsupportedFeature`, never a silent reinterpretation.
+The entropy substrate is optional in the build: `default = ["rans"]`. The exact
+DEFLATE replay stack is **opt-in** (`--features deflate-replay`); a
+channel-bearing or replay-bearing descriptor decoded without the required
+feature returns an explicit `UnsupportedFeature`, never a silent
+reinterpretation.
 
 Receipt:
 [`evidence/campaigns/2026-10-05-phase2-f6af30b/`](evidence/campaigns/2026-10-05-phase2-f6af30b/).
@@ -282,6 +289,62 @@ rANS lane.
 Receipt:
 [`evidence/campaigns/2026-10-05-phase5-8-cf8048d/`](evidence/campaigns/2026-10-05-phase5-8-cf8048d/).
 
+### Exact DEFLATE replay (Phase 6) measured results
+
+Phases 4–5.8 all proceduralize **plain** syntax that `BYTE_RANS` already models
+well. Phase 6 attacks a different layer: bytes the producer has **already
+entropy-coded**. The `DEFLATE_REPLAY` DRA op (opcode `0x0A`, DRA **v8**, universe
+`phase6;…;dra-8;…+deflate-replay-preflate-0.7.6-experimental`) reconstructs the
+*original* raw DEFLATE bitstream of a `/FlateDecode` stream from `(plaintext,
+corrections)`. Its `replay_codec` tag names the correction representation as an
+experimental, version-coupled preflate-0.7.6 layout (not frozen v1), and an
+unknown tag fails closed. The
+byte-authoritative scanner owns stream discovery and `/Filter` classification;
+`preflate` never discovers streams. A lexer fix makes `stream`+EOL payloads opaque
+spans. Two candidates use the op: `PDF_DEFLATE_REPLAY` (raw, deduplicated
+plaintext objects) and `PDF_DEFLATE_REPLAY_RANS` (each unique plaintext is one
+shared order-0 byte-rANS channel). The sealed campaign
+`2026-10-05-phase6-0d0bb79` runs the forced-candidate ablation over the 12-file
+corpus:
+
+```text
+A0 RAW                      = 139950
+A2 + BYTE_RANS              =  98560
+A6 + PDF_LAYOUT_RANS        =  98560
+A7 + PDF_DEFLATE_REPLAY     =  98560
+A8 + PDF_DEFLATE_REPLAY_RANS=  85371     leave-one-out replay-rANS delta = -13189
+```
+
+Forced sizes on `flate.pdf` (57,513 B):
+
+```text
+RAW 57908   BYTE_RANS 49291   PDF_DEFLATE_REPLAY 56736   PDF_DEFLATE_REPLAY_RANS 36102
+```
+
+`PDF_DEFLATE_REPLAY_RANS` is the auto winner on `flate.pdf` and **beats
+`BYTE_RANS` by 13,189 B**. The six `FlateDecode` streams are the content
+plaintext `p1` at levels 9/6/1/0 (one shared plaintext, four appearances), a
+graphics stream `p2` at level 6, and an incompressible stream `p3` at level 6
+that DEFLATE stores; the descriptor replays all six and codes their **3 unique
+plaintexts** as order-0 channels (`streams=6 replayed=6 channels=3 objects=6`).
+Of `p1`'s four appearances only the level-0 stream is weakly coded (stored);
+level 1 is ~19% of the plaintext and levels 6/9 are strong, so the win needs the
+shared plaintext to *also* have a large/weakly-coded appearance. `BYTE_RANS`
+order-0-codes the six streams to 49,291 B; it does not carry them verbatim. The
+raw-plaintext variant loses (56,736 B) because a strongly-compressed stream's
+plaintext is nearly as large as the stream it replaces. Head-to-head vs
+`BYTE_RANS`: **win 1, lose 0, decline 11** (the other files have no lone
+`FlateDecode` stream); every auto winner is exact (`cmp` + `verify`). This is
+**one composed sample**, at commit `0d0bb79`, measured on a single synthetic
+fixture: the win requires a shared plaintext that also has a large/weakly-coded
+appearance (unique strongly-compressed streams lose, by up to 4.46×), and the
+losing region is unique, strongly-compressed plaintext. It is the first measured
+positive for a PDF structural candidate
+(ADR-0015); the plain-syntax converging negatives (ADR-0010–ADR-0013) stand.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase6-0d0bb79/`](evidence/campaigns/2026-10-05-phase6-0d0bb79/).
+
 ## Quick start (Docker only)
 
 All project commands run inside pinned containers. The host only invokes Docker.
@@ -317,7 +380,8 @@ vole-document capabilities
 
 `encode --force KIND` forces the complete-cost court to consider only one
 candidate family (`raw`, `rle`, `byte-rans`, `pdf-physical`, `pdf-channels`,
-`pdf-layout`, `pdf-layout-rans`) for honest per-mechanism ablation; it never
+`pdf-layout`, `pdf-layout-rans`, `pdf-deflate-replay`, `pdf-deflate-replay-rans`)
+for honest per-mechanism ablation; it never
 bypasses exactness, and it fails with a typed usage error when the input does not
 propose that kind.
 
@@ -340,3 +404,11 @@ receipts by hash.
 
 Dual-licensed under either MIT or Apache-2.0, at your option. See
 [`LICENSE-MIT`](LICENSE-MIT) and [`LICENSE-APACHE`](LICENSE-APACHE).
+
+**Third-party license note.** The `deflate-replay` feature (Phase 6) is
+**opt-in** and depends on `preflate-rs`, which depends on `cabac`, licensed
+**LGPL-3.0-or-later**. The default build (`default = ["rans"]`) is
+**permissive-only** and contains no LGPL code. Rust links statically by default,
+so a binary built **with** `--features deflate-replay` (or `--all-features`)
+contains LGPL code and carries the corresponding obligations. See
+[ADR-0014](docs/adr/0014-lgpl-cabac-dependency.md).

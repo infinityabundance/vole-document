@@ -32,7 +32,7 @@ USAGE:
     vole-document capabilities
 
 KIND (for encode --force): raw | rle | byte-rans | pdf-physical | pdf-channels |
-    pdf-layout | pdf-layout-rans
+    pdf-layout | pdf-layout-rans | pdf-deflate-replay | pdf-deflate-replay-rans
     Forces the complete-cost court to consider only that candidate family, for
     honest per-mechanism ablation. Fails when the input does not propose it.
 
@@ -177,8 +177,10 @@ fn parse_force_kind(s: &str) -> Result<CandidateKind> {
         "pdf-channels" => Ok(CandidateKind::PdfChannels),
         "pdf-layout" => Ok(CandidateKind::PdfLayout),
         "pdf-layout-rans" => Ok(CandidateKind::PdfLayoutRans),
+        "pdf-deflate-replay" => Ok(CandidateKind::PdfDeflateReplay),
+        "pdf-deflate-replay-rans" => Ok(CandidateKind::PdfDeflateReplayRans),
         other => Err(Error::usage(format!(
-            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans"
+            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans, pdf-deflate-replay, pdf-deflate-replay-rans"
         ))),
     }
 }
@@ -360,18 +362,21 @@ fn cmd_capabilities() -> Result<()> {
             "\"crate\":\"vole-document\",",
             "\"format_major\":{},",
             "\"format_minor\":{},",
+            "\"dra_version\":{},",
             "\"exactness_profiles\":[\"EXACT_BYTES\"],",
-            "\"source_formats\":[\"OPAQUE\"],",
+            "\"source_formats\":[\"OPAQUE\",\"PDF\"],",
             "\"universe\":\"{}\",",
-            "\"dra_ops\":[\"EMIT_OBJECT\",\"INLINE\",\"REPEAT_LAST\"],",
-            "\"entropy_channels\":[],",
-            "\"features\":{{\"rans\":{},\"pdf\":false,\"deflate_replay\":false}}",
+            "\"dra_ops\":[\"EMIT_OBJECT\",\"INLINE\",\"REPEAT_LAST\",\"DECODE_CHANNEL\",\"INTERLEAVE_CHANNELS\",\"MARK_OFFSET\",\"EMIT_OFFSET\",\"PACK_SEGMENTS\",\"PACKED_CHANNELS\",\"DEFLATE_REPLAY\"],",
+            "\"entropy_channels\":[\"ORDER0_BYTE_RANS\"],",
+            "\"features\":{{\"rans\":{},\"deflate_replay\":{}}}",
             "}}"
         ),
         vole_document::container::header::FORMAT_MAJOR,
         vole_document::container::header::FORMAT_MINOR,
+        vole_document::dra::program::DRA_VERSION,
         UNIVERSE,
         cfg!(feature = "rans"),
+        cfg!(feature = "deflate-replay"),
     );
     Ok(())
 }
@@ -397,6 +402,15 @@ fn describe_op(op: &Op) -> String {
             plan_channel,
             declared_output_len,
         } => format!("PACKED_CHANNELS({data_channel},{plan_channel},{declared_output_len})"),
+        Op::DeflateReplay {
+            replay_codec,
+            source_kind,
+            source_id,
+            corrections_object,
+            declared_output_len,
+        } => format!(
+            "DEFLATE_REPLAY({replay_codec},{source_kind},{source_id},{corrections_object},{declared_output_len})"
+        ),
     }
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.8"
 edition = "2024"
 rust-version = "1.89"
 description = "Byte-exact procedural document storage: deterministic reconstruction state, typed residuals, and entropy-coded channels that materialize the exact original document bytes."
@@ -28,13 +28,30 @@ sha2 = "=0.10.9"
 # semantics on its own — the descriptor declares its own entropy semantics.
 ryg-rans-rs = { version = "=0.5.1", optional = true, default-features = false, features = ["alloc"] }
 
+# Exact DEFLATE replay (Phase 6). Optional: enabling it only makes the
+# DEFLATE_REPLAY candidate/evaluator available. A descriptor that uses the op
+# declares the mandatory feature bit, so a build without this feature fails
+# closed rather than reinterpreting the bytes. MSRV floor is dictated here.
+preflate-rs = { version = "=0.7.6", optional = true, default-features = false }
+
+[dev-dependencies]
+# Test-only zlib stream generator for the exact-replay courts. Never a runtime
+# dependency of the library. The `zlib-rs` backend is used deliberately: it is a
+# faithful zlib implementation whose DEFLATE output `preflate-rs` parses, unlike
+# miniz_oxide's output (which preflate rejects as `InvalidDeflate`).
+flate2 = { version = "=1.1.4", default-features = false, features = ["zlib-rs"] }
+
 [features]
+# The default build is permissive-only: `preflate-rs` transitively pulls the
+# LGPL-3.0-or-later `cabac` crate (ADR-0014), so the replay stack is opt-in.
+# Enable it with `--features deflate-replay` (or `--all-features`).
 default = ["rans"]
 # Phase 2: scalar order-0 / typed byte rANS channels.
 rans = ["dep:ryg-rans-rs"]
+# Phase 6: exact DEFLATE bitstream replay via preflate-rs (LGPL dependency).
+deflate-replay = ["dep:preflate-rs"]
 # Later phases (declared so the feature surface is deliberate, not accidental):
 # pdf = []
-# deflate-replay = ["dep:preflate-rs"]
 # entropyfs-store = ["dep:entropyfs"]
 # dsfb-search = ["dep:dsfb"]
 

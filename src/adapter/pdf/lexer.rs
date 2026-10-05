@@ -7,6 +7,14 @@
 //! literal string is a single opaque span, so occurrences of `obj`, `endobj`, or
 //! `stream` *inside* a string can never be mistaken for structure.
 //!
+//! A `stream` keyword followed by an EOL switches to an **opaque payload** span
+//! that runs to the next EOL-preceded `endstream`. This is essential: compressed
+//! stream bytes are high-entropy and routinely contain unbalanced string
+//! delimiters; tokenizing them would swallow all later structure. The payload is
+//! emitted as one `Regular` span (its exact bounds are re-derived from `/Length`
+//! by the physical scanner), and `endstream` is emitted as a `Regular` keyword so
+//! the object loop can resume.
+//!
 //! Unterminated constructs are not errors here: they extend to EOF and are
 //! reported as non-fatal [`LexIssue`]s, because a byte cover must still be
 //! produced for hostile or truncated input.
@@ -147,12 +155,75 @@ pub fn lex(input: &[u8], limits: Limits) -> Result<LexResult> {
                 pos += 1;
             }
             push(&mut spans, start, pos - start, SpanKind::Regular, max)?;
+            // A `stream` keyword followed by an EOL introduces an opaque payload.
+            if input[start..pos] == *b"stream"
+                && let Some(eol_len) = post_stream_eol_len(input, pos)
+            {
+                let eol_start = pos;
+                pos += eol_len;
+                push(&mut spans, eol_start, eol_len, SpanKind::Whitespace, max)?;
+                let data_start = pos;
+                match find_endstream(input, data_start) {
+                    Some(es) => {
+                        if es > data_start {
+                            push(
+                                &mut spans,
+                                data_start,
+                                es - data_start,
+                                SpanKind::Regular,
+                                max,
+                            )?;
+                        }
+                        push(&mut spans, es, b"endstream".len(), SpanKind::Regular, max)?;
+                        pos = es + b"endstream".len();
+                    }
+                    None => {
+                        // No terminating keyword: the rest is one opaque span.
+                        if data_start < n {
+                            push(
+                                &mut spans,
+                                data_start,
+                                n - data_start,
+                                SpanKind::Regular,
+                                max,
+                            )?;
+                        }
+                        pos = n;
+                    }
+                }
+            }
         }
     }
 
     let spans = SpanSet { spans };
     spans.validate(n as u64)?;
     Ok(LexResult { spans, issues })
+}
+
+/// Length of the EOL directly after a `stream` keyword: `LF` (1) or `CRLF` (2).
+/// A lone `CR` is not a valid stream EOL, matching the physical scanner.
+fn post_stream_eol_len(input: &[u8], pos: usize) -> Option<usize> {
+    match input.get(pos) {
+        Some(b'\n') => Some(1),
+        Some(b'\r') if input.get(pos + 1) == Some(&b'\n') => Some(2),
+        _ => None,
+    }
+}
+
+/// First offset of `endstream` at or after `from` that is preceded by an EOL, or
+/// `None` if there is none. The preceding EOL is required by the specification
+/// and bounds the search to a plausible keyword position.
+fn find_endstream(input: &[u8], from: usize) -> Option<usize> {
+    let needle = b"endstream";
+    let mut i = from.max(1);
+    while i + needle.len() <= input.len() {
+        if (input[i - 1] == b'\n' || input[i - 1] == b'\r') && &input[i..i + needle.len()] == needle
+        {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Consume a `(` literal string starting at `start`; returns the first offset

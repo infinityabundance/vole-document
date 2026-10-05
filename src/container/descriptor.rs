@@ -16,12 +16,12 @@ use crate::error::{Error, Result};
 use crate::integrity::sha256;
 use crate::limits::Limits;
 
-/// The Phase-2 reconstruction universe declaration.
+/// The current reconstruction universe declaration.
 ///
 /// Changing any opcode, coder, limit semantic, or adapter meaning requires a
 /// new universe string. The `universe_id` in the header is the first 16 bytes
 /// of SHA-256 over this string.
-pub const UNIVERSE: &str = "vole-document;universe;phase5-8;exact-bytes;dra-6;opaque+entropy+pdf+channels+offsets+packed+packed-channels";
+pub const UNIVERSE: &str = "vole-document;universe;phase6;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental";
 
 /// First 16 bytes of SHA-256 over a universe declaration string.
 pub fn universe_id_from_str(universe: &str) -> [u8; 16] {
@@ -68,12 +68,30 @@ pub struct ParsedDescriptor {
 impl Descriptor {
     /// The header that this descriptor serializes to.
     pub fn header(&self) -> Header {
-        Header::new(
+        let mut header = Header::new(
             universe_id_from_str(&self.universe),
             self.source_len,
             EXACTNESS_PROFILE_EXACT_BYTES,
             self.source_format,
-        )
+        );
+        header.mandatory_features = self.required_features();
+        header
+    }
+
+    /// Mandatory feature bits implied by this descriptor's contents.
+    ///
+    /// Derived rather than stored, so no constructor can forget to declare a
+    /// feature: a descriptor carrying a `DEFLATE_REPLAY` op always sets
+    /// [`crate::container::header::FEATURE_DEFLATE_REPLAY`] in its header, and a
+    /// build without that feature rejects it at header validation.
+    pub fn required_features(&self) -> u32 {
+        let mut bits = 0u32;
+        for op in &self.program.ops {
+            if matches!(op, crate::dra::Op::DeflateReplay { .. }) {
+                bits |= crate::container::header::FEATURE_DEFLATE_REPLAY;
+            }
+        }
+        bits
     }
 
     /// Serialize to a complete `.voldoc` byte sequence plus cost attribution.
@@ -530,5 +548,48 @@ mod tests {
         let (bytes, _) = d.serialize().unwrap();
         let e = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap_err();
         assert_eq!(e.class(), crate::ErrorClass::CoverageViolation);
+    }
+
+    fn replay_program() -> Program {
+        Program::new(vec![Op::DeflateReplay {
+            replay_codec: crate::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
+            source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
+            source_id: 0,
+            corrections_object: 0,
+            declared_output_len: 3,
+        }])
+    }
+
+    #[test]
+    fn plain_descriptor_declares_no_mandatory_features() {
+        assert_eq!(sample(b"abc").required_features(), 0);
+    }
+
+    #[cfg(feature = "deflate-replay")]
+    #[test]
+    fn replay_op_declares_mandatory_feature() {
+        let mut d = sample(b"abc");
+        d.program = replay_program();
+        assert_eq!(
+            d.required_features(),
+            crate::container::header::FEATURE_DEFLATE_REPLAY
+        );
+        // The declared bit survives a serialize/parse cycle.
+        let (bytes, _) = d.serialize().unwrap();
+        let parsed = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap();
+        assert_eq!(
+            parsed.descriptor.required_features(),
+            crate::container::header::FEATURE_DEFLATE_REPLAY
+        );
+    }
+
+    #[cfg(not(feature = "deflate-replay"))]
+    #[test]
+    fn replay_descriptor_fails_closed_without_feature() {
+        let mut d = sample(b"abc");
+        d.program = replay_program();
+        let (bytes, _) = d.serialize().unwrap();
+        let e = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::UnsupportedFeature);
     }
 }

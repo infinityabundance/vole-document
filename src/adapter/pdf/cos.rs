@@ -53,6 +53,64 @@ pub fn dict_has_length(input: &[u8], lex: &[Span], dict_lo: u64, dict_hi: u64) -
     find_length_name(input, lex, dict_lo, dict_hi).is_some()
 }
 
+/// Classification of a stream dictionary's `/Filter` entry.
+///
+/// The exact-replay candidate only admits a stream whose encoded payload is a
+/// lone DEFLATE/zlib stream, i.e. exactly one `FlateDecode` filter. Anything
+/// else — no key, a different filter, a filter chain, or an unrecognized shape —
+/// is conservative `Other`/`Absent` and is never a replay candidate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FilterClass {
+    /// The `/Filter` key is absent.
+    Absent,
+    /// Exactly one filter, `FlateDecode` (bare name or a single-element array).
+    FlateDecode,
+    /// Any other value (different filter, chain, empty array, odd shape).
+    Other,
+}
+
+/// Classify `/Filter` within the dictionary range `[dict_lo, dict_hi)`.
+///
+/// Recognizes only the canonical spelling `/FlateDecode` (not the legal PDF name
+/// abbreviations) and only the two shapes `/Filter /FlateDecode` and
+/// `/Filter [/FlateDecode]`. Only `Name` spans and the array `[`/`]` spans are
+/// inspected, so a `/Filter` spelling inside a string or comment cannot match.
+pub fn dict_filter(input: &[u8], lex: &[Span], dict_lo: u64, dict_hi: u64) -> FilterClass {
+    let Some(name) = find_name_key(input, lex, dict_lo, dict_hi, b"Filter") else {
+        return FilterClass::Absent;
+    };
+
+    let is_flate = |sp: Span| {
+        sp.kind == SpanKind::Name
+            && span_bytes(input, sp).is_some_and(|b| b == b"/FlateDecode".as_slice())
+    };
+
+    let Some(t0) = next_significant(lex, name + 1, dict_hi) else {
+        return FilterClass::Other;
+    };
+    if is_flate(lex[t0]) {
+        return FilterClass::FlateDecode;
+    }
+    if lex[t0].kind != SpanKind::ArrayOpen {
+        return FilterClass::Other;
+    }
+
+    let Some(t1) = next_significant(lex, t0 + 1, dict_hi) else {
+        return FilterClass::Other;
+    };
+    if !is_flate(lex[t1]) {
+        return FilterClass::Other;
+    }
+    let Some(t2) = next_significant(lex, t1 + 1, dict_hi) else {
+        return FilterClass::Other;
+    };
+    if lex[t2].kind == SpanKind::ArrayClose {
+        FilterClass::FlateDecode
+    } else {
+        FilterClass::Other
+    }
+}
+
 /// The value of a key whose value is a name (e.g. `/Type /XRef`).
 ///
 /// The key is matched as a `Name` span equal to `/<key>` fully inside
@@ -346,6 +404,74 @@ mod tests {
         assert_eq!(
             dict_int_or_ref(absent, &spans, 0, absent.len() as u64, b"Prev"),
             None
+        );
+    }
+
+    #[test]
+    fn dict_filter_absent_without_key() {
+        let input = b"<< /Length 1 >>";
+        let spans = lexed(input);
+        assert_eq!(
+            dict_filter(input, &spans, 0, input.len() as u64),
+            FilterClass::Absent
+        );
+    }
+
+    #[test]
+    fn dict_filter_reads_bare_and_single_element_array() {
+        let bare = b"<< /Filter /FlateDecode >>";
+        let spans = lexed(bare);
+        assert_eq!(
+            dict_filter(bare, &spans, 0, bare.len() as u64),
+            FilterClass::FlateDecode
+        );
+
+        let array = b"<< /Filter [ /FlateDecode ] >>";
+        let spans = lexed(array);
+        assert_eq!(
+            dict_filter(array, &spans, 0, array.len() as u64),
+            FilterClass::FlateDecode
+        );
+    }
+
+    #[test]
+    fn dict_filter_rejects_chain_other_filter_and_empty_array() {
+        let chain = b"<< /Filter [ /FlateDecode /ASCIIHexDecode ] >>";
+        let spans = lexed(chain);
+        assert_eq!(
+            dict_filter(chain, &spans, 0, chain.len() as u64),
+            FilterClass::Other
+        );
+
+        let other = b"<< /Filter /LZWDecode >>";
+        let spans = lexed(other);
+        assert_eq!(
+            dict_filter(other, &spans, 0, other.len() as u64),
+            FilterClass::Other
+        );
+
+        let empty = b"<< /Filter [] >>";
+        let spans = lexed(empty);
+        assert_eq!(
+            dict_filter(empty, &spans, 0, empty.len() as u64),
+            FilterClass::Other
+        );
+    }
+
+    #[test]
+    fn dict_filter_ignores_string_spelling_and_non_name_value() {
+        let inside_string = b"<< /X ( /Filter /FlateDecode ) >>";
+        let spans = lexed(inside_string);
+        assert_eq!(
+            dict_filter(inside_string, &spans, 0, inside_string.len() as u64),
+            FilterClass::Absent
+        );
+
+        let non_name = b"<< /Filter 5 >>";
+        let spans = lexed(non_name);
+        assert_eq!(
+            dict_filter(non_name, &spans, 0, non_name.len() as u64),
+            FilterClass::Other
         );
     }
 

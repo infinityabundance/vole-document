@@ -47,6 +47,7 @@
 
 pub mod accounting;
 pub mod adapter;
+pub mod codec;
 pub mod container;
 pub mod dra;
 pub mod encode;

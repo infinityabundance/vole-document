@@ -1,0 +1,28 @@
+{
+  "campaign": "2026-10-05-phase6-ec92c1a",
+  "phase": "Phase 6 — exact DEFLATE replay (preflate-rs), PDF_DEFLATE_REPLAY and PDF_DEFLATE_REPLAY_RANS rungs over forced-candidate ablation",
+  "claim": "Every corpus file round-trips byte-exactly through its auto-winning lane (verify and decode cmp), and the two exact DEFLATE replay lanes yield an honest, exact head-to-head against BYTE_RANS, with the cumulative ladder A0..A8 and the leave-one-out deltas for the replay mechanisms.",
+  "git_commit": "ec92c1a22aa1b977f262e8baee278d8f00e4c0b7",
+  "git_dirty_tracked": "0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "65f966d99a1f7da409f79f9daf2548692c01cb343112e682a97f11d15d61a331",
+  "binary_sha256": "e6d91c54854190b33e7a104e1e9f623b71168bb40835a2029038c259f744853a",
+  "command": "docker compose run --rm --no-TTY dev sh tools/phase6-court.sh",
+  "oracle": "oracle.jsonl (tools/pdf-oracle.sh)",
+  "oracle_sha256": "9bedef23d5173d61c98fc81c57b316fc05fcd4e0bc0e3c889a081acbf5433227",
+  "artifacts": {
+    "corpus.json": "674189c95abf6a0f260f024f567fbc5e4f169ebfcad7899fcb1265002254def4",
+    "results.json": "b60da062a05e2c43ff35470e2c8516c0351dfa18ce149deb937a5c64df748a9c",
+    "attribution.json": "64afac7f399543dae2d4cb331b97c3f49db4ff740f45fc1868341ec1d34c0daf",
+    "ablation-cumulative.json": "9d9db1e51df870b490c785760754f1fdafdc94c4495b3b0ee1d6aaa1ed208cda",
+    "ablation-leave-one-out.json": "1da0dbee09bad1d4390eb7e31981566be5bbd42c175400a4842fd1b3eb3339cc",
+    "negative-controls.json": "2a0760cf4b488c3d827e7b4d76b99ba66e016c95f0f5ced947fd248e8526a859",
+    "verification.json": "ba7ae9c092f2e5d439b1c0deb300ae0f28476a2207d40ef596d35cd63ce54f75",
+    "environment.json": "d4c54b5df586185257f547d168d49b51b87ab621a424f960a988ec82958b681e",
+    "report.md": "482d5aeb12276065749817003270f0bdecf7c093484e94e2dfb0cf8cb857bd83"
+  },
+  "verdict": "PASS"
+}

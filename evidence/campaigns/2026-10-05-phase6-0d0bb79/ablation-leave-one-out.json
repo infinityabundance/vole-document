@@ -1,0 +1,21 @@
+{
+  "campaign": "2026-10-05-phase6-0d0bb79",
+  "units": "bytes",
+  "full_portfolio": {
+    "rung": "A8",
+    "total": 85371
+  },
+  "pdf_deflate_replay_rans": {
+    "without_total": 98560,
+    "delta": -13189
+  },
+  "pdf_deflate_replay": {
+    "without_total": 85371,
+    "delta": 0
+  },
+  "pdf_layout_rans": {
+    "without_total": 85371,
+    "delta": 0
+  },
+  "note": "each delta is full(A8) minus the portfolio with exactly that one mechanism removed, every other mechanism retained"
+}

@@ -24,10 +24,21 @@ pub fn sample_pdfs() -> Vec<(&'static str, Vec<u8>)> {
         ("trapstream.pdf", trap_stream()),
         ("bigtext.pdf", big_text_pdf()),
         ("many.pdf", many_objects_pdf()),
+        ("flate.pdf", flate_pdf()),
         ("malformed.pdf", malformed()),
         ("notpdf.bin", not_pdf()),
     ]
 }
+
+/// Committed real-zlib fixture blobs (produced by zlib-rs). Regenerate with
+/// `cargo test --all-features regenerate_flate_fixtures -- --ignored`. The
+/// library carries no compressor dependency; these are opaque inputs.
+const FLATE_P1_L0: &[u8] = include_bytes!("fixtures/p1_l0.zlib");
+const FLATE_P1_L1: &[u8] = include_bytes!("fixtures/p1_l1.zlib");
+const FLATE_P1_L6: &[u8] = include_bytes!("fixtures/p1_l6.zlib");
+const FLATE_P1_L9: &[u8] = include_bytes!("fixtures/p1_l9.zlib");
+const FLATE_P2_L6: &[u8] = include_bytes!("fixtures/p2_l6.zlib");
+const FLATE_P3_L6: &[u8] = include_bytes!("fixtures/p3_l6.zlib");
 
 /// The two entries that must *not* be detected as PDFs. `malformed.pdf` is the
 /// only `.pdf`-named member of this set.
@@ -304,6 +315,39 @@ fn many_objects_pdf() -> Vec<u8> {
     w.buf
 }
 
+/// A PDF whose streams are real zlib-compressed `/FlateDecode` streams.
+///
+/// Object 4 is the page content stream (`p1`, level 9); object 5 is a font;
+/// object 6 carries the *same* plaintext as object 4 at a different level (`p1`,
+/// level 6) so shared-plaintext replay is exercised; object 7 is a distinct
+/// graphics stream (`p2`, level 6); object 8 is a stored/level-0 stream (`p1`,
+/// level 0), the weak-producer case where replay can genuinely pay. Every
+/// `/Length` and offset is correct by construction.
+fn flate_pdf() -> Vec<u8> {
+    let mut w = Writer::new();
+    w.text("%PDF-1.5\n");
+    w.obj(1, 0, b"<< /Type /Catalog /Pages 2 0 R >>");
+    w.obj(2, 0, b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+    w.obj(
+        3,
+        0,
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    );
+    w.stream_obj(4, 0, " /Filter /FlateDecode", FLATE_P1_L9);
+    w.obj(
+        5,
+        0,
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    );
+    w.stream_obj(6, 0, " /Filter /FlateDecode", FLATE_P1_L6);
+    w.stream_obj(7, 0, " /Filter /FlateDecode", FLATE_P2_L6);
+    w.stream_obj(8, 0, " /Filter /FlateDecode", FLATE_P1_L0);
+    w.stream_obj(9, 0, " /Filter /FlateDecode", FLATE_P1_L1);
+    w.stream_obj(10, 0, " /Filter /FlateDecode", FLATE_P3_L6);
+    w.classic_trailer(11, " /Root 1 0 R");
+    w.buf
+}
+
 /// Truncated and without any `%%EOF`: the header and one complete object are
 /// present, but the file ends mid-object. Detection must decline.
 fn malformed() -> Vec<u8> {
@@ -326,7 +370,7 @@ mod tests {
     use crate::limits::Limits;
     use crate::materialize::decode_to_bytes;
 
-    const EXPECTED_NAMES: [&str; 11] = [
+    const EXPECTED_NAMES: [&str; 12] = [
         "classic.pdf",
         "xrefstream.pdf",
         "objstm.pdf",
@@ -336,6 +380,7 @@ mod tests {
         "trapstream.pdf",
         "bigtext.pdf",
         "many.pdf",
+        "flate.pdf",
         "malformed.pdf",
         "notpdf.bin",
     ];
@@ -422,5 +467,77 @@ mod tests {
             assert_eq!(report.kind.name(), "RAW", "{name} raw lane");
         }
         assert!(!detect(b"plain text, not a PDF", Limits::DEFAULT));
+    }
+
+    /// Regenerate the committed real-zlib fixture blobs. Ignored by default;
+    /// run manually inside Docker:
+    /// `cargo test --all-features regenerate_flate_fixtures -- --ignored`.
+    #[test]
+    #[ignore = "regenerates committed fixture blobs; run manually inside Docker"]
+    fn regenerate_flate_fixtures() {
+        use flate2::Compression;
+        use flate2::write::ZlibEncoder;
+        use std::io::Write;
+
+        fn content_stream() -> Vec<u8> {
+            let mut v = Vec::new();
+            for i in 0..500u32 {
+                v.extend_from_slice(
+                    format!(
+                        "BT /F1 12 Tf 72 {} Td (Invoice line {i:05} amount {}.{:02}) Tj ET\n",
+                        720 - (i % 36) * 18,
+                        100 + (i % 7) * 13,
+                        (i * 37) % 100
+                    )
+                    .as_bytes(),
+                );
+            }
+            v
+        }
+        fn graphics_stream() -> Vec<u8> {
+            let mut v = Vec::new();
+            for i in 0..400u32 {
+                v.extend_from_slice(
+                    format!(
+                        "0 0 0 RG 1.5 w {} {} m {} {} l S\n",
+                        i % 50,
+                        (i * 3) % 400,
+                        (i * 7) % 300,
+                        (i * 11) % 350
+                    )
+                    .as_bytes(),
+                );
+            }
+            v
+        }
+        fn incompressible(n: usize) -> Vec<u8> {
+            let mut state = 0x9E37_79B9_7F4A_7C15u64;
+            let mut out = Vec::with_capacity(n + 8);
+            while out.len() < n {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                out.extend_from_slice(&state.to_le_bytes());
+            }
+            out.truncate(n);
+            out
+        }
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/adapter/pdf/fixtures");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p1 = content_stream();
+        let p2 = graphics_stream();
+        let p3 = incompressible(8192);
+        for (name, data, level) in [
+            ("p1_l0.zlib", &p1, 0u32),
+            ("p1_l1.zlib", &p1, 1),
+            ("p1_l6.zlib", &p1, 6),
+            ("p1_l9.zlib", &p1, 9),
+            ("p2_l6.zlib", &p2, 6),
+            ("p3_l6.zlib", &p3, 6),
+        ] {
+            let mut e = ZlibEncoder::new(Vec::new(), Compression::new(level));
+            e.write_all(data).unwrap();
+            std::fs::write(dir.join(name), e.finish().unwrap()).unwrap();
+        }
     }
 }
