@@ -21,7 +21,7 @@ use crate::limits::Limits;
 /// Changing any opcode, coder, limit semantic, or adapter meaning requires a
 /// new universe string. The `universe_id` in the header is the first 16 bytes
 /// of SHA-256 over this string.
-pub const UNIVERSE: &str = "vole-document;universe;phase-2;exact-bytes;dra-2;opaque+entropy";
+pub const UNIVERSE: &str = "vole-document;universe;phase-3;exact-bytes;dra-2;opaque+entropy+pdf";
 
 /// First 16 bytes of SHA-256 over a universe declaration string.
 pub fn universe_id_from_str(universe: &str) -> [u8; 16] {
@@ -173,7 +173,7 @@ impl Descriptor {
             ));
         }
         let header = Header::decode(bytes)?;
-        if !header.is_opaque() {
+        if !header.source_format_supported() {
             return Err(Error::unsupported_feature(format!(
                 "source format class {} has no adapter in this build",
                 header.source_format

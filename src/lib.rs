@@ -67,3 +67,10 @@ pub const EXACTNESS_PROFILE_EXACT_BYTES: u8 = 0;
 
 /// Identifier for the opaque source-format class.
 pub const SOURCE_FORMAT_OPAQUE: u8 = 0;
+
+/// Identifier for the PDF source-format class.
+///
+/// A descriptor declaring this class is still bound by the exact profile: its
+/// program must reconstruct the original PDF bytes exactly. The class records
+/// only how the source was analyzed, never a license to alter it.
+pub const SOURCE_FORMAT_PDF: u8 = 1;

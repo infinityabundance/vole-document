@@ -1,0 +1,12 @@
+{
+  "campaign": "2026-10-05-phase3-486aa17",
+  "phase": "Phase 3 — PDF byte-authoritative physical scanner",
+  "claim": "Every sample in the deterministic corpus materializes byte-exactly, every well-formed PDF is detected with at least one object and one revision, and both negative controls are rejected while remaining exact through RAW.",
+  "results_sha256": "d4b7e3bb2fe896a38f152a0cea5ae2d430392df8969c817a14c4f0f842dfa0c4",
+  "coverage_sha256": "7cc9c4bbadd6cb4e3a294d3a599bc9fd5b5e2dc8684079473764247d3ca46f27",
+  "environment_sha256": "cac3593526fd001bbe8f456cb7719faa4cf625e414340f17d5866b050bcbbf85",
+  "report_sha256": "fe6155903da27d469cbbee8fa7c54c8b044a8ba44383b83f34da5d2ddffe0f33",
+  "oracle": "see oracle.jsonl (produced by tools/pdf-oracle.sh <campaign>)",
+  "oracle_sha256": "9bedef23d5173d61c98fc81c57b316fc05fcd4e0bc0e3c889a081acbf5433227",
+  "verdict": "PASS"
+}

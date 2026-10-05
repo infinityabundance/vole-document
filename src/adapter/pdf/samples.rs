@@ -1,0 +1,361 @@
+//! Deterministic, byte-exact sample PDFs for the Phase-3 court.
+//!
+//! Every well-formed sample is assembled in memory with its own byte offsets as
+//! it is written, so every direct `/Length` and every `startxref` target is
+//! correct *by construction*: the corpus never depends on a PDF writer, a
+//! canonicalizer, or a post-hoc fixup pass.
+//!
+//! Two entries are deliberate negative controls, listed in
+//! [`NEGATIVE_CONTROLS`]: `malformed.pdf` is truncated with no `%%EOF`, and
+//! `notpdf.bin` is plain non-PDF bytes. Both must be *rejected* by
+//! [`super::detect`] while still round-tripping byte-for-byte through the opaque
+//! RAW lane. `malformed.pdf` therefore carries a `.pdf` name but is not a
+//! validated PDF: a file name is a hint, never authority.
+
+/// One ordered sample: a fixed name and its exact bytes.
+pub fn sample_pdfs() -> Vec<(&'static str, Vec<u8>)> {
+    vec![
+        ("classic.pdf", classic()),
+        ("xrefstream.pdf", xref_stream()),
+        ("objstm.pdf", object_stream()),
+        ("incremental.pdf", incremental()),
+        ("mixedeol.pdf", mixed_eol()),
+        ("traptext.pdf", trap_text()),
+        ("trapstream.pdf", trap_stream()),
+        ("malformed.pdf", malformed()),
+        ("notpdf.bin", not_pdf()),
+    ]
+}
+
+/// The two entries that must *not* be detected as PDFs. `malformed.pdf` is the
+/// only `.pdf`-named member of this set.
+pub const NEGATIVE_CONTROLS: [&str; 2] = ["malformed.pdf", "notpdf.bin"];
+
+/// Whether `name` is one of the deliberate non-PDF negative controls.
+pub fn is_negative_control(name: &str) -> bool {
+    NEGATIVE_CONTROLS.contains(&name)
+}
+
+/// Append-only PDF assembler that records each object's byte offset, so a
+/// classic cross-reference table can be emitted with correct offsets.
+struct Writer {
+    buf: Vec<u8>,
+    offsets: Vec<(u64, u64)>,
+}
+
+impl Writer {
+    fn new() -> Self {
+        Writer {
+            buf: Vec::new(),
+            offsets: Vec::new(),
+        }
+    }
+
+    fn raw(&mut self, bytes: &[u8]) {
+        self.buf.extend_from_slice(bytes);
+    }
+
+    fn text(&mut self, s: &str) {
+        self.buf.extend_from_slice(s.as_bytes());
+    }
+
+    /// Offset of object `number`'s `N G obj` introducer.
+    fn offset_of(&self, number: u64) -> u64 {
+        self.offsets
+            .iter()
+            .find(|&&(n, _)| n == number)
+            .map(|&(_, off)| off)
+            .unwrap_or_else(|| panic!("object {number} was never written"))
+    }
+
+    /// Append `N G obj\n<body>\nendobj\n`, recording the introducer offset.
+    fn obj(&mut self, number: u64, generation: u64, body: &[u8]) {
+        self.offsets.push((number, self.buf.len() as u64));
+        self.text(&format!("{number} {generation} obj\n"));
+        self.raw(body);
+        self.raw(b"\nendobj\n");
+    }
+
+    /// Append a stream object whose `/Length` is the exact payload length, with
+    /// `extra_dict` (starting with a space) spliced into the leading dictionary.
+    fn stream_obj(&mut self, number: u64, generation: u64, extra_dict: &str, data: &[u8]) {
+        self.offsets.push((number, self.buf.len() as u64));
+        self.text(&format!(
+            "{number} {generation} obj\n<< /Length {}{extra_dict} >>\nstream\n",
+            data.len()
+        ));
+        self.raw(data);
+        self.raw(b"\nendstream\nendobj\n");
+    }
+
+    /// Append a classic `xref` table covering objects `0..size`, a `trailer`,
+    /// `startxref`, and a terminating `%%EOF`. `trailer_extra` is spliced into
+    /// the trailer dictionary. The `startxref` value is the table's own offset.
+    fn classic_trailer(&mut self, size: u64, trailer_extra: &str) {
+        let xref = self.buf.len() as u64;
+        self.text(&format!("xref\n0 {size}\n"));
+        self.raw(b"0000000000 65535 f \n");
+        for number in 1..size {
+            let off = self.offset_of(number);
+            self.text(&format!("{off:010} 00000 n \n"));
+        }
+        self.text(&format!(
+            "trailer\n<< /Size {size}{trailer_extra} >>\nstartxref\n{xref}\n%%EOF\n"
+        ));
+    }
+}
+
+/// A classic cross-reference PDF: header, three indirect objects, a classic
+/// `xref` table, and a trailer whose `startxref` points at the table.
+fn classic() -> Vec<u8> {
+    let mut w = Writer::new();
+    w.text("%PDF-1.4\n");
+    w.obj(1, 0, b"<< /Type /Catalog /Pages 2 0 R >>");
+    w.obj(2, 0, b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+    w.obj(
+        3,
+        0,
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>",
+    );
+    w.classic_trailer(4, " /Root 1 0 R");
+    w.buf
+}
+
+/// A cross-reference-stream PDF. Object 3 is `/Type /XRef`; its 28-byte payload
+/// is a genuine `W [1 4 2]` table with the correct offsets of objects 1, 2, and
+/// 3 (including itself). `startxref` targets that object by construction.
+fn xref_stream() -> Vec<u8> {
+    let mut w = Writer::new();
+    w.text("%PDF-1.5\n");
+    w.obj(1, 0, b"<< /Type /Catalog /Pages 2 0 R >>");
+    w.obj(2, 0, b"<< /Type /Pages /Kids [] /Count 0 >>");
+
+    let off1 = w.offset_of(1);
+    let off2 = w.offset_of(2);
+    let off3 = w.buf.len() as u64;
+
+    let mut data = Vec::with_capacity(28);
+    // Object 0: free.
+    data.push(0u8);
+    data.extend_from_slice(&0u32.to_be_bytes());
+    data.extend_from_slice(&65535u16.to_be_bytes());
+    // Objects 1, 2, 3: in-use, field 2 is the byte offset, generation 0.
+    for off in [off1, off2, off3] {
+        data.push(1u8);
+        data.extend_from_slice(&(off as u32).to_be_bytes());
+        data.extend_from_slice(&0u16.to_be_bytes());
+    }
+    assert_eq!(data.len(), 28);
+
+    w.stream_obj(3, 0, " /Type /XRef /Size 4 /Root 1 0 R /W [1 4 2]", &data);
+    assert_eq!(w.offset_of(3), off3);
+    w.text(&format!("startxref\n{off3}\n%%EOF\n"));
+    w.buf
+}
+
+/// An object-stream PDF: object 2 is `/Type /ObjStm` and carries an opaque
+/// payload of the form `N1 off1 N2 off2 <bodies>`.
+fn object_stream() -> Vec<u8> {
+    let mut w = Writer::new();
+    w.text("%PDF-1.5\n");
+    w.obj(1, 0, b"<< /Type /Catalog /Pages 3 0 R >>");
+    w.stream_obj(2, 0, " /Type /ObjStm /N 2 /First 8", b"1 0 3 0 42");
+    w.obj(3, 0, b"<< /Type /Pages /Kids [] /Count 0 >>");
+    w.classic_trailer(4, " /Root 1 0 R");
+    w.buf
+}
+
+/// An incrementally updated PDF: a base revision with a classic `xref`, then an
+/// appended revision that adds object 3 and carries a trailer whose `/Prev`
+/// points back at the base `xref` by construction.
+fn incremental() -> Vec<u8> {
+    let mut w = Writer::new();
+    w.text("%PDF-1.4\n");
+    w.obj(1, 0, b"<< /Type /Catalog /Pages 2 0 R >>");
+    w.obj(2, 0, b"<< /Type /Pages /Kids [] /Count 0 >>");
+
+    // Base revision's classic xref starts here; `/Prev` must name this offset.
+    let xref1 = w.buf.len() as u64;
+    w.classic_trailer(3, " /Root 1 0 R");
+
+    // Appended revision.
+    w.obj(
+        3,
+        0,
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    );
+    let prev_extra = format!(" /Prev {xref1} /Root 1 0 R");
+    w.classic_trailer(4, &prev_extra);
+    w.buf
+}
+
+/// A PDF that mixes CRLF and LF line endings, including a CRLF-terminated
+/// stream boundary.
+fn mixed_eol() -> Vec<u8> {
+    let mut b: Vec<u8> = Vec::new();
+    b.extend_from_slice(b"%PDF-1.4\r\n");
+
+    let off1 = b.len() as u64;
+    b.extend_from_slice(b"1 0 obj\r\n<< /Type /Catalog /Pages 2 0 R >>\r\nendobj\r\n");
+
+    let off2 = b.len() as u64;
+    b.extend_from_slice(b"2 0 obj\n<< /Length 5 >>\nstream\nhello\nendstream\nendobj\n");
+
+    let xref = b.len() as u64;
+    b.extend_from_slice(b"xref\r\n0 3\r\n");
+    b.extend_from_slice(b"0000000000 65535 f \r\n");
+    b.extend_from_slice(format!("{off1:010} 00000 n \n").as_bytes());
+    b.extend_from_slice(format!("{off2:010} 00000 n \r\n").as_bytes());
+    b.extend_from_slice(
+        format!("trailer\r\n<< /Size 3 /Root 1 0 R >>\r\nstartxref\r\n{xref}\r\n%%EOF\r\n")
+            .as_bytes(),
+    );
+    b
+}
+
+/// A PDF whose object 1 contains a literal string holding the spelling
+/// `endobj` (and `stream`). Lexing must keep the literal opaque, so the object
+/// is not split and the file remains a validated PDF.
+fn trap_text() -> Vec<u8> {
+    let mut w = Writer::new();
+    w.text("%PDF-1.4\n");
+    w.obj(
+        1,
+        0,
+        b"<< /Type /Catalog /Pages 2 0 R /Title (trap endobj stream text) >>",
+    );
+    w.obj(2, 0, b"<< /Type /Pages /Kids [] /Count 0 >>");
+    w.classic_trailer(3, " /Root 1 0 R");
+    w.buf
+}
+
+/// A PDF whose stream payload contains the spellings `endobj` and `stream`.
+/// The verified direct `/Length` must win, so the payload stays opaque and the
+/// enclosing object is not split.
+fn trap_stream() -> Vec<u8> {
+    let mut w = Writer::new();
+    w.text("%PDF-1.5\n");
+    w.obj(1, 0, b"<< /Type /Catalog /Pages 2 0 R >>");
+    w.stream_obj(2, 0, "", b"endobj stream bytes");
+    w.classic_trailer(3, " /Root 1 0 R");
+    w.buf
+}
+
+/// Truncated and without any `%%EOF`: the header and one complete object are
+/// present, but the file ends mid-object. Detection must decline.
+fn malformed() -> Vec<u8> {
+    let mut b: Vec<u8> = Vec::new();
+    b.extend_from_slice(b"%PDF-1.4\n");
+    b.extend_from_slice(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+    b.extend_from_slice(b"2 0 obj\n<< /Type /Pages /Ki");
+    b
+}
+
+/// A plain-text non-PDF control.
+fn not_pdf() -> Vec<u8> {
+    b"this is plain text, definitely not a PDF\n".to_vec()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::adapter::pdf::{detect, propose_pdf, scan};
+    use crate::limits::Limits;
+    use crate::materialize::decode_to_bytes;
+
+    const EXPECTED_NAMES: [&str; 9] = [
+        "classic.pdf",
+        "xrefstream.pdf",
+        "objstm.pdf",
+        "incremental.pdf",
+        "mixedeol.pdf",
+        "traptext.pdf",
+        "trapstream.pdf",
+        "malformed.pdf",
+        "notpdf.bin",
+    ];
+
+    #[test]
+    fn corpus_names_are_exactly_as_specified() {
+        let names: Vec<&str> = sample_pdfs().into_iter().map(|(n, _)| n).collect();
+        assert_eq!(names, EXPECTED_NAMES);
+    }
+
+    #[test]
+    fn corpus_is_deterministic() {
+        let a = sample_pdfs();
+        let b = sample_pdfs();
+        assert_eq!(a.len(), b.len());
+        for ((na, ba), (nb, bb)) in a.iter().zip(b.iter()) {
+            assert_eq!(na, nb);
+            assert_eq!(ba, bb, "{na} must be byte-identical across calls");
+        }
+    }
+
+    #[test]
+    fn every_sample_is_byte_exact_through_the_court() {
+        for (name, bytes) in sample_pdfs() {
+            let (encoded, report) = crate::encode::encode(&bytes, Limits::DEFAULT).unwrap();
+            let (out, _) = decode_to_bytes(&encoded, Limits::DEFAULT).unwrap();
+            assert_eq!(out, bytes, "{name} must materialize byte-exactly");
+            assert_eq!(report.source_len, bytes.len() as u64, "{name} source_len");
+        }
+    }
+
+    #[test]
+    fn valid_pdfs_detect_scan_and_propose() {
+        for (name, bytes) in sample_pdfs() {
+            if is_negative_control(name) {
+                continue;
+            }
+            assert!(name.ends_with(".pdf"), "{name} is expected to be a PDF");
+
+            // Detection.
+            assert!(detect(&bytes, Limits::DEFAULT), "{name} must be detected");
+
+            // Scan covers exactly and finds structure.
+            let physical = scan(&bytes, Limits::DEFAULT).unwrap();
+            physical.validate(bytes.len() as u64).unwrap();
+            assert_eq!(physical.total_len(), bytes.len() as u64, "{name} cover");
+            assert!(physical.header.is_some(), "{name} must carry a header");
+            assert!(!physical.objects.is_empty(), "{name} must have an object");
+            assert!(
+                !physical.revisions.is_empty(),
+                "{name} must have a revision"
+            );
+
+            // The proposed candidate materializes byte-for-byte.
+            let candidate = propose_pdf(&bytes, Limits::DEFAULT)
+                .unwrap()
+                .unwrap_or_else(|| panic!("{name} must propose a PDF candidate"));
+            let (encoded, _) = candidate.descriptor.serialize().unwrap();
+            let (out, _) = decode_to_bytes(&encoded, Limits::DEFAULT).unwrap();
+            assert_eq!(out, bytes, "{name} PDF candidate materializes exactly");
+        }
+    }
+
+    #[test]
+    fn negative_controls_are_rejected_but_still_exact() {
+        // `notpdf.bin` is the specified non-PDF control; `malformed.pdf` is the
+        // `.pdf`-named truncated control. Neither may be detected, both must
+        // still round-trip exactly through the opaque RAW lane.
+        for (name, bytes) in sample_pdfs() {
+            if !is_negative_control(name) {
+                continue;
+            }
+            assert!(
+                !detect(&bytes, Limits::DEFAULT),
+                "{name} must not be detected as a PDF"
+            );
+            assert!(
+                propose_pdf(&bytes, Limits::DEFAULT).unwrap().is_none(),
+                "{name} must decline the PDF candidate"
+            );
+            let (encoded, report) = crate::encode::encode(&bytes, Limits::DEFAULT).unwrap();
+            let (out, _) = decode_to_bytes(&encoded, Limits::DEFAULT).unwrap();
+            assert_eq!(out, bytes, "{name} must still be exact via RAW");
+            assert_eq!(report.kind.name(), "RAW", "{name} raw lane");
+        }
+        assert!(!detect(b"plain text, not a PDF", Limits::DEFAULT));
+    }
+}

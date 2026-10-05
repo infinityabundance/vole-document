@@ -154,6 +154,14 @@ impl Header {
     pub fn is_opaque(&self) -> bool {
         self.source_format == SOURCE_FORMAT_OPAQUE
     }
+
+    /// True if this build has an adapter for the declared source-format class.
+    ///
+    /// Unknown classes fail closed: a descriptor naming a class this build does
+    /// not implement is refused rather than reinterpreted as opaque.
+    pub fn source_format_supported(&self) -> bool {
+        matches!(self.source_format, 0 | 1)
+    }
 }
 
 #[cfg(test)]

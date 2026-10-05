@@ -27,9 +27,13 @@ are evidence.
 | Entropy-seed **capsule** (full decoder-entry state) | 2 | ADOPTED | ADR-0006; never a scalar "magic seed" |
 | RLE candidate (`REPEAT_LAST` run-length) | 2 | ADOPTED | campaign `2026-10-05-phase2-f6af30b`; wins long runs |
 | BYTE_RANS candidate (order-0 byte channel) | 2 | ADOPTED | campaign `2026-10-05-phase2-f6af30b`; wins skewed + English-like text, model bytes charged |
-| PDF byte-authoritative physical scanner | 3 | PROPOSED | sees Phase 0 research synthesis |
+| PDF lexical span cover (Phase 3.1) | 3 | ADOPTED | campaign `2026-10-05-phase3-486aa17`; hostile-safe contiguous cover of `[0,len)` |
+| PDF byte-authoritative physical scanner (Phase 3.2–3.3) | 3 | ADOPTED | campaign `2026-10-05-phase3-486aa17`; structural spans, `/Length` resolution, CRLF/LF handling |
+| PDF incremental revision map (Phase 3.4) | 3 | ADOPTED | campaign `2026-10-05-phase3-486aa17`; append-only revisions, `/Prev` chain, `/Size` never decreases |
+| PDF object roles (xref-stream / object-stream detection) | 3 | ADOPTED | campaign `2026-10-05-phase3-486aa17`; conservative `/Type` classification |
+| qpdf differential oracle court | 3 | ADOPTED | campaign `2026-10-05-phase3-486aa17`; object-number agreement 100%; oracle, never byte authority |
 | PDF lexical/structural channels | 4 | PROPOSED | — |
-| PDF xref/`startxref`/`/Length`/revision proceduralization | 5 | PROPOSED | high-value target |
+| PDF xref/`startxref`/`/Length`/revision proceduralization | 5 | PROPOSED | high-value target; structural compression not yet measured |
 | Exact DEFLATE replay (`preflate-rs`) | 6 | PROPOSED | candidate, per-stream, exactness first |
 | Nested PDF content proceduralization | 7 | PROPOSED | the clearest embodiment of the thesis |
 | PDF grammar/templates | 8 | PROPOSED | must pay definition cost |
@@ -40,9 +44,35 @@ are evidence.
 | Cross-document proceduralization | 12+ | PROPOSED | — |
 | Non-PDF adapters (DOCX/ODT/EPUB/…) | later | PROPOSED | adapters over the same core |
 
-PDF and every other format-aware adapter remain **PROPOSED**: Phase 2 measured
-only the order-0 typed byte entropy floor over an opaque mixed corpus. No PDF
-structural, residual, or cross-document mechanism has been measured yet.
+The PDF **physical authority** (lexer span cover, structural scanner, revision
+map, and object roles) is `ADOPTED` as of Phase 3 (campaign
+`2026-10-05-phase3-486aa17`). PDF **structural compression** —
+xref/`startxref`/`/Length` proceduralization, stream replay, and typed
+residuals — and every cross-document mechanism remain `PROPOSED` (Phases 5+).
+Phase 2 measured only the order-0 typed byte entropy floor over an opaque mixed
+corpus; no PDF structural or residual mechanism has been measured yet, and the
+literal PDF candidate deliberately loses to RAW in Phase 3.
+
+### Phase 3 scope and the recorded RAW win
+
+- **Physical authority only.** Phase 3 establishes the owned, byte-authoritative
+  PDF physical view: a lexical span cover, a conservative structural scanner
+  (`%PDF-`, `obj`/`endobj`, `stream`/`endstream`, `xref`, `trailer`,
+  `startxref`, `%%EOF`), `/Length` resolution, and an append-only revision map.
+  Coverage and exactness gates pass (`all_covered = true`, `all_exact = true`)
+  on the deterministic 9-item corpus.
+- **Detection is validated, not extension-based.** A file is a PDF only when
+  the bytes contain a `%PDF-` header, at least one complete indirect object, and
+  at least one `%%EOF`; otherwise it falls back to the opaque exact lane.
+- **The PDF candidate loses to RAW on purpose.** The Phase-3 candidate persists
+  the physical partition as one literal `INLINE` op per span and performs no
+  structural compression, so RAW won all 9 items and `PDF_PHYSICAL` won 0. This
+  is the expected result, recorded rather than hidden; structural wins are
+  Phase 5+.
+- **qpdf is an oracle.** Object-number agreement is 100% on the differential
+  court (classic 4/4, two-page 6/6, incremental 5/5). Objects inside object
+  streams have no physical `N G obj` marker and are expected to diverge from
+  qpdf's semantic view; qpdf is never the byte authority.
 
 ### Phase 2 scope, feature gating, and honest limits
 

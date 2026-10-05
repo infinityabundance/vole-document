@@ -1,0 +1,4 @@
+{"file":"notpdf.bin","control":"non_pdf","is_pdf":false,"ok":true}
+{"file":"classic.pdf","is_pdf":true,"our_count":4,"qpdf_count":4,"matched":["1","2","3","4"],"matched_count":4,"our_only":[],"our_only_count":0,"qpdf_only":[],"qpdf_only_count":0,"qpdf_check":"valid","qpdf_check_rc":0,"pdfinfo_pages":"1"}
+{"file":"twopage.pdf","is_pdf":true,"our_count":6,"qpdf_count":6,"matched":["1","2","3","4","5","6"],"matched_count":6,"our_only":[],"our_only_count":0,"qpdf_only":[],"qpdf_only_count":0,"qpdf_check":"valid","qpdf_check_rc":0,"pdfinfo_pages":"2"}
+{"file":"incremental.pdf","is_pdf":true,"our_count":5,"qpdf_count":5,"matched":["1","2","3","4","5"],"matched_count":5,"our_only":[],"our_only_count":0,"qpdf_only":[],"qpdf_only_count":0,"qpdf_check":"valid","qpdf_check_rc":0,"pdfinfo_pages":"1"}

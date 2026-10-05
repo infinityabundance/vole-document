@@ -5,6 +5,7 @@
 //! source bytes and wins the complete-cost court.
 
 pub mod opaque;
+pub mod pdf;
 
 /// The source-format class decision for an input.
 ///

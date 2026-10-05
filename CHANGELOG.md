@@ -2,6 +2,51 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.3] — unreleased
+
+### Added
+
+- Phase 3 — byte-authoritative PDF physical authority:
+  - Owned PDF lexical scanner (whitespace, comments, literal/hex strings with
+    escapes and nesting, names, delimiters, regular tokens) producing a
+    contiguous, non-overlapping span cover of `[0, len)`.
+  - Conservative physical structure scanner: `%PDF-` header, `obj`/`endobj`,
+    `stream`/`endstream`, `xref`, `trailer`, `startxref`, `%%EOF`, and comments;
+    stream payloads are treated as opaque bytes when `/Length` is unusable.
+  - Direct/indirect `/Length` resolution with CRLF/LF handling, and an
+    append-only revision map (`/Prev` chain; `/Size` never decreases).
+  - xref-stream and object-stream structural role detection.
+  - Validated PDF detection (a `%PDF-` header **and** an indirect object **and**
+    `%%EOF`); file extensions are never authority.
+  - `PdfPhysical` view plus a `PDF_PHYSICAL` candidate that persists the physical
+    partition as one literal `INLINE` op per span, with conservative opaque
+    fallback. Span kinds are deterministic analysis metadata recomputable by
+    `scan`.
+- `source_format = 1` (PDF) and the Phase-3 universe string
+  `vole-document;universe;phase-3;exact-bytes;dra-2;opaque+entropy+pdf`.
+- Courts: `tests/pdf.rs` (total coverage, forced physical exactness, validated
+  detection, revision mapping, hostile random bytes) and the qpdf differential
+  oracle `tools/pdf-oracle.sh`.
+
+### Measured
+
+- Campaign `2026-10-05-phase3-486aa17` (verdict PASS): deterministic 9-item
+  corpus (7 valid PDFs plus `malformed.pdf` and `notpdf.bin` negative controls).
+  Coverage `all_covered = true` — 171 spans, 19 objects, 8 revisions; exactness
+  `all_exact = true` (`materialize(descriptor) == original_bytes` for every
+  item). qpdf 11.3 oracle: 100% object-number agreement (classic 4/4, two-page
+  6/6, incremental 5/5), `qpdf --check` valid, `pdfinfo` pages 1/2/1. Court
+  outcome: RAW won all 9 items and `PDF_PHYSICAL` won 0 — the expected Phase-3
+  result, because the literal physical lane carries no structural compression
+  yet (that is Phase 5). Receipt under
+  `evidence/campaigns/2026-10-05-phase3-486aa17/`.
+
+### Notes
+
+- The wire format remains **PROVISIONAL** and is not frozen v1. The PDF physical
+  authority is implemented and measured; PDF structural compression and
+  xref/`/Length` proceduralization remain `PROPOSED` (Phases 5+).
+
 ## [0.1.0-alpha.2] — unreleased
 
 ### Added
