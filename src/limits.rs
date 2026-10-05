@@ -41,6 +41,13 @@ pub struct Limits {
     pub max_entropy_model_bytes: u32,
     /// Maximum number of lexical spans produced for a PDF input.
     pub max_pdf_spans: u32,
+    /// Maximum number of selectors in a single `OBSERVATION_INDEX` record.
+    ///
+    /// Bounds the admissions of the optional partial-decode index (Phase 7.3)
+    /// before allocation: an index whose selector table would exceed this is
+    /// rejected at parse and declined by the index builder. It mirrors the
+    /// object/graph scale so the table cannot dwarf the document it describes.
+    pub max_index_selectors: u32,
 }
 
 impl Limits {
@@ -59,6 +66,7 @@ impl Limits {
         max_channel_count: 1 << 16,
         max_entropy_model_bytes: 4096,
         max_pdf_spans: 1 << 26,
+        max_index_selectors: 1 << 20,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -76,6 +84,7 @@ impl Limits {
         max_channel_count: 1 << 12,
         max_entropy_model_bytes: 4096,
         max_pdf_spans: 1 << 16,
+        max_index_selectors: 1 << 16,
     };
 }
 

@@ -238,6 +238,12 @@ impl ObservationIndex {
         let mut selectors = Vec::new();
         if section_flags & SECTION_PDF_SELECTORS != 0 {
             let count = read_u32(bytes, &mut p)?;
+            if count > limits.max_index_selectors {
+                return Err(Error::resource_limit(format!(
+                    "observation index selector_count {count} exceeds limit {}",
+                    limits.max_index_selectors
+                )));
+            }
             let count = count as usize;
             require(bytes, p, count, SELECTOR_ENTRY_LEN)?;
             selectors.reserve(count);

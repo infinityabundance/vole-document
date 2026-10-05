@@ -11,11 +11,15 @@ use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use vole_document::adapter::pdf;
+#[cfg(feature = "rans")]
+use vole_document::container::ParsedDescriptor;
 use vole_document::container::UNIVERSE;
 use vole_document::dra::Op;
 use vole_document::encode::candidates::CandidateKind;
 use vole_document::error::{Error, Result};
 use vole_document::limits::Limits;
+#[cfg(feature = "rans")]
+use vole_document::materialize::observation::{ObservationReport, ObservationSelector};
 use vole_document::{encode, integrity, materialize};
 
 const USAGE_HEAD: &str = "\
@@ -37,11 +41,20 @@ const USAGE_DEFLATE_STATS: &str = "    vole-document deflate-stats INPUT...\n";
 #[cfg(not(feature = "deflate-replay"))]
 const USAGE_DEFLATE_STATS: &str = "";
 
+/// The `view` line is advertised only when the entropy decoder is built in.
+#[cfg(feature = "rans")]
+const USAGE_VIEW: &str = "\
+    vole-document view      INPUT.voldoc [OUTPUT] --byte-range A:L | --pdf-object N:G |\n\
+        --pdf-stream N:G | --pdf-revision I [--stats]\n";
+#[cfg(not(feature = "rans"))]
+const USAGE_VIEW: &str = "";
+
 const USAGE_TAIL: &str = "\
     vole-document capabilities
 
 KIND (for encode --force): raw | rle | byte-rans | pdf-physical | pdf-channels |
-    pdf-layout | pdf-layout-rans | pdf-deflate-replay | pdf-deflate-replay-rans
+    pdf-layout | pdf-layout-rans | pdf-deflate-replay | pdf-deflate-replay-rans |
+    pdf-deflate-replay-rans-indexed
     Forces the complete-cost court to consider only that candidate family, for
     honest per-mechanism ablation. Fails when the input does not propose it.
 
@@ -55,7 +68,7 @@ EXIT CODES:
 /// The full usage text, with the replay-gated command line included only when
 /// the feature is present.
 fn usage() -> String {
-    format!("{USAGE_HEAD}{USAGE_DEFLATE_STATS}{USAGE_TAIL}")
+    format!("{USAGE_HEAD}{USAGE_VIEW}{USAGE_DEFLATE_STATS}{USAGE_TAIL}")
 }
 
 fn main() -> ExitCode {
@@ -122,6 +135,8 @@ fn run(args: &[String]) -> Result<()> {
             let input = arg(args, 2, "INPUT.voldoc")?;
             cmd_inspect(&input, limits)
         }
+        #[cfg(feature = "rans")]
+        "view" => cmd_view_args(args, limits),
         "pdf-inspect" => {
             let input = arg(args, 2, "INPUT")?;
             cmd_pdf_inspect(&input, limits)
@@ -232,9 +247,239 @@ fn parse_force_kind(s: &str) -> Result<CandidateKind> {
         "pdf-layout-rans" => Ok(CandidateKind::PdfLayoutRans),
         "pdf-deflate-replay" => Ok(CandidateKind::PdfDeflateReplay),
         "pdf-deflate-replay-rans" => Ok(CandidateKind::PdfDeflateReplayRans),
+        "pdf-deflate-replay-rans-indexed" => Ok(CandidateKind::PdfDeflateReplayRansIndexed),
         other => Err(Error::usage(format!(
-            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans, pdf-deflate-replay, pdf-deflate-replay-rans"
+            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans, pdf-deflate-replay, pdf-deflate-replay-rans, pdf-deflate-replay-rans-indexed"
         ))),
+    }
+}
+
+/// Parse and dispatch the `view` subcommand: serve a narrow observation of a
+/// `.voldoc` that carries an `OBSERVATION_INDEX`.
+///
+/// Exactly one selector flag is required. `--stats` with no `OUTPUT` prints the
+/// stats object only (no bytes); otherwise bytes go to `OUTPUT` atomically or to
+/// stdout, with the stats object on stdout (or stderr when bytes occupy stdout).
+#[cfg(feature = "rans")]
+fn cmd_view_args(args: &[String], limits: Limits) -> Result<()> {
+    let mut selector: Option<ObservationSelector> = None;
+    let mut stats = false;
+    let mut positional: Vec<&str> = Vec::new();
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        if a == "--stats" {
+            stats = true;
+            i += 1;
+        } else if let Some(v) = a.strip_prefix("--byte-range=") {
+            set_selector(&mut selector, parse_byte_range(v)?)?;
+            i += 1;
+        } else if let Some(v) = a.strip_prefix("--pdf-object=") {
+            set_selector(&mut selector, parse_pdf_object(v)?)?;
+            i += 1;
+        } else if let Some(v) = a.strip_prefix("--pdf-stream=") {
+            set_selector(&mut selector, parse_pdf_stream(v)?)?;
+            i += 1;
+        } else if let Some(v) = a.strip_prefix("--pdf-revision=") {
+            set_selector(&mut selector, parse_pdf_revision(v)?)?;
+            i += 1;
+        } else if a == "--byte-range" {
+            let v = args
+                .get(i + 1)
+                .ok_or_else(|| Error::usage("--byte-range requires A:L"))?;
+            set_selector(&mut selector, parse_byte_range(v)?)?;
+            i += 2;
+        } else if a == "--pdf-object" {
+            let v = args
+                .get(i + 1)
+                .ok_or_else(|| Error::usage("--pdf-object requires N:G"))?;
+            set_selector(&mut selector, parse_pdf_object(v)?)?;
+            i += 2;
+        } else if a == "--pdf-stream" {
+            let v = args
+                .get(i + 1)
+                .ok_or_else(|| Error::usage("--pdf-stream requires N:G"))?;
+            set_selector(&mut selector, parse_pdf_stream(v)?)?;
+            i += 2;
+        } else if a == "--pdf-revision" {
+            let v = args
+                .get(i + 1)
+                .ok_or_else(|| Error::usage("--pdf-revision requires I"))?;
+            set_selector(&mut selector, parse_pdf_revision(v)?)?;
+            i += 2;
+        } else {
+            positional.push(a);
+            i += 1;
+        }
+    }
+
+    let selector = selector.ok_or_else(|| {
+        Error::usage(
+            "view requires exactly one of --byte-range, --pdf-object, --pdf-stream, --pdf-revision",
+        )
+    })?;
+    let input = positional
+        .first()
+        .map(PathBuf::from)
+        .ok_or_else(|| Error::usage("missing argument INPUT.voldoc"))?;
+    if positional.len() > 2 {
+        return Err(Error::usage(format!(
+            "unexpected extra argument {:?}",
+            positional[2]
+        )));
+    }
+    let output = positional.get(1).map(PathBuf::from);
+    cmd_view(&input, output.as_deref(), selector, stats, limits)
+}
+
+/// Record the one selector a `view` invocation may carry.
+#[cfg(feature = "rans")]
+fn set_selector(
+    slot: &mut Option<ObservationSelector>,
+    selector: ObservationSelector,
+) -> Result<()> {
+    if slot.is_some() {
+        return Err(Error::usage(
+            "view accepts exactly one selector; more than one was given",
+        ));
+    }
+    *slot = Some(selector);
+    Ok(())
+}
+
+#[cfg(feature = "rans")]
+fn parse_byte_range(value: &str) -> Result<ObservationSelector> {
+    let (offset, len) = value
+        .split_once(':')
+        .ok_or_else(|| Error::usage("--byte-range must be A:L (e.g. 1024:4096)"))?;
+    let offset: u64 = offset
+        .parse()
+        .map_err(|_| Error::usage(format!("--byte-range offset {offset:?} is not a u64")))?;
+    let len: u64 = len
+        .parse()
+        .map_err(|_| Error::usage(format!("--byte-range length {len:?} is not a u64")))?;
+    Ok(ObservationSelector::ByteRange { offset, len })
+}
+
+#[cfg(feature = "rans")]
+fn parse_pdf_object(value: &str) -> Result<ObservationSelector> {
+    let (object, generation) = parse_n_g(value, "--pdf-object")?;
+    Ok(ObservationSelector::PdfIndirectObject { object, generation })
+}
+
+#[cfg(feature = "rans")]
+fn parse_pdf_stream(value: &str) -> Result<ObservationSelector> {
+    let (object, generation) = parse_n_g(value, "--pdf-stream")?;
+    Ok(ObservationSelector::PdfEncodedStream { object, generation })
+}
+
+#[cfg(feature = "rans")]
+fn parse_pdf_revision(value: &str) -> Result<ObservationSelector> {
+    let index: u32 = value
+        .parse()
+        .map_err(|_| Error::usage(format!("--pdf-revision {value:?} is not a u32")))?;
+    Ok(ObservationSelector::PdfRevision { index })
+}
+
+#[cfg(feature = "rans")]
+fn parse_n_g(value: &str, flag: &str) -> Result<(u32, u16)> {
+    let (n, g) = value
+        .split_once(':')
+        .ok_or_else(|| Error::usage(format!("{flag} must be N:G (e.g. 4:0)")))?;
+    let object: u32 = n
+        .parse()
+        .map_err(|_| Error::usage(format!("{flag} object {n:?} is not a u32")))?;
+    let generation: u16 = g
+        .parse()
+        .map_err(|_| Error::usage(format!("{flag} generation {g:?} is not a u16")))?;
+    Ok((object, generation))
+}
+
+#[cfg(feature = "rans")]
+fn cmd_view(
+    input: &Path,
+    output: Option<&Path>,
+    selector: ObservationSelector,
+    stats: bool,
+    limits: Limits,
+) -> Result<()> {
+    let encoded = fs::read(input)?;
+    let parsed = vole_document::container::Descriptor::parse(&encoded, limits)?;
+    let report = vole_document::materialize::observation::materialize_observation(
+        &parsed, selector, limits,
+    )?;
+    let json = observation_json(&selector, &parsed, &report);
+    match output {
+        Some(path) => {
+            write_atomic(path, &report.bytes)?;
+            println!("{json}");
+        }
+        // Stats-only: no bytes are emitted, so stdout stays a single JSON line.
+        None if stats => println!("{json}"),
+        None => {
+            std::io::stdout()
+                .write_all(&report.bytes)
+                .map_err(Error::from)?;
+            eprintln!("{json}");
+        }
+    }
+    Ok(())
+}
+
+/// One JSON line describing a served observation and its measured cost.
+#[cfg(feature = "rans")]
+fn observation_json(
+    selector: &ObservationSelector,
+    parsed: &ParsedDescriptor,
+    report: &ObservationReport,
+) -> String {
+    let s = &report.stats;
+    format!(
+        concat!(
+            "{{",
+            "\"ok\":true,",
+            "\"selector\":\"{}\",",
+            "\"source_len\":{},",
+            "\"bytes\":{},",
+            "\"ops_evaluated\":{},",
+            "\"ops_total\":{},",
+            "\"objects_fetched\":{},",
+            "\"objects_total\":{},",
+            "\"channels_decoded\":{},",
+            "\"channels_total\":{},",
+            "\"entropy_bytes_decoded\":{},",
+            "\"descriptor_bytes_traversed\":{},",
+            "\"output_bytes\":{},",
+            "\"work_amplification\":{:.6}",
+            "}}"
+        ),
+        selector_label(selector),
+        parsed.descriptor.source_len,
+        report.bytes.len(),
+        s.ops_evaluated,
+        s.ops_total,
+        s.objects_fetched,
+        s.objects_total,
+        s.channels_decoded,
+        s.channels_total,
+        s.entropy_bytes_decoded,
+        s.descriptor_bytes_traversed,
+        s.output_bytes,
+        s.work_amplification(),
+    )
+}
+
+#[cfg(feature = "rans")]
+fn selector_label(selector: &ObservationSelector) -> String {
+    match selector {
+        ObservationSelector::ByteRange { offset, len } => format!("byte-range:{offset}:{len}"),
+        ObservationSelector::PdfIndirectObject { object, generation } => {
+            format!("pdf-object:{object}:{generation}")
+        }
+        ObservationSelector::PdfEncodedStream { object, generation } => {
+            format!("pdf-stream:{object}:{generation}")
+        }
+        ObservationSelector::PdfRevision { index } => format!("pdf-revision:{index}"),
     }
 }
 

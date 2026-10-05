@@ -396,6 +396,7 @@ fn limits_never_change_reconstructed_bytes() {
         max_channel_count: 1 << 20,
         max_entropy_model_bytes: 1 << 20,
         max_pdf_spans: 1 << 26,
+        max_index_selectors: 1 << 26,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

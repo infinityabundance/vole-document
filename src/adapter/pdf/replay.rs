@@ -27,6 +27,11 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::SOURCE_FORMAT_PDF;
+#[cfg(feature = "rans")]
+use crate::container::observation::{
+    DEP_CHANNEL, DEP_NONE, DEP_OBJECT, ObservationIndex, ObservationSelector, OpEntry,
+    SECTION_OP_TABLE, SECTION_PDF_SELECTORS, SELECTOR_OBJECT, SELECTOR_REVISION, SELECTOR_STREAM,
+};
 use crate::container::{Descriptor, UNIVERSE};
 use crate::dra::op::{DEFLATE_SOURCE_CHANNEL, DEFLATE_SOURCE_OBJECT};
 use crate::dra::{Op, Program};
@@ -165,6 +170,26 @@ pub fn propose_pdf_deflate_replay(input: &[u8], limits: Limits) -> Result<Option
 /// or when no stream replays exactly.
 #[cfg(feature = "rans")]
 pub fn propose_pdf_deflate_replay_rans(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
+    Ok(
+        build_pdf_deflate_replay_rans(input, limits)?.map(|(_, descriptor)| Candidate {
+            kind: CandidateKind::PdfDeflateReplayRans,
+            descriptor,
+        }),
+    )
+}
+
+/// Build the `PDF_DEFLATE_REPLAY_RANS` descriptor together with the physical
+/// scan it was derived from.
+///
+/// The scan is returned so the indexed variant can attach an
+/// [`ObservationIndex`] without re-scanning (and so the two views can never
+/// disagree about offsets). The descriptor is byte-identical to what
+/// [`propose_pdf_deflate_replay_rans`] returned before the indexed lane existed.
+#[cfg(feature = "rans")]
+fn build_pdf_deflate_replay_rans(
+    input: &[u8],
+    limits: Limits,
+) -> Result<Option<(PdfPhysical, Descriptor)>> {
     use crate::entropy::{
         CODER_ORDER0_BYTE_RANS, CODER_VERSION_1, EntropyChannelDescriptor, EntropyModel,
         encode_channel,
@@ -270,10 +295,200 @@ pub fn propose_pdf_deflate_replay_rans(input: &[u8], limits: Limits) -> Result<O
         source_len: input.len() as u64,
     };
 
+    Ok(Some((physical, descriptor)))
+}
+
+/// Propose a `PDF_DEFLATE_REPLAY_RANS_INDEXED` candidate: the exact
+/// `PDF_DEFLATE_REPLAY_RANS` descriptor plus an advisory [`ObservationIndex`].
+///
+/// The index is built from the same [`PdfPhysical`] scan that produced the
+/// descriptor's spans, so its PDF-selector ranges are the source offsets the
+/// program reproduces. It is never authority: `Descriptor::parse` re-derives the
+/// op table with `Program::analyze_ops` and rejects any disagreement, and the
+/// complete-cost court charges the record's bytes.
+///
+/// Declines (`Ok(None)`) honestly on any limit breach -- too many ops or
+/// selectors, an op output that does not fit `u32`, an index record larger than
+/// `max_record_len`, a selector outside the source, or a value that does not fit
+/// the selector's `u32`/`u16` fields -- so a reader never receives an index the
+/// program contradicts.
+#[cfg(all(feature = "deflate-replay", feature = "rans"))]
+pub fn propose_pdf_deflate_replay_rans_indexed(
+    input: &[u8],
+    limits: Limits,
+) -> Result<Option<Candidate>> {
+    let Some((physical, mut descriptor)) = build_pdf_deflate_replay_rans(input, limits)? else {
+        return Ok(None);
+    };
+    let Some(index) = build_observation_index(&physical, &descriptor, limits)? else {
+        return Ok(None);
+    };
+    descriptor.observation_index = Some(index);
     Ok(Some(Candidate {
-        kind: CandidateKind::PdfDeflateReplayRans,
+        kind: CandidateKind::PdfDeflateReplayRansIndexed,
         descriptor,
     }))
+}
+
+/// Build the advisory observation index for a linear replay program.
+///
+/// The op table is derived from [`Program::analyze_ops`] (authoritative), and
+/// each entry records the op's primary dependency. The PDF selector table is
+/// derived from the same physical scan: the replay program reproduces the source
+/// in physical span order, so an output offset equals the corresponding source
+/// offset, and the object/stream/revision ranges are the scanner's own spans.
+#[cfg(feature = "rans")]
+fn build_observation_index(
+    physical: &PdfPhysical,
+    descriptor: &Descriptor,
+    limits: Limits,
+) -> Result<Option<ObservationIndex>> {
+    let object_lens: Vec<u64> = descriptor.objects.iter().map(|o| o.len() as u64).collect();
+    let channel_lens: Vec<u64> = descriptor
+        .channels
+        .iter()
+        .map(|c| c.decoded_length)
+        .collect();
+    // The program is authoritative. A limit breach declines the indexed lane
+    // rather than aborting the whole candidate court.
+    let per_op = match descriptor
+        .program
+        .analyze_ops(&object_lens, &channel_lens, limits)
+    {
+        Ok(v) => v,
+        Err(_) => return Ok(None),
+    };
+    if per_op.len() != descriptor.program.ops.len() {
+        return Ok(None);
+    }
+
+    let mut ops: Vec<OpEntry> = Vec::with_capacity(per_op.len());
+    for (i, len) in per_op.iter().enumerate() {
+        let Ok(out_len) = u32::try_from(*len) else {
+            return Ok(None);
+        };
+        let (dep_kind, dep_id) = primary_dependency(&descriptor.program.ops[i]);
+        ops.push(OpEntry {
+            out_len,
+            dep_kind,
+            dep_id,
+        });
+    }
+
+    // Bound the selector table before allocation.
+    let raw_count = physical
+        .objects
+        .len()
+        .saturating_add(physical.streams.len())
+        .saturating_add(physical.revisions.len());
+    if raw_count as u64 > u64::from(limits.max_index_selectors) {
+        return Ok(None);
+    }
+
+    let mut selectors: Vec<ObservationSelector> = Vec::with_capacity(raw_count);
+    let mut seen: HashSet<(u8, u32, u32)> = HashSet::new();
+
+    for o in &physical.objects {
+        let (Ok(number), Ok(generation)) = (u32::try_from(o.number), u32::try_from(o.generation))
+        else {
+            return Ok(None);
+        };
+        let len = o.end.saturating_sub(o.start);
+        if len == 0
+            || o.end > descriptor.source_len
+            || !seen.insert((SELECTOR_OBJECT, number, generation))
+        {
+            continue;
+        }
+        selectors.push(ObservationSelector {
+            kind: SELECTOR_OBJECT,
+            number,
+            generation,
+            out_off: o.start,
+            out_len: len,
+        });
+    }
+    for s in &physical.streams {
+        let (Ok(number), Ok(generation)) = (u32::try_from(s.object), u32::try_from(s.generation))
+        else {
+            return Ok(None);
+        };
+        let end = s.data_start.saturating_add(s.data_len);
+        if s.data_len == 0
+            || end > descriptor.source_len
+            || !seen.insert((SELECTOR_STREAM, number, generation))
+        {
+            continue;
+        }
+        selectors.push(ObservationSelector {
+            kind: SELECTOR_STREAM,
+            number,
+            generation,
+            out_off: s.data_start,
+            out_len: s.data_len,
+        });
+    }
+    for r in &physical.revisions {
+        let len = r.end.saturating_sub(r.start);
+        if len == 0
+            || r.end > descriptor.source_len
+            || !seen.insert((SELECTOR_REVISION, r.index, 0))
+        {
+            continue;
+        }
+        selectors.push(ObservationSelector {
+            kind: SELECTOR_REVISION,
+            number: r.index,
+            generation: 0,
+            out_off: r.start,
+            out_len: len,
+        });
+    }
+
+    // Deterministic order required by the index contract.
+    selectors.sort_by_key(|s| (s.kind, s.number, s.generation, s.out_off));
+
+    let index = ObservationIndex {
+        section_flags: SECTION_OP_TABLE | SECTION_PDF_SELECTORS,
+        ops,
+        selectors,
+        digests: Vec::new(),
+    };
+
+    // The advisory record must fit one bounded record.
+    if index.encode()?.len() as u64 > u64::from(limits.max_record_len) {
+        return Ok(None);
+    }
+    Ok(Some(index))
+}
+
+/// The primary dependency of an op: the object or channel its output is read
+/// from, or [`DEP_NONE`] for literal/bookkeeping ops.
+///
+/// "Primary" is the one dependency the index labels; secondary dependencies
+/// (for example a replay's corrections object) are not represented. This is
+/// advisory metadata only and is re-checked against the op at parse time.
+#[cfg(feature = "rans")]
+fn primary_dependency(op: &Op) -> (u8, u32) {
+    match op {
+        Op::EmitObject { object_id } => (DEP_OBJECT, *object_id),
+        Op::DecodeChannel { channel_id } => (DEP_CHANNEL, *channel_id),
+        Op::InterleaveChannels { kinds_channel, .. } => (DEP_CHANNEL, *kinds_channel),
+        Op::PackSegments { data_object, .. } => (DEP_OBJECT, *data_object),
+        Op::PackedChannels { data_channel, .. } => (DEP_CHANNEL, *data_channel),
+        Op::DeflateReplay {
+            source_kind,
+            source_id,
+            ..
+        } => match *source_kind {
+            DEFLATE_SOURCE_CHANNEL => (DEP_CHANNEL, *source_id),
+            _ => (DEP_OBJECT, *source_id),
+        },
+        Op::Inline { .. }
+        | Op::MarkOffset { .. }
+        | Op::EmitOffset { .. }
+        | Op::RepeatLast { .. } => (DEP_NONE, 0),
+    }
 }
 
 /// Append `bytes` to `objects`, returning the index of an existing equal object
