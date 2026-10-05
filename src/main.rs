@@ -391,6 +391,11 @@ fn describe_op(op: &Op) -> String {
         Op::PackSegments { data_object, items } => {
             format!("PACK_SEGMENTS({data_object},{})", items.len())
         }
+        Op::PackedChannels {
+            data_channel,
+            plan_channel,
+            declared_output_len,
+        } => format!("PACKED_CHANNELS({data_channel},{plan_channel},{declared_output_len})"),
     }
 }
 

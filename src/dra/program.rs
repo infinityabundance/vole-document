@@ -1,11 +1,11 @@
 //! Reconstruction program, coverage certificate, and bounded evaluation.
 
-use crate::dra::op::{Op, PackItem};
+use crate::dra::op::{Op, PackItem, decode_items};
 use crate::error::{Error, Result};
 use crate::limits::Limits;
 
 /// DRA version carried in the graph record.
-pub const DRA_VERSION: u8 = 5;
+pub const DRA_VERSION: u8 = 6;
 
 /// Number of positional-offset slots addressable by [`Op::MarkOffset`] and
 /// [`Op::EmitOffset`]. Slot indices must be strictly below this bound.
@@ -390,6 +390,44 @@ impl Program {
                     last_len = produced;
                     have_last = true;
                 }
+                Op::PackedChannels {
+                    data_channel,
+                    plan_channel,
+                    declared_output_len,
+                } => {
+                    if *data_channel as usize >= channel_lens.len() {
+                        return Err(Error::invalid_graph(format!(
+                            "graph references missing entropy channel {data_channel}"
+                        )));
+                    }
+                    if *plan_channel as usize >= channel_lens.len() {
+                        return Err(Error::invalid_graph(format!(
+                            "graph references missing entropy channel {plan_channel}"
+                        )));
+                    }
+                    if *declared_output_len > limits.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "PACKED_CHANNELS declared output {declared_output_len} exceeds limit {}",
+                            limits.max_output_bytes
+                        )));
+                    }
+                    // The plan channel's byte length is knowable structurally,
+                    // but the produced length is only proved by evaluation; the
+                    // declared length is the static prediction.
+                    let len = *declared_output_len;
+                    total = total
+                        .checked_add(len)
+                        .ok_or_else(|| Error::resource_limit("output length overflow"))?;
+                    if len > 0 {
+                        spans.push(Span {
+                            start: total - len,
+                            len,
+                            authority: Authority::Generated,
+                        });
+                    }
+                    last_len = len;
+                    have_last = true;
+                }
             }
             if total > limits.max_output_bytes {
                 return Err(Error::resource_limit(format!(
@@ -611,69 +649,32 @@ impl Program {
                         ))
                     })?;
                     let start = out.len();
-                    let mut cursor: usize = 0;
-                    let mut slots: [Option<u64>; MAX_OFFSET_SLOTS] = [None; MAX_OFFSET_SLOTS];
-                    for item in items {
-                        match item {
-                            PackItem::Literal { len } => {
-                                let len = *len as usize;
-                                let end = cursor.checked_add(len).ok_or_else(|| {
-                                    Error::invalid_graph("packed data cursor overflow")
-                                })?;
-                                if end > data.len() {
-                                    return Err(Error::invalid_graph(format!(
-                                        "packed literal reads {len} bytes past data object ({cursor}..{end} of {})",
-                                        data.len()
-                                    )));
-                                }
-                                out.extend_from_slice(&data[cursor..end]);
-                                cursor = end;
-                            }
-                            PackItem::Mark { slot } => {
-                                let idx = *slot as usize;
-                                if idx >= MAX_OFFSET_SLOTS {
-                                    return Err(Error::invalid_graph(format!(
-                                        "PACK_SEGMENTS mark slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
-                                    )));
-                                }
-                                slots[idx] = Some(out.len() as u64);
-                            }
-                            PackItem::Emit { slot, width } => {
-                                let idx = *slot as usize;
-                                if idx >= MAX_OFFSET_SLOTS {
-                                    return Err(Error::invalid_graph(format!(
-                                        "PACK_SEGMENTS emit slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
-                                    )));
-                                }
-                                if *width == 0 || *width > 20 {
-                                    return Err(Error::invalid_graph(format!(
-                                        "PACK_SEGMENTS emit width {width} is outside 1..=20"
-                                    )));
-                                }
-                                let value = slots[idx].ok_or_else(|| {
-                                    Error::invalid_graph(format!(
-                                        "PACK_SEGMENTS emit references unmarked slot {slot}"
-                                    ))
-                                })?;
-                                let digits = value.to_string();
-                                if digits.len() > *width as usize {
-                                    return Err(Error::invalid_graph(format!(
-                                        "PACK_SEGMENTS slot {slot} value {value} needs {} bytes but width is {width}",
-                                        digits.len()
-                                    )));
-                                }
-                                out.extend(std::iter::repeat_n(
-                                    b'0',
-                                    *width as usize - digits.len(),
-                                ));
-                                out.extend_from_slice(digits.as_bytes());
-                            }
-                        }
-                    }
-                    if cursor != data.len() {
+                    run_pack_items("PACK_SEGMENTS", items, data, &mut out, limits)?;
+                    block_len = out.len() - start;
+                    have_last = true;
+                }
+                Op::PackedChannels {
+                    data_channel,
+                    plan_channel,
+                    declared_output_len,
+                } => {
+                    let data = channels.get(*data_channel as usize).ok_or_else(|| {
+                        Error::invalid_graph(format!(
+                            "graph references missing entropy channel {data_channel}"
+                        ))
+                    })?;
+                    let plan = channels.get(*plan_channel as usize).ok_or_else(|| {
+                        Error::invalid_graph(format!(
+                            "graph references missing entropy channel {plan_channel}"
+                        ))
+                    })?;
+                    let items = decode_items(plan, limits)?;
+                    let start = out.len();
+                    run_pack_items("PACKED_CHANNELS", &items, data, &mut out, limits)?;
+                    let produced = (out.len() - start) as u64;
+                    if produced != *declared_output_len {
                         return Err(Error::invalid_graph(format!(
-                            "PACK_SEGMENTS did not fully consume data object {data_object} ({cursor} of {})",
-                            data.len()
+                            "PACKED_CHANNELS produced {produced} bytes but {declared_output_len} were declared"
                         )));
                     }
                     block_len = out.len() - start;
@@ -688,6 +689,89 @@ impl Program {
         }
         Ok(out)
     }
+}
+
+/// Interpret a packed item table over `data`, appending produced bytes to `out`.
+///
+/// Shared by [`Op::PackSegments`] (data from an object) and
+/// [`Op::PackedChannels`] (data from an entropy channel). The item semantics are
+/// identical: `Literal` copies contiguous data bytes, `Mark` records the current
+/// output position, and `Emit` renders a marked position as a fixed-width
+/// decimal. The data must be consumed exactly; all reads are bounds-checked and
+/// the running output is checked against [`Limits::max_output_bytes`].
+fn run_pack_items(
+    label: &str,
+    items: &[PackItem],
+    data: &[u8],
+    out: &mut Vec<u8>,
+    limits: Limits,
+) -> Result<()> {
+    let mut cursor: usize = 0;
+    let mut slots: [Option<u64>; MAX_OFFSET_SLOTS] = [None; MAX_OFFSET_SLOTS];
+    for item in items {
+        match item {
+            PackItem::Literal { len } => {
+                let len = *len as usize;
+                let end = cursor
+                    .checked_add(len)
+                    .ok_or_else(|| Error::invalid_graph("packed data cursor overflow"))?;
+                if end > data.len() {
+                    return Err(Error::invalid_graph(format!(
+                        "{label} literal reads {len} bytes past data ({cursor}..{end} of {})",
+                        data.len()
+                    )));
+                }
+                out.extend_from_slice(&data[cursor..end]);
+                cursor = end;
+            }
+            PackItem::Mark { slot } => {
+                let idx = *slot as usize;
+                if idx >= MAX_OFFSET_SLOTS {
+                    return Err(Error::invalid_graph(format!(
+                        "{label} mark slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
+                    )));
+                }
+                slots[idx] = Some(out.len() as u64);
+            }
+            PackItem::Emit { slot, width } => {
+                let idx = *slot as usize;
+                if idx >= MAX_OFFSET_SLOTS {
+                    return Err(Error::invalid_graph(format!(
+                        "{label} emit slot {slot} exceeds {MAX_OFFSET_SLOTS} slots"
+                    )));
+                }
+                if *width == 0 || *width > 20 {
+                    return Err(Error::invalid_graph(format!(
+                        "{label} emit width {width} is outside 1..=20"
+                    )));
+                }
+                let value = slots[idx].ok_or_else(|| {
+                    Error::invalid_graph(format!("{label} emit references unmarked slot {slot}"))
+                })?;
+                let digits = value.to_string();
+                if digits.len() > *width as usize {
+                    return Err(Error::invalid_graph(format!(
+                        "{label} slot {slot} value {value} needs {} bytes but width is {width}",
+                        digits.len()
+                    )));
+                }
+                out.extend(std::iter::repeat_n(b'0', *width as usize - digits.len()));
+                out.extend_from_slice(digits.as_bytes());
+            }
+        }
+        if out.len() as u64 > limits.max_output_bytes {
+            return Err(Error::resource_limit(
+                "output exceeds materialization limit",
+            ));
+        }
+    }
+    if cursor != data.len() {
+        return Err(Error::invalid_graph(format!(
+            "{label} did not fully consume data ({cursor} of {})",
+            data.len()
+        )));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1254,8 +1338,8 @@ mod tests {
     }
 
     #[test]
-    fn dra_version_is_five() {
-        assert_eq!(DRA_VERSION, 5);
+    fn dra_version_is_six() {
+        assert_eq!(DRA_VERSION, 6);
         let p = Program::new(vec![Op::Inline {
             bytes: b"x".to_vec(),
         }]);
@@ -1266,5 +1350,126 @@ mod tests {
         stale[0] = DRA_VERSION - 1;
         let e = Program::decode(&stale, Limits::DEFAULT).unwrap_err();
         assert_eq!(e.class(), crate::ErrorClass::UnsupportedVersion);
+    }
+
+    /// Data `b"abcdef"`, plan items `Literal{3}, Mark{0}, Literal{3}, Emit{0,3}`
+    /// reconstruct `abcdef003`.
+    fn packed_channels_program() -> Program {
+        Program::new(vec![Op::PackedChannels {
+            data_channel: 0,
+            plan_channel: 1,
+            declared_output_len: 9,
+        }])
+    }
+
+    fn packed_plan() -> Vec<u8> {
+        crate::dra::op::encode_items(&[
+            PackItem::Literal { len: 3 },
+            PackItem::Mark { slot: 0 },
+            PackItem::Literal { len: 3 },
+            PackItem::Emit { slot: 0, width: 3 },
+        ])
+        .unwrap()
+    }
+
+    #[test]
+    fn packed_channels_roundtrip() {
+        let channels = objs(&[b"abcdef", &packed_plan()]);
+        let p = packed_channels_program();
+        let (len, cov) = p.analyze_inputs(&[], &channels, Limits::DEFAULT).unwrap();
+        assert_eq!(len, 9);
+        cov.validate(9).unwrap();
+        assert_eq!(
+            cov.spans,
+            vec![Span {
+                start: 0,
+                len: 9,
+                authority: Authority::Generated,
+            }]
+        );
+        assert_eq!(
+            p.eval(&[], &channels, Limits::DEFAULT).unwrap(),
+            b"abcdef003"
+        );
+
+        // The plan codec and the op both round-trip through their wire forms.
+        assert_eq!(
+            crate::dra::op::decode_items(&packed_plan(), Limits::DEFAULT).unwrap(),
+            vec![
+                PackItem::Literal { len: 3 },
+                PackItem::Mark { slot: 0 },
+                PackItem::Literal { len: 3 },
+                PackItem::Emit { slot: 0, width: 3 },
+            ]
+        );
+        let enc = p.encode().unwrap();
+        assert_eq!(Program::decode(&enc, Limits::DEFAULT).unwrap(), p);
+    }
+
+    #[test]
+    fn packed_channels_declared_len_mismatch_errors() {
+        let channels = objs(&[b"abcdef", &packed_plan()]);
+        // Analysis only predicts the declared length; evaluation proves it.
+        let p = Program::new(vec![Op::PackedChannels {
+            data_channel: 0,
+            plan_channel: 1,
+            declared_output_len: 8,
+        }]);
+        let (len, _) = p.analyze_inputs(&[], &channels, Limits::DEFAULT).unwrap();
+        assert_eq!(len, 8);
+        let e = p.eval(&[], &channels, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn packed_channels_missing_channel_errors() {
+        let channels = objs(&[b"abcdef", &packed_plan()]);
+        let missing_data = Program::new(vec![Op::PackedChannels {
+            data_channel: 2,
+            plan_channel: 1,
+            declared_output_len: 9,
+        }]);
+        let e = missing_data
+            .analyze_inputs(&[], &channels, Limits::DEFAULT)
+            .unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+
+        let missing_plan = Program::new(vec![Op::PackedChannels {
+            data_channel: 0,
+            plan_channel: 2,
+            declared_output_len: 9,
+        }]);
+        let e = missing_plan
+            .analyze_inputs(&[], &channels, Limits::DEFAULT)
+            .unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn packed_channels_truncated_plan_errors() {
+        let plan = packed_plan();
+        let truncated = &plan[..plan.len() - 1];
+        let channels = objs(&[b"abcdef", truncated]);
+        let p = packed_channels_program();
+        // Analysis cannot see inside the plan; evaluation rejects truncation.
+        p.analyze_inputs(&[], &channels, Limits::DEFAULT).unwrap();
+        let e = p.eval(&[], &channels, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn packed_channels_rejects_unconsumed_data() {
+        // Plan consumes only three of the six data bytes.
+        let plan = crate::dra::op::encode_items(&[PackItem::Literal { len: 3 }]).unwrap();
+        let channels = objs(&[b"abcdef", &plan]);
+        let p = Program::new(vec![Op::PackedChannels {
+            data_channel: 0,
+            plan_channel: 1,
+            declared_output_len: 3,
+        }]);
+        let (len, _) = p.analyze_inputs(&[], &channels, Limits::DEFAULT).unwrap();
+        assert_eq!(len, 3);
+        let e = p.eval(&[], &channels, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
     }
 }
