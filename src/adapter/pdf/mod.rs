@@ -35,5 +35,7 @@ pub use physical::{
 pub use replay::propose_pdf_deflate_replay;
 #[cfg(all(feature = "deflate-replay", feature = "rans"))]
 pub use replay::propose_pdf_deflate_replay_rans;
+#[cfg(feature = "deflate-replay")]
+pub use replay::{DeflateStats, DeflateSummary, StreamStats, deflate_stats};
 pub use samples::{is_negative_control, sample_pdfs};
 pub use span::{Span, SpanKind, SpanSet};

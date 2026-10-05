@@ -110,6 +110,56 @@ pub fn replay_raw(plaintext: &[u8], corrections: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
+/// Why [`try_replay_detailed`] declined a stream.
+///
+/// Diagnostic only: the reason never changes whether a stream is admitted —
+/// [`try_replay`] and [`try_replay_detailed`] apply the *same* exact
+/// reconstruction gate, and only the carried reason differs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReplayDecline {
+    /// Shorter than [`MIN_ZLIB_LEN`].
+    TooShort,
+    /// Larger than the configured `max_input_bytes`.
+    TooLarge,
+    /// Not a structurally valid zlib (RFC 1950) header.
+    NotZlib,
+    /// No raw DEFLATE payload between the header and the Adler-32 trailer.
+    EmptyPayload,
+    /// The `preflate` analyzer panicked (caught; never escapes).
+    AnalyzerPanic,
+    /// The `preflate` analyzer returned an error.
+    AnalyzerError,
+    /// The analyzer did not consume the whole raw payload.
+    NotFullyConsumed,
+    /// The analyzer reported a non-empty dictionary prefix.
+    DictionaryPrefix,
+    /// The decompressed plaintext exceeds the storable single-record limit.
+    PlaintextTooLarge,
+    /// The correction blob exceeds the storable single-record limit.
+    CorrectionsTooLarge,
+    /// A fresh replay did not reproduce the raw payload byte-for-byte.
+    NotReproducible,
+}
+
+impl ReplayDecline {
+    /// A short, stable snake_case name for diagnostics and JSON output.
+    pub fn name(self) -> &'static str {
+        match self {
+            ReplayDecline::TooShort => "too_short",
+            ReplayDecline::TooLarge => "too_large",
+            ReplayDecline::NotZlib => "not_zlib",
+            ReplayDecline::EmptyPayload => "empty_payload",
+            ReplayDecline::AnalyzerPanic => "analyzer_panic",
+            ReplayDecline::AnalyzerError => "analyzer_error",
+            ReplayDecline::NotFullyConsumed => "not_fully_consumed",
+            ReplayDecline::DictionaryPrefix => "dictionary_prefix",
+            ReplayDecline::PlaintextTooLarge => "plaintext_too_large",
+            ReplayDecline::CorrectionsTooLarge => "corrections_too_large",
+            ReplayDecline::NotReproducible => "not_reproducible",
+        }
+    }
+}
+
 /// Attempt an exact replay plan for a zlib-wrapped stream.
 ///
 /// Returns `Some(plan)` only when the plan's replay reproduces the raw DEFLATE
@@ -118,59 +168,74 @@ pub fn replay_raw(plaintext: &[u8], corrections: &[u8]) -> Result<Vec<u8>> {
 /// fully consumed by the analyzer, larger than the limits, or not exactly
 /// reproducible. Declining is always safe: the caller keeps the raw bytes.
 pub fn try_replay(bytes: &[u8], limits: Limits) -> Option<ReplayPlan> {
+    try_replay_detailed(bytes, limits).ok()
+}
+
+/// The same gate as [`try_replay`], reporting *why* a stream was declined.
+pub fn try_replay_detailed(
+    bytes: &[u8],
+    limits: Limits,
+) -> std::result::Result<ReplayPlan, ReplayDecline> {
     let total = bytes.len();
-    if total < MIN_ZLIB_LEN || total > limits.max_input_bytes as usize {
-        return None;
+    if total > limits.max_input_bytes as usize {
+        return Err(ReplayDecline::TooLarge);
+    }
+    if total < MIN_ZLIB_LEN {
+        return Err(ReplayDecline::TooShort);
     }
     if !zlib_header_valid(bytes) {
-        return None;
+        return Err(ReplayDecline::NotZlib);
     }
     let raw = &bytes[ZLIB_HEADER_LEN..total - ZLIB_TRAILER_LEN];
     if raw.is_empty() {
-        return None;
+        return Err(ReplayDecline::EmptyPayload);
     }
 
     // Analysis itself can panic (a debug-build `u16` overflow inside preflate on
     // very large, highly repetitive input), so it is isolated too.
-    let analyzed = panic::catch_unwind(AssertUnwindSafe(|| {
+    let analyzed = match panic::catch_unwind(AssertUnwindSafe(|| {
         preflate_whole_deflate_stream(raw, &config(limits))
-    }))
-    .ok()?
-    .ok()?;
+    })) {
+        Ok(Ok(analyzed)) => analyzed,
+        Ok(Err(_)) => return Err(ReplayDecline::AnalyzerError),
+        Err(_) => return Err(ReplayDecline::AnalyzerPanic),
+    };
     let (chunk, plain) = analyzed;
 
     // Full consumption is mandatory: a too-small `plain_text_limit` can return a
     // silently truncated stream with `compressed_size < raw.len()`.
     if chunk.compressed_size != raw.len() {
-        return None;
+        return Err(ReplayDecline::NotFullyConsumed);
     }
     // A whole-stream first chunk has no dictionary prefix; a non-empty prefix
     // would mean the plaintext is not self-contained and we decline rather than
     // guess the concatenation order.
     if !plain.prefix().is_empty() {
-        return None;
+        return Err(ReplayDecline::DictionaryPrefix);
     }
     if plaintext_len_exceeds(plain.text(), limits) {
-        return None;
+        return Err(ReplayDecline::PlaintextTooLarge);
     }
     if chunk.corrections.len() as u64 > u64::from(limits.max_record_len) {
-        return None;
+        return Err(ReplayDecline::CorrectionsTooLarge);
     }
 
     let plaintext = plain.text().to_vec();
     // The decisive gate: the exact replay must reproduce the raw payload.
-    let replayed = replay_raw(&plaintext, &chunk.corrections).ok()?;
-    if replayed != raw {
-        return None;
+    if replay_raw(&plaintext, &chunk.corrections).ok().as_deref() != Some(raw) {
+        return Err(ReplayDecline::NotReproducible);
     }
 
-    let raw_len = u32::try_from(raw.len()).ok()?;
+    let raw_len = match u32::try_from(raw.len()) {
+        Ok(n) => n,
+        Err(_) => return Err(ReplayDecline::TooLarge),
+    };
     let mut header = [0u8; ZLIB_HEADER_LEN];
     header.copy_from_slice(&bytes[..ZLIB_HEADER_LEN]);
     let mut adler = [0u8; ZLIB_TRAILER_LEN];
     adler.copy_from_slice(&bytes[total - ZLIB_TRAILER_LEN..]);
 
-    Some(ReplayPlan {
+    Ok(ReplayPlan {
         header,
         plaintext,
         corrections: chunk.corrections,

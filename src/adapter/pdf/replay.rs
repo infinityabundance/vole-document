@@ -35,7 +35,7 @@ use crate::error::Result;
 use crate::integrity::sha256;
 use crate::limits::Limits;
 
-use crate::codec::deflate::{ReplayPlan, try_replay};
+use crate::codec::deflate::{ReplayPlan, try_replay, try_replay_detailed};
 
 use super::cos::FilterClass;
 use super::physical::{PdfPhysical, scan};
@@ -284,4 +284,161 @@ fn intern(objects: &mut Vec<Vec<u8>>, index: &mut HashMap<Vec<u8>, u32>, bytes: 
     index.insert(bytes.clone(), id);
     objects.push(bytes);
     id
+}
+
+/// rANS scale bits used for the `rans_plaintext_bytes` diagnostic. Matches the
+/// order-0 byte-rANS scale the Phase-6 `PDF_DEFLATE_REPLAY_RANS` candidate uses.
+pub const RANS_SCALE_BITS: u8 = 12;
+
+/// Per-`FlateDecode`-stream DEFLATE replay statistics for diagnostics.
+///
+/// This is a *measurement* of the correction ratio, not a candidate and not a
+/// wire form: it never influences what the complete-cost court selects.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StreamStats {
+    /// Object number of the enclosing indirect object.
+    pub object: u64,
+    /// Generation number of the enclosing indirect object.
+    pub generation: u64,
+    /// Exact stream-data byte length (`data_len`).
+    pub compressed_bytes: u64,
+    /// Whether the stream produced a verified exact-replay plan.
+    pub replayed: bool,
+    /// Stable snake_case decline reason when `replayed` is false.
+    pub decline_reason: Option<&'static str>,
+    /// Decompressed plaintext length, when replayed.
+    pub plaintext_bytes: Option<u64>,
+    /// `preflate` correction-blob length, when replayed.
+    pub correction_bytes: Option<u64>,
+    /// Bytes of the plaintext's own order-0 byte-rANS channel (model wire bytes
+    /// plus the fixed channel-descriptor header plus the renormalization
+    /// payload), when replayed and the `rans` feature is enabled.
+    pub rans_plaintext_bytes: Option<u64>,
+}
+
+/// Aggregate over all `FlateDecode` streams of one input.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DeflateSummary {
+    /// Number of `FlateDecode` streams seen.
+    pub flate_streams: u64,
+    /// Number that produced a verified exact-replay plan.
+    pub replayed: u64,
+    /// Number that declined.
+    pub declined: u64,
+    /// Sum of `data_len` over every `FlateDecode` stream.
+    pub compressed_bytes: u64,
+    /// Sum of plaintext lengths over replayed streams.
+    pub plaintext_bytes: u64,
+    /// Sum of correction-blob lengths over replayed streams.
+    pub correction_bytes: u64,
+    /// Sum of `rans_plaintext_bytes` over replayed streams (per stream, not
+    /// deduplicated; a diagnostic upper bound, not the shared-channel cost).
+    pub rans_plaintext_bytes: u64,
+}
+
+/// The `deflate-stats` view of one input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeflateStats {
+    /// Mirrors [`super::detect`].
+    pub is_pdf: bool,
+    /// One entry per `FlateDecode` stream (empty for a non-PDF).
+    pub streams: Vec<StreamStats>,
+    /// The aggregate over `streams`.
+    pub summary: DeflateSummary,
+}
+
+/// Measure the exact-DEFLATE-replay correction ratio over every `FlateDecode`
+/// stream of `input`.
+///
+/// A non-PDF yields `is_pdf: false` with no streams (never an error). A real
+/// scan failure (I/O, resource limit, coverage) is returned as a typed error.
+/// The decisive number is `correction_bytes / compressed_bytes`: how much of a
+/// producer's compressed bitstream is *predictable* from the plaintext and the
+/// pinned `preflate` model. This function is diagnostics only.
+pub fn deflate_stats(input: &[u8], limits: Limits) -> Result<DeflateStats> {
+    if !super::detect(input, limits) {
+        return Ok(DeflateStats {
+            is_pdf: false,
+            streams: Vec::new(),
+            summary: DeflateSummary::default(),
+        });
+    }
+    let physical = scan(input, limits)?;
+    let mut streams: Vec<StreamStats> = Vec::new();
+    let mut summary = DeflateSummary::default();
+
+    for stream in &physical.streams {
+        if stream.filter != FilterClass::FlateDecode {
+            continue;
+        }
+        summary.flate_streams += 1;
+        summary.compressed_bytes += stream.data_len;
+
+        let mut st = StreamStats {
+            object: stream.object,
+            generation: stream.generation,
+            compressed_bytes: stream.data_len,
+            replayed: false,
+            decline_reason: None,
+            plaintext_bytes: None,
+            correction_bytes: None,
+            rans_plaintext_bytes: None,
+        };
+
+        let start = stream.data_start as usize;
+        let end = start
+            .checked_add(stream.data_len as usize)
+            .filter(|&e| e <= input.len());
+        match end {
+            None => st.decline_reason = Some("span_out_of_range"),
+            Some(end) => match try_replay_detailed(&input[start..end], limits) {
+                Ok(plan) => {
+                    let plaintext_bytes = plan.plaintext.len() as u64;
+                    let correction_bytes = plan.corrections.len() as u64;
+                    st.replayed = true;
+                    st.plaintext_bytes = Some(plaintext_bytes);
+                    st.correction_bytes = Some(correction_bytes);
+                    st.rans_plaintext_bytes = rans_plaintext_bytes(&plan.plaintext);
+                    summary.replayed += 1;
+                    summary.plaintext_bytes += plaintext_bytes;
+                    summary.correction_bytes += correction_bytes;
+                    summary.rans_plaintext_bytes += st.rans_plaintext_bytes.unwrap_or(0);
+                }
+                Err(reason) => st.decline_reason = Some(reason.name()),
+            },
+        }
+        if !st.replayed {
+            summary.declined += 1;
+        }
+        streams.push(st);
+    }
+
+    Ok(DeflateStats {
+        is_pdf: true,
+        streams,
+        summary,
+    })
+}
+
+/// Bytes of the plaintext's own order-0 byte-rANS channel: the encoded model
+/// wire bytes, the fixed channel-descriptor header, and the renormalization
+/// payload. `None` when the `rans` feature is disabled.
+#[cfg(feature = "rans")]
+fn rans_plaintext_bytes(plaintext: &[u8]) -> Option<u64> {
+    use crate::entropy::codec::WIRE_HEADER_LEN;
+    use crate::entropy::{ALPHABET, EntropyModel, encode_channel};
+
+    let mut counts = [0u64; ALPHABET];
+    for &b in plaintext {
+        counts[b as usize] += 1;
+    }
+    let model = EntropyModel::from_counts(&counts, RANS_SCALE_BITS).ok()?;
+    let model_bytes = model.encode().ok()?.len() as u64;
+    let capsule = encode_channel(&model, plaintext).ok()?;
+    Some(model_bytes + WIRE_HEADER_LEN as u64 + capsule.payload.len() as u64)
+}
+
+#[cfg(not(feature = "rans"))]
+fn rans_plaintext_bytes(_plaintext: &[u8]) -> Option<u64> {
+    None
 }

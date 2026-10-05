@@ -18,7 +18,7 @@ use vole_document::error::{Error, Result};
 use vole_document::limits::Limits;
 use vole_document::{encode, integrity, materialize};
 
-const USAGE: &str = "\
+const USAGE_HEAD: &str = "\
 vole-document — byte-exact procedural document storage
 
 USAGE:
@@ -29,6 +29,15 @@ USAGE:
     vole-document inspect    INPUT.voldoc
     vole-document pdf-inspect INPUT
     vole-document pdf-make-samples DIR
+";
+
+/// The `deflate-stats` line is advertised only when the replay stack is built in.
+#[cfg(feature = "deflate-replay")]
+const USAGE_DEFLATE_STATS: &str = "    vole-document deflate-stats INPUT...\n";
+#[cfg(not(feature = "deflate-replay"))]
+const USAGE_DEFLATE_STATS: &str = "";
+
+const USAGE_TAIL: &str = "\
     vole-document capabilities
 
 KIND (for encode --force): raw | rle | byte-rans | pdf-physical | pdf-channels |
@@ -42,6 +51,12 @@ EXIT CODES:
     9 invalid-graph  10 invalid-model  15 coverage-violation
     16 reconstruction-mismatch  70 internal-invariant
 ";
+
+/// The full usage text, with the replay-gated command line included only when
+/// the feature is present.
+fn usage() -> String {
+    format!("{USAGE_HEAD}{USAGE_DEFLATE_STATS}{USAGE_TAIL}")
+}
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
@@ -59,7 +74,7 @@ fn run(args: &[String]) -> Result<()> {
     let cmd = match args.get(1).map(String::as_str) {
         Some(c) => c,
         None => {
-            print!("{USAGE}");
+            print!("{}", usage());
             return Err(Error::usage("no subcommand given"));
         }
     };
@@ -67,7 +82,7 @@ fn run(args: &[String]) -> Result<()> {
 
     match cmd {
         "-h" | "--help" | "help" => {
-            print!("{USAGE}");
+            print!("{}", usage());
             Ok(())
         }
         "capabilities" => cmd_capabilities(),
@@ -93,8 +108,24 @@ fn run(args: &[String]) -> Result<()> {
             let dir = arg(args, 2, "DIR")?;
             cmd_pdf_make_samples(&dir)
         }
+        #[cfg(feature = "deflate-replay")]
+        "deflate-stats" => {
+            let inputs: Vec<PathBuf> = args
+                .get(2..)
+                .unwrap_or(&[])
+                .iter()
+                .map(PathBuf::from)
+                .collect();
+            if inputs.is_empty() {
+                return Err(Error::usage(
+                    "deflate-stats requires at least one INPUT (a PDF)",
+                ));
+            }
+            cmd_deflate_stats(&inputs, limits)
+        }
         other => Err(Error::usage(format!(
-            "unknown subcommand {other:?}\n\n{USAGE}"
+            "unknown subcommand {other:?}\n\n{}",
+            usage()
         ))),
     }
 }
@@ -327,6 +358,135 @@ fn cmd_pdf_make_samples(dir: &Path) -> Result<()> {
         names.join(",")
     );
     Ok(())
+}
+
+/// Machine-readable exact-DEFLATE-replay correction-ratio view of each input.
+///
+/// Emits one JSON line per input: per-`FlateDecode`-stream `compressed_bytes`,
+/// `plaintext_bytes`, `correction_bytes`, `rans_plaintext_bytes`, the ratios
+/// `correction/compressed`, `(plaintext+correction)/compressed`, and
+/// `(rans_plaintext+correction)/compressed`, plus the aggregate. A non-PDF is
+/// reported with `"is_pdf":false` and no streams (exit 0). Ratios are rendered
+/// as fixed-point decimals computed with integer arithmetic only; they are
+/// diagnostics and never a persisted representation.
+#[cfg(feature = "deflate-replay")]
+fn cmd_deflate_stats(inputs: &[PathBuf], limits: Limits) -> Result<()> {
+    for input in inputs {
+        let bytes = fs::read(input)?;
+        let stats = pdf::deflate_stats(&bytes, limits)?;
+        println!("{}", deflate_stats_json(input, &stats));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "deflate-replay")]
+fn deflate_stats_json(input: &Path, stats: &pdf::DeflateStats) -> String {
+    let streams: Vec<String> = stats.streams.iter().map(stream_stats_json).collect();
+    let s = &stats.summary;
+    let replayed_full = s.plaintext_bytes.saturating_add(s.correction_bytes);
+    let replayed_rans_full = s.rans_plaintext_bytes.saturating_add(s.correction_bytes);
+    format!(
+        concat!(
+            "{{",
+            "\"file\":\"{}\",",
+            "\"is_pdf\":{},",
+            "\"streams\":[{}],",
+            "\"summary\":{{",
+            "\"flate_streams\":{},",
+            "\"replayed\":{},",
+            "\"declined\":{},",
+            "\"compressed_bytes\":{},",
+            "\"plaintext_bytes\":{},",
+            "\"correction_bytes\":{},",
+            "\"rans_plaintext_bytes\":{},",
+            "\"correction_over_compressed\":{},",
+            "\"replayed_full_bytes\":{},",
+            "\"replayed_rans_full_bytes\":{}",
+            "}}",
+            "}}"
+        ),
+        json_escape(&input.display().to_string()),
+        stats.is_pdf,
+        streams.join(","),
+        s.flate_streams,
+        s.replayed,
+        s.declined,
+        s.compressed_bytes,
+        s.plaintext_bytes,
+        s.correction_bytes,
+        s.rans_plaintext_bytes,
+        ratio6(s.correction_bytes, s.compressed_bytes),
+        replayed_full,
+        replayed_rans_full,
+    )
+}
+
+#[cfg(feature = "deflate-replay")]
+fn stream_stats_json(s: &pdf::StreamStats) -> String {
+    let reason = match s.decline_reason {
+        Some(r) => format!("\"{r}\""),
+        None => "null".to_string(),
+    };
+    let raw_ratio = match s.correction_bytes {
+        Some(c) => ratio6(c, s.compressed_bytes),
+        None => "null".to_string(),
+    };
+    let plain_ratio = match (s.plaintext_bytes, s.correction_bytes) {
+        (Some(p), Some(c)) => ratio6(p.saturating_add(c), s.compressed_bytes),
+        _ => "null".to_string(),
+    };
+    let rans_ratio = match (s.rans_plaintext_bytes, s.correction_bytes) {
+        (Some(r), Some(c)) => ratio6(r.saturating_add(c), s.compressed_bytes),
+        _ => "null".to_string(),
+    };
+    format!(
+        concat!(
+            "{{",
+            "\"object\":{},",
+            "\"generation\":{},",
+            "\"compressed_bytes\":{},",
+            "\"replayed\":{},",
+            "\"decline_reason\":{},",
+            "\"plaintext_bytes\":{},",
+            "\"correction_bytes\":{},",
+            "\"rans_plaintext_bytes\":{},",
+            "\"raw_ratio\":{},",
+            "\"plain_ratio\":{},",
+            "\"rans_ratio\":{}",
+            "}}"
+        ),
+        s.object,
+        s.generation,
+        s.compressed_bytes,
+        s.replayed,
+        reason,
+        opt_u64(s.plaintext_bytes),
+        opt_u64(s.correction_bytes),
+        opt_u64(s.rans_plaintext_bytes),
+        raw_ratio,
+        plain_ratio,
+        rans_ratio,
+    )
+}
+
+#[cfg(feature = "deflate-replay")]
+fn opt_u64(v: Option<u64>) -> String {
+    match v {
+        Some(n) => n.to_string(),
+        None => "null".to_string(),
+    }
+}
+
+/// Fixed-point ratio with six decimals, computed with integer arithmetic only
+/// (truncating division). Diagnostics only; never decides a persisted value.
+#[cfg(feature = "deflate-replay")]
+fn ratio6(num: u64, den: u64) -> String {
+    if den == 0 {
+        return "0.000000".to_string();
+    }
+    let scaled = u128::from(num) * 1_000_000;
+    let q = scaled / u128::from(den);
+    format!("{}.{:06}", q / 1_000_000, q % 1_000_000)
 }
 
 /// Stable string name for an object role, as used in the oracle JSON.
