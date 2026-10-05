@@ -25,7 +25,10 @@ Phase 6 implemented that plan:
   correction representation; an unknown tag fails closed. It reconstructs exactly
   `recreate_whole_deflate_stream(plaintext, corrections)` for the raw DEFLATE
   middle of a stream, with a `declared_output_len` validated at evaluation and
-  statically bounded by `2*P + 1024` before the engine runs (ADR-0016);
+  statically bounded by the VOLE replay-profile admission limit
+  `min(max_output_bytes, max_replay_bytes, 2*P + 1024)` before the engine runs
+  (ADR-0016; a VOLE policy bound, since RFC 1951 permits unbounded empty non-final
+  blocks and so gives no finite `f(decompressed_size)` bound);
 - stream discovery by VOLE's own byte-authoritative physical scanner plus a lone
   `/FlateDecode` classification — `preflate` never decides stream boundaries;
 - two candidates: `PDF_DEFLATE_REPLAY` (plaintexts are raw, content-deduplicated
@@ -182,10 +185,13 @@ a population (see also `docs/evidence/phase6-skeptic-review.md`).
   LGPL-3.0-or-later `cabac`; see ADR-0014. The feature is **opt-in** (the default
   build is permissive-only, `default = ["rans"]`); a build without it omits the
   lane entirely and rejects the op with `UnsupportedFeature`.
-- **Resource bound.** Decode-time replay is statically bounded: a declared output
-  above `2*P + 1024` for a `P`-byte plaintext is rejected before the engine runs,
-  and the plaintext/corrections inputs are bounded by `max_record_len`; see
-  ADR-0016. The correction representation is tagged `REPLAY_DEFLATE_PREFLATE_0_7_6`
+- **Resource bound.** Decode-time replay is bounded by a VOLE **replay-profile
+  admission limit** (a policy bound, `min(max_output_bytes, max_replay_bytes,
+  2*P + 1024)`): a declared output above it for a `P`-byte plaintext is rejected
+  before the engine runs, and the plaintext/corrections inputs are bounded by
+  `max_record_len`; see ADR-0016. This is not an RFC 1951 maximum — RFC 1951
+  permits unbounded empty non-final blocks. The correction representation is
+  tagged `REPLAY_DEFLATE_PREFLATE_0_7_6`
   and is explicit experimental/version-coupled wire semantics, not frozen v1.
 - **Preserve the evidence.** Campaign `2026-10-05-phase6-0d0bb79` (results,
   cumulative and leave-one-out ablations, verification triples, negative

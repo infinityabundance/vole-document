@@ -45,7 +45,7 @@ are evidence.
 | PDF layout + rANS (`PDF_LAYOUT_RANS`) | 5.8 | RECORDED (rejected vs `BYTE_RANS`) | campaign `2026-10-05-phase5-8-cf8048d`; byte-exact, but head-to-head wins 0 / loses 8 / declines 3, and the A6 rung adds a plan channel + a second model that `BYTE_RANS` never pays (ADR-0013) |
 | PDF `/Length`/revision proceduralization | 6+ | PROPOSED | structural compression beyond xref offsets is not yet measured (stream replay is now measured — next rows) |
 | Lexer stream opacity (`stream`+EOL is an opaque span) | 6 | ADOPTED | campaign `2026-10-05-phase6-0d0bb79`; stream-data bytes are a byte-authoritative span, so `/FlateDecode` stream spans are exact and `preflate` never discovers streams; 12/12 corpus files still round-trip |
-| `DEFLATE_REPLAY` DRA op (DRA v8) | 6 | IMPLEMENTED | opcode `0x0A`; explicit `replay_codec` tag (`REPLAY_DEFLATE_PREFLATE_0_7_6`, an experimental version-coupled `preflate` layout) that fails closed on an unknown id; emits the exact raw DEFLATE bitstream from `(plaintext, corrections)` with a declared output length statically rejected above `2*P+1024` before the engine runs (ADR-0016) and validated at eval; plaintext/corrections bounded by `max_record_len`; `catch_unwind`-isolated; mandatory feature bit (opt-in `deflate-replay` cargo feature); universe → `phase6;…;dra-8;…+deflate-replay-preflate-0.7.6-experimental` |
+| `DEFLATE_REPLAY` DRA op (DRA v8) | 6 | IMPLEMENTED | opcode `0x0A`; explicit `replay_codec` tag (`REPLAY_DEFLATE_PREFLATE_0_7_6`, an experimental version-coupled `preflate` layout) that fails closed on an unknown id; emits the exact raw DEFLATE bitstream from `(plaintext, corrections)` with a declared output length statically rejected above the VOLE replay-profile admission limit `min(max_output_bytes, max_replay_bytes, 2*P+1024)` before the engine runs (ADR-0016; a policy bound, not an RFC 1951 maximum) and validated at eval; plaintext/corrections bounded by `max_record_len`; `catch_unwind`-isolated; mandatory feature bit (opt-in `deflate-replay` cargo feature); universe → `phase6;…;dra-8;…+deflate-replay-preflate-0.7.6-experimental` |
 | Exact DEFLATE replay, raw plaintext (`PDF_DEFLATE_REPLAY`) | 6 | RECORDED (rejected vs `BYTE_RANS`) | campaign `2026-10-05-phase6-0d0bb79`; byte-exact, but on `flate.pdf` 56,736 vs `BYTE_RANS` 49,291 (the plaintext is nearly as large as the bitstream it replaces) |
 | Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | 6 | ADOPTED | campaign `2026-10-05-phase6-0d0bb79`; `flate.pdf` 36,102 vs `BYTE_RANS` 49,291 (**−13,189 B**); 3 plaintext channels (one shared) for 6 streams; leave-one-out delta −13,189; **first measured positive for a PDF structural candidate** (ADR-0015) |
 | Nested PDF content proceduralization | 7 | PROPOSED | the clearest embodiment of the thesis |
@@ -100,7 +100,9 @@ that names the correction representation as an **experimental** version-coupled
 `UnsupportedFeature`. It emits exactly
 `recreate_whole_deflate_stream(plaintext, corrections)` — the
 raw DEFLATE bytes (RFC 1951, no zlib wrapper) — with a `declared_output_len`
-statically rejected above `2*P + 1024` for a `P`-byte plaintext **before** the
+statically rejected above the VOLE replay-profile admission limit (a policy
+bound: RFC 1951 permits unbounded empty non-final blocks, so it gives no finite
+`f(decompressed_size)` bound) **before** the
 engine runs (ADR-0016) and validated at evaluation; the plaintext and corrections
 inputs are bounded by `max_record_len`. Reconstruction is isolated with
 `catch_unwind` so hostile corrections fail closed. A mandatory

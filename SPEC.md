@@ -187,9 +187,11 @@ Semantics:
   **object**; `1` = the `source_id`-th **entropy channel** (decoded exactly as for
   `DECODE_CHANNEL`). `corrections_object` indexes the descriptor's object table;
   `declared_output_len` is the exact expected output length. Analysis charges it
-  statically and rejects a value above the static raw-DEFLATE bound `2*P + 1024`
-  for a `P`-byte plaintext (a raw DEFLATE stream that inflates to `P` bytes cannot
-  be longer) *before* the replay engine runs; evaluation additionally bounds the
+  statically and rejects a value above the VOLE replay-profile admission limit
+  `min(max_output_bytes, max_replay_bytes, 2*P + 1024)` for a `P`-byte plaintext
+  (a policy bound: RFC 1951 gives no finite `f(decompressed_size)` bound, since
+  arbitrarily many empty non-final blocks are legal) *before* the replay engine
+  runs; evaluation additionally bounds the
   plaintext and corrections inputs by `max_record_len`. Reconstruction is isolated
   with `catch_unwind`: an out-of-range source, an unknown `source_kind`, a wrong
   `declared_output_len`, or an `Err`/panic from the replay engine is rejected with

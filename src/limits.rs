@@ -12,6 +12,15 @@ pub struct Limits {
     pub max_input_bytes: u64,
     /// Maximum reconstructed output size for a single materialization.
     pub max_output_bytes: u64,
+    /// Admission cap on the output of a single `DEFLATE_REPLAY`.
+    ///
+    /// This is a **VOLE replay-profile policy limit**, not an RFC 1951 maximum.
+    /// RFC 1951 permits arbitrarily many empty non-final stored blocks, so it
+    /// gives no finite `f(decompressed_size)` bound on `compressed_size`; a
+    /// bitstream that inflates to zero bytes may be arbitrarily large. VOLE
+    /// therefore declines to replay a descriptor whose declared output exceeds
+    /// this policy cap (see ADR-0016).
+    pub max_replay_bytes: u64,
     /// Maximum length of a single record payload.
     pub max_record_len: u32,
     /// Maximum number of records in a container.
@@ -39,6 +48,7 @@ impl Limits {
     pub const DEFAULT: Limits = Limits {
         max_input_bytes: 1 << 40,  // 1 TiB
         max_output_bytes: 1 << 40, // 1 TiB
+        max_replay_bytes: 1 << 34, // 16 GiB
         max_record_len: 1 << 31,   // 2 GiB
         max_record_count: 1 << 20, // ~1M records
         max_object_count: 1 << 20,
@@ -55,6 +65,7 @@ impl Limits {
     pub const STRICT: Limits = Limits {
         max_input_bytes: 1 << 26,  // 64 MiB
         max_output_bytes: 1 << 26, // 64 MiB
+        max_replay_bytes: 1 << 26, // 64 MiB
         max_record_len: 1 << 24,   // 16 MiB
         max_record_count: 1 << 16, // 65536
         max_object_count: 1 << 16,

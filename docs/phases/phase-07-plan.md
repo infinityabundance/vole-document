@@ -22,14 +22,29 @@ recorded and must be closed before Phase 7's headline work:
 ## Subphases
 
 - **7.0 — Producer-stratified Flate corpus + correction-ratio harness.**
-  Build a corpus from genuinely distinct producers available in the pinned
-  `tools` image (qpdf 11.3.0, Ghostscript 10.00.0, plus the synthetic samples);
-  add a `vole-document deflate-stats` command that reports, per FlateDecode
-  stream and in aggregate, `compressed_bytes`, `plaintext_bytes`,
-  `correction_bytes`, `rANS_plaintext_bytes`, and the ratios
-  `correction/compressed`, `(plaintext+corr)/compressed`,
-  `(rANS(plaintext)+corr)/compressed`, plus exact-replay/decline counts. Seal a
-  campaign receipt and write a scoped report.
+  Build a corpus from genuinely distinct **generator families**, not just the
+  producers already pinned locally. Target families (all with recorded provenance —
+  producer, version, exact command, SHA-256 — and locally regenerated, not
+  committed):
+  - **locally available in the pinned `tools` image**: qpdf 11.3.0 and
+    Ghostscript 10.00.0, plus the existing synthetic samples. Honesty about the
+    limits of this: two producer lineages is *not* a producer-stratified survey,
+    and the report must say so.
+  - **to be acquired/located where possible**: browser/PDFium output, LibreOffice
+    (writer/impress export), TeX (pdfTeX/`dvipdfmx`), Cairo/ReportLab, and any
+    office/Adobe-derived samples that can be lawfully located. Each new family is
+    admitted only with a committed provenance ledger entry; where a family cannot
+    be obtained, the report records the gap rather than substituting synthetic
+    stand-ins.
+  Add a `vole-document deflate-stats` command that reports **per FlateDecode stream**
+  and in aggregate: `compressed_bytes`, `plaintext_bytes`, `correction_bytes`,
+  `rANS_plaintext_bytes`, and the ratios `correction/compressed`,
+  `(plaintext+corr)/compressed`, `(rANS(plaintext)+corr)/compressed`, plus
+  exact-replay/decline counts. The report must give **stream-level distributions**
+  (p10/p50/p90 of `correction/compressed`, exact-replay acceptance rate, and the
+  complete-cost win rate) **broken out by producer**, not only document averages —
+  so that a single large stream cannot hide a family-wide decline. Seal a campaign
+  receipt and write a scoped report.
 - **7.1 — Coverage-guided fuzzing.** Add a `fuzz/` `cargo-fuzz` crate and a
   pinned-nightly `fuzz` compose service; targets for the `.voldoc`
   header/record parser, DRA decode/eval, rANS model + channel decode, PDF

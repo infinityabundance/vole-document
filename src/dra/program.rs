@@ -461,20 +461,25 @@ impl Program {
                             "graph references missing object {corrections_object}"
                         )));
                     }
+                    // Outer budget: the declared output may never exceed the
+                    // materialization cap.
                     if u64::from(*declared_output_len) > limits.max_output_bytes {
                         return Err(Error::resource_limit(format!(
                             "DEFLATE_REPLAY declared output {declared_output_len} exceeds limit {}",
                             limits.max_output_bytes
                         )));
                     }
-                    // Resource bound: a raw DEFLATE stream that inflates to
-                    // `src_len` bytes cannot be longer than `max_raw_deflate_len`,
-                    // so a larger declared length is impossible and is rejected
-                    // *before* preflate runs.
-                    if u64::from(*declared_output_len) > max_raw_deflate_len(src_len) {
+                    // Admission: VOLE declines to replay a descriptor whose
+                    // declared output falls outside its bounded replay profile.
+                    // This is a *policy* bound, not an RFC 1951 maximum: RFC 1951
+                    // admits arbitrarily many empty non-final blocks, so no
+                    // finite `f(decompressed_size)` bound exists. The check runs
+                    // *before* preflate so an out-of-profile claim never reaches
+                    // the engine.
+                    let replay_limit = replay_profile_limit(src_len, limits);
+                    if u64::from(*declared_output_len) > replay_limit {
                         return Err(Error::invalid_graph(format!(
-                            "DEFLATE_REPLAY declared output {declared_output_len} exceeds the maximum DEFLATE size {} of a {src_len}-byte plaintext",
-                            max_raw_deflate_len(src_len)
+                            "DEFLATE_REPLAY declared output {declared_output_len} exceeds the VOLE replay-profile admission limit {replay_limit} for a {src_len}-byte plaintext (a policy bound: RFC 1951 permits unbounded empty non-final blocks; VOLE declines replay outside this profile)"
                         )));
                     }
                     let len = u64::from(*declared_output_len);
@@ -813,17 +818,43 @@ impl Program {
     }
 }
 
-/// Conservative upper bound on the length of a raw DEFLATE stream that inflates
-/// to `plaintext_len` bytes.
+/// VOLE replay-profile admission ratio, as a percentage of the plaintext length.
 ///
-/// A stream decoding to `plaintext_len` bytes is at most a literals-only
-/// encoding: DEFLATE caps Huffman code lengths at 15 bits, so the output is
-/// bounded by `2 * plaintext_len + 1024` (block headers, end-of-block, and slack).
-/// A declared replay output above this is impossible, so it is rejected before
-/// the engine runs. This is the primary resource bound for `DEFLATE_REPLAY`,
-/// since `preflate-rs` 0.7.6 offers no bounded streaming reconstruction sink.
-pub(crate) fn max_raw_deflate_len(plaintext_len: u64) -> u64 {
-    plaintext_len.saturating_mul(2).saturating_add(1024)
+/// The nominal profile figure is `REPLAY_OUTPUT_RATIO_PERCENT` percent of the
+/// plaintext length plus [`REPLAY_OUTPUT_SLACK`]. This is a **VOLE policy**
+/// choice, not a theorem about DEFLATE: RFC 1951 admits unbounded empty
+/// non-final blocks, so no finite `f(decompressed_size)` bound exists. The
+/// percentage is that of the old algorithmic expansion figure (`2 * P`).
+pub const REPLAY_OUTPUT_RATIO_PERCENT: u64 = 200;
+
+/// Additive slack in the VOLE replay-profile admission limit.
+///
+/// Covers block headers, end-of-block codes, stored-block overhead, and small
+/// plaintexts. Like the ratio, this is a policy choice rather than a property of
+/// RFC 1951.
+pub const REPLAY_OUTPUT_SLACK: u64 = 1024;
+
+/// VOLE replay-profile admission limit on the declared output of a single
+/// `DEFLATE_REPLAY` for a `plaintext_len`-byte plaintext.
+///
+/// Returns `min(max_output_bytes, max_replay_bytes, plaintext_len * 200% + 1024)`
+/// (saturating). This is a **policy** bound: RFC 1951 gives no finite
+/// `compressed_size <= f(decompressed_size)` bound (arbitrarily many empty
+/// non-final stored blocks are legal), so VOLE declines to replay a descriptor
+/// whose declared output falls outside a bounded profile. A stronger guarantee
+/// would require a bound specific to `REPLAY_DEFLATE_PREFLATE_0_7_6`, or a future
+/// VOLE-owned streaming replay that enforces the limit on output as it is
+/// produced. This is the primary resource bound for `DEFLATE_REPLAY` because
+/// `preflate-rs` 0.7.6 offers no bounded streaming reconstruction sink.
+pub(crate) fn replay_profile_limit(plaintext_len: u64, limits: Limits) -> u64 {
+    let profile = plaintext_len
+        .saturating_mul(REPLAY_OUTPUT_RATIO_PERCENT)
+        .saturating_div(100)
+        .saturating_add(REPLAY_OUTPUT_SLACK);
+    limits
+        .max_output_bytes
+        .min(limits.max_replay_bytes)
+        .min(profile)
 }
 
 /// Replay a raw DEFLATE bitstream from plaintext and correction state.
@@ -1728,5 +1759,54 @@ mod tests {
             "unexpected class: {:?}",
             e.class()
         );
+    }
+
+    #[test]
+    fn replay_profile_limit_arithmetic() {
+        let l = Limits::DEFAULT;
+        // Profile figure: 200% of the plaintext plus 1024 bytes of slack.
+        assert_eq!(replay_profile_limit(0, l), REPLAY_OUTPUT_SLACK);
+        assert_eq!(replay_profile_limit(100, l), 200 + REPLAY_OUTPUT_SLACK);
+        assert_eq!(replay_profile_limit(1000, l), 2000 + REPLAY_OUTPUT_SLACK);
+        // A tiny replay cap lowers the limit below the profile figure.
+        let tiny_replay = Limits {
+            max_replay_bytes: 500,
+            ..Limits::DEFAULT
+        };
+        assert_eq!(replay_profile_limit(1000, tiny_replay), 500);
+        // The materialization cap participates too, and the minimum wins.
+        let tiny_output = Limits {
+            max_output_bytes: 300,
+            ..Limits::DEFAULT
+        };
+        assert_eq!(replay_profile_limit(1000, tiny_output), 300);
+        let both = Limits {
+            max_output_bytes: 400,
+            max_replay_bytes: 500,
+            ..Limits::DEFAULT
+        };
+        assert_eq!(replay_profile_limit(1000, both), 400);
+    }
+
+    #[test]
+    fn replay_declared_len_above_profile_limit_is_rejected() {
+        // A 10-byte plaintext has profile limit 10*200/100 + 1024 = 1044, far
+        // below DEFAULT's max_output_bytes/max_replay_bytes caps, so the policy
+        // limit is what rejects the claim.
+        let objects = objs(&[b"plaintext!", &[0u8; 4]]);
+        let limit = replay_profile_limit(10, Limits::DEFAULT);
+        assert_eq!(limit, 1044);
+        let p = Program::new(vec![Op::DeflateReplay {
+            replay_codec: crate::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
+            source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
+            source_id: 0,
+            corrections_object: 1,
+            declared_output_len: (limit + 1) as u32,
+        }]);
+        let e = p.analyze_objects(&objects, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+        // Evaluation analyzes first, so it rejects the same claim identically.
+        let e = p.eval(&objects, &[], Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
     }
 }

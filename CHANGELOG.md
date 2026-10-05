@@ -14,8 +14,10 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
     closed as `UnsupportedFeature` (never `InvalidGraph`). It emits exactly
     `recreate_whole_deflate_stream(plaintext, corrections)` — the **raw** DEFLATE
     bytes (RFC 1951, no zlib wrapper) — with a `declared_output_len` statically
-    rejected above `2*P + 1024` for a `P`-byte plaintext *before* the engine runs
-    (ADR-0016) and validated at evaluation; plaintext and corrections are bounded
+    rejected above the VOLE replay-profile admission limit (a policy bound: RFC 1951
+    permits unbounded empty non-final blocks, so no finite `f(decompressed_size)`
+    bound exists) *before* the engine runs (ADR-0016) and validated at evaluation;
+    plaintext and corrections are bounded
     by `max_record_len`. `source_kind` is `0` (plaintext
     from the object table) or `1` (plaintext from an entropy channel).
     Reconstruction is isolated with `catch_unwind`, so hostile corrections yield a

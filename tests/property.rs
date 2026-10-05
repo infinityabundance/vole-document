@@ -384,6 +384,7 @@ fn limits_never_change_reconstructed_bytes() {
     let scaled = Limits {
         max_input_bytes: 1 << 50,
         max_output_bytes: 1 << 50,
+        max_replay_bytes: 1 << 50,
         max_record_len: u32::MAX,
         max_record_count: 1 << 24,
         max_object_count: 1 << 24,
