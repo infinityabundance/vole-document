@@ -71,6 +71,27 @@ services:
       - .:/work
     command: ["sh", "-c", "python3 -c 'import reportlab; print(reportlab.Version)'; soffice --version | head -1; pdflatex --version | head -1; qpdf --version"]
 
+  # Generic-compressor baseline ladder (Phase 7.0c). Runs in the pinned `dev`
+  # toolchain (same base digest) plus gzip/zstd/xz/brotli/jq, so tools/baselines.sh
+  # can invoke the real VOLE CLI and compare it against generic compressors on the
+  # same complete files. Shares the dev cargo volumes so the built binary is
+  # visible; it is opt-in and never part of a fast gate.
+  baseline:
+    build:
+      context: .
+      target: baseline
+    image: vole-document/baseline:1.99.0
+    network_mode: host
+    working_dir: /work
+    environment:
+      CARGO_TERM_COLOR: never
+      VOLE_BIN: ./target/debug/vole-document
+    volumes:
+      - .:/work
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/work/target
+    command: ["sh", "-c", "gzip --version | head -1; zstd --version; xz --version | head -1; brotli --version; jq --version"]
+
   policy:
     build:
       context: .

@@ -133,3 +133,24 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && git config --system --add safe.directory /work
 WORKDIR /work
+
+# ---------------------------------------------------------------------------
+# Generic-compressor baseline ladder (Phase 7.0c). Derives from the pinned `dev`
+# toolchain (same base digest, so rustc/cargo match the measurement binary) and
+# adds the generic compressors the honest comparison needs: gzip, zstd, xz and
+# brotli, plus jq to reduce the JSON table. It is deliberately NOT part of any
+# fast gate; only the opt-in `baseline` service builds it. `tools/baselines.sh`
+# runs both the generic compressors and the real VOLE lanes over complete files.
+# ---------------------------------------------------------------------------
+FROM dev AS baseline
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      gzip \
+      zstd \
+      xz-utils \
+      brotli \
+      jq \
+      coreutils \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
