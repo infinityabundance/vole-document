@@ -318,16 +318,24 @@ RAW 57880   BYTE_RANS 49263   PDF_DEFLATE_REPLAY 56702   PDF_DEFLATE_REPLAY_RANS
 ```
 
 `PDF_DEFLATE_REPLAY_RANS` is the auto winner on `flate.pdf` and **beats
-`BYTE_RANS` by 13,195 B**. The sample exposes **6 FlateDecode streams but only 3
-unique plaintexts** (one plaintext is shared across four streams, one stream is
-stored at level 0), so the shared channel re-expresses weak producer coding far
-more cheaply than six stored bitstreams. The raw-plaintext variant loses (56,702
-B) because a strongly-compressed stream's plaintext is nearly as large as the
-stream it replaces. Head-to-head vs `BYTE_RANS`: **win 1, lose 0, decline 11**
-(the other files have no lone `FlateDecode` stream); every auto winner is exact
-(`cmp` + `verify`). This is **one composed sample**: the winning region is shared
-and/or weakly-coded plaintext, and the losing region is unique, strongly-compressed
-plaintext. It is the first measured positive for a PDF structural candidate
+`BYTE_RANS` by 13,195 B**. The six `FlateDecode` streams are the content
+plaintext `p1` at levels 9/6/1/0 (one shared plaintext, four appearances), a
+graphics stream `p2` at level 6, and an incompressible stream `p3` at level 6
+that DEFLATE stores; the descriptor replays all six and codes their **3 unique
+plaintexts** as order-0 channels (`streams=6 replayed=6 channels=3 objects=6`).
+Of `p1`'s four appearances only the level-0 stream is weakly coded (stored);
+level 1 is ~19% of the plaintext and levels 6/9 are strong, so the win needs the
+shared plaintext to *also* have a large/weakly-coded appearance. `BYTE_RANS`
+order-0-codes the six streams to 49,263 B; it does not carry them verbatim. The
+raw-plaintext variant loses (56,702 B) because a strongly-compressed stream's
+plaintext is nearly as large as the stream it replaces. Head-to-head vs
+`BYTE_RANS`: **win 1, lose 0, decline 11** (the other files have no lone
+`FlateDecode` stream); every auto winner is exact (`cmp` + `verify`). This is
+**one composed sample**, at commit `ec92c1a`, measured on a single synthetic
+fixture: the win requires a shared plaintext that also has a large/weakly-coded
+appearance (unique strongly-compressed streams lose, by up to 4.46×), and the
+losing region is unique, strongly-compressed plaintext. It is the first measured
+positive for a PDF structural candidate
 (ADR-0015); the plain-syntax converging negatives (ADR-0010–ADR-0013) stand.
 
 Receipt:

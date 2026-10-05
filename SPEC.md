@@ -377,10 +377,11 @@ serialize → parse → materialize → byte-compare) and are proposed only for 
 with at least one eligible lone-`FlateDecode` stream. On the measured
 `2026-10-05-phase6-ec92c1a` campaign the rANS variant is the first PDF structural
 candidate to **beat `BYTE_RANS`** (`flate.pdf` 36,068 vs 49,263 B, a 13,195 B win,
-because 6 streams share only 3 unique plaintexts and one is stored at level 0),
-while the raw-plaintext variant loses (56,702 B). The result is scoped to one
-composed sample: the winning region is shared and/or weakly-coded plaintext and
-the losing region is unique, strongly-compressed plaintext (ADR-0015). This
+because 6 streams share only 3 unique plaintexts), while the raw-plaintext
+variant loses (56,702 B). The result is scoped to one composed sample at commit
+`ec92c1a`: the winning region is a shared plaintext that *also* has a
+large/weakly-coded appearance (neither sharing alone nor weak coding alone wins),
+and the losing region is unique, strongly-compressed plaintext (ADR-0015). This
 section is **PROVISIONAL**.
 
 ## Feature policy

@@ -1,4 +1,4 @@
-# ADR-0015: Exact DEFLATE replay wins where plaintext is shared and weakly coded
+# ADR-0015: Exact DEFLATE replay wins on shared plaintext with a large/weakly-coded appearance
 
 - **Status:** Accepted — first measured positive for a PDF structural candidate
 - **Date:** 2026-10-05
@@ -42,8 +42,9 @@ plaintext (`p1`) shared across four of them and one stream stored at level 0
 ## Outcome
 
 **Implement both lanes, keep them exact, and adopt the rANS-plaintext variant as
-a winning candidate.** Unlike every earlier PDF structural candidate, exact
-DEFLATE replay with a shared, entropy-coded plaintext **beats `BYTE_RANS`**.
+a candidate that can win.** Unlike every earlier PDF structural candidate, exact
+DEFLATE replay of a shared, entropy-coded plaintext that *also* includes a
+large/weakly-coded appearance **beats `BYTE_RANS`** on the measured fixture.
 
 Measured campaign `2026-10-05-phase6-ec92c1a` over the deterministic 12-file
 corpus (verdict PASS; every auto winner round-trips byte-exactly through
@@ -68,23 +69,30 @@ corpus (verdict PASS; every auto winner round-trips byte-exactly through
 - **The winner's cost is dominated by its one channel.** The `flate.pdf`
   breakdown is header 64 / universe 121 / format 70 / record framing 204 /
   objects 639 / graph 1,498 / models 689 / entropy payload 32,723 / integrity 40
-  / trailer 20 = 36,068. Three shared plaintext channels re-express what six
-  stored bitstreams cost 49,263 B to carry.
+  / trailer 20 = 36,068. The descriptor replays all six streams
+  (`streams=6 replayed=6`) and codes their three unique plaintexts as three
+  order-0 channels (`channels=3 objects=6`); only `p1` is shared (across four
+  streams), while `p2` and `p3` are unique.
 
 ## Reasoning
 
-- **Shared plaintext is stored once and decoded once.** The sample's `p1`
-  plaintext appears in four streams at four different compression levels. The
-  rANS lane codes `p1` exactly once as an order-0 channel and every stream that
-  produces it references that channel; the materializer decodes each channel
-  once. The sample exposes 6 streams but only **3 unique plaintexts**, against
-  6 stored bitstreams in the monolithic lane.
-- **Weak producer coding is re-expressed.** A near-stored deflate stream (level
-  0/1) contains its plaintext almost verbatim *inside* the bitstream, so the
-  stream is large while its plaintext is small and skewed. Replay replaces the
-  weak producer coding with order-0 rANS over the shared plaintext, which is
-  strictly cheaper than carrying the weak bitstream — and much cheaper than
-  carrying it four times.
+- **Shared plaintext is stored once and decoded once.** Only `p1` is shared: it
+  appears in four streams at levels 0/1/6/9. The rANS lane codes `p1` exactly
+  once as an order-0 channel and every stream that produces it references that
+  channel; the materializer decodes each channel once. `p2` and `p3` are unique,
+  so the descriptor exposes 6 streams but only **3 unique plaintexts**
+  (`streams=6 replayed=6 channels=3 objects=6`), against the six deflate streams
+  the whole-file lane carries.
+- **Weak producer coding is re-expressed only when it rides on a shared
+  plaintext.** Of `p1`'s four appearances exactly one is weakly coded: level 0
+  is stored (~verbatim, 31,998 B); level 1 is only ~19% of the plaintext
+  (6,197 B), and levels 6 and 9 are strong (3,768 B / 3,410 B). Order-0 rANS
+  over the shared plaintext is cheaper than carrying the large stored
+  appearance, and sharing makes that saving available to every stream that
+  reproduces the plaintext. The large/weak appearance alone does not win (a
+  unique level-0 stream loses), and sharing alone does not win (four strong
+  level-9 appearances lose), so the win requires both — see the negative
+  controls below.
 - **The correction state pays for itself.** The stored correction blobs plus two
   literal zlib fragments (header + Adler-32, 6 B each) are small next to the
   bitstream bytes they replace; the graph and object framing (1,498 + 639 B) is
@@ -97,17 +105,21 @@ corpus (verdict PASS; every auto winner round-trips byte-exactly through
 
 ## Scope — honest characterization
 
-These are measured, scoped results for *one composed sample* and this commit.
-They are **not** a general compression claim:
+These are measured, scoped results for *one synthetic composed fixture*, at
+commit `ec92c1a`. They are **not** a general compression claim:
 
-- **Winning region:** streams whose plaintext is **shared across streams** and/or
-  whose producer coding is **weak** (low compression level), so that the
-  plaintext is materially smaller than (or repeated relative to) the stored
-  deflate bitstreams. Here `flate.pdf` has both properties, so the lane wins.
-- **Losing region:** **unique, strongly-compressed** plaintext. Replaying a
-  stream whose plaintext is essentially as large as its bitstream, storing the
+- **Winning region (conjunctive):** a plaintext that is **shared across
+  streams** **and** whose appearances include at least one **large/weakly-coded**
+  stream, so that order-0 rANS of the shared plaintext costs less than the sum of
+  the compressed appearances it replaces. Neither property alone wins. Here
+  `flate.pdf` has both, so the lane wins; the negative controls below show each
+  conjunct alone losing.
+- **Losing region:** any case missing either conjunct — **unique** plaintext, or
+  a shared plaintext whose appearances are all **strongly compressed**. Replaying
+  a stream whose plaintext is essentially as large as its bitstream, storing the
   plaintext raw, and paying the correction and graph overhead loses to carrying
-  the bitstream — which is exactly the `PDF_DEFLATE_REPLAY` result. A corpus of
+  the bitstream — which is exactly the `PDF_DEFLATE_REPLAY` result. Replay loses
+  by up to **4.46×** on a single unique strongly-compressed stream. A corpus of
   many small, maximally-compressed, non-repeating streams is expected to lose.
 - **The corpus is composed.** `flate.pdf` is assembled deterministically with
   correct `/Length` and offsets; its streams are real zlib output, but the
@@ -118,11 +130,31 @@ They are **not** a general compression claim:
   complete-cost court, and every auto winner round-trips byte-exactly; no saving
   is claimed from an entropy estimate or from bitstream length alone.
 
+## Falsification / negative controls
+
+An independent adversarial reviewer (Phase 6) independently reproduced the
+following controls in Docker and falsified an earlier "shared **or** weakly
+coded" reading of the winning region. Each uses the same complete-cost court;
+"loses" means `PDF_DEFLATE_REPLAY_RANS` is larger than `BYTE_RANS`:
+
+| fixture | `BYTE_RANS` | replay+rANS | outcome |
+| --- | ---: | ---: | --- |
+| single unique level-9 stream | 4,476 | 19,958 | replay loses 4.46× |
+| single unique level-0 stream | 19,418 | 19,656 | replay loses (weak coding **alone** loses) |
+| four identical level-9 streams (shared, strong) | 13,914 | 20,403 | replay loses (sharing **alone** loses) |
+| `flate.pdf` with the level-0 stream replaced by a level-6 stream | 29,375 | 36,027 | replay loses (strong appearances) |
+
+The win therefore requires **both** conjuncts simultaneously: the plaintext must
+be shared across streams **and** at least one of its appearances must be
+large/weakly coded. This boundary is characterized on synthetic fixtures, not by
+a population (see also `docs/evidence/phase6-skeptic-review.md`).
+
 ## Consequences
 
 - **`PDF_DEFLATE_REPLAY_RANS` is `ADOPTED` as a winning candidate** for inputs
-  with lone-`FlateDecode` streams; it is proposed and can win the complete-cost
-  court. `PDF_DEFLATE_REPLAY` (raw plaintext) stays implemented and available but
+  with lone-`FlateDecode` streams; it is proposed for every such input and can
+  win the complete-cost court when the conjunctive condition above holds.
+  `PDF_DEFLATE_REPLAY` (raw plaintext) stays implemented and available but
   is `RECORDED (rejected vs BYTE_RANS)` on the measured case.
 - **The lexer change is load-bearing.** `stream` + EOL payloads are now opaque
   spans, so the scanner's `/Filter` classification and exact stream-data spans
@@ -133,7 +165,8 @@ They are **not** a general compression claim:
 - **Next lever.** Nested content-stream proceduralization of the plaintext
   itself (Phase 7), and cross-document plaintext sharing (EntropyFS form, Phase
   9), are the natural successors: the win here comes from sharing and
-  re-coding the plaintext, and both mechanisms generalize that direction.
+  re-coding the plaintext, and both are directions a successor phase would test
+  rather than established general mechanisms.
 - **Dependency note.** The `deflate-replay` feature transitively pulls
   LGPL-3.0-or-later `cabac`; see ADR-0014. The feature is optional; a build with
   `--no-default-features --features rans` omits the lane entirely and rejects the

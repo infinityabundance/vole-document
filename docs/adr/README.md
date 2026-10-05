@@ -19,7 +19,7 @@ the written rationale that must survive chat history.
 | [0012](0012-packed-framing-threshold.md) | Packed segment framing is the layout threshold | Accepted (Phase 5.7) |
 | [0013](0013-layout-rans-not-profitable.md) | Layout + rANS does not beat whole-file order-0 rANS | Accepted — recorded negative result (Phase 5.8) |
 | [0014](0014-lgpl-cabac-dependency.md) | `preflate-rs` pulls an LGPL-3.0-or-later dependency (`cabac`) | Accepted — documented policy exception (Phase 6) |
-| [0015](0015-deflate-replay-result.md) | Exact DEFLATE replay wins where plaintext is shared and weakly coded | Accepted — first measured positive for a PDF structural candidate (Phase 6) |
+| [0015](0015-deflate-replay-result.md) | Exact DEFLATE replay wins on shared plaintext with a large/weakly-coded appearance | Accepted — first measured positive for a PDF structural candidate (Phase 6) |
 
 ## Adding an ADR
 

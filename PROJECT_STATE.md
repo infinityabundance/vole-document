@@ -47,7 +47,7 @@ are evidence.
 | Lexer stream opacity (`stream`+EOL is an opaque span) | 6 | ADOPTED | campaign `2026-10-05-phase6-ec92c1a`; stream-data bytes are a byte-authoritative span, so `/FlateDecode` stream spans are exact and `preflate` never discovers streams; 12/12 corpus files still round-trip |
 | `DEFLATE_REPLAY` DRA op (DRA v7) | 6 | IMPLEMENTED | opcode `0x0A`; emits the exact raw DEFLATE bitstream from `(plaintext, corrections)` with a declared output length validated at eval; `catch_unwind`-isolated; mandatory feature bit; universe → `phase6;…;dra-7;…+deflate-replay` |
 | Exact DEFLATE replay, raw plaintext (`PDF_DEFLATE_REPLAY`) | 6 | RECORDED (rejected vs `BYTE_RANS`) | campaign `2026-10-05-phase6-ec92c1a`; byte-exact, but on `flate.pdf` 56,702 vs `BYTE_RANS` 49,263 (the plaintext is nearly as large as the bitstream it replaces) |
-| Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | 6 | ADOPTED | campaign `2026-10-05-phase6-ec92c1a`; `flate.pdf` 36,068 vs `BYTE_RANS` 49,263 (**−13,195 B**); 3 shared plaintext channels for 6 streams; leave-one-out delta −13,195; **first measured positive for a PDF structural candidate** (ADR-0015) |
+| Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | 6 | ADOPTED | campaign `2026-10-05-phase6-ec92c1a`; `flate.pdf` 36,068 vs `BYTE_RANS` 49,263 (**−13,195 B**); 3 plaintext channels (one shared) for 6 streams; leave-one-out delta −13,195; **first measured positive for a PDF structural candidate** (ADR-0015) |
 | Nested PDF content proceduralization | 7 | PROPOSED | the clearest embodiment of the thesis |
 | PDF grammar/templates | 8 | PROPOSED | must pay definition cost |
 | EntropyFS store-backed form | 9 | PROPOSED | optional substrate; `engine::Engine` |
@@ -86,8 +86,8 @@ added metadata the monolithic lane never pays. Those four results converge on a
 scoped negative: at the tested scale, proceduralizing *plain* PDF syntax does not
 beat a whole-file order-0 rANS lane. Phase 6 attacks a **different layer** — bytes
 the producer has already entropy-coded — and records the first positive: exact
-DEFLATE replay of *shared, weakly-coded* plaintext beats `BYTE_RANS` (campaign
-`2026-10-05-phase6-ec92c1a`, ADR-0015).
+DEFLATE replay of *shared* plaintext that also has a *large/weakly-coded*
+appearance beats `BYTE_RANS` (campaign `2026-10-05-phase6-ec92c1a`, ADR-0015).
 
 ### Phase 6 scope and the first measured positive
 
@@ -116,22 +116,29 @@ loses (56,702 B, 7,439 B above `BYTE_RANS`). Ladder A0 RAW 139,614 → A2
 delta **−13,195**. Head-to-head vs `BYTE_RANS`: **win 1, lose 0, decline 11**
 (the other files have no lone FlateDecode stream). Auto winners: RAW = 8,
 `BYTE_RANS` = 3, `PDF_DEFLATE_REPLAY_RANS` = 1; every winner byte-exact.
-- **Why it wins.** The sample exposes 6 streams but only **3 unique plaintexts**,
-and one stream is stored at level 0 (weak producer coding). The rANS lane codes
+- **Why it wins.** The sample exposes 6 streams but only **3 unique plaintexts**;
+only `p1` is shared (across four streams at levels 0/1/6/9), while `p2` and `p3`
+are unique (`streams=6 replayed=6 channels=3 objects=6`). Of `p1`'s four
+appearances exactly one is weakly coded — level 0 is stored (~verbatim,
+31,998 B); level 1 is only ~19% of the plaintext (6,197 B), and levels 6 and 9
+are strong — so the rANS lane's win rests on the shared plaintext *also* having a
+large/weakly-coded appearance, not on four weak bitstreams. The rANS lane codes
 `p1` once and every stream that reproduces it references the same channel, so the
-repeated plaintext is neither stored four times nor carried inside four weak
-bitstreams; the winner's cost is dominated by the single 32,723 B entropy
-payload against `BYTE_RANS`'s 49,263 B. Section scoped honestly: this is **one
-composed sample**. The winning region is plaintext that is **shared across
-streams** and/or **weakly coded**; the losing region is **unique,
-strongly-compressed** plaintext, where the plaintext is no smaller than the
-bitstream it replaces (the raw-plaintext result is exactly that regime).
-Recorded as a measured positive (ADR-0015).
+large stored appearance is re-expressed by order-0 rANS over the shared plaintext
+rather than carried as a bitstream; the winner's cost is dominated by the single
+32,723 B entropy payload against `BYTE_RANS`'s 49,263 B. Section scoped honestly:
+this is **one composed sample**. The winning region is a plaintext that is
+**shared across streams** *and* has a **large/weakly-coded** appearance; neither
+alone wins, and the losing region is **unique, strongly-compressed** plaintext,
+where the plaintext is no smaller than the bitstream it replaces (the
+raw-plaintext result is exactly that regime). Recorded as a measured positive
+(ADR-0015).
 - **What this does not license.** The four plain-syntax negatives stand; Phase 6
 does not show that PDF structural proceduralization generally beats `BYTE_RANS`,
-only that exact replay of already-entropy-coded, shared, weakly-coded streams
-does on this case. The natural successors are nested plaintext
-proceduralization (Phase 7) and cross-document plaintext sharing (Phase 9).
+only that exact replay of already-entropy-coded streams whose plaintext is shared
+*and* has a large/weakly-coded appearance does on this one case. The natural
+successors are nested plaintext proceduralization (Phase 7) and cross-document
+plaintext sharing (Phase 9).
 
 ### Phase 5.7 scope and the packed-framing threshold
 

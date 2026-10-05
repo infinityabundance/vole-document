@@ -144,18 +144,29 @@ deduplicated object and then replays the original bitstream; on this corpus it
 loses, because the plaintext of a strongly-compressed stream is nearly as large
 as the stream it replaces. The rANS-plaintext lane `PDF_DEFLATE_REPLAY_RANS`
 codes each unique plaintext once as an order-0 byte-rANS channel and shares it
-across every stream that produces it; on a file whose producer coding is weak
-(low compression levels) and whose plaintext repeats across streams, the
-shared channel re-expresses that weak coding far more cheaply than the stored
-bitstreams, and it beats BYTE_RANS.
+across every stream that produces it; on a file whose plaintext is shared across
+streams *and* has at least one large/weakly-coded appearance, order-0 rANS of the
+shared plaintext is cheaper than the compressed appearances it replaces, so it
+beats BYTE_RANS. Only `p1` is shared on `flate.pdf` (four streams at levels
+0/1/6/9); `p2` and `p3` are unique.
 
 This is a scoped, measured result for *this* deterministic corpus and this
-commit: the winning region is shared plaintext with weak producer coding, and
-the losing region is unique, strongly-compressed plaintext (where the plaintext
-is no smaller than the original bitstream). The winner is always decided by
-actual serialized bytes, and every auto winner round-trips byte-exactly
+commit: the winning region is a shared plaintext that *also* has a large/weakly
+coded appearance — neither sharing alone nor weak coding alone wins (see
+`docs/evidence/phase6-skeptic-review.md` for the negative controls) — and the
+losing region is unique, strongly-compressed plaintext (where the plaintext is
+no smaller than the original bitstream). The winner is always decided by actual
+serialized bytes, and every auto winner round-trips byte-exactly
 (all_exact=true).
 
 ## Verdict
 
 PASS
+
+## Amendment (2026-10-05)
+
+An independent adversarial review narrowed the interpretation of the winning
+region to the conjunctive condition recorded above. No measured number changed:
+the per-file tables, cumulative ladder, leave-one-out deltas, and verification
+triples are identical to the sealed run. The reviewer's four negative controls
+are recorded in `docs/evidence/phase6-skeptic-review.md`.

@@ -48,7 +48,8 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   `PDF_DEFLATE_REPLAY` = 56,702 B loses to `BYTE_RANS` (7,439 B larger), and RAW =
   57,880 B.
 - The sample exposes 6 FlateDecode streams but only **3 unique plaintexts**; the
-  rANS lane stores 3 shared plaintext channels plus 6 correction objects.
+  rANS lane stores 3 plaintext channels (only `p1`, across four streams, is
+  shared) plus 6 correction objects.
 - Cumulative ladder: A0 RAW = 139,614; A2 +`BYTE_RANS` = 98,224;
   A6 +`PDF_LAYOUT_RANS` = 98,224; A7 +`PDF_DEFLATE_REPLAY` = 98,224;
   A8 +`PDF_DEFLATE_REPLAY_RANS` = **85,029**. Leave-one-out delta for the rANS
@@ -57,10 +58,11 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
 - Head-to-head `PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS`: **win 1, lose 0,
   decline 11** (only `flate.pdf` has a lone FlateDecode stream; every decline is
   recorded verbatim, never scored).
-- **Scoped result.** One composed sample: the winning region is plaintext that is
-  *shared across streams* and/or *weakly coded* by the producer; the losing
-  region is unique, strongly-compressed plaintext, where the plaintext is no
-  smaller than the bitstream it replaces. Receipt under
+- **Scoped result.** One composed sample at commit `ec92c1a`: the winning region
+  is a plaintext that is *shared across streams* **and** *also* has a
+  large/weakly-coded appearance (neither sharing alone nor weak coding alone
+  wins); the losing region is unique, strongly-compressed plaintext, where the
+  plaintext is no smaller than the bitstream it replaces. Receipt under
   `evidence/campaigns/2026-10-05-phase6-ec92c1a/`.
 
 ### Notes
