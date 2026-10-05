@@ -383,6 +383,39 @@ Receipt:
 [`2026-10-05-phase7-corpus-f1f8d26/`](evidence/campaigns/2026-10-05-phase7-corpus-f1f8d26/));
 report: [`docs/evidence/phase7-corpus-report.md`](docs/evidence/phase7-corpus-report.md).
 
+**Complete-cost court (the decisive Phase-7.0 measurement).** The ratio harness
+is a diagnostic; the court decides. A second sealed campaign
+(`2026-10-05-phase7-court-99dc72e`, commit `99dc72e`, driver
+`tools/pdf-court.sh`) runs the real CLI over all 23 locally generated corpus
+files — unforced and with `--force raw|byte-rans|pdf-deflate-replay|pdf-deflate-replay-rans`
+— and compares complete serialized `.voldoc` sizes. `PDF_DEFLATE_REPLAY_RANS` vs
+`BYTE_RANS`: **win 3, lose 8, decline 12**. The wins are exactly the Phase-6
+shared-plaintext geometry, and in all three the unforced court picks
+`PDF_DEFLATE_REPLAY_RANS`:
+
+```text
+qpdf-preserve-objectstreams.pdf  BYTE_RANS 112147 -> PDF_DEFLATE_REPLAY_RANS 56980  (-55167)
+hand-base2.pdf                   BYTE_RANS 112011 -> PDF_DEFLATE_REPLAY_RANS 56885  (-55126)
+_synthetic/flate.pdf             BYTE_RANS  49291 -> PDF_DEFLATE_REPLAY_RANS 36102  (-13189)
+```
+
+`qpdf-preserve-objectstreams.pdf` (qpdf 11.3.0) is the **only real-producer
+transformer output** where replay-rANS wins under complete cost; it is the
+hand-written shared-plaintext geometry surviving a qpdf
+`--object-streams=preserve` transform, not an authoring-application result. Every
+Ghostscript variant and both qpdf compression variants **lose** (unique,
+strongly-compressed plaintext), and the 12 files with no replayable Flate lane
+**decline** (a forced lane the input does not propose is a typed `Usage` error,
+recorded `null`). All 23 auto winners are `verify` + `cmp` byte-exact. The corpus
+is **locally generated** and is **not a population sample**; qpdf and Ghostscript
+are **transformers, not authoring applications**, and browser/PDFium,
+LibreOffice, pdfTeX and Adobe outputs remain a recorded gap. qpdf corpus outputs
+are now byte-reproducible (`--deterministic-id`); Ghostscript outputs are not
+(per-run `/ID`). No candidate is adopted and no wire format changed.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase7-court-99dc72e/`](evidence/campaigns/2026-10-05-phase7-court-99dc72e/).
+
 ## Quick start (Docker only)
 
 All project commands run inside pinned containers. The host only invokes Docker.

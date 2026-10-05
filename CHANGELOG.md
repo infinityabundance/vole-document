@@ -63,6 +63,16 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
     provenance ledger (`provenance.json`). The regenerable `.pdf` bytes are
     gitignored; no third-party bytes.
   - Harness tests in `tests/deflate_stats.rs`.
+  - `tools/pdf-court.sh` runs the real complete-cost court (`encode FILE OUT` and
+    `encode --force raw|byte-rans|pdf-deflate-replay|pdf-deflate-replay-rans FILE
+    OUT`) over every corpus file and records each lane's complete serialized
+    `.voldoc` size; a kind the input does not propose is a typed `Usage` decline
+    recorded as `null`, and the auto winner is `verify`ed and `decode`d+`cmp`ed
+    byte-exact.
+  - `tools/pdf-corpus.sh` now passes `--deterministic-id` to every qpdf
+    invocation, so the qpdf corpus outputs are byte-reproducible across runs.
+    Ghostscript `pdfwrite` output is not (it embeds a per-run `/ID` and
+    timestamp); the caveat is recorded in `provenance.json`.
 
 ### Fixed
 
@@ -102,6 +112,22 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   55,531 vs 111,062; `flate.pdf` 34,051 vs 89,437). Scoped to locally generated
   files; qpdf/Ghostscript are transformers, not authoring apps; browser/office/TeX
   families remain a recorded gap. Report: `docs/evidence/phase7-corpus-report.md`.
+- Campaign `2026-10-05-phase7-court-99dc72e` (verdict RECORDED; measurement, no
+  new candidate) — the decisive **complete-cost court** over the 23-file locally
+  generated corpus, running `encode` and the forced lanes
+  (`raw`/`byte-rans`/`pdf-deflate-replay`/`pdf-deflate-replay-rans`) and comparing
+  complete serialized `.voldoc` sizes. `PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS`:
+  **win 3 / lose 8 / decline 12**. The wins are exactly the Phase-6
+  shared-plaintext geometry: `qpdf-preserve-objectstreams.pdf` (qpdf 11.3.0;
+  112,147 → 56,980, **−55,167 B** — the only real-producer transformer output that
+  wins), `hand-base2.pdf` (112,011 → 56,885, −55,126 B) and `_synthetic/flate.pdf`
+  (49,291 → 36,102, −13,189 B). All 5 Ghostscript variants and both qpdf
+  compression variants lose; the 12 files with no replayable Flate lane decline.
+  Every auto winner is `verify`'d and `cmp`'d byte-exact (23/23). qpdf corpus
+  outputs are byte-reproducible (`--deterministic-id`); Ghostscript outputs are
+  not. The corpus is locally generated and is **not** a population sample;
+  qpdf/Ghostscript are transformers. Receipt under
+  `evidence/campaigns/2026-10-05-phase7-court-99dc72e/`.
 - Campaign `2026-10-05-phase6-0d0bb79` (DRA v8, verdict PASS; the earlier
   `2026-10-05-phase6-ec92c1a` receipt is retained): a 12-file corpus; every
   auto winner round-trips byte-exactly (`cmp` + `verify`, `all_exact=true`); the
@@ -143,6 +169,11 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   `default = ["rans"]` (permissive-only), and `--features deflate-replay` (or
   `--all-features`) enables the lane; a build without it rejects the op with
   `UnsupportedFeature` (see ADR-0014 for the LGPL consequence).
+- The Phase-7.0 complete-cost court over the producer corpus does not change any
+  adoption: it confirms the Phase-6 win region under complete cost on 3/23
+  locally generated files (two shared-plaintext fixtures and one qpdf transformer
+  output). It is scoped to locally generated files and makes no population claim;
+  qpdf and Ghostscript are transformers, not authoring applications.
 
 ## [0.1.0-alpha.7] — unreleased
 

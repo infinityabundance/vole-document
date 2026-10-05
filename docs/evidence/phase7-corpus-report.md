@@ -110,3 +110,72 @@ stream-boundary fix the same corpus yields acceptance 24/24 = 1.000 (was
 11/17 = 0.647), and the Phase-6 win geometry now appears on qpdf transformer
 output as well as the hand/synthetic fixtures. Claims are scoped to locally
 generated files; qpdf/Ghostscript are transformers, not authoring apps.
+
+## Complete-cost court (Stage B, sealed)
+
+The ratio tables above are a **diagnostic**; they do not decide. A second
+measurement — the decisive one — seals the *complete-cost court* over the same
+corpus at `evidence/campaigns/2026-10-05-phase7-court-99dc72e/` (code commit
+`99dc72e`, driver `tools/pdf-court.sh`). It runs the real CLI over all 23 corpus
+files and compares complete serialized `.voldoc` sizes:
+
+- the unforced court (`encode FILE OUT`);
+- four forced single lanes (`encode --force raw|byte-rans|pdf-deflate-replay|pdf-deflate-replay-rans FILE OUT`).
+
+A forced lane the input does not propose is a typed `Usage` decline, recorded as
+`null`. Every one of the 23 auto winners `verify`'d and `decode`|`cmp`'d against
+its source byte-for-byte.
+
+### `PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS`
+
+Win = replay-rANS's forced `encoded_len` is strictly smaller than `BYTE_RANS`'s;
+lose = strictly larger; decline = the input proposes no replay lane (`null`).
+Deltas are bytes.
+
+| producer | files | win | lose | decline | win Δ total | lose Δ total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| ghostscript | 5 | 0 | 5 | 0 | 0 | 24,823 |
+| qpdf | 4 | 1 | 2 | 1 | **55,167** | 52,801 |
+| hand (VOLE shell) | 2 | 1 | 1 | 0 | 55,126 | 20,716 |
+| pdf-make-samples | 12 | 1 | 0 | 11 | 13,189 | 0 |
+| **overall** | **23** | **3** | **8** | **12** | **123,482** | **98,340** |
+
+Auto-court winners: `PDF_DEFLATE_REPLAY_RANS` **3**, `BYTE_RANS` **12**, `RAW`
+**8**. The three replay wins are exactly the files with the Phase-6 win geometry
+(a plaintext shared across streams that also has a weak/stored appearance), and
+in all three the unforced court selects `PDF_DEFLATE_REPLAY_RANS`:
+
+| file | producer | `BYTE_RANS` | `PDF_DEFLATE_REPLAY_RANS` | Δ (win) |
+| --- | --- | ---: | ---: | ---: |
+| `qpdf-preserve-objectstreams.pdf` | **qpdf 11.3.0** (transformer) | 112,147 | **56,980** | **55,167** |
+| `hand-base2.pdf` | hand (VOLE shell writer) | 112,011 | **56,885** | **55,126** |
+| `_synthetic/flate.pdf` | `pdf-make-samples` (our fixture) | 49,291 | **36,102** | **13,189** |
+
+`qpdf-preserve-objectstreams.pdf` is the only **real-producer transformer output**
+on which replay-rANS wins under complete cost: it is the hand shared-plaintext
+geometry surviving a qpdf `--object-streams=preserve` transform, not an
+authoring-application result. Replay-rANS **loses** on every Ghostscript variant
+(`gs-default/-ebook/-prepress/-printer/-screen`), both qpdf compression variants
+(`qpdf-compress` −26,255; `qpdf-linearize` −26,546) and `hand-base1.pdf`
+(−20,716), where each plaintext is unique and strongly compressed. It
+**declines** on the 12 files with no replayable Flate lane (`qpdf-nocompress`
+plus 11 synthetic fixtures).
+
+### qpdf corpus reproducibility
+
+Every qpdf invocation now passes `--deterministic-id`, so two consecutive corpus
+builds are **byte-identical** for all `qpdf-*.pdf` (and for `hand-*` and
+`_synthetic/*`). The five `gs-*.pdf` outputs are **not** byte-reproducible:
+Ghostscript embeds a per-run `/ID` and timestamp, so their SHA-256 changes run to
+run, while byte length, object structure, and every `FlateDecode`
+`compressed_bytes` stay stable. The caveat is recorded in `provenance.json`. No
+third-party bytes are committed; the regenerable `.pdf` files stay gitignored.
+
+**Verdict: RECORDED (complete-cost court).** On this locally generated corpus,
+`PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` under complete cost on 3/23 files —
+two shared-plaintext fixtures and one qpdf transformer output (55,167 B) — loses
+on 8, and declines on 12. **No population claim is made:** the corpus is locally
+generated, qpdf and Ghostscript are **transformers** (not authoring
+applications), and browser/PDFium, LibreOffice, pdfTeX and Adobe outputs remain a
+recorded gap. No wire format, candidate, or decode path changed; no new candidate
+is adopted.
