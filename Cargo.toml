@@ -36,8 +36,10 @@ preflate-rs = { version = "=0.7.6", optional = true, default-features = false }
 
 [dev-dependencies]
 # Test-only zlib stream generator for the exact-replay courts. Never a runtime
-# dependency of the library.
-flate2 = "=1.1.4"
+# dependency of the library. The `zlib-rs` backend is used deliberately: it is a
+# faithful zlib implementation whose DEFLATE output `preflate-rs` parses, unlike
+# miniz_oxide's output (which preflate rejects as `InvalidDeflate`).
+flate2 = { version = "=1.1.4", default-features = false, features = ["zlib-rs"] }
 
 [features]
 default = ["rans", "deflate-replay"]

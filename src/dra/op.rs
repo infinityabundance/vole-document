@@ -84,6 +84,22 @@ pub enum Op {
         /// Exact reconstructed output length; must equal the produced length.
         declared_output_len: u64,
     },
+    /// Reconstruct the *exact original raw DEFLATE bitstream* from a plaintext
+    /// object plus an opaque correction object, replaying the producer's DEFLATE
+    /// coding decisions. Emits raw DEFLATE (RFC 1951) bytes only; any zlib framing
+    /// is composed by surrounding instructions. `declared_output_len` is the exact
+    /// expected raw payload length, validated at evaluation.
+    ///
+    /// Reconstruction can panic internally on hostile correction data, so it is
+    /// isolated and never panics the decoder (see `crate::codec::deflate`).
+    DeflateReplay {
+        /// Index into the descriptor's object table holding the plaintext.
+        plaintext_object: u32,
+        /// Index into the descriptor's object table holding the corrections.
+        corrections_object: u32,
+        /// Exact length (bytes) of the raw DEFLATE payload the op reproduces.
+        declared_output_len: u32,
+    },
 }
 
 /// One item in a [`Op::PackSegments`] item table.
@@ -126,6 +142,8 @@ pub const OP_EMIT_OFFSET: u8 = 0x07;
 pub const OP_PACK_SEGMENTS: u8 = 0x08;
 /// Opcode byte for [`Op::PackedChannels`].
 pub const OP_PACKED_CHANNELS: u8 = 0x09;
+/// Opcode byte for [`Op::DeflateReplay`].
+pub const OP_DEFLATE_REPLAY: u8 = 0x0A;
 
 /// Item tag for [`PackItem::Literal`].
 const PACK_ITEM_LITERAL: u8 = 0x01;
@@ -191,6 +209,16 @@ impl Op {
                 out.push(OP_PACKED_CHANNELS);
                 out.extend_from_slice(&data_channel.to_le_bytes());
                 out.extend_from_slice(&plan_channel.to_le_bytes());
+                out.extend_from_slice(&declared_output_len.to_le_bytes());
+            }
+            Op::DeflateReplay {
+                plaintext_object,
+                corrections_object,
+                declared_output_len,
+            } => {
+                out.push(OP_DEFLATE_REPLAY);
+                out.extend_from_slice(&plaintext_object.to_le_bytes());
+                out.extend_from_slice(&corrections_object.to_le_bytes());
                 out.extend_from_slice(&declared_output_len.to_le_bytes());
             }
         }
@@ -270,6 +298,16 @@ impl Op {
                 Ok(Op::PackedChannels {
                     data_channel,
                     plan_channel,
+                    declared_output_len,
+                })
+            }
+            OP_DEFLATE_REPLAY => {
+                let plaintext_object = read_u32(data, pos)?;
+                let corrections_object = read_u32(data, pos)?;
+                let declared_output_len = read_u32(data, pos)?;
+                Ok(Op::DeflateReplay {
+                    plaintext_object,
+                    corrections_object,
                     declared_output_len,
                 })
             }
@@ -500,6 +538,16 @@ mod tests {
             data_channel: 3,
             plan_channel: 4,
             declared_output_len: u64::MAX,
+        });
+        roundtrip(Op::DeflateReplay {
+            plaintext_object: 0,
+            corrections_object: 1,
+            declared_output_len: 1234,
+        });
+        roundtrip(Op::DeflateReplay {
+            plaintext_object: u32::MAX,
+            corrections_object: u32::MAX,
+            declared_output_len: u32::MAX,
         });
     }
 

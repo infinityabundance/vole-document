@@ -174,7 +174,10 @@ fn future_major_version_is_unsupported_not_misparsed() {
 #[test]
 fn unknown_mandatory_feature_bit_fails_closed() {
     let mut h = Header::new([0u8; 16], 0, 0, 0);
-    h.mandatory_features = 0x0000_0001;
+    // A bit no build supports (bit 0, `FEATURE_DEFLATE_REPLAY`, is supported when
+    // the `deflate-replay` feature is compiled in; the fail-closed behavior for a
+    // *known* feature in a build *without* it is covered in `descriptor.rs`).
+    h.mandatory_features = 0x8000_0000;
     let e = Descriptor::parse(&h.encode(), Limits::DEFAULT).unwrap_err();
     assert_eq!(e.class(), ErrorClass::UnsupportedFeature);
 }

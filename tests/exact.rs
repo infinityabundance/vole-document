@@ -135,6 +135,6 @@ fn encoded_overhead_is_bounded_for_incompressible_data() {
     let data = rng.bytes(1 << 20);
     let (bytes, _) = encode::encode(&data, Limits::DEFAULT).unwrap();
     let overhead = bytes.len() - data.len();
-    // Fixed framing overhead for the Phase-5.8 RAW descriptor (DRA v6).
-    assert_eq!(overhead, 354, "unexpected fixed overhead");
+    // Fixed framing overhead for the Phase-6 RAW descriptor (DRA v7).
+    assert_eq!(overhead, 367, "unexpected fixed overhead");
 }

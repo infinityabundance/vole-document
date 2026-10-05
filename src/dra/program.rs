@@ -5,7 +5,7 @@ use crate::error::{Error, Result};
 use crate::limits::Limits;
 
 /// DRA version carried in the graph record.
-pub const DRA_VERSION: u8 = 6;
+pub const DRA_VERSION: u8 = 7;
 
 /// Number of positional-offset slots addressable by [`Op::MarkOffset`] and
 /// [`Op::EmitOffset`]. Slot indices must be strictly below this bound.
@@ -428,6 +428,44 @@ impl Program {
                     last_len = len;
                     have_last = true;
                 }
+                Op::DeflateReplay {
+                    plaintext_object,
+                    corrections_object,
+                    declared_output_len,
+                } => {
+                    if *plaintext_object as usize >= object_lens.len() {
+                        return Err(Error::invalid_graph(format!(
+                            "graph references missing object {plaintext_object}"
+                        )));
+                    }
+                    if *corrections_object as usize >= object_lens.len() {
+                        return Err(Error::invalid_graph(format!(
+                            "graph references missing object {corrections_object}"
+                        )));
+                    }
+                    if u64::from(*declared_output_len) > limits.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "DEFLATE_REPLAY declared output {declared_output_len} exceeds limit {}",
+                            limits.max_output_bytes
+                        )));
+                    }
+                    // The raw DEFLATE length is not derivable from the object
+                    // lengths, so the declared length is the static prediction and
+                    // evaluation proves it exact.
+                    let len = u64::from(*declared_output_len);
+                    total = total
+                        .checked_add(len)
+                        .ok_or_else(|| Error::resource_limit("output length overflow"))?;
+                    if len > 0 {
+                        spans.push(Span {
+                            start: total - len,
+                            len,
+                            authority: Authority::Generated,
+                        });
+                    }
+                    last_len = len;
+                    have_last = true;
+                }
             }
             if total > limits.max_output_bytes {
                 return Err(Error::resource_limit(format!(
@@ -680,6 +718,34 @@ impl Program {
                     block_len = out.len() - start;
                     have_last = true;
                 }
+                Op::DeflateReplay {
+                    plaintext_object,
+                    corrections_object,
+                    declared_output_len,
+                } => {
+                    let plaintext = objects.get(*plaintext_object as usize).ok_or_else(|| {
+                        Error::invalid_graph(format!(
+                            "graph references missing object {plaintext_object}"
+                        ))
+                    })?;
+                    let corrections =
+                        objects.get(*corrections_object as usize).ok_or_else(|| {
+                            Error::invalid_graph(format!(
+                                "graph references missing object {corrections_object}"
+                            ))
+                        })?;
+                    let raw = replay_deflate(plaintext, corrections)?;
+                    if raw.len() as u64 != u64::from(*declared_output_len) {
+                        return Err(Error::invalid_graph(format!(
+                            "DEFLATE_REPLAY produced {} bytes but {} were declared",
+                            raw.len(),
+                            declared_output_len
+                        )));
+                    }
+                    block_len = raw.len();
+                    out.extend_from_slice(&raw);
+                    have_last = true;
+                }
             }
             if out.len() as u64 > limits.max_output_bytes {
                 return Err(Error::resource_limit(
@@ -689,6 +755,24 @@ impl Program {
         }
         Ok(out)
     }
+}
+
+/// Replay a raw DEFLATE bitstream from plaintext and correction state.
+///
+/// With the `deflate-replay` feature this delegates to the bounded,
+/// panic-isolated [`crate::codec::deflate::replay_raw`]. Without it the op is
+/// still recognized on the wire but cannot be evaluated, so it fails closed.
+#[cfg(feature = "deflate-replay")]
+fn replay_deflate(plaintext: &[u8], corrections: &[u8]) -> Result<Vec<u8>> {
+    crate::codec::deflate::replay_raw(plaintext, corrections)
+}
+
+/// Fail-closed stub for builds without the `deflate-replay` feature.
+#[cfg(not(feature = "deflate-replay"))]
+fn replay_deflate(_plaintext: &[u8], _corrections: &[u8]) -> Result<Vec<u8>> {
+    Err(Error::unsupported_feature(
+        "DEFLATE_REPLAY requires the `deflate-replay` feature",
+    ))
 }
 
 /// Interpret a packed item table over `data`, appending produced bytes to `out`.
@@ -1338,8 +1422,8 @@ mod tests {
     }
 
     #[test]
-    fn dra_version_is_six() {
-        assert_eq!(DRA_VERSION, 6);
+    fn dra_version_is_seven() {
+        assert_eq!(DRA_VERSION, 7);
         let p = Program::new(vec![Op::Inline {
             bytes: b"x".to_vec(),
         }]);
@@ -1471,5 +1555,101 @@ mod tests {
         assert_eq!(len, 3);
         let e = p.eval(&[], &channels, Limits::DEFAULT).unwrap_err();
         assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[cfg(feature = "deflate-replay")]
+    fn zlib_stream(data: &[u8]) -> Vec<u8> {
+        use flate2::Compression;
+        use flate2::write::ZlibEncoder;
+        use std::io::Write;
+        let mut e = ZlibEncoder::new(Vec::new(), Compression::new(6));
+        e.write_all(data).unwrap();
+        e.finish().unwrap()
+    }
+
+    #[cfg(feature = "deflate-replay")]
+    #[test]
+    fn deflate_replay_roundtrip_is_byte_exact() {
+        let data = b"BT /F1 12 Tf (replay me) Tj ET\n".repeat(300);
+        let z = zlib_stream(&data);
+        let plan = crate::codec::deflate::try_replay(&z, Limits::DEFAULT).expect("replay plan");
+        let objects = objs(&[&plan.plaintext, &plan.corrections]);
+        // header -> replay(raw deflate) -> adler: the full zlib stream.
+        let p = Program::new(vec![
+            Op::Inline {
+                bytes: plan.header.to_vec(),
+            },
+            Op::DeflateReplay {
+                plaintext_object: 0,
+                corrections_object: 1,
+                declared_output_len: plan.raw_len,
+            },
+            Op::Inline {
+                bytes: plan.adler.to_vec(),
+            },
+        ]);
+        let (len, cov) = p.analyze_objects(&objects, Limits::DEFAULT).unwrap();
+        assert_eq!(len, z.len() as u64);
+        cov.validate(z.len() as u64).unwrap();
+        assert_eq!(
+            p.eval(&objects, &[], Limits::DEFAULT).unwrap(),
+            z,
+            "DEFLATE_REPLAY must reproduce the original zlib stream byte-for-byte"
+        );
+        // The op survives its wire form.
+        let enc = p.encode().unwrap();
+        assert_eq!(Program::decode(&enc, Limits::DEFAULT).unwrap(), p);
+    }
+
+    #[cfg(feature = "deflate-replay")]
+    #[test]
+    fn deflate_replay_declared_len_mismatch_errors() {
+        let data = b"replay mismatch vector".repeat(50);
+        let z = zlib_stream(&data);
+        let plan = crate::codec::deflate::try_replay(&z, Limits::DEFAULT).unwrap();
+        let objects = objs(&[&plan.plaintext, &plan.corrections]);
+        let p = Program::new(vec![Op::DeflateReplay {
+            plaintext_object: 0,
+            corrections_object: 1,
+            declared_output_len: plan.raw_len + 1,
+        }]);
+        let e = p.eval(&objects, &[], Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn deflate_replay_missing_object_errors() {
+        let objects = objs(&[b"plain"]);
+        let p = Program::new(vec![Op::DeflateReplay {
+            plaintext_object: 0,
+            corrections_object: 9,
+            declared_output_len: 3,
+        }]);
+        let e = p.analyze_objects(&objects, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[cfg(feature = "deflate-replay")]
+    #[test]
+    fn deflate_replay_hostile_corrections_is_typed_error() {
+        let mut blob = vec![0u8; 64];
+        for (i, b) in blob.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(37).wrapping_add(11);
+        }
+        let objects = objs(&[b"some plaintext bytes here", &blob]);
+        let p = Program::new(vec![Op::DeflateReplay {
+            plaintext_object: 0,
+            corrections_object: 1,
+            declared_output_len: 8,
+        }]);
+        let e = p.eval(&objects, &[], Limits::DEFAULT).unwrap_err();
+        assert!(
+            matches!(
+                e.class(),
+                crate::ErrorClass::CodecReplay | crate::ErrorClass::InvalidGraph
+            ),
+            "unexpected class: {:?}",
+            e.class()
+        );
     }
 }

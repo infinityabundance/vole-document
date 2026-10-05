@@ -360,18 +360,21 @@ fn cmd_capabilities() -> Result<()> {
             "\"crate\":\"vole-document\",",
             "\"format_major\":{},",
             "\"format_minor\":{},",
+            "\"dra_version\":{},",
             "\"exactness_profiles\":[\"EXACT_BYTES\"],",
-            "\"source_formats\":[\"OPAQUE\"],",
+            "\"source_formats\":[\"OPAQUE\",\"PDF\"],",
             "\"universe\":\"{}\",",
-            "\"dra_ops\":[\"EMIT_OBJECT\",\"INLINE\",\"REPEAT_LAST\"],",
-            "\"entropy_channels\":[],",
-            "\"features\":{{\"rans\":{},\"pdf\":false,\"deflate_replay\":false}}",
+            "\"dra_ops\":[\"EMIT_OBJECT\",\"INLINE\",\"REPEAT_LAST\",\"DECODE_CHANNEL\",\"INTERLEAVE_CHANNELS\",\"MARK_OFFSET\",\"EMIT_OFFSET\",\"PACK_SEGMENTS\",\"PACKED_CHANNELS\",\"DEFLATE_REPLAY\"],",
+            "\"entropy_channels\":[\"ORDER0_BYTE_RANS\"],",
+            "\"features\":{{\"rans\":{},\"deflate_replay\":{}}}",
             "}}"
         ),
         vole_document::container::header::FORMAT_MAJOR,
         vole_document::container::header::FORMAT_MINOR,
+        vole_document::dra::program::DRA_VERSION,
         UNIVERSE,
         cfg!(feature = "rans"),
+        cfg!(feature = "deflate-replay"),
     );
     Ok(())
 }
@@ -397,6 +400,13 @@ fn describe_op(op: &Op) -> String {
             plan_channel,
             declared_output_len,
         } => format!("PACKED_CHANNELS({data_channel},{plan_channel},{declared_output_len})"),
+        Op::DeflateReplay {
+            plaintext_object,
+            corrections_object,
+            declared_output_len,
+        } => {
+            format!("DEFLATE_REPLAY({plaintext_object},{corrections_object},{declared_output_len})")
+        }
     }
 }
 

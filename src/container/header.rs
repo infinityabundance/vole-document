@@ -20,7 +20,19 @@ pub const FORMAT_MAJOR: u16 = 0;
 /// Minor format version implemented by this build.
 pub const FORMAT_MINOR: u16 = 1;
 
-/// Feature bits this build understands and supports (none yet beyond exact).
+/// Mandatory feature bit: the descriptor carries at least one `DEFLATE_REPLAY`
+/// op and so requires a decoder built with exact-DEFLATE-replay support.
+pub const FEATURE_DEFLATE_REPLAY: u32 = 1 << 0;
+
+/// Feature bits this build understands and supports.
+///
+/// Without the `deflate-replay` cargo feature the replay bit is *not* supported,
+/// so a descriptor that declares it fails closed at header validation with
+/// [`crate::ErrorClass::UnsupportedFeature`] rather than being reinterpreted.
+#[cfg(feature = "deflate-replay")]
+pub const SUPPORTED_MANDATORY_FEATURES: u32 = FEATURE_DEFLATE_REPLAY;
+/// Feature bits this build understands and supports (no replay support).
+#[cfg(not(feature = "deflate-replay"))]
 pub const SUPPORTED_MANDATORY_FEATURES: u32 = 0;
 
 /// The parsed, validated fixed header.
