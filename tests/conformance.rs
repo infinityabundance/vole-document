@@ -5,6 +5,7 @@ use vole_document::adapter::opaque::FORMAT_BASIS;
 use vole_document::container::record::RECORD_OVERHEAD;
 use vole_document::container::{Descriptor, UNIVERSE, universe_id_from_str};
 use vole_document::dra::{Authority, Op, Program};
+use vole_document::encode::candidates::CandidateKind;
 use vole_document::integrity::sha256;
 use vole_document::limits::Limits;
 use vole_document::materialize;
@@ -57,8 +58,14 @@ fn fixed_overhead_formula_holds() {
     // Golden structural length, computed from the format definition. A change
     // here means the wire layout drifted and must be a deliberate, versioned
     // decision, not an accident.
-    let source = b"x";
+    //
+    // The RLE candidate would win for a short or repetitive source, so pick a
+    // 16-byte non-repeating sequence where a literal object is strictly cheaper
+    // and RAW is the court's winner. This keeps the RAW overhead formula under
+    // test without weakening it.
+    let source = b"0123456789abcdef";
     let (bytes, report) = encode::encode(source, Limits::DEFAULT).unwrap();
+    assert_eq!(report.kind, CandidateKind::Raw);
     let graph_len = 1 + 4 + 1 + 4; // version + op_count + EMIT_OBJECT + id
     let expected = 64 // header
         + (RECORD_OVERHEAD + UNIVERSE.len())
