@@ -1,0 +1,6 @@
+# Primary sealed toolchain. The MSRV gate lives in the rust:1.89 Docker stage
+# and overrides this via the RUSTUP_TOOLCHAIN environment variable.
+[toolchain]
+channel = "1.99.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

@@ -1,0 +1,62 @@
+name: vole-document
+
+# All project commands run through these services. The host only invokes
+# `docker compose run --rm <service> ...` (or the tools/*.sh wrappers).
+#
+#   docker compose run --rm dev  cargo test --all-features --locked
+#   docker compose run --rm dev  cargo fmt --check
+#   docker compose run --rm msrv cargo build --locked
+#   docker compose run --rm tools qpdf --version
+#
+# The cargo registry and target directory are named volumes so builds are fast
+# and identical across repeated gate runs; neither is part of the repository.
+
+services:
+  dev:
+    build:
+      context: .
+      target: dev
+    image: vole-document/dev:1.99.0
+    # Host networking is required in restricted sandboxes where only the
+    # pre-existing bridge/host networks have working DNS + egress.
+    network_mode: host
+    working_dir: /work
+    environment:
+      CARGO_TERM_COLOR: never
+    volumes:
+      - .:/work
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/work/target
+    command: ["cargo", "test", "--all-features", "--locked"]
+
+  msrv:
+    build:
+      context: .
+      target: msrv
+    image: vole-document/msrv:1.89.0
+    network_mode: host
+    working_dir: /work
+    environment:
+      CARGO_TERM_COLOR: never
+      RUSTUP_TOOLCHAIN: "1.89.0"
+    volumes:
+      - .:/work
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target-msrv:/work/target
+    command: ["cargo", "build", "--locked"]
+
+  tools:
+    build:
+      context: .
+      target: tools
+    image: vole-document/tools:bookworm
+    network_mode: host
+    working_dir: /work
+    volumes:
+      - .:/work
+    command: ["sh", "-c", "qpdf --version; pdfinfo -v; mutool -v; gs --version"]
+
+volumes:
+  cargo-registry:
+  cargo-target:
+  cargo-target-msrv:

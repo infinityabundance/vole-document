@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "VOLE-Document: byte-exact procedural document storage"
+abstract: >-
+  VOLE-Document persists a bounded deterministic reconstruction description of a
+  document — reconstruction structure, parameters/state, typed residual channels,
+  and (later) typed rANS channels — and materializes the exact original document
+  bytes on demand. The exact profile's invariant is
+  materialize(descriptor) == original_bytes.
+version: 0.1.0-alpha.1
+license: "MIT OR Apache-2.0"
+type: software
+repository-code: "https://github.com/infinityabundance/vole-document"
+keywords:
+  - compression
+  - rans
+  - document
+  - pdf
+  - archival
+  - byte-exact
+authors:
+  - family-names: "de Beer"
+    given-names: "Riaan"
+    alias: "infinityabundance"

@@ -1,0 +1,9 @@
+//! The `.voldoc` container: header, framing, and descriptor model.
+
+pub mod descriptor;
+pub mod header;
+pub mod record;
+
+pub use descriptor::{Descriptor, ParsedDescriptor, UNIVERSE_V1, universe_id_from_str};
+pub use header::{HEADER_LEN, Header, MAGIC};
+pub use record::{RECORD_OVERHEAD, Record, RecordReader, RecordTag};

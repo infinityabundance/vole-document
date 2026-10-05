@@ -1,0 +1,45 @@
+name: ci
+
+# CI invokes exactly the same Docker paths as local development. There is no
+# separate "CI build"; the pinned images in Dockerfile/compose.yaml are the only
+# toolchains, and digests are recorded in receipts.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  stable:
+    name: stable (Rust 1.99.0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build pinned dev image
+        run: docker compose build dev
+      - name: Format
+        run: docker compose run --rm --no-TTY dev cargo fmt --all --check
+      - name: Clippy
+        run: docker compose run --rm --no-TTY dev cargo clippy --all-targets --all-features -- -D warnings
+      - name: Test
+        run: docker compose run --rm --no-TTY dev cargo test --all-features --locked
+
+  msrv:
+    name: msrv (Rust 1.89.0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build pinned msrv image
+        run: docker compose build msrv
+      - name: Build on MSRV
+        run: docker compose run --rm --no-TTY msrv cargo build --locked --all-features
+
+  exact-court:
+    name: phase 1 exact court
+    runs-on: ubuntu-latest
+    needs: stable
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build pinned dev image
+        run: docker compose build dev
+      - name: Run exact court
+        run: docker compose run --rm --no-TTY dev sh tools/phase1-court.sh

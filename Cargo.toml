@@ -1,0 +1,55 @@
+[package]
+name = "vole-document"
+version = "0.1.0-alpha.1"
+edition = "2024"
+rust-version = "1.89"
+description = "Byte-exact procedural document storage: deterministic reconstruction state, typed residuals, and entropy-coded channels that materialize the exact original document bytes."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/infinityabundance/vole-document"
+homepage = "https://github.com/infinityabundance/vole-document"
+readme = "README.md"
+keywords = ["compression", "rans", "document", "pdf", "archival"]
+categories = ["compression", "encoding"]
+
+[lib]
+name = "vole_document"
+path = "src/lib.rs"
+
+[[bin]]
+name = "vole-document"
+path = "src/main.rs"
+
+[dependencies]
+# Archival source identity. Pinned exactly for the first sealed universe.
+sha2 = "=0.10.9"
+
+# Native rANS entropy substrate (Phase 2). Optional so the Phase 1 exact
+# core has no entropy dependency at all; enabling it never changes .voldoc
+# semantics on its own — the descriptor declares its own entropy semantics.
+ryg-rans-rs = { version = "=0.5.1", optional = true, default-features = false, features = ["alloc"] }
+
+[features]
+default = []
+# Phase 2: scalar order-0 / typed byte rANS channels.
+rans = ["dep:ryg-rans-rs"]
+# Later phases (declared so the feature surface is deliberate, not accidental):
+# pdf = []
+# deflate-replay = ["dep:preflate-rs"]
+# entropyfs-store = ["dep:entropyfs"]
+# dsfb-search = ["dep:dsfb"]
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = false
+panic = "unwind"
+
+[profile.dev]
+opt-level = 1
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }

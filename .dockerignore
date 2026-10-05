@@ -1,0 +1,19 @@
+# Contexts that must never enter a build.
+
+# Git metadata
+.git
+.gitignore
+
+# Rust build products (built inside the container bind mount / named volume)
+target
+
+# Local research material (paper, citation snapshots, subagent findings).
+# Not a build input; excluded so images stay free of non-redistributable bytes.
+research
+
+# Evidence scratch (sealed campaigns are copied in explicitly when needed)
+evidence/scratch
+
+# Editor / OS noise
+**/.DS_Store
+**/*.swp
