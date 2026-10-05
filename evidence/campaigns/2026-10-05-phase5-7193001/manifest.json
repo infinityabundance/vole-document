@@ -1,0 +1,12 @@
+{
+  "campaign": "2026-10-05-phase5-7193001",
+  "phase": "Phase 5 — PDF classic-xref proceduralization, PDF_LAYOUT rung over forced-candidate ablation",
+  "claim": "Every corpus file round-trips byte-exactly through its auto-winning lane (verify and decode cmp), and the PDF_LAYOUT rung yields an honest, exact per-mechanism size or a recorded null decline, with the classic-xref subset compared against the auto winner.",
+  "results_sha256": "8668cf4d33f35b68d2c327e7c50f2a612eb42de07cf940aca0310f6921ea8032",
+  "ladder_sha256": "02bad418c9061b8959acc9bbabf5a71748c0b147f0ff8856aca4db98692afeb7",
+  "environment_sha256": "39a483397dc6d262eae1216112e4983f4cccbd74c6a9e699976abfac88651391",
+  "report_sha256": "f53f601345a8e8280c5f546940b04f9d05cc795fd9a1de423c5a35c07286fb85",
+  "oracle": "oracle.jsonl",
+  "oracle_sha256": "9bedef23d5173d61c98fc81c57b316fc05fcd4e0bc0e3c889a081acbf5433227",
+  "verdict": "PASS"
+}
