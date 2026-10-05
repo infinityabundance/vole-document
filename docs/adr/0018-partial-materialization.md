@@ -1,6 +1,6 @@
 # ADR-0018: Partial materialization is a scoped random-access query-cost result, measured against generic compressors
 
-- **Status:** Accepted — scoped positive on decode CPU/allocation, with an
+- **Status:** Accepted — scoped positive on decode CPU, with an
   explicit no-I/O-win caveat (Phase 7.3)
 - **Date:** 2026-10-05
 
@@ -35,22 +35,23 @@ prefix to reach a late output offset.
 - **Do not claim an I/O win while v1 reads the whole descriptor.** The CLI reads
   the entire `.voldoc` into RAM (`fs::read`) and parses it, so
   `descriptor_bytes_traversed` is a **CPU-side approximation**, not a bytes-read
-  figure. Until an mmap/seek reader lands, the honest metric is decode
-  CPU/allocation, and the receipt must say so.
+  figure. Until an mmap/seek reader lands, the honest metric is decode CPU, and
+  the receipt must say so.
 
 ## Consequences
 
 - **Measured result (Phase 7.3, receipt
   `evidence/campaigns/2026-10-05-phase7-partial-a5764c9/`):** on a 33,789,340 B
   (32.22 MiB), 800-stream, 800-replayed PDF, all **18/18** pre-registered queries
-  are byte-exact. For mid/late queries the indexed lane touches ~0.41–0.46 MB
-  (`descriptor_bytes_traversed + entropy_bytes_decoded`) regardless of offset,
+  are byte-exact. For mid/late queries the indexed lane touches ~0.41–0.43 MB
+  (`descriptor_bytes_traversed` alone — its `entropy_bytes_decoded` breakdown is
+  a subset already counted there and must not be added) regardless of offset,
   versus gzip inflating `a+len`: in the late region (≥ 50 % in) it is
   **1.4–2.3 %** of gzip's bytes and **~2–5× faster** than gzip / **~4–13×**
   faster than xz on CPU. Contract hypothesis H1 is met vs gzip and xz (8/8 late
   queries) and **not** met vs zstd.
-- **Where it loses (recorded, not hidden):** in the early region (≤ ~8 MiB) the
-  constant ~0.02–0.03 s / ~38 MB descriptor parse loses to gzip/xz/zstd, which
+- **Where it loses (recorded, not hidden):** in the early region (≤ ~8–16 MiB)
+  the constant ~0.02–0.03 s / ~38 MB descriptor parse loses to gzip/xz/zstd, which
   process only 256 B–8 MB; **zstd's raw decompressor is faster than VOLE at every
   point** (≤ 0.01 s), at ~36 MB RSS; VOLE's peak RSS is ~38 MB versus gzip's
   ~1.2 MB; and whole-file size is still **2.98×** xz.

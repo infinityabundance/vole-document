@@ -332,11 +332,13 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   800-stream deterministic PDF (`pdf-make-large`, 800 replayed / 0 declined;
   `qpdf --check` rc 0). All 18 pre-registered queries (6 byte-ranges at
   0/1/8/16/24/31 MiB + 8 `--pdf-stream` + 4 `--pdf-object`) are byte-exact. For
-  mid/late queries the indexed lane touches ~0.41–0.46 MB
-  (`descriptor_bytes_traversed + entropy_bytes_decoded`) vs gzip inflating
-  `a + len`: in the late region that is **1.4–2.3 %** of gzip's bytes, and VOLE
+  mid/late queries the indexed lane touches ~0.41–0.43 MB
+  (`descriptor_bytes_traversed` alone; its `entropy_bytes_decoded` breakdown is a
+  subset already counted inside that field and must not be added) vs gzip
+  inflating `a + len`: in the late region that is **1.4–2.3 %** of gzip's bytes,
+  and VOLE
   is **~2–5× faster than gzip** and **~4–13× faster than xz** on CPU. It **loses**
-  in the early region (≤ ~8 MiB), **never beats zstd's raw decompressor** on wall
+  in the early region (≤ ~8–16 MiB), **never beats zstd's raw decompressor** on wall
   time, uses ~38 MB peak RSS vs gzip's ~1.2 MB, and the v1 caveat is decisive:
   `view` reads and parses the **whole** descriptor, so on-disk I/O is **not**
   reduced and `descriptor_bytes_traversed` is a CPU-side approximation. Whole-file
@@ -396,7 +398,7 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   (shared plaintext) is not produced by the tested transformers. It is scoped to
   locally generated files and makes no population claim; qpdf and Ghostscript are
   transformers, not authoring applications.
-- The Phase-7.3 query-cost result is a **decode-CPU/allocation** win, not an I/O
+- The Phase-7.3 query-cost result is a **decode-CPU** win, not an I/O
   win: `view` still reads and parses the whole framed descriptor into memory
   (`fs::read`), so bytes read do not shrink and `descriptor_bytes_traversed` is a
   CPU-side approximation, not a bytes-read figure. An mmap/seek descriptor reader

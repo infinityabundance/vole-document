@@ -55,22 +55,26 @@ were relative to `BYTE_RANS`.**
 18 queries: 6 byte-ranges (256 B at 0/1/8/16/24/31 MiB) + 8 `--pdf-stream` +
 4 `--pdf-object` spans distributed across the file. Frozen before measuring.
 All 18 served slices are `cmp`-identical to the source; the descriptor `verify`s
-(length + SHA-256). Full table: `query-table.md`. Start/middle/end:
+(length + SHA-256). Full table: `query-table.md` (its `VOLE bytes` column is
+`descriptor_bytes_traversed + entropy_bytes_decoded` as originally generated — the
+pre-correction sum retained in the sealed raw table; the honest metric is
+`descriptor_bytes_traversed` alone, shown below). Start/middle/end:
 
 | query | a (B) | VOLE bytes | VOLE CPU s | VOLE RSS kB | gzip infl | gzip CPU s | gzip RSS kB | zstd infl | zstd CPU s | zstd RSS kB | xz infl | xz CPU s | xz RSS kB |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | byte-0 (start) | 0 | 412,161 | 0.02 | 37,812 | 256 | 0.00 | 1,224 | 256 | 0.00 | 4,932 | 256 | 0.00 | 1,196 |
-| byte-16 MiB (mid) | 16,777,216 | 455,155 | 0.03 | 38,036 | 16,777,472 | 0.05 | 1,280 | 16,777,472 | 0.00 | 21,656 | 16,777,472 | 0.13 | 18,924 |
-| stream-1525 (end) | 32,069,777 | 454,215 | 0.02 | 38,116 | 32,111,758 | 0.11 | 1,288 | 32,111,758 | 0.01 | 35,980 | 32,111,758 | 0.26 | 33,728 |
+| byte-16 MiB (mid) | 16,777,216 | 433,672 | 0.03 | 38,036 | 16,777,472 | 0.05 | 1,280 | 16,777,472 | 0.00 | 21,656 | 16,777,472 | 0.13 | 18,924 |
+| stream-1525 (end) | 32,069,777 | 433,202 | 0.02 | 38,116 | 32,111,758 | 0.11 | 1,288 | 32,111,758 | 0.01 | 35,980 | 32,111,758 | 0.26 | 33,728 |
 
-`VOLE bytes` = `descriptor_bytes_traversed + entropy_bytes_decoded` (the
-primary metric); `* infl` = decompressed bytes the codec must produce to reach
-the range; CPU = user+sys.
+`VOLE bytes` = `descriptor_bytes_traversed` (the primary decode-side metric); its
+`entropy_bytes_decoded` breakdown is a **subset** already counted inside that
+field, so the two must **not** be added. `* infl` = decompressed bytes the codec
+must produce to reach the range; CPU = user+sys.
 
 ### Where VOLE wins
 
 - **Decode work (primary metric):** for any query at ≥ ~2 MiB, VOLE touches
-  ~0.41–0.46 MB regardless of offset, while gzip must inflate `a + len`. At the
+  ~0.41–0.43 MB regardless of offset, while gzip must inflate `a + len`. At the
   end (31 MiB / stream-1525) that is **~1.4% of gzip's bytes** (~70× fewer); in
   the late region (≥ 50% in) it is 1.4%–2.3% on **8/8** queries.
 - Only **1 of 800** channels is decoded and **1–3 of 9621** ops evaluated per
@@ -82,7 +86,7 @@ the range; CPU = user+sys.
 
 ### Where VOLE loses
 
-- **Early region (≤ ~1–8 MiB):** gzip/xz/zstd finish in ~0.00–0.03 s and process
+- **Early region (≤ ~8–16 MiB):** gzip/xz/zstd finish in ~0.00–0.03 s and process
   only 256 B–8 MB, while VOLE pays a constant ~0.02–0.03 s and ~38 MB just to
   read/parse the descriptor. At offset 0 VOLE processes *more* bytes (412 KB)
   than a 256 B request.
@@ -105,7 +109,7 @@ exact on all 18 points. **This is a real query-cost result.** But: it **loses in
 the early region**, **loses to zstd on wall time everywhere**, **loses on peak
 RSS** (38 MB vs gzip's 1.2 MB), **still loses whole-file size ~3× to xz**, and
 **does not reduce on-disk I/O at all** in v1. The measured v1 win is
-**decode CPU/allocation**, exactly as the contract pre-registered.
+**decode CPU**, exactly as the contract pre-registered.
 
 H1 (≤ 25% of gzip's bytes and ≥ 2× faster, output ≤ 1 MiB at ≥ 50% into a
 ≥ 32 MiB doc) is **MET vs gzip and xz** for the late region (8/8 on both

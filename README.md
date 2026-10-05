@@ -63,7 +63,7 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; amendment campaign `2026-10-05-phase7-corpus-b-c4eb77e` (supersedes `2026-10-05-phase7-corpus-f1f8d26`); 24/24 replayed, 0 declined; diagnostic only, no new candidate |
 | Generator-family Flate corpus (`producers`: ReportLab/Cairo/LibreOffice/pdfTeX) | **Measured (claim corrected 7.0c)** | campaign `2026-10-05-phase7-producers-e071250`; 87/87 replayed; `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` on Cairo (58,711 → 34,574, −24,137 B) but the Cairo file is a **repeated-identical-bytes harness artifact** (six byte-identical streams), and generic LZ does ~2× better (gzip -9 17,382 B; xz -9e 16,852 B); the "first authoring-generator witness" claim is withdrawn; no candidate changed |
 | Generic-compressor baseline ladder (gzip/zstd/xz/brotli vs VOLE) | **Measured — the honest comparison** | campaign `2026-10-05-phase7-baselines-7b9f662`; `tools/baselines.sh` + opt-in `baseline` image; **VOLE beats gzip/zstd/xz/brotli on 0/27 files** (+460,320 B vs the best generic); prior "wins" were relative to the weak order-0 `BYTE_RANS` lane |
-| Partial materialization (`OBSERVATION_INDEX` + `view`) | **Measured — scoped positive (decode CPU, no I/O win)** | campaign `2026-10-05-phase7-partial-a5764c9`; 18/18 queries byte-exact; mid/late queries touch ~0.41–0.46 MB vs gzip inflating `a+len` (late region 1.4–2.3 %, ~2–5× faster than gzip, ~4–13× than xz); **v1 reads the whole descriptor, so on-disk I/O is not reduced** and it loses in the early region (ADR-0018) |
+| Partial materialization (`OBSERVATION_INDEX` + `view`) | **Measured — scoped positive (decode CPU, no I/O win)** | campaign `2026-10-05-phase7-partial-a5764c9`; 18/18 queries byte-exact; mid/late queries touch ~0.41–0.43 MB (`descriptor_bytes_traversed` alone; its `entropy_bytes_decoded` breakdown is a subset already counted there and must not be added) vs gzip inflating `a+len` (late region 1.4–2.3 %, ~2–5× faster than gzip, ~4–13× than xz); **v1 reads the whole descriptor, so on-disk I/O is not reduced** and it loses in the early region (≤ ~8–16 MiB) (ADR-0018) |
 | Deterministic large corpus generator (`pdf-make-large`) | **Tooling** | encode-time subcommand; classic-xref PDF of `OBJECTS` (default 800) distinct zlib `FlateDecode` streams, ≥32 MiB, correct by construction; bytes gitignored |
 | PDF structural adapters (Phases 7–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
@@ -533,12 +533,13 @@ is `cmp`'d against the full materialization. The corpus is a 33,789,340 B
 (32.22 MiB), 800-stream deterministic PDF from the encode-time `pdf-make-large`
 subcommand (`qpdf --check` rc 0; 800 replayed / 0 declined).
 
-**Result: a scoped positive on decode CPU/allocation, byte-exact on all 18
+**Result: a scoped positive on decode CPU, byte-exact on all 18
 pre-registered queries.** For any query at ≥ ~2 MiB the indexed lane touches
-~0.41–0.46 MB (`descriptor_bytes_traversed + entropy_bytes_decoded`) regardless
+~0.41–0.43 MB (`descriptor_bytes_traversed` alone; its `entropy_bytes_decoded`
+breakdown is a subset already counted there and must not be added) regardless
 of offset, while gzip must inflate `a + len`; in the late region (≥ 50 % in) that
 is **1.4–2.3 %** of gzip's bytes, and VOLE is **~2–5× faster than gzip** and
-**~4–13× faster than xz** on CPU. It **loses** in the early region (≤ ~8 MiB),
+**~4–13× faster than xz** on CPU. It **loses** in the early region (≤ ~8–16 MiB),
 **never beats zstd's raw decompressor** on wall time, uses ~38 MB peak RSS vs
 gzip's ~1.2 MB, and whole-file size is still **2.98×** xz. The decisive caveat:
 `view` reads and parses the **whole** descriptor, so on-disk I/O is **not**

@@ -47,7 +47,10 @@
 //! the sum of the serialized record payload lengths the path *needed* — the graph
 //! record, the referenced object payloads, the referenced channel payloads, and
 //! the index record — as a documented CPU-side approximation, not a byte-read
-//! figure. A later stage may add an mmap/seek reader to make it a real I/O
+//! figure. The referenced channel payloads are already included here, so
+//! [`ObservationStats::entropy_bytes_decoded`] is a **subset** of
+//! `descriptor_bytes_traversed` and the two fields must never be summed. A later
+//! stage may add an mmap/seek reader to make it a real I/O
 //! number; the field name and this caveat are deliberate.
 
 use crate::container::observation::{
@@ -119,9 +122,16 @@ pub struct ObservationStats {
     /// Sum of the encoded renormalization payload bytes of the decoded channels.
     ///
     /// This is the descriptor-side entropy bytes consumed, not the decoded symbol
-    /// count (which is the referenced channels' `decoded_length`).
+    /// count (which is the referenced channels' `decoded_length`). It is a
+    /// **subset** of [`Self::descriptor_bytes_traversed`], which already counts
+    /// the same referenced channel payloads, so it is a breakdown and must
+    /// **never** be added to that field — the sum double-counts.
     pub entropy_bytes_decoded: u64,
     /// Approximate descriptor bytes the path needed (see the module docs).
+    ///
+    /// The honest decode-side bound: the graph record, the index record, the
+    /// referenced object payloads, and the referenced channel payloads (which
+    /// include [`Self::entropy_bytes_decoded`]).
     pub descriptor_bytes_traversed: u64,
     /// Number of output bytes served.
     pub output_bytes: u64,

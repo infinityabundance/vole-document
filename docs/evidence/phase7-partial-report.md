@@ -39,21 +39,22 @@ The best VOLE lane is **2.98×** xz; the index record costs **146,711 B** extra.
 
 18 pre-registered queries (6 byte-ranges at 0/1/8/16/24/31 MiB + 8 `--pdf-stream`
 + 4 `--pdf-object`), all **18/18 byte-exact**. Start/middle/end
-(`VOLE bytes` = `descriptor_bytes_traversed + entropy_bytes_decoded`):
+(`VOLE bytes` = `descriptor_bytes_traversed`; its `entropy_bytes_decoded`
+breakdown is a subset already counted there and must not be added):
 
 | query | a (B) | VOLE bytes | VOLE CPU s | VOLE RSS kB | gzip infl | gzip CPU s | zstd CPU s | xz CPU s |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | byte-0 (start) | 0 | 412,161 | 0.02 | 37,812 | 256 | 0.00 | 0.00 | 0.00 |
-| byte-16 MiB (mid) | 16,777,216 | 455,155 | 0.03 | 38,036 | 16,777,472 | 0.05 | 0.00 | 0.13 |
-| stream-1525 (end) | 32,069,777 | 454,215 | 0.02 | 38,116 | 32,111,758 | 0.11 | 0.01 | 0.26 |
+| byte-16 MiB (mid) | 16,777,216 | 433,672 | 0.03 | 38,036 | 16,777,472 | 0.05 | 0.00 | 0.13 |
+| stream-1525 (end) | 32,069,777 | 433,202 | 0.02 | 38,116 | 32,111,758 | 0.11 | 0.01 | 0.26 |
 
-**Wins.** For any query at ≥ ~2 MiB, VOLE touches ~0.41–0.46 MB regardless of
+**Wins.** For any query at ≥ ~2 MiB, VOLE touches ~0.41–0.43 MB regardless of
 offset while gzip inflates `a+len`; in the late region (≥ 50 % in) that is
 **1.4–2.3 %** of gzip's bytes (~20–70× less) and VOLE is **~2–5× faster than
 gzip** and **~4–13× faster than xz** on CPU. Only 1 of 800 channels is decoded
 and 1–3 of 9621 ops evaluated per mid/late query.
 
-**Losses (recorded).** In the early region (≤ ~8 MiB) the constant ~0.02–0.03 s
+**Losses (recorded).** In the early region (≤ ~8–16 MiB) the constant ~0.02–0.03 s
 / ~38 MB descriptor parse loses to codecs that process 256 B–8 MB; **zstd's raw
 decoder is faster than VOLE at every point** (≤ 0.01 s); VOLE's peak RSS is
 ~38 MB versus gzip's ~1.2 MB; and whole-file size is still 2.98× xz.
@@ -65,6 +66,6 @@ compressed prefix while VOLE reads its entire **17.5 MB** `.voldoc`.
 figure. **There is no I/O win yet**, and an mmap/seek reader is the prerequisite
 for any such claim.
 
-**Verdict: scoped positive (decode CPU/allocation), no whole-file or I/O win.**
+**Verdict: scoped positive (decode CPU), no whole-file or I/O win.**
 H1 is met vs gzip and xz for the late region (8/8 on bytes and CPU) and not met
 vs zstd or in the early region. ADR-0018.

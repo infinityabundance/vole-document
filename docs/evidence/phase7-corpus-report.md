@@ -362,5 +362,5 @@ removed, or changed.
 > `evidence/campaigns/2026-10-05-phase7-partial-a5764c9/`, ADR-0018). It does not
 > change anything above: whole-file size still loses (best VOLE 17,392,713 B vs
 > xz 5,841,896 B, 2.98×). Partial materialization is a **scoped positive on
-> random-access decode CPU/allocation** with **no I/O win in v1** (the CLI reads
+> random-access decode CPU** with **no I/O win in v1** (the CLI reads
 > the whole descriptor, so `descriptor_bytes_traversed` is CPU-side only).
