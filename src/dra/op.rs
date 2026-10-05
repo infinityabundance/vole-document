@@ -60,6 +60,38 @@ pub enum Op {
         /// Exact output width in bytes.
         width: u8,
     },
+    /// Reconstruct output from a compact item table over one data object,
+    /// amortizing per-segment framing: literal runs copy contiguous data-object
+    /// bytes, marks record output positions, and emits render marked positions as
+    /// fixed-width decimals. The data object must be consumed exactly.
+    PackSegments {
+        /// Index into the descriptor's object table.
+        data_object: u32,
+        /// Ordered items describing the reconstruction.
+        items: Vec<PackItem>,
+    },
+}
+
+/// One item in a [`Op::PackSegments`] item table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PackItem {
+    /// Copy `len` contiguous bytes from the data object, advancing its cursor.
+    Literal {
+        /// Number of bytes to copy.
+        len: u32,
+    },
+    /// Record the current output position into `slot`.
+    Mark {
+        /// Slot index; must be below [`crate::dra::program::MAX_OFFSET_SLOTS`].
+        slot: u8,
+    },
+    /// Emit the marked value of `slot`, zero-padded to `width` decimal bytes.
+    Emit {
+        /// Slot index marked by an earlier [`PackItem::Mark`].
+        slot: u8,
+        /// Exact output width in bytes; `1..=20`.
+        width: u8,
+    },
 }
 
 /// Opcode byte for [`Op::EmitObject`].
@@ -76,6 +108,15 @@ pub const OP_INTERLEAVE_CHANNELS: u8 = 0x05;
 pub const OP_MARK_OFFSET: u8 = 0x06;
 /// Opcode byte for [`Op::EmitOffset`].
 pub const OP_EMIT_OFFSET: u8 = 0x07;
+/// Opcode byte for [`Op::PackSegments`].
+pub const OP_PACK_SEGMENTS: u8 = 0x08;
+
+/// Item tag for [`PackItem::Literal`].
+const PACK_ITEM_LITERAL: u8 = 0x01;
+/// Item tag for [`PackItem::Mark`].
+const PACK_ITEM_MARK: u8 = 0x02;
+/// Item tag for [`PackItem::Emit`].
+const PACK_ITEM_EMIT: u8 = 0x03;
 
 impl Op {
     /// Encode this instruction into `out`.
@@ -120,6 +161,30 @@ impl Op {
                 out.push(OP_EMIT_OFFSET);
                 out.push(*slot);
                 out.push(*width);
+            }
+            Op::PackSegments { data_object, items } => {
+                let count = u32::try_from(items.len())
+                    .map_err(|_| Error::resource_limit("packed item table exceeds 4 GiB"))?;
+                out.push(OP_PACK_SEGMENTS);
+                out.extend_from_slice(&data_object.to_le_bytes());
+                out.extend_from_slice(&count.to_le_bytes());
+                for item in items {
+                    match item {
+                        PackItem::Literal { len } => {
+                            out.push(PACK_ITEM_LITERAL);
+                            write_leb128_u32(*len, out);
+                        }
+                        PackItem::Mark { slot } => {
+                            out.push(PACK_ITEM_MARK);
+                            out.push(*slot);
+                        }
+                        PackItem::Emit { slot, width } => {
+                            out.push(PACK_ITEM_EMIT);
+                            out.push(*slot);
+                            out.push(*width);
+                        }
+                    }
+                }
             }
         }
         Ok(())
@@ -185,6 +250,44 @@ impl Op {
                 let width = read_u8(data, pos)?;
                 Ok(Op::EmitOffset { slot, width })
             }
+            OP_PACK_SEGMENTS => {
+                let data_object = read_u32(data, pos)?;
+                let item_count = read_u32(data, pos)?;
+                if item_count > limits.max_graph_ops {
+                    return Err(Error::resource_limit(format!(
+                        "packed item count {item_count} exceeds limit {}",
+                        limits.max_graph_ops
+                    )));
+                }
+                let mut items = Vec::with_capacity(item_count.min(4096) as usize);
+                for _ in 0..item_count {
+                    let tag = *data
+                        .get(*pos)
+                        .ok_or_else(|| Error::invalid_graph("truncated packed item"))?;
+                    *pos += 1;
+                    match tag {
+                        PACK_ITEM_LITERAL => {
+                            let len = read_leb128_u32(data, pos)?;
+                            items.push(PackItem::Literal { len });
+                        }
+                        PACK_ITEM_MARK => {
+                            let slot = read_u8(data, pos)?;
+                            items.push(PackItem::Mark { slot });
+                        }
+                        PACK_ITEM_EMIT => {
+                            let slot = read_u8(data, pos)?;
+                            let width = read_u8(data, pos)?;
+                            items.push(PackItem::Emit { slot, width });
+                        }
+                        other => {
+                            return Err(Error::invalid_graph(format!(
+                                "unknown packed item tag {other:#04x}"
+                            )));
+                        }
+                    }
+                }
+                Ok(Op::PackSegments { data_object, items })
+            }
             other => Err(Error::invalid_graph(format!(
                 "unknown DRA opcode {other:#04x}"
             ))),
@@ -198,6 +301,42 @@ fn read_u8(data: &[u8], pos: &mut usize) -> Result<u8> {
         .ok_or_else(|| Error::invalid_graph("truncated instruction operand"))?;
     *pos += 1;
     Ok(v)
+}
+
+/// Append `value` to `out` as a minimal unsigned LEB128 varint (at most 5 bytes).
+fn write_leb128_u32(value: u32, out: &mut Vec<u8>) {
+    let mut v = value;
+    loop {
+        let byte = (v & 0x7f) as u8;
+        v >>= 7;
+        if v == 0 {
+            out.push(byte);
+            return;
+        }
+        out.push(byte | 0x80);
+    }
+}
+
+/// Read an unsigned LEB128 varint bounded to `u32` from `data[*pos..]`, advancing
+/// `*pos`. Rejects truncation, non-minimal overflow, and any encoding that would
+/// exceed `u32` (more than five bytes).
+fn read_leb128_u32(data: &[u8], pos: &mut usize) -> Result<u32> {
+    let mut result: u32 = 0;
+    for shift in [0u32, 7, 14, 21, 28] {
+        let byte = *data
+            .get(*pos)
+            .ok_or_else(|| Error::invalid_graph("truncated LEB128 operand"))?;
+        *pos += 1;
+        let low = u32::from(byte & 0x7f);
+        if shift == 28 && low > 0x0f {
+            return Err(Error::invalid_graph("LEB128 varint overflows u32"));
+        }
+        result |= low << shift;
+        if byte & 0x80 == 0 {
+            return Ok(result);
+        }
+    }
+    Err(Error::invalid_graph("LEB128 varint overflows u32"))
 }
 
 fn read_u32(data: &[u8], pos: &mut usize) -> Result<u32> {
@@ -244,6 +383,15 @@ mod tests {
         roundtrip(Op::MarkOffset { slot: 15 });
         roundtrip(Op::EmitOffset { slot: 0, width: 1 });
         roundtrip(Op::EmitOffset { slot: 7, width: 20 });
+        roundtrip(Op::PackSegments {
+            data_object: 2,
+            items: vec![
+                PackItem::Literal { len: 3 },
+                PackItem::Mark { slot: 0 },
+                PackItem::Literal { len: 300 },
+                PackItem::Emit { slot: 0, width: 3 },
+            ],
+        });
     }
 
     #[test]

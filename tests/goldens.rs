@@ -238,10 +238,10 @@ fn golden_descriptor() {
     // framing overhead, so the literal lane is selected; this freezes the exact
     // layout, length, and digest for that input.
     assert_eq!(report.kind.name(), "RAW");
-    assert_eq!(bytes.len(), 350);
+    assert_eq!(bytes.len(), 354);
     assert_eq!(
         to_hex(&sha256(&bytes)),
-        "273ab9c3fd0b275a4873e52e10a191f9c650fa43b965ca720df75d3d6af36c2a"
+        "f6ec3ec89755e82aa4f0bd9b35a188d4fff0e8e2ce9ab44f6734267103adf53f"
     );
 }
 
