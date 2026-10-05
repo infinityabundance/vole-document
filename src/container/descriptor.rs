@@ -21,7 +21,7 @@ use crate::limits::Limits;
 /// Changing any opcode, coder, limit semantic, or adapter meaning requires a
 /// new universe string. The `universe_id` in the header is the first 16 bytes
 /// of SHA-256 over this string.
-pub const UNIVERSE: &str = "vole-document;universe;phase6;exact-bytes;dra-7;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay";
+pub const UNIVERSE: &str = "vole-document;universe;phase6;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental";
 
 /// First 16 bytes of SHA-256 over a universe declaration string.
 pub fn universe_id_from_str(universe: &str) -> [u8; 16] {
@@ -552,6 +552,7 @@ mod tests {
 
     fn replay_program() -> Program {
         Program::new(vec![Op::DeflateReplay {
+            replay_codec: crate::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
             source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
             source_id: 0,
             corrections_object: 0,

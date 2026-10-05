@@ -328,6 +328,7 @@ fn hostile_corrections_fail_closed() {
             channels: vec![],
             objects: vec![plaintext.clone(), garbage],
             program: Program::new(vec![Op::DeflateReplay {
+                replay_codec: vole_document::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
                 source_kind: 0, // DEFLATE_SOURCE_OBJECT
                 source_id: 0,
                 corrections_object: 1,

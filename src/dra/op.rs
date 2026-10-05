@@ -97,6 +97,12 @@ pub enum Op {
     /// hostile correction data, so it is isolated and never panics the decoder
     /// (see `crate::codec::deflate`).
     DeflateReplay {
+        /// Replay-codec identity: which exact reconstruction semantics the
+        /// `corrections` blob is bound to. Must be [`REPLAY_DEFLATE_PREFLATE_0_7_6`].
+        /// The correction state is an opaque, version-coupled `preflate` blob; this
+        /// tag makes that explicit on the wire so the format can never silently
+        /// treat the current preflate internal representation as a stable standard.
+        replay_codec: u8,
         /// Plaintext source kind ([`DEFLATE_SOURCE_OBJECT`] / [`DEFLATE_SOURCE_CHANNEL`]).
         source_kind: u8,
         /// Index into the object or channel table selected by `source_kind`.
@@ -154,6 +160,13 @@ pub const OP_DEFLATE_REPLAY: u8 = 0x0A;
 pub const DEFLATE_SOURCE_OBJECT: u8 = 0;
 /// [`Op::DeflateReplay`] plaintext source: the entropy channel table.
 pub const DEFLATE_SOURCE_CHANNEL: u8 = 1;
+/// Replay-codec identity for exact DEFLATE replay: `preflate` 0.7.6 semantics.
+///
+/// This names an **experimental**, version-coupled decoder contract, not a frozen
+/// archival standard: the correction blob is `preflate`'s private
+/// bitcode+CABAC layout. A future VOLE-owned implementation would be a new codec
+/// id (and a new universe).
+pub const REPLAY_DEFLATE_PREFLATE_0_7_6: u8 = 1;
 
 /// Item tag for [`PackItem::Literal`].
 const PACK_ITEM_LITERAL: u8 = 0x01;
@@ -222,12 +235,14 @@ impl Op {
                 out.extend_from_slice(&declared_output_len.to_le_bytes());
             }
             Op::DeflateReplay {
+                replay_codec,
                 source_kind,
                 source_id,
                 corrections_object,
                 declared_output_len,
             } => {
                 out.push(OP_DEFLATE_REPLAY);
+                out.push(*replay_codec);
                 out.push(*source_kind);
                 out.extend_from_slice(&source_id.to_le_bytes());
                 out.extend_from_slice(&corrections_object.to_le_bytes());
@@ -314,6 +329,12 @@ impl Op {
                 })
             }
             OP_DEFLATE_REPLAY => {
+                let replay_codec = read_u8(data, pos)?;
+                if replay_codec != REPLAY_DEFLATE_PREFLATE_0_7_6 {
+                    return Err(Error::unsupported_feature(format!(
+                        "DEFLATE_REPLAY codec {replay_codec} is not the supported preflate-0.7.6 semantics"
+                    )));
+                }
                 let source_kind = read_u8(data, pos)?;
                 if source_kind != DEFLATE_SOURCE_OBJECT && source_kind != DEFLATE_SOURCE_CHANNEL {
                     return Err(Error::invalid_graph(format!(
@@ -324,6 +345,7 @@ impl Op {
                 let corrections_object = read_u32(data, pos)?;
                 let declared_output_len = read_u32(data, pos)?;
                 Ok(Op::DeflateReplay {
+                    replay_codec,
                     source_kind,
                     source_id,
                     corrections_object,
@@ -559,17 +581,30 @@ mod tests {
             declared_output_len: u64::MAX,
         });
         roundtrip(Op::DeflateReplay {
+            replay_codec: REPLAY_DEFLATE_PREFLATE_0_7_6,
             source_kind: DEFLATE_SOURCE_OBJECT,
             source_id: 0,
             corrections_object: 1,
             declared_output_len: 1234,
         });
         roundtrip(Op::DeflateReplay {
+            replay_codec: REPLAY_DEFLATE_PREFLATE_0_7_6,
             source_kind: DEFLATE_SOURCE_CHANNEL,
             source_id: u32::MAX,
             corrections_object: u32::MAX,
             declared_output_len: u32::MAX,
         });
+    }
+
+    #[test]
+    fn rejects_unknown_replay_codec_as_unsupported_feature() {
+        // A graph record whose DEFLATE_REPLAY op names a replay codec this build
+        // does not implement must fail as `UnsupportedFeature`, never be
+        // silently rerun with the wrong (preflate 0.7.6) semantics (FIX2).
+        let data = [OP_DEFLATE_REPLAY, 2];
+        let mut pos = 0;
+        let e = Op::decode(&data, &mut pos, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::UnsupportedFeature);
     }
 
     #[test]

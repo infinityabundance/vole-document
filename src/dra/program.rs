@@ -5,7 +5,7 @@ use crate::error::{Error, Result};
 use crate::limits::Limits;
 
 /// DRA version carried in the graph record.
-pub const DRA_VERSION: u8 = 7;
+pub const DRA_VERSION: u8 = 8;
 
 /// Number of positional-offset slots addressable by [`Op::MarkOffset`] and
 /// [`Op::EmitOffset`]. Slot indices must be strictly below this bound.
@@ -429,32 +429,33 @@ impl Program {
                     have_last = true;
                 }
                 Op::DeflateReplay {
+                    replay_codec: _,
                     source_kind,
                     source_id,
                     corrections_object,
                     declared_output_len,
                 } => {
-                    match *source_kind {
+                    let src_len = match *source_kind {
                         crate::dra::op::DEFLATE_SOURCE_OBJECT => {
-                            if *source_id as usize >= object_lens.len() {
-                                return Err(Error::invalid_graph(format!(
+                            *object_lens.get(*source_id as usize).ok_or_else(|| {
+                                Error::invalid_graph(format!(
                                     "graph references missing object {source_id}"
-                                )));
-                            }
+                                ))
+                            })?
                         }
                         crate::dra::op::DEFLATE_SOURCE_CHANNEL => {
-                            if *source_id as usize >= channel_lens.len() {
-                                return Err(Error::invalid_graph(format!(
+                            *channel_lens.get(*source_id as usize).ok_or_else(|| {
+                                Error::invalid_graph(format!(
                                     "graph references missing entropy channel {source_id}"
-                                )));
-                            }
+                                ))
+                            })?
                         }
                         other => {
                             return Err(Error::invalid_graph(format!(
                                 "DEFLATE_REPLAY source kind {other} is invalid"
                             )));
                         }
-                    }
+                    };
                     if *corrections_object as usize >= object_lens.len() {
                         return Err(Error::invalid_graph(format!(
                             "graph references missing object {corrections_object}"
@@ -466,9 +467,16 @@ impl Program {
                             limits.max_output_bytes
                         )));
                     }
-                    // The raw DEFLATE length is not derivable from the source
-                    // lengths, so the declared length is the static prediction and
-                    // evaluation proves it exact.
+                    // Resource bound: a raw DEFLATE stream that inflates to
+                    // `src_len` bytes cannot be longer than `max_raw_deflate_len`,
+                    // so a larger declared length is impossible and is rejected
+                    // *before* preflate runs.
+                    if u64::from(*declared_output_len) > max_raw_deflate_len(src_len) {
+                        return Err(Error::invalid_graph(format!(
+                            "DEFLATE_REPLAY declared output {declared_output_len} exceeds the maximum DEFLATE size {} of a {src_len}-byte plaintext",
+                            max_raw_deflate_len(src_len)
+                        )));
+                    }
                     let len = u64::from(*declared_output_len);
                     total = total
                         .checked_add(len)
@@ -736,6 +744,7 @@ impl Program {
                     have_last = true;
                 }
                 Op::DeflateReplay {
+                    replay_codec: _,
                     source_kind,
                     source_id,
                     corrections_object,
@@ -768,6 +777,19 @@ impl Program {
                                 "graph references missing object {corrections_object}"
                             ))
                         })?;
+                    // Explicit input bounds (in addition to the static output
+                    // bound proven by `analyze`): never hand oversized inputs to
+                    // the replay engine.
+                    if plaintext.len() as u64 > u64::from(limits.max_record_len) {
+                        return Err(Error::resource_limit(
+                            "DEFLATE_REPLAY plaintext exceeds the record limit",
+                        ));
+                    }
+                    if corrections.len() as u64 > u64::from(limits.max_record_len) {
+                        return Err(Error::resource_limit(
+                            "DEFLATE_REPLAY corrections exceed the record limit",
+                        ));
+                    }
                     let raw = replay_deflate(plaintext, corrections)?;
                     if raw.len() as u64 != u64::from(*declared_output_len) {
                         return Err(Error::invalid_graph(format!(
@@ -789,6 +811,19 @@ impl Program {
         }
         Ok(out)
     }
+}
+
+/// Conservative upper bound on the length of a raw DEFLATE stream that inflates
+/// to `plaintext_len` bytes.
+///
+/// A stream decoding to `plaintext_len` bytes is at most a literals-only
+/// encoding: DEFLATE caps Huffman code lengths at 15 bits, so the output is
+/// bounded by `2 * plaintext_len + 1024` (block headers, end-of-block, and slack).
+/// A declared replay output above this is impossible, so it is rejected before
+/// the engine runs. This is the primary resource bound for `DEFLATE_REPLAY`,
+/// since `preflate-rs` 0.7.6 offers no bounded streaming reconstruction sink.
+pub(crate) fn max_raw_deflate_len(plaintext_len: u64) -> u64 {
+    plaintext_len.saturating_mul(2).saturating_add(1024)
 }
 
 /// Replay a raw DEFLATE bitstream from plaintext and correction state.
@@ -1456,8 +1491,8 @@ mod tests {
     }
 
     #[test]
-    fn dra_version_is_seven() {
-        assert_eq!(DRA_VERSION, 7);
+    fn dra_version_is_eight() {
+        assert_eq!(DRA_VERSION, 8);
         let p = Program::new(vec![Op::Inline {
             bytes: b"x".to_vec(),
         }]);
@@ -1614,6 +1649,7 @@ mod tests {
                 bytes: plan.header.to_vec(),
             },
             Op::DeflateReplay {
+                replay_codec: crate::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
                 source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
                 source_id: 0,
                 corrections_object: 1,
@@ -1644,6 +1680,7 @@ mod tests {
         let plan = crate::codec::deflate::try_replay(&z, Limits::DEFAULT).unwrap();
         let objects = objs(&[&plan.plaintext, &plan.corrections]);
         let p = Program::new(vec![Op::DeflateReplay {
+            replay_codec: crate::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
             source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
             source_id: 0,
             corrections_object: 1,
@@ -1657,6 +1694,7 @@ mod tests {
     fn deflate_replay_missing_object_errors() {
         let objects = objs(&[b"plain"]);
         let p = Program::new(vec![Op::DeflateReplay {
+            replay_codec: crate::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
             source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
             source_id: 0,
             corrections_object: 9,
@@ -1675,6 +1713,7 @@ mod tests {
         }
         let objects = objs(&[b"some plaintext bytes here", &blob]);
         let p = Program::new(vec![Op::DeflateReplay {
+            replay_codec: crate::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
             source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
             source_id: 0,
             corrections_object: 1,

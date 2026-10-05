@@ -20,8 +20,12 @@ jobs:
         run: docker compose run --rm --no-TTY dev cargo fmt --all --check
       - name: Clippy
         run: docker compose run --rm --no-TTY dev cargo clippy --all-targets --all-features -- -D warnings
-      - name: Test
+      - name: Test (all features, replay stack)
         run: docker compose run --rm --no-TTY dev cargo test --all-features --locked
+      - name: Test (default features, permissive-only)
+        run: docker compose run --rm --no-TTY dev cargo test --locked
+      - name: Test (no default features)
+        run: docker compose run --rm --no-TTY dev cargo test --no-default-features --locked
 
   msrv:
     name: msrv (Rust 1.89.0)

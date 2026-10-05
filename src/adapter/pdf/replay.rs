@@ -110,6 +110,7 @@ pub fn propose_pdf_deflate_replay(input: &[u8], limits: Limits) -> Result<Option
                 bytes: plan.header.to_vec(),
             });
             ops.push(Op::DeflateReplay {
+                replay_codec: crate::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
                 source_kind: DEFLATE_SOURCE_OBJECT,
                 source_id: plaintext_id,
                 corrections_object: corrections_id,
@@ -226,6 +227,7 @@ pub fn propose_pdf_deflate_replay_rans(input: &[u8], limits: Limits) -> Result<O
                 bytes: plan.header.to_vec(),
             });
             ops.push(Op::DeflateReplay {
+                replay_codec: crate::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
                 source_kind: DEFLATE_SOURCE_CHANNEL,
                 source_id: cid,
                 corrections_object: corr,

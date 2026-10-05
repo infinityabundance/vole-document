@@ -403,12 +403,13 @@ fn describe_op(op: &Op) -> String {
             declared_output_len,
         } => format!("PACKED_CHANNELS({data_channel},{plan_channel},{declared_output_len})"),
         Op::DeflateReplay {
+            replay_codec,
             source_kind,
             source_id,
             corrections_object,
             declared_output_len,
         } => format!(
-            "DEFLATE_REPLAY({source_kind},{source_id},{corrections_object},{declared_output_len})"
+            "DEFLATE_REPLAY({replay_codec},{source_kind},{source_id},{corrections_object},{declared_output_len})"
         ),
     }
 }
