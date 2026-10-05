@@ -56,6 +56,21 @@ services:
       - .:/work
     command: ["sh", "-c", "qpdf --version; pdfinfo -v; mutool -v; gs --version"]
 
+  # Generator-family PDF corpus (Phase 7.0b). A separate, opt-in image carrying
+  # real authoring generators (ReportLab, Cairo, LibreOffice, pdfTeX) plus qpdf
+  # for --deterministic-id post-normalization. It is intentionally NOT part of
+  # the fast `tools` gate; nothing else builds it.
+  producers:
+    build:
+      context: .
+      target: producers
+    image: vole-document/producers:bookworm
+    network_mode: host
+    working_dir: /work
+    volumes:
+      - .:/work
+    command: ["sh", "-c", "python3 -c 'import reportlab; print(reportlab.Version)'; soffice --version | head -1; pdflatex --version | head -1; qpdf --version"]
+
   policy:
     build:
       context: .

@@ -9,7 +9,9 @@
 # Digest provenance (recorded for receipts):
 #   rust:1.99.0-slim-bookworm  -> rustc 1.99.0 (b940084d7 2026-09-28), cargo 1.99.0
 #   rust:1.89-slim-bookworm    -> rustc 1.89.0 (29483883e 2025-08-04)
-#   debian:bookworm-slim       -> oracle tooling base (Phase 3+)
+#   debian:bookworm-slim       -> oracle tooling base (Phase 3+) and, from
+#                                 Phase 7.0b, the generator-family `producers` base
+#                                 (same digest as `tools`)
 #   rustlang/rust:nightly-bookworm-slim-2026-10-04
 #                              -> rustc 1.101.0-nightly (db8f076d2 2026-10-03),
 #                                 cargo 1.101.0-nightly (f3865b2a4 2026-09-29),
@@ -96,4 +98,38 @@ RUN apt-get update \
       ghostscript \
       coreutils \
  && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
+
+# ---------------------------------------------------------------------------
+# Generator-family PDF corpus (Phase 7.0b). Deliberately a SEPARATE stage so the
+# fast `tools` semantic gate stays small; only the opt-in `producers` service
+# builds it. Unlike qpdf/Ghostscript (transformers), these are real *authoring*
+# generators with distinct DEFLATE behaviour:
+#   * ReportLab   (python3-reportlab)          — Python PDF canvas; pageCompression
+#   * Cairo       (python3-cairo + python3-gi) — vector PDF surface (pycairo)
+#   * LibreOffice (libreoffice-writer-nogui)   — office-suite headless export
+#   * pdfTeX      (texlive-latex-base + texlive-fonts-recommended)
+# Plus qpdf (--deterministic-id post-normalization) and git/ca-certificates.
+# Size/build tradeoff (measured on BASE_TOOLS): ~38 s cold apt install, the
+# image grows to ~740 MB on disk (dev is ~1.02 GB; tools ~264 MB). Kept because
+# LibreOffice and pdfTeX are precisely the *authoring-application* families the
+# Phase-7.0b question needs, and because this stage never affects any other gate.
+# ---------------------------------------------------------------------------
+FROM ${BASE_TOOLS} AS producers
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      python3 \
+      python3-reportlab \
+      python3-cairo \
+      python3-gi \
+      libreoffice-writer-nogui \
+      texlive-latex-base \
+      texlive-fonts-recommended \
+      qpdf \
+      git \
+      ca-certificates \
+      coreutils \
+ && rm -rf /var/lib/apt/lists/* \
+ && git config --system --add safe.directory /work
 WORKDIR /work
