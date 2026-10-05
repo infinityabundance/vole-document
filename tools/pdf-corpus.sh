@@ -13,7 +13,16 @@
 #          `/ebook`, `/screen` (one output per setting);
 #        * qpdf `--compress-streams=y --object-streams=generate
 #          --stream-data=compress`, `--linearize`, `--object-streams=preserve`,
-#          and a `--compress-streams=n` control.
+#          and a `--compress-streams=n` control. Every qpdf invocation that
+#          writes an output also passes `--deterministic-id`, so qpdf derives
+#          `/ID` from a content hash and two runs are byte-identical.
+#
+#        Reproducibility: with `--deterministic-id` the qpdf outputs are
+#        byte-reproducible across runs. Ghostscript `pdfwrite` output is NOT:
+#        it embeds a per-run `/ID` and timestamp, so its SHA-256 changes run to
+#        run even though the byte length, object structure, and every
+#        `/FlateDecode` `compressed_bytes` are stable. That caveat is recorded
+#        in `provenance.json` rather than papered over.
 #   3. includes any dev-generated synthetic samples that were placed under
 #      `evidence/corpus/phase7/_synthetic/` beforehand:
 #        docker compose run --rm --no-TTY dev sh -c \
@@ -223,9 +232,13 @@ gs_variant() {
 }
 
 # qpdf_variant OUTNAME INPUT ARGS...
+#
+# `--deterministic-id` is always added: qpdf otherwise seeds `/ID` from
+# per-run state, so the output bytes would differ between runs. With it, `/ID`
+# is derived from the file content and the output is byte-reproducible.
 qpdf_variant() {
   _outname=$1; _in=$2; shift 2
-  _cmd="qpdf $* $_in $OUT/$_outname"
+  _cmd="qpdf --deterministic-id $* $_in $OUT/$_outname"
   eval "$_cmd"
   record "$_outname" "qpdf" "$QPDF_V" "$_cmd"
 }
@@ -333,6 +346,7 @@ done
   printf '  "generator": "tools/pdf-corpus.sh",\n'
   printf '  "license": "locally-generated",\n'
   printf '  "note": "No third-party document bytes. Every .pdf is produced by the pinned tools image from our own deterministic inputs; the .pdf bytes are gitignored and regenerable from this script.",\n'
+  printf '  "reproducibility": "qpdf outputs are byte-reproducible across runs (every qpdf invocation passes --deterministic-id, so /ID is a content hash). Ghostscript pdfwrite output is NOT byte-reproducible: it embeds a per-run /ID and timestamp, so its SHA-256 changes run to run, while byte length, object structure, and every FlateDecode compressed_bytes stay stable. hand-* and pdf-make-samples files are byte-identical across runs.",\n'
   printf '  "tools": {"qpdf": "%s", "ghostscript": "%s"},\n' "$QPDF_V" "$GS_V"
   printf '  "files": [\n'
   awk 'NR>1{printf ",\n"} {printf "    %s", $0}' "$ENTRIES"
