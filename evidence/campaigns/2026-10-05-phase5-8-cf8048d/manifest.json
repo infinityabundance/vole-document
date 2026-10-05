@@ -1,0 +1,12 @@
+{
+  "campaign": "2026-10-05-phase5-8-cf8048d",
+  "phase": "Phase 5.8 — PDF layout+rANS residual, PDF_LAYOUT_RANS rung over forced-candidate ablation",
+  "claim": "Every corpus file round-trips byte-exactly through its auto-winning lane (verify and decode cmp), and the PDF_LAYOUT_RANS rung yields an honest, exact head-to-head against BYTE_RANS, with the cumulative ladder A0..A6 and the leave-one-out delta for the layout+rANS mechanism.",
+  "results_sha256": "a26f3a787dd2eb72c1680ba24ae4f199afd091892f89bbc53e00de741b9c0754",
+  "ladder_sha256": "24b0dfba13e3733fff6a87b56c030b27f726e6a84705cafe27ea45ce19199d9e",
+  "environment_sha256": "d6a0e28295c1410e7f0e9d9c513b19a07ac004233e2cc626711aad78c1052ff4",
+  "report_sha256": "db8cb0de072e01356784fa297122883319a0c6a917201557b5bb65ee200e5b61",
+  "oracle": "oracle.jsonl",
+  "oracle_sha256": "9bedef23d5173d61c98fc81c57b316fc05fcd4e0bc0e3c889a081acbf5433227",
+  "verdict": "PASS"
+}
