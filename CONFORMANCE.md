@@ -26,10 +26,11 @@
 | Flate correction-ratio harness (Phase 7.0) | `tests/deflate_stats.rs` | `deflate_stats` is diagnostics-only and never changes what the complete-cost court selects. On the real-zlib `flate.pdf`: exactly 6 `FlateDecode` streams, all replayed, aggregate `compressed_bytes` equals the sum of stream `data_len`, every replayed stream carries a non-empty plaintext, correction and rANS cost, and each correction is strictly smaller than its stream; the **deduplicated** shared-channel aggregate is strictly below the naive per-stream sum for a file whose plaintexts repeat; a non-PDF yields `is_pdf:false` with no streams and a zeroed summary (never an error); a PDF with no `FlateDecode` streams reports zero streams |
 | Producer corpus + ratio campaign (Phase 7.0, script) | `tools/pdf-corpus.sh` | builds a locally-generated producer-stratified Flate corpus (Ghostscript `pdfwrite` at five `/PDFSETTINGS`, qpdf in four modes, a hand-written stored-block-zlib base, plus the Phase-3 synthetic set), validates every produced PDF with `qpdf --check`, records a provenance ledger (producer, version, exact command, SHA-256, `license:"locally-generated"`), and captures `deflate-stats` over every corpus PDF; every qpdf invocation passes `--deterministic-id`, so the qpdf corpus outputs are byte-reproducible across runs (Ghostscript output is not — it embeds a per-run `/ID` and timestamp); the campaign `2026-10-05-phase7-corpus-f1f8d26` is sealed and amended (not rewritten) by `2026-10-05-phase7-corpus-b-c4eb77e`, which re-measures after the lexer stream-boundary fix and records 24/24 replayed, 0 declined (acceptance 1.000); the Phase-6 win geometry appears only in our hand-authored fixtures, and the qpdf `--object-streams=preserve` output reproduces it merely by copying the fixture's two byte-identical raw streams (99.93% inherited), so it is not produced by a tested transformer (no new candidate adopted; every stream recorded verbatim) |
 | Producer complete-cost court (Phase 7.0, script) | `tools/pdf-court.sh` | runs the real complete-cost court (`encode FILE OUT`) and four forced lanes (`encode --force raw|byte-rans|pdf-deflate-replay|pdf-deflate-replay-rans FILE OUT`) over every file in the locally-generated producer corpus, recording each lane's complete serialized `.voldoc` size; a forced kind the input does not propose is a typed `Usage` decline recorded as `null`; the auto winner is `verify`ed and `decode`d + `cmp`ed byte-exact; seals campaign `2026-10-05-phase7-court-99dc72e`: `PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS` is win 3 / lose 8 / decline 12 over 23 files, **all 3 wins self-authored** (the `qpdf-preserve-objectstreams.pdf` win at −55,167 B is a preserved copy of the `hand-base2.pdf` fixture's byte-identical raw streams, 99.93% inherited); every genuinely transformed producer output loses or declines; no new candidate adopted |
-| Fuzz regressions (Phase 7.1) | `tests/fuzz_regressions.rs` | committed crash/OOM fixtures from the coverage-guided campaign reproduce the fixed behavior: hostile `preflate` corrections are declined as a typed `CodecReplay` (never unwound into the caller), and the public analysis entry point fails closed on a non-zlib stream; the unbounded-allocation fixture is committed but deliberately not executed in-process (upstream `preflate-rs` limitation, ADR-0016) |
+| Fuzz regressions (Phase 7.1) | `tests/fuzz_regressions.rs` | committed crash/OOM fixtures from the coverage-guided campaign reproduce the fixed behavior: hostile `preflate` corrections are declined as a typed `CodecReplay` (never unwound into the caller), and the public analysis entry point fails closed on a non-zlib stream; the unbounded-allocation fixture is deliberately not executed in-process and is instead driven through the isolated worker in `tests/replay_isolation.rs` (upstream `preflate-rs` limitation, contained on the decode path by Phase 7.1b; ADR-0016) |
+| Process-isolated replay (Phase 7.1b) | `tests/replay_isolation.rs`, `src/codec/deflate.rs` | the decoder's `DEFLATE_REPLAY` arm runs `preflate` in a child process under an `RLIMIT_AS` address-space cap and a wall-clock timeout (`replay_bounded`), so a malformed `.voldoc` cannot amplify memory; the positive court decodes a forced-replay `flate.pdf` descriptor byte-exactly through the worker; the committed F2 fixture, embedded in a descriptor, fails closed as a typed `CodecReplay` under a 32 MiB cap without exhausting the host; a configured-but-broken worker is a typed `CodecReplay` (exit 13) and never silently falls back to the in-process path; with no worker configured the library reconstructs in-process (the documented fallback, F2 residual); the worker stdin/stdout framing round-trips and refuses over-bound field lengths before allocating |
 
-Test counts (inside the pinned `dev` image): **333** passing with `--all-features`
-(0 failed, 1 ignored), of which **243** are library unit tests (plus 1 ignored);
+Test counts (inside the pinned `dev` image): **338** passing with `--all-features`
+(0 failed, 1 ignored), of which **244** are library unit tests (plus 1 ignored);
 **310** passing with the default feature set (`default = ["rans"]`, permissive-only;
 the replay courts are skipped), of which **234** are library unit tests; and
 **263** passing with `--no-default-features`, of which **212** are library unit
@@ -80,8 +81,12 @@ docker compose run --rm --no-TTY dev cargo fmt --all --check
     replay-profile admission limit `min(max_output_bytes, max_replay_bytes,
     2*P+1024)` for a `P`-byte plaintext *before* running the engine (ADR-0016) — a
     policy bound, since RFC 1951 permits unbounded empty non-final blocks and so
-    gives no finite `f(decompressed_size)` bound — and bounds
-    plaintext/corrections by `max_record_len`.
+    gives no finite `f(decompressed_size)` bound — bounds
+    plaintext/corrections by `max_record_len`, and runs the engine **in an
+    isolated child process** under an `RLIMIT_AS` cap and timeout, so a hostile
+    correction blob cannot amplify the decoder's memory (fuzz finding F2,
+    Phase 7.1b). Without a configured worker the library falls back to the
+    in-process path (the residual).
 
 ## Fuzz targets (added as parsers land)
 
@@ -119,8 +124,10 @@ duration, coverage, execs, and crashes; the sealed campaign
 `2026-10-05-phase7-fuzz-ca6a92b` observed zero crashes on nine of ten targets and
 reported two upstream `preflate-rs` findings (a shift-overflow panic, mitigated by
 the library's fail-closed `catch_unwind` boundary, and an unbounded reconstruction
-allocation, reported and documented by ADR-0016). `tests/fuzz_regressions.rs`
-holds the minimized fixtures and asserts the fixed behavior.
+allocation now contained on the decode path by Phase-7.1b process isolation;
+ADR-0016). `tests/fuzz_regressions.rs` holds the minimized fixtures and asserts
+the fixed behavior; `tests/replay_isolation.rs` drives the F2 fixture through the
+isolated worker.
 Still planned for later phases: a stream-boundary parser · partial materializer.
 
 Useful properties: never panic · bounded failure · round trip · descriptor

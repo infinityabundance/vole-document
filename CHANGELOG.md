@@ -92,6 +92,40 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
     target's corpus, and records duration, coverage, execs, and crash/OOM counts.
   - Five small committed seed inputs under `fuzz/seeds/`; regeneration is
     documented in `fuzz/README.md`.
+- Phase 7.1b — process-isolated DEFLATE replay (contains fuzz finding F2):
+  - The **decode path** no longer calls `preflate` in-process. A hidden worker
+    subcommand `__replay-worker` (not advertised in `USAGE`) reads a framed
+    `(plaintext, corrections, declared_len)` request from stdin, calls
+    `recreate_whole_deflate_stream`, and writes a framed reply to stdout. Framing
+    is little-endian: request `[u32 plaintext_len][plaintext][u32
+    corrections_len][corrections][u32 declared_len]`; reply `[u8 status]
+    [u32 payload_len][payload]` (`0` = raw DEFLATE, `1` = a UTF-8 error message).
+    Field lengths above a small internal bound are refused before allocation, and
+    a preflate panic is caught by a non-aborting hook and returned as an error
+    reply instead of an abort with lost output.
+  - `replay_bounded(plaintext, corrections, declared_len, limits)` spawns
+    `sh -c 'ulimit -v <KB> 2>/dev/null; ulimit -t <SEC> 2>/dev/null; exec "$0"
+    __replay-worker' <worker>` with `stdin`/`stdout`/`stderr` piped, an
+    `RLIMIT_AS` address-space cap, and a polled wall-clock timeout that `kill()`s
+    on expiry. A non-zero exit, an abort (SIGABRT, the likely memory-cap case), a
+    malformed reply, or a timeout each yields a typed
+    `CodecReplay` error; a child `status=1` message is surfaced verbatim.
+  - The decoder (`Program::eval`'s `DEFLATE_REPLAY` arm) calls `replay_bounded`;
+    the in-process `replay_raw` is retained for the encoder's own `try_replay`
+    verification and the fuzz targets. No wire format, candidate, or DRA op
+    changed.
+  - Knobs and defaults: `VOLE_REPLAY_WORKER` (worker executable; the CLI sets
+    itself via a safe library setter when unset, since `std::env::set_var` is
+    `unsafe` under Rust 2024), `VOLE_REPLAY_MEM_MB` (address-space cap; default
+    `clamp((plaintext+corrections+declared) * 8 + 64 MiB, 256 MiB,
+    limits.max_replay_bytes.min(2 GiB))`), `VOLE_REPLAY_TIMEOUT_MS` (default
+    30000). With no worker configured the library falls back to the in-process
+    path; a configured-but-broken worker is a typed error and **never** silently
+    falls back.
+  - Courts: `tests/replay_isolation.rs` (positive byte-exact decode through the
+    worker, the F2 fixture failing closed under a 32 MiB cap, no silent fallback
+    on a broken worker, and the documented in-process fallback) plus the
+    worker-protocol framing round-trip unit test in `src/codec/deflate.rs`.
 
 ### Fixed
 
@@ -127,8 +161,13 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   33-byte hostile `(plaintext, corrections)` pair, peak RSS 2532 MiB at the
   2048 MiB policy), reported as an upstream limitation — `REPLAY_OUTPUT_RATIO`
   bounds the declared output, not the third-party decoder's internal allocation,
-  and preflate 0.7.6 has no bounded streaming reconstruction sink (ADR-0016). No
-  wire format or candidate changed. Receipt under
+  and preflate 0.7.6 has no bounded streaming reconstruction sink (ADR-0016).
+  **F2 is now contained on the decode path** by Phase 7.1b process isolation
+  (RLIMIT_AS + timeout); the same artifact run under the pinned `fuzz` service
+  reports `libFuzzer: out-of-memory` with `1744830464` bytes in one allocation and
+  `peak_rss_mb: 2524`, while a CLI `decode` under a 32 MiB worker cap fails closed
+  as a typed error without exhausting the host. No wire format or candidate
+  changed. Receipt under
   `evidence/campaigns/2026-10-05-phase7-fuzz-ca6a92b/`.
 - Campaign `2026-10-05-phase7-corpus-f1f8d26` (verdict RECORDED; diagnostic, no
   new candidate): 17 `FlateDecode` streams, **11 replayed / 6 declined**

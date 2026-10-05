@@ -1,6 +1,7 @@
 # ADR-0016: Decode-time DEFLATE replay is bounded by a VOLE replay-profile admission limit
 
-- **Status:** Accepted (Phase 6.7; re-framed in Phase 7.0)
+- **Status:** Accepted (Phase 6.7; re-framed in Phase 7.0; F2 contained on the
+  decode path in Phase 7.1b)
 - **Date:** 2026-10-05
 
 ## Context
@@ -59,6 +60,26 @@ claim about the format.
   before any of the above, and a descriptor containing the op declares the
   mandatory `FEATURE_DEFLATE_REPLAY` bit, so a build without the feature never
   runs replay at all.
+- **Process isolation (Phase 7.1b, contains fuzz finding F2).** The static
+  replay-profile bound and `catch_unwind` address the *declared* output and
+  *panics*, not the third-party decoder's *internal* allocation. Fuzzing (Phase
+  7.1) found F2: a 33-byte hostile `(plaintext, corrections)` pair drives a
+  multi-gigabyte allocation inside `preflate-rs` 0.7.6 (observed peak RSS
+  2532 MiB under the pinned `fuzz` service; the third-party decoder allocates
+  from attacker-controlled correction state, e.g. a reconstructed reference
+  length). On the **decode path** only, `Program::eval` now calls
+  `replay_bounded`, which runs `recreate_whole_deflate_stream` in a child process
+  under an `RLIMIT_AS` address-space cap (`ulimit -v`) and a wall-clock timeout
+  (`VOLE_REPLAY_MEM_MB`, `VOLE_REPLAY_TIMEOUT_MS`) and returns a typed
+  `CodecReplay` on abort, timeout, or malformed reply. The in-process
+  `replay_raw` remains for the encoder's own `try_replay` verification and the
+  fuzz targets.
+- **Library fallback.** `replay_bounded` uses the executable named by
+  `VOLE_REPLAY_WORKER`, or one installed by the CLI itself via
+  `install_default_replay_worker` (a safe setter, because `std::env::set_var` is
+  `unsafe` under Rust 2024 and this crate forbids `unsafe`). If **no** worker is
+  configured the library falls back to the in-process `replay_raw`; a
+  configured-but-broken worker is a typed error and never silently falls back.
 
 ## Consequences
 
@@ -75,6 +96,14 @@ claim about the format.
 - The whole-source SHA-256 court and `materialize` length check remain the final
   correctness authority; the static bound is a resource-safety gate, not a
   correctness gate.
+- **F2 is contained, not eliminated.** Process isolation bounds the *decoder's*
+  exposure: a malformed `.vcdoc` can no longer amplify memory in the decoder
+  process, because the third-party allocation happens in a child with a hard
+  address-space cap and a timeout. It is **not** a proof that `preflate` is
+  bounded. The residual is a consumer that decodes untrusted `.vcdoc` without a
+  worker path (`VOLE_REPLAY_WORKER` unset and no installed default, e.g. a
+  library embedder): that path is in-process and still exposed. The CLI installs
+  itself as the default worker, so its `decode`/`verify` are isolated by default.
 - This is the primary resource bound for replay precisely because `preflate-rs`
   0.7.6 exposes no incremental sink. A **stronger** guarantee would come from
   either of:
@@ -97,6 +126,7 @@ claim about the format.
 - ADR-0014: `preflate-rs` pulls LGPL-3.0-or-later `cabac`
 - `src/dra/program.rs` (`replay_profile_limit`, `REPLAY_OUTPUT_RATIO_PERCENT`,
   `REPLAY_OUTPUT_SLACK`, `analyze`, `eval`); `src/limits.rs` (`max_replay_bytes`);
-  `src/codec/deflate.rs`
+  `src/codec/deflate.rs` (`replay_raw`, `replay_bounded`, `run_worker_stdio`,
+  `REPLAY_WORKER_SUBCOMMAND`); `tests/replay_isolation.rs`; `SECURITY.md`
 
 [RFC1951]: https://www.rfc-editor.org/rfc/rfc1951
