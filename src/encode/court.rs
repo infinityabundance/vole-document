@@ -84,8 +84,8 @@ mod tests {
         let cands = candidates::propose(&input, Limits::DEFAULT).unwrap();
         let r = run(&input, cands, Limits::DEFAULT).unwrap();
         assert_eq!(r.kind, CandidateKind::Raw);
-        // RAW and the (losing) RLE candidate are both priced.
-        assert_eq!(r.candidates_evaluated, 2);
+        // RAW, RLE, and BYTE_RANS are all priced for a non-empty, in-limit input.
+        assert_eq!(r.candidates_evaluated, 3);
         assert_eq!(r.cost.total(), r.bytes.len() as u64);
         let (out, _) = crate::materialize::decode_to_bytes(&r.bytes, Limits::DEFAULT).unwrap();
         assert_eq!(out, input);

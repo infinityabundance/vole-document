@@ -8,6 +8,9 @@ use crate::SOURCE_FORMAT_OPAQUE;
 use crate::adapter::opaque;
 use crate::container::{Descriptor, UNIVERSE};
 use crate::dra::{Op, Program};
+use crate::entropy::{
+    CODER_ORDER0_BYTE_RANS, CODER_VERSION_1, EntropyChannelDescriptor, EntropyModel, encode_channel,
+};
 use crate::error::Result;
 use crate::integrity::sha256;
 use crate::limits::Limits;
@@ -55,6 +58,9 @@ pub fn propose(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
     }];
     if let Some(rle) = propose_rle(input, limits)? {
         out.push(rle);
+    }
+    if let Some(byte_rans) = propose_byte_rans(input, limits)? {
+        out.push(byte_rans);
     }
     Ok(out)
 }
@@ -117,6 +123,61 @@ pub fn propose_rle(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
     };
     Ok(Some(Candidate {
         kind: CandidateKind::Rle,
+        descriptor,
+    }))
+}
+
+/// Propose an order-0 byte-rANS representation of the whole `input` as one
+/// entropy channel.
+///
+/// The 256-entry normalized model and the channel header are fully serialized
+/// and charged by the court, so this candidate only wins when order-0 coding
+/// recovers more bytes than the model costs. Declines (`Ok(None)`) honestly:
+///
+/// - empty input: RAW is trivially smaller and there is nothing to code;
+/// - `input.len() > limits.max_channel_symbols`: a single channel cannot carry
+///   it, so the candidate is not expressible within the declared bounds.
+///
+/// Determinism follows from the pure `from_counts` normalizer and from
+/// `encode_channel`, which both depend only on their inputs.
+pub fn propose_byte_rans(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
+    if input.is_empty() || input.len() as u64 > limits.max_channel_symbols {
+        return Ok(None);
+    }
+
+    let mut counts = [0u64; 256];
+    for &b in input {
+        counts[b as usize] += 1;
+    }
+    let model = EntropyModel::from_counts(&counts, 12)?;
+    let capsule = encode_channel(&model, input)?;
+
+    let channel = EntropyChannelDescriptor {
+        coder: CODER_ORDER0_BYTE_RANS,
+        coder_version: CODER_VERSION_1,
+        scale_bits: model.scale_bits,
+        lane_count: 1,
+        model_id: 0,
+        symbol_count: capsule.symbol_count,
+        decoded_length: capsule.decoded_length,
+        initial_state: capsule.initial_state,
+        payload: capsule.payload,
+    };
+
+    let descriptor = Descriptor {
+        universe: UNIVERSE.to_string(),
+        source_format: SOURCE_FORMAT_OPAQUE,
+        format_basis: "opaque;byte-rans".to_string(),
+        models: vec![model],
+        channels: vec![channel],
+        objects: vec![],
+        program: Program::new(vec![Op::DecodeChannel { channel_id: 0 }]),
+        source_sha256: sha256(input),
+        source_len: input.len() as u64,
+    };
+
+    Ok(Some(Candidate {
+        kind: CandidateKind::ByteRans,
         descriptor,
     }))
 }
@@ -218,5 +279,69 @@ mod tests {
         let (bytes, report) = crate::encode::encode(&input, limits).unwrap();
         assert_eq!(report.kind, CandidateKind::Raw);
         assert_exact(&bytes, &input, limits);
+    }
+
+    #[test]
+    fn byte_rans_wins_on_text() {
+        let input = b"The quick brown fox jumps over the lazy dog. ".repeat(1500);
+        let (bytes, report) = crate::encode::encode(&input, Limits::DEFAULT).unwrap();
+        assert_eq!(report.kind, CandidateKind::ByteRans);
+        assert!(
+            report.encoded_len < report.source_len,
+            "order-0 rANS must beat RAW on low-entropy text: {} vs {}",
+            report.encoded_len,
+            report.source_len
+        );
+        assert_exact(&bytes, &input, Limits::DEFAULT);
+    }
+
+    #[test]
+    fn byte_rans_exact_on_all_byte_values() {
+        // Exercise every byte value through the channel. A uniform `0..=255`
+        // stream is incompressible at order 0 (and the 516-byte model makes rANS
+        // lose to RAW), so the body is a skewed, deterministic stream whose head
+        // guarantees all 256 symbols are present and nonzero-frequency.
+        let mut input: Vec<u8> = (0..=255u8).collect();
+        let mut state = 0x2545_F491_4F6C_DD1D;
+        while input.len() < 64 * 1024 {
+            let r = xorshift64(&mut state);
+            if !r.is_multiple_of(8) {
+                input.push(0x00);
+            } else {
+                input.push((r >> 32) as u8);
+            }
+        }
+        input.truncate(64 * 1024);
+
+        let (bytes, report) = crate::encode::encode(&input, Limits::DEFAULT).unwrap();
+        assert_eq!(report.kind, CandidateKind::ByteRans);
+        assert_exact(&bytes, &input, Limits::DEFAULT);
+    }
+
+    #[test]
+    fn byte_rans_is_deterministic() {
+        let input = b"deterministic byte rANS stream ".repeat(600);
+        let (a, _) = crate::encode::encode(&input, Limits::DEFAULT).unwrap();
+        let (b, _) = crate::encode::encode(&input, Limits::DEFAULT).unwrap();
+        assert_eq!(a, b, ".voldoc bytes must be identical across encodes");
+    }
+
+    #[test]
+    fn byte_rans_declines_empty() {
+        assert!(
+            propose_byte_rans(&[], Limits::DEFAULT).unwrap().is_none(),
+            "empty input must decline: RAW is trivially smaller"
+        );
+    }
+
+    #[test]
+    fn model_cost_is_charged() {
+        // On a two-byte input the 516-byte canonical model cannot pay for
+        // itself, so BYTE_RANS must lose the complete-cost court. This documents
+        // model-cost honesty.
+        let input = b"ab";
+        let (bytes, report) = crate::encode::encode(input, Limits::DEFAULT).unwrap();
+        assert_ne!(report.kind, CandidateKind::ByteRans);
+        assert_exact(&bytes, input, Limits::DEFAULT);
     }
 }
