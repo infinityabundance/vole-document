@@ -147,10 +147,41 @@ impl Program {
         channel_lens: &[u64],
         limits: Limits,
     ) -> Result<(u64, CoverageMap)> {
+        let (total, coverage, _per_op) = self.analyze_inner(object_lens, channel_lens, limits)?;
+        Ok((total, coverage))
+    }
+
+    /// Walk the program and return the exact output length contributed by each
+    /// instruction, in program order.
+    ///
+    /// This is the op-indexed view of [`Program::analyze`]: `per_op[i]` is the
+    /// number of bytes instruction `i` produces (`0` for bookkeeping ops such as
+    /// `MARK_OFFSET`), so `per_op.iter().sum() == analyze(...).0`. It applies the
+    /// *same* validation and overflow checks as `analyze`; no rejection is
+    /// relaxed. The optional observation index is checked against this view.
+    pub fn analyze_ops(
+        &self,
+        object_lens: &[u64],
+        channel_lens: &[u64],
+        limits: Limits,
+    ) -> Result<Vec<u64>> {
+        let (_total, _coverage, per_op) = self.analyze_inner(object_lens, channel_lens, limits)?;
+        Ok(per_op)
+    }
+
+    /// Shared program walk: predicted total, coverage certificate, and per-op
+    /// output lengths.
+    fn analyze_inner(
+        &self,
+        object_lens: &[u64],
+        channel_lens: &[u64],
+        limits: Limits,
+    ) -> Result<(u64, CoverageMap, Vec<u64>)> {
         if self.ops.len() as u64 > limits.max_graph_ops as u64 {
             return Err(Error::resource_limit("graph instruction limit exceeded"));
         }
         let mut spans: Vec<Span> = Vec::new();
+        let mut per_op: Vec<u64> = Vec::with_capacity(self.ops.len());
         let mut total: u64 = 0;
         let mut last_len: u64 = 0;
         let mut have_last = false;
@@ -158,6 +189,7 @@ impl Program {
         let mut marked = [false; MAX_OFFSET_SLOTS];
 
         for op in &self.ops {
+            let before = total;
             match op {
                 Op::EmitObject { object_id } => {
                     let len = *object_lens.get(*object_id as usize).ok_or_else(|| {
@@ -497,6 +529,7 @@ impl Program {
                     have_last = true;
                 }
             }
+            per_op.push(total - before);
             if total > limits.max_output_bytes {
                 return Err(Error::resource_limit(format!(
                     "predicted output {total} exceeds limit {}",
@@ -505,7 +538,7 @@ impl Program {
             }
         }
 
-        Ok((total, CoverageMap { spans }))
+        Ok((total, CoverageMap { spans }, per_op))
     }
 
     /// Analyze using concrete object and channel tables.
@@ -1827,5 +1860,40 @@ mod tests {
         // Evaluation analyzes first, so it rejects the same claim identically.
         let e = p.eval(&objects, &[], Limits::DEFAULT).unwrap_err();
         assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+    }
+
+    #[test]
+    fn analyze_ops_lengths_match_total_and_spans() {
+        // Exercises literal, inline, generated, entropy-channel, and bookkeeping
+        // ops so the per-op view is not trivially one span.
+        let p = Program::new(vec![
+            Op::EmitObject { object_id: 0 }, // 6 bytes
+            Op::Inline {
+                bytes: b"12".to_vec(),
+            }, // 2 bytes
+            Op::RepeatLast { count: 2 },     // 4 bytes (generated)
+            Op::DecodeChannel { channel_id: 0 }, // 3 bytes
+            Op::MarkOffset { slot: 5 },      // 0 bytes (bookkeeping)
+            Op::EmitOffset { slot: 5, width: 4 }, // 4 bytes (generated)
+        ]);
+        let (total, cov) = p.analyze(&[6], &[3], Limits::DEFAULT).unwrap();
+        let per_op = p.analyze_ops(&[6], &[3], Limits::DEFAULT).unwrap();
+
+        assert_eq!(per_op.len(), p.ops.len());
+        assert_eq!(per_op, vec![6, 2, 4, 3, 0, 4]);
+        assert_eq!(per_op.iter().sum::<u64>(), total);
+        assert_eq!(total, 19);
+
+        // Each positive-length op owns exactly one coverage span, in order, with
+        // matching start and length; zero-length ops emit no span.
+        let positive: Vec<u64> = per_op.iter().copied().filter(|&l| l > 0).collect();
+        assert_eq!(positive.len(), cov.spans.len());
+        let mut start = 0u64;
+        for (len, span) in positive.iter().zip(cov.spans.iter()) {
+            assert_eq!(span.start, start);
+            assert_eq!(span.len, *len);
+            start += *len;
+        }
+        assert_eq!(start, total);
     }
 }

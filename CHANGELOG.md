@@ -160,6 +160,24 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
     worker, the F2 fixture failing closed under a 32 MiB cap, no silent fallback
     on a broken worker, and the documented in-process fallback) plus the
     worker-protocol framing round-trip unit test in `src/codec/deflate.rs`.
+- Phase 7.3-i1 — optional `OBSERVATION_INDEX` record and op-indexed analysis:
+  - `Program::analyze_ops(object_lens, channel_lens, limits) -> Result<Vec<u64>>`
+    returns the exact output length each instruction produces, sharing one walk
+    with `analyze` so every existing rejection is unchanged.
+  - A new optional, advisory `OBSERVATION_INDEX` record (tag `0x70`, written with
+    `FLAG_OPTIONAL`, placed after `GRAPH` and before `INTEGRITY`) carries an
+    op table, PDF selectors, and output-block digests gated by a `section_flags:
+    u8`. It is **checked, never authority**: `Descriptor::parse` re-derives each
+    `out_len` via `analyze_ops`, checks dependency ids and selector/digest ranges
+    against the analyzed total, and rejects any contradiction with
+    `CoverageViolation`. A decoder that ignores it still materializes exactly.
+  - `Descriptor` gains `observation_index: Option<ObservationIndex>` and an
+    optional header feature bit `FEATURE_OBSERVATION_INDEX`. `cost.index` charges
+    the record payload + framing; `cost.total()` remains exactly the serialized
+    length.
+  - Universe moves to
+    `vole-document;universe;phase7;exact-bytes;dra-8;…+observation-index-v1`
+    (DRA stays v8). No existing candidate bytes change beyond the universe bump.
 
 ### Fixed
 

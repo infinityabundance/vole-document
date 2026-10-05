@@ -24,6 +24,14 @@ pub const FORMAT_MINOR: u16 = 1;
 /// op and so requires a decoder built with exact-DEFLATE-replay support.
 pub const FEATURE_DEFLATE_REPLAY: u32 = 1 << 0;
 
+/// Optional feature bit: the descriptor carries an `OBSERVATION_INDEX` record
+/// and so advertises a partial-decode lane.
+///
+/// Optional bits are ignorable: a decoder built without partial-decode support
+/// still materializes the source exactly, because the reconstruction program
+/// alone is complete. Exactness never requires this bit.
+pub const FEATURE_OBSERVATION_INDEX: u32 = 1 << 0;
+
 /// Feature bits this build understands and supports.
 ///
 /// Without the `deflate-replay` cargo feature the replay bit is *not* supported,

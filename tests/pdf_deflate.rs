@@ -334,6 +334,7 @@ fn hostile_corrections_fail_closed() {
                 corrections_object: 1,
                 declared_output_len: declared,
             }]),
+            observation_index: None,
             source_sha256: sha256(b"hostile placeholder source"),
             source_len: plaintext.len() as u64,
         };

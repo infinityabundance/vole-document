@@ -147,6 +147,7 @@ fn hostile_f2_descriptor_fails_closed_under_small_memory_cap() {
             corrections_object: 1,
             declared_output_len: declared,
         }]),
+        observation_index: None,
         source_sha256: sha256(&[0u8; 4]),
         source_len: u64::from(declared),
     };

@@ -281,6 +281,7 @@ fn literal_descriptor(source: &[u8]) -> Descriptor {
         channels: vec![],
         objects: vec![source.to_vec()],
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
+        observation_index: None,
         source_sha256: sha256(source),
         source_len: source.len() as u64,
     }

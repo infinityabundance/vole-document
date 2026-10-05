@@ -8,7 +8,8 @@
 use crate::EXACTNESS_PROFILE_EXACT_BYTES;
 use crate::accounting::CostBreakdown;
 use crate::container::header::{HEADER_LEN, Header, MAGIC};
-use crate::container::record::{RECORD_OVERHEAD, RecordReader, RecordTag};
+use crate::container::observation::ObservationIndex;
+use crate::container::record::{FLAG_OPTIONAL, RECORD_OVERHEAD, RecordReader, RecordTag};
 use crate::dra::Program;
 use crate::entropy::codec::EntropyChannelDescriptor;
 use crate::entropy::model::EntropyModel;
@@ -21,7 +22,11 @@ use crate::limits::Limits;
 /// Changing any opcode, coder, limit semantic, or adapter meaning requires a
 /// new universe string. The `universe_id` in the header is the first 16 bytes
 /// of SHA-256 over this string.
-pub const UNIVERSE: &str = "vole-document;universe;phase6;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental";
+///
+/// Phase 7 adds an optional `OBSERVATION_INDEX` record (partial-decode view),
+/// so the suffix `+observation-index-v1` is appended; the DRA graph stays at
+/// `dra-8` and the exactness semantics are unchanged.
+pub const UNIVERSE: &str = "vole-document;universe;phase7;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1";
 
 /// First 16 bytes of SHA-256 over a universe declaration string.
 pub fn universe_id_from_str(universe: &str) -> [u8; 16] {
@@ -48,6 +53,12 @@ pub struct Descriptor {
     pub objects: Vec<Vec<u8>>,
     /// The reconstruction program.
     pub program: Program,
+    /// Optional advisory observation index (Phase 7.3).
+    ///
+    /// `None` is today's descriptor and fully materializes. When `Some`, the
+    /// record is validated against the program at parse time; it is never
+    /// authority.
+    pub observation_index: Option<ObservationIndex>,
     /// SHA-256 of the exact reconstructed source.
     pub source_sha256: [u8; 32],
     /// Exact reconstructed source length.
@@ -75,6 +86,7 @@ impl Descriptor {
             self.source_format,
         );
         header.mandatory_features = self.required_features();
+        header.optional_features = self.optional_features();
         header
     }
 
@@ -94,6 +106,20 @@ impl Descriptor {
         bits
     }
 
+    /// Optional feature bits implied by this descriptor's contents.
+    ///
+    /// Optional bits are ignorable: a decoder that does not understand them
+    /// still materializes the source exactly. The observation-index bit records
+    /// only that a partial-decode lane is available; exactness never requires
+    /// it.
+    pub fn optional_features(&self) -> u32 {
+        if self.observation_index.is_some() {
+            crate::container::header::FEATURE_OBSERVATION_INDEX
+        } else {
+            0
+        }
+    }
+
     /// Serialize to a complete `.voldoc` byte sequence plus cost attribution.
     pub fn serialize(&self) -> Result<(Vec<u8>, CostBreakdown)> {
         let mut cost = CostBreakdown {
@@ -106,14 +132,15 @@ impl Descriptor {
         out.extend_from_slice(&header.encode());
 
         let mut records: u64 = 0;
-        let mut write = |out: &mut Vec<u8>, tag: RecordTag, payload: &[u8]| -> Result<()> {
-            crate::container::record::write_record(out, tag as u8, 0, payload)?;
-            records += 1;
-            Ok(())
-        };
+        let mut write =
+            |out: &mut Vec<u8>, tag: RecordTag, flags: u8, payload: &[u8]| -> Result<()> {
+                crate::container::record::write_record(out, tag as u8, flags, payload)?;
+                records += 1;
+                Ok(())
+            };
 
         // UNIVERSE
-        write(&mut out, RecordTag::Universe, self.universe.as_bytes())?;
+        write(&mut out, RecordTag::Universe, 0, self.universe.as_bytes())?;
         cost.universe = self.universe.len() as u64;
 
         // FORMAT: [class u8][basis_len u32 LE][basis bytes]
@@ -124,39 +151,54 @@ impl Descriptor {
         fmt.push(self.source_format);
         fmt.extend_from_slice(&basis_len.to_le_bytes());
         fmt.extend_from_slice(basis);
-        write(&mut out, RecordTag::Format, &fmt)?;
+        write(&mut out, RecordTag::Format, 0, &fmt)?;
         cost.format = fmt.len() as u64;
 
         // MODELS
         for model in &self.models {
             let encoded = model.encode()?;
-            write(&mut out, RecordTag::Model, &encoded)?;
+            write(&mut out, RecordTag::Model, 0, &encoded)?;
             cost.models += encoded.len() as u64;
         }
 
         // ENTROPY CHANNELS
         for channel in &self.channels {
             let encoded = channel.encode()?;
-            write(&mut out, RecordTag::EntropyChannel, &encoded)?;
+            write(&mut out, RecordTag::EntropyChannel, 0, &encoded)?;
             cost.entropy_payload += encoded.len() as u64;
         }
 
         // OBJECTS
         for obj in &self.objects {
-            write(&mut out, RecordTag::Object, obj)?;
+            write(&mut out, RecordTag::Object, 0, obj)?;
             cost.objects += obj.len() as u64;
         }
 
         // GRAPH
         let graph = self.program.encode()?;
-        write(&mut out, RecordTag::Graph, &graph)?;
+        write(&mut out, RecordTag::Graph, 0, &graph)?;
         cost.graph = graph.len() as u64;
+
+        // OBSERVATION_INDEX (optional, advisory). Written with the optional flag
+        // so a decoder that ignores it still fully materializes.
+        let mut index_records: u64 = 0;
+        if let Some(index) = &self.observation_index {
+            let payload = index.encode()?;
+            write(
+                &mut out,
+                RecordTag::ObservationIndex,
+                FLAG_OPTIONAL,
+                &payload,
+            )?;
+            index_records = 1;
+            cost.index = payload.len() as u64 + RECORD_OVERHEAD as u64;
+        }
 
         // INTEGRITY: [sha256 32][source_len u64 LE]
         let mut integ = Vec::with_capacity(40);
         integ.extend_from_slice(&self.source_sha256);
         integ.extend_from_slice(&self.source_len.to_le_bytes());
-        write(&mut out, RecordTag::Integrity, &integ)?;
+        write(&mut out, RecordTag::Integrity, 0, &integ)?;
         cost.integrity = integ.len() as u64;
 
         // TRAILER: [record_count u32][payload_bytes u64][MAGIC 8]
@@ -171,8 +213,11 @@ impl Descriptor {
         crate::container::record::write_record(&mut out, RecordTag::Trailer as u8, 0, &trailer)?;
         cost.trailer = trailer.len() as u64;
 
-        // Framing overhead for every record after the fixed header.
-        cost.record_framing = RECORD_OVERHEAD as u64 * total_records as u64;
+        // Framing overhead for every record after the fixed header. The
+        // optional index record's framing is charged to `cost.index` instead,
+        // so subtract its count here to keep `total()` exactly the serialized
+        // length (every `CostBreakdown` category remains a real byte).
+        cost.record_framing = RECORD_OVERHEAD as u64 * (total_records as u64 - index_records);
 
         debug_assert_eq!(cost.total(), out.len() as u64);
         Ok((out, cost))
@@ -210,11 +255,13 @@ impl Descriptor {
         let mut channels: Vec<EntropyChannelDescriptor> = Vec::new();
         let mut objects: Vec<Vec<u8>> = Vec::new();
         let mut program: Option<Program> = None;
+        let mut observation_index: Option<ObservationIndex> = None;
         let mut source_sha256: Option<[u8; 32]> = None;
         let mut source_len: Option<u64> = None;
         let mut saw_trailer = false;
         let mut trailer_record_count: Option<u32> = None;
         let mut records_seen: u32 = 0;
+        let mut index_records: u64 = 0;
 
         while let Some(rec) = reader.next_record()? {
             records_seen += 1;
@@ -305,6 +352,17 @@ impl Descriptor {
                     cost.graph = rec.payload.len() as u64;
                     program = Some(p);
                 }
+                Some(RecordTag::ObservationIndex) => {
+                    if observation_index.is_some() {
+                        return Err(Error::invalid_container(
+                            "duplicate OBSERVATION_INDEX record",
+                        ));
+                    }
+                    let idx = ObservationIndex::decode(&rec.payload, limits)?;
+                    cost.index = rec.payload.len() as u64 + RECORD_OVERHEAD as u64;
+                    index_records = 1;
+                    observation_index = Some(idx);
+                }
                 Some(RecordTag::Integrity) => {
                     if source_sha256.is_some() {
                         return Err(Error::invalid_container("duplicate INTEGRITY record"));
@@ -349,7 +407,6 @@ impl Descriptor {
                 // Phase 2+ mandatory records have no meaning in this universe.
                 Some(RecordTag::Residual)
                 | Some(RecordTag::Checkpoint)
-                | Some(RecordTag::Index)
                 | Some(RecordTag::ExternalRef) => {
                     if rec.is_optional() {
                         // Explicitly optional and unknown to this universe: skip.
@@ -429,7 +486,15 @@ impl Descriptor {
         }
         coverage.validate(source_len)?;
 
-        cost.record_framing = RECORD_OVERHEAD as u64 * records_seen as u64;
+        // The observation index is advisory: re-derive every claim from the
+        // program and reject any contradiction. It is never authority.
+        if let Some(index) = &observation_index {
+            index.validate(&program, &object_lens, &channel_lens, limits)?;
+        }
+
+        // As in `serialize`, the optional index record's framing is charged to
+        // `cost.index`, so exclude it from the framing total.
+        cost.record_framing = RECORD_OVERHEAD as u64 * (records_seen as u64 - index_records);
 
         Ok(ParsedDescriptor {
             descriptor: Descriptor {
@@ -440,6 +505,7 @@ impl Descriptor {
                 channels,
                 objects,
                 program,
+                observation_index,
                 source_sha256,
                 source_len,
             },
@@ -465,6 +531,7 @@ mod tests {
             channels: vec![],
             objects: vec![source.to_vec()],
             program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
+            observation_index: None,
             source_sha256: sha256(source),
             source_len: source.len() as u64,
         }
@@ -591,5 +658,124 @@ mod tests {
         let (bytes, _) = d.serialize().unwrap();
         let e = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap_err();
         assert_eq!(e.class(), crate::ErrorClass::UnsupportedFeature);
+    }
+
+    use crate::container::observation::{
+        DEP_NONE, DEP_OBJECT, ObservationDigest, ObservationSelector, OpEntry, SECTION_DIGESTS,
+        SECTION_OP_TABLE, SECTION_PDF_SELECTORS, SELECTOR_OBJECT,
+    };
+
+    /// A two-op descriptor (`abc` literal + `de` inline) carrying a fully
+    /// consistent observation index over its five output bytes.
+    fn indexed_descriptor() -> Descriptor {
+        let mut d = sample(b"");
+        d.objects = vec![b"abc".to_vec()];
+        d.program = Program::new(vec![
+            Op::EmitObject { object_id: 0 },
+            Op::Inline {
+                bytes: b"de".to_vec(),
+            },
+        ]);
+        d.source_sha256 = sha256(b"abcde");
+        d.source_len = 5;
+        d.observation_index = Some(ObservationIndex {
+            section_flags: SECTION_OP_TABLE | SECTION_PDF_SELECTORS | SECTION_DIGESTS,
+            ops: vec![
+                OpEntry {
+                    out_len: 3,
+                    dep_kind: DEP_OBJECT,
+                    dep_id: 0,
+                },
+                OpEntry {
+                    out_len: 2,
+                    dep_kind: DEP_NONE,
+                    dep_id: 0,
+                },
+            ],
+            selectors: vec![ObservationSelector {
+                kind: SELECTOR_OBJECT,
+                number: 1,
+                generation: 0,
+                out_off: 0,
+                out_len: 3,
+            }],
+            digests: vec![ObservationDigest {
+                out_off: 3,
+                out_len: 2,
+                sha256: [7u8; 32],
+            }],
+        });
+        d
+    }
+
+    #[test]
+    fn observation_index_roundtrip_and_charge() {
+        let d = indexed_descriptor();
+        assert_eq!(
+            d.optional_features(),
+            crate::container::header::FEATURE_OBSERVATION_INDEX
+        );
+        let (bytes, cost) = d.serialize().unwrap();
+        assert_eq!(
+            cost.total(),
+            bytes.len() as u64,
+            "cost must be the byte length"
+        );
+        assert!(
+            cost.index > 0,
+            "the index payload + framing must be charged"
+        );
+
+        let parsed = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap();
+        assert_eq!(parsed.descriptor, d);
+        assert_eq!(parsed.cost.total(), bytes.len() as u64);
+        assert!(parsed.cost.index > 0);
+
+        // Absent: no record, no charge, and the descriptor still round-trips.
+        let plain = sample(b"nope");
+        let (pbytes, pcost) = plain.serialize().unwrap();
+        assert_eq!(pcost.total(), pbytes.len() as u64);
+        assert_eq!(pcost.index, 0);
+        assert_eq!(plain.optional_features(), 0);
+        let reparsed = Descriptor::parse(&pbytes, Limits::DEFAULT).unwrap();
+        assert!(reparsed.descriptor.observation_index.is_none());
+    }
+
+    #[test]
+    fn inconsistent_observation_index_is_rejected_on_parse() {
+        // A CRC-valid but self-contradictory index must be rejected, not trusted.
+        let mut d = indexed_descriptor();
+        d.observation_index.as_mut().unwrap().ops[0].out_len = 9;
+        let (bytes, _) = d.serialize().unwrap();
+        assert_eq!(
+            Descriptor::parse(&bytes, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::CoverageViolation
+        );
+
+        let mut d = indexed_descriptor();
+        let idx = d.observation_index.as_mut().unwrap();
+        idx.ops[0].dep_kind = DEP_OBJECT;
+        idx.ops[0].dep_id = 99;
+        let (bytes, _) = d.serialize().unwrap();
+        assert_eq!(
+            Descriptor::parse(&bytes, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::CoverageViolation
+        );
+
+        let mut d = indexed_descriptor();
+        let sel = &mut d.observation_index.as_mut().unwrap().selectors[0];
+        sel.out_off = 4;
+        sel.out_len = 9;
+        let (bytes, _) = d.serialize().unwrap();
+        assert_eq!(
+            Descriptor::parse(&bytes, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::CoverageViolation
+        );
     }
 }

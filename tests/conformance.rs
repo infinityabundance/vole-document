@@ -20,6 +20,7 @@ fn raw_descriptor(source: &[u8]) -> Descriptor {
         channels: vec![],
         objects: vec![source.to_vec()],
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
+        observation_index: None,
         source_sha256: sha256(source),
         source_len: source.len() as u64,
     }
@@ -94,6 +95,7 @@ fn coverage_authority_literal_then_generated() {
             Op::EmitObject { object_id: 0 },
             Op::RepeatLast { count: 2 },
         ]),
+        observation_index: None,
         source_sha256: sha256(source),
         source_len: source.len() as u64,
     };
@@ -134,6 +136,7 @@ fn inline_literal_program_is_exact() {
         channels: vec![],
         objects: vec![],
         program,
+        observation_index: None,
         source_sha256: sha256(&source),
         source_len: source.len() as u64,
     };
