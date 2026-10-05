@@ -9,7 +9,11 @@ pub const DRA_VERSION: u8 = 4;
 
 /// Number of positional-offset slots addressable by [`Op::MarkOffset`] and
 /// [`Op::EmitOffset`]. Slot indices must be strictly below this bound.
-pub const MAX_OFFSET_SLOTS: usize = 16;
+///
+/// The bound is 256 so the PDF layout candidate can mark one slot per indirect
+/// object (indices `0..=254`) while reserving slot `255` for the most recent
+/// classic `xref` section start. Slot indices remain `u8` on the wire.
+pub const MAX_OFFSET_SLOTS: usize = 256;
 
 /// Who is the reconstruction authority for an output interval.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -917,17 +921,23 @@ mod tests {
     }
 
     #[test]
-    fn mark_slot_out_of_range_errors() {
+    fn mark_slot_bound_covers_every_u8_slot() {
+        // `MAX_OFFSET_SLOTS == 256`, so every `u8` slot (0..=255) is in range.
+        // The old out-of-range case (slot 16) is now valid, and the reserved
+        // top slot `255` analyzes cleanly.
         let p = Program::new(vec![Op::MarkOffset { slot: 16 }]);
-        let e = p.analyze_objects(&[], Limits::DEFAULT).unwrap_err();
-        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+        let (len, _) = p.analyze_objects(&[], Limits::DEFAULT).unwrap();
+        assert_eq!(len, 0);
 
         let p = Program::new(vec![
-            Op::MarkOffset { slot: 0 },
-            Op::EmitOffset { slot: 16, width: 1 },
+            Op::MarkOffset { slot: 255 },
+            Op::EmitOffset {
+                slot: 255,
+                width: 1,
+            },
         ]);
-        let e = p.analyze_objects(&[], Limits::DEFAULT).unwrap_err();
-        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
+        let (len, _) = p.analyze_objects(&[], Limits::DEFAULT).unwrap();
+        assert_eq!(len, 1);
     }
 
     #[test]
