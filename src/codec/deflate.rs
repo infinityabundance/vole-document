@@ -357,7 +357,7 @@ fn replay_memory_cap_kb(
     let total = plaintext.len() as u64 + corrections.len() as u64 + u64::from(declared_len);
     let bytes = total.saturating_mul(8).saturating_add(64 << 20);
     let lo = 256u64 << 20;
-    let hi = limits.max_replay_bytes.min(1u64 << 31).max(1);
+    let hi = limits.max_replay_bytes.clamp(1, 1u64 << 31);
     let cap = if hi >= lo { bytes.clamp(lo, hi) } else { hi };
     cap / 1024
 }
