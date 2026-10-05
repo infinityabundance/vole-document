@@ -1,0 +1,12 @@
+{
+  "campaign": "2026-10-05-phase2-f6af30b",
+  "sum_source": 590081,
+  "sum_core": 464474,
+  "sum_full": 291304,
+  "delta": 173170,
+  "delta_definition": "sum_core - sum_full",
+  "attribution_delta_sum": 173170,
+  "byte_rans_attribution": [ {"name":"text-256k.bin","core_len":262453,"full_len":143746,"delta":118707},{"name":"skewed.bin","core_len":65845,"full_len":11382,"delta":54463} ],
+  "negative_controls_ok": true,
+  "negative_controls": [ {"name":"empty.bin","core_len":272,"full_len":272,"winner":"RLE","ok":true},{"name":"one.bin","core_len":278,"full_len":278,"winner":"RLE","ok":true},{"name":"rand-det-64k.bin","core_len":65845,"full_len":65845,"winner":"RAW","ok":true},{"name":"rand-urandom-64k.bin","core_len":65845,"full_len":65845,"winner":"RAW","ok":true} ]
+}

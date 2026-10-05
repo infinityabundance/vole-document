@@ -1,0 +1,10 @@
+{
+  "campaign": "2026-10-05-phase2-f6af30b",
+  "phase": "Phase 2 — native rANS floor",
+  "claim": "Byte-exact reconstruction of every corpus item under both binaries, with a cumulative core->full ladder whose delta is attributed to the files where BYTE_RANS wins and honest negative controls in which order-0 rANS loses to RAW/RLE after model cost.",
+  "results_sha256": "5e6356eff3b5bb5e140645051131daabf0219f3b8610b88d099323b94fb2cf75",
+  "ladder_sha256": "5d4e134102a6b79bb6d42ab56146b249bf79186d2eb4744408e4e0ae65b38b0e",
+  "environment_sha256": "c9c331a25f9866e3dde174f80d60563c68cdc08e77adbc74e405f2646644d25b",
+  "report_sha256": "6760f79ffb248ccc890f8d8e1a09b411676a2a42eb875ae9a0251c0caaececd9",
+  "verdict": "PASS"
+}

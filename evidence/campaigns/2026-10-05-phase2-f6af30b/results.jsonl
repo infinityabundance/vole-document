@@ -1,0 +1,9 @@
+{"name":"empty.bin","source_len":0,"source_sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","core_len":272,"full_len":272,"winner":"RLE","byte_compare":"equal"}
+{"name":"one.bin","source_len":1,"source_sha256":"559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd","core_len":278,"full_len":278,"winner":"RLE","byte_compare":"equal"}
+{"name":"zeros-64k.bin","source_len":65536,"source_sha256":"de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31","core_len":283,"full_len":283,"winner":"RLE","byte_compare":"equal"}
+{"name":"runs.bin","source_len":65536,"source_sha256":"2372c05c552bf98fafbbcb5ffd177ed517d22770188515493cec69fecfd58f5d","core_len":3088,"full_len":3088,"winner":"RLE","byte_compare":"equal"}
+{"name":"pattern256.bin","source_len":256,"source_sha256":"40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880","core_len":565,"full_len":565,"winner":"RAW","byte_compare":"equal"}
+{"name":"text-256k.bin","source_len":262144,"source_sha256":"6bd1b8bd4a4f860d02c7a7f31a318e7d0d0c0def2f62d5e50c386da85c5d779a","core_len":262453,"full_len":143746,"winner":"BYTE_RANS","byte_compare":"equal"}
+{"name":"skewed.bin","source_len":65536,"source_sha256":"bab26701c7d3b3ee7a9ac387ea6ea9b28663fe6b0d19bc9903441c6801c46977","core_len":65845,"full_len":11382,"winner":"BYTE_RANS","byte_compare":"equal"}
+{"name":"rand-det-64k.bin","source_len":65536,"source_sha256":"9c7778ebdd8860873f36347666c84796496e4baa2fa512c5b49fa246459ca228","core_len":65845,"full_len":65845,"winner":"RAW","byte_compare":"equal"}
+{"name":"rand-urandom-64k.bin","source_len":65536,"source_sha256":"c0a27c79289d23d7f3c2734e5b06a660a0f8298fad1938ffaa524273d91a4633","core_len":65845,"full_len":65845,"winner":"RAW","byte_compare":"equal"}
