@@ -1,9 +1,18 @@
 # Phase 7.0 — producer-stratified Flate corpus: correction-ratio result
 
-Campaign receipt: `evidence/campaigns/2026-10-05-phase7-corpus-f1f8d26/`
-(code commit `f1f8d26`). Corpus ledger: `evidence/corpus/phase7/provenance.json`;
-raw measurement: `evidence/corpus/phase7/deflate-stats.jsonl`; generator:
-`tools/pdf-corpus.sh`.
+> **Amended 2026-10-05.** The original measurement exposed a scanner-locality
+> limitation (below) that suppressed 6 real Flate streams. After the Stage-A
+> lexer fix (`find_endstream` locates `endstream` by right-termination, commit
+> `c4eb77e`), the corpus was re-measured. The **corrected** numbers are below;
+> the pre-fix numbers are retained for the record.
+>
+> - Original receipt: `evidence/campaigns/2026-10-05-phase7-corpus-f1f8d26/`
+>   (code commit `f1f8d26`).
+> - Amendment receipt: `evidence/campaigns/2026-10-05-phase7-corpus-b-c4eb77e/`
+>   (code commit `c4eb77e`).
+>
+> Corpus ledger: `evidence/corpus/phase7/provenance.json`; raw measurement:
+> `evidence/corpus/phase7/deflate-stats.jsonl`; generator: `tools/pdf-corpus.sh`.
 
 ## What was measured
 
@@ -37,45 +46,67 @@ substituted.
 
 ## Result
 
-17 `FlateDecode` streams seen; **11 replayed, 6 declined → exact-replay
-acceptance 11/17 = 0.647**.
+After the fix: 24 `FlateDecode` streams seen; **24 replayed, 0 declined →
+exact-replay acceptance 24/24 = 1.000**.
 
-Per producer (p10/p50/p90 over replayed streams):
+The earlier, pre-fix run saw only 17 streams (11 replayed, 6 declined;
+acceptance 0.647). The count rose because the over-reading payload span had
+swallowed whole stream objects: `gs-prepress` gained 1, and every qpdf-generated
+file was undercounted (`qpdf-compress` +2, `qpdf-linearize` +2,
+`qpdf-preserve-objectstreams` +2 — it had reported **zero** streams). All 6
+former `not_zlib` declines now replay byte-exactly.
+
+Per producer (p10/p50/p90 over replayed streams; nearest rank):
 
 | producer | flate | replayed | declined | acceptance | `corr/comp` p10/p50/p90 | `(plain+corr)/comp` | `(rans+corr)/comp` |
 | --- | ---: | ---: | ---: | ---: | --- | --- | --- |
-| ghostscript | 6 | 1 | 5 | 0.167 | 0.0147 / 0.0147 / 0.0147 | 1.140 / 1.140 / 1.140 | 1.234 / 1.234 / 1.234 |
-| hand | 3 | 3 | 0 | 1.000 | 0.00032 / 0.00032 / 0.00043 | 1.0001 / 1.0001 / 1.0002 | 0.6132 / 0.6132 / 0.6132 |
-| qpdf | 2 | 1 | 1 | 0.500 | 0.609 / 0.609 / 0.609 | 2.130 / 2.130 / 2.130 | 2.696 / 2.696 / 2.696 |
-| pdf-make-samples | 6 | 6 | 0 | 1.000 | 0.000875 / 0.004518 / 0.097360 | 1.0005 / 4.8399 / 9.4777 | 0.5778 / 2.1890 / 5.5114 |
+| ghostscript | 7 | 7 | 0 | 1.000 | 0.014716 / 0.080827 / 0.080827 | 1.139985 / 14.135338 / 14.135338 | 1.234027 / 8.934210 / 8.934210 |
+| hand | 3 | 3 | 0 | 1.000 | 0.000320 / 0.000320 / 0.000428 | 1.000143 / 1.000143 / 1.000192 | 0.613162 / 0.613215 / 0.613215 |
+| qpdf | 8 | 8 | 0 | 1.000 | 0.000320 / 0.000428 / 0.608695 | 1.000143 / 1.000192 / 12.464622 | 0.613162 / 0.613215 / 7.670047 |
+| pdf-make-samples | 6 | 6 | 0 | 1.000 | 0.000875 / 0.004518 / 0.097360 | 1.000531 / 4.839944 / 9.477712 | 0.577848 / 2.189030 / 5.511436 |
+| **overall** | 24 | 24 | 0 | 1.000 | 0.000320 / 0.014716 / 0.097360 | 1.000143 / 1.692737 / 14.135338 | 0.613162 / 2.000000 / 8.934210 |
 
 - **The Phase-6 win region appears** on the hand-written shared-plaintext
-  fixtures. `hand-base2.pdf` has two streams sharing one 90,541-byte plaintext,
+  fixtures *and now also on qpdf transformer output*. `qpdf-preserve-objectstreams.pdf`
+  and `hand-base2.pdf` each have two streams sharing one 90,541-byte plaintext,
   both weakly coded: naive rANS complete cost 111,062 B vs **deduped 55,531 B**.
   `_synthetic/flate.pdf` shares `p1` across four streams with one stored
-  appearance: naive 89,437 B vs **deduped 34,051 B**.
-- **Replay loses** where fixed correction overhead cannot amortize (a 46-byte
-  qpdf-linearize stream: `raw 0.609`, `plain 2.13`, `rans 2.70`), and per stream
-  on unique strongly-compressed plaintext (`flate.pdf` objects 4/6/7/9:
-  `rans` 2.19–5.51). Only the conjunctive shared-*and*-weak geometry wins at
-  document level.
+  appearance: naive 89,437 B vs **deduped 34,051 B**. This is scoped: the qpdf
+  win is the hand shared-plaintext geometry surviving a qpdf
+  `--object-streams=preserve` transform, not an authoring-app result. No
+  Ghostscript output contains a shared-plaintext pair.
+- **Replay loses** per stream where the correction/plaintext cannot amortize: a
+  46-byte qpdf-linearize stream (`raw 0.609`, `plain 2.13`, `rans 2.70`), and
+  unique strongly-compressed plaintext (Ghostscript content streams up to
+  `rans 8.93`; `flate.pdf` objects 4/6/7/9 `rans` 2.19–5.51). Only the
+  conjunctive shared-*and*-weak geometry wins at document level.
 
-## Harness-locality finding
+## Harness-locality finding (resolved)
 
-All 6 declines are `not_zlib`, but that is not a claim that the streams are not
-zlib: independent `qpdf --show-object --raw-stream-data` reads show `78 9c`
-(valid zlib) for `gs-default` object 5 and `qpdf-compress` object 1. The VOLE
-lexer's `find_endstream` requires an EOL immediately before `endstream`, which
-Ghostscript omits (spec "should", qpdf-tolerated), so the scanner mislocates the
-stream span and the sliced bytes begin with `0x0a`. This is a **scanner locality
-limitation** in the harness, recorded as a finding. Fixing it would change
-candidate proposals, so it is out of scope for Phase 7.0. The Phase-6 fixtures
-(direct `/Length`, EOL before `endstream`) are unaffected.
+The original run reported all 6 declines as `not_zlib`, which was **not** a
+statement that the streams are not zlib: independent
+`qpdf --show-object=N --raw-stream-data` reads showed `gs-default` object 5 and
+`qpdf-compress` object 1 begin `78 9c`, a valid zlib header. Root cause: the VOLE
+lexer's `find_endstream` required a preceding EOL, and Ghostscript (and qpdf)
+emit `endstream` with no EOL immediately before it, so the scanner over-read and
+sliced bytes beginning with `0x0a`.
 
-Consequently this campaign is evidence about the **harness**, not evidence of
-absence of the win region on real producers; that question stays open.
+**This is now fixed** (commit `c4eb77e`): `find_endstream` locates the `endstream`
+keyword by right-termination — the byte after `endstream` must be PDF whitespace,
+a PDF delimiter, or EOF; the byte before may be any payload byte. The physical
+scanner's `/Length`-based resolution is unchanged. Re-measurement
+(`2026-10-05-phase7-corpus-b-c4eb77e`) shows **0 declines**; the 6 former
+`not_zlib` streams replay byte-exactly, and the corrected stream census is 24.
+
+Because the transformer outputs now measure cleanly, the corpus is evidence
+about the harness **and** the producers, though the scope caveat stands: qpdf and
+Ghostscript are transformers, not authoring applications, and browser/PDFium,
+LibreOffice, pdfTeX and Adobe outputs remain a recorded gap.
 
 ## Verdict
 
-**RECORDED (measurement).** No new candidate is adopted. Claims are scoped to
-locally generated files; qpdf/Ghostscript are transformers, not authoring apps.
+**RECORDED (measurement, amended).** No new candidate is adopted. After the
+stream-boundary fix the same corpus yields acceptance 24/24 = 1.000 (was
+11/17 = 0.647), and the Phase-6 win geometry now appears on qpdf transformer
+output as well as the hand/synthetic fixtures. Claims are scoped to locally
+generated files; qpdf/Ghostscript are transformers, not authoring apps.

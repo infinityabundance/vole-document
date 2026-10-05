@@ -177,3 +177,25 @@ real producers. That question remains open.
 sealed; the Phase-6 win region is reproduced on the hand-written shared-plaintext
 fixtures; the transformer outputs expose a lexer locality limitation in the
 harness, which is recorded rather than papered over.
+
+## Amendment (2026-10-05) — superseded by `2026-10-05-phase7-corpus-b-c4eb77e`
+
+This receipt is **not rewritten**. The harness-locality limitation recorded above
+was fixed in Stage A (`src/adapter/pdf/lexer.rs::find_endstream` now locates
+`endstream` by right-termination, so a producer that omits the EOL before
+`endstream` no longer defeats the scanner), and the same corpus and harness were
+re-run. The corrected numbers are in the amendment receipt
+`evidence/campaigns/2026-10-05-phase7-corpus-b-c4eb77e`:
+
+- Flate streams **17 → 24**; replayed **11 → 24**; declined **6 → 0**;
+  acceptance **0.647 → 1.000**.
+- The 6 `not_zlib` declines are gone. The stream census also grew because the old
+  over-read swallowed whole stream objects (all of qpdf's generated files
+  reported fewer streams; `qpdf-preserve-objectstreams.pdf` reported zero).
+- The Phase-6 shared-plaintext win geometry now also appears on qpdf transformer
+  output (`qpdf-preserve-objectstreams.pdf`: naive 111,062 B vs deduped
+  55,531 B).
+
+The numbers above remain the historical record of the pre-fix harness. Neither
+this report nor its manifest is rewritten; the amendment note and the new
+receipt are the durable correction.

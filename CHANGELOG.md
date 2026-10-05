@@ -64,19 +64,44 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
     gitignored; no third-party bytes.
   - Harness tests in `tests/deflate_stats.rs`.
 
+### Fixed
+
+- PDF lexer stream boundary (`src/adapter/pdf/lexer.rs::find_endstream`): the
+  `endstream` keyword is now located by **right-termination** (the byte
+  immediately after `endstream` must be PDF whitespace, a PDF delimiter, or EOF)
+  instead of requiring a preceding CR/LF. Real producers — confirmed for
+  **Ghostscript 10.00.0** — write the stream payload directly before `endstream`
+  with **no intervening EOL**, which previously made the opaque payload span
+  over-read to a *later* `endstream`, swallowing whole stream objects and
+  mis-slicing the `/Length` region (the captured bytes began `0x0a`, so
+  `try_replay` declined them as `not_zlib`). The physical scanner's
+  `/Length`-based resolution is unchanged; no wire format or candidate changed.
+  New lexer tests cover the no-EOL case, the normal `\nendstream` case, an
+  `endstream` at EOF, and an `endstream`-like run lacking a right terminator; a
+  new integration test builds a PDF whose payload abuts `endstream` and checks
+  the exact scan and byte-exact `try_replay`.
+
 ### Measured
 
 - Campaign `2026-10-05-phase7-corpus-f1f8d26` (verdict RECORDED; diagnostic, no
   new candidate): 17 `FlateDecode` streams, **11 replayed / 6 declined**
-  (acceptance 0.647) across Ghostscript, qpdf, hand-written, and synthetic
-  producers. The Phase-6 win region reproduces on the hand-written shared
-  plaintext fixtures (`hand-base2.pdf` deduped rANS 55,531 vs naive 111,062;
-  `flate.pdf` 34,051 vs 89,437). The 6 transformer declines are `not_zlib` from a
-  recorded **scanner locality limitation** (the lexer requires an EOL before
-  `endstream`, which Ghostscript omits), not a zlib verdict. Scoped to locally
-  generated files; qpdf/Ghostscript are transformers, not authoring apps;
-  browser/office/TeX families are a recorded gap. Report:
-  `docs/evidence/phase7-corpus-report.md`.
+  (acceptance 0.647). The 6 transformer declines were `not_zlib` from a recorded
+  **scanner locality limitation** (the lexer required an EOL before `endstream`,
+  which Ghostscript omits), not a zlib verdict. Superseded by the amendment
+  below.
+- Campaign `2026-10-05-phase7-corpus-b-c4eb77e` (amendment; verdict RECORDED;
+  diagnostic, no new candidate) — re-measured after the lexer stream-boundary
+  fix: the same corpus now yields **24 `FlateDecode` streams, 24 replayed / 0
+  declined (acceptance 1.000)** across Ghostscript 10.00.0, qpdf 11.3.0, a
+  hand-written stored-block-zlib base, and the Phase-3 synthetic set. The census
+  rose 17 → 24 because the old over-read had swallowed whole stream objects
+  (every qpdf-generated file was undercounted; `qpdf-preserve-objectstreams.pdf`
+  had reported zero). The Phase-6 win region now appears on qpdf transformer
+  output too (`qpdf-preserve-objectstreams.pdf` deduped rANS 55,531 vs naive
+  111,062) alongside the hand-written/synthetic fixtures (`hand-base2.pdf`
+  55,531 vs 111,062; `flate.pdf` 34,051 vs 89,437). Scoped to locally generated
+  files; qpdf/Ghostscript are transformers, not authoring apps; browser/office/TeX
+  families remain a recorded gap. Report: `docs/evidence/phase7-corpus-report.md`.
 - Campaign `2026-10-05-phase6-0d0bb79` (DRA v8, verdict PASS; the earlier
   `2026-10-05-phase6-ec92c1a` receipt is retained): a 12-file corpus; every
   auto winner round-trips byte-exactly (`cmp` + `verify`, `all_exact=true`); the

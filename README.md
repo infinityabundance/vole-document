@@ -60,7 +60,7 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | Exact DEFLATE replay, raw plaintext (`PDF_DEFLATE_REPLAY`) | **Recorded — rejected vs `BYTE_RANS`** | campaign `2026-10-05-phase6-0d0bb79`; byte-exact, but on `flate.pdf` 56,736 vs `BYTE_RANS` 49,291 (plaintext ≈ bitstream) |
 | Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | **Adopted — first structural win** | campaign `2026-10-05-phase6-0d0bb79`; `flate.pdf` 36,102 vs `BYTE_RANS` 49,291 (**−13,189 B**) (ADR-0015) |
 | Phase-6 replay court (`--force pdf-deflate-replay[-rans]`) | **Measured** | `tools/phase6-court.sh`; campaign `2026-10-05-phase6-0d0bb79` |
-| Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; campaign `2026-10-05-phase7-corpus-f1f8d26`; diagnostic only, no new candidate |
+| Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; amendment campaign `2026-10-05-phase7-corpus-b-c4eb77e` (supersedes `2026-10-05-phase7-corpus-f1f8d26`); 24/24 replayed, 0 declined; diagnostic only, no new candidate |
 | PDF structural adapters (Phases 7–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
@@ -360,20 +360,27 @@ complete costs so shared plaintext is not overcounted:
 `replayed_rans_dedup_bytes` (one charge per unique plaintext + one per unique
 correction, matching the shared-channel candidate).
 
-On 17 `FlateDecode` streams: **11 replayed, 6 declined (acceptance 0.647)**. The
-Phase-6 win region reproduces on the hand-written shared-plaintext fixtures
-(`hand-base2.pdf`: deduped rANS 55,531 vs naive 111,062; `flate.pdf` 34,051 vs
-89,437). The six declines are transformer output (Ghostscript/qpdf) and are all
-`not_zlib` **because of a recorded scanner locality limitation** — the lexer's
-`find_endstream` requires an EOL before `endstream`, which Ghostscript omits
-(spec "should", qpdf-tolerated) — not because those streams are not zlib (they
-begin `78 9c`, confirmed via `qpdf --raw-stream-data`). This is a **scoped**
-result about locally generated files and about the harness, not a producer survey:
-qpdf/Ghostscript are transformers, not authoring apps, and browser/office/TeX
-families remain a recorded gap. No candidate is adopted.
+On 24 `FlateDecode` streams (re-measured after the Stage-A lexer stream-boundary
+fix): **24 replayed, 0 declined (acceptance 1.000)**. The pre-fix run saw only 17
+streams (11 replayed, 6 declined); the census rose because the old over-read had
+swallowed whole stream objects (every qpdf-generated file was undercounted;
+`qpdf-preserve-objectstreams.pdf` had reported zero). The Phase-6 win region now
+reproduces on qpdf transformer output too (`qpdf-preserve-objectstreams.pdf`:
+deduped rANS 55,531 vs naive 111,062) alongside the hand-written/synthetic
+fixtures (`hand-base2.pdf`: 55,531 vs 111,062; `flate.pdf`: 34,051 vs 89,437).
+The six former declines were all `not_zlib` **because of a scanner locality
+limitation** — the lexer's `find_endstream` required an EOL before `endstream`,
+which Ghostscript omits (spec "should", qpdf-tolerated) — not because those
+streams are not zlib (they begin `78 9c`, confirmed via `qpdf --raw-stream-data`).
+That limitation is **fixed** (commit `c4eb77e`): `find_endstream` now locates the
+`endstream` keyword by right-termination. This is a **scoped** result about
+locally generated files; qpdf/Ghostscript are transformers, not authoring apps,
+and browser/office/TeX families remain a recorded gap. No candidate is adopted.
 
 Receipt:
-[`evidence/campaigns/2026-10-05-phase7-corpus-f1f8d26/`](evidence/campaigns/2026-10-05-phase7-corpus-f1f8d26/);
+[`evidence/campaigns/2026-10-05-phase7-corpus-b-c4eb77e/`](evidence/campaigns/2026-10-05-phase7-corpus-b-c4eb77e/)
+(amendment; supersedes the original
+[`2026-10-05-phase7-corpus-f1f8d26/`](evidence/campaigns/2026-10-05-phase7-corpus-f1f8d26/));
 report: [`docs/evidence/phase7-corpus-report.md`](docs/evidence/phase7-corpus-report.md).
 
 ## Quick start (Docker only)

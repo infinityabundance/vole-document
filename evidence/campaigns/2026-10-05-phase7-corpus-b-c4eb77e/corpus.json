@@ -1,0 +1,213 @@
+{
+  "campaign": "2026-10-05-phase7-corpus-b-c4eb77e",
+  "corpus_files": 23,
+  "files": [
+    {
+      "name": "_synthetic/bigtext.pdf",
+      "sha256": "525c10330f6a66cc4d3deea8374c6a34af1346c655e2f060e30f658eb6fe36f3",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 65549
+    },
+    {
+      "name": "_synthetic/classic.pdf",
+      "sha256": "0d509281e91d6d7cbfbcb4d16f5a205578e65765a11c59187b07b585d555b00d",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 329
+    },
+    {
+      "name": "_synthetic/flate.pdf",
+      "sha256": "3648e1ad820f6f7e4e590030f3ae14ca0d7adc276b73288021e609d83f2ff1ff",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 57513
+    },
+    {
+      "name": "_synthetic/incremental.pdf",
+      "sha256": "33ac9bd72eaf26c3c941ac5298be6c265839edbdec2babe4458c3aa9930c9f46",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 456
+    },
+    {
+      "name": "_synthetic/malformed.pdf",
+      "sha256": "a3b30e67ec93dbfa48d682e14f304d03ee5614935d2d8accb406eb7f7ef0fd2e",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 85
+    },
+    {
+      "name": "_synthetic/many.pdf",
+      "sha256": "ad307a337c35f18dcd3df833d57c83c7ccf49c294336f81d28f427d6fddbd3bf",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 9881
+    },
+    {
+      "name": "_synthetic/mixedeol.pdf",
+      "sha256": "6513b0d2670cdee42fe41be4b02f04bf8e4916a2535051fa11ae9a412578ca07",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 248
+    },
+    {
+      "name": "_synthetic/notpdf.bin",
+      "sha256": "5041faa0ec18d14a38c689d603d302c76529616cd4ed9a9650244c7d7d812dfb",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 41
+    },
+    {
+      "name": "_synthetic/objstm.pdf",
+      "sha256": "2ffb2df2a44c15da7fb968b646f36ad441424f1b8665b2e49cdc7580b8a724ba",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 341
+    },
+    {
+      "name": "_synthetic/trapstream.pdf",
+      "sha256": "66ef915072b7efb061010a6291aae1177840e1895834f0fd86f8204d32653528",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 250
+    },
+    {
+      "name": "_synthetic/traptext.pdf",
+      "sha256": "2a9517789675b45034036b1d8d45e8c0c6678447aa67ad1475062427f2eb1198",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 266
+    },
+    {
+      "name": "_synthetic/xrefstream.pdf",
+      "sha256": "3dfabb74f1ded2bf7ca7cb805244323310f5890f13541a7acfe8eed32e210912",
+      "producer": "vole-document pdf-make-samples",
+      "producer_version": "dev image (Phase-3 corpus)",
+      "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic",
+      "license": "locally-generated",
+      "source_len": 251
+    },
+    {
+      "name": "gs-default.pdf",
+      "sha256": "8963d2853ae11872d1a6313cc61bfb15b99a6a5cdfb2e34c8bb4c726e643923c",
+      "producer": "ghostscript",
+      "producer_version": "10.00.0",
+      "command": "gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dCompressPages=true -dUseFlateCompression=true -dPDFSETTINGS=/default -sOutputFile=evidence/corpus/phase7/gs-default.pdf evidence/corpus/phase7/hand-base1.pdf",
+      "license": "locally-generated",
+      "source_len": 2890
+    },
+    {
+      "name": "gs-ebook.pdf",
+      "sha256": "0914df052bf7c3df09ff488b58f0f3669607258db51ba1308c341b608b80486a",
+      "producer": "ghostscript",
+      "producer_version": "10.00.0",
+      "command": "gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dCompressPages=true -dUseFlateCompression=true -dPDFSETTINGS=/ebook -sOutputFile=evidence/corpus/phase7/gs-ebook.pdf evidence/corpus/phase7/hand-base1.pdf",
+      "license": "locally-generated",
+      "source_len": 2888
+    },
+    {
+      "name": "gs-prepress.pdf",
+      "sha256": "73f01285cd1b18ca5d786203bd732a535b11c315b01dfa0e10efaf296d17da39",
+      "producer": "ghostscript",
+      "producer_version": "10.00.0",
+      "command": "gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dCompressPages=true -dUseFlateCompression=true -dPDFSETTINGS=/prepress -sOutputFile=evidence/corpus/phase7/gs-prepress.pdf evidence/corpus/phase7/hand-base1.pdf",
+      "license": "locally-generated",
+      "source_len": 6480
+    },
+    {
+      "name": "gs-printer.pdf",
+      "sha256": "151118f75659af6e8ea526685d0d83c6dc43e7db14799c69f1205fbbcb49fe52",
+      "producer": "ghostscript",
+      "producer_version": "10.00.0",
+      "command": "gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dCompressPages=true -dUseFlateCompression=true -dPDFSETTINGS=/printer -sOutputFile=evidence/corpus/phase7/gs-printer.pdf evidence/corpus/phase7/hand-base1.pdf",
+      "license": "locally-generated",
+      "source_len": 9143
+    },
+    {
+      "name": "gs-screen.pdf",
+      "sha256": "4ad095844aa58de7385ac6232558b73f20002226a7cfa3e3b4982d708ea2a762",
+      "producer": "ghostscript",
+      "producer_version": "10.00.0",
+      "command": "gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dCompressPages=true -dUseFlateCompression=true -dPDFSETTINGS=/screen -sOutputFile=evidence/corpus/phase7/gs-screen.pdf evidence/corpus/phase7/hand-base1.pdf",
+      "license": "locally-generated",
+      "source_len": 2889
+    },
+    {
+      "name": "hand-base1.pdf",
+      "sha256": "c4f13dbb15d05433635b9ea1bba7b101aaafbdd6dc1dfd764ebaf8178275c6ec",
+      "producer": "hand (VOLE shell writer, stored-block zlib)",
+      "producer_version": "tools/pdf-corpus.sh",
+      "command": "hand-written classic-xref PDF; object 6 /FlateDecode is a hand-built stored-block zlib stream",
+      "license": "locally-generated",
+      "source_len": 120845
+    },
+    {
+      "name": "hand-base2.pdf",
+      "sha256": "bfbf497ecf9acb655116ec41a0cb2f5ca791586fec9982490ac219b19e1e94a4",
+      "producer": "hand (VOLE shell writer, stored-block zlib)",
+      "producer_version": "tools/pdf-corpus.sh",
+      "command": "hand-written classic-xref PDF; objects 5 and 6 share one plaintext as two hand-built stored-block Flate streams",
+      "license": "locally-generated",
+      "source_len": 181787
+    },
+    {
+      "name": "qpdf-compress.pdf",
+      "sha256": "f5cdab06a715c8e0ed54360d871bdc025d76ac4a65d9f4c2ee957fbcf7d0aba7",
+      "producer": "qpdf",
+      "producer_version": "11.3.0",
+      "command": "qpdf --compress-streams=y --object-streams=generate --stream-data=compress evidence/corpus/phase7/hand-base1.pdf evidence/corpus/phase7/qpdf-compress.pdf",
+      "license": "locally-generated",
+      "source_len": 72610
+    },
+    {
+      "name": "qpdf-linearize.pdf",
+      "sha256": "2014d7bfc4fbf38812d3e79fe1198aae16c02c7b9e30f8bdc202826ea64e2bd1",
+      "producer": "qpdf",
+      "producer_version": "11.3.0",
+      "command": "qpdf --linearize evidence/corpus/phase7/hand-base1.pdf evidence/corpus/phase7/qpdf-linearize.pdf",
+      "license": "locally-generated",
+      "source_len": 73143
+    },
+    {
+      "name": "qpdf-nocompress.pdf",
+      "sha256": "eae0efdd699cde484751e617d1ae94b0b4d55d4c39fd901fe6eec9a525a70f4e",
+      "producer": "qpdf",
+      "producer_version": "11.3.0",
+      "command": "qpdf --compress-streams=n --stream-data=uncompress evidence/corpus/phase7/hand-base1.pdf evidence/corpus/phase7/qpdf-nocompress.pdf",
+      "license": "locally-generated",
+      "source_len": 120893
+    },
+    {
+      "name": "qpdf-preserve-objectstreams.pdf",
+      "sha256": "f48024ea8446fbe6a5cc8ff917d906031ca77da1052f8bee9b2cc55e44a6abc5",
+      "producer": "qpdf",
+      "producer_version": "11.3.0",
+      "command": "qpdf --object-streams=preserve evidence/corpus/phase7/hand-base2.pdf evidence/corpus/phase7/qpdf-preserve-objectstreams.pdf",
+      "license": "locally-generated",
+      "source_len": 181872
+    }
+  ]
+}
