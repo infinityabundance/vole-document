@@ -1,0 +1,1 @@
+{"crate":"vole-document","format_major":0,"format_minor":1,"exactness_profiles":["EXACT_BYTES"],"source_formats":["OPAQUE"],"universe":"vole-document;universe;phase-1;exact-bytes;dra-1;opaque-raw","dra_ops":["EMIT_OBJECT","INLINE","REPEAT_LAST"],"entropy_channels":[],"features":{"rans":false,"pdf":false,"deflate_replay":false}}
