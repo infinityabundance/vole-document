@@ -1,0 +1,31 @@
+{
+  "campaign": "2026-10-05-phase7-corpus-f1f8d26",
+  "phase": "Phase 7.0 — producer-stratified Flate corpus + exact-replay correction-ratio harness",
+  "claim": "Measured, per FlateDecode stream and broken out by producer, the exact-DEFLATE-replay correction ratio (correction/compressed, (plaintext+corr)/compressed, (rANS(plaintext)+corr)/compressed) with p10/p50/p90, the exact-replay acceptance rate, and every decline, over a locally-generated corpus from Ghostscript 10.00.0, qpdf 11.3.0, a hand-written stored-block-zlib base, and the Phase-3 synthetic set.",
+  "git_commit": "f1f8d268282409669d86ec594c99aecd159a2bca",
+  "git_dirty_tracked": "0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "tools_base_image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "ec8313a91baa81eebd13ed98b2cdc5abe43251c0c45caca3bba2df2441ee1039",
+  "binary_sha256": "f20e5ae2a0ec7427954e224a7b7698739fe31a26c2a7829d4b2e9af7edc4ddcd",
+  "command": "docker compose run --rm --no-TTY tools sh tools/pdf-corpus.sh; docker compose run --rm --no-TTY dev sh -c './target/debug/vole-document deflate-stats evidence/corpus/phase7/*.pdf evidence/corpus/phase7/_synthetic/*.pdf > evidence/corpus/phase7/deflate-stats.jsonl'",
+  "oracles": {"qpdf": "11.3.0", "ghostscript": "10.00.0"},
+  "artifacts": {
+    "corpus.json": "79a486d6f5a67f60615ba1ba3c6fc714a928c9cf5c3d7b453c243fe990d43ae5",
+    "results.json": "691eb2039d10f5774e205a6bfe3ec008a398bd48b2d2768969498bc5a6dfa545",
+    "environment.json": "80509a7ee4f9a9c0e4cb040be1e80a11a77b310bdc7e437ed5617cefd8594e2e",
+    "report.md": "b4cd503bded3565a406b8b1223134ef1797a04d3c753a3020c3cb1d94ed34245"
+  },
+  "corpus_ledger": {
+    "provenance": "evidence/corpus/phase7/provenance.json",
+    "provenance_sha256": "8b4c75152e42c6ecb8a6e700cad5d718edeef2f6e7eb58763de9fba06eaf48e4",
+    "deflate_stats_jsonl": "evidence/corpus/phase7/deflate-stats.jsonl",
+    "deflate_stats_sha256": "088dcaaffaead12043e39b281ad074a7088abb1e255609cc4a5983692c36bc5d",
+    "generator": "tools/pdf-corpus.sh",
+    "generator_sha256": "1c4e88c21a4c78e20bbd7a72e68dfa03de1adfddf630c79563fbdb1a8424e4c8"
+  },
+  "verdict": "RECORDED"
+}

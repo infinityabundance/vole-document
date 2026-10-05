@@ -1,0 +1,23 @@
+{
+  "campaign": "2026-10-05-phase7-corpus-f1f8d26",
+  "utc_date": "2026-10-05T13:21:51Z",
+  "git_commit": "f1f8d268282409669d86ec594c99aecd159a2bca",
+  "git_dirty_tracked": "0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "tools_base_image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "ec8313a91baa81eebd13ed98b2cdc5abe43251c0c45caca3bba2df2441ee1039",
+  "binary_sha256": "f20e5ae2a0ec7427954e224a7b7698739fe31a26c2a7829d4b2e9af7edc4ddcd",
+  "features": "deflate-replay,rans (cargo build --all-features)",
+  "oracles": {
+    "qpdf": "11.3.0",
+    "ghostscript": "10.00.0"
+  },
+  "commands": [
+    "docker compose run --rm --no-TTY dev sh -c 'cargo build --quiet --all-features && ./target/debug/vole-document pdf-make-samples evidence/corpus/phase7/_synthetic'",
+    "docker compose run --rm --no-TTY tools sh tools/pdf-corpus.sh",
+    "docker compose run --rm --no-TTY dev sh -c './target/debug/vole-document deflate-stats evidence/corpus/phase7/*.pdf evidence/corpus/phase7/_synthetic/*.pdf > evidence/corpus/phase7/deflate-stats.jsonl'"
+  ]
+}

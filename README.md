@@ -60,6 +60,7 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | Exact DEFLATE replay, raw plaintext (`PDF_DEFLATE_REPLAY`) | **Recorded — rejected vs `BYTE_RANS`** | campaign `2026-10-05-phase6-0d0bb79`; byte-exact, but on `flate.pdf` 56,736 vs `BYTE_RANS` 49,291 (plaintext ≈ bitstream) |
 | Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | **Adopted — first structural win** | campaign `2026-10-05-phase6-0d0bb79`; `flate.pdf` 36,102 vs `BYTE_RANS` 49,291 (**−13,189 B**) (ADR-0015) |
 | Phase-6 replay court (`--force pdf-deflate-replay[-rans]`) | **Measured** | `tools/phase6-court.sh`; campaign `2026-10-05-phase6-0d0bb79` |
+| Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; campaign `2026-10-05-phase7-corpus-f1f8d26`; diagnostic only, no new candidate |
 | PDF structural adapters (Phases 7–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
@@ -344,6 +345,36 @@ positive for a PDF structural candidate
 
 Receipt:
 [`evidence/campaigns/2026-10-05-phase6-0d0bb79/`](evidence/campaigns/2026-10-05-phase6-0d0bb79/).
+
+### Producer-stratified Flate ratio (Phase 7.0) measured results
+
+`tools/pdf-corpus.sh` builds a locally-generated corpus from distinct producer
+lineages (Ghostscript 10.00.0 at five `/PDFSETTINGS`, qpdf 11.3.0 in four modes,
+a hand-written stored-block-zlib base, plus the Phase-3 synthetic set), and
+`vole-document deflate-stats` measures the exact-replay ratio per `FlateDecode`
+stream — `correction/compressed`, `(plaintext+corr)/compressed`,
+`(rANS(plaintext)+corr)/compressed` — with p10/p50/p90 by producer, the
+exact-replay acceptance rate, and every decline. It also reports two aggregate
+complete costs so shared plaintext is not overcounted:
+`replayed_rans_full_bytes` (naive per-stream sum) and
+`replayed_rans_dedup_bytes` (one charge per unique plaintext + one per unique
+correction, matching the shared-channel candidate).
+
+On 17 `FlateDecode` streams: **11 replayed, 6 declined (acceptance 0.647)**. The
+Phase-6 win region reproduces on the hand-written shared-plaintext fixtures
+(`hand-base2.pdf`: deduped rANS 55,531 vs naive 111,062; `flate.pdf` 34,051 vs
+89,437). The six declines are transformer output (Ghostscript/qpdf) and are all
+`not_zlib` **because of a recorded scanner locality limitation** — the lexer's
+`find_endstream` requires an EOL before `endstream`, which Ghostscript omits
+(spec "should", qpdf-tolerated) — not because those streams are not zlib (they
+begin `78 9c`, confirmed via `qpdf --raw-stream-data`). This is a **scoped**
+result about locally generated files and about the harness, not a producer survey:
+qpdf/Ghostscript are transformers, not authoring apps, and browser/office/TeX
+families remain a recorded gap. No candidate is adopted.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase7-corpus-f1f8d26/`](evidence/campaigns/2026-10-05-phase7-corpus-f1f8d26/);
+report: [`docs/evidence/phase7-corpus-report.md`](docs/evidence/phase7-corpus-report.md).
 
 ## Quick start (Docker only)
 

@@ -45,9 +45,38 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
 - Courts: the Phase-6 replay gates in `tests/pdf_deflate.rs` and the
   forced-candidate ablation court `tools/phase6-court.sh` over the 12-file
   corpus.
+- Phase 7.0 — producer-stratified Flate correction-ratio harness:
+  - `vole-document deflate-stats INPUT...` emits, per `FlateDecode` stream,
+    `compressed_bytes`/`plaintext_bytes`/`correction_bytes`/`rans_plaintext_bytes`
+    and the ratios `correction/compressed`, `(plaintext+corr)/compressed`,
+    `(rans(plaintext)+corr)/compressed`, plus replayed/declined counts. It is
+    **diagnostics only** and changes no wire format or candidate behavior.
+  - The summary reports the rANS complete cost two ways so shared plaintext is
+    not overcounted: `replayed_rans_full_bytes` (naive per-stream sum) and
+    `replayed_rans_dedup_bytes` (one charge per **unique** plaintext plus one per
+    **unique** correction blob, mirroring the shared-channel candidate).
+  - `tools/pdf-corpus.sh` builds a locally-generated corpus from distinct
+    producer lineages (Ghostscript 10.00.0 at `/default`/`/prepress`/`/printer`/
+    `/ebook`/`/screen`, qpdf 11.3.0 compress/linearize/object-streams=preserve/
+    nocompress, a hand-written stored-block-zlib base, plus the Phase-3 synthetic
+    set), validating every produced PDF with `qpdf --check` and writing a
+    provenance ledger (`provenance.json`). The regenerable `.pdf` bytes are
+    gitignored; no third-party bytes.
+  - Harness tests in `tests/deflate_stats.rs`.
 
 ### Measured
 
+- Campaign `2026-10-05-phase7-corpus-f1f8d26` (verdict RECORDED; diagnostic, no
+  new candidate): 17 `FlateDecode` streams, **11 replayed / 6 declined**
+  (acceptance 0.647) across Ghostscript, qpdf, hand-written, and synthetic
+  producers. The Phase-6 win region reproduces on the hand-written shared
+  plaintext fixtures (`hand-base2.pdf` deduped rANS 55,531 vs naive 111,062;
+  `flate.pdf` 34,051 vs 89,437). The 6 transformer declines are `not_zlib` from a
+  recorded **scanner locality limitation** (the lexer requires an EOL before
+  `endstream`, which Ghostscript omits), not a zlib verdict. Scoped to locally
+  generated files; qpdf/Ghostscript are transformers, not authoring apps;
+  browser/office/TeX families are a recorded gap. Report:
+  `docs/evidence/phase7-corpus-report.md`.
 - Campaign `2026-10-05-phase6-0d0bb79` (DRA v8, verdict PASS; the earlier
   `2026-10-05-phase6-ec92c1a` receipt is retained): a 12-file corpus; every
   auto winner round-trips byte-exactly (`cmp` + `verify`, `all_exact=true`); the
