@@ -5,7 +5,9 @@
 //! cover so that every interpretation remains anchored to exact offsets.
 
 pub mod lexer;
+pub mod physical;
 pub mod span;
 
 pub use lexer::{LexIssue, LexResult, lex};
+pub use physical::{PdfObjectSpan, PdfPhysical, PhysicalKind, PhysicalSpan, scan};
 pub use span::{Span, SpanKind, SpanSet};
