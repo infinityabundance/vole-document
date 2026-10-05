@@ -25,7 +25,10 @@ Phase 6 implemented that plan:
   correction representation; an unknown tag fails closed. It reconstructs exactly
   `recreate_whole_deflate_stream(plaintext, corrections)` for the raw DEFLATE
   middle of a stream, with a `declared_output_len` validated at evaluation and
-  statically bounded by `2*P + 1024` before the engine runs (ADR-0016);
+  statically bounded by the VOLE replay-profile admission limit
+  `min(max_output_bytes, max_replay_bytes, 2*P + 1024)` before the engine runs
+  (ADR-0016; a VOLE policy bound, since RFC 1951 permits unbounded empty non-final
+  blocks and so gives no finite `f(decompressed_size)` bound);
 - stream discovery by VOLE's own byte-authoritative physical scanner plus a lone
   `/FlateDecode` classification — `preflate` never decides stream boundaries;
 - two candidates: `PDF_DEFLATE_REPLAY` (plaintexts are raw, content-deduplicated
@@ -164,9 +167,13 @@ a population (see also `docs/evidence/phase6-skeptic-review.md`).
 
 - **`PDF_DEFLATE_REPLAY_RANS` is `ADOPTED` as a winning candidate** for inputs
   with lone-`FlateDecode` streams; it is proposed for every such input and can
-  win the complete-cost court when the conjunctive condition above holds.
-  `PDF_DEFLATE_REPLAY` (raw plaintext) stays implemented and available but
-  is `RECORDED (rejected vs BYTE_RANS)` on the measured case.
+  win the complete-cost court when the conjunctive condition above holds. The
+  candidate is implemented and the win is byte-exact, but the tested evidence
+  for the enabling condition (shared plaintext) is **our own hand-authored
+  fixtures**, not real producer output: on the Phase-7.0 corpus every genuinely
+  transformed producer output loses or declines (see the Phase 7.0 amendment
+  below). `PDF_DEFLATE_REPLAY` (raw plaintext) stays implemented and available
+  but is `RECORDED (rejected vs BYTE_RANS)` on the measured case.
 - **The lexer change is load-bearing.** `stream` + EOL payloads are now opaque
   spans, so the scanner's `/Filter` classification and exact stream-data spans
   drive replay; `preflate` never discovers streams. This did not regress any
@@ -182,10 +189,13 @@ a population (see also `docs/evidence/phase6-skeptic-review.md`).
   LGPL-3.0-or-later `cabac`; see ADR-0014. The feature is **opt-in** (the default
   build is permissive-only, `default = ["rans"]`); a build without it omits the
   lane entirely and rejects the op with `UnsupportedFeature`.
-- **Resource bound.** Decode-time replay is statically bounded: a declared output
-  above `2*P + 1024` for a `P`-byte plaintext is rejected before the engine runs,
-  and the plaintext/corrections inputs are bounded by `max_record_len`; see
-  ADR-0016. The correction representation is tagged `REPLAY_DEFLATE_PREFLATE_0_7_6`
+- **Resource bound.** Decode-time replay is bounded by a VOLE **replay-profile
+  admission limit** (a policy bound, `min(max_output_bytes, max_replay_bytes,
+  2*P + 1024)`): a declared output above it for a `P`-byte plaintext is rejected
+  before the engine runs, and the plaintext/corrections inputs are bounded by
+  `max_record_len`; see ADR-0016. This is not an RFC 1951 maximum — RFC 1951
+  permits unbounded empty non-final blocks. The correction representation is
+  tagged `REPLAY_DEFLATE_PREFLATE_0_7_6`
   and is explicit experimental/version-coupled wire semantics, not frozen v1.
 - **Preserve the evidence.** Campaign `2026-10-05-phase6-0d0bb79` (results,
   cumulative and leave-one-out ablations, verification triples, negative
@@ -203,6 +213,34 @@ increase (e.g. the `flate.pdf` winner moves 36,068 → 36,102 B, the win
 13,195 → 13,189 B), the verdict remains **PASS**, and the `PDF_DEFLATE_REPLAY_RANS`
 win over `BYTE_RANS` persists (`win 1, lose 0, decline 11`). The original
 `ec92c1a` receipt is not rewritten; the numbers above are the v8 re-baseline.
+
+## Amendment (Phase 7.0, 2026-10-05) — the enabling condition is not produced by the tested transformers
+
+An independent adversarial reviewer (Phase 7.0) falsified the earlier framing
+that the win "reproduces on qpdf transformer output". The Phase-7.0 producer
+corpus (`2026-10-05-phase7-court-99dc72e`) confirms the numeric result and the
+byte-exactness of the Phase-6 win, but shows that its **enabling condition is
+not produced by the tested transformers**:
+
+- The only corpus files that exhibit the shared-plaintext geometry are our own
+  fixtures: `hand-base2.pdf` (hand-written; objects 5 and 6 are two hand-built
+  copies of the *same* `zlib_store` output) and `_synthetic/flate.pdf`
+  (`pdf-make-samples`, our fixture).
+- `qpdf-preserve-objectstreams.pdf` shows the same geometry only because
+  `qpdf --object-streams=preserve` **copied and renumbered** the two
+  byte-identical raw streams (`ec028dc1…`, confirmed via
+  `qpdf --show-object=N --raw-stream-data`) already present in `hand-base2.pdf`.
+  The fixture already wins 112,011 → 56,885 B; qpdf adds only +41 B, so
+  **99.93% of the reported 55,167 B "qpdf win" is inherited from the fixture**.
+- The `--deterministic-id` flag is a `/ID`-only normalization (55,165 B no-flag
+  vs 55,167 B flagged); it neither creates nor destroys the win.
+- On the Phase-7.0 corpus the exact-replay lane **loses or declines on every
+  genuinely transformed producer output** (win 3 / lose 8 / decline 12, all 3
+  wins self-authored). No Ghostscript output contains a shared-plaintext pair.
+
+The Phase-6 win is real and byte-exact; what is not established is that a real
+producer *creates* the region. That gap motivates Phase 7.2 (nested content
+proceduralization). See `docs/evidence/phase7-skeptic-review.md`.
 
 ## References
 

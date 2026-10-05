@@ -1,0 +1,45 @@
+{
+  "campaign": "2026-10-05-phase7-baselines-7b9f662",
+  "amends": null,
+  "phase": "Phase 7.0c — generic-compressor baseline ladder (raw source, gzip, zstd, xz, brotli, whole-file byte rANS, best VOLE structural candidate)",
+  "claim": "On 27 locally generated corpus files (23 from the Phase-7.0 producer/synthetic corpus, 4 from the Phase-7.0b generator-family corpus), the best VOLE lane — the minimum complete serialized .voldoc size across auto, raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans, pdf-deflate-replay and pdf-deflate-replay-rans — beats gzip -9, zstd -19 --long=27, xz -9e and brotli -q 11 on 0 files. The best generic compressor is smaller than the best VOLE lane on every file; VOLE is 460,320 bytes larger in total (phase7 +410,355 over 23 files; producers +49,965 over 4 files). On cairo-vector.pdf the best VOLE (34,574 B, PDF_DEFLATE_REPLAY_RANS) is 17,904 B larger than brotli -q 11 (16,670 B) and 2.07x its size; on flate.pdf the best VOLE (36,102 B) is 17,218 B larger than xz -9e (18,884 B) and 1.91x. This confirms that prior VOLE wins were relative to BYTE_RANS, a weak order-0 baseline with no LZ, and does not survive a generic-compressor comparison. All 27 auto winners verify and round-trip byte-exact; every generic result is round-trip verified. No candidate or wire format changed.",
+  "git_commit": "7b9f662c987734bfd18de36d42d25a41051f6e3c",
+  "git_dirty_tracked": "0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "baseline_image": "vole-document/baseline:1.99.0@sha256:25543977c0fbd690bfd261c4869f989425eec4dbafd4513c6a1ccd494bf6abf3",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "ec8313a91baa81eebd13ed98b2cdc5abe43251c0c45caca3bba2df2441ee1039",
+  "binary_sha256": "fd14c0c6ff4add5de1f2e0f3afffa23f1a9e3f5991eacf498a9c467945bd81ae",
+  "features": "deflate-replay,rans (cargo build --locked --all-features)",
+  "oracles": {"gzip": "1.12", "zstd": "1.5.4", "xz": "5.4.1", "brotli": "1.0.9", "jq": "1.6"},
+  "command": "docker compose build baseline; docker compose run --rm --no-TTY dev cargo build --locked --all-features; docker compose run --rm --no-TTY -e BASELINE_CORPUS=phase7 baseline sh tools/baselines.sh <out> evidence/corpus/phase7; docker compose run --rm --no-TTY -e BASELINE_CORPUS=producers baseline sh tools/baselines.sh <out> evidence/corpus/phase7-producers",
+  "artifacts": {
+    "results.json": "7bfcc00507e352f94369f27ee734d04dd11520739a666e303c8b9407d8c9407a",
+    "baseline-table.md": "70f5867f76ebd44ffa8b5b54b1b4a2533b187c3c61371715f3a9d0dad00fb614",
+    "phase7-baselines.json": "db070b50b72bde9b927ddd2857415eb95ace3d9c2f4401136eaa568f1a11d930",
+    "producers-baselines.json": "8743a39d39b756c109d266b3ca31b5d578a54fbe4a3d39fda1911da44f2748c8",
+    "environment.json": "11d796a13460c3908487a9c1e364692673582a65f17bc53a9e7f2cbf2c15d939",
+    "report.md": "ab1acda3bb76d1e8d6e75fae832278ffa401c9f8edafe894b3b56af67e56596e"
+  },
+  "tooling": {
+    "driver": "tools/baselines.sh",
+    "driver_sha256": "d8c3b69a9f48d3dc99842f6d89f12b463dcf7fa8b3bb59e2629a2f4e56ef8393",
+    "reducer": "tools/baselines.jq",
+    "reducer_sha256": "cac0990d9cb865653c3a6f01171aa28261c6f71f0bd5909405b247a9a30a0559",
+    "merge": "tools/baselines-merge.jq",
+    "merge_sha256": "3d9b11b8d030f91eb5bcb069c27bfb656dc4575218908daf8e5ca8c1d619f654",
+    "table": "tools/baselines-table.jq",
+    "table_sha256": "18be3d8ca41cdda1607712cff8072254ce7eda8b777c316ed6d139039fa2feae"
+  },
+  "corpus_ledger": {
+    "phase7_provenance": "evidence/corpus/phase7/provenance.json",
+    "phase7_provenance_sha256": "c18dd78804fc04fe14d2bcd1ceba39f3157ec214a93e03166fc2ac6f623db1db",
+    "phase7_deflate_stats_sha256": "5fb4a8a8faeb928f7d903d9154ee08b7ea464b8d146397dcf2ae6080596bf4b1",
+    "producers_provenance": "evidence/corpus/phase7-producers/provenance.json",
+    "producers_provenance_sha256": "9f329ef33149e91216c0752f27d0b41e5857b2c68dfef2ea1246c1ae477b7ae6",
+    "producers_deflate_stats_sha256": "df4c0397f4a247ed0b3289e21a03a4fa95365d0c1690314ca5c934c0b421c71d"
+  },
+  "verdict": "RECORDED"
+}

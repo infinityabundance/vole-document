@@ -281,6 +281,7 @@ fn literal_descriptor(source: &[u8]) -> Descriptor {
         channels: vec![],
         objects: vec![source.to_vec()],
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
+        observation_index: None,
         source_sha256: sha256(source),
         source_len: source.len() as u64,
     }
@@ -384,6 +385,7 @@ fn limits_never_change_reconstructed_bytes() {
     let scaled = Limits {
         max_input_bytes: 1 << 50,
         max_output_bytes: 1 << 50,
+        max_replay_bytes: 1 << 50,
         max_record_len: u32::MAX,
         max_record_count: 1 << 24,
         max_object_count: 1 << 24,
@@ -394,6 +396,7 @@ fn limits_never_change_reconstructed_bytes() {
         max_channel_count: 1 << 20,
         max_entropy_model_bytes: 1 << 20,
         max_pdf_spans: 1 << 26,
+        max_index_selectors: 1 << 26,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

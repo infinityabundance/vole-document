@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.8"
+version = "0.1.0-alpha.9"
 edition = "2024"
 rust-version = "1.89"
 description = "Byte-exact procedural document storage: deterministic reconstruction state, typed residuals, and entropy-coded channels that materialize the exact original document bytes."
@@ -10,6 +10,11 @@ homepage = "https://github.com/infinityabundance/vole-document"
 readme = "README.md"
 keywords = ["compression", "rans", "document", "pdf", "archival"]
 categories = ["compression", "encoding"]
+
+# The published crate must never bundle the fuzz crate, local research material,
+# or evidence campaign bytes. `fuzz/` is a separate cargo-fuzz package built only
+# under the pinned nightly `fuzz` Docker service.
+exclude = ["fuzz", "research", "evidence"]
 
 [lib]
 name = "vole_document"

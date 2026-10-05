@@ -29,6 +29,7 @@ pub fn propose(input: &[u8], _limits: Limits) -> Result<Descriptor> {
         channels: vec![],
         objects: vec![input.to_vec()],
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
+        observation_index: None,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     })

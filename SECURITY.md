@@ -28,7 +28,9 @@ Malformed input may produce a **typed error** and malformed `.voldoc` may be
 - allocate without bound
 - overflow (all length/offset arithmetic is checked)
 - write outside the requested output
-- invoke external processes or touch the network
+- invoke external processes or touch the network (the sole child process is the
+  decoder's own executable, spawned purely to isolate DEFLATE replay under an
+  address-space cap; it runs no document content and touches no network)
 
 ## Resource bounds
 
@@ -44,6 +46,28 @@ work:
 The graph analyzer computes the predicted output length with checked arithmetic
 before any allocation, and the coverage certificate is validated before
 materialization.
+
+### Process-isolated DEFLATE replay (F2 containment)
+
+Exact DEFLATE replay calls `preflate-rs`, which can allocate unboundedly while
+reconstructing from a hostile correction blob (fuzz finding F2: a 33-byte input
+drives a multi-gigabyte allocation). `catch_unwind` bounds **panics**, not memory
+growth, so on the decode path the replay engine runs in a **separate child
+process** with an `RLIMIT_AS` address-space cap (`ulimit -v`) and a wall-clock
+timeout; an abort (including an allocation failure), a timeout, a crash, or a
+malformed reply becomes a typed `CodecReplay` error. Knobs and defaults:
+
+- `VOLE_REPLAY_WORKER` — worker executable. The CLI sets it to its own path, so
+  `decode`/`verify` are isolated by default; a library embedder that sets neither
+  this nor the programmatic default runs replay **in-process** (the residual).
+- `VOLE_REPLAY_MEM_MB` — address-space cap. Default
+  `clamp((plaintext+corrections+declared) * 8 + 64 MiB, 256 MiB,
+  limits.max_replay_bytes.min(2 GiB))`.
+- `VOLE_REPLAY_TIMEOUT_MS` — wall-clock budget, default `30000`.
+
+When a worker path *is* configured, a spawn failure or a broken worker is a typed
+error and never silently falls back to the in-process path. The worker's stdin
+framing bounds every field length before allocating.
 
 ## Framing and integrity
 
@@ -65,8 +89,11 @@ and record tags fail closed; only explicitly-optional records are skipped.
 - The only Phase-1 dependency is `sha2` (RustCrypto), pinned exactly.
 - `ryg-rans-rs` (Phase 2) is optional and must be used through its **safe manual**
   decode API; the panicking convenience decoder is banned on the hostile path.
-- `preflate-rs` (Phase 6) reconstruction can panic on hostile stored state; it
-  must run in an isolated, bounded stage with a store-raw fallback.
+- `preflate-rs` (Phase 6) reconstruction can panic on hostile stored state and
+  can allocate without bound; on the decode path it runs in a process-isolated,
+  memory- and time-capped worker (Phase 7.1b, see above), with a store-raw
+  fallback when no replay candidate is admitted. In-process `replay_raw` is used
+  only by the encoder's own verification and the fuzz targets.
 
 "Written in Rust" is not a security claim. The parser's safety comes from its
 bounds, checked arithmetic, fail-closed defaults, and hostile-input courts.

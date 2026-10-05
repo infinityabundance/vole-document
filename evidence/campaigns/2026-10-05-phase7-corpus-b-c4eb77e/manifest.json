@@ -1,0 +1,33 @@
+{
+  "campaign": "2026-10-05-phase7-corpus-b-c4eb77e",
+  "amends": "2026-10-05-phase7-corpus-f1f8d26",
+  "phase": "Phase 7.0 (amendment) — producer-stratified Flate corpus re-measured after the stream-boundary fix",
+  "claim": "After fixing the lexer to locate the `endstream` keyword by right-termination (no preceding EOL required), the same locally-generated producer corpus yields 24 FlateDecode streams, all 24 replayed byte-exactly with 0 declines (acceptance 1.000), up from 11/17 = 0.647 with 6 declines; the Phase-6 shared-plaintext win region now also appears on qpdf `--object-streams=preserve` output (naive 111,062 B vs deduped 55,531 B). Diagnostics only; no wire format or candidate changed.",
+  "git_commit": "c4eb77e620e6dff40740f0d0848a7384f3cf5d49",
+  "git_dirty_tracked": "2",
+  "dirty_note": "Only the regenerated measurement outputs differ from c4eb77e: evidence/corpus/phase7/provenance.json and evidence/corpus/phase7/deflate-stats.jsonl.",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "tools_base_image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "ec8313a91baa81eebd13ed98b2cdc5abe43251c0c45caca3bba2df2441ee1039",
+  "binary_sha256": "e79d893e7557b1492b267ee6acb315c14b08fb7fb08105f53b98583ce8fab949",
+  "command": "docker compose run --rm --no-TTY tools sh tools/pdf-corpus.sh; docker compose run --rm --no-TTY dev sh -c './target/debug/vole-document deflate-stats evidence/corpus/phase7/*.pdf evidence/corpus/phase7/_synthetic/*.pdf > evidence/corpus/phase7/deflate-stats.jsonl'",
+  "oracles": {"qpdf": "11.3.0", "ghostscript": "10.00.0"},
+  "artifacts": {
+    "corpus.json": "65025e3ed508bcbadb1ce341577d0124070c6984786c595c3e2467d6869a4389",
+    "results.json": "b2d19681f22b6eec6d07160dd96a34cf256c116c63cd6b79004e1f3f89e44e81",
+    "environment.json": "34205e33379bec23cbc6da34637f9a0d863316c179375a4b308a714bbb662bce",
+    "report.md": "47db3f7c1a6f5bd8f5dd7f72f1d65ab592527ef292b2199b209f0f8346310f5d"
+  },
+  "corpus_ledger": {
+    "provenance": "evidence/corpus/phase7/provenance.json",
+    "provenance_sha256": "ea945dad04f8b59eab25b371759608fcf768194b865046220d0373e430f79b4c",
+    "deflate_stats_jsonl": "evidence/corpus/phase7/deflate-stats.jsonl",
+    "deflate_stats_sha256": "5fb4a8a8faeb928f7d903d9154ee08b7ea464b8d146397dcf2ae6080596bf4b1",
+    "generator": "tools/pdf-corpus.sh",
+    "generator_sha256": "1c4e88c21a4c78e20bbd7a72e68dfa03de1adfddf630c79563fbdb1a8424e4c8"
+  },
+  "verdict": "RECORDED"
+}

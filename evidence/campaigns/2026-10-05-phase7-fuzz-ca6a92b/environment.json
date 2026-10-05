@@ -1,0 +1,43 @@
+{
+  "campaign": "2026-10-05-phase7-fuzz-ca6a92b",
+  "utc_date": "2026-10-05T14:32:35Z",
+  "git_commit": "ca6a92b469a11e03e759305844a431e5ffd7a57b",
+  "git_short": "ca6a92b",
+  "git_dirty_tracked": "0",
+  "git_untracked_at_campaign": [
+    "tools/fuzz.sh",
+    "tests/fuzz_regressions.rs",
+    "tests/fixtures/"
+  ],
+  "fuzz_base_image": "rustlang/rust:nightly-bookworm-slim-2026-10-04@sha256:58f725c9459a637c19ddf24542d2aee7d93704684c9780b168e81504327ad297",
+  "fuzz_image": "vole-document/fuzz:nightly-2026-10-04",
+  "fuzz_image_id": "sha256:ce80d1612ed3a5b5992d10a2646547d213a6b7a5c5dea68b0040dc18b23efdc2",
+  "rustup_toolchain": "nightly-2026-10-04",
+  "rustc": "rustc 1.101.0-nightly (db8f076d2 2026-10-03)",
+  "cargo": "cargo 1.101.0-nightly (f3865b2a4 2026-09-29)",
+  "cargo_fuzz": "0.13.2",
+  "libfuzzer_sys": "0.4.13",
+  "cargo_lock_sha256": "ec8313a91baa81eebd13ed98b2cdc5abe43251c0c45caca3bba2df2441ee1039",
+  "fuzz_cargo_lock_sha256": "70ddb2c335c6d78263055c5a4eb973c6f7607c7255a436d97feb7300293f103f",
+  "sanitizer": "address (cargo-fuzz default)",
+  "arch": "x86_64",
+  "command": "docker compose run --rm --no-TTY fuzz sh tools/fuzz.sh",
+  "env": {
+    "FUZZ_SECONDS": "60",
+    "FUZZ_RSS_MB": "2048",
+    "RUSTUP_TOOLCHAIN": "nightly-2026-10-04",
+    "CARGO_TERM_COLOR": "never"
+  },
+  "cargo_fuzz_forced_rustflags": "-Cdebug-assertions -Zsanitizer=address plus sancov-module coverage flags (applied to all crates by cargo-fuzz)",
+  "oracle": "none required (coverage-guided fuzzing; no external document oracle)",
+  "seeds": {
+    "dir": "fuzz/seeds",
+    "files": [
+      "classic.pdf",
+      "malformed.pdf",
+      "notpdf.bin",
+      "notpdf.voldoc",
+      "text.voldoc"
+    ]
+  }
+}

@@ -52,7 +52,7 @@ document defers to that source of truth.
 | `0x40` | `ENTROPY_CHANNEL` | typed channel capsule: 33-byte header + renorm payload |
 | `0x50` | `RESIDUAL` | reserved (later) |
 | `0x60` | `CHECKPOINT` | reserved (later) |
-| `0x70` | `INDEX` | reserved (later) |
+| `0x70` | `OBSERVATION_INDEX` | optional, advisory op/selector/digest map (Phase 7.3) |
 | `0x80` | `EXTERNAL_REF` | reserved (Phase 9+) |
 | `0xF0` | `INTEGRITY` | `sha256:[u8;32]`, `source_len:u64` |
 | `0xFF` | `TRAILER` | `record_count:u32`, `payload_bytes:u64`, `magic:[u8;8]` |
@@ -63,11 +63,44 @@ with `UnsupportedFeature`. Unknown explicitly-optional records are skipped.
 Requirements enforced by `Descriptor::parse`:
 
 - exactly one `UNIVERSE`, `FORMAT`, `GRAPH`, `INTEGRITY`, `TRAILER`;
+- at most one `OBSERVATION_INDEX`;
 - `SHA-256(universe)[..16] == header.universe_id`;
 - `FORMAT.source_format == header.source_format`;
 - `INTEGRITY.source_len == header.declared_source_len`;
 - `TRAILER.record_count` equals the number of records actually read;
-- no record after `TRAILER`.
+- no record after `TRAILER`;
+- if an `OBSERVATION_INDEX` is present, every claim it makes is re-derived from
+  the program and any disagreement is rejected with `CoverageViolation`. The
+  index is **never authority**.
+
+### `OBSERVATION_INDEX` (`0x70`, optional, Phase 7.3)
+
+An advisory, checked map from reconstruction output to instructions, PDF
+selectors, and output-block digests. It is written with `FLAG_OPTIONAL`; a
+decoder that ignores it still materializes the source **byte-for-byte**, because
+the reconstruction program alone is complete. It carries no authority and
+cannot change reconstructed bytes.
+
+```text
+observation_index_v1 :=
+    version:u8 = 1
+    section_flags:u8            # bit0 OP_TABLE, bit1 PDF_SELECTORS, bit2 DIGESTS
+    if bit0: op_count:u32, op_entry[op_count]
+    if bit1: selector_count:u32, selector[selector_count]
+    if bit2: digest_count:u32, digest[digest_count]
+
+op_entry := out_len:u32 | dep_kind:u8 | dep_id:u32
+selector := kind:u8 | number:u32 | generation:u32 | out_off:u64 | out_len:u64
+digest   := out_off:u64 | out_len:u64 | sha256:[u8;32]
+```
+
+All integers are little-endian. `dep_kind` is `0` none / `1` object / `2`
+channel; `kind` is `0` object / `1` encoded stream / `2` revision. The header
+advertises an optional feature bit `FEATURE_OBSERVATION_INDEX` (`1 << 0`) when
+the record is present. Validation re-derives each `out_len` via `analyze_ops`,
+checks each dependency id is in range, and requires every selector and digest
+range to lie within `[0, total)`. Sections are independent and unknown
+`section_flags` bits or an unknown `version` fail closed.
 
 ## Graph (reconstruction program)
 
@@ -187,9 +220,11 @@ Semantics:
   **object**; `1` = the `source_id`-th **entropy channel** (decoded exactly as for
   `DECODE_CHANNEL`). `corrections_object` indexes the descriptor's object table;
   `declared_output_len` is the exact expected output length. Analysis charges it
-  statically and rejects a value above the static raw-DEFLATE bound `2*P + 1024`
-  for a `P`-byte plaintext (a raw DEFLATE stream that inflates to `P` bytes cannot
-  be longer) *before* the replay engine runs; evaluation additionally bounds the
+  statically and rejects a value above the VOLE replay-profile admission limit
+  `min(max_output_bytes, max_replay_bytes, 2*P + 1024)` for a `P`-byte plaintext
+  (a policy bound: RFC 1951 gives no finite `f(decompressed_size)` bound, since
+  arbitrarily many empty non-final blocks are legal) *before* the replay engine
+  runs; evaluation additionally bounds the
   plaintext and corrections inputs by `max_record_len`. Reconstruction is isolated
   with `catch_unwind`: an out-of-range source, an unknown `source_kind`, a wrong
   `declared_output_len`, or an `Err`/panic from the replay engine is rejected with
@@ -216,15 +251,18 @@ class of bugs at the representation boundary.
 
 ## Universe declaration
 
-The Phase-6 universe string is:
+The Phase-7 universe string is:
 
 ```text
-vole-document;universe;phase6;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental
+vole-document;universe;phase7;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1
 ```
 
 The header's `universe_id` is the first 16 bytes of `SHA-256` over this string.
 Any change to an opcode, coder, limit semantic, adapter meaning, or hash semantic
-requires a new universe string. This supersedes the Phase-5.8 string
+(including adding an optional record meaning) requires a new universe string.
+This supersedes the Phase-6 string
+(`vole-document;universe;phase6;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental`),
+which superseded the Phase-5.8 string
 (`vole-document;universe;phase5-8;exact-bytes;dra-6;opaque+entropy+pdf+channels+offsets+packed+packed-channels`),
 which superseded the Phase-5.7 (Phase-6
 preparation) string

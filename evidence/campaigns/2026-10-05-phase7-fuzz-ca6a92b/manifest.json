@@ -1,0 +1,41 @@
+{
+  "campaign": "2026-10-05-phase7-fuzz-ca6a92b",
+  "phase": "Phase 7.1 — coverage-guided fuzzing",
+  "claim": "A pinned-nightly cargo-fuzz/libFuzzer campaign covers every hostile parser/reconstruction surface (.voldoc container, DRA, rANS model+channel, PDF lexer/scanner/xref, DEFLATE replay wrapper, materializer) and records per-target duration, coverage, and crash counts for a bounded campaign. Nine of ten targets observed zero crashes; the tenth reported one upstream preflate-rs resource defect, minimized and reported.",
+  "git_commit": "ca6a92b469a11e03e759305844a431e5ffd7a57b",
+  "git_short": "ca6a92b",
+  "git_dirty_tracked": "0",
+  "fuzz_base_image": "rustlang/rust:nightly-bookworm-slim-2026-10-04@sha256:58f725c9459a637c19ddf24542d2aee7d93704684c9780b168e81504327ad297",
+  "cargo_fuzz": "0.13.2",
+  "libfuzzer_sys": "0.4.13",
+  "rustc": "rustc 1.101.0-nightly (db8f076d2 2026-10-03)",
+  "cargo": "cargo 1.101.0-nightly (f3865b2a4 2026-09-29)",
+  "arch": "x86_64",
+  "command": "docker compose run --rm --no-TTY fuzz sh tools/fuzz.sh",
+  "policy": {
+    "per_target_seconds": 60,
+    "rss_limit_mb": 2048
+  },
+  "targets": [
+    "voldoc_parse",
+    "voldoc_roundtrip",
+    "dra_program",
+    "rans_model",
+    "rans_channel",
+    "pdf_lexer",
+    "pdf_scan",
+    "pdf_xref",
+    "deflate_replay",
+    "materializer"
+  ],
+  "artifacts": {
+    "environment.json": "4298aa598114561847fcd4a0e0710e5c6d8bfef1b43fdbc605b2f8232f152a00",
+    "results.json": "0eedb5f09f5e42d833912db6f94d66f69986298568ca149af7044226de5a34dd",
+    "report.md": "1da98d971ded59716b5ea106cef9b2c773e0b1eee274142006f6230d547561e7"
+  },
+  "fixtures": {
+    "tests/fixtures/deflate_replay_shift_overflow.bin": "c746125d011caeb07c2bfa625af915af971f94c61a6aec6fa0d39acfd7aeb825",
+    "tests/fixtures/deflate_replay_unbounded_alloc.bin": "973ca1ec27666c45dc35a47edeff9fda7daf316726c15f95d6270b3cc57053ee"
+  },
+  "verdict": "PASS_WITH_FINDINGS"
+}

@@ -16,13 +16,24 @@
 //! 3. **Bounded work.** Analysis runs with a pinned chain bound and a plaintext
 //!    limit derived from [`Limits`], and a stream that is not fully consumed
 //!    (a silently-truncated result) is declined.
+//! 4. **Process isolation on the decode path.** `preflate` reconstruction can
+//!    allocate unboundedly from hostile corrections (fuzz finding F2). The
+//!    decoder calls [`replay_bounded`], which runs reconstruction in a child
+//!    process under an `RLIMIT_AS` address-space cap and a wall-clock timeout;
+//!    [`replay_raw`] remains for the encoder's own verification and the fuzz
+//!    targets.
 //!
 //! The caller owns zlib (RFC 1950) framing: `preflate` operates on the raw
 //! DEFLATE payload, so the 2-byte zlib header and 4-byte Adler-32 trailer are
 //! returned verbatim in the [`ReplayPlan`] and re-emitted as literal program
 //! bytes. Adler-32 *regeneration* is deliberately not assumed here.
 
+use std::io::{self, Read, Write};
 use std::panic::{self, AssertUnwindSafe};
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 use preflate_rs::{PreflateConfig, preflate_whole_deflate_stream, recreate_whole_deflate_stream};
 
@@ -110,6 +121,458 @@ pub fn replay_raw(plaintext: &[u8], corrections: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Process-isolated replay (Phase 7.1b, contains fuzz finding F2)
+// ---------------------------------------------------------------------------
+//
+// `preflate` 0.7.6 can allocate unboundedly while reconstructing from a hostile
+// correction blob (F2: ~2.5 GiB from a 33-byte input) and offers no bounded
+// streaming sink. `catch_unwind` addresses panics, not memory growth. The
+// decode path therefore runs reconstruction in a **separate process** whose
+// address space is capped with `RLIMIT_AS` (`ulimit -v`) and whose wall-clock
+// time is bounded, so a malformed `.vcdoc` cannot amplify memory in the
+// decoder. The in-process [`replay_raw`] stays for the encoder's own
+// verification and the fuzz targets.
+
+/// Hidden subcommand that runs the isolated replay worker.
+///
+/// Deliberately not advertised in the CLI usage text: it is an internal
+/// rendezvous between a decoding process and its own executable.
+pub const REPLAY_WORKER_SUBCOMMAND: &str = "__replay-worker";
+
+/// Largest length-prefixed field the worker will accept from its parent.
+///
+/// An internal sanity bound, not a wire-format limit: a request larger than
+/// this is refused before any allocation, so a corrupt parent can never drive
+/// an unbounded read.
+pub const REPLAY_WORKER_MAX_FIELD: u32 = 1 << 30;
+
+/// Default wall-clock budget for one isolated replay, in milliseconds.
+pub const REPLAY_DEFAULT_TIMEOUT_MS: u64 = 30_000;
+
+/// A decoded worker request: the `(plaintext, corrections, declared_len)` triple.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkerRequest {
+    /// Decompressed plaintext handed to `preflate`.
+    pub plaintext: Vec<u8>,
+    /// Opaque `preflate` correction blob.
+    pub corrections: Vec<u8>,
+    /// The declared raw-DEFLATE length carried through (informational to the
+    /// worker; the parent validates it).
+    pub declared_len: u32,
+}
+
+fn read_field<R: Read>(r: &mut R, max: u32) -> io::Result<Vec<u8>> {
+    let mut len = [0u8; 4];
+    r.read_exact(&mut len)?;
+    let n = u32::from_le_bytes(len);
+    if n > max {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("field length {n} exceeds worker bound {max}"),
+        ));
+    }
+    let mut buf = vec![0u8; n as usize];
+    r.read_exact(&mut buf)?;
+    Ok(buf)
+}
+
+/// Read a framed request (little-endian):
+/// `[u32 plaintext_len][plaintext][u32 corrections_len][corrections][u32 declared_len]`.
+pub fn read_worker_request<R: Read>(r: &mut R) -> io::Result<WorkerRequest> {
+    let plaintext = read_field(r, REPLAY_WORKER_MAX_FIELD)?;
+    let corrections = read_field(r, REPLAY_WORKER_MAX_FIELD)?;
+    let mut declared = [0u8; 4];
+    r.read_exact(&mut declared)?;
+    Ok(WorkerRequest {
+        plaintext,
+        corrections,
+        declared_len: u32::from_le_bytes(declared),
+    })
+}
+
+/// Serialize a framed request; the exact inverse of [`read_worker_request`].
+pub fn encode_worker_request(
+    plaintext: &[u8],
+    corrections: &[u8],
+    declared_len: u32,
+) -> Result<Vec<u8>> {
+    let p = u32::try_from(plaintext.len())
+        .map_err(|_| Error::codec_replay("replay plaintext exceeds u32 framing"))?;
+    let c = u32::try_from(corrections.len())
+        .map_err(|_| Error::codec_replay("replay corrections exceed u32 framing"))?;
+    let mut buf = Vec::with_capacity(12 + plaintext.len() + corrections.len());
+    buf.extend_from_slice(&p.to_le_bytes());
+    buf.extend_from_slice(plaintext);
+    buf.extend_from_slice(&c.to_le_bytes());
+    buf.extend_from_slice(corrections);
+    buf.extend_from_slice(&declared_len.to_le_bytes());
+    Ok(buf)
+}
+
+/// Write a framed reply (little-endian): `[u8 status][u32 payload_len][payload]`.
+///
+/// `status` is `0` for success (`payload` = raw DEFLATE) and `1` for an error
+/// (`payload` = a UTF-8 message).
+pub fn write_worker_reply<W: Write>(w: &mut W, status: u8, payload: &[u8]) -> io::Result<()> {
+    let n = u32::try_from(payload.len())
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "worker reply too large"))?;
+    w.write_all(&[status])?;
+    w.write_all(&n.to_le_bytes())?;
+    w.write_all(payload)?;
+    w.flush()
+}
+
+/// Read a framed reply, bounding the declared payload length.
+///
+/// `Ok(None)` means the child closed the pipe without sending a reply (a crash
+/// or an abort before the reply).
+pub fn read_worker_reply<R: Read>(
+    r: &mut R,
+    max_payload: u64,
+) -> io::Result<Option<(u8, Vec<u8>)>> {
+    let mut status = [0u8; 1];
+    match r.read(&mut status) {
+        Ok(0) => return Ok(None),
+        Ok(_) => {}
+        Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => return Ok(None),
+        Err(e) => return Err(e),
+    }
+    let mut len = [0u8; 4];
+    r.read_exact(&mut len)?;
+    let n = u32::from_le_bytes(len);
+    if u64::from(n) > max_payload {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("worker reply length {n} exceeds bound {max_payload}"),
+        ));
+    }
+    let mut payload = vec![0u8; n as usize];
+    r.read_exact(&mut payload)?;
+    Ok(Some((status[0], payload)))
+}
+
+/// Worker entry point: read one framed request from stdin, replay it, write one
+/// framed reply to stdout, then exit. **Never returns.**
+///
+/// A panic inside `preflate` is caught (with a deliberately non-aborting hook)
+/// and reported as an error reply, so a preflate panic yields a typed
+/// [`crate::ErrorClass::CodecReplay`] at the parent instead of an abort with a
+/// lost reply. A true allocation failure under `RLIMIT_AS` still aborts the
+/// child, which the parent also treats as failure.
+pub fn run_worker_stdio() -> ! {
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("replay worker panic (isolated): {info}");
+    }));
+    let stdin = io::stdin();
+    let stdout = io::stdout();
+    let mut r = stdin.lock();
+    let mut w = stdout.lock();
+    let code = match read_worker_request(&mut r) {
+        Ok(req) => {
+            let outcome = panic::catch_unwind(AssertUnwindSafe(|| {
+                recreate_whole_deflate_stream(&req.plaintext, &req.corrections)
+            }));
+            match outcome {
+                Ok(Ok(bytes)) => {
+                    let _ = write_worker_reply(&mut w, 0, &bytes);
+                    0
+                }
+                Ok(Err(e)) => {
+                    let _ = write_worker_reply(
+                        &mut w,
+                        1,
+                        format!("deflate replay failed: {e}").as_bytes(),
+                    );
+                    1
+                }
+                Err(_) => {
+                    let _ = write_worker_reply(
+                        &mut w,
+                        1,
+                        b"deflate replay panicked on malformed correction state",
+                    );
+                    1
+                }
+            }
+        }
+        Err(e) => {
+            let _ = write_worker_reply(
+                &mut w,
+                1,
+                format!("malformed worker request: {e}").as_bytes(),
+            );
+            2
+        }
+    };
+    std::process::exit(code);
+}
+
+/// Cached resolution of the worker executable path.
+static WORKER_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
+/// A programmatically installed default worker path (see
+/// [`install_default_replay_worker`]).
+static INSTALLED_WORKER: OnceLock<PathBuf> = OnceLock::new();
+
+/// Install the default replay-worker executable used when `VOLE_REPLAY_WORKER`
+/// is unset.
+///
+/// The CLI calls this with its own `current_exe()` so `decode`/`verify` are
+/// isolated by default. It exists because `std::env::set_var` is `unsafe` under
+/// Rust 2024 and this crate forbids `unsafe`; an explicit `VOLE_REPLAY_WORKER`
+/// environment variable always takes precedence.
+pub fn install_default_replay_worker(path: PathBuf) {
+    let _ = INSTALLED_WORKER.set(path);
+}
+
+fn resolve_worker_path() -> Option<PathBuf> {
+    WORKER_PATH
+        .get_or_init(|| {
+            std::env::var_os("VOLE_REPLAY_WORKER")
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+                .or_else(|| INSTALLED_WORKER.get().cloned())
+        })
+        .clone()
+}
+
+fn env_u64(name: &str) -> Option<u64> {
+    std::env::var(name).ok().and_then(|v| v.trim().parse().ok())
+}
+
+fn replay_timeout() -> Duration {
+    Duration::from_millis(env_u64("VOLE_REPLAY_TIMEOUT_MS").unwrap_or(REPLAY_DEFAULT_TIMEOUT_MS))
+}
+
+/// Address-space cap for the worker in KiB, for `ulimit -v`.
+fn replay_memory_cap_kb(
+    plaintext: &[u8],
+    corrections: &[u8],
+    declared_len: u32,
+    limits: Limits,
+) -> u64 {
+    if let Some(mb) = env_u64("VOLE_REPLAY_MEM_MB") {
+        return mb.saturating_mul(1024);
+    }
+    let total = plaintext.len() as u64 + corrections.len() as u64 + u64::from(declared_len);
+    let bytes = total.saturating_mul(8).saturating_add(64 << 20);
+    let lo = 256u64 << 20;
+    let hi = limits.max_replay_bytes.clamp(1, 1u64 << 31);
+    let cap = if hi >= lo { bytes.clamp(lo, hi) } else { hi };
+    cap / 1024
+}
+
+fn describe_worker_exit(status: std::process::ExitStatus) -> String {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(sig) = status.signal() {
+            if sig == 6 {
+                return "replay worker aborted (SIGABRT); likely exceeded the address-space cap"
+                    .to_string();
+            }
+            return format!("replay worker killed by signal {sig}");
+        }
+    }
+    match status.code() {
+        Some(0) => "replay worker exited 0 without a reply".to_string(),
+        Some(c) => format!("replay worker exited with status {c}"),
+        None => "replay worker terminated abnormally".to_string(),
+    }
+}
+
+/// Decode-path replay: run `recreate_whole_deflate_stream` in a process-isolated
+/// child with an address-space (`RLIMIT_AS`) cap and a wall-clock bound.
+///
+/// Resolution order for the worker executable:
+///
+/// 1. the `VOLE_REPLAY_WORKER` environment variable, then
+/// 2. a path installed with [`install_default_replay_worker`].
+///
+/// If neither is set the call **falls back to the in-process [`replay_raw`]**;
+/// this keeps the library usable without a worker, at the cost of isolation.
+/// When a worker path *is* configured, a spawn failure is a typed
+/// [`crate::ErrorClass::CodecReplay`] error and never silently falls back.
+///
+/// Environment knobs: `VOLE_REPLAY_MEM_MB` overrides the address-space cap
+/// (default `clamp((plaintext+corrections+declared) * 8 + 64 MiB, 256 MiB,
+/// limits.max_replay_bytes.min(2 GiB))`); `VOLE_REPLAY_TIMEOUT_MS` overrides the
+/// wall-clock budget (default 30000 ms).
+///
+/// The returned payload is the child's reply; the caller still checks its length
+/// against the declared output length.
+pub fn replay_bounded(
+    plaintext: &[u8],
+    corrections: &[u8],
+    declared_len: u32,
+    limits: Limits,
+) -> Result<Vec<u8>> {
+    let Some(worker) = resolve_worker_path() else {
+        return replay_raw(plaintext, corrections);
+    };
+
+    let cap_kb = replay_memory_cap_kb(plaintext, corrections, declared_len, limits);
+    let timeout = replay_timeout();
+    let script = format!(
+        "ulimit -v {cap_kb} 2>/dev/null; ulimit -t {} 2>/dev/null; exec \"$0\" {REPLAY_WORKER_SUBCOMMAND}",
+        timeout.as_secs().max(1)
+    );
+    let mut child = Command::new("sh")
+        .arg("-c")
+        .arg(&script)
+        .arg(&worker)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| {
+            Error::codec_replay(format!(
+                "failed to spawn replay worker {}: {e}",
+                worker.display()
+            ))
+        })?;
+
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| Error::codec_replay("replay worker stdin unavailable"))?;
+    let mut stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| Error::codec_replay("replay worker stdout unavailable"))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| Error::codec_replay("replay worker stderr unavailable"))?;
+
+    let request = encode_worker_request(plaintext, corrections, declared_len)?;
+    // Drain stderr on a helper thread so a chatty child cannot deadlock its pipe.
+    let stderr_thread = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stderr.take(8192).read_to_end(&mut buf);
+        String::from_utf8_lossy(&buf).into_owned()
+    });
+    // Read the reply concurrently; the pipe closes on child exit, including an
+    // abort under `RLIMIT_AS`.
+    let max_reply = cap_kb.saturating_mul(1024).max(1);
+    let reply_thread = std::thread::spawn(move || read_worker_reply(&mut stdout, max_reply));
+
+    // Send the request. A dead child yields a broken pipe; the status check
+    // below turns that into the right failure class.
+    let write_err = stdin.write_all(&request).err();
+    drop(stdin);
+
+    // Enforce the wall-clock bound by polling; kill on timeout.
+    let deadline = Instant::now() + timeout;
+    let mut timed_out = false;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) => {
+                if Instant::now() >= deadline {
+                    timed_out = true;
+                    let _ = child.kill();
+                    break None;
+                }
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            Err(_) => {
+                let _ = child.kill();
+                break None;
+            }
+        }
+    };
+    let status = match status {
+        Some(status) => Some(status),
+        None => child.wait().ok(),
+    };
+    let reply = reply_thread
+        .join()
+        .unwrap_or_else(|_| Err(io::Error::other("replay reply reader panicked")));
+    let stderr_text = stderr_thread.join().unwrap_or_default();
+
+    if timed_out {
+        return Err(Error::codec_replay(format!(
+            "replay worker exceeded the {timeout:?} time bound and was killed"
+        )));
+    }
+
+    match reply {
+        Ok(Some((0, payload))) => Ok(payload),
+        Ok(Some((1, payload))) => Err(Error::codec_replay(
+            String::from_utf8_lossy(&payload).into_owned(),
+        )),
+        Ok(Some((other, _))) => Err(Error::codec_replay(format!(
+            "replay worker returned unknown status {other}"
+        ))),
+        Ok(None) | Err(_) => {
+            let mut msg = String::from("replay worker produced no reply");
+            if let Some(status) = status {
+                msg.push_str("; ");
+                msg.push_str(&describe_worker_exit(status));
+            }
+            if let Some(e) = write_err {
+                msg.push_str(&format!("; request write failed: {e}"));
+            }
+            if !stderr_text.trim().is_empty() {
+                msg.push_str("; stderr: ");
+                msg.push_str(stderr_text.trim());
+            }
+            Err(Error::codec_replay(msg))
+        }
+    }
+}
+
+/// Why [`try_replay_detailed`] declined a stream.
+///
+/// Diagnostic only: the reason never changes whether a stream is admitted —
+/// [`try_replay`] and [`try_replay_detailed`] apply the *same* exact
+/// reconstruction gate, and only the carried reason differs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReplayDecline {
+    /// Shorter than [`MIN_ZLIB_LEN`].
+    TooShort,
+    /// Larger than the configured `max_input_bytes`.
+    TooLarge,
+    /// Not a structurally valid zlib (RFC 1950) header.
+    NotZlib,
+    /// No raw DEFLATE payload between the header and the Adler-32 trailer.
+    EmptyPayload,
+    /// The `preflate` analyzer panicked (caught; never escapes).
+    AnalyzerPanic,
+    /// The `preflate` analyzer returned an error.
+    AnalyzerError,
+    /// The analyzer did not consume the whole raw payload.
+    NotFullyConsumed,
+    /// The analyzer reported a non-empty dictionary prefix.
+    DictionaryPrefix,
+    /// The decompressed plaintext exceeds the storable single-record limit.
+    PlaintextTooLarge,
+    /// The correction blob exceeds the storable single-record limit.
+    CorrectionsTooLarge,
+    /// A fresh replay did not reproduce the raw payload byte-for-byte.
+    NotReproducible,
+}
+
+impl ReplayDecline {
+    /// A short, stable snake_case name for diagnostics and JSON output.
+    pub fn name(self) -> &'static str {
+        match self {
+            ReplayDecline::TooShort => "too_short",
+            ReplayDecline::TooLarge => "too_large",
+            ReplayDecline::NotZlib => "not_zlib",
+            ReplayDecline::EmptyPayload => "empty_payload",
+            ReplayDecline::AnalyzerPanic => "analyzer_panic",
+            ReplayDecline::AnalyzerError => "analyzer_error",
+            ReplayDecline::NotFullyConsumed => "not_fully_consumed",
+            ReplayDecline::DictionaryPrefix => "dictionary_prefix",
+            ReplayDecline::PlaintextTooLarge => "plaintext_too_large",
+            ReplayDecline::CorrectionsTooLarge => "corrections_too_large",
+            ReplayDecline::NotReproducible => "not_reproducible",
+        }
+    }
+}
+
 /// Attempt an exact replay plan for a zlib-wrapped stream.
 ///
 /// Returns `Some(plan)` only when the plan's replay reproduces the raw DEFLATE
@@ -118,59 +581,74 @@ pub fn replay_raw(plaintext: &[u8], corrections: &[u8]) -> Result<Vec<u8>> {
 /// fully consumed by the analyzer, larger than the limits, or not exactly
 /// reproducible. Declining is always safe: the caller keeps the raw bytes.
 pub fn try_replay(bytes: &[u8], limits: Limits) -> Option<ReplayPlan> {
+    try_replay_detailed(bytes, limits).ok()
+}
+
+/// The same gate as [`try_replay`], reporting *why* a stream was declined.
+pub fn try_replay_detailed(
+    bytes: &[u8],
+    limits: Limits,
+) -> std::result::Result<ReplayPlan, ReplayDecline> {
     let total = bytes.len();
-    if total < MIN_ZLIB_LEN || total > limits.max_input_bytes as usize {
-        return None;
+    if total > limits.max_input_bytes as usize {
+        return Err(ReplayDecline::TooLarge);
+    }
+    if total < MIN_ZLIB_LEN {
+        return Err(ReplayDecline::TooShort);
     }
     if !zlib_header_valid(bytes) {
-        return None;
+        return Err(ReplayDecline::NotZlib);
     }
     let raw = &bytes[ZLIB_HEADER_LEN..total - ZLIB_TRAILER_LEN];
     if raw.is_empty() {
-        return None;
+        return Err(ReplayDecline::EmptyPayload);
     }
 
     // Analysis itself can panic (a debug-build `u16` overflow inside preflate on
     // very large, highly repetitive input), so it is isolated too.
-    let analyzed = panic::catch_unwind(AssertUnwindSafe(|| {
+    let analyzed = match panic::catch_unwind(AssertUnwindSafe(|| {
         preflate_whole_deflate_stream(raw, &config(limits))
-    }))
-    .ok()?
-    .ok()?;
+    })) {
+        Ok(Ok(analyzed)) => analyzed,
+        Ok(Err(_)) => return Err(ReplayDecline::AnalyzerError),
+        Err(_) => return Err(ReplayDecline::AnalyzerPanic),
+    };
     let (chunk, plain) = analyzed;
 
     // Full consumption is mandatory: a too-small `plain_text_limit` can return a
     // silently truncated stream with `compressed_size < raw.len()`.
     if chunk.compressed_size != raw.len() {
-        return None;
+        return Err(ReplayDecline::NotFullyConsumed);
     }
     // A whole-stream first chunk has no dictionary prefix; a non-empty prefix
     // would mean the plaintext is not self-contained and we decline rather than
     // guess the concatenation order.
     if !plain.prefix().is_empty() {
-        return None;
+        return Err(ReplayDecline::DictionaryPrefix);
     }
     if plaintext_len_exceeds(plain.text(), limits) {
-        return None;
+        return Err(ReplayDecline::PlaintextTooLarge);
     }
     if chunk.corrections.len() as u64 > u64::from(limits.max_record_len) {
-        return None;
+        return Err(ReplayDecline::CorrectionsTooLarge);
     }
 
     let plaintext = plain.text().to_vec();
     // The decisive gate: the exact replay must reproduce the raw payload.
-    let replayed = replay_raw(&plaintext, &chunk.corrections).ok()?;
-    if replayed != raw {
-        return None;
+    if replay_raw(&plaintext, &chunk.corrections).ok().as_deref() != Some(raw) {
+        return Err(ReplayDecline::NotReproducible);
     }
 
-    let raw_len = u32::try_from(raw.len()).ok()?;
+    let raw_len = match u32::try_from(raw.len()) {
+        Ok(n) => n,
+        Err(_) => return Err(ReplayDecline::TooLarge),
+    };
     let mut header = [0u8; ZLIB_HEADER_LEN];
     header.copy_from_slice(&bytes[..ZLIB_HEADER_LEN]);
     let mut adler = [0u8; ZLIB_TRAILER_LEN];
     adler.copy_from_slice(&bytes[total - ZLIB_TRAILER_LEN..]);
 
-    Some(ReplayPlan {
+    Ok(ReplayPlan {
         header,
         plaintext,
         corrections: chunk.corrections,
@@ -298,5 +776,43 @@ mod tests {
         // The plaintext cannot fit in 8 bytes, so the plan must decline rather
         // than return a silently truncated stream.
         assert!(try_replay(&z, limits).is_none());
+    }
+
+    #[test]
+    fn worker_framing_round_trips() {
+        let req = encode_worker_request(b"plain", b"corrections", 7).unwrap();
+        let mut cur = std::io::Cursor::new(req);
+        assert_eq!(
+            read_worker_request(&mut cur).unwrap(),
+            WorkerRequest {
+                plaintext: b"plain".to_vec(),
+                corrections: b"corrections".to_vec(),
+                declared_len: 7,
+            }
+        );
+
+        let mut reply = Vec::new();
+        write_worker_reply(&mut reply, 0, b"raw deflate").unwrap();
+        let mut rc = std::io::Cursor::new(reply);
+        assert_eq!(
+            read_worker_reply(&mut rc, 1024).unwrap(),
+            Some((0, b"raw deflate".to_vec()))
+        );
+
+        // An oversized field length is refused before any allocation.
+        let mut bad = Vec::new();
+        bad.extend_from_slice(&u32::MAX.to_le_bytes());
+        let mut bc = std::io::Cursor::new(bad);
+        assert!(read_worker_request(&mut bc).is_err());
+
+        // An oversized reply payload length is refused too.
+        let mut big_reply = vec![0u8; 5];
+        big_reply[1..].copy_from_slice(&u32::MAX.to_le_bytes());
+        let mut brc = std::io::Cursor::new(big_reply);
+        assert!(read_worker_reply(&mut brc, 16).is_err());
+
+        // A closed pipe means no reply, not an error.
+        let mut empty = std::io::Cursor::new(Vec::new());
+        assert_eq!(read_worker_reply(&mut empty, 1024).unwrap(), None);
     }
 }

@@ -2,6 +2,349 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.9] — unreleased
+
+Phase 7 is **hardening plus a pivoted result**. It closes two Phase-6 unknowns
+(behaviour on a producer corpus, and coverage-guided fuzzing), then retires the
+whole-file *compression* claim honestly and measures a different axis —
+random-access decode cost. No wire format or candidate semantics change; the only
+new wire record is the optional, advisory `OBSERVATION_INDEX` (Phase 7.3).
+
+### Added
+
+- Phase 7.0 — producer-stratified Flate correction-ratio harness:
+  - `vole-document deflate-stats INPUT...` emits, per `FlateDecode` stream,
+    `compressed_bytes`/`plaintext_bytes`/`correction_bytes`/`rans_plaintext_bytes`
+    and the ratios `correction/compressed`, `(plaintext+corr)/compressed`,
+    `(rans(plaintext)+corr)/compressed`, plus replayed/declined counts. It is
+    **diagnostics only** and changes no wire format or candidate behavior.
+  - The summary reports the rANS complete cost two ways so shared plaintext is
+    not overcounted: `replayed_rans_full_bytes` (naive per-stream sum) and
+    `replayed_rans_dedup_bytes` (one charge per **unique** plaintext plus one per
+    **unique** correction blob, mirroring the shared-channel candidate).
+  - `tools/pdf-corpus.sh` builds a locally-generated, producer-stratified corpus
+    from distinct lineages (Ghostscript 10.00.0 at
+    `/default`/`/prepress`/`/printer`/`/ebook`/`/screen`, qpdf 11.3.0
+    compress/linearize/object-streams=preserve/nocompress, a hand-written
+    stored-block-zlib base, plus the Phase-3 synthetic set), validating every
+    produced PDF with `qpdf --check` and writing a provenance ledger
+    (`provenance.json`). The regenerable `.pdf` bytes are gitignored; no
+    third-party bytes. `--deterministic-id` makes qpdf outputs byte-reproducible;
+    Ghostscript `pdfwrite` output is not (per-run `/ID`, recorded in the ledger).
+  - Harness tests in `tests/deflate_stats.rs`; the real complete-cost court is
+    `tools/pdf-court.sh` (`encode FILE OUT` and
+    `encode --force raw|byte-rans|pdf-deflate-replay|pdf-deflate-replay-rans FILE
+    OUT`), which records each lane's complete `.voldoc` size and `verify` +
+    `decode`/`cmp`s the auto winner byte-exact. A forced kind the input does not
+    propose is a typed `Usage` decline recorded as `null`.
+- Phase 7.0b — generator-family Flate corpus (real *authoring* generators):
+  - A separate, opt-in `producers` `Dockerfile` stage / compose service
+    (`vole-document/producers:bookworm`, base
+    `debian:bookworm-slim@sha256:3783cc01…` — the same digest as `tools`)
+    carrying generators with distinct DEFLATE behaviour: **ReportLab 3.6.12**,
+    **Cairo 1.20.1/libcairo 1.16.0**, **LibreOffice Writer 7.4.7.2**, **pdfTeX
+    3.141592653-2.6-1.40.24** (plus qpdf 11.3.0 for `/ID` normalization). It is
+    deliberately **not** part of the fast `tools` gate; the image grows to
+    ~724 MB. All four families built and ran; none was skipped.
+  - `tools/pdf-corpus-producers.sh` generates one PDF per available family from
+    the same deterministic content document as `tools/pdf-corpus.sh`, fingerprints
+    every `/FlateDecode` payload (`qpdf --json` + `qpdf --show-object
+    --raw-stream-data`), applies `qpdf --deterministic-id --stream-data=preserve
+    --object-streams=preserve` **only** when it leaves every payload
+    byte-identical, builds each family twice to record byte-reproducibility,
+    `qpdf --check`s every output, and writes a provenance ledger. LibreOffice
+    output is not byte-reproducible (run-varying metadata); the caveat is
+    recorded. The regenerable `.pdf` bytes are gitignored; no third-party bytes.
+  - `tools/pdf-producers-analyze.py` reduces the `deflate-stats` and complete-cost
+    court outputs to a per-producer analysis. No wire format, candidate, or
+    decode path changed.
+- Phase 7.0c — generic-compressor baseline ladder (ADR-0017):
+  - A pinned, opt-in `baseline` `Dockerfile` stage / compose service
+    (`vole-document/baseline:1.99.0`, derived from the `dev` stage on base
+    `rust:1.99.0-slim-bookworm@sha256:452176c0…`, so rustc/cargo match the
+    measurement binary) adding the generic compressors `gzip`, `zstd`, `xz` and
+    `brotli` (plus `jq`). It is deliberately **not** part of any fast gate.
+  - `tools/baselines.sh` records, for every corpus file, the source size and the
+    smallest **lossless** complete-file size for `gzip -9`, `zstd -19 --long=27`,
+    `xz -9e` and `brotli -q 11` (each decompressed and `cmp`'d against the source
+    before it is scored), plus the complete serialized `.voldoc` size of every
+    VOLE lane (auto, `raw`, `rle`, `byte-rans`, and every forced structural kind).
+    `tools/baselines.jq`, `tools/baselines-merge.jq` and `tools/baselines-table.jq`
+    reduce and render the JSON table.
+- Phase 7.1 — coverage-guided fuzzing:
+  - A standalone `cargo-fuzz` package in `fuzz/` (kept out of `cargo package` by
+    `exclude = ["fuzz", "research", "evidence"]`) with ten libFuzzer targets:
+    `voldoc_parse`, `voldoc_roundtrip`, `dra_program`, `rans_model`,
+    `rans_channel`, `pdf_lexer`, `pdf_scan`, `pdf_xref`, `deflate_replay`,
+    `materializer`. Each asserts the hostile-input invariants (never panic or
+    report an internal invariant, bounded work, deterministic, reconstructed
+    length == declared length, unknown versions/features/codecs fail closed).
+  - A pinned **dated nightly** fuzz toolchain: a `fuzz` `Dockerfile` stage on
+    `rustlang/rust:nightly-bookworm-slim-2026-10-04@sha256:58f725c9…`
+    (`rustc 1.101.0-nightly (db8f076d2 2026-10-03)`, `cargo
+    1.101.0-nightly`) plus `cargo-fuzz 0.13.2` and `libfuzzer-sys 0.4.13`, wired
+    as the `fuzz` compose service (host network, a dedicated `fuzz/target`
+    volume). `RUSTUP_TOOLCHAIN` overrides the root `rust-toolchain.toml`.
+  - `tools/fuzz.sh` runs a bounded campaign (`FUZZ_SECONDS`/`FUZZ_RSS_MB`, default
+    60 s / 2048 MiB per target), copies the committed `fuzz/seeds/` into each
+    target's corpus, and records duration, coverage, execs, and crash/OOM counts.
+  - Five small committed seed inputs under `fuzz/seeds/`; regeneration is
+    documented in `fuzz/README.md`.
+- Phase 7.1b — process-isolated DEFLATE replay (contains fuzz finding F2):
+  - The **decode path** no longer calls `preflate` in-process. A hidden worker
+    subcommand `__replay-worker` (not advertised in `USAGE`) reads a framed
+    `(plaintext, corrections, declared_len)` request from stdin, calls
+    `recreate_whole_deflate_stream`, and writes a framed reply to stdout. Framing
+    is little-endian: request `[u32 plaintext_len][plaintext][u32
+    corrections_len][corrections][u32 declared_len]`; reply `[u8 status]
+    [u32 payload_len][payload]` (`0` = raw DEFLATE, `1` = a UTF-8 error message).
+    Field lengths above a small internal bound are refused before allocation, and
+    a preflate panic is caught by a non-aborting hook and returned as an error
+    reply instead of an abort with lost output.
+  - `replay_bounded(plaintext, corrections, declared_len, limits)` spawns
+    `sh -c 'ulimit -v <KB> 2>/dev/null; ulimit -t <SEC> 2>/dev/null; exec "$0"
+    __replay-worker' <worker>` with `stdin`/`stdout`/`stderr` piped, an
+    `RLIMIT_AS` address-space cap, and a polled wall-clock timeout that `kill()`s
+    on expiry. A non-zero exit, an abort (SIGABRT, the likely memory-cap case), a
+    malformed reply, or a timeout each yields a typed `CodecReplay` error; a child
+    `status=1` message is surfaced verbatim.
+  - The decoder (`Program::eval`'s `DEFLATE_REPLAY` arm) calls `replay_bounded`;
+    the in-process `replay_raw` is retained for the encoder's own `try_replay`
+    verification and the fuzz targets. No wire format, candidate, or DRA op
+    changed.
+  - Knobs and defaults: `VOLE_REPLAY_WORKER` (worker executable; the CLI sets
+    itself via a safe library setter when unset, since `std::env::set_var` is
+    `unsafe` under Rust 2024), `VOLE_REPLAY_MEM_MB` (address-space cap; default
+    `clamp((plaintext+corrections+declared) * 8 + 64 MiB, 256 MiB,
+    limits.max_replay_bytes.min(2 GiB))`), `VOLE_REPLAY_TIMEOUT_MS` (default
+    30000). With no worker configured the library falls back to the in-process
+    path; a configured-but-broken worker is a typed error and **never** silently
+    falls back.
+  - Courts: `tests/replay_isolation.rs` (positive byte-exact decode through the
+    worker, the F2 fixture failing closed under a 32 MiB cap, no silent fallback
+    on a broken worker, and the documented in-process fallback) plus the
+    worker-protocol framing round-trip unit test in `src/codec/deflate.rs`.
+- Phase 7.3 — partial materialization and observation views (ADR-0018):
+  - `Program::analyze_ops(object_lens, channel_lens, limits) -> Result<Vec<u64>>`
+    returns the exact output length each instruction produces, sharing one walk
+    with `analyze` so every existing rejection is unchanged.
+  - A new optional, advisory `OBSERVATION_INDEX` record (tag `0x70`, written with
+    `FLAG_OPTIONAL`, placed after `GRAPH` and before `INTEGRITY`) carries an op
+    table, PDF selectors, and output-block digests gated by a `section_flags:
+    u8`. It is **checked, never authority**: `Descriptor::parse` re-derives each
+    `out_len` via `analyze_ops`, checks dependency ids and selector/digest ranges
+    against the analyzed total, and rejects any contradiction with
+    `CoverageViolation`. A decoder that ignores it still materializes exactly.
+    `Descriptor` gains `observation_index: Option<ObservationIndex>` and an
+    optional header feature bit `FEATURE_OBSERVATION_INDEX`; `cost.index` charges
+    the record payload + framing, and `cost.total()` remains exactly the
+    serialized length.
+  - `materialize_observation` / `view_to_bytes`
+    (`src/materialize/observation.rs`) serve one output range and report measured
+    `ObservationStats` (ops/channels/objects touched, entropy bytes decoded,
+    descriptor bytes traversed, work amplification). A descriptor without an
+    index is **declined**, never silently fully materialized; when the program is
+    a sequence of linear independent ops, only the ops intersecting the range are
+    evaluated and only the referenced entropy channels are decoded.
+  - `vole-document view INPUT.voldoc [OUTPUT] --byte-range A:L | --pdf-object N:G
+    | --pdf-stream N:G | --pdf-revision I [--stats]`; the `--stats` JSON reports
+    the resolved `range_start`/`range_len` so a harness can price sequential
+    baselines at the same output offset.
+  - `PDF_DEFLATE_REPLAY_RANS_INDEXED`
+    (`encode --force pdf-deflate-replay-rans-indexed`) attaches the advisory
+    observation index built from the same physical scan.
+  - `vole-document pdf-make-large DIR [OBJECTS]`: an encode-time, binary-only
+    deterministic generator of a valid classic-xref PDF with `OBJECTS` (default
+    800) distinct real-zlib `FlateDecode` streams and ≥32 MiB of source; correct
+    `/Length` and offsets by construction; no library or runtime dependency; the
+    regenerable `.pdf` bytes are gitignored.
+- Phase-7 universe string
+  `vole-document;universe;phase7;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1`
+  (DRA stays v8; no existing candidate bytes change beyond the universe bump and
+  the optional index record).
+
+### Fixed
+
+- PDF lexer stream boundary (`src/adapter/pdf/lexer.rs::find_endstream`): the
+  `endstream` keyword is now located by **right-termination** (the byte
+  immediately after `endstream` must be PDF whitespace, a PDF delimiter, or EOF)
+  instead of requiring a preceding CR/LF. Real producers — confirmed for
+  **Ghostscript 10.00.0** — write the stream payload directly before `endstream`
+  with **no intervening EOL**, which previously made the opaque payload span
+  over-read to a *later* `endstream`, swallowing whole stream objects and
+  mis-slicing the `/Length` region (the captured bytes began `0x0a`, so
+  `try_replay` declined them as `not_zlib`). The physical scanner's
+  `/Length`-based resolution is unchanged; no wire format or candidate changed.
+  This moves the Phase-7.0 exact-replay acceptance from **11/17** to **24/24**
+  (`1.000`) and raises the stream census (the old over-read had hidden whole
+  stream objects). New lexer tests cover the no-EOL case, the normal
+  `\nendstream` case, an `endstream` at EOF, and an `endstream`-like run lacking
+  a right terminator; a new integration test builds a PDF whose payload abuts
+  `endstream` and checks the exact scan and byte-exact `try_replay`.
+- **ADR-0016 correction (Phase 7.0).** The `DEFLATE_REPLAY` output bound is a
+  VOLE **replay-profile admission limit** —
+  `min(max_output_bytes, max_replay_bytes, 2*P + 1024)` for a `P`-byte plaintext
+  — a deliberate **policy** bound, **not an RFC 1951 maximum**. RFC 1951 permits
+  arbitrarily many **empty non-final stored blocks**, so a legal bitstream that
+  inflates to zero bytes can be arbitrarily large and no finite
+  `f(decompressed_size)` bound exists. `2*P + 1024` is an algorithmic expansion
+  figure, not a theorem. The alpha.8 prose ("statically rejected above
+  `2*P + 1024`") is superseded; the limit may decline a legitimate exact replay
+  whose real output exceeds the profile, and that decline is an honest admission
+  cost. No behavior changed — the re-framing makes the existing bound's nature
+  explicit.
+- Fuzz finding **F1** (upstream `preflate-rs` 0.7.6 `1 << params.window_bits`
+  shift-overflow on hostile corrections): mitigated by installing a
+  non-aborting panic hook in the fuzz targets so `replay_raw`'s documented
+  `catch_unwind` boundary is exercised, with a minimized 35-byte regression
+  fixture (`tests/fixtures/deflate_replay_shift_overflow.bin`) and a test
+  asserting a typed `CodecReplay` error.
+
+### Measured
+
+- Campaign `2026-10-05-phase7-corpus-b-c4eb77e` (amendment; verdict RECORDED;
+  diagnostic, no new candidate) — re-measured after the lexer stream-boundary
+  fix: **24 `FlateDecode` streams, 24 replayed / 0 declined (acceptance 1.000)**
+  across Ghostscript 10.00.0, qpdf 11.3.0, a hand-written stored-block-zlib base,
+  and the Phase-3 synthetic set; the census rose 17 → 24 because the old
+  over-read had swallowed whole stream objects. Corpus-wide
+  `correction/compressed` **p10 0.000320 / p50 0.014716 / p90 0.097360** (the
+  `0.004518` figure is the `pdf-make-samples` subset median only). The Phase-6
+  win region appears **only in our own hand-authored fixtures**
+  (`hand-base2.pdf` deduped rANS 55,531 vs naive 111,062; `_synthetic/flate.pdf`
+  34,051 vs 89,437); `qpdf-preserve-objectstreams.pdf` shows the same geometry
+  only because qpdf copied and renumbered the fixture's two byte-identical raw
+  streams (`ec028dc1…`), so **99.93% of that win is inherited**, not produced by
+  a transformer. Supersedes the original `2026-10-05-phase7-corpus-f1f8d26`
+  (11/17), which is retained, not rewritten. Report
+  `docs/evidence/phase7-corpus-report.md`; review
+  `docs/evidence/phase7-skeptic-review.md`.
+- Campaign `2026-10-05-phase7-court-99dc72e` (verdict RECORDED; measurement, no
+  new candidate) — the decisive **complete-cost court** over the 23-file locally
+  generated producer corpus. `PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS`:
+  **win 3 / lose 8 / decline 12 — all 3 wins self-authored.** The wins are
+  exactly the Phase-6 shared-plaintext geometry: `hand-base2.pdf`
+  (112,011 → 56,885, −55,126 B), `_synthetic/flate.pdf` (49,291 → 36,102,
+  −13,189 B), and `qpdf-preserve-objectstreams.pdf` (112,147 → 56,980,
+  −55,167 B) — the last only because qpdf `--object-streams=preserve` copied the
+  fixture's two byte-identical raw streams, **99.93% inherited**. Every
+  **genuinely transformed** producer output loses or declines (all 5 Ghostscript
+  variants and both qpdf compression variants lose; the 12 files with no
+  replayable Flate lane decline). All 23 auto winners `verify` + `cmp`
+  byte-exact. The corpus is locally generated and is **not** a population
+  sample; qpdf/Ghostscript are transformers. Receipt under
+  `evidence/campaigns/2026-10-05-phase7-court-99dc72e/`.
+- Campaign `2026-10-05-phase7-producers-e071250` (verdict RECORDED; measurement,
+  no new candidate) — the Phase-7.0b **generator-family** corpus and
+  complete-cost court over four real *authoring generators* (ReportLab 3.6.12,
+  Cairo 1.20.1/libcairo 1.16.0, LibreOffice Writer 7.4.7.2, pdfTeX
+  3.141592653-2.6-1.40.24). Exact-replay acceptance is **87/87 = 1.000**
+  (corpus-wide `correction/compressed` p10/p50/p90 =
+  0.034759/0.047945/0.068028). Under complete cost vs `BYTE_RANS`: win 1 / lose 3
+  / decline 0 (Cairo −24,137 B, 58,711 → 34,574; ReportLab −3,312 B; pdfTeX
+  −10,663 B; LibreOffice −302,474 B). **Corrected in Phase 7.0c:** the Cairo
+  delta is a **repeated-identical-bytes harness artifact** — our generator drew
+  one identical page six times, so Cairo emitted six streams byte-identical in
+  *compressed* bytes as well as plaintext; generic LZ captures ~2× more
+  (`gzip -9` 17,382 B, `zlib -9` 17,376 B, `xz -9e` 16,852 B) and `BYTE_RANS` is
+  a weak order-0 baseline with no LZ. The withdrawn framing ("a genuine authoring
+  application produces the win region", "first authoring-generator witness") is
+  corrected: *a repeated-identical-bytes region already captured better by
+  generic LZ, not the shared-plaintext-vs-distinct-compression mechanism.* All 4
+  auto winners `verify` + `cmp` byte-exact; no population claim. Prose amendment
+  in the receipt; review `docs/evidence/phase7b-skeptic-review.md`.
+- Campaign `2026-10-05-phase7-baselines-7b9f662` (verdict RECORDED; measurement,
+  no new candidate; ADR-0017) — the **generic-compressor baseline ladder** over
+  27 corpus files (phase7 23 + producers 4), comparing complete files against
+  `gzip -9`, `zstd -19 --long=27`, `xz -9e`, `brotli -q 11` (each round-trip
+  verified lossless) and the best VOLE lane (minimum over auto/raw/rle/byte-rans
+  and every forced structural kind). **The headline honest negative: the best
+  VOLE lane beats gzip/zstd/xz/brotli on 0 files**; the best generic is smaller
+  on every file, **+460,320 B** in total (phase7 +410,355; producers +49,965). On
+  `cairo-vector.pdf` the best VOLE 34,574 B is **2.07×** brotli's 16,670 B; on
+  `_synthetic/flate.pdf` 36,102 B is **1.91×** xz's 18,884 B. Prior "wins" were
+  relative to the weak order-0 `BYTE_RANS` lane and do not survive the generic
+  ladder. All 27 auto winners `verify` + `cmp` byte-exact. Receipt under
+  `evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/` (full table
+  `baseline-table.md`); report section in `docs/evidence/phase7-corpus-report.md`.
+- Campaign `2026-10-05-phase7-fuzz-ca6a92b` (verdict PASS_WITH_FINDINGS) — a
+  bounded coverage-guided libFuzzer campaign (60 s/target, `-rss_limit_mb=2048`)
+  over the ten targets in the pinned nightly `fuzz` service. **Nine of ten
+  targets observed zero crashes** (e.g. `voldoc_parse` 23.3M execs, cov 89;
+  `rans_model` 58.9M execs; `pdf_xref` cov 736 / ft 4229). `deflate_replay`
+  reported two **upstream `preflate-rs` 0.7.6** findings: (F1) the
+  shift-overflow panic, mitigated as described under Fixed; and (F2) an
+  **unbounded reconstruction allocation** (a 33-byte hostile
+  `(plaintext, corrections)` pair, peak RSS 2532 MiB at the 2048 MiB policy),
+  reported as an upstream limitation — `REPLAY_OUTPUT_RATIO` bounds the declared
+  output, not the third-party decoder's internal allocation, and preflate 0.7.6
+  has no bounded streaming reconstruction sink (ADR-0016). **F2 is now contained
+  on the decode path** by Phase 7.1b process isolation; the same artifact run
+  under the pinned `fuzz` service reports `libFuzzer: out-of-memory` with
+  `1744830464` bytes in one allocation and `peak_rss_mb: 2524`, while a CLI
+  `decode` under a 32 MiB worker cap fails closed as a typed error without
+  exhausting the host. Fuzzing is evidence, not a proof of absence. No wire
+  format or candidate changed. Receipt under
+  `evidence/campaigns/2026-10-05-phase7-fuzz-ca6a92b/`.
+- Campaign `2026-10-05-phase7-partial-a5764c9` (verdict SCOPED POSITIVE;
+  measurement, no wire/candidate change beyond the index record) — the
+  **partial-materialization query court** on a 33,789,340 B (32.22 MiB),
+  800-stream deterministic PDF (`pdf-make-large`; 800 replayed / 0 declined;
+  `qpdf --check` rc 0). All 18 pre-registered queries (6 byte-ranges at
+  0/1/8/16/24/31 MiB + 8 `--pdf-stream` + 4 `--pdf-object`) are byte-exact. For
+  mid/late queries the indexed lane touches **~0.41–0.43 MB**
+  (`descriptor_bytes_traversed` alone; its `entropy_bytes_decoded` breakdown is a
+  subset already counted there and must not be added) versus gzip inflating
+  `a + len`: in the late region that is **1.4–2.3 %** of gzip's bytes, and VOLE
+  is **~2–5× faster than gzip** and **~4–13× faster than xz** on decode CPU. It
+  **loses** in the early region (≤ ~8–16 MiB), **never beats zstd's raw
+  decompressor** on wall time, uses ~38 MB peak RSS versus gzip's ~1.2 MB, and
+  whole-file size is still **2.98×** xz (best VOLE 17,392,713 B / indexed
+  17,539,424 B vs xz 5,841,896 B). The decisive v1 caveat: `view` reads and
+  parses the **whole** descriptor, so on-disk I/O is **not** reduced and
+  `descriptor_bytes_traversed` is a CPU-side approximation, not a bytes-read
+  figure. Receipt under
+  `evidence/campaigns/2026-10-05-phase7-partial-a5764c9/`; report
+  `docs/evidence/phase7-partial-report.md`; review
+  `docs/evidence/phase7c-skeptic-review.md`; ADR-0018.
+
+### Notes
+
+- **Honest framing.** VOLE's prime directive is exactness
+  (`materialize(descriptor) == original_bytes`), and on whole-file size VOLE's
+  best lane loses to every generic lossless compressor tested (ADR-0017). The
+  pivot is deliberate: Phase 7 measures **random-access decode cost** instead of
+  whole-file ratio, and reports it with the explicit v1 I/O caveat (ADR-0018).
+  Both axes are separate receipts and separate verdicts and are never conflated.
+- The wire format remains **PROVISIONAL** and is not frozen v1. `OBSERVATION_INDEX`
+  (`observation_index_v1`) is optional and **advisory**: it is re-derived and
+  re-checked against the authoritative program at parse and can only cause a
+  `CoverageViolation`, never change what `materialize` produces. It costs bytes
+  (146,711 B on the stress corpus) and does not make the descriptor smaller.
+- The Phase-6 win over `BYTE_RANS` is real and byte-exact, but its enabling
+  condition (a plaintext shared across streams **and** a large/weakly-coded
+  appearance) is **not produced by the tested transformers**: on the Phase-7.0
+  corpus every genuine transformer output loses or declines, and the Phase-7.0b
+  Cairo "win" is a repeated-identical-bytes harness artifact already beaten by
+  generic LZ. The `ADOPTED` status of `PDF_DEFLATE_REPLAY_RANS` therefore means
+  "implemented and can win when shared plaintext is present", not "shown to win
+  on real producer output". Closing that gap is Phase 7.2 (nested content
+  proceduralization).
+- **F2 residual.** Process isolation bounds the *decoder's* exposure: a
+  malformed `.voldoc` cannot amplify memory in the decoder process because the
+  third-party allocation runs in a child with a hard address-space cap and a
+  timeout. It is **not** a proof that `preflate` is bounded. The residual is a
+  library consumer that decodes untrusted `.voldoc` without a worker
+  (`VOLE_REPLAY_WORKER` unset and no installed default): that path is in-process
+  and still exposed. The CLI installs itself as the default worker.
+- Fuzzing is **evidence, not a proof of absence**: nine zero-crash targets mean
+  no crash was observed in that 60 s budget on that build, not that none exists.
+  Both `deflate_replay` findings are upstream `preflate-rs` defects surfaced
+  through our wrapper.
+- No candidate is adopted, removed, or changed by the baseline ladder or the
+  query-cost court; the only new encode-time code is the `pdf-make-large`
+  generator and the optional index record.
+
 ## [0.1.0-alpha.8] — unreleased
 
 ### Added

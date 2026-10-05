@@ -7,6 +7,7 @@
 pub mod adapter;
 pub mod channels;
 pub mod cos;
+pub mod large;
 pub mod layout;
 pub mod lexer;
 pub mod physical;
@@ -23,6 +24,7 @@ pub use cos::{
     FilterClass, LengthValue, body_as_u64, dict_filter, dict_has_length, dict_int_or_ref,
     dict_length, dict_name_value,
 };
+pub use large::large_pdf;
 #[cfg(feature = "rans")]
 pub use layout::propose_pdf_layout_rans;
 pub use layout::{build_layout_plan, propose_pdf_layout};
@@ -35,5 +37,9 @@ pub use physical::{
 pub use replay::propose_pdf_deflate_replay;
 #[cfg(all(feature = "deflate-replay", feature = "rans"))]
 pub use replay::propose_pdf_deflate_replay_rans;
+#[cfg(all(feature = "deflate-replay", feature = "rans"))]
+pub use replay::propose_pdf_deflate_replay_rans_indexed;
+#[cfg(feature = "deflate-replay")]
+pub use replay::{DeflateStats, DeflateSummary, StreamStats, deflate_stats};
 pub use samples::{is_negative_control, sample_pdfs};
 pub use span::{Span, SpanKind, SpanSet};

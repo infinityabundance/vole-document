@@ -43,6 +43,10 @@ pub enum CandidateKind {
     /// PDF DEFLATE replay whose plaintexts are carried as shared order-0 byte-rANS
     /// entropy channels (Phase 6.5).
     PdfDeflateReplayRans = 8,
+    /// `PDF_DEFLATE_REPLAY_RANS` plus an advisory `OBSERVATION_INDEX` built from
+    /// the same physical scan, so narrow views can be served without walking the
+    /// whole program (Phase 7.3).
+    PdfDeflateReplayRansIndexed = 9,
 }
 
 impl CandidateKind {
@@ -58,6 +62,7 @@ impl CandidateKind {
             CandidateKind::PdfLayoutRans => "PDF_LAYOUT_RANS",
             CandidateKind::PdfDeflateReplay => "PDF_DEFLATE_REPLAY",
             CandidateKind::PdfDeflateReplayRans => "PDF_DEFLATE_REPLAY_RANS",
+            CandidateKind::PdfDeflateReplayRansIndexed => "PDF_DEFLATE_REPLAY_RANS_INDEXED",
         }
     }
 }
@@ -116,6 +121,12 @@ pub fn propose_all(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
         crate::adapter::pdf::propose_pdf_deflate_replay_rans(input, limits)?
     {
         out.push(pdf_deflate_rans);
+    }
+    #[cfg(all(feature = "deflate-replay", feature = "rans"))]
+    if let Some(pdf_deflate_rans_indexed) =
+        crate::adapter::pdf::propose_pdf_deflate_replay_rans_indexed(input, limits)?
+    {
+        out.push(pdf_deflate_rans_indexed);
     }
     Ok(out)
 }
@@ -181,6 +192,7 @@ pub fn propose_rle(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
         channels: vec![],
         objects: vec![],
         program: Program::new(ops),
+        observation_index: None,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };
@@ -236,6 +248,7 @@ pub fn propose_byte_rans(input: &[u8], limits: Limits) -> Result<Option<Candidat
         channels: vec![channel],
         objects: vec![],
         program: Program::new(vec![Op::DecodeChannel { channel_id: 0 }]),
+        observation_index: None,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };

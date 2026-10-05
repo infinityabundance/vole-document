@@ -1,0 +1,45 @@
+{
+  "campaign": "2026-10-05-phase7-producers-e071250",
+  "amends": null,
+  "phase": "Phase 7.0b — generator-family Flate corpus (ReportLab, Cairo, LibreOffice, pdfTeX) + complete-cost court",
+  "claim": "On four locally generated real-authoring-generator families (ReportLab 3.6.12, Cairo 1.20.1/libcairo 1.16.0, LibreOffice Writer 7.4.7.2, pdfTeX 3.141592653-2.6-1.40.24), exact DEFLATE replay accepts 87/87 Flate streams (acceptance 1.000). Under the real complete-cost court PDF_DEFLATE_REPLAY_RANS beats BYTE_RANS on 1/4 files: the Cairo vector output by 24,137 B (58,711 -> 34,574), where Cairo emitted 6 byte-identical page content streams. ReportLab (small file, framing overhead), pdfTeX (already-tight streams) and LibreOffice (no whole-stream sharing) lose. This is the first authoring-generator witness of the Phase-6/7.0 shared-plaintext win region; the win is conditional on repeated identical page content and is not a population claim.",
+  "git_commit": "e0712503696b2b2cb609e83d75d820faf175ad92",
+  "git_dirty_tracked": "0",
+  "dirty_note": "No src/wire/candidate change. The unforced court winners all verify and round-trip byte-for-byte.",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "producers_base_image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "producers_image": "vole-document/producers:bookworm@sha256:9cdbaed0b9d0cec0ba36237566dd409b0261b91554346cb72e91ede3eddcb0b2",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "ec8313a91baa81eebd13ed98b2cdc5abe43251c0c45caca3bba2df2441ee1039",
+  "binary_sha256": "fd14c0c6ff4add5de1f2e0f3afffa23f1a9e3f5991eacf498a9c467945bd81ae",
+  "command": "docker compose run --rm --no-TTY producers sh tools/pdf-corpus-producers.sh; docker compose run --rm --no-TTY dev sh -c './target/debug/vole-document deflate-stats evidence/corpus/phase7-producers/*.pdf > evidence/corpus/phase7-producers/deflate-stats.jsonl'; docker compose run --rm --no-TTY dev sh -c 'sh tools/pdf-court.sh evidence/scratch/court-producers evidence/corpus/phase7-producers/*.pdf'",
+  "oracles": {"reportlab": "3.6.12", "cairo": "1.20.1/libcairo 1.16.0", "libreoffice": "7.4.7.2", "pdftex": "3.141592653-2.6-1.40.24", "qpdf": "11.3.0"},
+  "artifacts": {
+    "corpus.json": "d05ec80ea31e415568bf571afc16be5a07e1ccda194632607406ecdbbd43bc43",
+    "results.json": "c2725181cda6437271246c49c73519335fcfbe825c89e95bae69759b55f18ad0",
+    "environment.json": "b11936561383822d8cbaeaefa62db03ac71587490780f7fa3e2f97cadd4119b8",
+    "report.md": "b2610a03e41b2f258608c2b03f0073544536aeef6cf9de55cfa4b9bab5c25ebe",
+    "court-results.jsonl": "b431f744302f1e34680f1deac3bc9cda65b62530090dd9da6759f2c170e6586a"
+  },
+  "corpus_ledger": {
+    "provenance": "evidence/corpus/phase7-producers/provenance.json",
+    "provenance_sha256": "9f329ef33149e91216c0752f27d0b41e5857b2c68dfef2ea1246c1ae477b7ae6",
+    "deflate_stats_jsonl": "evidence/corpus/phase7-producers/deflate-stats.jsonl",
+    "deflate_stats_sha256": "df4c0397f4a247ed0b3289e21a03a4fa95365d0c1690314ca5c934c0b421c71d",
+    "generator": "tools/pdf-corpus-producers.sh",
+    "generator_sha256": "06d814ed1af3b3f840b23cfeae9c178c31902e5f4116777345f71f8cd5599cf5",
+    "court_driver": "tools/pdf-court.sh",
+    "court_driver_sha256": "3b0d1f678e574d91d7d41a00bfcea661eaffc0745c46198e6ab10ffc8dda39d0",
+    "analyzer": "tools/pdf-producers-analyze.py"
+  },
+  "determinism": {
+    "reportlab_byte_reproducible": true,
+    "cairo_byte_reproducible": true,
+    "pdftex_byte_reproducible": true,
+    "libreoffice_byte_reproducible": false,
+    "note": "Each family is generated twice by tools/pdf-corpus-producers.sh and the two SHA-256s compared. LibreOffice embeds run-varying metadata; the caveat is recorded in provenance.json. qpdf /ID normalization is applied only when it leaves every Flate payload byte-identical."
+  },
+  "verdict": "RECORDED"
+}

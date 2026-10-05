@@ -17,7 +17,7 @@ pub const CODER_ORDER0_BYTE_RANS: u8 = 1;
 pub const CODER_VERSION_1: u16 = 1;
 
 /// Fixed bytes preceding the payload in the wire encoding.
-const WIRE_HEADER_LEN: usize = 33;
+pub const WIRE_HEADER_LEN: usize = 33;
 
 /// A complete decoder-entry descriptor for one entropy channel.
 #[derive(Debug, Clone, PartialEq, Eq)]

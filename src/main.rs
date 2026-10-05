@@ -11,14 +11,18 @@ use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use vole_document::adapter::pdf;
+#[cfg(feature = "rans")]
+use vole_document::container::ParsedDescriptor;
 use vole_document::container::UNIVERSE;
 use vole_document::dra::Op;
 use vole_document::encode::candidates::CandidateKind;
 use vole_document::error::{Error, Result};
 use vole_document::limits::Limits;
+#[cfg(feature = "rans")]
+use vole_document::materialize::observation::{ObservationReport, ObservationSelector};
 use vole_document::{encode, integrity, materialize};
 
-const USAGE: &str = "\
+const USAGE_HEAD: &str = "\
 vole-document — byte-exact procedural document storage
 
 USAGE:
@@ -29,10 +33,29 @@ USAGE:
     vole-document inspect    INPUT.voldoc
     vole-document pdf-inspect INPUT
     vole-document pdf-make-samples DIR
+    vole-document pdf-make-large DIR [OBJECTS]
+";
+
+/// The `deflate-stats` line is advertised only when the replay stack is built in.
+#[cfg(feature = "deflate-replay")]
+const USAGE_DEFLATE_STATS: &str = "    vole-document deflate-stats INPUT...\n";
+#[cfg(not(feature = "deflate-replay"))]
+const USAGE_DEFLATE_STATS: &str = "";
+
+/// The `view` line is advertised only when the entropy decoder is built in.
+#[cfg(feature = "rans")]
+const USAGE_VIEW: &str = "\
+    vole-document view      INPUT.voldoc [OUTPUT] --byte-range A:L | --pdf-object N:G |\n\
+        --pdf-stream N:G | --pdf-revision I [--stats]\n";
+#[cfg(not(feature = "rans"))]
+const USAGE_VIEW: &str = "";
+
+const USAGE_TAIL: &str = "\
     vole-document capabilities
 
 KIND (for encode --force): raw | rle | byte-rans | pdf-physical | pdf-channels |
-    pdf-layout | pdf-layout-rans | pdf-deflate-replay | pdf-deflate-replay-rans
+    pdf-layout | pdf-layout-rans | pdf-deflate-replay | pdf-deflate-replay-rans |
+    pdf-deflate-replay-rans-indexed
     Forces the complete-cost court to consider only that candidate family, for
     honest per-mechanism ablation. Fails when the input does not propose it.
 
@@ -42,6 +65,12 @@ EXIT CODES:
     9 invalid-graph  10 invalid-model  15 coverage-violation
     16 reconstruction-mismatch  70 internal-invariant
 ";
+
+/// The full usage text, with the replay-gated command line included only when
+/// the feature is present.
+fn usage() -> String {
+    format!("{USAGE_HEAD}{USAGE_VIEW}{USAGE_DEFLATE_STATS}{USAGE_TAIL}")
+}
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
@@ -56,10 +85,32 @@ fn main() -> ExitCode {
 }
 
 fn run(args: &[String]) -> Result<()> {
+    // Hidden internal replay-worker mode: handled before any normal parsing,
+    // because it reads a framed request from stdin and never returns. It is not
+    // advertised in USAGE.
+    #[cfg(feature = "deflate-replay")]
+    {
+        use vole_document::codec::deflate::{
+            REPLAY_WORKER_SUBCOMMAND, install_default_replay_worker, run_worker_stdio,
+        };
+        if args.get(1).map(String::as_str) == Some(REPLAY_WORKER_SUBCOMMAND) {
+            run_worker_stdio();
+        }
+        // Isolate DEFLATE replay by default: point the library at this binary.
+        // `std::env::set_var` is `unsafe` under Rust 2024 (and this crate forbids
+        // `unsafe`), so the path is installed via a safe library setter; an
+        // explicit `VOLE_REPLAY_WORKER` still takes precedence.
+        if std::env::var_os("VOLE_REPLAY_WORKER").is_none()
+            && let Ok(exe) = std::env::current_exe()
+        {
+            install_default_replay_worker(exe);
+        }
+    }
+
     let cmd = match args.get(1).map(String::as_str) {
         Some(c) => c,
         None => {
-            print!("{USAGE}");
+            print!("{}", usage());
             return Err(Error::usage("no subcommand given"));
         }
     };
@@ -67,7 +118,7 @@ fn run(args: &[String]) -> Result<()> {
 
     match cmd {
         "-h" | "--help" | "help" => {
-            print!("{USAGE}");
+            print!("{}", usage());
             Ok(())
         }
         "capabilities" => cmd_capabilities(),
@@ -85,6 +136,8 @@ fn run(args: &[String]) -> Result<()> {
             let input = arg(args, 2, "INPUT.voldoc")?;
             cmd_inspect(&input, limits)
         }
+        #[cfg(feature = "rans")]
+        "view" => cmd_view_args(args, limits),
         "pdf-inspect" => {
             let input = arg(args, 2, "INPUT")?;
             cmd_pdf_inspect(&input, limits)
@@ -93,8 +146,29 @@ fn run(args: &[String]) -> Result<()> {
             let dir = arg(args, 2, "DIR")?;
             cmd_pdf_make_samples(&dir)
         }
+        "pdf-make-large" => {
+            let dir = arg(args, 2, "DIR")?;
+            let objects = args.get(3).map(String::as_str);
+            cmd_pdf_make_large(&dir, objects)
+        }
+        #[cfg(feature = "deflate-replay")]
+        "deflate-stats" => {
+            let inputs: Vec<PathBuf> = args
+                .get(2..)
+                .unwrap_or(&[])
+                .iter()
+                .map(PathBuf::from)
+                .collect();
+            if inputs.is_empty() {
+                return Err(Error::usage(
+                    "deflate-stats requires at least one INPUT (a PDF)",
+                ));
+            }
+            cmd_deflate_stats(&inputs, limits)
+        }
         other => Err(Error::usage(format!(
-            "unknown subcommand {other:?}\n\n{USAGE}"
+            "unknown subcommand {other:?}\n\n{}",
+            usage()
         ))),
     }
 }
@@ -179,9 +253,243 @@ fn parse_force_kind(s: &str) -> Result<CandidateKind> {
         "pdf-layout-rans" => Ok(CandidateKind::PdfLayoutRans),
         "pdf-deflate-replay" => Ok(CandidateKind::PdfDeflateReplay),
         "pdf-deflate-replay-rans" => Ok(CandidateKind::PdfDeflateReplayRans),
+        "pdf-deflate-replay-rans-indexed" => Ok(CandidateKind::PdfDeflateReplayRansIndexed),
         other => Err(Error::usage(format!(
-            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans, pdf-deflate-replay, pdf-deflate-replay-rans"
+            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans, pdf-deflate-replay, pdf-deflate-replay-rans, pdf-deflate-replay-rans-indexed"
         ))),
+    }
+}
+
+/// Parse and dispatch the `view` subcommand: serve a narrow observation of a
+/// `.voldoc` that carries an `OBSERVATION_INDEX`.
+///
+/// Exactly one selector flag is required. `--stats` with no `OUTPUT` prints the
+/// stats object only (no bytes); otherwise bytes go to `OUTPUT` atomically or to
+/// stdout, with the stats object on stdout (or stderr when bytes occupy stdout).
+#[cfg(feature = "rans")]
+fn cmd_view_args(args: &[String], limits: Limits) -> Result<()> {
+    let mut selector: Option<ObservationSelector> = None;
+    let mut stats = false;
+    let mut positional: Vec<&str> = Vec::new();
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        if a == "--stats" {
+            stats = true;
+            i += 1;
+        } else if let Some(v) = a.strip_prefix("--byte-range=") {
+            set_selector(&mut selector, parse_byte_range(v)?)?;
+            i += 1;
+        } else if let Some(v) = a.strip_prefix("--pdf-object=") {
+            set_selector(&mut selector, parse_pdf_object(v)?)?;
+            i += 1;
+        } else if let Some(v) = a.strip_prefix("--pdf-stream=") {
+            set_selector(&mut selector, parse_pdf_stream(v)?)?;
+            i += 1;
+        } else if let Some(v) = a.strip_prefix("--pdf-revision=") {
+            set_selector(&mut selector, parse_pdf_revision(v)?)?;
+            i += 1;
+        } else if a == "--byte-range" {
+            let v = args
+                .get(i + 1)
+                .ok_or_else(|| Error::usage("--byte-range requires A:L"))?;
+            set_selector(&mut selector, parse_byte_range(v)?)?;
+            i += 2;
+        } else if a == "--pdf-object" {
+            let v = args
+                .get(i + 1)
+                .ok_or_else(|| Error::usage("--pdf-object requires N:G"))?;
+            set_selector(&mut selector, parse_pdf_object(v)?)?;
+            i += 2;
+        } else if a == "--pdf-stream" {
+            let v = args
+                .get(i + 1)
+                .ok_or_else(|| Error::usage("--pdf-stream requires N:G"))?;
+            set_selector(&mut selector, parse_pdf_stream(v)?)?;
+            i += 2;
+        } else if a == "--pdf-revision" {
+            let v = args
+                .get(i + 1)
+                .ok_or_else(|| Error::usage("--pdf-revision requires I"))?;
+            set_selector(&mut selector, parse_pdf_revision(v)?)?;
+            i += 2;
+        } else {
+            positional.push(a);
+            i += 1;
+        }
+    }
+
+    let selector = selector.ok_or_else(|| {
+        Error::usage(
+            "view requires exactly one of --byte-range, --pdf-object, --pdf-stream, --pdf-revision",
+        )
+    })?;
+    let input = positional
+        .first()
+        .map(PathBuf::from)
+        .ok_or_else(|| Error::usage("missing argument INPUT.voldoc"))?;
+    if positional.len() > 2 {
+        return Err(Error::usage(format!(
+            "unexpected extra argument {:?}",
+            positional[2]
+        )));
+    }
+    let output = positional.get(1).map(PathBuf::from);
+    cmd_view(&input, output.as_deref(), selector, stats, limits)
+}
+
+/// Record the one selector a `view` invocation may carry.
+#[cfg(feature = "rans")]
+fn set_selector(
+    slot: &mut Option<ObservationSelector>,
+    selector: ObservationSelector,
+) -> Result<()> {
+    if slot.is_some() {
+        return Err(Error::usage(
+            "view accepts exactly one selector; more than one was given",
+        ));
+    }
+    *slot = Some(selector);
+    Ok(())
+}
+
+#[cfg(feature = "rans")]
+fn parse_byte_range(value: &str) -> Result<ObservationSelector> {
+    let (offset, len) = value
+        .split_once(':')
+        .ok_or_else(|| Error::usage("--byte-range must be A:L (e.g. 1024:4096)"))?;
+    let offset: u64 = offset
+        .parse()
+        .map_err(|_| Error::usage(format!("--byte-range offset {offset:?} is not a u64")))?;
+    let len: u64 = len
+        .parse()
+        .map_err(|_| Error::usage(format!("--byte-range length {len:?} is not a u64")))?;
+    Ok(ObservationSelector::ByteRange { offset, len })
+}
+
+#[cfg(feature = "rans")]
+fn parse_pdf_object(value: &str) -> Result<ObservationSelector> {
+    let (object, generation) = parse_n_g(value, "--pdf-object")?;
+    Ok(ObservationSelector::PdfIndirectObject { object, generation })
+}
+
+#[cfg(feature = "rans")]
+fn parse_pdf_stream(value: &str) -> Result<ObservationSelector> {
+    let (object, generation) = parse_n_g(value, "--pdf-stream")?;
+    Ok(ObservationSelector::PdfEncodedStream { object, generation })
+}
+
+#[cfg(feature = "rans")]
+fn parse_pdf_revision(value: &str) -> Result<ObservationSelector> {
+    let index: u32 = value
+        .parse()
+        .map_err(|_| Error::usage(format!("--pdf-revision {value:?} is not a u32")))?;
+    Ok(ObservationSelector::PdfRevision { index })
+}
+
+#[cfg(feature = "rans")]
+fn parse_n_g(value: &str, flag: &str) -> Result<(u32, u16)> {
+    let (n, g) = value
+        .split_once(':')
+        .ok_or_else(|| Error::usage(format!("{flag} must be N:G (e.g. 4:0)")))?;
+    let object: u32 = n
+        .parse()
+        .map_err(|_| Error::usage(format!("{flag} object {n:?} is not a u32")))?;
+    let generation: u16 = g
+        .parse()
+        .map_err(|_| Error::usage(format!("{flag} generation {g:?} is not a u16")))?;
+    Ok((object, generation))
+}
+
+#[cfg(feature = "rans")]
+fn cmd_view(
+    input: &Path,
+    output: Option<&Path>,
+    selector: ObservationSelector,
+    stats: bool,
+    limits: Limits,
+) -> Result<()> {
+    let encoded = fs::read(input)?;
+    let parsed = vole_document::container::Descriptor::parse(&encoded, limits)?;
+    let report = vole_document::materialize::observation::materialize_observation(
+        &parsed, selector, limits,
+    )?;
+    let json = observation_json(&selector, &parsed, &report);
+    match output {
+        Some(path) => {
+            write_atomic(path, &report.bytes)?;
+            println!("{json}");
+        }
+        // Stats-only: no bytes are emitted, so stdout stays a single JSON line.
+        None if stats => println!("{json}"),
+        None => {
+            std::io::stdout()
+                .write_all(&report.bytes)
+                .map_err(Error::from)?;
+            eprintln!("{json}");
+        }
+    }
+    Ok(())
+}
+
+/// One JSON line describing a served observation and its measured cost.
+#[cfg(feature = "rans")]
+fn observation_json(
+    selector: &ObservationSelector,
+    parsed: &ParsedDescriptor,
+    report: &ObservationReport,
+) -> String {
+    let s = &report.stats;
+    format!(
+        concat!(
+            "{{",
+            "\"ok\":true,",
+            "\"selector\":\"{}\",",
+            "\"source_len\":{},",
+            "\"range_start\":{},",
+            "\"range_len\":{},",
+            "\"bytes\":{},",
+            "\"ops_evaluated\":{},",
+            "\"ops_total\":{},",
+            "\"objects_fetched\":{},",
+            "\"objects_total\":{},",
+            "\"channels_decoded\":{},",
+            "\"channels_total\":{},",
+            "\"entropy_bytes_decoded\":{},",
+            "\"descriptor_bytes_traversed\":{},",
+            "\"output_bytes\":{},",
+            "\"work_amplification\":{:.6}",
+            "}}"
+        ),
+        selector_label(selector),
+        parsed.descriptor.source_len,
+        report.range.0,
+        report.range.1.saturating_sub(report.range.0),
+        report.bytes.len(),
+        s.ops_evaluated,
+        s.ops_total,
+        s.objects_fetched,
+        s.objects_total,
+        s.channels_decoded,
+        s.channels_total,
+        s.entropy_bytes_decoded,
+        s.descriptor_bytes_traversed,
+        s.output_bytes,
+        s.work_amplification(),
+    )
+}
+
+#[cfg(feature = "rans")]
+fn selector_label(selector: &ObservationSelector) -> String {
+    match selector {
+        ObservationSelector::ByteRange { offset, len } => format!("byte-range:{offset}:{len}"),
+        ObservationSelector::PdfIndirectObject { object, generation } => {
+            format!("pdf-object:{object}:{generation}")
+        }
+        ObservationSelector::PdfEncodedStream { object, generation } => {
+            format!("pdf-stream:{object}:{generation}")
+        }
+        ObservationSelector::PdfRevision { index } => format!("pdf-revision:{index}"),
     }
 }
 
@@ -327,6 +635,204 @@ fn cmd_pdf_make_samples(dir: &Path) -> Result<()> {
         names.join(",")
     );
     Ok(())
+}
+
+/// Number of `FlateDecode` streams (and pages) the large generator emits by
+/// default.
+const LARGE_DEFAULT_OBJECTS: u64 = 800;
+
+/// Source-corpus size floor for the partial-materialization query court
+/// (contract §5.1, ≥ 32 MiB). The per-stream plaintext length is scaled so the
+/// generated PDF reaches this regardless of the object count.
+const LARGE_TARGET_BYTES: u64 = 32 * 1024 * 1024;
+
+/// Upper bound on the requested object count, so a hostile argument cannot make
+/// the generator allocate without bound.
+const LARGE_MAX_OBJECTS: u64 = 100_000;
+
+/// Write a large, deterministic, multi-object classic-xref PDF to `DIR/large.pdf`.
+///
+/// `OBJECTS` (default 800) is the number of pages; each page carries its own
+/// `/FlateDecode` content stream, so there are `OBJECTS` lone-`FlateDecode`
+/// streams and `2*OBJECTS + 3` indirect objects (catalog, pages, font, and one
+/// page + one content object per page). Per-stream plaintext is generated from a
+/// stream-indexed LCG so every stream's bytes are *distinct* (no accidental
+/// cross-stream sharing), and each stream is a real, self-contained zlib
+/// (RFC 1950) stream whose `/Length` and every xref offset are correct by
+/// construction. The per-stream plaintext length is scaled so the total source is
+/// at least 32 MiB.
+///
+/// This subcommand is encode-time corpus tooling: it lives in the binary, adds no
+/// library or runtime dependency, and its output is regenerable and gitignored.
+fn cmd_pdf_make_large(dir: &Path, objects_arg: Option<&str>) -> Result<()> {
+    let objects: u64 = match objects_arg {
+        Some(s) => s
+            .parse()
+            .map_err(|_| Error::usage(format!("OBJECTS {s:?} is not a non-negative integer")))?,
+        None => LARGE_DEFAULT_OBJECTS,
+    };
+    if objects == 0 || objects > LARGE_MAX_OBJECTS {
+        return Err(Error::usage(format!(
+            "OBJECTS must be between 1 and {LARGE_MAX_OBJECTS}"
+        )));
+    }
+    let bytes = pdf::large_pdf(objects, LARGE_TARGET_BYTES);
+    fs::create_dir_all(dir)?;
+    let name = "large.pdf";
+    write_atomic(&dir.join(name), &bytes)?;
+    let indirect_objects = 2 * objects + 3;
+    println!(
+        "{{\"ok\":true,\"dir\":\"{}\",\"file\":\"{}\",\"objects\":{},\"streams\":{},\"indirect_objects\":{},\"source_len\":{},\"sha256\":\"{}\"}}",
+        json_escape(&dir.display().to_string()),
+        name,
+        objects,
+        objects,
+        indirect_objects,
+        bytes.len(),
+        integrity::to_hex(&integrity::sha256(&bytes)),
+    );
+    Ok(())
+}
+
+/// Machine-readable exact-DEFLATE-replay correction-ratio view of each input.
+///
+/// Emits one JSON line per input: per-`FlateDecode`-stream `compressed_bytes`,
+/// `plaintext_bytes`, `correction_bytes`, `rans_plaintext_bytes`, the ratios
+/// `correction/compressed`, `(plaintext+correction)/compressed`, and
+/// `(rans_plaintext+correction)/compressed`, plus the aggregate. A non-PDF is
+/// reported with `"is_pdf":false` and no streams (exit 0). Ratios are rendered
+/// as fixed-point decimals computed with integer arithmetic only; they are
+/// diagnostics and never a persisted representation.
+///
+/// Two aggregate complete-cost figures are reported so shared plaintext is not
+/// overcounted: `replayed_rans_full_bytes` is the **naive per-stream** sum
+/// (each stream pays its own rANS plaintext cost plus its own correction), while
+/// `replayed_rans_dedup_bytes` charges each **unique** plaintext (rANS) and each
+/// **unique** correction blob once, mirroring what the shared-channel
+/// `PDF_DEFLATE_REPLAY_RANS` candidate actually stores. The deduped figure is
+/// therefore ≤ the naive one, with equality exactly when no plaintext or
+/// correction repeats.
+#[cfg(feature = "deflate-replay")]
+fn cmd_deflate_stats(inputs: &[PathBuf], limits: Limits) -> Result<()> {
+    for input in inputs {
+        let bytes = fs::read(input)?;
+        let stats = pdf::deflate_stats(&bytes, limits)?;
+        println!("{}", deflate_stats_json(input, &stats));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "deflate-replay")]
+fn deflate_stats_json(input: &Path, stats: &pdf::DeflateStats) -> String {
+    let streams: Vec<String> = stats.streams.iter().map(stream_stats_json).collect();
+    let s = &stats.summary;
+    let replayed_full = s.plaintext_bytes.saturating_add(s.correction_bytes);
+    let replayed_rans_full = s.rans_plaintext_bytes.saturating_add(s.correction_bytes);
+    let replayed_rans_dedup = s.replayed_rans_dedup_bytes;
+    format!(
+        concat!(
+            "{{",
+            "\"file\":\"{}\",",
+            "\"is_pdf\":{},",
+            "\"streams\":[{}],",
+            "\"summary\":{{",
+            "\"flate_streams\":{},",
+            "\"replayed\":{},",
+            "\"declined\":{},",
+            "\"compressed_bytes\":{},",
+            "\"plaintext_bytes\":{},",
+            "\"correction_bytes\":{},",
+            "\"rans_plaintext_bytes\":{},",
+            "\"correction_over_compressed\":{},",
+            "\"replayed_full_bytes\":{},",
+            "\"replayed_rans_full_bytes\":{},",
+            "\"replayed_rans_dedup_bytes\":{}",
+            "}}",
+            "}}"
+        ),
+        json_escape(&input.display().to_string()),
+        stats.is_pdf,
+        streams.join(","),
+        s.flate_streams,
+        s.replayed,
+        s.declined,
+        s.compressed_bytes,
+        s.plaintext_bytes,
+        s.correction_bytes,
+        s.rans_plaintext_bytes,
+        ratio6(s.correction_bytes, s.compressed_bytes),
+        replayed_full,
+        replayed_rans_full,
+        replayed_rans_dedup,
+    )
+}
+
+#[cfg(feature = "deflate-replay")]
+fn stream_stats_json(s: &pdf::StreamStats) -> String {
+    let reason = match s.decline_reason {
+        Some(r) => format!("\"{r}\""),
+        None => "null".to_string(),
+    };
+    let raw_ratio = match s.correction_bytes {
+        Some(c) => ratio6(c, s.compressed_bytes),
+        None => "null".to_string(),
+    };
+    let plain_ratio = match (s.plaintext_bytes, s.correction_bytes) {
+        (Some(p), Some(c)) => ratio6(p.saturating_add(c), s.compressed_bytes),
+        _ => "null".to_string(),
+    };
+    let rans_ratio = match (s.rans_plaintext_bytes, s.correction_bytes) {
+        (Some(r), Some(c)) => ratio6(r.saturating_add(c), s.compressed_bytes),
+        _ => "null".to_string(),
+    };
+    format!(
+        concat!(
+            "{{",
+            "\"object\":{},",
+            "\"generation\":{},",
+            "\"compressed_bytes\":{},",
+            "\"replayed\":{},",
+            "\"decline_reason\":{},",
+            "\"plaintext_bytes\":{},",
+            "\"correction_bytes\":{},",
+            "\"rans_plaintext_bytes\":{},",
+            "\"raw_ratio\":{},",
+            "\"plain_ratio\":{},",
+            "\"rans_ratio\":{}",
+            "}}"
+        ),
+        s.object,
+        s.generation,
+        s.compressed_bytes,
+        s.replayed,
+        reason,
+        opt_u64(s.plaintext_bytes),
+        opt_u64(s.correction_bytes),
+        opt_u64(s.rans_plaintext_bytes),
+        raw_ratio,
+        plain_ratio,
+        rans_ratio,
+    )
+}
+
+#[cfg(feature = "deflate-replay")]
+fn opt_u64(v: Option<u64>) -> String {
+    match v {
+        Some(n) => n.to_string(),
+        None => "null".to_string(),
+    }
+}
+
+/// Fixed-point ratio with six decimals, computed with integer arithmetic only
+/// (truncating division). Diagnostics only; never decides a persisted value.
+#[cfg(feature = "deflate-replay")]
+fn ratio6(num: u64, den: u64) -> String {
+    if den == 0 {
+        return "0.000000".to_string();
+    }
+    let scaled = u128::from(num) * 1_000_000;
+    let q = scaled / u128::from(den);
+    format!("{}.{:06}", q / 1_000_000, q % 1_000_000)
 }
 
 /// Stable string name for an object role, as used in the oracle JSON.

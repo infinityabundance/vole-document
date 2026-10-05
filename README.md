@@ -22,6 +22,12 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 
 ## Status
 
+Current release: **`0.1.0-alpha.9`** (Phase 7). Exactness is unchanged
+(`materialize(descriptor) == original_bytes`); whole-file compression remains a
+recorded loss against generic lossless tools (ADR-0017), and the pivoted Phase-7
+result is a scoped random-access **decode-CPU** win with an explicit no-I/O-win
+v1 caveat (ADR-0018).
+
 | Area | State | Evidence |
 |---|---|---|
 | Exact `.voldoc` container (framing, header, records) | **Implemented** | `src/container/`, unit + conformance courts |
@@ -60,10 +66,17 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | Exact DEFLATE replay, raw plaintext (`PDF_DEFLATE_REPLAY`) | **Recorded — rejected vs `BYTE_RANS`** | campaign `2026-10-05-phase6-0d0bb79`; byte-exact, but on `flate.pdf` 56,736 vs `BYTE_RANS` 49,291 (plaintext ≈ bitstream) |
 | Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | **Adopted — first structural win** | campaign `2026-10-05-phase6-0d0bb79`; `flate.pdf` 36,102 vs `BYTE_RANS` 49,291 (**−13,189 B**) (ADR-0015) |
 | Phase-6 replay court (`--force pdf-deflate-replay[-rans]`) | **Measured** | `tools/phase6-court.sh`; campaign `2026-10-05-phase6-0d0bb79` |
+| Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; amendment campaign `2026-10-05-phase7-corpus-b-c4eb77e` (supersedes `2026-10-05-phase7-corpus-f1f8d26`); 24/24 replayed, 0 declined; diagnostic only, no new candidate |
+| Generator-family Flate corpus (`producers`: ReportLab/Cairo/LibreOffice/pdfTeX) | **Measured (claim corrected 7.0c)** | campaign `2026-10-05-phase7-producers-e071250`; 87/87 replayed; `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` on Cairo (58,711 → 34,574, −24,137 B) but the Cairo file is a **repeated-identical-bytes harness artifact** (six byte-identical streams), and generic LZ does ~2× better (gzip -9 17,382 B; xz -9e 16,852 B); the "first authoring-generator witness" claim is withdrawn; no candidate changed |
+| Generic-compressor baseline ladder (gzip/zstd/xz/brotli vs VOLE) | **Measured — the honest comparison** | campaign `2026-10-05-phase7-baselines-7b9f662`; `tools/baselines.sh` + opt-in `baseline` image; **VOLE beats gzip/zstd/xz/brotli on 0/27 files** (+460,320 B vs the best generic); prior "wins" were relative to the weak order-0 `BYTE_RANS` lane |
+| Coverage-guided fuzzing (`cargo-fuzz`, ten targets) | **Measured** | campaign `2026-10-05-phase7-fuzz-ca6a92b`; pinned `nightly-bookworm-slim-2026-10-04` + `cargo-fuzz 0.13.2`; 9/10 targets zero-crash; two upstream `preflate-rs` findings (F1 mitigated + regression test; F2 contained on the decode path by process isolation, ADR-0016) |
+| Process-isolated DEFLATE replay (`__replay-worker`) | **Implemented** | `replay_bounded` runs `preflate` in a child under `RLIMIT_AS` + a wall-clock timeout; knobs `VOLE_REPLAY_WORKER`/`VOLE_REPLAY_MEM_MB`/`VOLE_REPLAY_TIMEOUT_MS`; a library embedder without a worker keeps the in-process residual |
+| Partial materialization (`OBSERVATION_INDEX` + `view`) | **Measured — scoped positive (decode CPU, no I/O win)** | campaign `2026-10-05-phase7-partial-a5764c9`; 18/18 queries byte-exact; mid/late queries touch ~0.41–0.43 MB (`descriptor_bytes_traversed` alone; its `entropy_bytes_decoded` breakdown is a subset already counted there and must not be added) vs gzip inflating `a+len` (late region 1.4–2.3 %, ~2–5× faster than gzip, ~4–13× than xz); **v1 reads the whole descriptor, so on-disk I/O is not reduced** and it loses in the early region (≤ ~8–16 MiB) (ADR-0018) |
+| Deterministic large corpus generator (`pdf-make-large`) | **Tooling** | encode-time subcommand; classic-xref PDF of `OBJECTS` (default 800) distinct zlib `FlateDecode` streams, ≥32 MiB, correct by construction; bytes gitignored |
 | PDF structural adapters (Phases 7–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
-| Partial materialization (Phase 11) | Planned | — |
+| Partial materialization checkpoints / seek reader (Phase 11+) | Planned | v1 `view` measured in 7.3; a seek/mmap reader is the prerequisite for an I/O win |
 
 "Implemented" means the mechanism exists and is tested. "Measured" means there is
 a sealed campaign under `evidence/`. The Phase-1 core establishes exactness,
@@ -345,6 +358,208 @@ positive for a PDF structural candidate
 Receipt:
 [`evidence/campaigns/2026-10-05-phase6-0d0bb79/`](evidence/campaigns/2026-10-05-phase6-0d0bb79/).
 
+### Producer-stratified Flate ratio (Phase 7.0) measured results
+
+`tools/pdf-corpus.sh` builds a locally-generated corpus from distinct producer
+lineages (Ghostscript 10.00.0 at five `/PDFSETTINGS`, qpdf 11.3.0 in four modes,
+a hand-written stored-block-zlib base, plus the Phase-3 synthetic set), and
+`vole-document deflate-stats` measures the exact-replay ratio per `FlateDecode`
+stream — `correction/compressed`, `(plaintext+corr)/compressed`,
+`(rANS(plaintext)+corr)/compressed` — with p10/p50/p90 by producer, the
+exact-replay acceptance rate, and every decline. It also reports two aggregate
+complete costs so shared plaintext is not overcounted:
+`replayed_rans_full_bytes` (naive per-stream sum) and
+`replayed_rans_dedup_bytes` (one charge per unique plaintext + one per unique
+correction, matching the shared-channel candidate).
+
+On 24 `FlateDecode` streams (re-measured after the Stage-A lexer stream-boundary
+fix): **24 replayed, 0 declined (acceptance 1.000)**. The pre-fix run saw only 17
+streams (11 replayed, 6 declined); the census rose because the old over-read had
+swallowed whole stream objects (every qpdf-generated file was undercounted;
+`qpdf-preserve-objectstreams.pdf` had reported zero). The Phase-6 win region
+appears **only in our own hand-authored fixtures** (`hand-base2.pdf`: deduped
+rANS 55,531 vs naive 111,062; `flate.pdf`: 34,051 vs 89,437). The same geometry
+in `qpdf-preserve-objectstreams.pdf` (55,531 vs 111,062) is present **only
+because qpdf `--object-streams=preserve` copied and renumbered the two
+byte-identical raw streams already authored in `hand-base2.pdf`** (confirmed via
+`qpdf --raw-stream-data`: all four stream hashes are `ec028dc1…`); the fixture
+already wins 112,011 → 56,885 B and qpdf adds +41 B, so **99.93% of the reported
+qpdf win is inherited**. No genuinely transformed producer output exhibits the
+region. Corpus-wide `correction/compressed` p10/p50/p90 = 0.000320 / **0.014716**
+/ 0.097360; the `0.004518` median is the `pdf-make-samples` subset only.
+The six former declines were all `not_zlib` **because of a scanner locality
+limitation** — the lexer's `find_endstream` required an EOL before `endstream`,
+which Ghostscript omits (spec "should", qpdf-tolerated) — not because those
+streams are not zlib (they begin `78 9c`, confirmed via `qpdf --raw-stream-data`).
+That limitation is **fixed** (commit `c4eb77e`): `find_endstream` now locates the
+`endstream` keyword by right-termination. This is a **scoped** result about
+locally generated files; qpdf/Ghostscript are transformers, not authoring apps,
+and browser/office/TeX families remain a recorded gap. No candidate is adopted.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase7-corpus-b-c4eb77e/`](evidence/campaigns/2026-10-05-phase7-corpus-b-c4eb77e/)
+(amendment; supersedes the original
+[`2026-10-05-phase7-corpus-f1f8d26/`](evidence/campaigns/2026-10-05-phase7-corpus-f1f8d26/));
+report: [`docs/evidence/phase7-corpus-report.md`](docs/evidence/phase7-corpus-report.md).
+
+**Complete-cost court (the decisive Phase-7.0 measurement).** The ratio harness
+is a diagnostic; the court decides. A second sealed campaign
+(`2026-10-05-phase7-court-99dc72e`, commit `99dc72e`, driver
+`tools/pdf-court.sh`) runs the real CLI over all 23 locally generated corpus
+files — unforced and with `--force raw|byte-rans|pdf-deflate-replay|pdf-deflate-replay-rans`
+— and compares complete serialized `.voldoc` sizes. `PDF_DEFLATE_REPLAY_RANS` vs
+`BYTE_RANS`: **win 3, lose 8, decline 12 — all 3 wins self-authored**. The wins
+are exactly the Phase-6 shared-plaintext geometry, and in all three the unforced
+court picks `PDF_DEFLATE_REPLAY_RANS`:
+
+```text
+qpdf-preserve-objectstreams.pdf  BYTE_RANS 112147 -> PDF_DEFLATE_REPLAY_RANS 56980  (-55167)
+hand-base2.pdf                   BYTE_RANS 112011 -> PDF_DEFLATE_REPLAY_RANS 56885  (-55126)
+_synthetic/flate.pdf             BYTE_RANS  49291 -> PDF_DEFLATE_REPLAY_RANS 36102  (-13189)
+```
+
+The reported "qpdf win" is not a transformed-producer result:
+`qpdf --object-streams=preserve` copied and renumbered the two byte-identical raw
+streams (`ec028dc1…`) already authored in our `hand-base2.pdf` fixture (the
+fixture wins 112,011 → 56,885 B; qpdf adds only **+41 B**, so **99.93% of the
+55,167 B win is inherited**). Every **genuinely transformed** producer output
+loses or declines on this corpus: all 5 Ghostscript variants and both qpdf
+compression variants (unique, strongly-compressed plaintext) **lose**, and the 12
+files with no replayable Flate lane **decline** (a forced lane the input does not
+propose is a typed `Usage` error, recorded `null`). So on this locally generated
+corpus exact replay **wins 3 / loses 8 / declines 12, and all 3 wins are
+self-authored** (two fixtures plus a preserved copy of one). `--deterministic-id`
+is a `/ID`-only normalization (55,165 B no-flag vs 55,167 B flagged): it makes
+the court reproducible but neither creates nor destroys the win. The Phase-6 win
+is real and byte-exact, but its enabling condition (a plaintext shared across
+streams with a large/weakly-coded appearance) is **not produced by the tested
+transformers**, which motivates Phase 7.2 (nested content proceduralization). All
+23 auto winners are `verify` + `cmp` byte-exact. The corpus is **locally
+generated** and is **not a population sample**; qpdf and Ghostscript are
+**transformers, not authoring applications**, and browser/PDFium, LibreOffice,
+pdfTeX and Adobe outputs remain a recorded gap. No candidate is adopted and no
+wire format changed.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase7-court-99dc72e/`](evidence/campaigns/2026-10-05-phase7-court-99dc72e/).
+
+### Generator-family Flate corpus (Phase 7.0b) measured results
+
+The Phase-7.0 gap was that qpdf and Ghostscript are **transformers** and never emit
+the shared plaintext the win region needs. Phase 7.0b adds a separate, opt-in
+`producers` image (`Dockerfile` stage + compose service, base
+`debian:bookworm-slim@sha256:3783cc01…`, the same digest as `tools`; ~724 MB) with
+four real **authoring generators**: ReportLab 3.6.12, Cairo 1.20.1/libcairo 1.16.0,
+LibreOffice Writer 7.4.7.2, and pdfTeX 3.141592653-2.6-1.40.24. All four ran.
+`tools/pdf-corpus-producers.sh` generates one PDF per family from the same
+deterministic content document as `tools/pdf-corpus.sh`, fingerprints every
+`/FlateDecode` payload, and applies
+`qpdf --deterministic-id --stream-data=preserve --object-streams=preserve` only when
+it leaves every payload byte-identical (ReportLab, Cairo, LibreOffice; pdfTeX kept
+raw). ReportLab/Cairo/pdfTeX are byte-reproducible; LibreOffice is not.
+
+`deflate-stats`: **87 Flate streams, 87 replayed, 0 declined → acceptance 1.000**;
+corpus-wide `correction/compressed` p10/p50/p90 = 0.034759 / 0.047945 / 0.068028.
+
+Complete-cost court: `PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS` — **win 1 / lose 3 /
+decline 0**:
+
+```text
+cairo-vector.pdf        BYTE_RANS  58711 -> PDF_DEFLATE_REPLAY_RANS  34574  (-24137)  WIN
+reportlab-multipage.pdf BYTE_RANS  11144 -> PDF_DEFLATE_REPLAY_RANS  14456  (+3312)   lose
+pdftex-doc.pdf          BYTE_RANS  24435 -> PDF_DEFLATE_REPLAY_RANS  35098  (+10663)  lose
+libreoffice-export.pdf  BYTE_RANS  72791 -> PDF_DEFLATE_REPLAY_RANS 375265 (+302474)  lose
+```
+
+**Correction (Phase 7.0c): the Cairo "win" is a harness repeated-bytes artifact.**
+An independent adversarial review found that `tools/pdf-corpus-producers.sh` draws
+**one identical page six times** (no per-page variation), so Cairo emits six streams
+whose **compressed bytes are identical *and* whose plaintexts are identical**. The
+court therefore cannot distinguish plaintext-sharing from plain compressed-byte
+repetition, and generic LZ captures far more of the same redundancy: on
+`cairo-vector.pdf`, `gzip -9` = **17,382 B**, `zlib -9` = 17,376 B and `xz -9e` =
+**16,852 B** — about **half** the 34,574 B reported as the "winning"
+`PDF_DEFLATE_REPLAY_RANS` size. `BYTE_RANS` is a weak order-0 baseline with no LZ, so
+the −24,137 B delta is a win over an order-0 lane on repeated identical bytes. The
+phrases "a genuine authoring application does produce the win region", "the producer
+creates the geometry" and "first authoring-generator witness" are **withdrawn**.
+Correct characterization: *our deterministic generator repeated one identical page
+six times; Cairo emitted six byte-identical streams (compressed bytes and plaintext
+both identical); this witnesses a repeated-identical-bytes region already captured
+better by generic LZ, not the shared-plaintext-vs-distinct-compression mechanism.*
+ReportLab and pdfTeX are the same story (identical repeats) and **lose** at complete
+cost; LibreOffice shares nothing. The delta is **conditional** on repeated identical
+page content and is **not** a population claim; prior "wins" were measured against a
+weak order-0 baseline and the generic ladder (below) is the honest comparison. No
+candidate or wire format changed. Review:
+[`docs/evidence/phase7b-skeptic-review.md`](docs/evidence/phase7b-skeptic-review.md).
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase7-producers-e071250/`](evidence/campaigns/2026-10-05-phase7-producers-e071250/);
+script `tools/pdf-corpus-producers.sh`; ledger
+[`evidence/corpus/phase7-producers/provenance.json`](evidence/corpus/phase7-producers/provenance.json).
+
+### Generic-compressor baseline ladder (Phase 7.0c) measured results
+
+Phase 7.0/7.0b measured VOLE only against `BYTE_RANS`, a whole-file **order-0
+byte-rANS** lane with no LZ. Phase 7.0c adds the honest comparison: a pinned,
+opt-in `baseline` image (the pinned `dev` base plus `gzip`, `zstd`, `xz`, `brotli`,
+`jq`) and `tools/baselines.sh`, which for every corpus file records the smallest
+lossless complete-file size for `gzip -9`, `zstd -19 --long=27`, `xz -9e` and
+`brotli -q 11` (each round-trip verified) and the complete serialized `.voldoc`
+size of every VOLE lane, then compares against the best VOLE lane.
+
+**Result: on 27 corpus files the best VOLE lane beats gzip/zstd/xz/brotli on 0
+files.** The best generic compressor is smaller on every file, by **+460,320 B**
+total (phase7 +410,355 over 23 files; producers +49,965 over 4). On the Cairo file
+the "winning" 34,574 B is **2.07×** brotli's 16,670 B; on `flate.pdf` the 36,102 B
+is **1.91×** xz's 18,884 B:
+
+```text
+cairo-vector.pdf        source 58424  gzip 17382  zstd 16836  xz 16852  brotli 16670  BYTE_RANS 58711  best VOLE 34574  (+17904 vs brotli)
+_synthetic/flate.pdf    source 57513  gzip 22426  zstd 20171  xz 18884  brotli 18891  BYTE_RANS 49291  best VOLE 36102  (+17218 vs xz)
+```
+
+Prior "wins" were relative to a weak order-0 baseline and do not survive the
+generic ladder. VOLE's byte-exact structural reconstruction is unchanged; its
+*compression* claim does not survive on this corpus. All 27 auto winners are
+`verify` + `cmp` byte-exact; no candidate or wire format changed. Review:
+[`docs/evidence/phase7b-skeptic-review.md`](docs/evidence/phase7b-skeptic-review.md).
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/`](evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/)
+(full per-file table `baseline-table.md`); driver `tools/baselines.sh`.
+
+### Partial materialization / observation views (Phase 7.3) measured results
+
+Whole-file compression loses (above), so Phase 7.3 measures the pivoted axis —
+**random-access query cost**. `view` serves one output range from a descriptor
+carrying an optional, advisory `OBSERVATION_INDEX`: when the program is a
+sequence of linear independent ops it evaluates only the ops intersecting
+`[a,b)` and decodes only the referenced entropy channels, and every served slice
+is `cmp`'d against the full materialization. The corpus is a 33,789,340 B
+(32.22 MiB), 800-stream deterministic PDF from the encode-time `pdf-make-large`
+subcommand (`qpdf --check` rc 0; 800 replayed / 0 declined).
+
+**Result: a scoped positive on decode CPU, byte-exact on all 18
+pre-registered queries.** For any query at ≥ ~2 MiB the indexed lane touches
+~0.41–0.43 MB (`descriptor_bytes_traversed` alone; its `entropy_bytes_decoded`
+breakdown is a subset already counted there and must not be added) regardless
+of offset, while gzip must inflate `a + len`; in the late region (≥ 50 % in) that
+is **1.4–2.3 %** of gzip's bytes, and VOLE is **~2–5× faster than gzip** and
+**~4–13× faster than xz** on CPU. It **loses** in the early region (≤ ~8–16 MiB),
+**never beats zstd's raw decompressor** on wall time, uses ~38 MB peak RSS vs
+gzip's ~1.2 MB, and whole-file size is still **2.98×** xz. The decisive caveat:
+`view` reads and parses the **whole** descriptor, so on-disk I/O is **not**
+reduced (no bytes-read win yet; `descriptor_bytes_traversed` is a CPU-side
+approximation) — an mmap/seek reader is the prerequisite for that claim.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase7-partial-a5764c9/`](evidence/campaigns/2026-10-05-phase7-partial-a5764c9/)
+(`query-table.md`, `report.md`); report
+[`docs/evidence/phase7-partial-report.md`](docs/evidence/phase7-partial-report.md);
+drivers `tools/partial-court.sh`, `tools/partial-table.jq`; ADR-0018.
+
 ## Quick start (Docker only)
 
 All project commands run inside pinned containers. The host only invokes Docker.
@@ -362,6 +577,21 @@ docker compose run --rm --no-TTY dev cargo fmt --all --check
 docker compose build msrv
 docker compose run --rm --no-TTY msrv cargo build --locked
 
+# Generic-compressor baseline ladder (Phase 7.0c; opt-in baseline image)
+docker compose build baseline
+docker compose run --rm --no-TTY dev cargo build --locked --all-features
+docker compose run --rm --no-TTY -e BASELINE_CORPUS=phase7 baseline \
+  sh tools/baselines.sh /tmp/baselines.json evidence/corpus/phase7
+
+# Partial-materialization query court (Phase 7.3; opt-in baseline image)
+docker compose run --rm --no-TTY dev \
+  ./target/debug/vole-document pdf-make-large evidence/corpus/phase7-large 800
+docker compose run --rm --no-TTY dev ./target/debug/vole-document encode \
+  --force pdf-deflate-replay-rans-indexed evidence/corpus/phase7-large/large.pdf /tmp/large.voldoc
+docker compose run --rm --no-TTY baseline \
+  sh tools/partial-court.sh /tmp/queries.jsonl evidence/corpus/phase7-large/large.pdf \
+  /tmp/large.voldoc /tmp/large.pdf.gz /tmp/large.pdf.zst /tmp/large.pdf.xz
+
 # Phase 1 exact court (writes an evidence receipt)
 docker compose run --rm --no-TTY dev sh tools/phase1-court.sh
 ```
@@ -373,8 +603,10 @@ never authority):
 vole-document encode      [--force KIND] INPUT   OUTPUT.voldoc
 vole-document decode      INPUT.voldoc   OUTPUT
 vole-document materialize INPUT.voldoc   OUTPUT
+vole-document view        INPUT.voldoc [OUTPUT] --byte-range A:L | --pdf-object N:G | --pdf-stream N:G | --pdf-revision I [--stats]
 vole-document verify      INPUT.voldoc
 vole-document inspect     INPUT.voldoc
+vole-document pdf-make-large DIR [OBJECTS]
 vole-document capabilities
 ```
 
@@ -385,11 +617,38 @@ for honest per-mechanism ablation; it never
 bypasses exactness, and it fails with a typed usage error when the input does not
 propose that kind.
 
+## Fuzzing
+
+Two layers, both Docker-only:
+
+- **Deterministic property/mutation courts** (`tests/property.rs`,
+  `tests/goldens.rs`, `tests/malformed.rs`) plus the longer soak run
+  `tools/soak-fuzz.sh` (`VOLE_FUZZ_ITERS`, default 200000).
+- **Coverage-guided libFuzzer targets** (Phase 7.1) in the standalone `fuzz/`
+  `cargo-fuzz` package (excluded from `cargo package`), built and run in the
+  pinned dated-nightly `fuzz` Docker service:
+
+  ```sh
+  docker compose build fuzz
+  docker compose run --rm --no-TTY fuzz cargo fuzz build
+  FUZZ_SECONDS=60 docker compose run --rm --no-TTY fuzz sh tools/fuzz.sh
+  ```
+
+Ten targets cover the `.voldoc` container parser/materializer, the
+`encode`→`decode` round trip, the DRA decoder/analyzer/evaluator, the rANS model
+and channel decoders, the PDF lexer and physical scanner, xref/`/Prev`, the
+`DEFLATE_REPLAY` wrapper, and `verify`. See `fuzz/README.md` for the pinned
+toolchain, seeds, and regeneration. The sealed campaign
+`evidence/campaigns/2026-10-05-phase7-fuzz-ca6a92b/` observed zero crashes on
+nine of ten targets and reported two upstream `preflate-rs` findings (one
+mitigated fail-closed, one recorded upstream resource limitation).
+
 ## Repository layout
 
 ```text
 src/            one crate; modules for architectural separation
 tests/          exact / malformed / conformance courts
+fuzz/           cargo-fuzz coverage-guided targets (excluded from the crate)
 tools/          court and gate scripts (run inside Docker)
 docs/           architecture, ADRs, security, phase notes
 evidence/       immutable campaign receipts (machine-readable)

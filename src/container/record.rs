@@ -42,8 +42,12 @@ pub enum RecordTag {
     Residual = 0x50,
     /// A random-access checkpoint (later phases).
     Checkpoint = 0x60,
-    /// A physical/logical index (later phases).
-    Index = 0x70,
+    /// An optional observation index (Phase 7): op/selector/digest map.
+    ///
+    /// Reuses the reserved `0x70` slot. It is written with [`FLAG_OPTIONAL`]; a
+    /// decoder that does not implement partial decode skips it and still fully
+    /// materializes.
+    ObservationIndex = 0x70,
     /// A reference to an external content-addressed object (Phase 9+).
     ExternalRef = 0x80,
     /// Whole-source integrity manifest.
@@ -64,7 +68,7 @@ impl RecordTag {
             0x40 => Some(RecordTag::EntropyChannel),
             0x50 => Some(RecordTag::Residual),
             0x60 => Some(RecordTag::Checkpoint),
-            0x70 => Some(RecordTag::Index),
+            0x70 => Some(RecordTag::ObservationIndex),
             0x80 => Some(RecordTag::ExternalRef),
             0xF0 => Some(RecordTag::Integrity),
             0xFF => Some(RecordTag::Trailer),
@@ -83,7 +87,7 @@ impl RecordTag {
             RecordTag::EntropyChannel => "ENTROPY_CHANNEL",
             RecordTag::Residual => "RESIDUAL",
             RecordTag::Checkpoint => "CHECKPOINT",
-            RecordTag::Index => "INDEX",
+            RecordTag::ObservationIndex => "OBSERVATION_INDEX",
             RecordTag::ExternalRef => "EXTERNAL_REF",
             RecordTag::Integrity => "INTEGRITY",
             RecordTag::Trailer => "TRAILER",

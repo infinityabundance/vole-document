@@ -1,0 +1,4 @@
+{"file":"cairo-vector.pdf","source_len":58424,"auto_candidate":"PDF_DEFLATE_REPLAY_RANS","auto_len":34574,"raw":58819,"byte_rans":58711,"deflate_replay":48337,"deflate_replay_rans":34574,"verify_ok":true,"roundtrip_ok":true}
+{"file":"libreoffice-export.pdf","source_len":74371,"auto_candidate":"BYTE_RANS","auto_len":72791,"raw":74766,"byte_rans":72791,"deflate_replay":688130,"deflate_replay_rans":375265,"verify_ok":true,"roundtrip_ok":true}
+{"file":"pdftex-doc.pdf","source_len":23622,"auto_candidate":"RAW","auto_len":24017,"raw":24017,"byte_rans":24435,"deflate_replay":44967,"deflate_replay_rans":35098,"verify_ok":true,"roundtrip_ok":true}
+{"file":"reportlab-multipage.pdf","source_len":10906,"auto_candidate":"BYTE_RANS","auto_len":11144,"raw":11301,"byte_rans":11144,"deflate_replay":21228,"deflate_replay_rans":14456,"verify_ok":true,"roundtrip_ok":true}

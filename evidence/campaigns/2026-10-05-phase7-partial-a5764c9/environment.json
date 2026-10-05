@@ -1,0 +1,42 @@
+{
+  "campaign": "2026-10-05-phase7-partial-a5764c9",
+  "phase": "Phase 7.3 — partial materialization / observation views: random-access query cost vs generic compressors",
+  "utc_date": "2026-10-05T20:20:00Z",
+  "git_commit": "a5764c9",
+  "git_dirty_tracked": "0",
+  "dirty_note": "No tracked modifications at measurement time; the binary was built from a5764c9 (cargo build --locked --all-features). Only new untracked measurement tooling exists: tools/partial-court.sh and tools/partial-table.jq (plus the gitignored corpus/codec scratch).",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "dev_image": "vole-document/dev:1.99.0@sha256:652fbf80bd6631f9a80df84589bc1227e374a576d5267c343b87471b911415c8",
+  "baseline_image": "vole-document/baseline:1.99.0@sha256:5cbedbdf2b3e320a74abb043bdb095abca2d31170a74a5f5e258931163bc8a0b",
+  "baseline_stage_from": "dev (same pinned base digest as the measurement toolchain) + gzip/zstd/xz/brotli/jq/pv/time",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "ec8313a91baa81eebd13ed98b2cdc5abe43251c0c45caca3bba2df2441ee1039",
+  "binary_sha256": "3f4510ae7a89e338f806460bb200d0d19f36a61cdabc6a31583b9ef562f22b18",
+  "features": "deflate-replay,rans (cargo build --locked --all-features)",
+  "oracles": {
+    "qpdf": "11.3.0",
+    "ghostscript": "10.00.0",
+    "gzip": "1.12",
+    "zstd": "1.5.4",
+    "xz": "5.4.1",
+    "brotli": "1.0.9",
+    "jq": "1.6",
+    "pv": "1.6.20",
+    "time": "GNU time"
+  },
+  "commands": [
+    "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-large evidence/corpus/phase7-large 800",
+    "docker compose run --rm --no-TTY tools sh -c 'qpdf --check evidence/corpus/phase7-large/large.pdf; gs -q -o /dev/null -sDEVICE=nullpage evidence/corpus/phase7-large/large.pdf'",
+    "docker compose run --rm --no-TTY dev ./target/debug/vole-document encode --force pdf-deflate-replay-rans-indexed evidence/corpus/phase7-large/large.pdf evidence/scratch/phase7-partial/large.pdf-deflate-replay-rans-indexed.voldoc",
+    "docker compose run --rm --no-TTY dev ./target/debug/vole-document encode --force byte-rans evidence/corpus/phase7-large/large.pdf evidence/scratch/phase7-partial/large.byte-rans.voldoc",
+    "docker compose run --rm --no-TTY dev ./target/debug/vole-document encode --force pdf-physical evidence/corpus/phase7-large/large.pdf evidence/scratch/phase7-partial/large.pdf-physical.voldoc",
+    "docker compose run --rm --no-TTY baseline sh -c 'gzip -9 -c SRC > large.pdf.gz; zstd -19 --long=27 -q -c SRC > large.pdf.zst; xz -9e -c SRC > large.pdf.xz; brotli -q 11 -c SRC > large.pdf.br'",
+    "docker compose run --rm --no-TTY -e BASELINE_CORPUS=phase7-large baseline sh tools/baselines.sh large-baselines.json evidence/corpus/phase7-large/large.pdf",
+    "docker compose run --rm --no-TTY baseline sh tools/partial-court.sh queries.jsonl evidence/corpus/phase7-large/large.pdf large.pdf-deflate-replay-rans-indexed.voldoc large.pdf.gz large.pdf.zst large.pdf.xz",
+    "jq -rs -f tools/partial-table.jq queries.jsonl > query-table.md"
+  ],
+  "method": "VOLE `view` serves each pre-registered query from the indexed descriptor and reports its ObservationStats plus wall/CPU/peak-RSS from /usr/bin/time -v; every served slice is byte-compared (cmp) against the source. Each sequential baseline is timed directly with /usr/bin/time -v while a FIFO-fed consumer closes after the target output offset; gzip/zstd/xz decompress the same prefix (a+len bytes) and `pv -b -n` counts the compressed bytes read. CPU time is user+sys.",
+  "caveats": "v1 `view` reads and parses the whole framed descriptor into RAM, so on-disk I/O bytes are NOT reduced; descriptor_bytes_traversed is a CPU-side approximation. OS page cache dominates wall time; CPU time is the less noisy comparator."
+}

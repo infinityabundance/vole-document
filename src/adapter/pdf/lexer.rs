@@ -8,7 +8,7 @@
 //! `stream` *inside* a string can never be mistaken for structure.
 //!
 //! A `stream` keyword followed by an EOL switches to an **opaque payload** span
-//! that runs to the next EOL-preceded `endstream`. This is essential: compressed
+//! that runs to the next `endstream` keyword. This is essential: compressed
 //! stream bytes are high-entropy and routinely contain unbalanced string
 //! delimiters; tokenizing them would swallow all later structure. The payload is
 //! emitted as one `Regular` span (its exact bounds are re-derived from `/Length`
@@ -210,16 +210,34 @@ fn post_stream_eol_len(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
-/// First offset of `endstream` at or after `from` that is preceded by an EOL, or
-/// `None` if there is none. The preceding EOL is required by the specification
-/// and bounds the search to a plausible keyword position.
+/// First offset of the `endstream` keyword at or after `from`, or `None` if there
+/// is none.
+///
+/// A keyword is terminated on the right, so this requires the byte immediately
+/// after `endstream` to be PDF whitespace, a PDF delimiter, or EOF; the byte
+/// *before* may be anything (it is the last payload byte). Requiring a preceding
+/// EOL is wrong for real producers: Ghostscript 10.00.0 (and others) emit the
+/// stream payload immediately followed by `endstream` with no intervening EOL,
+/// so an EOL-preceded search over-reads the payload to a *later* `endstream` and
+/// corrupts all subsequent structure.
+///
+/// The false-positive risk is low: payload bytes would have to contain the
+/// literal 10-byte run `endstream` followed by a delimiter or whitespace, and the
+/// physical scanner additionally re-derives the exact bounds from `/Length` when
+/// one is present. The scan is bounded by `input.len()` and returns the first
+/// such occurrence.
 fn find_endstream(input: &[u8], from: usize) -> Option<usize> {
     let needle = b"endstream";
-    let mut i = from.max(1);
+    let mut i = from;
     while i + needle.len() <= input.len() {
-        if (input[i - 1] == b'\n' || input[i - 1] == b'\r') && &input[i..i + needle.len()] == needle
-        {
-            return Some(i);
+        if &input[i..i + needle.len()] == needle {
+            let terminated = match input.get(i + needle.len()) {
+                None => true,
+                Some(&b) => is_whitespace(b) || is_delimiter(b),
+            };
+            if terminated {
+                return Some(i);
+            }
         }
         i += 1;
     }
@@ -482,6 +500,118 @@ mod tests {
         assert_eq!(r.spans.spans[0].len, 16);
         assert_eq!(r.spans.spans[1].start, 16);
         assert_eq!(r.spans.spans[1].len, 1);
+    }
+
+    #[test]
+    fn stream_payload_without_trailing_eol_is_one_opaque_span() {
+        // Real producers (e.g. Ghostscript 10.00.0) write the payload directly
+        // before `endstream` with no intervening EOL. The payload here also
+        // contains an unbalanced `(` and `endstream`/`stream`-like runs that must
+        // not be mistaken for the terminating keyword.
+        let payload = b"(unbalanced ( with endstreamZ and streamY bytes";
+        let mut input = Vec::new();
+        input.extend_from_slice(b"stream\n");
+        input.extend_from_slice(payload);
+        input.extend_from_slice(b"endstream\n");
+
+        let r = run(&input);
+        assert_eq!(
+            kinds(&r),
+            vec![
+                SpanKind::Regular,    // stream
+                SpanKind::Whitespace, // \n
+                SpanKind::Regular,    // opaque payload
+                SpanKind::Regular,    // endstream
+                SpanKind::Whitespace, // \n
+            ]
+        );
+        let p = &r.spans.spans[2];
+        assert_eq!(
+            &input[p.start as usize..(p.start + p.len) as usize],
+            payload
+        );
+        let es = &r.spans.spans[3];
+        assert_eq!(
+            &input[es.start as usize..(es.start + es.len) as usize],
+            b"endstream"
+        );
+        assert!(r.issues.is_empty());
+        r.spans.validate(input.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn stream_payload_followed_by_eol_then_endstream_still_works() {
+        let input = b"stream\nhello\nendstream\n";
+        let r = run(input);
+        assert_eq!(
+            kinds(&r),
+            vec![
+                SpanKind::Regular,    // stream
+                SpanKind::Whitespace, // \n
+                SpanKind::Regular,    // opaque payload (hello + trailing EOL)
+                SpanKind::Regular,    // endstream
+                SpanKind::Whitespace, // \n
+            ]
+        );
+        let p = &r.spans.spans[2];
+        assert_eq!(
+            &input[p.start as usize..(p.start + p.len) as usize],
+            b"hello\n"
+        );
+        let es = &r.spans.spans[3];
+        assert_eq!(
+            &input[es.start as usize..(es.start + es.len) as usize],
+            b"endstream"
+        );
+        assert!(r.issues.is_empty());
+        r.spans.validate(input.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn endstream_at_eof_terminates_payload() {
+        let input = b"stream\npayloadendstream";
+        let r = run(input);
+        assert_eq!(
+            kinds(&r),
+            vec![
+                SpanKind::Regular,    // stream
+                SpanKind::Whitespace, // \n
+                SpanKind::Regular,    // payload
+                SpanKind::Regular,    // endstream (EOF-terminated)
+            ]
+        );
+        let es = &r.spans.spans[3];
+        assert_eq!(
+            &input[es.start as usize..(es.start + es.len) as usize],
+            b"endstream"
+        );
+        assert_eq!(es.start + es.len, input.len() as u64);
+        assert!(r.issues.is_empty());
+        r.spans.validate(input.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn endstream_like_run_without_right_terminator_is_not_a_keyword() {
+        // `endstreamZ` (regular byte after) must not terminate the payload, so the
+        // real `endstream\n` is the first recognised keyword.
+        let input = b"stream\nxx endstreamZ yyendstream\n";
+        let r = run(input);
+        assert_eq!(
+            kinds(&r),
+            vec![
+                SpanKind::Regular,    // stream
+                SpanKind::Whitespace, // \n
+                SpanKind::Regular,    // opaque payload
+                SpanKind::Regular,    // endstream
+                SpanKind::Whitespace, // \n
+            ]
+        );
+        let p = &r.spans.spans[2];
+        assert_eq!(
+            &input[p.start as usize..(p.start + p.len) as usize],
+            b"xx endstreamZ yy"
+        );
+        r.spans.validate(input.len() as u64).unwrap();
     }
 
     #[test]
