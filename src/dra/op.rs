@@ -26,6 +26,11 @@ pub enum Op {
         /// Number of extra copies.
         count: u32,
     },
+    /// Emit the decoded bytes of the referenced entropy channel.
+    DecodeChannel {
+        /// Index into the descriptor's entropy channel table.
+        channel_id: u32,
+    },
 }
 
 /// Opcode byte for [`Op::EmitObject`].
@@ -34,6 +39,8 @@ pub const OP_EMIT_OBJECT: u8 = 0x01;
 pub const OP_INLINE: u8 = 0x02;
 /// Opcode byte for [`Op::RepeatLast`].
 pub const OP_REPEAT_LAST: u8 = 0x03;
+/// Opcode byte for [`Op::DecodeChannel`].
+pub const OP_DECODE_CHANNEL: u8 = 0x04;
 
 impl Op {
     /// Encode this instruction into `out`.
@@ -53,6 +60,10 @@ impl Op {
             Op::RepeatLast { count } => {
                 out.push(OP_REPEAT_LAST);
                 out.extend_from_slice(&count.to_le_bytes());
+            }
+            Op::DecodeChannel { channel_id } => {
+                out.push(OP_DECODE_CHANNEL);
+                out.extend_from_slice(&channel_id.to_le_bytes());
             }
         }
         Ok(())
@@ -89,6 +100,10 @@ impl Op {
             OP_REPEAT_LAST => {
                 let count = read_u32(data, pos)?;
                 Ok(Op::RepeatLast { count })
+            }
+            OP_DECODE_CHANNEL => {
+                let id = read_u32(data, pos)?;
+                Ok(Op::DecodeChannel { channel_id: id })
             }
             other => Err(Error::invalid_graph(format!(
                 "unknown DRA opcode {other:#04x}"
@@ -130,6 +145,7 @@ mod tests {
         });
         roundtrip(Op::RepeatLast { count: 1_000_000 });
         roundtrip(Op::Inline { bytes: Vec::new() });
+        roundtrip(Op::DecodeChannel { channel_id: 3 });
     }
 
     #[test]

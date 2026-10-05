@@ -5,6 +5,7 @@
 //! searches, guesses, optimizes, or invokes external tools.
 
 use crate::container::{Descriptor, ParsedDescriptor};
+use crate::entropy::rans::{Capsule, decode_channel};
 use crate::error::{Error, Result};
 use crate::integrity::{sha256, to_hex};
 use crate::limits::Limits;
@@ -15,7 +16,27 @@ use crate::limits::Limits;
 /// whole-source SHA-256.
 pub fn materialize(parsed: &ParsedDescriptor, limits: Limits) -> Result<Vec<u8>> {
     let d = &parsed.descriptor;
-    let out = d.program.eval(&d.objects, limits)?;
+
+    // Decode every entropy channel in table order. Each channel must name a
+    // model that was already cross-validated by `Descriptor::parse`.
+    let mut channels: Vec<Vec<u8>> = Vec::with_capacity(d.channels.len());
+    for channel in &d.channels {
+        let model = d.models.get(channel.model_id as usize).ok_or_else(|| {
+            Error::invalid_model(format!(
+                "entropy channel references missing model {}",
+                channel.model_id
+            ))
+        })?;
+        let capsule = Capsule {
+            initial_state: channel.initial_state,
+            payload: channel.payload.clone(),
+            symbol_count: channel.symbol_count,
+            decoded_length: channel.decoded_length,
+        };
+        channels.push(decode_channel(model, &capsule, limits)?);
+    }
+
+    let out = d.program.eval(&d.objects, &channels, limits)?;
     if out.len() as u64 != d.source_len {
         return Err(Error::reconstruction_mismatch(format!(
             "materialized {} bytes but {} were declared",
@@ -73,9 +94,11 @@ mod tests {
 
     fn descriptor_for(source: &[u8]) -> Descriptor {
         Descriptor {
-            universe: crate::container::UNIVERSE_V1.to_string(),
+            universe: crate::container::UNIVERSE.to_string(),
             source_format: SOURCE_FORMAT_OPAQUE,
             format_basis: "opaque:test".to_string(),
+            models: vec![],
+            channels: vec![],
             objects: vec![source.to_vec()],
             program: crate::dra::Program::new(vec![Op::EmitObject { object_id: 0 }]),
             source_sha256: sha256(source),

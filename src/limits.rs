@@ -24,6 +24,12 @@ pub struct Limits {
     pub max_repeat_count: u64,
     /// Maximum number of symbols in a single entropy channel.
     pub max_channel_symbols: u64,
+    /// Maximum number of distinct entropy models (`MODEL` records).
+    pub max_model_count: u32,
+    /// Maximum number of entropy channels (`ENTROPY_CHANNEL` records).
+    pub max_channel_count: u32,
+    /// Maximum encoded size of a single entropy model payload.
+    pub max_entropy_model_bytes: u32,
 }
 
 impl Limits {
@@ -37,6 +43,9 @@ impl Limits {
         max_graph_ops: 1 << 20,
         max_repeat_count: 1 << 32,
         max_channel_symbols: 1 << 40,
+        max_model_count: 1 << 16,
+        max_channel_count: 1 << 16,
+        max_entropy_model_bytes: 4096,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -49,6 +58,9 @@ impl Limits {
         max_graph_ops: 1 << 16,
         max_repeat_count: 1 << 24,
         max_channel_symbols: 1 << 26,
+        max_model_count: 1 << 12,
+        max_channel_count: 1 << 12,
+        max_entropy_model_bytes: 4096,
     };
 }
 

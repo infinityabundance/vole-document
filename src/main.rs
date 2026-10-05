@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use vole_document::container::UNIVERSE_V1;
+use vole_document::container::UNIVERSE;
 use vole_document::dra::Op;
 use vole_document::error::{Error, Result};
 use vole_document::limits::Limits;
@@ -195,7 +195,7 @@ fn cmd_capabilities() -> Result<()> {
         ),
         vole_document::container::header::FORMAT_MAJOR,
         vole_document::container::header::FORMAT_MINOR,
-        UNIVERSE_V1,
+        UNIVERSE,
         cfg!(feature = "rans"),
     );
     Ok(())
@@ -206,6 +206,7 @@ fn describe_op(op: &Op) -> String {
         Op::EmitObject { object_id } => format!("EMIT_OBJECT({object_id})"),
         Op::Inline { bytes } => format!("INLINE({})", bytes.len()),
         Op::RepeatLast { count } => format!("REPEAT_LAST({count})"),
+        Op::DecodeChannel { channel_id } => format!("DECODE_CHANNEL({channel_id})"),
     }
 }
 
