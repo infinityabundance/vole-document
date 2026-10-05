@@ -30,7 +30,7 @@ record  := tag:u8 flags:u8 reserved:u16=0 length:u32 payload:[u8;length] crc32c:
 | 12 | 4 | `mandatory_features` | unknown bits fail closed |
 | 16 | 4 | `optional_features` | may be ignored |
 | 20 | 1 | `exactness_profile` | `0 = EXACT_BYTES` (only normative value) |
-| 21 | 1 | `source_format` | `0 = OPAQUE` |
+| 21 | 1 | `source_format` | `0 = OPAQUE`, `1 = PDF` (Phase 3); unknown fails closed |
 | 22 | 2 | `reserved_a` | must be `0` |
 | 24 | 16 | `universe_id` | first 16 bytes of `SHA-256(universe_string)` |
 | 40 | 8 | `declared_source_len` | exact reconstructed length |
@@ -108,15 +108,16 @@ class of bugs at the representation boundary.
 
 ## Universe declaration
 
-The Phase-2 universe string is:
+The Phase-3 universe string is:
 
 ```text
-vole-document;universe;phase-2;exact-bytes;dra-2;opaque+entropy
+vole-document;universe;phase-3;exact-bytes;dra-2;opaque+entropy+pdf
 ```
 
 The header's `universe_id` is the first 16 bytes of `SHA-256` over this string.
 Any change to an opcode, coder, limit semantic, adapter meaning, or hash semantic
-requires a new universe string.
+requires a new universe string. This supersedes the Phase-2 string
+(`vole-document;universe;phase-2;exact-bytes;dra-2;opaque+entropy`).
 
 ## Entropy records (Phase 2)
 
@@ -190,3 +191,35 @@ stable across runs and implementations.
 
 A deep verify (`vole-document verify`) materializes the source and checks the
 whole-source digest. During development, `byte_compare` is the court authority.
+
+## PDF source format (Phase 3)
+
+The header's `source_format` selector gains a second normative value:
+
+```text
+source_format := 0 = OPAQUE
+               | 1 = PDF    (Phase 3)
+```
+
+An unknown class still fails closed with `UnsupportedFeature`; it is never
+silently reinterpreted as opaque.
+
+A PDF descriptor (`source_format = 1`) is produced by the byte-authoritative
+physical scanner. The scanner lexes the input into a contiguous span cover and
+classifies each span structurally (`%PDF-` header, `obj`/`endobj`,
+`stream`/`endstream`, `xref`, `trailer`, `startxref`, `%%EOF`, comments,
+whitespace, and raw stream data), resolves direct/indirect `/Length`, and builds
+an append-only revision map delimited by `%%EOF` with `/Prev` links.
+
+The Phase-3 candidate persists the exact physical partition as **literal-span DRA
+ops**: one `INLINE` instruction per physical span, in ascending offset order,
+with no structural compression. Because the cover is contiguous and
+non-overlapping, concatenating those spans reconstructs the source byte-for-byte
+by construction. The per-span **kinds are deterministic analysis metadata** —
+`scan` can recompute them at any time, they are not stored as trusted semantics,
+and the literal bytes are the authority.
+
+`PDF_PHYSICAL` competes in the complete-cost court like every other candidate and
+currently loses to RAW (the expected Phase-3 outcome; structural compression is
+Phase 5+). This section remains **PROVISIONAL**; the wire layout is not frozen
+v1.

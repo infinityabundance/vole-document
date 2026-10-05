@@ -12,10 +12,13 @@
 | Goldens | `tests/goldens.rs` | **reference-oracle parity** (a from-scratch, integer-only decoder agrees byte-for-byte with `entropy::rans::decode_channel`, both ending at the encoder lower bound with the payload fully consumed); frozen model/capsule/descriptor golden bytes; truncation and single-byte flips ⇒ typed error; model decode never panics |
 | Property | `tests/property.rs` | deterministic mutation/round-trip fuzzing over descriptor/model/channel/DRA parsers: `decode(encode(x)) == x`; `parse(serialize(d)) == d`; random and mutated bytes never panic and never report an internal invariant; oversized claims are bounded; limits never change reconstructed bytes |
 | Soak (script) | `tools/soak-fuzz.sh` | longer deterministic run (`VOLE_FUZZ_ITERS`, default `200000`) of the property, entropy, goldens, and malformed courts |
+| PDF physical | `tests/pdf.rs` | Phase-3 gates: total contiguous coverage of every corpus PDF; forced physical materialization byte-exact; validated (not extension-based) detection; incremental revisions; literal/hex/stream traps never split objects; hostile random bytes never panic; the court honestly still prefers RAW in Phase 3 |
+| PDF oracle (script) | `tools/pdf-oracle.sh` | qpdf 11.3 differential court over a deterministic corpus: `qpdf --check` valid, object-number set agreement, `pdfinfo` page count; qpdf is an oracle, never the byte authority |
 
-Test counts (inside the pinned `dev` image): **142** with default features,
-**110** with `--no-default-features` (the rANS-dependent integration courts are
-skipped), of which **88** are library unit tests.
+Test counts (inside the pinned `dev` image): **228** with all features (the
+default set), **196** with `--no-default-features` (the rANS-dependent
+integration courts are skipped), of which **166** are library unit tests (with
+all features).
 
 Run everything:
 
@@ -53,8 +56,9 @@ docker compose run --rm --no-TTY dev cargo fmt --all --check
 The Phase-2 property/mutation court already exercises the `.voldoc`
 header/record parser, the DRA parser/evaluator, the rANS model parser, the rANS
 channel decoder, and the coverage certificate (`tests/property.rs`,
-`tests/goldens.rs`, `tools/soak-fuzz.sh`). Still planned for later phases: PDF
-physical scanner · PDF lexical parser · xref parser · stream-boundary parser ·
+`tests/goldens.rs`, `tools/soak-fuzz.sh`). Phase 3 additionally exercises the PDF
+lexical cover and physical scanner over hostile random bytes (`tests/pdf.rs`).
+Still planned for later phases: an xref parser · a stream-boundary parser ·
 DEFLATE replay wrapper · partial materializer.
 
 Useful properties: never panic · bounded failure · round trip · descriptor

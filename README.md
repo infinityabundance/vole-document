@@ -38,7 +38,11 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | RLE candidate (`REPEAT_LAST` run-length) | **Measured** | campaign `2026-10-05-phase2-f6af30b` |
 | BYTE_RANS candidate (order-0 byte channel) | **Measured** | campaign `2026-10-05-phase2-f6af30b` |
 | Entropy capsule (full decoder-entry state, not a seed) | **Measured** | ADR-0006; `src/entropy/` |
-| PDF physical authority + adapters (Phase 3–8) | Planned | — |
+| PDF lexical span cover (Phase 3.1) | **Measured** | campaign `2026-10-05-phase3-486aa17` |
+| PDF byte-authoritative physical scanner (Phase 3.2–3.3) | **Measured** | campaign `2026-10-05-phase3-486aa17` |
+| PDF incremental revision map (Phase 3.4) | **Measured** | campaign `2026-10-05-phase3-486aa17` |
+| qpdf differential oracle court (oracle, never authority) | **Measured** | `tools/pdf-oracle.sh`; campaign `2026-10-05-phase3-486aa17` |
+| PDF structural adapters (Phases 4–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
 | Partial materialization (Phase 11) | Planned | — |
@@ -77,6 +81,42 @@ channel-bearing descriptor decoded without the feature returns an explicit
 
 Receipt:
 [`evidence/campaigns/2026-10-05-phase2-f6af30b/`](evidence/campaigns/2026-10-05-phase2-f6af30b/).
+
+### Phase 3 measured results
+
+Phase 3 adds a **byte-authoritative PDF physical scanner**: an owned lexer, a
+conservative structural span cover, `/Length` resolution, and an append-only
+revision map. The sealed campaign `2026-10-05-phase3-486aa17` runs over a
+deterministic 9-item corpus (7 valid PDFs plus `malformed.pdf` and `notpdf.bin`
+as negative controls):
+
+- **Coverage** — `all_covered = true`: 171 spans, 19 objects, and 8 revisions
+  across the corpus, partitioned into a contiguous cover of `[0, len)` with no
+  gap and no overlap.
+- **Byte-exactness** — `all_exact = true`: `materialize(descriptor) ==
+  original_bytes` for every item, including both negative controls through the
+  opaque RAW lane.
+- **Validated detection** — a file is a PDF only when the bytes show a `%PDF-`
+  header **and** an indirect object **and** a `%%EOF`; the extension is never
+  authority, and both controls report `is_pdf = false`.
+- **Revision map** — the incremental input yields two append-only revisions with
+  a `/Prev` chain, and `/Size` is treated as never decreasing.
+- **qpdf oracle** — 100% object-number agreement with qpdf 11.3 (classic 4/4,
+  two-page 6/6, incremental 5/5); `qpdf --check` reports valid; `pdfinfo` pages
+  1/2/1. Divergence is expected where objects are compressed inside object
+  streams: those have no physical `N G obj` marker, so a physical scanner
+  enumerates fewer objects than qpdf's semantic view. qpdf is an oracle, never
+  the byte authority.
+
+The literal PDF candidate currently **loses to RAW**: RAW won all 9 items and
+`PDF_PHYSICAL` won 0. This is the **expected Phase-3 result** — the physical lane
+persists each span as one literal `INLINE` op with no structural compression, so
+its per-span overhead loses once complete cost is charged. Structural
+compression (xref/`/Length` proceduralization, stream replay) is Phase 5+ and is
+not claimed here.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase3-486aa17/`](evidence/campaigns/2026-10-05-phase3-486aa17/).
 
 ## Quick start (Docker only)
 
