@@ -3,8 +3,9 @@
 
 use vole_document::adapter::opaque::FORMAT_BASIS;
 use vole_document::container::record::RECORD_OVERHEAD;
-use vole_document::container::{Descriptor, UNIVERSE_V1, universe_id_from_str};
+use vole_document::container::{Descriptor, UNIVERSE, universe_id_from_str};
 use vole_document::dra::{Authority, Op, Program};
+use vole_document::encode::candidates::CandidateKind;
 use vole_document::integrity::sha256;
 use vole_document::limits::Limits;
 use vole_document::materialize;
@@ -12,9 +13,11 @@ use vole_document::{SOURCE_FORMAT_OPAQUE, encode};
 
 fn raw_descriptor(source: &[u8]) -> Descriptor {
     Descriptor {
-        universe: UNIVERSE_V1.to_string(),
+        universe: UNIVERSE.to_string(),
         source_format: SOURCE_FORMAT_OPAQUE,
         format_basis: FORMAT_BASIS.to_string(),
+        models: vec![],
+        channels: vec![],
         objects: vec![source.to_vec()],
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
         source_sha256: sha256(source),
@@ -47,7 +50,7 @@ fn parse_serialize_model_roundtrip() {
 fn header_universe_id_matches_declaration() {
     let (bytes, _) = encode::encode(b"universe", Limits::DEFAULT).unwrap();
     let parsed = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap();
-    assert_eq!(parsed.universe_id, universe_id_from_str(UNIVERSE_V1));
+    assert_eq!(parsed.universe_id, universe_id_from_str(UNIVERSE));
 }
 
 #[test]
@@ -55,11 +58,17 @@ fn fixed_overhead_formula_holds() {
     // Golden structural length, computed from the format definition. A change
     // here means the wire layout drifted and must be a deliberate, versioned
     // decision, not an accident.
-    let source = b"x";
+    //
+    // The RLE candidate would win for a short or repetitive source, so pick a
+    // 16-byte non-repeating sequence where a literal object is strictly cheaper
+    // and RAW is the court's winner. This keeps the RAW overhead formula under
+    // test without weakening it.
+    let source = b"0123456789abcdef";
     let (bytes, report) = encode::encode(source, Limits::DEFAULT).unwrap();
+    assert_eq!(report.kind, CandidateKind::Raw);
     let graph_len = 1 + 4 + 1 + 4; // version + op_count + EMIT_OBJECT + id
     let expected = 64 // header
-        + (RECORD_OVERHEAD + UNIVERSE_V1.len())
+        + (RECORD_OVERHEAD + UNIVERSE.len())
         + (RECORD_OVERHEAD + 5 + FORMAT_BASIS.len())
         + (RECORD_OVERHEAD + source.len())
         + (RECORD_OVERHEAD + graph_len)
@@ -75,9 +84,11 @@ fn fixed_overhead_formula_holds() {
 fn coverage_authority_literal_then_generated() {
     let source = b"abcabcabc";
     let d = Descriptor {
-        universe: UNIVERSE_V1.to_string(),
+        universe: UNIVERSE.to_string(),
         source_format: SOURCE_FORMAT_OPAQUE,
         format_basis: FORMAT_BASIS.to_string(),
+        models: vec![],
+        channels: vec![],
         objects: vec![b"abc".to_vec()],
         program: Program::new(vec![
             Op::EmitObject { object_id: 0 },
@@ -116,9 +127,11 @@ fn inline_literal_program_is_exact() {
         Op::RepeatLast { count: 2 },
     ]);
     let d = Descriptor {
-        universe: UNIVERSE_V1.to_string(),
+        universe: UNIVERSE.to_string(),
         source_format: SOURCE_FORMAT_OPAQUE,
         format_basis: FORMAT_BASIS.to_string(),
+        models: vec![],
+        channels: vec![],
         objects: vec![],
         program,
         source_sha256: sha256(&source),

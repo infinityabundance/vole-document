@@ -9,7 +9,7 @@ use vole_document::materialize;
 use vole_document::{Error, encode};
 
 use vole_document::SOURCE_FORMAT_OPAQUE;
-use vole_document::container::UNIVERSE_V1;
+use vole_document::container::UNIVERSE;
 use vole_document::dra::{Op, Program};
 use vole_document::encode::candidates::{Candidate, CandidateKind};
 use vole_document::integrity::sha256;
@@ -192,9 +192,11 @@ fn repeat_expansion_is_bounded() {
     // A small descriptor that would expand hugely is rejected by the output
     // limit before materializing.
     let descriptor = Descriptor {
-        universe: UNIVERSE_V1.to_string(),
+        universe: UNIVERSE.to_string(),
         source_format: SOURCE_FORMAT_OPAQUE,
         format_basis: "opaque;test".to_string(),
+        models: vec![],
+        channels: vec![],
         objects: vec![vec![0u8; 1024]],
         program: Program::new(vec![
             Op::EmitObject { object_id: 0 },
@@ -218,9 +220,11 @@ fn court_rejects_inexact_candidate() {
     // than being silently admitted.
     let input = b"the real source bytes";
     let bogus = Descriptor {
-        universe: UNIVERSE_V1.to_string(),
+        universe: UNIVERSE.to_string(),
         source_format: SOURCE_FORMAT_OPAQUE,
         format_basis: "opaque;test".to_string(),
+        models: vec![],
+        channels: vec![],
         objects: vec![b"wrong bytes".to_vec()],
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
         source_sha256: sha256(b"wrong bytes"),

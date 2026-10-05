@@ -5,7 +5,7 @@ use crate::error::{Error, Result};
 use crate::limits::Limits;
 
 /// DRA version carried in the graph record.
-pub const DRA_VERSION: u8 = 1;
+pub const DRA_VERSION: u8 = 2;
 
 /// Who is the reconstruction authority for an output interval.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,6 +14,8 @@ pub enum Authority {
     Literal,
     /// Bytes deterministically generated (currently only by `REPEAT_LAST`).
     Generated,
+    /// Bytes decoded from a typed entropy channel.
+    EntropyChannel,
 }
 
 /// One output interval and its authority.
@@ -129,8 +131,14 @@ impl Program {
 
     /// Walk the program, validating instruction semantics and returning both
     /// the predicted output length and the coverage certificate, using only
-    /// object *lengths* (no byte materialization, no large allocation).
-    pub fn analyze(&self, object_lens: &[u64], limits: Limits) -> Result<(u64, CoverageMap)> {
+    /// object and channel *lengths* (no byte materialization, no large
+    /// allocation).
+    pub fn analyze(
+        &self,
+        object_lens: &[u64],
+        channel_lens: &[u64],
+        limits: Limits,
+    ) -> Result<(u64, CoverageMap)> {
         if self.ops.len() as u64 > limits.max_graph_ops as u64 {
             return Err(Error::resource_limit("graph instruction limit exceeded"));
         }
@@ -168,6 +176,25 @@ impl Program {
                             start: total - len,
                             len,
                             authority: Authority::Literal,
+                        });
+                    }
+                    last_len = len;
+                    have_last = true;
+                }
+                Op::DecodeChannel { channel_id } => {
+                    let len = *channel_lens.get(*channel_id as usize).ok_or_else(|| {
+                        Error::invalid_graph(format!(
+                            "graph references missing entropy channel {channel_id}"
+                        ))
+                    })?;
+                    total = total
+                        .checked_add(len)
+                        .ok_or_else(|| Error::resource_limit("output length overflow"))?;
+                    if len > 0 {
+                        spans.push(Span {
+                            start: total - len,
+                            len,
+                            authority: Authority::EntropyChannel,
                         });
                     }
                     last_len = len;
@@ -215,19 +242,37 @@ impl Program {
         Ok((total, CoverageMap { spans }))
     }
 
-    /// Analyze using a concrete object table.
+    /// Analyze using concrete object and channel tables.
+    pub fn analyze_inputs(
+        &self,
+        objects: &[Vec<u8>],
+        channels: &[Vec<u8>],
+        limits: Limits,
+    ) -> Result<(u64, CoverageMap)> {
+        let object_lens: Vec<u64> = objects.iter().map(|o| o.len() as u64).collect();
+        let channel_lens: Vec<u64> = channels.iter().map(|c| c.len() as u64).collect();
+        self.analyze(&object_lens, &channel_lens, limits)
+    }
+
+    /// Convenience wrapper over [`Program::analyze`] for a program with no
+    /// entropy channels.
     pub fn analyze_objects(
         &self,
         objects: &[Vec<u8>],
         limits: Limits,
     ) -> Result<(u64, CoverageMap)> {
         let lens: Vec<u64> = objects.iter().map(|o| o.len() as u64).collect();
-        self.analyze(&lens, limits)
+        self.analyze(&lens, &[], limits)
     }
 
     /// Materialize the program's output, enforcing all bounds.
-    pub fn eval(&self, objects: &[Vec<u8>], limits: Limits) -> Result<Vec<u8>> {
-        let (predicted, _coverage) = self.analyze_objects(objects, limits)?;
+    pub fn eval(
+        &self,
+        objects: &[Vec<u8>],
+        channels: &[Vec<u8>],
+        limits: Limits,
+    ) -> Result<Vec<u8>> {
+        let (predicted, _coverage) = self.analyze_inputs(objects, channels, limits)?;
         let cap = predicted.min(64 * 1024 * 1024) as usize;
         let mut out: Vec<u8> = Vec::with_capacity(cap);
         let mut have_last = false;
@@ -246,6 +291,16 @@ impl Program {
                 Op::Inline { bytes } => {
                     block_len = bytes.len();
                     out.extend_from_slice(bytes);
+                    have_last = true;
+                }
+                Op::DecodeChannel { channel_id } => {
+                    let ch = channels.get(*channel_id as usize).ok_or_else(|| {
+                        Error::invalid_graph(format!(
+                            "graph references missing entropy channel {channel_id}"
+                        ))
+                    })?;
+                    block_len = ch.len();
+                    out.extend_from_slice(ch);
                     have_last = true;
                 }
                 Op::RepeatLast { count } => {
@@ -294,7 +349,10 @@ mod tests {
         let (len, cov) = p.analyze_objects(&objects, Limits::DEFAULT).unwrap();
         assert_eq!(len, 11);
         cov.validate(11).unwrap();
-        assert_eq!(p.eval(&objects, Limits::DEFAULT).unwrap(), b"hello world");
+        assert_eq!(
+            p.eval(&objects, &[], Limits::DEFAULT).unwrap(),
+            b"hello world"
+        );
     }
 
     #[test]
@@ -309,7 +367,7 @@ mod tests {
         let (len, cov) = p.analyze_objects(&objects, Limits::DEFAULT).unwrap();
         assert_eq!(len, 6);
         cov.validate(6).unwrap();
-        assert_eq!(p.eval(&objects, Limits::DEFAULT).unwrap(), b"ababab");
+        assert_eq!(p.eval(&objects, &[], Limits::DEFAULT).unwrap(), b"ababab");
         // Authority split: first "ab" literal, remaining "abab" generated.
         assert_eq!(
             cov.spans[0],
@@ -327,6 +385,48 @@ mod tests {
                 authority: Authority::Generated
             }
         );
+    }
+
+    #[test]
+    fn decode_channel_and_repeat() {
+        let objects = objs(&[]);
+        let channels = objs(&[b"abc"]);
+        let p = Program::new(vec![
+            Op::DecodeChannel { channel_id: 0 },
+            Op::RepeatLast { count: 1 },
+        ]);
+        let (len, cov) = p
+            .analyze_inputs(&objects, &channels, Limits::DEFAULT)
+            .unwrap();
+        assert_eq!(len, 6);
+        cov.validate(6).unwrap();
+        assert_eq!(
+            cov.spans[0],
+            Span {
+                start: 0,
+                len: 3,
+                authority: Authority::EntropyChannel,
+            }
+        );
+        assert_eq!(
+            cov.spans[1],
+            Span {
+                start: 3,
+                len: 3,
+                authority: Authority::Generated,
+            }
+        );
+        assert_eq!(
+            p.eval(&objects, &channels, Limits::DEFAULT).unwrap(),
+            b"abcabc"
+        );
+    }
+
+    #[test]
+    fn rejects_missing_channel() {
+        let p = Program::new(vec![Op::DecodeChannel { channel_id: 5 }]);
+        let e = p.analyze_inputs(&[], &[], Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidGraph);
     }
 
     #[test]

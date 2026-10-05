@@ -6,7 +6,7 @@
 //! the cost court, and receipts before any format-specific complexity arrives.
 
 use crate::SOURCE_FORMAT_OPAQUE;
-use crate::container::{Descriptor, UNIVERSE_V1};
+use crate::container::{Descriptor, UNIVERSE};
 use crate::dra::{Op, Program};
 use crate::error::Result;
 use crate::integrity::sha256;
@@ -22,9 +22,11 @@ pub const FORMAT_BASIS: &str = "opaque;unconditional-exact-fallback";
 /// later phases must *beat* this on complete cost to be admitted.
 pub fn propose(input: &[u8], _limits: Limits) -> Result<Descriptor> {
     Ok(Descriptor {
-        universe: UNIVERSE_V1.to_string(),
+        universe: UNIVERSE.to_string(),
         source_format: SOURCE_FORMAT_OPAQUE,
         format_basis: FORMAT_BASIS.to_string(),
+        models: vec![],
+        channels: vec![],
         objects: vec![input.to_vec()],
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
         source_sha256: sha256(input),

@@ -10,16 +10,18 @@ use crate::accounting::CostBreakdown;
 use crate::container::header::{HEADER_LEN, Header, MAGIC};
 use crate::container::record::{RECORD_OVERHEAD, RecordReader, RecordTag};
 use crate::dra::Program;
+use crate::entropy::codec::EntropyChannelDescriptor;
+use crate::entropy::model::EntropyModel;
 use crate::error::{Error, Result};
 use crate::integrity::sha256;
 use crate::limits::Limits;
 
-/// The Phase-1 reconstruction universe declaration.
+/// The Phase-2 reconstruction universe declaration.
 ///
 /// Changing any opcode, coder, limit semantic, or adapter meaning requires a
 /// new universe string. The `universe_id` in the header is the first 16 bytes
 /// of SHA-256 over this string.
-pub const UNIVERSE_V1: &str = "vole-document;universe;phase-1;exact-bytes;dra-1;opaque-raw";
+pub const UNIVERSE: &str = "vole-document;universe;phase-2;exact-bytes;dra-2;opaque+entropy";
 
 /// First 16 bytes of SHA-256 over a universe declaration string.
 pub fn universe_id_from_str(universe: &str) -> [u8; 16] {
@@ -38,6 +40,10 @@ pub struct Descriptor {
     pub source_format: u8,
     /// Human-readable basis for the format decision (provenance, not trust).
     pub format_basis: String,
+    /// Canonical entropy models referenced by channels.
+    pub models: Vec<EntropyModel>,
+    /// Typed entropy channels referenced by the program.
+    pub channels: Vec<EntropyChannelDescriptor>,
     /// Raw byte objects referenced by the program.
     pub objects: Vec<Vec<u8>>,
     /// The reconstruction program.
@@ -102,6 +108,20 @@ impl Descriptor {
         fmt.extend_from_slice(basis);
         write(&mut out, RecordTag::Format, &fmt)?;
         cost.format = fmt.len() as u64;
+
+        // MODELS
+        for model in &self.models {
+            let encoded = model.encode()?;
+            write(&mut out, RecordTag::Model, &encoded)?;
+            cost.models += encoded.len() as u64;
+        }
+
+        // ENTROPY CHANNELS
+        for channel in &self.channels {
+            let encoded = channel.encode()?;
+            write(&mut out, RecordTag::EntropyChannel, &encoded)?;
+            cost.entropy_payload += encoded.len() as u64;
+        }
 
         // OBJECTS
         for obj in &self.objects {
@@ -168,6 +188,8 @@ impl Descriptor {
         let mut reader = RecordReader::new(bytes, HEADER_LEN, limits);
         let mut universe: Option<String> = None;
         let mut format: Option<(u8, String)> = None;
+        let mut models: Vec<EntropyModel> = Vec::new();
+        let mut channels: Vec<EntropyChannelDescriptor> = Vec::new();
         let mut objects: Vec<Vec<u8>> = Vec::new();
         let mut program: Option<Program> = None;
         let mut source_sha256: Option<[u8; 32]> = None;
@@ -232,6 +254,31 @@ impl Descriptor {
                     cost.objects += rec.payload.len() as u64;
                     objects.push(rec.payload);
                 }
+                Some(RecordTag::Model) => {
+                    if models.len() as u32 >= limits.max_model_count {
+                        return Err(Error::resource_limit("entropy model count limit exceeded"));
+                    }
+                    if rec.payload.len() as u32 > limits.max_entropy_model_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "entropy model payload {} exceeds limit {}",
+                            rec.payload.len(),
+                            limits.max_entropy_model_bytes
+                        )));
+                    }
+                    let model = EntropyModel::decode(&rec.payload)?;
+                    cost.models += rec.payload.len() as u64;
+                    models.push(model);
+                }
+                Some(RecordTag::EntropyChannel) => {
+                    if channels.len() as u32 >= limits.max_channel_count {
+                        return Err(Error::resource_limit(
+                            "entropy channel count limit exceeded",
+                        ));
+                    }
+                    let channel = EntropyChannelDescriptor::decode(&rec.payload, limits)?;
+                    cost.entropy_payload += rec.payload.len() as u64;
+                    channels.push(channel);
+                }
                 Some(RecordTag::Graph) => {
                     if program.is_some() {
                         return Err(Error::invalid_container("duplicate GRAPH record"));
@@ -282,9 +329,7 @@ impl Descriptor {
                     saw_trailer = true;
                 }
                 // Phase 2+ mandatory records have no meaning in this universe.
-                Some(RecordTag::Model)
-                | Some(RecordTag::EntropyChannel)
-                | Some(RecordTag::Residual)
+                Some(RecordTag::Residual)
                 | Some(RecordTag::Checkpoint)
                 | Some(RecordTag::Index)
                 | Some(RecordTag::ExternalRef) => {
@@ -336,9 +381,29 @@ impl Descriptor {
             )));
         }
 
+        // Cross-validate every channel against the model it references. A
+        // channel may not name a missing model, and its declared scale must
+        // agree with that model.
+        for (i, channel) in channels.iter().enumerate() {
+            let model = models.get(channel.model_id as usize).ok_or_else(|| {
+                Error::invalid_model(format!(
+                    "entropy channel {i} references missing model {}",
+                    channel.model_id
+                ))
+            })?;
+            if channel.scale_bits != model.scale_bits {
+                return Err(Error::invalid_model(format!(
+                    "entropy channel {i} scale_bits {} disagrees with model {} scale_bits {}",
+                    channel.scale_bits, channel.model_id, model.scale_bits
+                )));
+            }
+        }
+
         // Coverage certificate: every source byte has exactly one authority and
         // the program's predicted length equals the declared length.
-        let (predicted, coverage) = program.analyze_objects(&objects, limits)?;
+        let object_lens: Vec<u64> = objects.iter().map(|o| o.len() as u64).collect();
+        let channel_lens: Vec<u64> = channels.iter().map(|c| c.decoded_length).collect();
+        let (predicted, coverage) = program.analyze(&object_lens, &channel_lens, limits)?;
         if predicted != source_len {
             return Err(Error::coverage_violation(format!(
                 "reconstruction program predicts {predicted} bytes but {source_len} were declared"
@@ -353,6 +418,8 @@ impl Descriptor {
                 universe,
                 source_format: class,
                 format_basis: basis,
+                models,
+                channels,
                 objects,
                 program,
                 source_sha256,
@@ -373,14 +440,67 @@ mod tests {
 
     fn sample(source: &[u8]) -> Descriptor {
         Descriptor {
-            universe: UNIVERSE_V1.to_string(),
+            universe: UNIVERSE.to_string(),
             source_format: SOURCE_FORMAT_OPAQUE,
             format_basis: "opaque:test".to_string(),
+            models: vec![],
+            channels: vec![],
             objects: vec![source.to_vec()],
             program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
             source_sha256: sha256(source),
             source_len: source.len() as u64,
         }
+    }
+
+    fn channel(model_id: u32, scale_bits: u8, decoded_length: u64) -> EntropyChannelDescriptor {
+        EntropyChannelDescriptor {
+            coder: crate::entropy::codec::CODER_ORDER0_BYTE_RANS,
+            coder_version: crate::entropy::codec::CODER_VERSION_1,
+            scale_bits,
+            lane_count: 1,
+            model_id,
+            symbol_count: decoded_length,
+            decoded_length,
+            initial_state: 1,
+            payload: vec![0u8; 4],
+        }
+    }
+
+    #[test]
+    fn model_and_channel_roundtrip() {
+        let payload = b"channel bytes";
+        let mut d = sample(payload);
+        d.models = vec![EntropyModel::uniform(8).unwrap()];
+        d.channels = vec![channel(0, 8, payload.len() as u64)];
+        d.program = Program::new(vec![Op::DecodeChannel { channel_id: 0 }]);
+        let (bytes, cost) = d.serialize().unwrap();
+        assert_eq!(cost.total(), bytes.len() as u64);
+        assert!(cost.models > 0);
+        assert!(cost.entropy_payload > 0);
+        let parsed = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap();
+        assert_eq!(parsed.descriptor, d);
+        assert_eq!(parsed.cost.total(), bytes.len() as u64);
+    }
+
+    #[test]
+    fn channel_with_missing_model_rejected() {
+        let mut d = sample(b"abc");
+        d.program = Program::new(vec![Op::DecodeChannel { channel_id: 0 }]);
+        d.channels = vec![channel(3, 8, 3)];
+        let (bytes, _) = d.serialize().unwrap();
+        let e = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidModel);
+    }
+
+    #[test]
+    fn channel_scale_mismatch_rejected() {
+        let mut d = sample(b"abc");
+        d.models = vec![EntropyModel::uniform(8).unwrap()];
+        d.program = Program::new(vec![Op::DecodeChannel { channel_id: 0 }]);
+        d.channels = vec![channel(0, 12, 3)];
+        let (bytes, _) = d.serialize().unwrap();
+        let e = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap_err();
+        assert_eq!(e.class(), crate::ErrorClass::InvalidModel);
     }
 
     #[test]

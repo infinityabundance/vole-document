@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 edition = "2024"
 rust-version = "1.89"
 description = "Byte-exact procedural document storage: deterministic reconstruction state, typed residuals, and entropy-coded channels that materialize the exact original document bytes."
@@ -29,7 +29,7 @@ sha2 = "=0.10.9"
 ryg-rans-rs = { version = "=0.5.1", optional = true, default-features = false, features = ["alloc"] }
 
 [features]
-default = []
+default = ["rans"]
 # Phase 2: scalar order-0 / typed byte rANS channels.
 rans = ["dep:ryg-rans-rs"]
 # Later phases (declared so the feature surface is deliberate, not accidental):

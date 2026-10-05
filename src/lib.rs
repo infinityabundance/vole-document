@@ -50,6 +50,7 @@ pub mod adapter;
 pub mod container;
 pub mod dra;
 pub mod encode;
+pub mod entropy;
 pub mod error;
 pub mod integrity;
 pub mod limits;
