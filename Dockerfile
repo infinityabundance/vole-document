@@ -135,12 +135,17 @@ RUN apt-get update \
 WORKDIR /work
 
 # ---------------------------------------------------------------------------
-# Generic-compressor baseline ladder (Phase 7.0c). Derives from the pinned `dev`
-# toolchain (same base digest, so rustc/cargo match the measurement binary) and
-# adds the generic compressors the honest comparison needs: gzip, zstd, xz and
-# brotli, plus jq to reduce the JSON table. It is deliberately NOT part of any
-# fast gate; only the opt-in `baseline` service builds it. `tools/baselines.sh`
-# runs both the generic compressors and the real VOLE lanes over complete files.
+# Generic-compressor baseline ladder (Phase 7.0c) and the Phase-7.3
+# partial-materialization query court. Derives from the pinned `dev` toolchain
+# (same base digest, so rustc/cargo match the measurement binary) and adds the
+# generic compressors the honest comparison needs: gzip, zstd, xz and brotli,
+# plus jq to reduce the JSON table. For the query-cost court it also adds `pv`
+# (counts the compressed bytes a sequential decoder must read and the
+# decompressed bytes it must inflate to reach an offset) and GNU `time`
+# (`/usr/bin/time -v` for wall/CPU seconds and peak RSS). It is deliberately NOT
+# part of any fast gate; only the opt-in `baseline` service builds it.
+# `tools/baselines.sh` runs the compressors and the VOLE lanes over complete
+# files; `tools/partial-court.sh` runs the random-access query head-to-head.
 # ---------------------------------------------------------------------------
 FROM dev AS baseline
 ENV DEBIAN_FRONTEND=noninteractive
@@ -152,5 +157,7 @@ RUN apt-get update \
       brotli \
       jq \
       coreutils \
+      pv \
+      time \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /work

@@ -143,6 +143,10 @@ impl ObservationStats {
 /// A served observation: the exact requested bytes plus its cost attribution.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObservationReport {
+    /// The resolved half-open output range `[a, b)` that was served. Reporting it
+    /// lets a measurement harness compare the slice against the source and price
+    /// the sequential baselines at the same output offset.
+    pub range: (u64, u64),
     /// The exact requested output range.
     pub bytes: Vec<u8>,
     /// Measured cost attribution for serving that range.
@@ -278,7 +282,11 @@ pub fn materialize_observation(
         output_bytes: bytes.len() as u64,
     };
 
-    Ok(ObservationReport { bytes, stats })
+    Ok(ObservationReport {
+        range: (a, b),
+        bytes,
+        stats,
+    })
 }
 
 /// Resolve a selector to a target output range `[a, b)`.
