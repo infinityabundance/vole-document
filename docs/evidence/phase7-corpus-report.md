@@ -354,3 +354,13 @@ framing/model overhead is charged) VOLE loses to every generic compressor on eve
 file tested. VOLE's byte-exact structural reconstruction is unchanged; its
 *compression* claim does not survive on this corpus. No candidate is adopted,
 removed, or changed.
+
+# See also (2026-10-05) — Phase 7.3 query-cost court
+
+> A separate axis, measured on a 32.22 MiB / 800-object deterministic PDF:
+> **`docs/evidence/phase7-partial-report.md`** (receipt
+> `evidence/campaigns/2026-10-05-phase7-partial-a5764c9/`, ADR-0018). It does not
+> change anything above: whole-file size still loses (best VOLE 17,392,713 B vs
+> xz 5,841,896 B, 2.98×). Partial materialization is a **scoped positive on
+> random-access decode CPU/allocation** with **no I/O win in v1** (the CLI reads
+> the whole descriptor, so `descriptor_bytes_traversed` is CPU-side only).

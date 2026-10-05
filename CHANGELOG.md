@@ -178,6 +178,26 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   - Universe moves to
     `vole-document;universe;phase7;exact-bytes;dra-8;…+observation-index-v1`
     (DRA stays v8). No existing candidate bytes change beyond the universe bump.
+- Phase 7.3-i2/i3/i4 — partial-materialization API, `view` CLI, and large corpus
+  generator:
+  - `materialize_observation` / `view_to_bytes` (`src/materialize/observation.rs`)
+    serve one output range and report measured `ObservationStats`
+    (ops/channels/objects touched, entropy bytes decoded, descriptor bytes
+    traversed, work amplification). A descriptor without an index is **declined**,
+    never silently fully materialized; when the program is a sequence of linear
+    independent ops, only the ops intersecting the range are evaluated and only
+    the referenced entropy channels are decoded.
+  - `vole-document view INPUT.voldoc [OUTPUT] --byte-range A:L | --pdf-object N:G
+    | --pdf-stream N:G | --pdf-revision I [--stats]`; the `--stats` JSON now also
+    reports the resolved `range_start`/`range_len` so a harness can price
+    sequential baselines at the same output offset.
+  - `PDF_DEFLATE_REPLAY_RANS_INDEXED` (`encode --force pdf-deflate-replay-rans-indexed`)
+    attaches the advisory observation index built from the same physical scan.
+  - `vole-document pdf-make-large DIR [OBJECTS]`: an encode-time, binary-only
+    deterministic generator of a valid classic-xref PDF with `OBJECTS` (default
+    800) distinct real-zlib `FlateDecode` streams and ≥32 MiB of source; correct
+    `/Length` and offsets by construction; no library or runtime dependency; the
+    regenerable `.pdf` bytes are gitignored.
 
 ### Fixed
 
@@ -306,6 +326,24 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   `verify` + `cmp` byte-exact. Receipt under
   `evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/` (full table
   `baseline-table.md`); report section in `docs/evidence/phase7-corpus-report.md`.
+- Campaign `2026-10-05-phase7-partial-a5764c9` (verdict SCOPED POSITIVE;
+  measurement, no wire/candidate change beyond the generator) — the
+  **partial-materialization query court** on a 33,789,340 B (32.22 MiB),
+  800-stream deterministic PDF (`pdf-make-large`, 800 replayed / 0 declined;
+  `qpdf --check` rc 0). All 18 pre-registered queries (6 byte-ranges at
+  0/1/8/16/24/31 MiB + 8 `--pdf-stream` + 4 `--pdf-object`) are byte-exact. For
+  mid/late queries the indexed lane touches ~0.41–0.46 MB
+  (`descriptor_bytes_traversed + entropy_bytes_decoded`) vs gzip inflating
+  `a + len`: in the late region that is **1.4–2.3 %** of gzip's bytes, and VOLE
+  is **~2–5× faster than gzip** and **~4–13× faster than xz** on CPU. It **loses**
+  in the early region (≤ ~8 MiB), **never beats zstd's raw decompressor** on wall
+  time, uses ~38 MB peak RSS vs gzip's ~1.2 MB, and the v1 caveat is decisive:
+  `view` reads and parses the **whole** descriptor, so on-disk I/O is **not**
+  reduced and `descriptor_bytes_traversed` is a CPU-side approximation. Whole-file
+  size is still a loss (best VOLE 17,392,713 B / indexed 17,539,424 B vs xz
+  5,841,896 B, **2.98×**). Receipt under
+  `evidence/campaigns/2026-10-05-phase7-partial-a5764c9/`; report
+  `docs/evidence/phase7-partial-report.md`; ADR-0018.
 - Campaign `2026-10-05-phase6-0d0bb79` (DRA v8, verdict PASS; the earlier
   `2026-10-05-phase6-ec92c1a` receipt is retained): a 12-file corpus; every
   auto winner round-trips byte-exactly (`cmp` + `verify`, `all_exact=true`); the
@@ -358,6 +396,11 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   (shared plaintext) is not produced by the tested transformers. It is scoped to
   locally generated files and makes no population claim; qpdf and Ghostscript are
   transformers, not authoring applications.
+- The Phase-7.3 query-cost result is a **decode-CPU/allocation** win, not an I/O
+  win: `view` still reads and parses the whole framed descriptor into memory
+  (`fs::read`), so bytes read do not shrink and `descriptor_bytes_traversed` is a
+  CPU-side approximation, not a bytes-read figure. An mmap/seek descriptor reader
+  is the prerequisite for any bytes-read claim (ADR-0018).
 - The Phase-7.0b Cairo case is **not** a real-authoring-generator witness; an
   independent adversarial review (Phase 7.0c,
   `docs/evidence/phase7b-skeptic-review.md`) falsified that framing. Our generator

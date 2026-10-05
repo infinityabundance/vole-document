@@ -31,18 +31,20 @@
 | Generic-compressor baseline ladder (Phase 7.0c, script) | `tools/baselines.sh` (+ `tools/baselines.jq`) | for every file in a given corpus dir records the source size and the smallest **lossless** complete-file size for `gzip -9`, `zstd -19 --long=27`, `xz -9e`, `brotli -q 11` — each decompressed and `cmp`'d against the source *before* it is scored — plus the complete serialized `.voldoc` size of every VOLE lane (auto, `raw`, `rle`, `byte-rans`, and every forced structural kind; a kind the input does not propose is a typed `Usage` decline recorded `null`); `best_vole` is the minimum across all VOLE lanes. Runs in the pinned opt-in `baseline` image (`dev` base `rust:1.99.0-slim-bookworm@sha256:452176c0…` + gzip/zstd/xz/brotli/jq). Over 27 corpus files (phase7 23 + producers 4) it seals campaign `2026-10-05-phase7-baselines-7b9f662`: **the best VOLE lane beats gzip/zstd/xz/brotli on 0 files**; the best generic is smaller on every file, +460,320 B total. All 27 auto winners `verify` + `cmp` byte-exact; no candidate adopted or changed |
 | Fuzz regressions (Phase 7.1) | `tests/fuzz_regressions.rs` | committed crash/OOM fixtures from the coverage-guided campaign reproduce the fixed behavior: hostile `preflate` corrections are declined as a typed `CodecReplay` (never unwound into the caller), and the public analysis entry point fails closed on a non-zlib stream; the unbounded-allocation fixture is deliberately not executed in-process and is instead driven through the isolated worker in `tests/replay_isolation.rs` (upstream `preflate-rs` limitation, contained on the decode path by Phase 7.1b; ADR-0016) |
 | Process-isolated replay (Phase 7.1b) | `tests/replay_isolation.rs`, `src/codec/deflate.rs` | the decoder's `DEFLATE_REPLAY` arm runs `preflate` in a child process under an `RLIMIT_AS` address-space cap and a wall-clock timeout (`replay_bounded`), so a malformed `.voldoc` cannot amplify memory; the positive court decodes a forced-replay `flate.pdf` descriptor byte-exactly through the worker; the committed F2 fixture, embedded in a descriptor, fails closed as a typed `CodecReplay` under a 32 MiB cap without exhausting the host; a configured-but-broken worker is a typed `CodecReplay` (exit 13) and never silently falls back to the in-process path; with no worker configured the library reconstructs in-process (the documented fallback, F2 residual); the worker stdin/stdout framing round-trips and refuses over-bound field lengths before allocating |
+| Partial materialization (Phase 7.3) | `tests/observation.rs`, `tests/observation_cli.rs`, `tools/partial-court.sh` | the advisory `OBSERVATION_INDEX` record is **checked, never authority**: `Descriptor::parse` re-derives every op length via `analyze_ops` and rejects a contradiction; `materialize_observation`/`view` serve byte-ranges, indirect objects, encoded streams, and revisions byte-exactly (`obs == full[a..b]`), decline a descriptor with no index (never silently fully materialize), skip non-intersecting linear ops, and decode only the referenced entropy channels; absent/ambiguous/out-of-range selectors and empty/oversized requests are typed errors that never panic; the CLI accepts exactly one selector (`--byte-range`/`--pdf-object`/`--pdf-stream`/`--pdf-revision`) and `--stats` reports the resolved `range_start`/`range_len`; `tools/partial-court.sh` times the indexed lane against sequential `gzip`/`zstd`/`xz` at the same output offset, `cmp`s every served slice against the source, and seals campaign `2026-10-05-phase7-partial-a5764c9`: 18/18 queries byte-exact, a **scoped decode-CPU win with no I/O win in v1** (the CLI reads the whole descriptor; ADR-0018) |
 
-Test counts (inside the pinned `dev` image): **338** passing with `--all-features`
-(0 failed, 1 ignored), of which **244** are library unit tests (plus 1 ignored);
-**310** passing with the default feature set (`default = ["rans"]`, permissive-only;
-the replay courts are skipped), of which **234** are library unit tests; and
-**263** passing with `--no-default-features`, of which **212** are library unit
+Test counts (inside the pinned `dev` image): **368** passing with `--all-features`
+(0 failed, 1 ignored), of which **254** are library unit tests (plus 1 ignored);
+**332** passing with the default feature set (`default = ["rans"]`, permissive-only;
+the replay courts are skipped), of which **244** are library unit tests; and
+**276** passing with `--no-default-features`, of which **222** are library unit
 tests (the rANS- and replay-dependent integration courts are skipped).
 
 `encode --force KIND` is the ablation surface: it runs the *same* complete-cost
 court over a one-element candidate set (`KIND` in `raw`, `rle`, `byte-rans`,
 `pdf-physical`, `pdf-channels`, `pdf-layout`, `pdf-layout-rans`,
-`pdf-deflate-replay`, `pdf-deflate-replay-rans`). Forcing selects
+`pdf-deflate-replay`, `pdf-deflate-replay-rans`,
+`pdf-deflate-replay-rans-indexed`). Forcing selects
 a lane; it never bypasses serialization, decoding, or the byte-compare, and a kind
 the input does not propose fails with a typed usage error (recorded as `null`), not
 a fabricated result.
@@ -131,7 +133,7 @@ allocation now contained on the decode path by Phase-7.1b process isolation;
 ADR-0016). `tests/fuzz_regressions.rs` holds the minimized fixtures and asserts
 the fixed behavior; `tests/replay_isolation.rs` drives the F2 fixture through the
 isolated worker.
-Still planned for later phases: a stream-boundary parser · partial materializer.
+Still planned for later phases: a stream-boundary parser.
 
 Useful properties: never panic · bounded failure · round trip · descriptor
 parse/serialize stability · materialized length bound · RAW fallback preserves

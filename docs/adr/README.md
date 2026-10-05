@@ -21,6 +21,8 @@ the written rationale that must survive chat history.
 | [0014](0014-lgpl-cabac-dependency.md) | `preflate-rs` pulls an LGPL-3.0-or-later dependency (`cabac`) | Accepted — documented policy exception (Phase 6) |
 | [0015](0015-deflate-replay-result.md) | Exact DEFLATE replay wins on shared plaintext with a large/weakly-coded appearance | Accepted — first measured positive for a PDF structural candidate (Phase 6) |
 | [0016](0016-replay-resource-bound.md) | Decode-time DEFLATE replay is statically resource-bounded | Accepted (Phase 6.7) |
+| [0017](0017-generic-lossless-baselines.md) | Generic lossless compressors are the whole-file comparator; VOLE's whole-file lanes lose to them (0/27) | Accepted — recorded methodology and negative result (Phase 7.0c) |
+| [0018](0018-partial-materialization.md) | Partial materialization is a scoped random-access query-cost win on decode CPU, with no I/O win in v1 | Accepted — scoped positive result (Phase 7.3) |
 
 ## Adding an ADR
 
