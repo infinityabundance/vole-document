@@ -11,6 +11,11 @@ readme = "README.md"
 keywords = ["compression", "rans", "document", "pdf", "archival"]
 categories = ["compression", "encoding"]
 
+# The published crate must never bundle the fuzz crate, local research material,
+# or evidence campaign bytes. `fuzz/` is a separate cargo-fuzz package built only
+# under the pinned nightly `fuzz` Docker service.
+exclude = ["fuzz", "research", "evidence"]
+
 [lib]
 name = "vole_document"
 path = "src/lib.rs"

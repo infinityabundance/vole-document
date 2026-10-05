@@ -1,0 +1,96 @@
+[package]
+name = "vole-document-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+# Recognized by `cargo fuzz`; keeps the crate a separate package from the
+# published `vole-document` crate (which excludes `fuzz` from `cargo package`).
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+# Pinned exactly: the fuzzer runtime is part of the evidence, not a moving part.
+libfuzzer-sys = "=0.4.13"
+
+[dependencies.vole-document]
+path = ".."
+features = ["rans", "deflate-replay"]
+
+# Standalone workspace so this never joins a parent workspace.
+[workspace]
+members = ["."]
+
+[profile.release]
+# Keep debug info so crash artifacts produce actionable stack traces.
+debug = 1
+
+[[bin]]
+name = "voldoc_parse"
+path = "fuzz_targets/voldoc_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "voldoc_roundtrip"
+path = "fuzz_targets/voldoc_roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "dra_program"
+path = "fuzz_targets/dra_program.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rans_model"
+path = "fuzz_targets/rans_model.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rans_channel"
+path = "fuzz_targets/rans_channel.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pdf_lexer"
+path = "fuzz_targets/pdf_lexer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pdf_scan"
+path = "fuzz_targets/pdf_scan.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pdf_xref"
+path = "fuzz_targets/pdf_xref.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "deflate_replay"
+path = "fuzz_targets/deflate_replay.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "materializer"
+path = "fuzz_targets/materializer.rs"
+test = false
+doc = false
+bench = false

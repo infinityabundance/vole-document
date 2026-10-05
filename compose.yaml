@@ -68,7 +68,26 @@ services:
       - cargo-registry:/usr/local/cargo/registry
     command: ["cargo", "deny", "check"]
 
+  # Coverage-guided fuzzing (Phase 7). A pinned dated nightly + cargo-fuzz.
+  # No default command: tools/fuzz.sh drives `cargo fuzz run` explicitly.
+  # The /work/fuzz/target volume keeps fuzz builds fast and out of the repo.
+  fuzz:
+    build:
+      context: .
+      target: fuzz
+    image: vole-document/fuzz:nightly-2026-10-04
+    network_mode: host
+    working_dir: /work
+    environment:
+      CARGO_TERM_COLOR: never
+      RUSTUP_TOOLCHAIN: "nightly-2026-10-04"
+    volumes:
+      - .:/work
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target-fuzz:/work/fuzz/target
+
 volumes:
   cargo-registry:
   cargo-target:
   cargo-target-msrv:
+  cargo-target-fuzz:

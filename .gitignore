@@ -5,6 +5,14 @@
 # content hash, not vendored here.
 /research/
 
+# Phase-7 coverage-guided fuzzing. `cargo fuzz init`-equivalent source lives in
+# `fuzz/` and IS committed (fuzz/Cargo.toml + fuzz/fuzz_targets/ + fuzz/seeds/ +
+# fuzz/README.md). Its build outputs, the generated corpus, and crash artifacts
+# are never committed.
+/fuzz/target/
+/fuzz/corpus/
+/fuzz/artifacts/
+
 # Rust build artifacts
 /target/
 **/*.rs.bk

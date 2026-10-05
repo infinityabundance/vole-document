@@ -6,6 +6,7 @@
 
 # Rust build products (built inside the container bind mount / named volume)
 target
+fuzz/target
 
 # Local research material (paper, citation snapshots, subagent findings).
 # Not a build input; excluded so images stay free of non-redistributable bytes.
