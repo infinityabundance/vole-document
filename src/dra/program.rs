@@ -795,7 +795,12 @@ impl Program {
                             "DEFLATE_REPLAY corrections exceed the record limit",
                         ));
                     }
-                    let raw = replay_deflate(plaintext, corrections)?;
+                    let raw = replay_deflate_bounded(
+                        plaintext,
+                        corrections,
+                        *declared_output_len,
+                        limits,
+                    )?;
                     if raw.len() as u64 != u64::from(*declared_output_len) {
                         return Err(Error::invalid_graph(format!(
                             "DEFLATE_REPLAY produced {} bytes but {} were declared",
@@ -857,19 +862,33 @@ pub(crate) fn replay_profile_limit(plaintext_len: u64, limits: Limits) -> u64 {
         .min(profile)
 }
 
-/// Replay a raw DEFLATE bitstream from plaintext and correction state.
+/// Replay a raw DEFLATE bitstream from plaintext and correction state on the
+/// **decode path**.
 ///
-/// With the `deflate-replay` feature this delegates to the bounded,
-/// panic-isolated [`crate::codec::deflate::replay_raw`]. Without it the op is
-/// still recognized on the wire but cannot be evaluated, so it fails closed.
+/// With the `deflate-replay` feature this delegates to the process-isolated,
+/// memory- and time-capped [`crate::codec::deflate::replay_bounded`] (which falls
+/// back to the in-process [`crate::codec::deflate::replay_raw`] when no worker is
+/// configured). The encoder-side `try_replay` verification and the fuzz targets
+/// keep using `replay_raw` directly. Without the feature the op is still
+/// recognized on the wire but cannot be evaluated, so it fails closed.
 #[cfg(feature = "deflate-replay")]
-fn replay_deflate(plaintext: &[u8], corrections: &[u8]) -> Result<Vec<u8>> {
-    crate::codec::deflate::replay_raw(plaintext, corrections)
+fn replay_deflate_bounded(
+    plaintext: &[u8],
+    corrections: &[u8],
+    declared_output_len: u32,
+    limits: Limits,
+) -> Result<Vec<u8>> {
+    crate::codec::deflate::replay_bounded(plaintext, corrections, declared_output_len, limits)
 }
 
 /// Fail-closed stub for builds without the `deflate-replay` feature.
 #[cfg(not(feature = "deflate-replay"))]
-fn replay_deflate(_plaintext: &[u8], _corrections: &[u8]) -> Result<Vec<u8>> {
+fn replay_deflate_bounded(
+    _plaintext: &[u8],
+    _corrections: &[u8],
+    _declared_output_len: u32,
+    _limits: Limits,
+) -> Result<Vec<u8>> {
     Err(Error::unsupported_feature(
         "DEFLATE_REPLAY requires the `deflate-replay` feature",
     ))

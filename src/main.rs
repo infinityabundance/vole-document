@@ -71,6 +71,28 @@ fn main() -> ExitCode {
 }
 
 fn run(args: &[String]) -> Result<()> {
+    // Hidden internal replay-worker mode: handled before any normal parsing,
+    // because it reads a framed request from stdin and never returns. It is not
+    // advertised in USAGE.
+    #[cfg(feature = "deflate-replay")]
+    {
+        use vole_document::codec::deflate::{
+            REPLAY_WORKER_SUBCOMMAND, install_default_replay_worker, run_worker_stdio,
+        };
+        if args.get(1).map(String::as_str) == Some(REPLAY_WORKER_SUBCOMMAND) {
+            run_worker_stdio();
+        }
+        // Isolate DEFLATE replay by default: point the library at this binary.
+        // `std::env::set_var` is `unsafe` under Rust 2024 (and this crate forbids
+        // `unsafe`), so the path is installed via a safe library setter; an
+        // explicit `VOLE_REPLAY_WORKER` still takes precedence.
+        if std::env::var_os("VOLE_REPLAY_WORKER").is_none() {
+            if let Ok(exe) = std::env::current_exe() {
+                install_default_replay_worker(exe);
+            }
+        }
+    }
+
     let cmd = match args.get(1).map(String::as_str) {
         Some(c) => c,
         None => {
