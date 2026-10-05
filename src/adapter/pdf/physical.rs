@@ -24,6 +24,7 @@
 use crate::error::{Error, Result};
 use crate::limits::Limits;
 
+use super::cos::{LengthValue, body_as_u64, dict_has_length, dict_length};
 use super::lexer::lex;
 use super::span::{Span, SpanKind};
 
@@ -80,6 +81,43 @@ pub struct PdfObjectSpan {
     pub end: u64,
 }
 
+/// How a stream's data length was determined.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LengthSource {
+    /// A direct `/Length N` was read and verified against `endstream`.
+    Direct,
+    /// An indirect `/Length N G R` was resolved and verified.
+    Indirect,
+    /// No usable `/Length`; the conservative 3.2 keyword search was used.
+    Fallback,
+    /// No `/Length` key was present at all; the keyword search was used.
+    Missing,
+}
+
+/// The exact data span of one stream, with the provenance of its length.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PdfStreamSpan {
+    /// Object number of the enclosing indirect object.
+    pub object: u64,
+    /// Generation number of the enclosing indirect object.
+    pub generation: u64,
+    /// Offset of the first payload byte (after the post-`stream` EOL).
+    pub data_start: u64,
+    /// Number of payload bytes.
+    pub data_len: u64,
+    /// How `data_len` was established.
+    pub length_source: LengthSource,
+}
+
+/// One incremental-update revision, delimited by a terminating `%%EOF`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RevisionRange {
+    /// First byte of the revision.
+    pub start: u64,
+    /// Byte just past the terminating `%%EOF` comment.
+    pub end: u64,
+}
+
 /// The physical summary of a PDF input.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PdfPhysical {
@@ -87,6 +125,10 @@ pub struct PdfPhysical {
     pub spans: Vec<PhysicalSpan>,
     /// Indirect objects found, in file order.
     pub objects: Vec<PdfObjectSpan>,
+    /// Resolved stream payload spans, in file order.
+    pub streams: Vec<PdfStreamSpan>,
+    /// Revision ranges delimited by `%%EOF`, in file order.
+    pub revisions: Vec<RevisionRange>,
     /// Recorded `startxref` values, in file order.
     pub startxref: Vec<u64>,
     /// Offsets of `%%EOF` markers, in file order.
@@ -147,7 +189,10 @@ pub fn scan(input: &[u8], limits: Limits) -> Result<PdfPhysical> {
     let lexed = lex(input, limits)?;
     let spans = lexed.spans.spans;
 
-    let mut state = ScanState::new(limits);
+    // A prior pass resolves object body ranges, so an indirect `/Length` can be
+    // resolved even when the target object appears later in the file.
+    let obj_bodies = collect_bodies(input, &spans);
+    let mut state = ScanState::new(limits, obj_bodies);
     let mut i = 0usize;
     while i < spans.len() {
         let sp = spans[i];
@@ -202,7 +247,8 @@ pub fn scan(input: &[u8], limits: Limits) -> Result<PdfPhysical> {
         i += 1;
     }
 
-    let physical = state.finish();
+    let mut physical = state.finish();
+    physical.revisions = revisions_from(input, &physical.eofs, &spans);
     physical.validate(declared_len)?;
     Ok(physical)
 }
@@ -211,16 +257,20 @@ pub fn scan(input: &[u8], limits: Limits) -> Result<PdfPhysical> {
 struct ScanState {
     builder: Builder,
     objects: Vec<PdfObjectSpan>,
+    streams: Vec<PdfStreamSpan>,
+    obj_bodies: Vec<ObjBody>,
     startxref: Vec<u64>,
     eofs: Vec<u64>,
     header: Option<(u64, u64)>,
 }
 
 impl ScanState {
-    fn new(limits: Limits) -> Self {
+    fn new(limits: Limits, obj_bodies: Vec<ObjBody>) -> Self {
         ScanState {
             builder: Builder::new(limits),
             objects: Vec::new(),
+            streams: Vec::new(),
+            obj_bodies,
             startxref: Vec::new(),
             eofs: Vec::new(),
             header: None,
@@ -235,6 +285,8 @@ impl ScanState {
         PdfPhysical {
             spans: self.builder.spans,
             objects: self.objects,
+            streams: self.streams,
+            revisions: Vec::new(),
             startxref: self.startxref,
             eofs: self.eofs,
             header: self.header,
@@ -260,8 +312,9 @@ impl ScanState {
         )?;
 
         // Locate the object end: the first `endobj` after the introducer, with an
-        // optional stream payload skipped wholesale.
-        let mut stream: Option<(usize, u64)> = None; // (endstream index, data start)
+        // optional stream payload skipped wholesale. Streams use a resolved
+        // `/Length` when possible and the conservative 3.2 keyword search otherwise.
+        let mut stream: Option<ResolvedStream> = None;
         let mut endobj: Option<usize> = None;
         let mut j = i + 5;
         while j < spans.len() {
@@ -269,34 +322,44 @@ impl ScanState {
                 endobj = Some(j);
                 break;
             }
-            if regular_eq(input, spans[j], b"stream") {
-                let kw_end = spans[j].start + spans[j].len;
-                if let Some(data_start) = eol_start_after(input, kw_end)
-                    && let Some(k) = find_regular(input, spans, j + 1, b"endstream")
-                    && spans[k].start >= data_start
-                {
-                    stream = Some((k, data_start));
-                    j = k + 1;
-                    continue;
-                }
+            if stream.is_none()
+                && regular_eq(input, spans[j], b"stream")
+                && let Some(rs) = resolve_stream(input, spans, j, &self.obj_bodies, i + 5)
+            {
+                j = rs.endstream + 1;
+                stream = Some(rs);
+                continue;
             }
             j += 1;
         }
 
         match endobj {
             Some(m) => {
-                if let Some((k, data_start)) = stream {
-                    if data_start > obj_kw_end {
-                        self.push(obj_kw_end, data_start - obj_kw_end, PhysicalKind::ObjBody)?;
+                if let Some(rs) = stream {
+                    if rs.data_start > obj_kw_end {
+                        self.push(
+                            obj_kw_end,
+                            rs.data_start - obj_kw_end,
+                            PhysicalKind::ObjBody,
+                        )?;
                     }
-                    let data_end = spans[k].start;
-                    if data_end > data_start {
-                        self.push(data_start, data_end - data_start, PhysicalKind::StreamData)?;
+                    if rs.data_len > 0 {
+                        self.push(rs.data_start, rs.data_len, PhysicalKind::StreamData)?;
                     }
+                    // Resume at the end of the declared payload so any optional
+                    // trailing EOL is still covered (it is not part of the span).
+                    let data_end = rs.data_start + rs.data_len;
                     let body_end = spans[m].start;
                     if body_end > data_end {
                         self.push(data_end, body_end - data_end, PhysicalKind::ObjBody)?;
                     }
+                    self.streams.push(PdfStreamSpan {
+                        object: number,
+                        generation,
+                        data_start: rs.data_start,
+                        data_len: rs.data_len,
+                        length_source: rs.source,
+                    });
                 } else {
                     let body_end = spans[m].start;
                     if body_end > obj_kw_end {
@@ -544,6 +607,274 @@ fn obj_header_at(input: &[u8], spans: &[Span], i: usize) -> Option<(u64, u64)> {
     Some((number, generation))
 }
 
+// ---------------------------------------------------------------------------
+// Stream length resolution.
+// ---------------------------------------------------------------------------
+
+/// A pre-resolved indirect-object body range, keyed by `(number, generation)`.
+#[derive(Debug, Clone, Copy)]
+struct ObjBody {
+    number: u64,
+    generation: u64,
+    body_lo: u64,
+    body_hi: u64,
+}
+
+/// A resolved stream payload: exact data span plus the length's provenance.
+#[derive(Debug, Clone, Copy)]
+struct ResolvedStream {
+    data_start: u64,
+    data_len: u64,
+    endstream: usize,
+    source: LengthSource,
+}
+
+/// One prior pass over the lexical cover records every object's body range using
+/// the same conservative stream skip as the main pass. This lets the main pass
+/// resolve an indirect `/Length` even when the target object appears later.
+fn collect_bodies(input: &[u8], spans: &[Span]) -> Vec<ObjBody> {
+    let mut out = Vec::new();
+    let mut i = 0usize;
+    while i < spans.len() {
+        if let Some((number, generation)) = obj_header_at(input, spans, i) {
+            let body_lo = spans[i + 4].start + spans[i + 4].len;
+            match find_endobj(input, spans, i + 5) {
+                Some(m) => {
+                    out.push(ObjBody {
+                        number,
+                        generation,
+                        body_lo,
+                        body_hi: spans[m].start,
+                    });
+                    i = m + 1;
+                }
+                None => {
+                    out.push(ObjBody {
+                        number,
+                        generation,
+                        body_lo,
+                        body_hi: input.len() as u64,
+                    });
+                    i = spans.len();
+                }
+            }
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
+/// Index of the terminating `endobj`, skipping a stream payload wholesale with
+/// the conservative keyword rule used by the 3.2 scanner.
+fn find_endobj(input: &[u8], spans: &[Span], from: usize) -> Option<usize> {
+    let mut j = from;
+    while j < spans.len() {
+        if regular_eq(input, spans[j], b"endobj") {
+            return Some(j);
+        }
+        if regular_eq(input, spans[j], b"stream") {
+            let kw_end = spans[j].start + spans[j].len;
+            if let Some(data_start) = eol_start_after(input, kw_end)
+                && let Some(k) = find_regular(input, spans, j + 1, b"endstream")
+                && spans[k].start >= data_start
+            {
+                j = k + 1;
+                continue;
+            }
+        }
+        j += 1;
+    }
+    None
+}
+
+/// Body range of object `(number, generation)`, if present.
+fn lookup_body(bodies: &[ObjBody], number: u64, generation: u64) -> Option<(u64, u64)> {
+    bodies
+        .iter()
+        .find(|b| b.number == number && b.generation == generation)
+        .map(|b| (b.body_lo, b.body_hi))
+}
+
+/// Resolve a `stream` keyword at lexeme `s` to its exact payload span.
+///
+/// Precedence: direct `/Length`, then indirect `/Length` (resolved through the
+/// object-body index), then the conservative 3.2 keyword search. Returns `None`
+/// only when not even the keyword search finds a terminating `endstream`.
+fn resolve_stream(
+    input: &[u8],
+    spans: &[Span],
+    s: usize,
+    bodies: &[ObjBody],
+    lower: usize,
+) -> Option<ResolvedStream> {
+    let kw_end = spans[s].start + spans[s].len;
+
+    let mut resolved: Option<ResolvedStream> = None;
+    let mut source = LengthSource::Fallback;
+
+    if let Some((open, close)) = preceding_dict(spans, s, lower) {
+        let dict_lo = spans[open].start;
+        let dict_hi = spans[close].start + spans[close].len;
+        match dict_length(input, spans, dict_lo, dict_hi) {
+            Some(LengthValue::Direct(n)) => {
+                if let Some(rs) = verify_direct(input, spans, kw_end, n) {
+                    resolved = Some(rs);
+                    source = LengthSource::Direct;
+                }
+            }
+            Some(LengthValue::Indirect { number, generation }) => {
+                if let Some((lo, hi)) = lookup_body(bodies, number, generation)
+                    && let Some(n) = body_as_u64(input, spans, lo, hi)
+                    && let Some(rs) = verify_direct(input, spans, kw_end, n)
+                {
+                    resolved = Some(rs);
+                    source = LengthSource::Indirect;
+                }
+            }
+            None => {
+                if !dict_has_length(input, spans, dict_lo, dict_hi) {
+                    source = LengthSource::Missing;
+                }
+            }
+        }
+    } else {
+        source = LengthSource::Missing;
+    }
+
+    if let Some(mut rs) = resolved {
+        rs.source = source;
+        return Some(rs);
+    }
+
+    // Conservative 3.2 fallback: the payload runs from the first EOL after the
+    // `stream` keyword to the first following `endstream` keyword.
+    let data_start = eol_start_after(input, kw_end)?;
+    let k = find_regular(input, spans, s + 1, b"endstream")?;
+    if spans[k].start < data_start {
+        return None;
+    }
+    Some(ResolvedStream {
+        data_start,
+        data_len: spans[k].start - data_start,
+        endstream: k,
+        source,
+    })
+}
+
+/// The `<<...>>` dictionary immediately preceding `stream` at `s`, as
+/// `(open, close)` lexeme indices: the nearest `DictOpen` whose matching
+/// `DictClose` lies before `s`.
+fn preceding_dict(spans: &[Span], s: usize, lower: usize) -> Option<(usize, usize)> {
+    let mut j = s;
+    while j > lower {
+        j -= 1;
+        if spans[j].kind == SpanKind::DictOpen
+            && let Some(close) = matching_dict_close(spans, j)
+            && close < s
+        {
+            return Some((j, close));
+        }
+    }
+    None
+}
+
+/// Verify a direct length `n` against the bytes after `stream`: exactly one EOL
+/// must follow the keyword, and after `n` bytes an optional EOL must reach a
+/// `Regular` `endstream`. A lone CR after `stream` is not a valid EOL.
+fn verify_direct(input: &[u8], spans: &[Span], kw_end: u64, n: u64) -> Option<ResolvedStream> {
+    let eol = post_stream_eol_len(input, kw_end)?;
+    let data_start = kw_end + eol;
+    let data_end = data_start.checked_add(n)?;
+    let k = first_regular_at_or_after(input, spans, data_end, b"endstream")?;
+    let gap = spans[k].start.checked_sub(data_end)?;
+    let ok = gap == 0
+        || (gap == 1 && byte_at(input, data_end) == Some(b'\n'))
+        || (gap == 2
+            && byte_at(input, data_end) == Some(b'\r')
+            && byte_at(input, data_end + 1) == Some(b'\n'));
+    if !ok {
+        return None;
+    }
+    Some(ResolvedStream {
+        data_start,
+        data_len: n,
+        endstream: k,
+        source: LengthSource::Direct,
+    })
+}
+
+/// Length of the mandatory EOL directly after the `stream` keyword: `LF` (1),
+/// `CRLF` (2), or `None` (including a lone `CR`).
+fn post_stream_eol_len(input: &[u8], kw_end: u64) -> Option<u64> {
+    match byte_at(input, kw_end) {
+        Some(b'\n') => Some(1),
+        Some(b'\r') if byte_at(input, kw_end + 1) == Some(b'\n') => Some(2),
+        _ => None,
+    }
+}
+
+/// Index of the first `Regular` lexeme equal to `keyword` whose start is at or
+/// after `offset`.
+fn first_regular_at_or_after(
+    input: &[u8],
+    spans: &[Span],
+    offset: u64,
+    keyword: &[u8],
+) -> Option<usize> {
+    let idx = spans.partition_point(|sp| sp.start < offset);
+    spans[idx..]
+        .iter()
+        .position(|sp| regular_eq(input, *sp, keyword))
+        .map(|off| idx + off)
+}
+
+/// One byte at `offset`, if in range.
+fn byte_at(input: &[u8], offset: u64) -> Option<u8> {
+    usize::try_from(offset)
+        .ok()
+        .and_then(|i| input.get(i).copied())
+}
+
+/// Build revision ranges from the `%%EOF` offsets. `end` is the byte just past
+/// the comment; `start` is `0` for the first revision, otherwise the previous
+/// revision's end advanced by at most one optional EOL.
+fn revisions_from(input: &[u8], eofs: &[u64], spans: &[Span]) -> Vec<RevisionRange> {
+    let mut out = Vec::with_capacity(eofs.len());
+    let mut start = 0u64;
+    for &e in eofs {
+        let end = span_end_at(spans, e).unwrap_or(e);
+        out.push(RevisionRange { start, end });
+        start = end + eol_len_after(input, end);
+    }
+    out
+}
+
+/// End offset of the span containing `offset`, if the offset lies within one.
+fn span_end_at(spans: &[Span], offset: u64) -> Option<u64> {
+    let idx = spans.partition_point(|sp| sp.start <= offset);
+    if idx == 0 {
+        return None;
+    }
+    let sp = spans[idx - 1];
+    if offset < sp.start.saturating_add(sp.len) {
+        Some(sp.start.saturating_add(sp.len))
+    } else {
+        None
+    }
+}
+
+/// Length of one optional EOL at `offset`: `LF` (1), `CRLF` (2), lone `CR` (1),
+/// or `0` when none is present.
+fn eol_len_after(input: &[u8], offset: u64) -> u64 {
+    match byte_at(input, offset) {
+        Some(b'\n') => 1,
+        Some(b'\r') if byte_at(input, offset + 1) == Some(b'\n') => 2,
+        Some(b'\r') => 1,
+        _ => 0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -702,5 +1033,199 @@ mod tests {
         };
         let err = scan(&pdf, limits).unwrap_err();
         assert_eq!(err.class(), ErrorClass::ResourceLimit);
+    }
+
+    fn offset_of(hay: &[u8], needle: &[u8]) -> u64 {
+        hay.windows(needle.len())
+            .position(|w| w == needle)
+            .expect("needle present") as u64
+    }
+
+    fn slice_of(pdf: &[u8], s: PdfStreamSpan) -> &[u8] {
+        &pdf[s.data_start as usize..(s.data_start + s.data_len) as usize]
+    }
+
+    fn only_stream(p: &PdfPhysical) -> PdfStreamSpan {
+        assert_eq!(p.streams.len(), 1, "expected exactly one stream");
+        p.streams[0]
+    }
+
+    #[test]
+    fn direct_length_yields_exact_span() {
+        let pdf =
+            b"%PDF-1.5\n1 0 obj\n<< /Length 5 >>\nstream\nhello\nendstream\nendobj\n".to_vec();
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+
+        let s = only_stream(&p);
+        assert_eq!(s.object, 1);
+        assert_eq!(s.generation, 0);
+        assert_eq!(s.length_source, LengthSource::Direct);
+        assert_eq!(s.data_start, offset_of(&pdf, b"hello"));
+        assert_eq!(s.data_len, 5);
+        assert_eq!(slice_of(&pdf, s), b"hello");
+
+        let ds = p
+            .spans
+            .iter()
+            .find(|sp| sp.kind == PhysicalKind::StreamData)
+            .unwrap();
+        assert_eq!(ds.start, s.data_start);
+        assert_eq!(ds.len, s.data_len);
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn length_including_trailing_eol_is_accepted() {
+        let pdf =
+            b"%PDF-1.5\n1 0 obj\n<< /Length 6 >>\nstream\nhello\nendstream\nendobj\n".to_vec();
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+        let s = only_stream(&p);
+        assert_eq!(s.length_source, LengthSource::Direct);
+        assert_eq!(slice_of(&pdf, s), b"hello\n");
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn crlf_and_lf_after_stream_are_both_handled() {
+        let crlf =
+            b"%PDF-1.5\n1 0 obj\n<< /Length 5 >>\r\nstream\r\nhello\r\nendstream\r\nendobj\n"
+                .to_vec();
+        let p = scan(&crlf, Limits::DEFAULT).unwrap();
+        let s = only_stream(&p);
+        assert_eq!(s.length_source, LengthSource::Direct);
+        assert_eq!(slice_of(&crlf, s), b"hello");
+        assert_eq!(s.data_start, offset_of(&crlf, b"hello"));
+        p.validate(crlf.len() as u64).unwrap();
+
+        let lf = b"%PDF-1.5\n1 0 obj\n<< /Length 5 >>\nstream\nhello\nendstream\nendobj\n".to_vec();
+        let p = scan(&lf, Limits::DEFAULT).unwrap();
+        let s = only_stream(&p);
+        assert_eq!(s.length_source, LengthSource::Direct);
+        assert_eq!(slice_of(&lf, s), b"hello");
+        p.validate(lf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn lone_cr_after_stream_falls_back() {
+        let pdf =
+            b"%PDF-1.5\n1 0 obj\n<< /Length 5 >>\nstream\rhello\r\nendstream\nendobj\n".to_vec();
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+        let s = only_stream(&p);
+        assert_eq!(s.length_source, LengthSource::Fallback);
+        assert!(slice_of(&pdf, s).windows(5).any(|w| w == b"hello"));
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn indirect_length_is_resolved_forward_reference() {
+        // Object 5 (the `/Length` target) appears *after* the stream object.
+        let pdf =
+            b"%PDF-1.5\n1 0 obj\n<< /Length 5 0 R >>\nstream\nhello\nendstream\nendobj\n5 0 obj\n5\nendobj\n"
+                .to_vec();
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+        let s = only_stream(&p);
+        assert_eq!(s.length_source, LengthSource::Indirect);
+        assert_eq!(s.data_start, offset_of(&pdf, b"hello"));
+        assert_eq!(s.data_len, 5);
+        assert_eq!(slice_of(&pdf, s), b"hello");
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn missing_length_uses_keyword_fallback() {
+        let pdf = b"%PDF-1.5\n1 0 obj\n<< /Type /X >>\nstream\nhello\nendstream\nendobj\n".to_vec();
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+        let s = only_stream(&p);
+        assert_eq!(s.length_source, LengthSource::Missing);
+        assert!(slice_of(&pdf, s).windows(5).any(|w| w == b"hello"));
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn wrong_length_past_endstream_falls_back() {
+        let pdf =
+            b"%PDF-1.5\n1 0 obj\n<< /Length 100 >>\nstream\nhello\nendstream\nendobj\n".to_vec();
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+        let s = only_stream(&p);
+        assert_eq!(s.length_source, LengthSource::Fallback);
+        assert!(slice_of(&pdf, s).windows(5).any(|w| w == b"hello"));
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn correct_length_beats_endstream_bytes_in_payload() {
+        // The payload contains a standalone `endstream` token. The keyword-only
+        // fallback would stop early; a verified `/Length` must win.
+        let payload = b"endstream\nfoo";
+        let pdf =
+            b"%PDF-1.5\n1 0 obj\n<< /Length 13 >>\nstream\nendstream\nfoo\nendstream\nendobj\n"
+                .to_vec();
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+        let s = only_stream(&p);
+        assert_eq!(s.length_source, LengthSource::Direct);
+        assert_eq!(s.data_start, offset_of(&pdf, b"endstream\nfoo"));
+        assert_eq!(s.data_len, payload.len() as u64);
+        assert_eq!(slice_of(&pdf, s), payload);
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn two_revisions_have_correct_boundaries() {
+        let r1 = b"%PDF-1.4\n1 0 obj\n<< >>\nendobj\n%%EOF\n";
+        let r2 = b"2 0 obj\n<< >>\nendobj\n%%EOF";
+        let mut pdf = Vec::new();
+        pdf.extend_from_slice(r1);
+        pdf.extend_from_slice(r2);
+
+        let eof_positions: Vec<u64> = pdf
+            .windows(5)
+            .enumerate()
+            .filter(|(_, w)| *w == b"%%EOF")
+            .map(|(i, _)| i as u64)
+            .collect();
+        assert_eq!(eof_positions.len(), 2);
+
+        let p = scan(&pdf, Limits::DEFAULT).unwrap();
+        assert_eq!(p.eofs.len(), 2);
+        assert_eq!(p.revisions.len(), 2);
+
+        let rev1_end = eof_positions[0] + 5;
+        let rev2_end = eof_positions[1] + 5;
+        assert_eq!(
+            p.revisions,
+            vec![
+                RevisionRange {
+                    start: 0,
+                    end: rev1_end,
+                },
+                RevisionRange {
+                    start: rev1_end + 1,
+                    end: rev2_end,
+                },
+            ]
+        );
+        assert_eq!(rev2_end, pdf.len() as u64);
+        assert_eq!(p.objects.len(), 2);
+        p.validate(pdf.len() as u64).unwrap();
+    }
+
+    #[test]
+    fn random_inputs_keep_streams_and_revisions_consistent() {
+        let mut state: u64 = 0xdead_beef_cafe_f00d;
+        for _ in 0..500 {
+            let len = (xorshift64(&mut state) % 128) as usize;
+            let mut buf = Vec::with_capacity(len);
+            for _ in 0..len {
+                buf.push((xorshift64(&mut state) & 0xff) as u8);
+            }
+            let p = scan(&buf, Limits::DEFAULT).unwrap();
+            p.validate(buf.len() as u64).unwrap();
+            for s in &p.streams {
+                assert!(s.data_start + s.data_len <= buf.len() as u64);
+            }
+            for r in &p.revisions {
+                assert!(r.start <= r.end && r.end <= buf.len() as u64);
+            }
+        }
     }
 }
