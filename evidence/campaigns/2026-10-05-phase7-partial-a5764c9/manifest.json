@@ -1,0 +1,41 @@
+{
+  "campaign": "2026-10-05-phase7-partial-a5764c9",
+  "amends": null,
+  "phase": "Phase 7.3 — partial materialization / observation views: random-access query cost vs generic compressors on a 32.22 MiB, 800-object PDF",
+  "claim": "On a 33,789,340 B (32.22 MiB) deterministic 800-stream PDF, the indexed partial-materialization lane (PDF_DEFLATE_REPLAY_RANS_INDEXED) serves all 18 pre-registered queries byte-exactly and reduces random-access DECODE WORK: at every query at >= ~2 MiB it touches ~0.41-0.46 MB (descriptor_bytes_traversed + entropy_bytes_decoded) regardless of offset, versus gzip inflating a+len (1.4%-2.3% of gzip's bytes in the late region), and is ~2-5x faster than gzip and ~4-13x faster than xz on CPU in the late region. It does NOT win in the early region (<= ~8 MiB), does NOT beat zstd's raw decompression speed at any point, has ~38 MB peak RSS versus gzip's ~1.2 MB, still loses whole-file size ~2.98x to xz (best VOLE 17,392,713 B vs xz 5,841,896 B), and — the decisive v1 caveat — reads and parses the WHOLE 17.5 MB descriptor, so on-disk I/O is NOT reduced (gzip reads a ~9.8 MB compressed prefix at 31 MiB). descriptor_bytes_traversed is a CPU-side approximation. Verdict: scoped positive on decode CPU/allocation; no I/O win yet; a seek/mmap reader is the prerequisite for any bytes-read claim.",
+  "git_commit": "a5764c9",
+  "git_dirty_tracked": "0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "baseline_image": "vole-document/baseline:1.99.0@sha256:5cbedbdf2b3e320a74abb043bdb095abca2d31170a74a5f5e258931163bc8a0b",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "ec8313a91baa81eebd13ed98b2cdc5abe43251c0c45caca3bba2df2441ee1039",
+  "binary_sha256": "3f4510ae7a89e338f806460bb200d0d19f36a61cdabc6a31583b9ef562f22b18",
+  "features": "deflate-replay,rans (cargo build --locked --all-features)",
+  "oracles": {"qpdf": "11.3.0", "ghostscript": "10.00.0", "gzip": "1.12", "zstd": "1.5.4", "xz": "5.4.1", "brotli": "1.0.9", "pv": "1.6.20", "jq": "1.6"},
+  "command": "dev: pdf-make-large 800; tools: qpdf --check + gs; dev: encode --force {pdf-deflate-replay-rans-indexed,byte-rans,pdf-physical}; baseline: gzip/zstd/xz/brotli compression; baseline: tools/baselines.sh; baseline: tools/partial-court.sh queries.jsonl ...; jq -rs -f tools/partial-table.jq",
+  "artifacts": {
+    "environment.json": "e2c9abd3c836c062a91e7ff69dce39884f24836b97fd23702247f4e8bc8650d5",
+    "corpus.json": "8daf86d1df50d4137dbca266ba1c74e548b394648e7f77ce4507c3fbec70a86d",
+    "results.json": "8207f71a924cf67cc2642262bb556713e71600a8bbedf09eb89e86f1967cec42",
+    "report.md": "4668d4689c8f9593da41a5fd6a8b05ceecc795570d4b7a107740b414798cd28c",
+    "queries.jsonl": "3a6260b4605199f96ff736445fc5baff47c00bd6cb3cef674c02fcd36169388f",
+    "query-table.md": "400aef2814d13ff8d45bafe3bdc7b7d6bf804233396dc46ce2d0be7d6d645529",
+    "large-baselines.json": "c568899246dcf124e9766b5bd338cda447cc06162b18f7f5518e878b622e1610"
+  },
+  "tooling": {
+    "driver": "tools/partial-court.sh",
+    "driver_sha256": "4f7a32a2b1c274f2f4065d0416dfb7f4791fff13811baa72256a3a46386ce40f",
+    "table": "tools/partial-table.jq",
+    "table_sha256": "a61242bb50e87c498f7e210d302e8c3bcf625c753cbb94f59d67f7ffea32ad2a",
+    "corpus_generator": "vole-document pdf-make-large (src/main.rs)"
+  },
+  "corpus_ledger": {
+    "source": "evidence/corpus/phase7-large/large.pdf",
+    "source_sha256": "983915aef64bfce2beed5bc000822a2aceb9a8c3beb0ca760de0a95ad12c205a",
+    "provenance": "evidence/corpus/phase7-large/provenance.json",
+    "bytes_committed": false
+  },
+  "verdict": "SCOPED POSITIVE (decode CPU/allocation); whole-file and on-disk-I/O claims remain losses"
+}

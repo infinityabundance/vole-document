@@ -1,0 +1,35 @@
+{
+  "corpus": "phase7-large",
+  "generator": "vole-document pdf-make-large (encode-time subcommand; no library/runtime dependency)",
+  "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-large evidence/corpus/phase7-large 800",
+  "source": "evidence/corpus/phase7-large/large.pdf",
+  "sha256": "983915aef64bfce2beed5bc000822a2aceb9a8c3beb0ca760de0a95ad12c205a",
+  "source_len": 33789340,
+  "source_len_mib": 32.22,
+  "objects_argument": 800,
+  "streams": 800,
+  "indirect_objects": 1603,
+  "stream_encoding": "level-0 DEFLATE (stored blocks) in a real zlib (RFC 1950) wrapper; each stream carries distinct per-stream LCG content, so no plaintext is shared between streams",
+  "deflate_census": {
+    "flate_streams": 800,
+    "replayed": 800,
+    "declined": 0,
+    "compressed_bytes": 33584800,
+    "plaintext_bytes": 33576000,
+    "correction_bytes": 22400,
+    "rans_plaintext_bytes": 17107593,
+    "replayed_rans_dedup_bytes": 17107621
+  },
+  "external_checks": {
+    "qpdf_version": "11.3.0",
+    "qpdf_check": "rc=0: 'No syntax or stream encoding errors found'",
+    "ghostscript_version": "10.00.0",
+    "ghostscript_render": "rc=0 (first page to nullpage)"
+  },
+  "provenance": {
+    "path": "evidence/corpus/phase7-large/provenance.json",
+    "byte_reproducible": true,
+    "note": "Generated twice; SHA-256 identical. The .pdf bytes are gitignored and regenerable from the command above."
+  },
+  "corpus_limitation": "Streams are level-0 (stored) zlib, so the corpus is the weak-producer regime where exact replay is trivially available and corrections are tiny (28 B/stream, deduplicated to one 28 B object). It is NOT a survey of strong real-world DEFLATE; it is a large multi-object random-access stress corpus. Distinctness of per-stream plaintext (not repeated-bytes) is what makes the query court meaningful."
+}

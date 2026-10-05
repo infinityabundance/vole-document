@@ -1,0 +1,62 @@
+{
+  "campaign": "2026-10-05-phase7-partial-a5764c9",
+  "whole_file": {
+    "units": "bytes",
+    "source_len": 33789340,
+    "gzip9": 9999924,
+    "zstd19": 6184771,
+    "xz9e": 5841896,
+    "brotli11": 6101311,
+    "raw": 33789756,
+    "byte_rans": 17773281,
+    "pdf_physical": 33829848,
+    "deflate_replay": 33851504,
+    "deflate_replay_rans": 17392713,
+    "deflate_replay_rans_indexed": 17539424,
+    "best_generic": 5841896,
+    "best_generic_name": "xz",
+    "best_vole": 17392713,
+    "best_vole_lane": "PDF_DEFLATE_REPLAY_RANS",
+    "index_cost_bytes": 146711,
+    "delta_indexed_vs_best_generic": 11697528,
+    "ratio_indexed_vs_best_generic": 3.002,
+    "delta_best_vole_vs_best_generic": 11550817,
+    "ratio_best_vole_vs_best_generic": 2.977,
+    "auto_candidate": "PDF_DEFLATE_REPLAY_RANS",
+    "indexed_available": true,
+    "note": "Complete-cost LOSS reproduced on this corpus: no VOLE lane, indexed or not, approaches gzip/zstd/xz/brotli. The indexed lane is 146,711 B larger than the non-indexed lane (the observation index record); it buys query capability, not size. The auto winner stays the non-indexed lane because auto is size-based."
+  },
+  "query_court": {
+    "queries": 18,
+    "correct": 18,
+    "correctness_method": "each served slice cmp'd against the source slice; the whole descriptor verify'd (length + SHA-256) once",
+    "pre_registered": "frozen before measuring: 6 byte-ranges (256 B at 0/1/8/16/24/31 MiB) + 8 --pdf-stream + 4 --pdf-object spans",
+    "vole_ops_total": 9621,
+    "vole_channels_total": 800,
+    "representative_start_mid_end": {
+      "start_byte_0": {"vole_bytes": 412161, "vole_cpu_s": 0.02, "vole_rss_kb": 37812, "gzip_infl": 256, "gzip_cpu_s": 0.0, "gzip_rss_kb": 1224, "zstd_infl": 256, "zstd_cpu_s": 0.0, "zstd_rss_kb": 4932, "xz_infl": 256, "xz_cpu_s": 0.0, "xz_rss_kb": 1196},
+      "mid_byte_16777216": {"vole_bytes": 455155, "vole_cpu_s": 0.03, "vole_rss_kb": 38036, "gzip_infl": 16777472, "gzip_cpu_s": 0.05, "gzip_rss_kb": 1280, "zstd_infl": 16777472, "zstd_cpu_s": 0.0, "zstd_rss_kb": 21656, "xz_infl": 16777472, "xz_cpu_s": 0.13, "xz_rss_kb": 18924},
+      "end_stream_1525": {"vole_bytes": 454215, "vole_cpu_s": 0.02, "vole_rss_kb": 38116, "gzip_infl": 32111758, "gzip_cpu_s": 0.11, "gzip_rss_kb": 1288, "zstd_infl": 32111758, "zstd_cpu_s": 0.01, "zstd_rss_kb": 35980, "xz_infl": 32111758, "xz_cpu_s": 0.26, "xz_rss_kb": 33728}
+    }
+  },
+  "h1_evaluation": {
+    "hypothesis": "For queries with output <= 1 MiB at >= 50% into a >= 32 MiB document, the indexed lane processes <= 25% of the bytes gzip -9 inflates and is >= 2x faster, byte-exact.",
+    "late_region_queries": 8,
+    "bytes_criterion_met": "8/8 (VOLE processes 1.4%-2.3% of the bytes gzip inflates)",
+    "cpu_time_criterion_vs_gzip_met": "8/8 (VOLE ~0.02-0.03 s vs gzip 0.06-0.11 s, ~2-5x)",
+    "cpu_time_criterion_vs_zstd_met": "0/8 (zstd decompresses the same prefix in ~0.00-0.01 s, faster than VOLE everywhere)",
+    "cpu_time_criterion_vs_xz_met": "8/8 (xz 0.06-0.26 s)",
+    "result": "H1 MET vs gzip and xz in the late region; NOT met vs zstd; NOT met in the early region (<= ~8 MiB)."
+  },
+  "verdict": "PARTIAL / SCOPED POSITIVE. Random-access decode work and decode CPU are genuinely reduced for mid/late queries (>= ~20x fewer bytes processed, ~2-5x faster than gzip/xz), byte-exact on all 18 queries. But v1 reads the whole descriptor, so on-disk I/O is NOT reduced (VOLE reads its full 17.5 MB .voldoc vs gzip's ~9.8 MB compressed prefix at 31 MiB); peak RSS is ~38 MB (a whole-descriptor parse) versus gzip's ~1.2 MB; zstd's raw decoder is faster on wall time at every point; and whole-file size still loses ~3x to xz. A seek/mmap reader is required before any I/O win can be claimed.",
+  "artifacts": {
+    "source_sha256": "983915aef64bfce2beed5bc000822a2aceb9a8c3beb0ca760de0a95ad12c205a",
+    "large.pdf.gz": "a4a3a4bef66b88799730f569cc011a6cef163510539b914ea385eb16c34ec993",
+    "large.pdf.zst": "7e95cf18bc951da68f6687ccf9676f7d4630576002c33c6b1c3054c97e799b81",
+    "large.pdf.xz": "470b5279c5887c7b9386932905d7b18c61fe77a39162fe66defba5d526c38dec",
+    "large.pdf.br": "a98d637fac005b52c1d013eb74ae1e99acb818ba5cb14d525d484543c177949e",
+    "large.byte-rans.voldoc": "df2cc908bb92900cfe8fb7c94a90f49a60995f900acc5fff2290d20d62d1aaa6",
+    "large.pdf-physical.voldoc": "9c4bdc1ae8fe82d18c609e67e3d85ad423ca946d6573dcd642d7f80f493f6ceb",
+    "large.pdf-deflate-replay-rans-indexed.voldoc": "f5c46127c8b86111ee1ef14342133d20a8f4102b68efb2256ff17c41d9af16c5"
+  }
+}

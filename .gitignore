@@ -34,6 +34,11 @@
 /evidence/corpus/**/*.bin
 /evidence/corpus/**/.tmp/
 
+# Phase-7.3 partial-materialization corpus: the large regenerable PDF bytes are
+# produced by `vole-document pdf-make-large` and are NOT committed. The
+# provenance ledger is committed; the bytes are gitignored.
+/evidence/corpus/phase7-large/*.pdf
+
 # Phase-7.0b generator-family corpus: same rule for the producers service, plus
 # its intermediate generator inputs and LibreOffice profile scratch.
 /evidence/corpus/phase7-producers/**/*.html
