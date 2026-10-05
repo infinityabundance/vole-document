@@ -46,6 +46,20 @@ RUN apt-get update \
 WORKDIR /work
 
 # ---------------------------------------------------------------------------
+# Dependency-policy gate: cargo-audit + cargo-deny, built inside the pinned
+# toolchain so they match the compiler and run in Docker (never on the host).
+# ---------------------------------------------------------------------------
+FROM ${BASE_STABLE} AS policy
+ENV CARGO_TERM_COLOR=never \
+    CARGO_INCREMENTAL=0
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates pkg-config libssl-dev \
+ && rm -rf /var/lib/apt/lists/* \
+ && git config --system --add safe.directory /work
+RUN cargo install cargo-audit cargo-deny --locked
+WORKDIR /work
+
+# ---------------------------------------------------------------------------
 # PDF / semantic oracle court (Phase 3+). Independent validators, never the
 # representation authority: qpdf, Poppler, MuPDF, Ghostscript.
 # ---------------------------------------------------------------------------
