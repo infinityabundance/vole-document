@@ -42,7 +42,12 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | PDF byte-authoritative physical scanner (Phase 3.2–3.3) | **Measured** | campaign `2026-10-05-phase3-486aa17` |
 | PDF incremental revision map (Phase 3.4) | **Measured** | campaign `2026-10-05-phase3-486aa17` |
 | qpdf differential oracle court (oracle, never authority) | **Measured** | `tools/pdf-oracle.sh`; campaign `2026-10-05-phase3-486aa17` |
-| PDF structural adapters (Phases 4–8) | Planned | — |
+| PDF lexical channel transposition (`split`/`join`) | **Implemented** | `src/adapter/pdf/channels.rs`; `tests/pdf_channels.rs` |
+| `INTERLEAVE_CHANNELS` DRA op (DRA v3) | **Measured** | `src/dra/op.rs`; campaign `2026-10-05-phase4-3840bc4` |
+| Compact entropy model wire v2 (sparse/dense, smaller chosen) | **Measured** | `src/entropy/model.rs`; campaign `2026-10-05-phase4-3840bc4` |
+| Forced-candidate ablation (`encode --force KIND`) | **Measured** | `tools/phase4-court.sh`; campaign `2026-10-05-phase4-3840bc4` |
+| PDF typed channels (`PDF_CHANNELS`) | **Recorded (rejected on corpus)** | campaign `2026-10-05-phase4-3840bc4`; exact but loses to `BYTE_RANS` on complete cost (ADR-0010) |
+| PDF structural adapters (Phases 5–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
 | Partial materialization (Phase 11) | Planned | — |
@@ -118,6 +123,40 @@ not claimed here.
 Receipt:
 [`evidence/campaigns/2026-10-05-phase3-486aa17/`](evidence/campaigns/2026-10-05-phase3-486aa17/).
 
+### Phase 4 measured results
+
+Phase 4 transposes the byte-authoritative lexical cover into **typed channels**
+(one kind id per token, one 4-byte length per token, one payload stream per
+lexical kind) and reconstructs them with the bounded `INTERLEAVE_CHANNELS` DRA op
+(DRA v3). Each channel gets its own order-0 byte-rANS model, and model wire **v2**
+serializes to whichever of sparse or dense is smaller. The sealed campaign
+`2026-10-05-phase4-3840bc4` runs a forced-candidate ablation (`encode --force
+KIND`) over a deterministic 10-file corpus:
+
+```text
+A0 RAW            = 71036
+A1 + RLE          = 71036
+A2 + BYTE_RANS    = 43297
+A3 + PDF_PHYSICAL = 43297
+A4 + PDF_CHANNELS = 43297     leave-one-out channel delta = 0
+```
+
+All 10 files round-trip byte-exactly (`cmp` + `verify`) and the qpdf oracle
+re-check passes. Auto winners: RAW = 8, `BYTE_RANS` = 2, `PDF_PHYSICAL` = 0,
+`PDF_CHANNELS` = 0. On the text-heavy scale sample `bigtext.pdf` (65,549 B) the
+forced sizes were RAW = 65,871, `BYTE_RANS` = 38,142, `PDF_CHANNELS` = 46,432:
+typed channels beat RAW by ~21.6% but **lose to `BYTE_RANS` by ~8,290 B**. Compact
+sparse models cut the per-channel model overhead from 7,224 B to 1,981 B, which
+was not enough to close the gap. The honest conclusion is that coarse lexical
+transposition plus per-channel order-0 models does **not** beat a monolithic
+order-0 `BYTE_RANS` on this corpus, so the typed lexical channels were **rejected
+by the complete-cost court** and `PDF_CHANNELS` is recorded (not adopted). A win
+would require *conditioning and ordering* rather than more marginal per-kind
+models — that is Phase 5+ work (ADR-0010).
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase4-3840bc4/`](evidence/campaigns/2026-10-05-phase4-3840bc4/).
+
 ## Quick start (Docker only)
 
 All project commands run inside pinned containers. The host only invokes Docker.
@@ -143,13 +182,18 @@ CLI surface (activated by the pipeline, not by extension — extensions are hint
 never authority):
 
 ```text
-vole-document encode      INPUT          OUTPUT.voldoc
+vole-document encode      [--force KIND] INPUT   OUTPUT.voldoc
 vole-document decode      INPUT.voldoc   OUTPUT
 vole-document materialize INPUT.voldoc   OUTPUT
 vole-document verify      INPUT.voldoc
 vole-document inspect     INPUT.voldoc
 vole-document capabilities
 ```
+
+`encode --force KIND` forces the complete-cost court to consider only one
+candidate family (`raw`, `rle`, `byte-rans`, `pdf-physical`, `pdf-channels`) for
+honest per-mechanism ablation; it never bypasses exactness, and it fails with a
+typed usage error when the input does not propose that kind.
 
 ## Repository layout
 

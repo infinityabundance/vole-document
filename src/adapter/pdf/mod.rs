@@ -5,13 +5,17 @@
 //! cover so that every interpretation remains anchored to exact offsets.
 
 pub mod adapter;
+pub mod channels;
 pub mod cos;
 pub mod lexer;
 pub mod physical;
 pub mod samples;
 pub mod span;
 
+#[cfg(feature = "rans")]
+pub use adapter::propose_pdf_channels;
 pub use adapter::{detect, propose_pdf};
+pub use channels::{KIND_COUNT, TokenChannelPlan, join, kind_from_id, kind_id, split};
 pub use cos::{
     LengthValue, body_as_u64, dict_has_length, dict_int_or_ref, dict_length, dict_name_value,
 };

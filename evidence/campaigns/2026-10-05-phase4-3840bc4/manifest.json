@@ -1,0 +1,12 @@
+{
+  "campaign": "2026-10-05-phase4-3840bc4",
+  "phase": "Phase 4 — PDF lexical/structural channels, forced-candidate ablation",
+  "claim": "Every corpus file round-trips byte-exactly through its auto-winning lane (decode cmp and verify), and forcing each candidate family yields an honest per-mechanism size or a recorded null decline.",
+  "results_sha256": "0652dbe82eec09dc8764f86e1f7c78d67d78755367b025f5d2dad3adb6a6844d",
+  "ladder_sha256": "3ee652dcec77d4719ca1119d658ad73ca81f7decd97b7f60585b987c539feda8",
+  "environment_sha256": "6ca6e749fdddb17f2a46d3df8c3250a087da99432aecedb769dec4f591d59753",
+  "report_sha256": "ff63c04a9787f857924c42fff6e3791639062c8b6f69d9468fc81a5ded5d83ff",
+  "oracle": "oracle.jsonl (tools/pdf-oracle.sh)",
+  "oracle_sha256": "9bedef23d5173d61c98fc81c57b316fc05fcd4e0bc0e3c889a081acbf5433227",
+  "verdict": "PASS"
+}

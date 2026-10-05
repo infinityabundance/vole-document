@@ -1,0 +1,26 @@
+{
+  "campaign": "2026-10-05-phase4-3840bc4",
+  "units": "bytes",
+  "corpus_files": 10,
+  "A0": 71036,
+  "A1": 71036,
+  "A2": 43297,
+  "A3": 43297,
+  "A4": 43297,
+  "ladder_map": {
+    "A0": "RAW",
+    "A1": "min(RAW,RLE)",
+    "A2": "min(A1,BYTE_RANS)",
+    "A3": "min(A2,PDF_PHYSICAL)",
+    "A4": "min(A3,PDF_CHANNELS)"
+  },
+  "A4_without_channels": 43297,
+  "leave_one_out_channels_delta": 0,
+  "winners_count": {
+    "RAW": 8,
+    "RLE": 0,
+    "BYTE_RANS": 2,
+    "PDF_PHYSICAL": 0,
+    "PDF_CHANNELS": 0
+  }
+}

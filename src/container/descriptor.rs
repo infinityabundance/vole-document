@@ -21,7 +21,8 @@ use crate::limits::Limits;
 /// Changing any opcode, coder, limit semantic, or adapter meaning requires a
 /// new universe string. The `universe_id` in the header is the first 16 bytes
 /// of SHA-256 over this string.
-pub const UNIVERSE: &str = "vole-document;universe;phase-3;exact-bytes;dra-2;opaque+entropy+pdf";
+pub const UNIVERSE: &str =
+    "vole-document;universe;phase-4;exact-bytes;dra-3;opaque+entropy+pdf+channels";
 
 /// First 16 bytes of SHA-256 over a universe declaration string.
 pub fn universe_id_from_str(universe: &str) -> [u8; 16] {

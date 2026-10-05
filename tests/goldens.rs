@@ -194,31 +194,28 @@ fn reference_oracle_matches_decode_channel() {
 fn golden_model_bytes() {
     let counts = counts_with(&[(0, 1), (1, 2), (2, 3), (100, 400), (255, 7)]);
     let model = EntropyModel::from_counts(&counts, 12).expect("normalize");
-    let hex = to_hex(&model.encode().expect("encode"));
-    // Frozen canonical model bytes: `[version=1][scale_bits=12][count=256]`
-    // followed by 256 little-endian u16 frequencies. Only symbols 0, 1, 2, 100,
-    // and 255 are present (11, 21, 31, 3963, 70 respectively).
+    let bytes = model.encode().expect("encode");
+    let hex = to_hex(&bytes);
+    // Frozen canonical model bytes, version 2, SPARSE form (chosen because 5
+    // present symbols cost far fewer bytes than a dense 256-entry table):
+    //   [version=2][form=0][scale_bits=12][present_count=5] followed by the five
+    //   `[symbol u8][freq u16 LE]` entries in ascending symbol order.
+    // Frequencies: symbols 0, 1, 2, 100, 255 => 11, 21, 31, 3963, 70.
     let expected = concat!(
-        "010c00010b0015001f0000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000007b0f000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "00004600",
+        "02",   // version = 2
+        "00",   // form = 0 (sparse)
+        "0c",   // scale_bits = 12
+        "0500", // present_count = 5
+        "00", "0b00", // symbol 0 -> 11
+        "01", "1500", // symbol 1 -> 21
+        "02", "1f00", // symbol 2 -> 31
+        "64", "7b0f", // symbol 100 -> 3963
+        "ff", "4600", // symbol 255 -> 70
     );
-    assert_eq!(hex.len(), 1032, "model wire length is frozen");
+    assert_eq!(hex.len(), 40, "model wire length is frozen");
     assert_eq!(hex, expected);
+    // The frozen form must round-trip to the originating model.
+    assert_eq!(EntropyModel::decode(&bytes).expect("decode"), model);
 }
 
 #[test]
@@ -237,14 +234,14 @@ fn golden_capsule() {
 #[test]
 fn golden_descriptor() {
     let (bytes, report) = encode::encode(b"golden vector string", Limits::DEFAULT).expect("encode");
-    // Winner kind: RAW. A 19-byte input cannot amortize the 516-byte canonical
-    // model, so the literal lane is selected; this freezes the exact layout,
-    // length, and digest for that input.
+    // Winner kind: RAW. A 19-byte input cannot amortize per-channel model and
+    // framing overhead, so the literal lane is selected; this freezes the exact
+    // layout, length, and digest for that input.
     assert_eq!(report.kind.name(), "RAW");
-    assert_eq!(bytes.len(), 333);
+    assert_eq!(bytes.len(), 342);
     assert_eq!(
         to_hex(&sha256(&bytes)),
-        "dab2b2c7e8cdbe8443c870dcc975a9dd204268031ad60e02d11d902cf1abc8ed"
+        "074d70acd934e24da7aa578483ca9034bf37c45a85b03967efec65e5568a3baf"
     );
 }
 
@@ -317,21 +314,54 @@ fn model_decode_never_panics() {
         .expect("encode");
     let target: u64 = 1u64 << 12;
 
-    // Sum of the 256 little-endian u16 frequencies regardless of header validity.
-    let raw_sum = |bytes: &[u8]| -> u64 {
-        bytes[4..]
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|chunk| u64::from(u16::from_le_bytes(*chunk)))
-            .sum()
+    // Recover the frequency sum from a v2 buffer when it parses structurally as
+    // either form; `None` means the layout is already invalid. Mirrors the
+    // decoder's structural preconditions closely enough that a `Some` sum
+    // differing from `target` must be rejected by `decode`.
+    let raw_sum = |bytes: &[u8]| -> Option<u64> {
+        if bytes.len() < 3 || bytes[0] != 2 {
+            return None;
+        }
+        match bytes[1] {
+            0 => {
+                if bytes.len() < 5 {
+                    return None;
+                }
+                let n = usize::from(u16::from_le_bytes([bytes[3], bytes[4]]));
+                if bytes.len() != 5 + 3 * n {
+                    return None;
+                }
+                Some(
+                    bytes[5..]
+                        .as_chunks::<3>()
+                        .0
+                        .iter()
+                        .map(|c| u64::from(u16::from_le_bytes([c[1], c[2]])))
+                        .sum(),
+                )
+            }
+            1 => {
+                if bytes.len() != 517 {
+                    return None;
+                }
+                Some(
+                    bytes[5..]
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
+                        .map(|c| u64::from(u16::from_le_bytes(*c)))
+                        .sum(),
+                )
+            }
+            _ => None,
+        }
     };
 
     for pos in 0..valid.len() {
         let mut flipped = valid.clone();
         flipped[pos] ^= 1;
 
-        let changed = raw_sum(&flipped) != target;
+        let changed = raw_sum(&flipped) != Some(target);
         let result = EntropyModel::decode(&flipped);
 
         if changed {

@@ -22,6 +22,7 @@ pub fn sample_pdfs() -> Vec<(&'static str, Vec<u8>)> {
         ("mixedeol.pdf", mixed_eol()),
         ("traptext.pdf", trap_text()),
         ("trapstream.pdf", trap_stream()),
+        ("bigtext.pdf", big_text_pdf()),
         ("malformed.pdf", malformed()),
         ("notpdf.bin", not_pdf()),
     ]
@@ -241,6 +242,45 @@ fn trap_stream() -> Vec<u8> {
     w.buf
 }
 
+/// A larger, plain-content PDF (~64 KiB): a classic cross-reference PDF whose
+/// single content stream is a long, deterministic, *uncompressed* sequence of
+/// show-text operators.
+///
+/// The content is deliberately lexical: thousands of near-identical lines whose
+/// per-kind byte distributions differ sharply (whitespace, names, regular
+/// operators, and literal strings). That is exactly the regime the typed-channel
+/// candidate is meant to exploit, so this sample is the scale at which
+/// per-channel models can actually pay off — the complete-cost court still
+/// decides whether they do.
+fn big_text_pdf() -> Vec<u8> {
+    const LINES: usize = 1000;
+    let mut content = Vec::with_capacity(LINES * 64);
+    for i in 0..LINES {
+        content.extend_from_slice(
+            format!("BT /F1 12 Tf 72 720 Td (Invoice line {i:06} amount 456.78) Tj ET\n")
+                .as_bytes(),
+        );
+    }
+
+    let mut w = Writer::new();
+    w.text("%PDF-1.4\n");
+    w.obj(1, 0, b"<< /Type /Catalog /Pages 2 0 R >>");
+    w.obj(2, 0, b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+    w.obj(
+        3,
+        0,
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    );
+    w.stream_obj(4, 0, "", &content);
+    w.obj(
+        5,
+        0,
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    );
+    w.classic_trailer(6, " /Root 1 0 R");
+    w.buf
+}
+
 /// Truncated and without any `%%EOF`: the header and one complete object are
 /// present, but the file ends mid-object. Detection must decline.
 fn malformed() -> Vec<u8> {
@@ -263,7 +303,7 @@ mod tests {
     use crate::limits::Limits;
     use crate::materialize::decode_to_bytes;
 
-    const EXPECTED_NAMES: [&str; 9] = [
+    const EXPECTED_NAMES: [&str; 10] = [
         "classic.pdf",
         "xrefstream.pdf",
         "objstm.pdf",
@@ -271,6 +311,7 @@ mod tests {
         "mixedeol.pdf",
         "traptext.pdf",
         "trapstream.pdf",
+        "bigtext.pdf",
         "malformed.pdf",
         "notpdf.bin",
     ];

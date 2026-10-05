@@ -32,7 +32,11 @@ are evidence.
 | PDF incremental revision map (Phase 3.4) | 3 | ADOPTED | campaign `2026-10-05-phase3-486aa17`; append-only revisions, `/Prev` chain, `/Size` never decreases |
 | PDF object roles (xref-stream / object-stream detection) | 3 | ADOPTED | campaign `2026-10-05-phase3-486aa17`; conservative `/Type` classification |
 | qpdf differential oracle court | 3 | ADOPTED | campaign `2026-10-05-phase3-486aa17`; object-number agreement 100%; oracle, never byte authority |
-| PDF lexical/structural channels | 4 | PROPOSED | — |
+| PDF lexical channel transposition (`split`/`join`) | 4 | IMPLEMENTED | exact, reversible transposition of the Phase-3.1 cover; `KIND_COUNT = 12`; `tests/pdf_channels.rs` |
+| `INTERLEAVE_CHANNELS` DRA op (DRA v3) | 4 | IMPLEMENTED | opcode `0x05`; bounded kind/length/payload replay with checked alignment |
+| Compact entropy model wire v2 (sparse\|dense, smaller chosen) | 4 | ADOPTED | per-channel model overhead 7,224 → 1,981 B; legacy v1 dense still decodable |
+| Forced-candidate ablation (`encode --force KIND`) | 4 | ADOPTED | one-element complete-cost court; `tools/phase4-court.sh`; forcing never bypasses exactness |
+| PDF typed channels (`PDF_CHANNELS`) | 4 | RECORDED (rejected) | campaign `2026-10-05-phase4-3840bc4`; exact but loses to `BYTE_RANS` on complete cost (bigtext 46,432 vs 38,142; ladder delta 0) |
 | PDF xref/`startxref`/`/Length`/revision proceduralization | 5 | PROPOSED | high-value target; structural compression not yet measured |
 | Exact DEFLATE replay (`preflate-rs`) | 6 | PROPOSED | candidate, per-stream, exactness first |
 | Nested PDF content proceduralization | 7 | PROPOSED | the clearest embodiment of the thesis |
@@ -46,12 +50,41 @@ are evidence.
 
 The PDF **physical authority** (lexer span cover, structural scanner, revision
 map, and object roles) is `ADOPTED` as of Phase 3 (campaign
-`2026-10-05-phase3-486aa17`). PDF **structural compression** —
-xref/`startxref`/`/Length` proceduralization, stream replay, and typed
-residuals — and every cross-document mechanism remain `PROPOSED` (Phases 5+).
-Phase 2 measured only the order-0 typed byte entropy floor over an opaque mixed
-corpus; no PDF structural or residual mechanism has been measured yet, and the
+`2026-10-05-phase3-486aa17`). The typed lexical-channel lane
+(`split`/`join`, `INTERLEAVE_CHANNELS`, `PDF_CHANNELS`) is `IMPLEMENTED` and
+measured as of Phase 4, but `PDF_CHANNELS` is **`RECORDED (rejected)`**: it is
+exact and available, yet loses to `BYTE_RANS` on complete cost. PDF **structural
+compression** — xref/`startxref`/`/Length` proceduralization, stream replay, and
+typed residuals — and every cross-document mechanism remain `PROPOSED`
+(Phases 5+). Phase 2 measured only the order-0 typed byte entropy floor over an
+opaque mixed corpus; Phase 4 showed that coarse lexical transposition plus
+per-channel order-0 models does not beat a monolithic order-0 channel, and the
 literal PDF candidate deliberately loses to RAW in Phase 3.
+
+### Phase 4 scope and the recorded typed-channel rejection
+
+- **Mechanism.** Phase 4 transposes the byte-authoritative Phase-3 lexical cover
+  into typed parallel channels (one kind id per token, one 4-byte length per
+  token, one payload stream per lexical kind) and reconstructs with the bounded
+  `INTERLEAVE_CHANNELS` DRA op (DRA v3, opcode `0x05`). `join(split(x)) == x` by
+  construction; every corpus file round-trips byte-exactly (`cmp` + `verify`).
+- **Models.** Each channel gets its own order-0 byte-rANS model. Wire **model
+  v2** serializes to whichever of sparse or dense is strictly smaller (ties pick
+  dense); legacy v1 dense models remain decodable. Compact sparse models cut the
+  per-channel model overhead from 7,224 B to 1,981 B on the scale sample.
+- **Complete-cost verdict — rejected.** Even after the model-cost cut,
+  `PDF_CHANNELS` loses to `BYTE_RANS` on `bigtext.pdf` (46,432 vs 38,142 B,
+  ~8,290 B worse). Across the 10-file corpus the cumulative ladder is
+  A0 = 71,036, A1 = 71,036, A2 = A3 = A4 = 43,297, the leave-one-out channel
+  delta is 0, and `PDF_CHANNELS` wins 0 items. Typed channels beat RAW
+  (~21.6% on `bigtext.pdf`) but the complete-cost court rejects them.
+- **Why.** Coarse lexical transposition plus per-channel order-0 models cannot
+  beat a whole-file order-0 model: the kind and length streams and the extra
+  per-channel model records cost more than the transposition saves. Recovering a
+  win requires *conditioning* and *ordering* (context across tokens), not more
+  per-kind marginal models. `PDF_CHANNELS` stays implemented and available but
+  loses; the negative result is preserved (campaign `2026-10-05-phase4-3840bc4`,
+  ADR-0010).
 
 ### Phase 3 scope and the recorded RAW win
 

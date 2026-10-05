@@ -82,11 +82,13 @@ mod tests {
     fn raw_candidate_wins_and_is_exact() {
         let input = b"some bytes that must round trip".to_vec();
         let cands = candidates::propose(&input, Limits::DEFAULT).unwrap();
+        let expected = cands.len() as u32;
         let r = run(&input, cands, Limits::DEFAULT).unwrap();
         assert_eq!(r.kind, CandidateKind::Raw);
-        // The portfolio size depends on the `rans` feature (RAW + RLE, plus
-        // BYTE_RANS when enabled); every candidate for a non-empty, in-limit
-        // input is priced, so at least the two literal lanes are evaluated.
+        // Every proposed candidate for a non-empty, in-limit input is priced, so
+        // the evaluated count tracks the portfolio size (which varies with the
+        // `rans` feature and the PDF adapter's proposals).
+        assert_eq!(r.candidates_evaluated, expected);
         assert!(r.candidates_evaluated >= 2);
         assert_eq!(r.cost.total(), r.bytes.len() as u64);
         let (out, _) = crate::materialize::decode_to_bytes(&r.bytes, Limits::DEFAULT).unwrap();

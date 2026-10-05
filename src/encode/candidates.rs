@@ -29,6 +29,8 @@ pub enum CandidateKind {
     ByteRans = 2,
     /// PDF physical span partition as literal-span DRA ops (Phase 3).
     PdfPhysical = 3,
+    /// PDF typed lexical channels, each entropy-coded (Phase 4).
+    PdfChannels = 4,
 }
 
 impl CandidateKind {
@@ -39,6 +41,7 @@ impl CandidateKind {
             CandidateKind::Rle => "RLE",
             CandidateKind::ByteRans => "BYTE_RANS",
             CandidateKind::PdfPhysical => "PDF_PHYSICAL",
+            CandidateKind::PdfChannels => "PDF_CHANNELS",
         }
     }
 }
@@ -52,10 +55,17 @@ pub struct Candidate {
     pub descriptor: Descriptor,
 }
 
-/// Generate the bounded candidate set for `input`.
+/// Generate the complete bounded candidate set for `input`.
 ///
-/// Order is deterministic: RAW first, then RLE when it is expressible.
-pub fn propose(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
+/// Every candidate that currently applies is returned: RAW (always), then RLE,
+/// BYTE_RANS, PDF_PHYSICAL, and PDF_CHANNELS, each only when its generator can
+/// express the input within `limits`. Order is deterministic and matches the
+/// [`CandidateKind`] discriminant order, so the court's final tie-break is
+/// stable.
+///
+/// This is the honest ablation surface: forcing a single kind must select from
+/// exactly the same set the unforced court would have priced.
+pub fn propose_all(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
     let mut out = vec![Candidate {
         kind: CandidateKind::Raw,
         descriptor: opaque::propose(input, limits)?,
@@ -70,7 +80,19 @@ pub fn propose(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
     if let Some(pdf) = crate::adapter::pdf::propose_pdf(input, limits)? {
         out.push(pdf);
     }
+    #[cfg(feature = "rans")]
+    if let Some(pdf_channels) = crate::adapter::pdf::propose_pdf_channels(input, limits)? {
+        out.push(pdf_channels);
+    }
     Ok(out)
+}
+
+/// Generate the bounded candidate set for `input`.
+///
+/// Thin alias for [`propose_all`] kept for existing callers; it proposes exactly
+/// the same set in the same order.
+pub fn propose(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
+    propose_all(input, limits)
 }
 
 /// Propose an inline-run + `REPEAT_LAST` representation of `input`.
@@ -284,9 +306,11 @@ mod tests {
             propose_rle(&input, limits).unwrap().is_none(),
             "100 single-byte runs cannot fit in a one-op graph"
         );
-        // The RAW candidate still reconstructs exactly under these limits.
+        // With RLE declined, the court must fall back to another exact lane.
+        // (The compact v2 model makes BYTE_RANS the winner here; whether it or
+        // RAW wins depends on model cost, so only "not RLE" is pinned.)
         let (bytes, report) = crate::encode::encode(&input, limits).unwrap();
-        assert_eq!(report.kind, CandidateKind::Raw);
+        assert_ne!(report.kind, CandidateKind::Rle);
         assert_exact(&bytes, &input, limits);
     }
 
