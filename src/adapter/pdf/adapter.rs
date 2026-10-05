@@ -1,0 +1,204 @@
+//! Validated PDF detection and the Phase-3 physical candidate.
+//!
+//! Detection is structural and byte-authoritative: it requires positive evidence
+//! in the bytes themselves — a `%PDF-` header comment, at least one complete
+//! indirect object, and at least one `%%EOF`. A file name or extension is never
+//! authority. Anything that does not satisfy all three conditions falls back to
+//! the opaque adapter, which is always exact.
+//!
+//! The proposed candidate persists the exact physical span partition as one
+//! [`Op::Inline`] literal instruction per span, in ascending offset order. That
+//! program reconstructs the source byte-for-byte by construction; the span kinds
+//! remain deterministic analysis metadata that [`scan`] can recompute at any
+//! time. This subphase deliberately performs **no** structural compression:
+//! typed residuals, stream de-duplication, and cross-reference replay are
+//! Phase 5. The literal PDF candidate is therefore honest but almost always
+//! loses the complete-cost court to RAW, which is the expected Phase-3 result.
+
+use crate::SOURCE_FORMAT_PDF;
+use crate::container::{Descriptor, UNIVERSE};
+use crate::dra::{Op, Program};
+use crate::encode::candidates::{Candidate, CandidateKind};
+use crate::error::Result;
+use crate::integrity::sha256;
+use crate::limits::Limits;
+
+use super::physical::{PdfPhysical, scan};
+
+/// Validated PDF detection: a `%PDF-` header AND at least one indirect object
+/// AND at least one `%%EOF`. Extensions are never authority.
+///
+/// Returns `false` whenever the structural scan cannot complete under `limits`;
+/// declining here preserves the unconditional opaque fallback.
+pub fn detect(input: &[u8], limits: Limits) -> bool {
+    match scan(input, limits) {
+        Ok(physical) => is_validated_pdf(&physical),
+        Err(_) => false,
+    }
+}
+
+/// All three positive structural conditions required to call a file a PDF.
+fn is_validated_pdf(physical: &PdfPhysical) -> bool {
+    physical.header.is_some() && !physical.objects.is_empty() && !physical.eofs.is_empty()
+}
+
+/// Propose a PDF physical candidate, or `None` (opaque fallback) when the file
+/// is not a validated PDF.
+///
+/// The program is one [`Op::Inline`] per physical span, so it reconstructs the
+/// source exactly; span kinds remain deterministic analysis metadata recomputable
+/// by [`scan`]. The candidate declines (`Ok(None)`) rather than truncating when:
+///
+/// - the input is not a validated PDF, or the structural scan fails; or
+/// - the span count would exceed `limits.max_graph_ops`, so the program cannot
+///   be expressed within the declared bounds.
+pub fn propose_pdf(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
+    let physical = match scan(input, limits) {
+        Ok(p) => p,
+        Err(_) => return Ok(None),
+    };
+    if !is_validated_pdf(&physical) {
+        return Ok(None);
+    }
+    if physical.spans.len() as u64 > limits.max_graph_ops as u64 {
+        return Ok(None);
+    }
+
+    // One inline literal per span, preserving exact offset order. The physical
+    // cover is contiguous and non-overlapping, so concatenating these spans
+    // reproduces the source unchanged.
+    let ops: Vec<Op> = physical
+        .spans
+        .iter()
+        .map(|span| {
+            let start = span.start as usize;
+            let end = start + span.len as usize;
+            Op::Inline {
+                bytes: input[start..end].to_vec(),
+            }
+        })
+        .collect();
+
+    let format_basis = format!(
+        "pdf;spans={};objects={};revisions={}",
+        physical.spans.len(),
+        physical.objects.len(),
+        physical.revisions.len()
+    );
+
+    let descriptor = Descriptor {
+        universe: UNIVERSE.to_string(),
+        source_format: SOURCE_FORMAT_PDF,
+        format_basis,
+        models: vec![],
+        channels: vec![],
+        objects: vec![],
+        program: Program::new(ops),
+        source_sha256: sha256(input),
+        source_len: input.len() as u64,
+    };
+
+    Ok(Some(Candidate {
+        kind: CandidateKind::PdfPhysical,
+        descriptor,
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn canonical_pdf() -> Vec<u8> {
+        let mut s = String::new();
+        s.push_str("%PDF-1.7\n");
+        s.push_str("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+        s.push_str("2 0 obj\n<< /Length 6 >>\nstream\nhello\nendstream\nendobj\n");
+        s.push_str("3 0 obj\n<< /Length 7 >>\nstream\nworld\nendstream\nendobj\n");
+        s.push_str("4 0 obj\n<< /Length 4 >>\nstream\nxyz\nendstream\nendobj\n");
+        s.push_str("xref\n0 5\n0000000000 65535 f \n0000000010 00000 n \n");
+        s.push_str("trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n321\n%%EOF");
+        s.into_bytes()
+    }
+
+    #[test]
+    fn detect_accepts_canonical_pdf() {
+        assert!(detect(&canonical_pdf(), Limits::DEFAULT));
+    }
+
+    #[test]
+    fn detect_rejects_non_pdf_and_truncated() {
+        assert!(!detect(b"this is definitely not a PDF", Limits::DEFAULT));
+        assert!(!detect(b"", Limits::DEFAULT));
+        // Header only: no indirect object and no `%%EOF`.
+        assert!(!detect(b"%PDF-1.7\n", Limits::DEFAULT));
+        // Object and `%%EOF` but no `%PDF-` header: still not a PDF.
+        assert!(!detect(b"1 0 obj\n<< >>\nendobj\n%%EOF", Limits::DEFAULT));
+    }
+
+    #[test]
+    fn propose_declines_non_pdf() {
+        assert!(
+            propose_pdf(b"not a pdf", Limits::DEFAULT)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            propose_pdf(b"%PDF-1.7\n", Limits::DEFAULT)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn propose_returns_pdf_candidate() {
+        let pdf = canonical_pdf();
+        let cand = propose_pdf(&pdf, Limits::DEFAULT).unwrap().unwrap();
+        assert_eq!(cand.kind, CandidateKind::PdfPhysical);
+        assert_eq!(cand.descriptor.source_format, SOURCE_FORMAT_PDF);
+        assert!(cand.descriptor.objects.is_empty());
+        assert!(cand.descriptor.models.is_empty());
+        assert!(cand.descriptor.channels.is_empty());
+        assert_eq!(cand.descriptor.source_len, pdf.len() as u64);
+        assert_eq!(cand.descriptor.source_sha256, sha256(&pdf));
+    }
+
+    #[test]
+    fn pdf_candidate_round_trips_exactly() {
+        let pdf = canonical_pdf();
+        let cand = propose_pdf(&pdf, Limits::DEFAULT).unwrap().unwrap();
+        let (bytes, cost) = cand.descriptor.serialize().unwrap();
+        assert_eq!(cost.total(), bytes.len() as u64);
+
+        let (out, parsed) = crate::materialize::decode_to_bytes(&bytes, Limits::DEFAULT).unwrap();
+        assert_eq!(out.len(), pdf.len());
+        assert_eq!(out, pdf, "PDF candidate must materialize byte-for-byte");
+        assert_eq!(sha256(&out), sha256(&pdf));
+        assert_eq!(parsed.descriptor.source_sha256, sha256(&pdf));
+        assert_eq!(parsed.descriptor.source_format, SOURCE_FORMAT_PDF);
+    }
+
+    #[test]
+    fn court_prefers_raw_for_small_pdf() {
+        // Honest Phase-3 outcome: the literal PDF candidate carries no structural
+        // compression, so for a small PDF the complete-cost court still prefers
+        // RAW. Phase 5 is where structural wins may change this.
+        let pdf = canonical_pdf();
+        let (bytes, report) = crate::encode::encode(&pdf, Limits::DEFAULT).unwrap();
+        let (out, _) = crate::materialize::decode_to_bytes(&bytes, Limits::DEFAULT).unwrap();
+        assert_eq!(out, pdf);
+        assert_eq!(report.kind, CandidateKind::Raw);
+    }
+
+    #[test]
+    fn propose_declines_when_span_count_exceeds_graph_ops() {
+        let pdf = canonical_pdf();
+        let limits = Limits {
+            max_graph_ops: 1,
+            ..Limits::DEFAULT
+        };
+        assert!(
+            propose_pdf(&pdf, limits).unwrap().is_none(),
+            "a multi-span PDF cannot fit in a one-op graph"
+        );
+    }
+}

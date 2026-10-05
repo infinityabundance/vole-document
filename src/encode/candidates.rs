@@ -27,6 +27,8 @@ pub enum CandidateKind {
     Rle = 1,
     /// Typed byte rANS entropy channel (Phase 2).
     ByteRans = 2,
+    /// PDF physical span partition as literal-span DRA ops (Phase 3).
+    PdfPhysical = 3,
 }
 
 impl CandidateKind {
@@ -36,6 +38,7 @@ impl CandidateKind {
             CandidateKind::Raw => "RAW",
             CandidateKind::Rle => "RLE",
             CandidateKind::ByteRans => "BYTE_RANS",
+            CandidateKind::PdfPhysical => "PDF_PHYSICAL",
         }
     }
 }
@@ -63,6 +66,9 @@ pub fn propose(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
     #[cfg(feature = "rans")]
     if let Some(byte_rans) = propose_byte_rans(input, limits)? {
         out.push(byte_rans);
+    }
+    if let Some(pdf) = crate::adapter::pdf::propose_pdf(input, limits)? {
+        out.push(pdf);
     }
     Ok(out)
 }
