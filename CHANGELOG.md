@@ -2,6 +2,56 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.5] — unreleased
+
+### Added
+
+- Phase 5 — PDF classic-xref layout proceduralization:
+  - Positional DRA ops `MARK_OFFSET` (opcode `0x06`) and `EMIT_OFFSET`
+    (opcode `0x07`), bumping the DRA graph to version `4`. `MARK_OFFSET` records
+    the current output position into one of 256 bounded slots (slot `255`
+    reserved for the most recent xref section start); `EMIT_OFFSET` emits a
+    marked position as a fixed-width, zero-padded decimal field.
+  - `PDF_LAYOUT` candidate: regenerates classic cross-reference entry offsets and
+    the `startxref` value from marked object/section positions instead of storing
+    the digits, with literal per-site fallback. Byte-exact and verified
+    end-to-end before it is returned.
+  - `encode --force` accepts `pdf-layout`.
+- Phase-5 universe string
+  `vole-document;universe;phase-5;exact-bytes;dra-4;opaque+entropy+pdf+channels+offsets`.
+- Courts: `tests/pdf_layout.rs` and the forced-candidate ablation court
+  `tools/phase5-court.sh`.
+
+### Measured
+
+- Campaign `2026-10-05-phase5-7193001` (verdict PASS): on a deterministic 10-file
+  corpus every file round-trips byte-exactly through its auto-winning lane
+  (`cmp` + `verify`), and the qpdf oracle re-check passes (classic 4/4, twopage
+  6/6, incremental 5/5).
+- Cumulative ladder (serialized `.voldoc` bytes): A0 RAW = 71,116;
+  A1 +RLE = 71,116; A2 +BYTE_RANS = 43,377; A3 +PDF_PHYSICAL = 43,377;
+  A4 +PDF_CHANNELS = 43,377; A5 +PDF_LAYOUT = 43,377. Leave-one-out layout
+  delta = 0. Auto winners: RAW = 8, BYTE_RANS = 2, PDF_PHYSICAL = 0,
+  PDF_CHANNELS = 0, PDF_LAYOUT = 0.
+- Prediction works and is exact: `classic.pdf` regenerates 3 of 4 xref entry
+  offsets plus the `startxref`; `incremental.pdf` regenerates 5 of 7 entries plus
+  two `startxref` values. Forced sizes still lose: `classic.pdf` 798 vs RAW 659;
+  `bigtext.pdf` 66,066 vs RAW 65,879 / `BYTE_RANS` 38,150. Layout wins 0 of 7
+  classic-xref files.
+- **Recorded negative result:** correct structural prediction does not pay while
+  each predicted field needs its own framed DRA op; the per-segment
+  `MarkOffset`/`EmitOffset` framing costs more than the ~7 digits saved per
+  offset. `PDF_LAYOUT` stays implemented and available but is **rejected by the
+  complete-cost court**. Receipt under
+  `evidence/campaigns/2026-10-05-phase5-7193001/`.
+
+### Notes
+
+- The wire format remains **PROVISIONAL** and is not frozen v1. The positional
+  ops and the layout lane are exact and bounded but lose on complete cost;
+  amortizing the framing (e.g. a packed segment table) or applying prediction to
+  very large / many-offset documents is `PROPOSED` (Phases 6+). See ADR-0011.
+
 ## [0.1.0-alpha.4] — unreleased
 
 ### Added

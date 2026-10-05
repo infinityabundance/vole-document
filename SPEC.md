@@ -72,13 +72,15 @@ Requirements enforced by `Descriptor::parse`:
 ## Graph (reconstruction program)
 
 ```text
-graph := version:u8=3 op_count:u32 op*
+graph := version:u8=4 op_count:u32 op*
 op    := EMIT_OBJECT(0x01)        u32_object_id
        | INLINE(0x02)             u32_len [u8;len]
        | REPEAT_LAST(0x03)        u32_count
        | DECODE_CHANNEL(0x04)     u32_channel_id
        | INTERLEAVE_CHANNELS(0x05) u32_kinds_channel u32_lengths_channel \
                                  u32_first_payload_channel u8_payload_channel_count
+       | MARK_OFFSET(0x06)        u8_slot
+       | EMIT_OFFSET(0x07)        u8_slot u8_width
 ```
 
 Semantics:
@@ -110,6 +112,24 @@ Semantics:
   a length overrun, or unconsumed payload bytes is rejected as
   `InvalidGraph`/`CoverageViolation`. The op is bounded and non-Turing-complete
   like the rest of the DRA.
+- `MARK_OFFSET` (introduced in DRA version 4) records the current output position
+  (a `u64`) into the named slot and emits **no** bytes (authority: **Generated**,
+  zero-length). `slot` is a `u8`, so every value `0..=255` is in range; the
+  program models [`MAX_OFFSET_SLOTS`](src/dra/program.rs) = **256** slots. Slot
+  `255` is **reserved for the most recent classic `xref` section start**; slots
+  `0..=254` are available to the layout builder for indirect-object introducer
+  offsets. Marking a slot does not disturb the pending `REPEAT_LAST` block.
+- `EMIT_OFFSET` (introduced in DRA version 4) emits the decimal form of the
+  position most recently recorded in `slot`, left zero-padded with ASCII `0` to
+  exactly `width` bytes (authority: **Generated**). `width` is in `1..=20`. The
+  value is decoded only at materialization time, so analysis charges exactly
+  `width` output bytes; at materialization a value that needs more than `width`
+  digits is rejected as `InvalidGraph`. A slot must have been marked by an
+  earlier `MARK_OFFSET` in program order, or the op is rejected during analysis
+  (before allocation) with `InvalidGraph`. Prediction is deterministic and never
+  invents bytes: the layout builder emits an `EMIT_OFFSET` only when it has
+  verified that the marked position reproduces the source digits, and otherwise
+  falls back to a literal `INLINE`.
 
 ## Coverage certificate (checked invariant, not stored bytes)
 
@@ -128,16 +148,16 @@ class of bugs at the representation boundary.
 
 ## Universe declaration
 
-The Phase-4 universe string is:
+The Phase-5 universe string is:
 
 ```text
-vole-document;universe;phase-4;exact-bytes;dra-3;opaque+entropy+pdf+channels
+vole-document;universe;phase-5;exact-bytes;dra-4;opaque+entropy+pdf+channels+offsets
 ```
 
 The header's `universe_id` is the first 16 bytes of `SHA-256` over this string.
 Any change to an opcode, coder, limit semantic, adapter meaning, or hash semantic
-requires a new universe string. This supersedes the Phase-3 string
-(`vole-document;universe;phase-3;exact-bytes;dra-2;opaque+entropy+pdf`).
+requires a new universe string. This supersedes the Phase-4 string
+(`vole-document;universe;phase-4;exact-bytes;dra-3;opaque+entropy+pdf+channels`).
 
 ## Entropy records (Phase 2, extended in Phase 4)
 
@@ -218,6 +238,30 @@ the renormalization payload; the total record payload length must equal
 
 A channel is never a bare seed: the model, decoder state, payload, and counts
 are all required to reconstruct bytes (see [`docs/adr/0006-rans-substrate.md`](docs/adr/0006-rans-substrate.md)).
+
+## PDF layout candidate (Phase 5)
+
+The `PDF_LAYOUT` candidate (`source_format = 1`) applies only to PDFs with a
+classic cross-reference section and **no** cross-reference stream, and with at
+most 255 indirect objects; anything else declines. It persists `objects`,
+`models`, and `channels` empty and reconstructs entirely from the program:
+
+- a `MARK_OFFSET` (slot = the object's index in the physical object table) before
+  each indirect object's introducer bytes, and a `MARK_OFFSET` into the reserved
+  slot `255` at the xref section start;
+- an `EMIT_OFFSET { slot, width: 10 }` (followed by a literal `INLINE` of the
+  generation/status field) for each xref entry whose 10-digit offset equals the
+  marked offset of its target object, and a literal `INLINE` entry otherwise;
+- an `EMIT_OFFSET { slot: 255, width }` for the `startxref` value when the marked
+  xref start reproduces it, and a literal fallback otherwise.
+
+The candidate is byte-exact by construction (the builder verifies
+serialize → parse → materialize → byte-compare and declines on any mismatch) and
+its analysis-only metadata (`pdf-layout;objects=…;xref_predicted=…;xref_literal=…;
+startxref_predicted=…`) is deterministic. It is **recorded, not adopted**: on the
+sealed Phase-5 corpus it predicts offsets correctly but loses to RAW/`BYTE_RANS`
+because the DRA's per-segment op framing costs more than the digits it saves (see
+`PROJECT_STATE.md`, ADR-0011). This section is **PROVISIONAL**.
 
 ## Feature policy
 

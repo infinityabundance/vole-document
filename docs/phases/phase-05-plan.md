@@ -18,12 +18,12 @@ Execution rules (frozen):
 
 | # | Subphase | Deliverable |
 |---|---|---|
-| 5.1 | Positional DRA ops | `MARK_OFFSET` / `EMIT_OFFSET` (v4): record an output position and emit it as zero-padded decimal of fixed width; bounded slots; universe → phase-5 |
-| 5.2 | PDF layout builder | decompose a classic-xref PDF into a program that regenerates xref entry offsets and `startxref` from marked object positions, literal elsewhere, with per-site residual fallback; forced byte-exact |
-| 5.3 | Structured candidate + court | integrate the layout candidate; forced ablation; compete vs RAW/RLE/BYTE_RANS/PDF_* |
-| 5.4 | Corpus + measured ladder | classic-xref corpus; cumulative ladder + leave-one-out; record wins/losses honestly |
-| 5.5 | Phase-5 evidence campaign | coverage/exactness, per-site prediction counts, residuals, latency, oracle re-check |
-| 5.6 | Docs + freeze + merge | SPEC/PROJECT_STATE/README/CHANGELOG/ADR updated; merge `phase5` into `main` |
+| 5.1 | ✅ Positional DRA ops | `MARK_OFFSET` / `EMIT_OFFSET` (v4): record an output position and emit it as zero-padded decimal of fixed width; bounded slots; universe → phase-5 |
+| 5.2 | ✅ PDF layout builder | decompose a classic-xref PDF into a program that regenerates xref entry offsets and `startxref` from marked object positions, literal elsewhere, with per-site residual fallback; forced byte-exact |
+| 5.3 | ✅ Structured candidate + court | integrate the layout candidate; forced ablation; compete vs RAW/RLE/BYTE_RANS/PDF_* |
+| 5.4 | ✅ Corpus + measured ladder | classic-xref corpus; cumulative ladder + leave-one-out; record wins/losses honestly |
+| 5.5 | ✅ Phase-5 evidence campaign | coverage/exactness, per-site prediction counts, residuals, latency, oracle re-check |
+| 5.6 | ✅ Docs + freeze + merge | SPEC/PROJECT_STATE/README/CHANGELOG/ADR updated; merge `phase5` into `main` |
 
 ## Acceptance gates (predeclared)
 
@@ -36,3 +36,67 @@ Execution rules (frozen):
    corpus, it is recorded (ADR), not hidden.
 5. **Hostile-safe**: malformed PDFs never panic; prediction never invents bytes.
 6. **Determinism**: identical input ⇒ identical descriptor bytes.
+
+## Measured results (campaign `2026-10-05-phase5-7193001`, verdict PASS)
+
+Deterministic 10-file corpus; all sizes are serialized `.voldoc` bytes. Every
+auto winner round-trips byte-exactly (`cmp` + `verify`) and the qpdf oracle
+re-check passes (classic 4/4, twopage 6/6, incremental 5/5).
+
+### Cumulative ladder
+
+```text
+A0 RAW            = 71116
+A1 + RLE          = 71116
+A2 + BYTE_RANS    = 43377
+A3 + PDF_PHYSICAL = 43377
+A4 + PDF_CHANNELS = 43377
+A5 + PDF_LAYOUT   = 43377     leave-one-out layout delta = 0
+```
+
+Auto-winner counts: RAW = 8, RLE = 0, BYTE_RANS = 2, PDF_PHYSICAL = 0,
+PDF_CHANNELS = 0, PDF_LAYOUT = 0.
+
+### Forced sizes (per candidate, selected files)
+
+| file | source | RAW | BYTE_RANS | PDF_LAYOUT | winner | layout vs auto |
+|---|---:|---:|---:|---:|---|---|
+| classic.pdf | 329 | 659 | 704 | 798 | RAW | loses |
+| incremental.pdf | 456 | 786 | 776 | 968 | BYTE_RANS | loses |
+| bigtext.pdf | 65549 | 65879 | 38150 | 66066 | BYTE_RANS | loses |
+
+Absolute forced sizes: `classic.pdf` 798 vs RAW 659; `bigtext.pdf` 66,066 vs RAW
+65,879 / `BYTE_RANS` 38,150. Layout wins **0 of 7** classic-xref files.
+
+### Predicted-entry counts (`xref_predicted` / `xref_literal` / `startxref_predicted`)
+
+| file | xref_predicted | xref_literal | startxref_predicted | layout bytes |
+|---|---:|---:|---:|---:|
+| classic.pdf | 3 | 1 | 1 | 798 |
+| incremental.pdf | 5 | 2 | 2 | 968 |
+| bigtext.pdf | 5 | 1 | 1 | 66066 |
+| objstm.pdf | 3 | 1 | 1 | 820 |
+| traptext.pdf | 2 | 1 | 1 | 715 |
+| trapstream.pdf | 2 | 1 | 1 | 709 |
+| mixedeol.pdf | 0 | 0 | 1 | 701 |
+| xrefstream.pdf | declined | — | — | — |
+| malformed.pdf | declined | — | — | — |
+| notpdf.bin | declined | — | — | — |
+
+### Recorded negative result
+
+`PDF_LAYOUT` is **exact** — every forced layout descriptor serializes, parses
+back, and materializes byte-for-byte — and it genuinely predicts positions
+(`classic.pdf` regenerates 3 of 4 xref entry offsets plus the `startxref`;
+`incremental.pdf` regenerates 5 of 7 entries plus two `startxref` values). It
+nevertheless loses the complete-cost court: it wins no file, and its
+leave-one-out delta is 0. The reason is **framing, not prediction**: each
+predicted 10-digit offset replaces at most ten stored digits, but the DRA must
+carry a `MarkOffset` per object and per xref section plus an `EmitOffset` per
+predicted entry, and each op has fixed per-segment framing that exceeds the
+digits saved. The predicted structure is right; the reconstruction *container*
+is too expensive. `PDF_LAYOUT` is retained, exact, and available, but **recorded
+as rejected on cost** (ADR-0011); amortizing the framing (a packed segment table)
+or targeting very large / many-offset documents is left to later phases.
+
+Receipt: `evidence/campaigns/2026-10-05-phase5-7193001/`.
