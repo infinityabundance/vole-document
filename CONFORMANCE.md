@@ -21,15 +21,18 @@
 | Phase-5.7 packed-framing court (script) | `tools/phase5-court.sh` | forced-candidate ablation (`encode --force KIND`) including `pdf-layout` (layout-v2) over the enlarged 11-file corpus: per-kind forced sizes, cumulative ladder A0..A5, leave-one-out layout delta, and the classic-xref subset; every auto winner is `cmp`ed and `verify`ed byte-exact, the qpdf oracle is re-checked, and the campaign `2026-10-05-phase5-4521778` is sealed |
 | Packed channels (Phase 5.8) | `src/dra/op.rs`, `src/dra/program.rs`, `src/adapter/pdf/layout.rs` | `PACKED_CHANNELS` (opcode `0x09`, DRA v6) round-trips and rejects unknown item tags, truncation, unmarked slots, bad widths, literal overruns, missing channels, a declared-length mismatch, and unconsumed data; layout+rANS is one data channel plus one plan channel (serialized item table) with two models; `classic.pdf`/`bigtext.pdf`/`many.pdf` are byte-exact and deterministic, non-PDF and cross-reference-stream inputs decline, and the honest gate records that layout+rANS loses to `BYTE_RANS` |
 | Phase-5.8 layout+rANS court (script) | `tools/phase5-8-court.sh` | forced-candidate ablation (`encode --force KIND`) including `pdf-layout-rans` over the 11-file corpus: per-kind forced sizes, cumulative ladder A0..A6, leave-one-out layout+rANS delta, and head-to-head win/lose/decline vs `BYTE_RANS`; every auto winner is `cmp`ed and `verify`ed byte-exact, the qpdf oracle is re-checked, and the campaign `2026-10-05-phase5-8-cf8048d` is sealed |
+| PDF DEFLATE replay (Phase 6) | `tests/pdf_deflate.rs` | `DEFLATE_REPLAY` (DRA v7) and the two replay candidates: both replay variants are proposed for `flate.pdf` and every serialized descriptor reproduces the source byte-for-byte (length + digest + `cmp` + deep `verify`); shared plaintext is stored once (6 streams → strictly fewer unique plaintext channels); the rANS-plaintext lane beats the raw-plaintext lane; the unforced court on `flate.pdf` is byte-exact with an unknown winner tolerated; forcing a replay lane on a Flate-less PDF or a non-PDF is a typed `Usage` decline; replay proposal is deterministic; hostile correction blobs fail closed with a typed `CodecReplay`/`InvalidGraph` and never panic or silently reconstruct; and the lexer stream-opacity change regresses no sample |
+| Phase-6 replay court (script) | `tools/phase6-court.sh` | forced-candidate ablation (`encode --force KIND`) including `pdf-deflate-replay` and `pdf-deflate-replay-rans` over the 12-file corpus: per-kind forced sizes, cumulative ladder A0..A8, leave-one-out deltas for both replay mechanisms, and a head-to-head win/lose/decline vs `BYTE_RANS`; every auto winner is `cmp`ed and `verify`ed byte-exact, negative controls and typed declines are recorded verbatim, the qpdf oracle is re-checked, and the campaign `2026-10-05-phase6-ec92c1a` is sealed |
 
-Test counts (inside the pinned `dev` image): **295** with all features (the
-`default` set), **248** with `--no-default-features` (the rANS-dependent
-integration courts are skipped), of which **219** are library unit tests (with
-all features).
+Test counts (inside the pinned `dev` image): **320** passing with all features
+(the `default` set; 0 failed, 1 ignored), of which **235** are library unit tests
+(plus 1 ignored); **256** passing with `--no-default-features` (the rANS- and
+replay-dependent integration courts are skipped).
 
 `encode --force KIND` is the ablation surface: it runs the *same* complete-cost
 court over a one-element candidate set (`KIND` in `raw`, `rle`, `byte-rans`,
-`pdf-physical`, `pdf-channels`, `pdf-layout`, `pdf-layout-rans`). Forcing selects
+`pdf-physical`, `pdf-channels`, `pdf-layout`, `pdf-layout-rans`,
+`pdf-deflate-replay`, `pdf-deflate-replay-rans`). Forcing selects
 a lane; it never bypasses serialization, decoding, or the byte-compare, and a kind
 the input does not propose fails with a typed usage error (recorded as `null`), not
 a fabricated result.
@@ -84,9 +87,13 @@ coalesced layout-v2 builder (`tests/pdf_layout.rs`). Phase 5.8 additionally
 exercises the `PACKED_CHANNELS` item-table-over-channels evaluator (declared-length
 mismatch, missing channels, truncated plan, unconsumed data) and the layout+rANS
 candidate builder (two-channel exactness, determinism, and decline) in
-`src/dra/program.rs` and `src/adapter/pdf/layout.rs`.
-Still planned for later phases: a stream-boundary parser ·
-DEFLATE replay wrapper · partial materializer.
+`src/dra/program.rs` and `src/adapter/pdf/layout.rs`. Phase 6 additionally
+exercises the `DEFLATE_REPLAY` evaluator (declared-length mismatch, missing
+objects, hostile correction blobs that must fail closed) in `src/dra/program.rs`,
+the bounded replay wrapper in `src/codec/deflate.rs`, and the replay candidate
+builders and lexer stream-opacity change over the real-zlib `flate.pdf` sample in
+`tests/pdf_deflate.rs`.
+Still planned for later phases: a stream-boundary parser · partial materializer.
 
 Useful properties: never panic · bounded failure · round trip · descriptor
 parse/serialize stability · materialized length bound · RAW fallback preserves

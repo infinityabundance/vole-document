@@ -72,7 +72,7 @@ Requirements enforced by `Descriptor::parse`:
 ## Graph (reconstruction program)
 
 ```text
-graph := version:u8=6 op_count:u32 op*
+graph := version:u8=7 op_count:u32 op*
 op    := EMIT_OBJECT(0x01)        u32_object_id
        | INLINE(0x02)             u32_len [u8;len]
        | REPEAT_LAST(0x03)        u32_count
@@ -83,6 +83,8 @@ op    := EMIT_OBJECT(0x01)        u32_object_id
        | EMIT_OFFSET(0x07)        u8_slot u8_width
        | PACK_SEGMENTS(0x08)       u32_data_object u32_item_count item*
        | PACKED_CHANNELS(0x09)     u32_data_channel u32_plan_channel u64_declared_output_len
+       | DEFLATE_REPLAY(0x0A)     u8_source_kind u32_source_id u32_corrections_object \
+                                 u32_declared_output_len
 
 item  := LITERAL(0x01)  u32_leb128_len
        | MARK(0x02)      u8_slot
@@ -169,6 +171,23 @@ Semantics:
   unknown item tag, a truncation, an unmarked slot, a bad width, a literal overrun,
   or unconsumed data (`InvalidGraph` / `CoverageViolation`). Like every other op it
   is deterministic and non-Turing-complete, and it never invents bytes.
+- `DEFLATE_REPLAY` (introduced in DRA version 7) emits exactly
+  `recreate_whole_deflate_stream(plaintext, corrections)` — the **raw** DEFLATE
+  bitstream (RFC 1951, with no zlib header and no Adler-32 trailer) — so it
+  reconstructs *producer* entropy-coded bytes rather than storing them literally
+  (authority: **Generated**, reprising the original producer coding).
+  `source_kind` selects where the plaintext comes from: `0` = the `source_id`-th
+  **object**; `1` = the `source_id`-th **entropy channel** (decoded exactly as for
+  `DECODE_CHANNEL`). `corrections_object` indexes the descriptor's object table;
+  `declared_output_len` is the exact expected output length, charged statically
+  during analysis and validated at evaluation. Reconstruction is isolated with
+  `catch_unwind`: an out-of-range source, an unknown `source_kind`, a wrong
+  `declared_output_len`, or an `Err`/panic from the replay engine is rejected with
+  a typed `CodecReplay`/`InvalidGraph` — never a panic or a silent reconstruction.
+  A successful reconstruction is still accepted only by the enclosing whole-source
+  SHA-256 court, and the encoder emits the op only after the replay reproduced the
+  exact source stream bytes. The op is deterministic and non-Turing-complete, and a
+  descriptor containing it declares the mandatory `FEATURE_DEFLATE_REPLAY` bit.
 
 ## Coverage certificate (checked invariant, not stored bytes)
 
@@ -187,15 +206,17 @@ class of bugs at the representation boundary.
 
 ## Universe declaration
 
-The Phase-5.8 universe string is:
+The Phase-6 universe string is:
 
 ```text
-vole-document;universe;phase5-8;exact-bytes;dra-6;opaque+entropy+pdf+channels+offsets+packed+packed-channels
+vole-document;universe;phase6;exact-bytes;dra-7;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay
 ```
 
 The header's `universe_id` is the first 16 bytes of `SHA-256` over this string.
 Any change to an opcode, coder, limit semantic, adapter meaning, or hash semantic
-requires a new universe string. This supersedes the Phase-5.7 (Phase-6
+requires a new universe string. This supersedes the Phase-5.8 string
+(`vole-document;universe;phase5-8;exact-bytes;dra-6;opaque+entropy+pdf+channels+offsets+packed+packed-channels`),
+which superseded the Phase-5.7 (Phase-6
 preparation) string
 (`vole-document;universe;phase6-prep;exact-bytes;dra-5;opaque+entropy+pdf+channels+offsets`),
 which superseded the Phase-5 string
@@ -327,16 +348,57 @@ codes nearly the whole file while the plan channel (1,815 B on `many.pdf`) and t
 second model are added metadata `BYTE_RANS` never pays (campaign
 `2026-10-05-phase5-8-cf8048d`, ADR-0013). This section is **PROVISIONAL**.
 
+## PDF DEFLATE replay candidate (Phase 6)
+
+The `DEFLATE_REPLAY` op (`0x0A`, DRA v7) reconstructs the **original** DEFLATE
+bitstream of a producer-entropy-coded stream from `(plaintext, corrections)`. The
+stream discovery is VOLE's own: the byte-authoritative physical scanner finds each
+stream span and classifies its `/Filter`, and only a stream whose data begins at an
+opaque `stream`+EOL span and whose dictionary is a lone `/FlateDecode` (a bare name
+or a single-element array) is eligible. `preflate` never discovers streams. For an
+eligible zlib stream the 2-byte header and 4-byte Adler-32 trailer are stripped and
+re-emitted as literal bytes, and only the raw DEFLATE middle is replayed. The
+encoder requires `recreate_whole_deflate_stream(...)` to reproduce the exact source
+span bytes before admitting the stream to the complete-cost court; analysis and
+reconstruction are both bounded and `catch_unwind`-isolated.
+
+Two candidates use the op:
+
+- `PDF_DEFLATE_REPLAY` (physical span order): each eligible stream span becomes
+  `INLINE(zlib header) · DEFLATE_REPLAY · INLINE(Adler-32)`, with plaintexts and
+  correction blobs stored as content-deduplicated `OBJECT`s and all other spans
+  left literal.
+- `PDF_DEFLATE_REPLAY_RANS`: identical, except each **unique** plaintext is coded
+  as its own order-0 byte-rANS `ENTROPY_CHANNEL` and referenced (shared) by every
+  stream that produces it; the materializer decodes each shared channel once.
+
+Both are byte-exact by construction (the builder gates the candidate on
+serialize → parse → materialize → byte-compare) and are proposed only for inputs
+with at least one eligible lone-`FlateDecode` stream. On the measured
+`2026-10-05-phase6-ec92c1a` campaign the rANS variant is the first PDF structural
+candidate to **beat `BYTE_RANS`** (`flate.pdf` 36,068 vs 49,263 B, a 13,195 B win,
+because 6 streams share only 3 unique plaintexts and one is stored at level 0),
+while the raw-plaintext variant loses (56,702 B). The result is scoped to one
+composed sample: the winning region is shared and/or weakly-coded plaintext and
+the losing region is unique, strongly-compressed plaintext (ADR-0015). This
+section is **PROVISIONAL**.
+
 ## Feature policy
 
-- `default = ["rans"]`: the native scalar entropy decoder (`ryg-rans-rs`
-  `=0.5.1`, **safe manual** API only) is present by default.
+- `default = ["rans", "deflate-replay"]`: the native scalar entropy decoder
+  (`ryg-rans-rs` `=0.5.1`, **safe manual** API only) and the exact DEFLATE replay
+  engine (`preflate-rs` `=0.7.6`) are present by default.
 - Built with `--no-default-features`, the exact RAW/RLE floor still compiles and
   materializes channel-free descriptors byte-for-byte.
 - A descriptor that declares `MODEL`/`ENTROPY_CHANNEL` records but is decoded
   without the `rans` feature returns an explicit `UnsupportedFeature`
-  (`ErrorClass` exit code 6). It is never silently reinterpreted and never
-  partially materialized.
+  (`ErrorClass` exit code 6). Likewise a descriptor whose program contains
+  `DEFLATE_REPLAY` declares the mandatory `FEATURE_DEFLATE_REPLAY` bit, and decoding
+  it without the `deflate-replay` feature returns `UnsupportedFeature`. Neither is
+  ever silently reinterpreted or partially materialized.
+- The `deflate-replay` feature transitively pulls the `cabac` crate, licensed
+  LGPL-3.0-or-later; see ADR-0014. Build with
+  `--no-default-features --features rans` for an artifact without it.
 
 ## Canonical descriptor encoding
 

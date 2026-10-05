@@ -2,6 +2,80 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.8] — unreleased
+
+### Added
+
+- Phase 6 — exact DEFLATE replay (`preflate-rs`):
+  - `DEFLATE_REPLAY` DRA op (opcode `0x0A`), bumping the DRA graph to version
+    `7`. It emits exactly `recreate_whole_deflate_stream(plaintext,
+    corrections)` — the **raw** DEFLATE bytes (RFC 1951, no zlib wrapper) — with a
+    `declared_output_len` validated at evaluation. `source_kind` is `0` (plaintext
+    from the object table) or `1` (plaintext from an entropy channel).
+    Reconstruction is isolated with `catch_unwind`, so hostile corrections yield a
+    typed `CodecReplay`/`InvalidGraph`, never a panic or a silent success. A
+    mandatory `FEATURE_DEFLATE_REPLAY` bit is declared whenever the op is present;
+    a build without the feature fails closed with `UnsupportedFeature`.
+  - A lexer change: `stream` followed by EOL now makes the payload an **opaque
+    span**, so a PDF's stream-data bytes are a byte-authoritative span and a lone
+    `/FlateDecode` is classified from the object dictionary. `preflate` never
+    decides stream boundaries.
+  - `PDF_DEFLATE_REPLAY` candidate: physical span order; each eligible stream span
+    becomes `INLINE(zlib header) · DEFLATE_REPLAY · INLINE(Adler-32)`, with the
+    plaintexts and correction blobs as content-deduplicated objects.
+  - `PDF_DEFLATE_REPLAY_RANS` candidate: each **unique** plaintext is one order-0
+    byte-rANS `ENTROPY_CHANNEL`, shared by every stream that produces it, so
+    shared plaintext is stored once and decoded once; corrections stay raw
+    deduplicated objects.
+  - `encode --force` accepts `pdf-deflate-replay` and `pdf-deflate-replay-rans`.
+  - Dependency `preflate-rs = "=0.7.6"` under the `deflate-replay` feature
+    (**default on**), which transitively pulls LGPL-3.0-or-later `cabac`
+    (ADR-0014). `flate2` (dev-only) uses the `zlib-rs` backend.
+- Phase-6 universe string
+  `vole-document;universe;phase6;exact-bytes;dra-7;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay`.
+- Courts: the Phase-6 replay gates in `tests/pdf_deflate.rs` and the
+  forced-candidate ablation court `tools/phase6-court.sh` over the 12-file
+  corpus.
+
+### Measured
+
+- Campaign `2026-10-05-phase6-ec92c1a` (verdict PASS): a 12-file corpus; every
+  auto winner round-trips byte-exactly (`cmp` + `verify`, `all_exact=true`); the
+  qpdf differential oracle re-checks clean.
+- **On `flate.pdf` (57,513 B) the shared-plaintext rANS replay lane is the auto
+  winner at 36,068 B, a 13,195 B win over `BYTE_RANS` (49,263 B)** — the first
+  measured positive for a PDF structural candidate. The raw-plaintext variant
+  `PDF_DEFLATE_REPLAY` = 56,702 B loses to `BYTE_RANS` (7,439 B larger), and RAW =
+  57,880 B.
+- The sample exposes 6 FlateDecode streams but only **3 unique plaintexts**; the
+  rANS lane stores 3 shared plaintext channels plus 6 correction objects.
+- Cumulative ladder: A0 RAW = 139,614; A2 +`BYTE_RANS` = 98,224;
+  A6 +`PDF_LAYOUT_RANS` = 98,224; A7 +`PDF_DEFLATE_REPLAY` = 98,224;
+  A8 +`PDF_DEFLATE_REPLAY_RANS` = **85,029**. Leave-one-out delta for the rANS
+  replay mechanism = **−13,195**; auto winners RAW = 8, `BYTE_RANS` = 3,
+  `PDF_DEFLATE_REPLAY_RANS` = 1.
+- Head-to-head `PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS`: **win 1, lose 0,
+  decline 11** (only `flate.pdf` has a lone FlateDecode stream; every decline is
+  recorded verbatim, never scored).
+- **Scoped result.** One composed sample: the winning region is plaintext that is
+  *shared across streams* and/or *weakly coded* by the producer; the losing
+  region is unique, strongly-compressed plaintext, where the plaintext is no
+  smaller than the bitstream it replaces. Receipt under
+  `evidence/campaigns/2026-10-05-phase6-ec92c1a/`.
+
+### Notes
+
+- The wire format remains **PROVISIONAL** and is not frozen v1. `DEFLATE_REPLAY`
+  (DRA v7) is exact and bounded; `PDF_DEFLATE_REPLAY_RANS` is `ADOPTED` as a
+  winning candidate and `PDF_DEFLATE_REPLAY` is `RECORDED (rejected vs
+  BYTE_RANS)`. This is the first PDF structural candidate to beat a whole-file
+  order-0 rANS lane; the earlier converging negatives (ADR-0010–ADR-0013) apply
+  to proceduralizing *plain* syntax, while exact replay attacks bytes that are
+  *already* entropy-coded (ADR-0015).
+- The `deflate-replay` feature is optional and enabled by default; a build with
+  `--no-default-features --features rans` omits the lane and rejects the op with
+  `UnsupportedFeature` (see ADR-0014 for the LGPL consequence).
+
 ## [0.1.0-alpha.7] — unreleased
 
 ### Added
