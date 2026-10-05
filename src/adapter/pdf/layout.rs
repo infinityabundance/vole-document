@@ -274,15 +274,35 @@ fn push_pack_literal(
     bytes: &[u8],
     pos: &mut u64,
 ) -> bool {
+    if !push_literal(items, data, bytes) {
+        return false;
+    }
+    *pos += bytes.len() as u64;
+    true
+}
+
+/// Append `bytes` to the packed data object, coalescing them into the immediately
+/// preceding [`PackItem::Literal`] when one is present so that consecutive literal
+/// runs collapse into the fewest possible items. The merge never crosses a
+/// [`PackItem::Mark`] or [`PackItem::Emit`], empty pushes are ignored, and the
+/// combined length must remain expressible as a `u32`. Returns `false` (so the
+/// caller declines) when no safe item shape exists.
+fn push_literal(items: &mut Vec<PackItem>, data: &mut Vec<u8>, bytes: &[u8]) -> bool {
     if bytes.is_empty() {
         return true;
     }
     let Ok(len) = u32::try_from(bytes.len()) else {
         return false;
     };
+    if let Some(PackItem::Literal { len: prev }) = items.last_mut() {
+        let Some(total) = prev.checked_add(len) else {
+            return false;
+        };
+        *prev = total;
+    } else {
+        items.push(PackItem::Literal { len });
+    }
     data.extend_from_slice(bytes);
-    items.push(PackItem::Literal { len });
-    *pos += bytes.len() as u64;
     true
 }
 
