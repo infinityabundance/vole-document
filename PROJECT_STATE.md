@@ -39,6 +39,8 @@ are evidence.
 | PDF typed channels (`PDF_CHANNELS`) | 4 | RECORDED (rejected) | campaign `2026-10-05-phase4-3840bc4`; exact but loses to `BYTE_RANS` on complete cost (bigtext 46,432 vs 38,142; ladder delta 0) |
 | Positional DRA ops (`MARK_OFFSET` / `EMIT_OFFSET`, DRA v4) | 5 | IMPLEMENTED | opcodes `0x06` / `0x07`; `MAX_OFFSET_SLOTS = 256`, slot 255 reserved for the xref section start; universe → phase-5 |
 | PDF classic-xref layout (`PDF_LAYOUT`) | 5 | RECORDED (rejected on cost) | campaign `2026-10-05-phase5-7193001`; byte-exact and predicts xref offsets/`startxref`, but loses to RAW/`BYTE_RANS` on DRA op framing cost (ADR-0011) |
+| Packed segment framing (`PACK_SEGMENTS`, DRA v5) | 5.7 | IMPLEMENTED | opcode `0x08`; one op + a compact varint item table over a single data object amortizes per-segment framing; universe → `phase6-prep` |
+| PDF layout on packed framing (layout-v2, coalesced) | 5.7 | RECORDED (beats RAW at scale, rejected vs `BYTE_RANS`) | campaign `2026-10-05-phase5-4521778`; packed+coalesced layout beats RAW on `many.pdf` (10,069 vs 10,215), but the residual data object is stored literally so it loses to `BYTE_RANS` (5,181) and is never the auto winner (ADR-0012) |
 | PDF `/Length`/revision proceduralization and stream replay | 5+ | PROPOSED | structural compression beyond xref offsets is not yet measured |
 | Exact DEFLATE replay (`preflate-rs`) | 6 | PROPOSED | candidate, per-stream, exactness first |
 | Nested PDF content proceduralization | 7 | PROPOSED | the clearest embodiment of the thesis |
@@ -60,14 +62,49 @@ positional DRA ops (`MARK_OFFSET` / `EMIT_OFFSET`, DRA v4, `IMPLEMENTED`) and th
 classic-xref layout lane (`PDF_LAYOUT`), which is **`RECORDED (rejected on
 cost)`**: it is byte-exact and genuinely predicts xref offsets and `startxref`,
 but the per-segment DRA op framing costs more than the digits it saves, so it
-loses to RAW/`BYTE_RANS` (campaign `2026-10-05-phase5-7193001`, ADR-0011). PDF
-structural compression beyond xref offsets — `/Length`/revision
-proceduralization, stream replay, and typed residuals — and every cross-document
-mechanism remain `PROPOSED` (Phases 6+). Phase 2 measured only the order-0 typed
-byte entropy floor over an opaque mixed corpus; Phase 4 showed that coarse
-lexical transposition plus per-channel order-0 models does not beat a monolithic
-order-0 channel, and Phase 5 showed that correct structural prediction does not
-pay while each predicted field still needs its own framed DRA op.
+loses to RAW/`BYTE_RANS` (campaign `2026-10-05-phase5-7193001`, ADR-0011). Phase
+5.7 then amortizes that framing with the packed `PACK_SEGMENTS` op (DRA v5) and
+literal coalescing: packed layout prediction now **beats RAW at scale**
+(`many.pdf` 10,069 vs 10,215) but still loses to `BYTE_RANS`, because the residual
+data object is stored literally (campaign `2026-10-05-phase5-4521778`, ADR-0012).
+PDF structural compression beyond xref offsets — `/Length`/revision
+proceduralization, stream replay, and **entropy-coded residuals** — and every
+cross-document mechanism remain `PROPOSED` (Phases 6+). Phase 2 measured only the
+order-0 typed byte entropy floor over an opaque mixed corpus; Phase 4 showed that
+coarse lexical transposition plus per-channel order-0 models does not beat a
+monolithic order-0 channel; Phase 5 showed that correct structural prediction does
+not pay while each predicted field still needs its own framed DRA op; and Phase
+5.7 showed that packing that framing makes prediction beat RAW at scale but that
+prediction must be composed with entropy coding of the residual to beat a
+monolithic order-0 channel.
+
+### Phase 5.7 scope and the packed-framing threshold
+
+- **Mechanism.** Phase 5.7 adds the `PACK_SEGMENTS` DRA op (opcode `0x08`),
+  bumping the DRA graph to **version 5** and moving the universe to
+  `phase6-prep;exact-bytes;dra-5;opaque+entropy+pdf+channels+offsets`. One op
+  carries a compact item table — `Literal` (varint length), `Mark`, and `Emit` —
+  over a single data object, so per-segment framing is paid once instead of once
+  per span. The op is bounded and non-Turing-complete like the rest of the DRA,
+  and the data object must be consumed exactly.
+- **Candidate.** The classic-xref layout candidate was rebuilt on the packed op
+  (**layout-v2**); literal coalescing merges adjacent literal runs, cutting the
+  `many.pdf` (200 objects, 9,881 B) item table from **1,413 to 805** items.
+- **Complete-cost verdict — partial positive.** Packed framing makes structural
+  prediction **beat RAW at scale**: on `many.pdf` layout-v2 is 10,069 vs RAW
+  10,215 (a 146 B win), which the per-segment Phase-5 lanes never achieved. The
+  candidate is nevertheless **not adopted**: it still loses to `BYTE_RANS`
+  (5,181), wins 0 of the 8 classic-xref samples, and the leave-one-out layout
+  delta is 0, so layout is never the auto winner (11-file ladder A0 RAW 81,371 →
+  A2 +`BYTE_RANS` 48,598 → A5 +`PDF_LAYOUT` 48,598). `classic.pdf` layout 711 vs
+  RAW 663; `bigtext.pdf` layout 65,929 vs RAW 65,883 / `BYTE_RANS` 38,154.
+- **Why.** Packed framing fixes the container cost, but the residual data object
+  is still stored **literally**. Once the structure is predicted, what remains is
+  ordinary byte data that a monolithic order-0 `BYTE_RANS` lane codes better than
+  the packed literal object. The remaining lever is therefore to **entropy-code
+  the residual** — structural prediction composed with an rANS residual, the
+  paper's layered model — not to pack the literals further. Recorded as a measured,
+  partial positive (campaign `2026-10-05-phase5-4521778`, ADR-0012).
 
 ### Phase 5 scope and the recorded layout rejection
 

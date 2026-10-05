@@ -72,7 +72,7 @@ Requirements enforced by `Descriptor::parse`:
 ## Graph (reconstruction program)
 
 ```text
-graph := version:u8=4 op_count:u32 op*
+graph := version:u8=5 op_count:u32 op*
 op    := EMIT_OBJECT(0x01)        u32_object_id
        | INLINE(0x02)             u32_len [u8;len]
        | REPEAT_LAST(0x03)        u32_count
@@ -81,6 +81,11 @@ op    := EMIT_OBJECT(0x01)        u32_object_id
                                  u32_first_payload_channel u8_payload_channel_count
        | MARK_OFFSET(0x06)        u8_slot
        | EMIT_OFFSET(0x07)        u8_slot u8_width
+       | PACK_SEGMENTS(0x08)       u32_data_object u32_item_count item*
+
+item  := LITERAL(0x01)  u32_leb128_len
+       | MARK(0x02)      u8_slot
+       | EMIT(0x03)      u8_slot u8_width
 ```
 
 Semantics:
@@ -130,6 +135,26 @@ Semantics:
   invents bytes: the layout builder emits an `EMIT_OFFSET` only when it has
   verified that the marked position reproduces the source digits, and otherwise
   falls back to a literal `INLINE`.
+- `PACK_SEGMENTS` (introduced in DRA version 5) reconstructs output from a
+  **compact item table over one data object** (authority: **Literal** for
+  `Literal` items, **Generated** for `Mark`/`Emit`), amortizing per-segment op
+  framing. `data_object` is an index into the descriptor's object table; the
+  table holds exactly `item_count` items:
+
+  - `LITERAL(0x01) { len }` copies the next `len` contiguous bytes of the data
+    object and advances the data cursor; `len` is a `u32` LEB128 varint;
+  - `MARK(0x02) { slot }` records the current output position (a `u64`) into
+    `slot` and emits no bytes, exactly like `MARK_OFFSET`;
+  - `EMIT(0x03) { slot, width }` emits the marked decimal position, left
+    zero-padded to `width` bytes, exactly like `EMIT_OFFSET`.
+
+  The item table is bounded by the same limits as the graph and is validated
+  before allocation: an unknown item tag, a truncation, a slot that was never
+  marked, a `width` beyond `1..=20`, a literal run that overruns the data object,
+  or a data object not consumed **exactly** is rejected (`InvalidGraph` /
+  `CoverageViolation`). Like every other op it is deterministic and
+  non-Turing-complete, and it never invents bytes: an `Emit` is only present when
+  the builder verified the marked position reproduces the source digits.
 
 ## Coverage certificate (checked invariant, not stored bytes)
 
@@ -148,15 +173,17 @@ class of bugs at the representation boundary.
 
 ## Universe declaration
 
-The Phase-5 universe string is:
+The Phase-5.7 (Phase-6 preparation) universe string is:
 
 ```text
-vole-document;universe;phase-5;exact-bytes;dra-4;opaque+entropy+pdf+channels+offsets
+vole-document;universe;phase6-prep;exact-bytes;dra-5;opaque+entropy+pdf+channels+offsets
 ```
 
 The header's `universe_id` is the first 16 bytes of `SHA-256` over this string.
 Any change to an opcode, coder, limit semantic, adapter meaning, or hash semantic
-requires a new universe string. This supersedes the Phase-4 string
+requires a new universe string. This supersedes the Phase-5 string
+(`vole-document;universe;phase-5;exact-bytes;dra-4;opaque+entropy+pdf+channels+offsets`),
+which superseded the Phase-4 string
 (`vole-document;universe;phase-4;exact-bytes;dra-3;opaque+entropy+pdf+channels`).
 
 ## Entropy records (Phase 2, extended in Phase 4)
@@ -239,29 +266,39 @@ the renormalization payload; the total record payload length must equal
 A channel is never a bare seed: the model, decoder state, payload, and counts
 are all required to reconstruct bytes (see [`docs/adr/0006-rans-substrate.md`](docs/adr/0006-rans-substrate.md)).
 
-## PDF layout candidate (Phase 5)
+## PDF layout candidate (Phase 5, rebuilt on packed framing in Phase 5.7)
 
 The `PDF_LAYOUT` candidate (`source_format = 1`) applies only to PDFs with a
 classic cross-reference section and **no** cross-reference stream, and with at
-most 255 indirect objects; anything else declines. It persists `objects`,
-`models`, and `channels` empty and reconstructs entirely from the program:
+most 255 indirect objects; anything else declines. Since Phase 5.7 it persists
+`objects = [data]` (one packed data object), `models` and `channels` empty, and
+reconstructs entirely from **one `PACK_SEGMENTS` op** whose item table interleaves
+literals and predictions:
 
-- a `MARK_OFFSET` (slot = the object's index in the physical object table) before
-  each indirect object's introducer bytes, and a `MARK_OFFSET` into the reserved
-  slot `255` at the xref section start;
-- an `EMIT_OFFSET { slot, width: 10 }` (followed by a literal `INLINE` of the
-  generation/status field) for each xref entry whose 10-digit offset equals the
-  marked offset of its target object, and a literal `INLINE` entry otherwise;
-- an `EMIT_OFFSET { slot: 255, width }` for the `startxref` value when the marked
-  xref start reproduces it, and a literal fallback otherwise.
+- every literal byte is appended to the single data object and referenced by a
+  `LITERAL { len }` item, with adjacent literal runs **coalesced** into one item;
+- a `MARK { slot }` (slot = the object's index in the physical object table)
+  before each indirect object's introducer bytes, and a `MARK { slot: 255 }` at
+  the xref section start;
+- an `EMIT { slot, width: 10 }` (followed by a `LITERAL` for the generation/status
+  field) for each xref entry whose 10-digit offset equals the marked offset of its
+  target object, and a literal item otherwise;
+- an `EMIT { slot: 255, width }` for the `startxref` value when the marked xref
+  start reproduces it, and a literal fallback otherwise.
 
-The candidate is byte-exact by construction (the builder verifies
-serialize → parse → materialize → byte-compare and declines on any mismatch) and
-its analysis-only metadata (`pdf-layout;objects=…;xref_predicted=…;xref_literal=…;
-startxref_predicted=…`) is deterministic. It is **recorded, not adopted**: on the
-sealed Phase-5 corpus it predicts offsets correctly but loses to RAW/`BYTE_RANS`
-because the DRA's per-segment op framing costs more than the digits it saves (see
-`PROJECT_STATE.md`, ADR-0011). This section is **PROVISIONAL**.
+This replaced the per-segment `MARK_OFFSET`/`EMIT_OFFSET` program of the original
+Phase-5 lane (kept in the DRA as `0x06`/`0x07` but no longer emitted by this
+candidate) to amortize framing. The candidate is byte-exact by construction (the
+builder verifies serialize → parse → materialize → byte-compare and declines on
+any mismatch) and its analysis-only metadata (`pdf-layout;objects=…;
+xref_predicted=…;xref_literal=…;startxref_predicted=…`) is deterministic.
+
+It is **recorded, not adopted**. Packed framing plus coalescing makes it **beat
+RAW at scale** (`many.pdf` 10,069 vs 10,215), which the per-segment lane never did,
+but it is still dominated by `BYTE_RANS` (5,181) because the residual data object
+is stored literally; layout wins 0 of the 8 classic-xref samples and the
+leave-one-out layout delta is 0 (campaign `2026-10-05-phase5-4521778`). See
+`PROJECT_STATE.md` and ADR-0012. This section is **PROVISIONAL**.
 
 ## Feature policy
 
