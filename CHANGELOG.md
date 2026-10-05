@@ -73,6 +73,25 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
     invocation, so the qpdf corpus outputs are byte-reproducible across runs.
     Ghostscript `pdfwrite` output is not (it embeds a per-run `/ID` and
     timestamp); the caveat is recorded in `provenance.json`.
+- Phase 7.1 — coverage-guided fuzzing:
+  - A standalone `cargo-fuzz` package in `fuzz/` (kept out of `cargo package` by
+    `exclude = ["fuzz", "research", "evidence"]`) with ten libFuzzer targets:
+    `voldoc_parse`, `voldoc_roundtrip`, `dra_program`, `rans_model`,
+    `rans_channel`, `pdf_lexer`, `pdf_scan`, `pdf_xref`, `deflate_replay`,
+    `materializer`. Each asserts the hostile-input invariants (never panic or
+    report an internal invariant, bounded work, deterministic, reconstructed
+    length == declared length, unknown versions/features/codecs fail closed).
+  - A pinned **dated nightly** fuzz toolchain: a `fuzz` `Dockerfile` stage on
+    `rustlang/rust:nightly-bookworm-slim-2026-10-04@sha256:58f725c9…`
+    (`rustc 1.101.0-nightly (db8f076d2 2026-10-03)`, `cargo
+    1.101.0-nightly`) plus `cargo-fuzz 0.13.2` and `libfuzzer-sys 0.4.13`, wired
+    as the `fuzz` compose service (host network, a dedicated `fuzz/target`
+    volume). `RUSTUP_TOOLCHAIN` overrides the root `rust-toolchain.toml`.
+  - `tools/fuzz.sh` runs a bounded campaign (`FUZZ_SECONDS`/`FUZZ_RSS_MB`, default
+    60 s / 2048 MiB per target), copies the committed `fuzz/seeds/` into each
+    target's corpus, and records duration, coverage, execs, and crash/OOM counts.
+  - Five small committed seed inputs under `fuzz/seeds/`; regeneration is
+    documented in `fuzz/README.md`.
 
 ### Fixed
 
@@ -93,6 +112,24 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
 
 ### Measured
 
+- Campaign `2026-10-05-phase7-fuzz-ca6a92b` (verdict PASS_WITH_FINDINGS) — a
+  bounded coverage-guided libFuzzer campaign (60 s/target, `-rss_limit_mb=2048`)
+  over the ten targets in the pinned nightly `fuzz` service. **Nine of ten
+  targets observed zero crashes** (e.g. `voldoc_parse` 23.3M execs, 89 cov;
+  `rans_model` 58.9M execs; `pdf_xref` cov 736 / ft 4229). `deflate_replay`
+  reported two **upstream `preflate-rs` 0.7.6** findings: (F1) an unchecked
+  `1 << params.window_bits` shift-overflow panic on hostile corrections under
+  debug assertions, which libFuzzer's abort-before-unwind panic hook turned into
+  a crash — mitigated by installing a non-aborting panic hook in the targets so
+  `replay_raw`'s documented `catch_unwind` boundary is exercised, with a
+  minimized 35-byte regression fixture and a test asserting a typed
+  `CodecReplay` error; and (F2) an **unbounded reconstruction allocation** (a
+  33-byte hostile `(plaintext, corrections)` pair, peak RSS 2532 MiB at the
+  2048 MiB policy), reported as an upstream limitation — `REPLAY_OUTPUT_RATIO`
+  bounds the declared output, not the third-party decoder's internal allocation,
+  and preflate 0.7.6 has no bounded streaming reconstruction sink (ADR-0016). No
+  wire format or candidate changed. Receipt under
+  `evidence/campaigns/2026-10-05-phase7-fuzz-ca6a92b/`.
 - Campaign `2026-10-05-phase7-corpus-f1f8d26` (verdict RECORDED; diagnostic, no
   new candidate): 17 `FlateDecode` streams, **11 replayed / 6 declined**
   (acceptance 0.647). The 6 transformer declines were `not_zlib` from a recorded
@@ -190,6 +227,12 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   (shared plaintext) is not produced by the tested transformers. It is scoped to
   locally generated files and makes no population claim; qpdf and Ghostscript are
   transformers, not authoring applications.
+- Fuzzing is **evidence, not a proof of absence**: the Phase-7.1 campaign is
+  bounded to 60 s per target. Nine zero-crash targets mean no crash was observed
+  in that budget on that build, not that none exists. Both `deflate_replay`
+  findings are upstream `preflate-rs` defects surfaced through our wrapper; F1 is
+  converted to a typed `CodecReplay` error by `replay_raw`'s `catch_unwind`
+  boundary, and F2 is a recorded, unresolved upstream resource limitation.
 
 ## [0.1.0-alpha.7] — unreleased
 

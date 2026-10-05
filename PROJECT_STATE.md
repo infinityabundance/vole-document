@@ -55,7 +55,7 @@ are evidence.
 | EntropyFS store-backed form | 9 | PROPOSED | optional substrate; `engine::Engine` |
 | DSFB encoder-only search governance | 10 | PROPOSED | **zero** decode authority |
 | Partial materialization | 11 | PROPOSED | checkpoints cost bytes |
-| Fuzzing / property courts | 2 | IMPLEMENTED | `tests/property.rs`, `tests/goldens.rs`, `tools/soak-fuzz.sh`; targets listed in `CONFORMANCE.md` |
+| Coverage-guided fuzzing (`cargo-fuzz`/libFuzzer) | 7.1 | IMPLEMENTED | pinned dated nightly + `cargo-fuzz 0.13.2`; ten targets in `fuzz/fuzz_targets/`; bounded campaign `2026-10-05-phase7-fuzz-ca6a92b` (9/10 targets zero-crash; `deflate_replay` reported two upstream `preflate-rs` findings — F1 mitigated via the library's fail-closed `catch_unwind` boundary + regression test, F2 unbounded allocation reported, ADR-0016); deterministic property/soak courts retained (`tests/property.rs`, `tools/soak-fuzz.sh`) |
 | Cross-document proceduralization | 12+ | PROPOSED | — |
 | Non-PDF adapters (DOCX/ODT/EPUB/…) | later | PROPOSED | adapters over the same core |
 

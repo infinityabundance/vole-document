@@ -471,11 +471,38 @@ for honest per-mechanism ablation; it never
 bypasses exactness, and it fails with a typed usage error when the input does not
 propose that kind.
 
+## Fuzzing
+
+Two layers, both Docker-only:
+
+- **Deterministic property/mutation courts** (`tests/property.rs`,
+  `tests/goldens.rs`, `tests/malformed.rs`) plus the longer soak run
+  `tools/soak-fuzz.sh` (`VOLE_FUZZ_ITERS`, default 200000).
+- **Coverage-guided libFuzzer targets** (Phase 7.1) in the standalone `fuzz/`
+  `cargo-fuzz` package (excluded from `cargo package`), built and run in the
+  pinned dated-nightly `fuzz` Docker service:
+
+  ```sh
+  docker compose build fuzz
+  docker compose run --rm --no-TTY fuzz cargo fuzz build
+  FUZZ_SECONDS=60 docker compose run --rm --no-TTY fuzz sh tools/fuzz.sh
+  ```
+
+Ten targets cover the `.voldoc` container parser/materializer, the
+`encode`→`decode` round trip, the DRA decoder/analyzer/evaluator, the rANS model
+and channel decoders, the PDF lexer and physical scanner, xref/`/Prev`, the
+`DEFLATE_REPLAY` wrapper, and `verify`. See `fuzz/README.md` for the pinned
+toolchain, seeds, and regeneration. The sealed campaign
+`evidence/campaigns/2026-10-05-phase7-fuzz-ca6a92b/` observed zero crashes on
+nine of ten targets and reported two upstream `preflate-rs` findings (one
+mitigated fail-closed, one recorded upstream resource limitation).
+
 ## Repository layout
 
 ```text
 src/            one crate; modules for architectural separation
 tests/          exact / malformed / conformance courts
+fuzz/           cargo-fuzz coverage-guided targets (excluded from the crate)
 tools/          court and gate scripts (run inside Docker)
 docs/           architecture, ADRs, security, phase notes
 evidence/       immutable campaign receipts (machine-readable)

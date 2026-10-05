@@ -1,0 +1,51 @@
+{
+  "campaign": "2026-10-05-phase7-fuzz-ca6a92b",
+  "policy": {
+    "per_target_seconds": 60,
+    "rss_limit_mb": 2048,
+    "artifact_prefix": "/work/fuzz/artifacts/<target>/",
+    "engine": "libFuzzer (cargo-fuzz 0.13.2, address sanitizer)"
+  },
+  "targets": [
+    { "name": "voldoc_parse",      "duration_s": 62,  "exit": 0, "artifacts": 0, "coverage": 89,   "ft": 91,   "execs": 23348092, "exec_per_s": 382755, "peak_rss_mb": 487 },
+    { "name": "voldoc_roundtrip",  "duration_s": 61,  "exit": 0, "artifacts": 0, "coverage": 1547, "ft": 3588, "execs": 179596,   "exec_per_s": 2944,   "peak_rss_mb": 535 },
+    { "name": "dra_program",       "duration_s": 61,  "exit": 0, "artifacts": 0, "coverage": 515,  "ft": 1190, "execs": 2626569,  "exec_per_s": 43058,  "peak_rss_mb": 276 },
+    { "name": "rans_model",        "duration_s": 61,  "exit": 0, "artifacts": 0, "coverage": 163,  "ft": 206,  "execs": 58889038, "exec_per_s": 965394, "peak_rss_mb": 481 },
+    { "name": "rans_channel",      "duration_s": 61,  "exit": 0, "artifacts": 0, "coverage": 336,  "ft": 989,  "execs": 3657623,  "exec_per_s": 59961,  "peak_rss_mb": 299 },
+    { "name": "pdf_lexer",         "duration_s": 61,  "exit": 0, "artifacts": 0, "coverage": 231,  "ft": 1167, "execs": 7636556,  "exec_per_s": 125189, "peak_rss_mb": 507 },
+    { "name": "pdf_scan",          "duration_s": 61,  "exit": 0, "artifacts": 0, "coverage": 790,  "ft": 4260, "execs": 1551184,  "exec_per_s": 25429,  "peak_rss_mb": 438 },
+    { "name": "pdf_xref",          "duration_s": 61,  "exit": 0, "artifacts": 0, "coverage": 736,  "ft": 4229, "execs": 1470572,  "exec_per_s": 24107,  "peak_rss_mb": 448 },
+    { "name": "deflate_replay",    "duration_s": 103, "exit": 1, "artifacts": 1, "coverage": 1301, "ft": 2012, "execs": 2361,     "exec_per_s": 22,     "peak_rss_mb": 2532 },
+    { "name": "materializer",      "duration_s": 62,  "exit": 0, "artifacts": 0, "coverage": 83,   "ft": 85,   "execs": 19481521, "exec_per_s": 319369, "peak_rss_mb": 490 }
+  ],
+  "totals": {
+    "targets": 10,
+    "targets_zero_crash": 9,
+    "crashes": 1,
+    "crash_artifacts": ["fuzz/artifacts/deflate_replay/oom-333c997d35c7187d4059addced17b485f912b9e9"],
+    "total_execs": 126439257,
+    "wall_clock_s": 654
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "target": "deflate_replay",
+      "class": "third-party panic (upstream preflate-rs 0.7.6)",
+      "summary": "Unchecked `1 << params.window_bits` in preflate-rs hash_chain_holder.rs panics (shift overflow) on a hostile correction blob. libFuzzer's panic hook aborts before unwinding, defeating `replay_raw`'s catch_unwind isolation.",
+      "in_tree_action": "Fuzz targets install a non-aborting panic hook so the library's documented catch_unwind boundary works; a committed regression test asserts `replay_raw` returns CodecReplay for the minimized input.",
+      "fixture": "tests/fixtures/deflate_replay_shift_overflow.bin",
+      "fixture_sha256": "c746125d011caeb07c2bfa625af915af971f94c61a6aec6fa0d39acfd7aeb825",
+      "status": "mitigated (fail-closed) + harness fix"
+    },
+    {
+      "id": "F2",
+      "target": "deflate_replay",
+      "class": "third-party resource exhaustion (upstream preflate-rs 0.7.6)",
+      "summary": "A 33-byte hostile (plaintext, corrections) pair drives a multi-gigabyte allocation inside recreate_whole_deflate_stream (peak RSS 2532 MiB). Our replay_profile_limit bounds the declared output, not the third-party decoder's internal allocation.",
+      "in_tree_action": "None available without `unsafe` or process isolation (AGENTS forbids `unsafe_code`). ADR-0016 already records that preflate-rs 0.7.6 has no bounded streaming reconstruction sink. Fixture committed; test asserts the safe analysis boundary declines it.",
+      "fixture": "tests/fixtures/deflate_replay_unbounded_alloc.bin",
+      "fixture_sha256": "973ca1ec27666c45dc35a47edeff9fda7daf316726c15f95d6270b3cc57053ee",
+      "status": "upstream limitation, reported"
+    }
+  ]
+}

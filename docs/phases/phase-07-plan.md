@@ -50,7 +50,12 @@ recorded and must be closed before Phase 7's headline work:
   header/record parser, DRA decode/eval, rANS model + channel decode, PDF
   lexer/physical scanner, xref/revision parsing, the `DEFLATE_REPLAY` wrapper,
   and the materializer. Run a bounded campaign, record coverage, add minimized
-  regression fixtures for anything found.
+  regression fixtures for anything found. **DONE** — `fuzz/` `cargo-fuzz` crate +
+  `fuzz` service on a pinned dated nightly (`nightly-bookworm-slim-2026-10-04`,
+  digest-pinned) with `cargo-fuzz 0.13.2`; ten libFuzzer targets;
+  `tools/fuzz.sh` bounded campaign; sealed receipt
+  `evidence/campaigns/2026-10-05-phase7-fuzz-ca6a92b/` (9/10 targets zero-crash;
+  two upstream `preflate-rs` findings minimized into `tests/fuzz_regressions.rs`).
 - **7.2+ — Nested PDF content proceduralization.** For selected safely-decoded
   content streams: tokenize operators/operands/resources, separate typed
   channels, reconstruct the logical stream byte-exactly, then replay the exact

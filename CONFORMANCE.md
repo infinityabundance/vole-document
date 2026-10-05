@@ -26,8 +26,9 @@
 | Flate correction-ratio harness (Phase 7.0) | `tests/deflate_stats.rs` | `deflate_stats` is diagnostics-only and never changes what the complete-cost court selects. On the real-zlib `flate.pdf`: exactly 6 `FlateDecode` streams, all replayed, aggregate `compressed_bytes` equals the sum of stream `data_len`, every replayed stream carries a non-empty plaintext, correction and rANS cost, and each correction is strictly smaller than its stream; the **deduplicated** shared-channel aggregate is strictly below the naive per-stream sum for a file whose plaintexts repeat; a non-PDF yields `is_pdf:false` with no streams and a zeroed summary (never an error); a PDF with no `FlateDecode` streams reports zero streams |
 | Producer corpus + ratio campaign (Phase 7.0, script) | `tools/pdf-corpus.sh` | builds a locally-generated producer-stratified Flate corpus (Ghostscript `pdfwrite` at five `/PDFSETTINGS`, qpdf in four modes, a hand-written stored-block-zlib base, plus the Phase-3 synthetic set), validates every produced PDF with `qpdf --check`, records a provenance ledger (producer, version, exact command, SHA-256, `license:"locally-generated"`), and captures `deflate-stats` over every corpus PDF; every qpdf invocation passes `--deterministic-id`, so the qpdf corpus outputs are byte-reproducible across runs (Ghostscript output is not — it embeds a per-run `/ID` and timestamp); the campaign `2026-10-05-phase7-corpus-f1f8d26` is sealed and amended (not rewritten) by `2026-10-05-phase7-corpus-b-c4eb77e`, which re-measures after the lexer stream-boundary fix and records 24/24 replayed, 0 declined (acceptance 1.000); the Phase-6 win geometry appears only in our hand-authored fixtures, and the qpdf `--object-streams=preserve` output reproduces it merely by copying the fixture's two byte-identical raw streams (99.93% inherited), so it is not produced by a tested transformer (no new candidate adopted; every stream recorded verbatim) |
 | Producer complete-cost court (Phase 7.0, script) | `tools/pdf-court.sh` | runs the real complete-cost court (`encode FILE OUT`) and four forced lanes (`encode --force raw|byte-rans|pdf-deflate-replay|pdf-deflate-replay-rans FILE OUT`) over every file in the locally-generated producer corpus, recording each lane's complete serialized `.voldoc` size; a forced kind the input does not propose is a typed `Usage` decline recorded as `null`; the auto winner is `verify`ed and `decode`d + `cmp`ed byte-exact; seals campaign `2026-10-05-phase7-court-99dc72e`: `PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS` is win 3 / lose 8 / decline 12 over 23 files, **all 3 wins self-authored** (the `qpdf-preserve-objectstreams.pdf` win at −55,167 B is a preserved copy of the `hand-base2.pdf` fixture's byte-identical raw streams, 99.93% inherited); every genuinely transformed producer output loses or declines; no new candidate adopted |
+| Fuzz regressions (Phase 7.1) | `tests/fuzz_regressions.rs` | committed crash/OOM fixtures from the coverage-guided campaign reproduce the fixed behavior: hostile `preflate` corrections are declined as a typed `CodecReplay` (never unwound into the caller), and the public analysis entry point fails closed on a non-zlib stream; the unbounded-allocation fixture is committed but deliberately not executed in-process (upstream `preflate-rs` limitation, ADR-0016) |
 
-Test counts (inside the pinned `dev` image): **331** passing with `--all-features`
+Test counts (inside the pinned `dev` image): **333** passing with `--all-features`
 (0 failed, 1 ignored), of which **243** are library unit tests (plus 1 ignored);
 **310** passing with the default feature set (`default = ["rans"]`, permissive-only;
 the replay courts are skipped), of which **234** are library unit tests; and
@@ -107,6 +108,19 @@ objects, hostile correction blobs that must fail closed) in `src/dra/program.rs`
 the bounded replay wrapper in `src/codec/deflate.rs`, and the replay candidate
 builders and lexer stream-opacity change over the real-zlib `flate.pdf` sample in
 `tests/pdf_deflate.rs`.
+
+Phase 7.1 adds **coverage-guided** fuzzing on top of the deterministic courts: a
+standalone `cargo-fuzz` package in `fuzz/` (excluded from `cargo package`) with
+ten libFuzzer targets — `voldoc_parse`, `voldoc_roundtrip`, `dra_program`,
+`rans_model`, `rans_channel`, `pdf_lexer`, `pdf_scan`, `pdf_xref`,
+`deflate_replay`, `materializer` — built and run in a pinned dated-nightly `fuzz`
+Docker service. `tools/fuzz.sh` runs a bounded per-target campaign and records
+duration, coverage, execs, and crashes; the sealed campaign
+`2026-10-05-phase7-fuzz-ca6a92b` observed zero crashes on nine of ten targets and
+reported two upstream `preflate-rs` findings (a shift-overflow panic, mitigated by
+the library's fail-closed `catch_unwind` boundary, and an unbounded reconstruction
+allocation, reported and documented by ADR-0016). `tests/fuzz_regressions.rs`
+holds the minimized fixtures and asserts the fixed behavior.
 Still planned for later phases: a stream-boundary parser · partial materializer.
 
 Useful properties: never panic · bounded failure · round trip · descriptor

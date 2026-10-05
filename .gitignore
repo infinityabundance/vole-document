@@ -12,6 +12,7 @@
 /fuzz/target/
 /fuzz/corpus/
 /fuzz/artifacts/
+/fuzz/campaign/
 
 # Rust build artifacts
 /target/
