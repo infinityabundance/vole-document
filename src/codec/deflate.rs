@@ -777,4 +777,42 @@ mod tests {
         // than return a silently truncated stream.
         assert!(try_replay(&z, limits).is_none());
     }
+
+    #[test]
+    fn worker_framing_round_trips() {
+        let req = encode_worker_request(b"plain", b"corrections", 7).unwrap();
+        let mut cur = std::io::Cursor::new(req);
+        assert_eq!(
+            read_worker_request(&mut cur).unwrap(),
+            WorkerRequest {
+                plaintext: b"plain".to_vec(),
+                corrections: b"corrections".to_vec(),
+                declared_len: 7,
+            }
+        );
+
+        let mut reply = Vec::new();
+        write_worker_reply(&mut reply, 0, b"raw deflate").unwrap();
+        let mut rc = std::io::Cursor::new(reply);
+        assert_eq!(
+            read_worker_reply(&mut rc, 1024).unwrap(),
+            Some((0, b"raw deflate".to_vec()))
+        );
+
+        // An oversized field length is refused before any allocation.
+        let mut bad = Vec::new();
+        bad.extend_from_slice(&u32::MAX.to_le_bytes());
+        let mut bc = std::io::Cursor::new(bad);
+        assert!(read_worker_request(&mut bc).is_err());
+
+        // An oversized reply payload length is refused too.
+        let mut big_reply = vec![0u8; 5];
+        big_reply[1..].copy_from_slice(&u32::MAX.to_le_bytes());
+        let mut brc = std::io::Cursor::new(big_reply);
+        assert!(read_worker_reply(&mut brc, 16).is_err());
+
+        // A closed pipe means no reply, not an error.
+        let mut empty = std::io::Cursor::new(Vec::new());
+        assert_eq!(read_worker_reply(&mut empty, 1024).unwrap(), None);
+    }
 }
