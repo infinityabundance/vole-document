@@ -72,11 +72,13 @@ Requirements enforced by `Descriptor::parse`:
 ## Graph (reconstruction program)
 
 ```text
-graph := version:u8=2 op_count:u32 op*
-op    := EMIT_OBJECT(0x01) u32_object_id
-       | INLINE(0x02)      u32_len [u8;len]
-       | REPEAT_LAST(0x03) u32_count
-       | DECODE_CHANNEL(0x04) u32_channel_id
+graph := version:u8=3 op_count:u32 op*
+op    := EMIT_OBJECT(0x01)        u32_object_id
+       | INLINE(0x02)             u32_len [u8;len]
+       | REPEAT_LAST(0x03)        u32_count
+       | DECODE_CHANNEL(0x04)     u32_channel_id
+       | INTERLEAVE_CHANNELS(0x05) u32_kinds_channel u32_lengths_channel \
+                                 u32_first_payload_channel u8_payload_channel_count
 ```
 
 Semantics:
@@ -90,6 +92,24 @@ Semantics:
   channel (authority: **EntropyChannel**). The channel's decoded length is known
   statically from its descriptor, so the op's output length is still bounded at
   parse time.
+- `INTERLEAVE_CHANNELS` (introduced in DRA version 3) reconstructs a byte string
+  from a **kind channel**, a **length channel**, and a contiguous run of
+  **payload channels** (authority: **EntropyChannel**):
+
+  - `kinds_channel` holds one kind byte per token, in file order;
+  - `lengths_channel` holds one little-endian `u32` per token, aligned with the
+    kind stream (its decoded length must be exactly `4 * token_count`);
+  - payload channel `first_payload_channel + k` carries the concatenated bytes
+    of every token whose kind is `k`, in file order, for
+    `k in 0..payload_channel_count`.
+
+  Evaluation walks the kind/length sequence, and for each token appends the next
+  `length` bytes of the payload channel named by its kind, advancing a per-kind
+  cursor. All indices, the kind range, and cursor bounds are validated before
+  allocation; a kind outside the payload range, misaligned kind/length counts,
+  a length overrun, or unconsumed payload bytes is rejected as
+  `InvalidGraph`/`CoverageViolation`. The op is bounded and non-Turing-complete
+  like the rest of the DRA.
 
 ## Coverage certificate (checked invariant, not stored bytes)
 
@@ -108,38 +128,74 @@ class of bugs at the representation boundary.
 
 ## Universe declaration
 
-The Phase-3 universe string is:
+The Phase-4 universe string is:
 
 ```text
-vole-document;universe;phase-3;exact-bytes;dra-2;opaque+entropy+pdf
+vole-document;universe;phase-4;exact-bytes;dra-3;opaque+entropy+pdf+channels
 ```
 
 The header's `universe_id` is the first 16 bytes of `SHA-256` over this string.
 Any change to an opcode, coder, limit semantic, adapter meaning, or hash semantic
-requires a new universe string. This supersedes the Phase-2 string
-(`vole-document;universe;phase-2;exact-bytes;dra-2;opaque+entropy`).
+requires a new universe string. This supersedes the Phase-3 string
+(`vole-document;universe;phase-3;exact-bytes;dra-2;opaque+entropy+pdf`).
 
-## Entropy records (Phase 2)
+## Entropy records (Phase 2, extended in Phase 4)
 
-Phase 2 introduces exactly two entropy records and one graph op. They are
-implemented and measured but remain **PROVISIONAL** (the wire format is not
-frozen v1).
+Phase 2 introduces two entropy records and one graph op (`MODEL`,
+`ENTROPY_CHANNEL`, `DECODE_CHANNEL`). Phase 4 extends the `MODEL` wire to
+version 2 (sparse/dense) and adds the `INTERLEAVE_CHANNELS` op and the typed
+PDF-channel candidate layout. All of it is implemented and measured but remains
+**PROVISIONAL** (the wire format is not frozen v1).
 
 ### `MODEL` (`0x30`)
 
 A canonical, self-describing frequency table over the fixed 256-symbol byte
-alphabet. The payload is the dense canonical model, exactly **516 bytes**:
+alphabet. Two wire versions are accepted on decode; **version 2** is what this
+build emits:
 
 ```text
-model := version:u8=1 scale_bits:u8 count:u16=256 freq:[u16;256]
+model_v2 := version:u8=2 form:u8 scale_bits:u8 payload
+form = 0 (SPARSE): present_count:u16 (symbol:u8 freq:u16)*
+form = 1 (DENSE):  count:u16=256    freq:[u16;256]
+
+model_v1 := version:u8=1 scale_bits:u8 count:u16=256 freq:[u16;256]   (legacy, dense)
 ```
 
-- `freq` entries are little-endian and **must sum to exactly `1 << scale_bits`**.
+- **v2 form selection.** The encoder serializes to whichever form is *strictly*
+  smaller; on a tie it picks the dense form, so the mapping from model to bytes
+  stays deterministic. Sparse symbols must be strictly ascending and unique with
+  `freq >= 1`; the dense form carries all 256 little-endian `u16` frequencies.
+- **Legacy v1.** The original dense payload (`[1][scale_bits][count=256][u16 x
+  256]`, exactly 516 bytes) is still decodable, so older descriptors remain
+  readable.
+- `freq` entries are little-endian and **must sum to exactly `1 << scale_bits`**
+  in both versions; trailing or truncated payloads are rejected.
 - `scale_bits` is in `1..=15` (frequencies are stored as `u16`).
 - Normalization from observed counts is integer-only, deterministic, and
   tie-broken by lower symbol index; symbols seen zero times get frequency zero.
 - A channel's `scale_bits` must equal the `scale_bits` of the model it names, and
   a channel may not name a missing model; both are checked during `parse`.
+
+### PDF typed-channel candidate layout (Phase 4)
+
+The `PDF_CHANNELS` candidate (`source_format = 1`) transposes the Phase-3 lexical
+cover into a fixed set of channels — the indices below are a wire contract of
+this candidate. With `KIND_COUNT = 12`:
+
+```text
+channel 0            kinds: one kind byte per token, in file order
+channel 1            lengths: four little-endian bytes per token, aligned with kinds
+channels 2..2+KIND_COUNT   payloads[k]: bytes of every token of kind k, in file order
+                           (with KIND_COUNT = 12 this is channels 2..13)
+```
+
+Each channel is independently order-0 byte-rANS coded with its own `MODEL`
+(a model id per channel, in that order), and reconstruction is a single
+`INTERLEAVE_CHANNELS` op with `kinds_channel = 0`, `lengths_channel = 1`,
+`first_payload_channel = 2`, `payload_channel_count = KIND_COUNT`. Every model
+and payload byte is charged in the complete-cost court; the candidate is
+**proposed and measured but not adopted** — it loses to `BYTE_RANS` on this
+corpus (see `PROJECT_STATE.md`, ADR-0010). This section is **PROVISIONAL**.
 
 ### `ENTROPY_CHANNEL` (`0x40`)
 

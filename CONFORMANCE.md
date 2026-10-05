@@ -13,12 +13,21 @@
 | Property | `tests/property.rs` | deterministic mutation/round-trip fuzzing over descriptor/model/channel/DRA parsers: `decode(encode(x)) == x`; `parse(serialize(d)) == d`; random and mutated bytes never panic and never report an internal invariant; oversized claims are bounded; limits never change reconstructed bytes |
 | Soak (script) | `tools/soak-fuzz.sh` | longer deterministic run (`VOLE_FUZZ_ITERS`, default `200000`) of the property, entropy, goldens, and malformed courts |
 | PDF physical | `tests/pdf.rs` | Phase-3 gates: total contiguous coverage of every corpus PDF; forced physical materialization byte-exact; validated (not extension-based) detection; incremental revisions; literal/hex/stream traps never split objects; hostile random bytes never panic; the court honestly still prefers RAW in Phase 3 |
+| PDF channels | `tests/pdf_channels.rs` | Phase-4 gates: channel transposition (`join(split(x)) == x`); a forced typed-channel descriptor is byte-exact and its cost fully charged (models + payload non-zero, attribution sums to the serialized length); the honest `large_text_channels_compete` experiment forces RAW/BYTE_RANS/PDF_CHANNELS side by side and records the sizes, asserting only exactness and determinism — never that channels win |
 | PDF oracle (script) | `tools/pdf-oracle.sh` | qpdf 11.3 differential court over a deterministic corpus: `qpdf --check` valid, object-number set agreement, `pdfinfo` page count; qpdf is an oracle, never the byte authority |
+| Phase-4 ablation (script) | `tools/phase4-court.sh` | forced-candidate ablation via `encode --force KIND` (`raw`, `rle`, `byte-rans`, `pdf-physical`, `pdf-channels`) over the deterministic corpus: per-kind forced sizes, the cumulative ladder A0..A4, and the leave-one-out channel delta; every auto winner is `cmp`ed and `verify`ed byte-exact |
 
-Test counts (inside the pinned `dev` image): **228** with all features (the
-default set), **196** with `--no-default-features` (the rANS-dependent
-integration courts are skipped), of which **166** are library unit tests (with
+Test counts (inside the pinned `dev` image): **260** with all features (the
+default set), **216** with `--no-default-features` (the rANS-dependent
+integration courts are skipped), of which **191** are library unit tests (with
 all features).
+
+`encode --force KIND` is the ablation surface: it runs the *same* complete-cost
+court over a one-element candidate set (`KIND` in `raw`, `rle`, `byte-rans`,
+`pdf-physical`, `pdf-channels`). Forcing selects a lane; it never bypasses
+serialization, decoding, or the byte-compare, and a kind the input does not
+propose fails with a typed usage error (recorded as `null`), not a fabricated
+result.
 
 Run everything:
 
@@ -58,6 +67,9 @@ header/record parser, the DRA parser/evaluator, the rANS model parser, the rANS
 channel decoder, and the coverage certificate (`tests/property.rs`,
 `tests/goldens.rs`, `tools/soak-fuzz.sh`). Phase 3 additionally exercises the PDF
 lexical cover and physical scanner over hostile random bytes (`tests/pdf.rs`).
+Phase 4 additionally exercises the typed-channel transposition and the
+`INTERLEAVE_CHANNELS` evaluator, including corrupt, misaligned, and overrunning
+channels (`tests/pdf_channels.rs`).
 Still planned for later phases: an xref parser · a stream-boundary parser ·
 DEFLATE replay wrapper · partial materializer.
 

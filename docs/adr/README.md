@@ -14,6 +14,7 @@ the written rationale that must survive chat history.
 | [0007](0007-deflate-replay.md) | Exact DEFLATE replay is a per-stream candidate | Accepted (impl Phase 6) |
 | [0008](0008-entropyfs-optional.md) | EntropyFS is optional; standalone form is sacred | Accepted (impl Phase 9) |
 | [0009](0009-pdf-byte-authority.md) | PDF physical bytes are the authority; oracles are not | Accepted (impl Phase 3–8) |
+| [0010](0010-typed-channels-rejected.md) | Typed lexical channels are rejected by complete cost | Accepted — recorded negative result (Phase 4) |
 
 ## Adding an ADR
 

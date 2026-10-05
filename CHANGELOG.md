@@ -2,6 +2,59 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.4] — unreleased
+
+### Added
+
+- Phase 4 — PDF lexical/structural typed channels:
+  - Deterministic, exactly-reversible **channel transposition** (`split`/`join`):
+    the Phase-3.1 lexical span cover is transposed into one kind id per token,
+    one 4-byte length per token, and one concatenated payload stream per lexical
+    kind (`KIND_COUNT = 12`). `join(split(x)) == x` by construction for every
+    byte string.
+  - `INTERLEAVE_CHANNELS` DRA op (opcode `0x05`), bumping the DRA graph to
+    version `3`. It replays the kind/length sequence against the per-kind
+    payload channels with bounded, non-overlapping output spans.
+  - `PDF_CHANNELS` candidate: one order-0 byte-rANS model per channel, built on
+    the fixed channel layout (ch0 kinds, ch1 lengths, ch2..13 per-kind
+    payloads).
+  - Compact **model wire v2**: sparse `[symbol u8][freq u16]` entries for present
+    symbols or the dense 256-entry table, whichever serializes smaller; legacy
+    v1 dense models remain decodable.
+  - Forced-candidate ablation: `encode --force KIND` runs the same complete-cost
+    court over a one-element candidate set (`raw`, `rle`, `byte-rans`,
+    `pdf-physical`, `pdf-channels`).
+- Phase-4 universe string
+  `vole-document;universe;phase-4;exact-bytes;dra-3;opaque+entropy+pdf+channels`.
+- Courts: `tests/pdf_channels.rs` and the forced-candidate ablation court
+  `tools/phase4-court.sh`.
+
+### Measured
+
+- Campaign `2026-10-05-phase4-3840bc4` (verdict PASS): on a deterministic 10-file
+  corpus, every file round-trips byte-exactly through its auto-winning lane
+  (`cmp` + `verify`), and the qpdf oracle re-check passes.
+- Cumulative ladder (serialized `.voldoc` bytes): A0 RAW = 71,036;
+  A1 +RLE = 71,036; A2 +BYTE_RANS = 43,297; A3 +PDF_PHYSICAL = 43,297;
+  A4 +PDF_CHANNELS = 43,297. Leave-one-out channel delta = 0. Auto winners:
+  RAW = 8, BYTE_RANS = 2, PDF_PHYSICAL = 0, PDF_CHANNELS = 0.
+- On the text-heavy scale sample `bigtext.pdf` (65,549 B) forced sizes were
+  RAW = 65,871, BYTE_RANS = 38,142, PDF_CHANNELS = 46,432: typed channels beat
+  RAW but lose to BYTE_RANS by ~8,290 B. Compact sparse models cut per-channel
+  model overhead from 7,224 B to 1,981 B, which is not enough to close the gap.
+- **Recorded negative result:** coarse lexical transposition plus per-channel
+  order-0 models does **not** beat a monolithic order-0 `BYTE_RANS` on this
+  corpus. `PDF_CHANNELS` is preserved as an exact, available lane but is
+  **rejected by the complete-cost court**, not adopted. Receipt under
+  `evidence/campaigns/2026-10-05-phase4-3840bc4/`.
+
+### Notes
+
+- The wire format remains **PROVISIONAL** and is not frozen v1. The typed-channel
+  lane is exact and bounded but loses on complete cost; contextual/ordering
+  mechanisms that could condition a channel on its neighbours are `PROPOSED`
+  (Phases 5+). See ADR-0010.
+
 ## [0.1.0-alpha.3] — unreleased
 
 ### Added
