@@ -469,6 +469,73 @@ mod tests {
         assert!(!detect(b"plain text, not a PDF", Limits::DEFAULT));
     }
 
+    /// A stream whose payload is written immediately before `endstream` with no
+    /// intervening EOL (the real-producer case: Ghostscript 10.00.0). The direct
+    /// `/Length` is correct, so `scan` must resolve the exact payload span and the
+    /// exact-replay court must admit the committed zlib fixture byte-for-byte.
+    #[cfg(feature = "deflate-replay")]
+    #[test]
+    fn stream_without_eol_before_endstream_scans_and_replays() {
+        use crate::codec::deflate::{replay_raw, try_replay};
+
+        let payload: &[u8] = FLATE_P1_L6;
+        let mut w = Writer::new();
+        w.text("%PDF-1.5\n");
+        w.obj(1, 0, b"<< /Type /Catalog /Pages 2 0 R >>");
+        // Object 2: correct `/Length`, payload then `endstream` with no EOL.
+        w.offsets.push((2, w.buf.len() as u64));
+        w.text(&format!(
+            "2 0 obj\n<< /Length {} /Filter /FlateDecode >>\nstream\n",
+            payload.len()
+        ));
+        w.raw(payload);
+        w.raw(b"endstream\nendobj\n");
+        w.classic_trailer(3, " /Root 1 0 R");
+        let pdf = w.buf;
+
+        // The physical scanner covers exactly and finds the object and stream.
+        let physical = scan(&pdf, Limits::DEFAULT).unwrap();
+        physical.validate(pdf.len() as u64).unwrap();
+        assert_eq!(
+            physical.total_len(),
+            pdf.len() as u64,
+            "cover must be exact"
+        );
+        let obj = physical
+            .objects
+            .iter()
+            .find(|o| o.number == 2)
+            .expect("object 2 must be found");
+        assert_eq!(obj.generation, 0);
+        let stream = physical
+            .streams
+            .iter()
+            .find(|s| s.object == 2)
+            .expect("stream 2 must be found");
+        assert_eq!(stream.data_len, payload.len() as u64, "payload length");
+        assert_eq!(
+            stream.length_source,
+            crate::adapter::pdf::LengthSource::Direct
+        );
+        assert_eq!(
+            &pdf[stream.data_start as usize..(stream.data_start + stream.data_len) as usize],
+            payload,
+            "stream span data must equal the payload exactly"
+        );
+
+        // The exact-replay court admits it and replays byte-for-byte.
+        let plan = try_replay(payload, Limits::DEFAULT)
+            .expect("committed zlib fixture must produce a replay plan");
+        let mut rebuilt = Vec::new();
+        rebuilt.extend_from_slice(&plan.header);
+        rebuilt.extend_from_slice(&replay_raw(&plan.plaintext, &plan.corrections).unwrap());
+        rebuilt.extend_from_slice(&plan.adler);
+        assert_eq!(
+            rebuilt, payload,
+            "replay must reproduce the payload exactly"
+        );
+    }
+
     /// Regenerate the committed real-zlib fixture blobs. Ignored by default;
     /// run manually inside Docker:
     /// `cargo test --all-features regenerate_flate_fixtures -- --ignored`.
