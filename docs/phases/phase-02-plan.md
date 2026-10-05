@@ -18,9 +18,9 @@ Execution rules (frozen for this phase):
 
 | # | Subphase | Deliverable | Files (disjoint) |
 |---|---|---|---|
-| 2.1 | Entropy semantic layer | coder descriptor + `EntropySeedCapsule` types; MODEL + ENTROPY_CHANNEL record wiring (encode/parse, fail-closed) | `src/entropy/mod.rs`, `src/entropy/codec.rs`, `src/container/descriptor.rs` |
-| 2.2 | Canonical model normalization | symbol histogram → normalized frequency table (deterministic rounding, `scale_bits`, zero-freq handling); model serialize/parse + integrity | `src/entropy/model.rs` |
-| 2.3 | Scalar byte rANS codec | order-0 encode/decode on `ryg_rans_rs::byte` **safe manual** API; typed errors for every hostile case | `src/entropy/rans.rs` |
+| 2.1 | Canonical model normalization | symbol histogram → normalized frequency table (deterministic rounding, `scale_bits`, zero-freq handling); model serialize/parse + validation | `src/entropy/model.rs` ✅ **done** |
+| 2.2 | Scalar byte rANS codec | order-0 encode/decode on `ryg_rans_rs::byte` **safe manual** API; typed errors for every hostile case | `src/entropy/rans.rs` |
+| 2.3 | Entropy descriptor + container/DRA wiring | `EntropyChannelDescriptor`; MODEL + ENTROPY_CHANNEL records; `DECODE_CHANNEL` DRA op; materialize decodes channels | `src/entropy/mod.rs`, `src/entropy/codec.rs`, `src/container/descriptor.rs`, `src/dra/*`, `src/materialize/mod.rs` |
 | 2.4 | RLE candidate | `REPEAT_LAST`-based run-length candidate in the court | `src/encode/candidates.rs`, `src/adapter/opaque/mod.rs` |
 | 2.5 | BYTE_RANS candidate | encode channel + capsule into descriptor; complete-cost accounting (model + payload charged) | `src/encode/candidates.rs`, `src/container/descriptor.rs` |
 | 2.6 | Negative controls + gates | RAW wins on incompressible/small; override rules; deterministic tie-break | `tests/entropy.rs` |
