@@ -39,6 +39,12 @@ use crate::error::Result;
 use crate::integrity::sha256;
 use crate::limits::Limits;
 
+#[cfg(feature = "rans")]
+use crate::entropy::{
+    ALPHABET, CODER_ORDER0_BYTE_RANS, CODER_VERSION_1, EntropyChannelDescriptor, EntropyModel,
+    encode_channel,
+};
+
 use super::physical::{ObjRole, PdfObjectSpan, PhysicalKind, scan};
 
 /// Reserved slot index for the most recent classic `xref` section start.
@@ -48,12 +54,32 @@ pub const XREF_SLOT: u8 = u8::MAX;
 /// leaving slot `255` free for [`XREF_SLOT`].
 pub const MAX_MARKED_OBJECTS: usize = XREF_SLOT as usize;
 
-/// Propose a layout candidate that regenerates xref offsets / startxref, or
-/// `None`.
+/// The structural layout plan for a classic-cross-reference PDF: the ordered
+/// packed item table, the single literal data object it consumes, and the
+/// prediction counters used to describe the plan.
+pub struct LayoutPlan {
+    /// Ordered reconstruction items (literal runs, position marks, emitted
+    /// offsets), as consumed by [`Op::PackSegments`] and [`Op::PackedChannels`].
+    pub items: Vec<PackItem>,
+    /// Every literal byte, in item order. Must be consumed exactly by `items`.
+    pub data: Vec<u8>,
+    /// Number of xref entry offsets regenerated from a marked position.
+    pub xref_predicted: usize,
+    /// Number of xref entry offsets stored literally (precondition failed).
+    pub xref_literal: usize,
+    /// Whether at least one `startxref` value was regenerated.
+    pub startxref_predicted: bool,
+}
+
+/// Build the structural layout plan for `input`, or `None` when the input is not
+/// a classic-cross-reference PDF this mechanism can express exactly.
 ///
-/// Declines (`Ok(None)`) whenever a precondition fails or the built program does
-/// not materialize byte-for-byte. See the module documentation for the algorithm.
-pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
+/// Declines (`Ok(None)`) whenever a precondition fails — no classic `xref`
+/// section, a cross-reference stream present, too many objects, a non-contiguous
+/// span cover, or a literal run that cannot fit a `u32`. See the module
+/// documentation for the algorithm. The caller is responsible for the final
+/// byte-exactness check through the normative decoder.
+pub fn build_layout_plan(input: &[u8], limits: Limits) -> Result<Option<LayoutPlan>> {
     let physical = match scan(input, limits) {
         Ok(p) => p,
         Err(_) => return Ok(None),
@@ -90,9 +116,9 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
     let mut pos: u64 = 0;
     let mut slot_value = [0u64; 256];
     let mut slot_marked = [false; 256];
-    let mut xref_predicted: u64 = 0;
-    let mut xref_literal: u64 = 0;
-    let mut startxref_predicted: u64 = 0;
+    let mut xref_predicted: usize = 0;
+    let mut xref_literal: usize = 0;
+    let mut startxref_predicted = false;
 
     for span in &physical.spans {
         let start = span.start as usize;
@@ -203,7 +229,7 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
                         width,
                     });
                     pos += width as u64;
-                    startxref_predicted += 1;
+                    startxref_predicted = true;
                 }
                 None => {
                     if !push_pack_literal(&mut data, &mut items, bytes, &mut pos) {
@@ -219,11 +245,36 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
         }
     }
 
-    let format_basis = format!(
-        "pdf-layout;objects={};xref_predicted={};xref_literal={};startxref_predicted={}",
-        physical.objects.len(),
+    Ok(Some(LayoutPlan {
+        items,
+        data,
         xref_predicted,
         xref_literal,
+        startxref_predicted,
+    }))
+}
+
+/// Propose a layout candidate that regenerates xref offsets / startxref, or
+/// `None`.
+///
+/// Wraps [`build_layout_plan`] into a single [`Op::PackSegments`] program over
+/// one literal data object. Declines (`Ok(None)`) whenever the plan cannot be
+/// built or the assembled program does not materialize byte-for-byte. See the
+/// module documentation for the algorithm.
+pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
+    let plan = match build_layout_plan(input, limits)? {
+        Some(p) => p,
+        None => return Ok(None),
+    };
+
+    // `startxref` is predicted once per `StartXref` span; every `Emit` is either
+    // a predicted xref entry or a predicted startxref, so the count is exact.
+    let startxref_predicted = emit_count(&plan.items).saturating_sub(plan.xref_predicted);
+    let format_basis = format!(
+        "pdf-layout;objects={};xref_predicted={};xref_literal={};startxref_predicted={}",
+        marked_object_count(&plan.items),
+        plan.xref_predicted,
+        plan.xref_literal,
         startxref_predicted
     );
 
@@ -233,10 +284,10 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
         format_basis,
         models: vec![],
         channels: vec![],
-        objects: vec![data],
+        objects: vec![plan.data],
         program: Program::new(vec![Op::PackSegments {
             data_object: 0,
-            items,
+            items: plan.items,
         }]),
         source_sha256: sha256(input),
         source_len: input.len() as u64,
@@ -263,6 +314,129 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
     }
 
     Ok(Some(candidate))
+}
+
+/// Propose a layout + rANS candidate, or `None`.
+///
+/// Builds the same [`LayoutPlan`] as [`propose_pdf_layout`], then entropy-codes
+/// its parts into two rANS channels: channel `0` carries the plan's literal data
+/// object, and channel `1` carries `encode_items` of the plan's item table. A
+/// single [`Op::PackedChannels`] reconstructs the source from both, so the whole
+/// plan — data *and* item table — pays entropy-coding cost instead of being
+/// stored as literal bytes. Each channel uses its own order-0 byte model
+/// normalized from its own byte histogram at `scale_bits` 12.
+///
+/// Exactly as with the literal layout lane, an end-to-end serialize / parse /
+/// materialize / byte-compare check gates the return: an inexact program yields
+/// `Ok(None)` rather than an inexact candidate.
+#[cfg(feature = "rans")]
+pub fn propose_pdf_layout_rans(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
+    let plan = match build_layout_plan(input, limits)? {
+        Some(p) => p,
+        None => return Ok(None),
+    };
+
+    let plan_bytes = crate::dra::op::encode_items(&plan.items)?;
+
+    // Channel 0: the literal data object, coded against its own byte histogram.
+    let mut data_counts = [0u64; ALPHABET];
+    for &b in &plan.data {
+        data_counts[b as usize] += 1;
+    }
+    let data_model = EntropyModel::from_counts(&data_counts, 12)?;
+    let data_capsule = encode_channel(&data_model, &plan.data)?;
+
+    // Channel 1: the serialized item table, coded against its own histogram.
+    let mut plan_counts = [0u64; ALPHABET];
+    for &b in &plan_bytes {
+        plan_counts[b as usize] += 1;
+    }
+    let plan_model = EntropyModel::from_counts(&plan_counts, 12)?;
+    let plan_capsule = encode_channel(&plan_model, &plan_bytes)?;
+
+    let data_channel = EntropyChannelDescriptor {
+        coder: CODER_ORDER0_BYTE_RANS,
+        coder_version: CODER_VERSION_1,
+        scale_bits: data_model.scale_bits,
+        lane_count: 1,
+        model_id: 0,
+        symbol_count: data_capsule.symbol_count,
+        decoded_length: data_capsule.decoded_length,
+        initial_state: data_capsule.initial_state,
+        payload: data_capsule.payload,
+    };
+    let plan_channel = EntropyChannelDescriptor {
+        coder: CODER_ORDER0_BYTE_RANS,
+        coder_version: CODER_VERSION_1,
+        scale_bits: plan_model.scale_bits,
+        lane_count: 1,
+        model_id: 1,
+        symbol_count: plan_capsule.symbol_count,
+        decoded_length: plan_capsule.decoded_length,
+        initial_state: plan_capsule.initial_state,
+        payload: plan_capsule.payload,
+    };
+
+    let format_basis = format!(
+        "pdf-layout-rans;objects={};xref_predicted={};xref_literal={}",
+        marked_object_count(&plan.items),
+        plan.xref_predicted,
+        plan.xref_literal
+    );
+
+    let descriptor = Descriptor {
+        universe: UNIVERSE.to_string(),
+        source_format: SOURCE_FORMAT_PDF,
+        format_basis,
+        models: vec![data_model, plan_model],
+        channels: vec![data_channel, plan_channel],
+        objects: vec![],
+        program: Program::new(vec![Op::PackedChannels {
+            data_channel: 0,
+            plan_channel: 1,
+            declared_output_len: input.len() as u64,
+        }]),
+        source_sha256: sha256(input),
+        source_len: input.len() as u64,
+    };
+
+    let candidate = Candidate {
+        kind: CandidateKind::PdfLayoutRans,
+        descriptor,
+    };
+
+    // Verify byte-exactness through the normative decoder before returning. An
+    // inexact program must never be emitted.
+    let (encoded, _) = candidate.descriptor.serialize()?;
+    let parsed = match Descriptor::parse(&encoded, limits) {
+        Ok(p) => p,
+        Err(_) => return Ok(None),
+    };
+    let out = match crate::materialize::materialize(&parsed, limits) {
+        Ok(o) => o,
+        Err(_) => return Ok(None),
+    };
+    if out != input {
+        return Ok(None);
+    }
+
+    Ok(Some(candidate))
+}
+
+/// Number of indirect objects whose introducer was marked in the item table.
+fn marked_object_count(items: &[PackItem]) -> usize {
+    items
+        .iter()
+        .filter(|item| matches!(item, PackItem::Mark { slot } if *slot != XREF_SLOT))
+        .count()
+}
+
+/// Number of emitted offsets in the item table.
+fn emit_count(items: &[PackItem]) -> usize {
+    items
+        .iter()
+        .filter(|item| matches!(item, PackItem::Emit { .. }))
+        .count()
 }
 
 /// Append `bytes` to the packed data object, recording one [`PackItem::Literal`]
@@ -746,6 +920,98 @@ mod tests {
         }
     }
 
+    /// Force the layout+rANS candidate for `bytes` and assert the full exact
+    /// triple end-to-end through the normative decoder.
+    #[cfg(feature = "rans")]
+    fn assert_rans_materializes_exactly(name: &str, bytes: &[u8]) {
+        let cand = propose_pdf_layout_rans(bytes, Limits::DEFAULT)
+            .unwrap()
+            .unwrap_or_else(|| panic!("{name} must propose a layout-rANS candidate"));
+        assert_eq!(cand.kind, CandidateKind::PdfLayoutRans);
+        assert_eq!(cand.descriptor.source_format, SOURCE_FORMAT_PDF);
+        assert_eq!(cand.descriptor.source_len, bytes.len() as u64);
+        // No literal objects: the data and the plan both travel in channels.
+        assert!(cand.descriptor.objects.is_empty());
+        assert_eq!(cand.descriptor.models.len(), 2);
+        assert_eq!(cand.descriptor.channels.len(), 2);
+        assert_eq!(cand.descriptor.channels[0].model_id, 0);
+        assert_eq!(cand.descriptor.channels[1].model_id, 1);
+        assert!(matches!(
+            cand.descriptor.program.ops.as_slice(),
+            [Op::PackedChannels {
+                data_channel: 0,
+                plan_channel: 1,
+                ..
+            }]
+        ));
+
+        let (encoded, _) = cand.descriptor.serialize().unwrap();
+        let parsed = Descriptor::parse(&encoded, Limits::DEFAULT).unwrap();
+        let out = crate::materialize::materialize(&parsed, Limits::DEFAULT).unwrap();
+        assert_eq!(out, bytes, "{name} layout-rANS materializes exactly");
+        assert_eq!(sha256(&out), sha256(bytes), "{name} layout-rANS sha");
+
+        // The forced lane must survive the court's own decode-before-commit.
+        let (forced, report) =
+            crate::encode::encode_with(bytes, Limits::DEFAULT, Some(CandidateKind::PdfLayoutRans))
+                .unwrap();
+        assert_eq!(report.kind, CandidateKind::PdfLayoutRans);
+        let (forced_out, _) =
+            crate::materialize::decode_to_bytes(&forced, Limits::DEFAULT).unwrap();
+        assert_eq!(forced_out, bytes, "{name} forced layout-rANS bytes");
+        assert_eq!(
+            sha256(&forced_out),
+            sha256(bytes),
+            "{name} forced layout-rANS sha"
+        );
+    }
+
+    #[cfg(feature = "rans")]
+    #[test]
+    fn layout_rans_exact() {
+        for name in ["classic.pdf", "bigtext.pdf", "many.pdf"] {
+            assert_rans_materializes_exactly(name, &sample(name));
+        }
+    }
+
+    #[cfg(feature = "rans")]
+    #[test]
+    fn layout_rans_deterministic() {
+        for name in ["classic.pdf", "bigtext.pdf", "many.pdf"] {
+            let bytes = sample(name);
+            let a = propose_pdf_layout_rans(&bytes, Limits::DEFAULT)
+                .unwrap()
+                .unwrap()
+                .descriptor
+                .serialize()
+                .unwrap()
+                .0;
+            let b = propose_pdf_layout_rans(&bytes, Limits::DEFAULT)
+                .unwrap()
+                .unwrap()
+                .descriptor
+                .serialize()
+                .unwrap()
+                .0;
+            assert_eq!(a, b, "{name} layout-rANS bytes must be deterministic");
+        }
+    }
+
+    #[cfg(feature = "rans")]
+    #[test]
+    fn layout_rans_declines_on_non_pdf() {
+        // Non-PDF controls and cross-reference-stream PDFs: nothing to plan, so
+        // the candidate must decline rather than store a non-plan.
+        for name in ["notpdf.bin", "malformed.pdf", "xrefstream.pdf"] {
+            assert!(
+                propose_pdf_layout_rans(&sample(name), Limits::DEFAULT)
+                    .unwrap()
+                    .is_none(),
+                "{name} must decline the layout-rANS candidate"
+            );
+        }
+    }
+
     #[test]
     fn layout_measurements_report() {
         for (name, bytes) in sample_pdfs() {
@@ -777,16 +1043,55 @@ mod tests {
                     .unwrap();
             #[cfg(not(feature = "rans"))]
             let byte_rans_bytes: Vec<u8> = Vec::new();
+            #[cfg(feature = "rans")]
+            let (layout_rans_bytes, _) = crate::encode::encode_with(
+                &bytes,
+                Limits::DEFAULT,
+                Some(CandidateKind::PdfLayoutRans),
+            )
+            .unwrap();
+            #[cfg(not(feature = "rans"))]
+            let layout_rans_bytes: Vec<u8> = Vec::new();
             let (_, auto) = crate::encode::encode(&bytes, Limits::DEFAULT).unwrap();
             eprintln!(
-                "sizes[{name}] source={} layout_v2={} raw={} byte_rans={} auto={}({})",
+                "sizes[{name}] source={} raw={} byte_rans={} layout={} layout_rans={} auto={}({})",
                 bytes.len(),
-                layout_bytes.len(),
                 raw_bytes.len(),
                 byte_rans_bytes.len(),
+                layout_bytes.len(),
+                layout_rans_bytes.len(),
                 auto.kind.name(),
                 auto.encoded_len,
             );
+
+            #[cfg(feature = "rans")]
+            {
+                let plan = build_layout_plan(&bytes, Limits::DEFAULT).unwrap().unwrap();
+                let plan_bytes_len = crate::dra::op::encode_items(&plan.items).unwrap().len();
+                let cand = propose_pdf_layout_rans(&bytes, Limits::DEFAULT)
+                    .unwrap()
+                    .unwrap();
+                let model_bytes: usize = cand
+                    .descriptor
+                    .models
+                    .iter()
+                    .map(|m| m.encode().unwrap().len())
+                    .sum();
+                let payload_bytes: usize = cand
+                    .descriptor
+                    .channels
+                    .iter()
+                    .map(|c| c.payload.len())
+                    .sum();
+                eprintln!(
+                    "rans[{name}] data={} plan_bytes={} models={} payloads={} total={}",
+                    plan.data.len(),
+                    plan_bytes_len,
+                    model_bytes,
+                    payload_bytes,
+                    layout_rans_bytes.len(),
+                );
+            }
         }
     }
 }

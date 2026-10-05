@@ -34,6 +34,9 @@ pub enum CandidateKind {
     /// PDF classic cross-reference offsets regenerated from marked positions
     /// (Phase 5).
     PdfLayout = 5,
+    /// PDF layout plan (data object + item table) carried through two rANS
+    /// entropy channels (Phase 5.8).
+    PdfLayoutRans = 6,
 }
 
 impl CandidateKind {
@@ -46,6 +49,7 @@ impl CandidateKind {
             CandidateKind::PdfPhysical => "PDF_PHYSICAL",
             CandidateKind::PdfChannels => "PDF_CHANNELS",
             CandidateKind::PdfLayout => "PDF_LAYOUT",
+            CandidateKind::PdfLayoutRans => "PDF_LAYOUT_RANS",
         }
     }
 }
@@ -90,6 +94,10 @@ pub fn propose_all(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
     }
     if let Some(pdf_layout) = crate::adapter::pdf::propose_pdf_layout(input, limits)? {
         out.push(pdf_layout);
+    }
+    #[cfg(feature = "rans")]
+    if let Some(pdf_layout_rans) = crate::adapter::pdf::propose_pdf_layout_rans(input, limits)? {
+        out.push(pdf_layout_rans);
     }
     Ok(out)
 }
