@@ -86,8 +86,10 @@ zlib_store() {
       for (k = 0; k < len; k++) emit(b[start + k + 1])
     }
     END {
-      # CMF=0x78 (deflate, 32K window), FLG=0x01 (FCHECK valid, FLEVEL=0).
-      emit(0x78); emit(0x01)
+      # CMF=120 (0x78: deflate, 32K window), FLG=1 (FCHECK valid, FLEVEL=0).
+      # Literals are decimal: the tools image awk does not parse `0x` hex
+      # literals (it evaluates them to 0), which would corrupt the zlib header.
+      emit(120); emit(1)
       a = 1; bb = 0
       for (i = 1; i <= n; i++) { a = (a + b[i]) % 65521; bb = (bb + a) % 65521 }
       adler = bb * 65536 + a
@@ -110,9 +112,11 @@ zlib_store() {
   ' | while IFS= read -r _line; do printf '%b' "$_line"; done >> "$_out"
 }
 
-# gen_content SEED LINES OUT — a deterministic, sizeable page content stream.
+# gen_content SEED TAG LINES OUT — a deterministic, sizeable page content
+# stream. TAG documents the stream's role (text/flate/shared) and is otherwise
+# unused; the body is derived from SEED and the line count only.
 gen_content() {
-  _seed=$1; _lines=$2; _out=$3
+  _seed=$1; _lines=$3; _out=$4
   : > "$_out"
   printf 'BT\n/F1 11 Tf\n72 740 Td\n14 TL\n' >> "$_out"
   _i=1
@@ -264,32 +268,59 @@ if [ "$_has_syn" -eq 0 ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Validate every produced PDF with the independent qpdf oracle
+# Validate the produced variants with the independent qpdf oracle. The strict
+# gate covers the PDFs this script produces (hand-*, gs-*, qpdf-*): every one
+# must pass `qpdf --check` with no errors or warnings. The pre-existing Phase-3
+# synthetic set is included for `deflate-stats` coverage and checked
+# informationally only: it deliberately contains a damaged negative control
+# (`malformed.pdf`) and hostile edge cases that qpdf reports as warnings, so a
+# clean qpdf verdict there is neither expected nor required.
 # ---------------------------------------------------------------------------
 echo
-echo "=== qpdf --check on every produced PDF ==="
+echo "=== qpdf --check: produced variants (strict) ==="
 _fail=0
-_total=0
+_produced_total=0
+_syn_total=0
 _flate_total=0
-for _f in "$OUT"/*.pdf "$SYN"/*.pdf; do
+for _f in "$OUT"/*.pdf; do
   [ -e "$_f" ] || continue
-  _total=$((_total + 1))
-  _name="${_f#"$OUT"/}"
-  if qpdf --check "$_f" > "$TMP/check.txt" 2>&1; then
-    _verdict=valid
-  else
-    _verdict=INVALID
-    _fail=1
-    echo "FINDING: qpdf --check failed for $_name" >&2
-    cat "$TMP/check.txt" >&2
-  fi
-  # Count FlateDecode markers with qpdf as an independent signal (qpdf decodes
-  # to a QDF form and re-emits the filters it sees).
-  _flate=0
-  if qpdf --qdf --object-streams=disable "$_f" "$TMP/qdf.pdf" 2>/dev/null; then
-    _flate=$(grep -c '/FlateDecode' "$TMP/qdf.pdf" 2>/dev/null || true)
-    _flate=${_flate:-0}
-  fi
+  _produced_total=$((_produced_total + 1))
+  _name=$(basename "$_f")
+  set +e
+  qpdf --check "$_f" > "$TMP/check.txt" 2>&1
+  _rc=$?
+  set -e
+  case "$_rc" in
+    0) _verdict=valid ;;
+    *) _verdict=INVALID; _fail=1
+       echo "FINDING: qpdf --check failed for $_name (rc=$_rc)" >&2
+       cat "$TMP/check.txt" >&2 ;;
+  esac
+  # Report the `/FlateDecode` marker count from the original bytes. QDF output
+  # is unsuitable for this: `qpdf --qdf` decodes streams and drops `/Filter`.
+  _flate=$(grep -a -c '/FlateDecode' "$_f" 2>/dev/null || true)
+  _flate=${_flate:-0}
+  _flate_total=$((_flate_total + _flate))
+  printf '%-40s %s flate_markers=%s\n' "$_name" "$_verdict" "$_flate"
+done
+
+echo
+echo "=== qpdf --check: pre-existing synthetic set (informational) ==="
+for _f in "$SYN"/*.pdf; do
+  [ -e "$_f" ] || continue
+  _syn_total=$((_syn_total + 1))
+  _name="_synthetic/$(basename "$_f")"
+  set +e
+  qpdf --check "$_f" > "$TMP/check.txt" 2>&1
+  _rc=$?
+  set -e
+  case "$_rc" in
+    0) _verdict=valid ;;
+    3) _verdict=warnings ;;
+    *) _verdict=damaged ;;
+  esac
+  _flate=$(grep -a -c '/FlateDecode' "$_f" 2>/dev/null || true)
+  _flate=${_flate:-0}
   _flate_total=$((_flate_total + _flate))
   printf '%-40s %s flate_markers=%s\n' "$_name" "$_verdict" "$_flate"
 done
@@ -310,11 +341,11 @@ done
 } > "$PROVENANCE"
 
 echo
-echo "provenance: $PROVENANCE ($_total PDFs, $_flate_total indexed)"
+echo "provenance: $PROVENANCE ($_produced_total produced + $_syn_total synthetic PDFs, $_flate_total flate markers)"
 rm -rf "$TMP"
 
 if [ "$_fail" -ne 0 ]; then
   echo "PDF CORPUS: FAIL" >&2
   exit 1
 fi
-echo "PDF CORPUS: OK ($_total PDFs, all qpdf --check valid)"
+echo "PDF CORPUS: OK ($_produced_total produced PDFs, all qpdf --check clean)"
