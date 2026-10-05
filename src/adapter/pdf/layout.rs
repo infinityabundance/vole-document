@@ -8,19 +8,22 @@
 //! * It applies only to files that already carry a classic cross-reference
 //!   section ([`PhysicalKind::XrefSection`]) and contain no
 //!   [`ObjRole::XRefStream`] object. Anything else declines (`Ok(None)`).
-//! * It marks each indirect object's introducer offset with
-//!   [`Op::MarkOffset`] (slot = the object's index in [`PdfPhysical::objects`])
+//! * Every literal byte is accumulated into a single data object and the whole
+//!   reconstruction is one compact [`Op::PackSegments`] item table, so the
+//!   per-segment framing is paid once rather than once per span or xref entry.
+//! * It records each indirect object's introducer offset with a
+//!   [`PackItem::Mark`] (slot = the object's index in [`PdfPhysical::objects`])
 //!   and, for every `n`-status xref entry whose 10-digit offset field equals the
-//!   marked position of its target object, emits that field with
-//!   [`Op::EmitOffset`] rather than storing the digits literally.
+//!   marked position of its target object, emits that field with a
+//!   [`PackItem::Emit`] rather than storing the digits literally.
 //! * The most recent `xref` section start is marked in the reserved slot
 //!   [`XREF_SLOT`] (`255`); each `startxref` value is regenerated from it only
 //!   when the emitted position equals the source value.
 //! * Whenever a precondition fails — a non-standard offset field, a mismatched
 //!   position, a malformed table, too many objects — the site (or the whole
-//!   section) falls back to a literal [`Op::Inline`]. Prediction never invents
-//!   bytes: a fallback is always byte-exact, and a prediction is only emitted
-//!   when it reproduces the source digits exactly.
+//!   section) falls back to a literal [`PackItem::Literal`]. Prediction never
+//!   invents bytes: a fallback is always byte-exact, and a prediction is only
+//!   emitted when it reproduces the source digits exactly.
 //!
 //! After building the program the candidate is verified end-to-end (serialize,
 //! parse, materialize, byte-compare) before it is returned; if that round trip
@@ -29,6 +32,7 @@
 
 use crate::SOURCE_FORMAT_PDF;
 use crate::container::{Descriptor, UNIVERSE};
+use crate::dra::op::PackItem;
 use crate::dra::{Op, Program};
 use crate::encode::candidates::{Candidate, CandidateKind};
 use crate::error::Result;
@@ -75,9 +79,14 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
         return Ok(None);
     }
 
-    let mut ops: Vec<Op> = Vec::new();
+    // The data object carries every literal byte; the compact item table
+    // interleaves literal runs, position marks, and regenerated offsets so the
+    // per-segment framing is paid once rather than once per span/entry.
+    let mut data: Vec<u8> = Vec::new();
+    let mut items: Vec<PackItem> = Vec::new();
     // Simulated output position. The physical cover is contiguous, so this
-    // tracks the source offset of the next byte exactly.
+    // tracks the source offset of the next byte exactly: literals add their
+    // length, emits add their width, and marks add nothing.
     let mut pos: u64 = 0;
     let mut slot_value = [0u64; 256];
     let mut slot_marked = [false; 256];
@@ -99,18 +108,17 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
             PhysicalKind::ObjHeader => {
                 if let Some(idx) = object_index_at(&physical.objects, span.start) {
                     let slot = idx as u8;
-                    ops.push(Op::MarkOffset { slot });
+                    items.push(PackItem::Mark { slot });
                     slot_value[slot as usize] = pos;
                     slot_marked[slot as usize] = true;
                 }
-                ops.push(Op::Inline {
-                    bytes: bytes.to_vec(),
-                });
-                pos += span.len;
+                if !push_pack_literal(&mut data, &mut items, bytes, &mut pos) {
+                    return Ok(None);
+                }
             }
             PhysicalKind::XrefSection => {
                 // Mark this section's start in the reserved slot, then emit.
-                ops.push(Op::MarkOffset { slot: XREF_SLOT });
+                items.push(PackItem::Mark { slot: XREF_SLOT });
                 slot_value[XREF_SLOT as usize] = pos;
                 slot_marked[XREF_SLOT as usize] = true;
 
@@ -119,11 +127,13 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
                         for piece in pieces {
                             match piece {
                                 XrefPiece::Literal { start, len } => {
-                                    if len > 0 {
-                                        ops.push(Op::Inline {
-                                            bytes: bytes[start..start + len].to_vec(),
-                                        });
-                                        pos += len as u64;
+                                    if !push_pack_literal(
+                                        &mut data,
+                                        &mut items,
+                                        &bytes[start..start + len],
+                                        &mut pos,
+                                    ) {
+                                        return Ok(None);
                                     }
                                 }
                                 XrefPiece::Entry {
@@ -147,19 +157,27 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
                                     };
                                     match slot {
                                         Some(slot) => {
-                                            ops.push(Op::EmitOffset { slot, width: 10 });
+                                            items.push(PackItem::Emit { slot, width: 10 });
                                             pos += 10;
-                                            ops.push(Op::Inline {
-                                                bytes: bytes[start + 10..start + 20].to_vec(),
-                                            });
-                                            pos += 10;
+                                            if !push_pack_literal(
+                                                &mut data,
+                                                &mut items,
+                                                &bytes[start + 10..start + 20],
+                                                &mut pos,
+                                            ) {
+                                                return Ok(None);
+                                            }
                                             xref_predicted += 1;
                                         }
                                         None => {
-                                            ops.push(Op::Inline {
-                                                bytes: bytes[start..start + 20].to_vec(),
-                                            });
-                                            pos += 20;
+                                            if !push_pack_literal(
+                                                &mut data,
+                                                &mut items,
+                                                &bytes[start..start + 20],
+                                                &mut pos,
+                                            ) {
+                                                return Ok(None);
+                                            }
                                             xref_literal += 1;
                                         }
                                     }
@@ -169,22 +187,18 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
                     }
                     None => {
                         // Not a classic table we understand: literal whole section.
-                        ops.push(Op::Inline {
-                            bytes: bytes.to_vec(),
-                        });
-                        pos += span.len;
+                        if !push_pack_literal(&mut data, &mut items, bytes, &mut pos) {
+                            return Ok(None);
+                        }
                     }
                 }
             }
             PhysicalKind::StartXref => match predict_startxref(bytes, &slot_value, &slot_marked) {
                 Some((prefix_len, width)) => {
-                    if prefix_len > 0 {
-                        ops.push(Op::Inline {
-                            bytes: bytes[..prefix_len].to_vec(),
-                        });
-                        pos += prefix_len as u64;
+                    if !push_pack_literal(&mut data, &mut items, &bytes[..prefix_len], &mut pos) {
+                        return Ok(None);
                     }
-                    ops.push(Op::EmitOffset {
+                    items.push(PackItem::Emit {
                         slot: XREF_SLOT,
                         width,
                     });
@@ -192,17 +206,15 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
                     startxref_predicted += 1;
                 }
                 None => {
-                    ops.push(Op::Inline {
-                        bytes: bytes.to_vec(),
-                    });
-                    pos += span.len;
+                    if !push_pack_literal(&mut data, &mut items, bytes, &mut pos) {
+                        return Ok(None);
+                    }
                 }
             },
             _ => {
-                ops.push(Op::Inline {
-                    bytes: bytes.to_vec(),
-                });
-                pos += span.len;
+                if !push_pack_literal(&mut data, &mut items, bytes, &mut pos) {
+                    return Ok(None);
+                }
             }
         }
     }
@@ -221,8 +233,11 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
         format_basis,
         models: vec![],
         channels: vec![],
-        objects: vec![],
-        program: Program::new(ops),
+        objects: vec![data],
+        program: Program::new(vec![Op::PackSegments {
+            data_object: 0,
+            items,
+        }]),
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };
@@ -248,6 +263,27 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
     }
 
     Ok(Some(candidate))
+}
+
+/// Append `bytes` to the packed data object, recording one [`PackItem::Literal`]
+/// when non-empty, and advance the simulated output position. Returns `false`
+/// (so the caller declines) when a single run would not fit a `u32` length.
+fn push_pack_literal(
+    data: &mut Vec<u8>,
+    items: &mut Vec<PackItem>,
+    bytes: &[u8],
+    pos: &mut u64,
+) -> bool {
+    if bytes.is_empty() {
+        return true;
+    }
+    let Ok(len) = u32::try_from(bytes.len()) else {
+        return false;
+    };
+    data.extend_from_slice(bytes);
+    items.push(PackItem::Literal { len });
+    *pos += bytes.len() as u64;
+    true
 }
 
 /// Index of the first object whose introducer starts at `start`.
@@ -471,6 +507,27 @@ mod tests {
         })
     }
 
+    /// The item table of the single `PackSegments` op this candidate builds.
+    fn pack_items(cand: &Candidate) -> &[PackItem] {
+        cand.descriptor
+            .program
+            .ops
+            .iter()
+            .find_map(|op| match op {
+                Op::PackSegments { items, .. } => Some(items.as_slice()),
+                _ => None,
+            })
+            .expect("layout program is one PackSegments op")
+    }
+
+    /// Number of regenerated offsets in the packed item table.
+    fn pack_emit_count(cand: &Candidate) -> usize {
+        pack_items(cand)
+            .iter()
+            .filter(|item| matches!(item, PackItem::Emit { .. }))
+            .count()
+    }
+
     fn assert_materializes_exactly(name: &str, bytes: &[u8]) {
         let cand = propose_pdf_layout(bytes, Limits::DEFAULT)
             .unwrap()
@@ -478,7 +535,16 @@ mod tests {
         assert_eq!(cand.kind, CandidateKind::PdfLayout);
         assert_eq!(cand.descriptor.source_format, SOURCE_FORMAT_PDF);
         assert_eq!(cand.descriptor.source_len, bytes.len() as u64);
-        assert!(cand.descriptor.objects.is_empty());
+        // Exactly one object: the packed data object holding every literal byte.
+        assert_eq!(
+            cand.descriptor.objects.len(),
+            1,
+            "{name} layout carries one packed data object"
+        );
+        assert!(matches!(
+            cand.descriptor.program.ops.as_slice(),
+            [Op::PackSegments { .. }]
+        ));
         assert!(cand.descriptor.models.is_empty());
         assert!(cand.descriptor.channels.is_empty());
 
@@ -517,22 +583,36 @@ mod tests {
     }
 
     #[test]
-    fn layout_predicts_some_xref_offsets() {
-        let bytes = sample("classic.pdf");
+    fn layout_v2_exact() {
+        for name in ["classic.pdf", "many.pdf", "bigtext.pdf"] {
+            assert_materializes_exactly(name, &sample(name));
+        }
+    }
+
+    #[test]
+    fn layout_v2_predicts_many_entries() {
+        let bytes = sample("many.pdf");
         let cand = propose_pdf_layout(&bytes, Limits::DEFAULT)
             .unwrap()
             .unwrap();
-        let emits = cand
-            .descriptor
-            .program
-            .ops
-            .iter()
-            .filter(|op| matches!(op, Op::EmitOffset { .. }))
-            .count();
-        assert!(emits > 0, "classic.pdf must predict at least one offset");
+        let emits = pack_emit_count(&cand);
+        assert!(
+            emits >= 100,
+            "many.pdf must predict at least 100 xref offsets, got {emits}"
+        );
+        // Every Emit is either a predicted xref entry or the predicted startxref.
         let predicted = basis_field(&cand.descriptor.format_basis, "xref_predicted")
             .expect("format basis must report xref_predicted");
-        assert!(predicted > 0, "xref prediction count must be positive");
+        let startxref = basis_field(&cand.descriptor.format_basis, "startxref_predicted")
+            .expect("format basis must report startxref_predicted");
+        assert_eq!(predicted + startxref, emits as u64);
+        assert!(predicted >= 100, "many.pdf xref predictions: {predicted}");
+
+        // The classic sample still predicts, and the pack framing stays compact.
+        let classic = propose_pdf_layout(&sample("classic.pdf"), Limits::DEFAULT)
+            .unwrap()
+            .unwrap();
+        assert!(pack_emit_count(&classic) > 0);
     }
 
     #[test]
@@ -560,14 +640,8 @@ mod tests {
             "a mismatched offset must never be predicted"
         );
 
-        // The only EmitOffset is the correctly predicted `startxref` value.
-        let emits = cand
-            .descriptor
-            .program
-            .ops
-            .iter()
-            .filter(|op| matches!(op, Op::EmitOffset { .. }))
-            .count();
+        // The only regenerated offset is the correctly predicted `startxref`.
+        let emits = pack_emit_count(&cand);
         assert_eq!(
             emits, 1,
             "only startxref is predicted; bad entry is literal"
@@ -580,13 +654,28 @@ mod tests {
     }
 
     #[test]
-    fn layout_declines_on_xref_stream() {
-        let bytes = sample("xrefstream.pdf");
+    fn layout_v2_declines() {
+        // A cross-reference-stream PDF has no classic table to regenerate.
         assert!(
-            propose_pdf_layout(&bytes, Limits::DEFAULT)
+            propose_pdf_layout(&sample("xrefstream.pdf"), Limits::DEFAULT)
                 .unwrap()
                 .is_none(),
             "an xref-stream PDF must decline the layout candidate"
+        );
+        // More objects than the 255 markable slots cannot be expressed exactly
+        // under the slot bound, so the candidate must decline rather than guess.
+        assert!(
+            propose_pdf_layout(&classic_with_objects(256), Limits::DEFAULT)
+                .unwrap()
+                .is_none(),
+            "256 objects exceeds the 255 markable slots"
+        );
+        // 255 objects still fit: indices 0..=254, slot 255 reserved for xref.
+        assert!(
+            propose_pdf_layout(&classic_with_objects(255), Limits::DEFAULT)
+                .unwrap()
+                .is_some(),
+            "255 objects must still be markable"
         );
     }
 
@@ -616,25 +705,8 @@ mod tests {
     }
 
     #[test]
-    fn layout_declines_when_too_many_objects() {
-        assert!(
-            propose_pdf_layout(&classic_with_objects(256), Limits::DEFAULT)
-                .unwrap()
-                .is_none(),
-            "256 objects exceeds the 255 markable slots"
-        );
-        // 255 objects still fit: indices 0..=254, slot 255 reserved for xref.
-        assert!(
-            propose_pdf_layout(&classic_with_objects(255), Limits::DEFAULT)
-                .unwrap()
-                .is_some(),
-            "255 objects must still be markable"
-        );
-    }
-
-    #[test]
-    fn layout_deterministic() {
-        for name in ["classic.pdf", "bigtext.pdf"] {
+    fn layout_v2_deterministic() {
+        for name in ["classic.pdf", "many.pdf", "bigtext.pdf"] {
             let bytes = sample(name);
             let a = propose_pdf_layout(&bytes, Limits::DEFAULT)
                 .unwrap()
@@ -662,21 +734,20 @@ mod tests {
                 continue;
             };
             let (layout_bytes, _) = cand.descriptor.serialize().unwrap();
-            let predicted =
-                basis_field(&cand.descriptor.format_basis, "xref_predicted").unwrap_or(0);
-            let literal = basis_field(&cand.descriptor.format_basis, "xref_literal").unwrap_or(0);
-            let startxref =
-                basis_field(&cand.descriptor.format_basis, "startxref_predicted").unwrap_or(0);
+            let emits = pack_emit_count(&cand);
             eprintln!(
-                "layout[{name}] source={} xref_predicted={predicted} xref_literal={literal} \
-                 startxref_predicted={startxref} layout={}",
+                "layout[{name}] source={} items={} emits={emits} layout={}",
                 bytes.len(),
+                pack_items(&cand).len(),
                 layout_bytes.len(),
             );
         }
 
-        for name in ["classic.pdf", "bigtext.pdf"] {
+        for name in ["classic.pdf", "bigtext.pdf", "many.pdf"] {
             let bytes = sample(name);
+            let (layout_bytes, _) =
+                crate::encode::encode_with(&bytes, Limits::DEFAULT, Some(CandidateKind::PdfLayout))
+                    .unwrap();
             let (raw_bytes, _) =
                 crate::encode::encode_with(&bytes, Limits::DEFAULT, Some(CandidateKind::Raw))
                     .unwrap();
@@ -686,11 +757,15 @@ mod tests {
                     .unwrap();
             #[cfg(not(feature = "rans"))]
             let byte_rans_bytes: Vec<u8> = Vec::new();
+            let (_, auto) = crate::encode::encode(&bytes, Limits::DEFAULT).unwrap();
             eprintln!(
-                "baseline[{name}] source={} raw={} byte_rans={}",
+                "sizes[{name}] source={} layout_v2={} raw={} byte_rans={} auto={}({})",
                 bytes.len(),
+                layout_bytes.len(),
                 raw_bytes.len(),
-                byte_rans_bytes.len()
+                byte_rans_bytes.len(),
+                auto.kind.name(),
+                auto.encoded_len,
             );
         }
     }
