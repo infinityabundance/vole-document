@@ -1,4 +1,4 @@
-# Campaign: 2026-10-05-phase6-ec92c1a — Phase 6 — exact DEFLATE replay over forced-candidate ablation
+# Campaign: 2026-10-05-phase6-0d0bb79 — Phase 6 — exact DEFLATE replay over forced-candidate ablation
 
 ## Method
 
@@ -26,18 +26,18 @@ to the source.
 
 | file | source | RAW | RLE | BYTE_RANS | PHYS | CHAN | LAYOUT | LAY_RANS | DEFL_REP | DEFL_RANS | winner | byte_cmp |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
-| bigtext.pdf | 65549 | 65916 | 385391 | 38187 | 66053 | 41213 | 65962 | 38354 | null | null | BYTE_RANS | equal |
-| classic.pdf | 329 | 696 | 2075 | 741 | 783 | 3786 | 744 | 896 | null | null | RAW | equal |
-| flate.pdf | 57513 | 57880 | 343146 | 49263 | 58168 | 52512 | 57928 | 49453 | 56702 | 36068 | PDF_DEFLATE_REPLAY_RANS | equal |
-| incremental.pdf | 456 | 823 | 2663 | 813 | 945 | 3871 | 867 | 966 | null | null | BYTE_RANS | equal |
-| malformed.pdf | 85 | 452 | 837 | 545 | null | null | null | null | null | null | RAW | equal |
-| many.pdf | 9881 | 10248 | 49942 | 5214 | 14278 | 11122 | 10102 | 5927 | null | null | BYTE_RANS | equal |
-| mixedeol.pdf | 248 | 615 | 1646 | 680 | 692 | 4716 | 674 | 831 | null | null | RAW | equal |
-| notpdf.bin | 41 | 408 | 576 | 478 | null | null | null | null | null | null | RAW | equal |
-| objstm.pdf | 341 | 708 | 2148 | 753 | 805 | 3819 | 756 | 907 | null | null | RAW | equal |
-| trapstream.pdf | 250 | 617 | 1654 | 684 | 694 | 4730 | 666 | 833 | null | null | RAW | equal |
-| traptext.pdf | 266 | 633 | 1750 | 704 | 700 | 3253 | 682 | 857 | null | null | RAW | equal |
-| xrefstream.pdf | 251 | 618 | 1783 | 724 | 700 | 3736 | null | null | null | null | RAW | equal |
+| bigtext.pdf | 65549 | 65944 | 385419 | 38215 | 66081 | 41241 | 65990 | 38382 | null | null | BYTE_RANS | equal |
+| classic.pdf | 329 | 724 | 2103 | 769 | 811 | 3814 | 772 | 924 | null | null | RAW | equal |
+| flate.pdf | 57513 | 57908 | 343174 | 49291 | 58196 | 52540 | 57956 | 49481 | 56736 | 36102 | PDF_DEFLATE_REPLAY_RANS | equal |
+| incremental.pdf | 456 | 851 | 2691 | 841 | 973 | 3899 | 895 | 994 | null | null | BYTE_RANS | equal |
+| malformed.pdf | 85 | 480 | 865 | 573 | null | null | null | null | null | null | RAW | equal |
+| many.pdf | 9881 | 10276 | 49970 | 5242 | 14306 | 11150 | 10130 | 5955 | null | null | BYTE_RANS | equal |
+| mixedeol.pdf | 248 | 643 | 1674 | 708 | 720 | 4744 | 702 | 859 | null | null | RAW | equal |
+| notpdf.bin | 41 | 436 | 604 | 506 | null | null | null | null | null | null | RAW | equal |
+| objstm.pdf | 341 | 736 | 2176 | 781 | 833 | 3847 | 784 | 935 | null | null | RAW | equal |
+| trapstream.pdf | 250 | 645 | 1682 | 712 | 722 | 4758 | 694 | 861 | null | null | RAW | equal |
+| traptext.pdf | 266 | 661 | 1778 | 732 | 728 | 3281 | 710 | 885 | null | null | RAW | equal |
+| xrefstream.pdf | 251 | 646 | 1811 | 752 | 728 | 3764 | null | null | null | null | RAW | equal |
 
 ## Head-to-head: PDF_DEFLATE_REPLAY_RANS vs BYTE_RANS
 
@@ -48,18 +48,18 @@ was not proposed for that input and is never scored as a win or a loss.
 
 | file | source | BYTE_RANS | DEFLATE_REPLAY_RANS | verdict | delta | auto winner |
 | --- | ---: | ---: | ---: | --- | ---: | --- |
-| bigtext.pdf | 65549 | 38187 | null | declined | null | BYTE_RANS |
-| classic.pdf | 329 | 741 | null | declined | null | RAW |
-| flate.pdf | 57513 | 49263 | 36068 | win | -13195 | PDF_DEFLATE_REPLAY_RANS |
-| incremental.pdf | 456 | 813 | null | declined | null | BYTE_RANS |
-| malformed.pdf | 85 | 545 | null | declined | null | RAW |
-| many.pdf | 9881 | 5214 | null | declined | null | BYTE_RANS |
-| mixedeol.pdf | 248 | 680 | null | declined | null | RAW |
-| notpdf.bin | 41 | 478 | null | declined | null | RAW |
-| objstm.pdf | 341 | 753 | null | declined | null | RAW |
-| trapstream.pdf | 250 | 684 | null | declined | null | RAW |
-| traptext.pdf | 266 | 704 | null | declined | null | RAW |
-| xrefstream.pdf | 251 | 724 | null | declined | null | RAW |
+| bigtext.pdf | 65549 | 38215 | null | declined | null | BYTE_RANS |
+| classic.pdf | 329 | 769 | null | declined | null | RAW |
+| flate.pdf | 57513 | 49291 | 36102 | win | -13189 | PDF_DEFLATE_REPLAY_RANS |
+| incremental.pdf | 456 | 841 | null | declined | null | BYTE_RANS |
+| malformed.pdf | 85 | 573 | null | declined | null | RAW |
+| many.pdf | 9881 | 5242 | null | declined | null | BYTE_RANS |
+| mixedeol.pdf | 248 | 708 | null | declined | null | RAW |
+| notpdf.bin | 41 | 506 | null | declined | null | RAW |
+| objstm.pdf | 341 | 781 | null | declined | null | RAW |
+| trapstream.pdf | 250 | 712 | null | declined | null | RAW |
+| traptext.pdf | 266 | 732 | null | declined | null | RAW |
+| xrefstream.pdf | 251 | 752 | null | declined | null | RAW |
 
 PDF_DEFLATE_REPLAY_RANS wins 1, loses 0, ties 0, and is
 declined by 11 of the 12 corpus files when measured
@@ -73,7 +73,7 @@ The exact same comparison for the raw-plaintext `PDF_DEFLATE_REPLAY` lane:
 | --- | ---: | ---: | ---: | --- | ---: |
 | bigtext.pdf | 65549 | null | null | declined | null |
 | classic.pdf | 329 | null | null | declined | null |
-| flate.pdf | 57513 | 56702 | 36068 | lose | 7439 |
+| flate.pdf | 57513 | 56736 | 36102 | lose | 7445 |
 | incremental.pdf | 456 | null | null | declined | null |
 | malformed.pdf | 85 | null | null | declined | null |
 | many.pdf | 9881 | null | null | declined | null |
@@ -92,15 +92,15 @@ the total, never raise it.
 
 | rung | mechanism added | total bytes | step delta |
 | --- | --- | ---: | ---: |
-| A0 | RAW | 139614 | — |
-| A1 | + RLE | 139614 | 0 |
-| A2 | + BYTE_RANS | 98224 | -41390 |
-| A3 | + PDF_PHYSICAL | 98224 | 0 |
-| A4 | + PDF_CHANNELS | 98224 | 0 |
-| A5 | + PDF_LAYOUT | 98224 | 0 |
-| A6 | + PDF_LAYOUT_RANS | 98224 | 0 |
-| A7 | + PDF_DEFLATE_REPLAY | 98224 | 0 |
-| A8 | + PDF_DEFLATE_REPLAY_RANS | 85029 | -13195 |
+| A0 | RAW | 139950 | — |
+| A1 | + RLE | 139950 | 0 |
+| A2 | + BYTE_RANS | 98560 | -41390 |
+| A3 | + PDF_PHYSICAL | 98560 | 0 |
+| A4 | + PDF_CHANNELS | 98560 | 0 |
+| A5 | + PDF_LAYOUT | 98560 | 0 |
+| A6 | + PDF_LAYOUT_RANS | 98560 | 0 |
+| A7 | + PDF_DEFLATE_REPLAY | 98560 | 0 |
+| A8 | + PDF_DEFLATE_REPLAY_RANS | 85371 | -13189 |
 
 ## Leave-one-out
 
@@ -108,9 +108,9 @@ Each delta is the full A8 portfolio minus the same portfolio with exactly one
 replay mechanism removed (the other replay variant and every earlier mechanism
 retained):
 
-- PDF_DEFLATE_REPLAY_RANS: A8_without = 98224, delta = -13195
-- PDF_DEFLATE_REPLAY:      A8_without = 85029, delta = 0
-- PDF_LAYOUT_RANS:         A8_without = 85029, delta = 0
+- PDF_DEFLATE_REPLAY_RANS: A8_without = 98560, delta = -13189
+- PDF_DEFLATE_REPLAY:      A8_without = 85371, delta = 0
+- PDF_LAYOUT_RANS:         A8_without = 85371, delta = 0
 
 Auto-winner counts: RAW=8 RLE=0 BYTE_RANS=3
 PDF_PHYSICAL=0 PDF_CHANNELS=0 PDF_LAYOUT=0
@@ -144,46 +144,18 @@ deduplicated object and then replays the original bitstream; on this corpus it
 loses, because the plaintext of a strongly-compressed stream is nearly as large
 as the stream it replaces. The rANS-plaintext lane `PDF_DEFLATE_REPLAY_RANS`
 codes each unique plaintext once as an order-0 byte-rANS channel and shares it
-across every stream that produces it; on a file whose plaintext is shared across
-streams *and* has at least one large/weakly-coded appearance, order-0 rANS of the
-shared plaintext is cheaper than the compressed appearances it replaces, so it
-beats BYTE_RANS. Only `p1` is shared on `flate.pdf` (four streams at levels
-0/1/6/9); `p2` and `p3` are unique.
+across every stream that produces it; on a file whose producer coding is weak
+(low compression levels) and whose plaintext repeats across streams, the
+shared channel re-expresses that weak coding far more cheaply than the stored
+bitstreams, and it beats BYTE_RANS.
 
 This is a scoped, measured result for *this* deterministic corpus and this
-commit: the winning region is a shared plaintext that *also* has a large/weakly
-coded appearance — neither sharing alone nor weak coding alone wins (see
-`docs/evidence/phase6-skeptic-review.md` for the negative controls) — and the
-losing region is unique, strongly-compressed plaintext (where the plaintext is
-no smaller than the original bitstream). The winner is always decided by actual
-serialized bytes, and every auto winner round-trips byte-exactly
+commit: the winning region is shared plaintext with weak producer coding, and
+the losing region is unique, strongly-compressed plaintext (where the plaintext
+is no smaller than the original bitstream). The winner is always decided by
+actual serialized bytes, and every auto winner round-trips byte-exactly
 (all_exact=true).
 
 ## Verdict
 
 PASS
-
-## Amendment (2026-10-05)
-
-An independent adversarial review narrowed the interpretation of the winning
-region to the conjunctive condition recorded above. No measured number changed:
-the per-file tables, cumulative ladder, leave-one-out deltas, and verification
-triples are identical to the sealed run. The reviewer's four negative controls
-are recorded in `docs/evidence/phase6-skeptic-review.md`.
-
-## Amendment (Phase 6.7, DRA v8) — superseded by `2026-10-05-phase6-0d0bb79`
-
-This receipt is **not rewritten**. Phase 6.7 changed the wire semantics, so the
-DRA graph moved to **version 8** with an explicit `replay_codec` tag
-(`REPLAY_DEFLATE_PREFLATE_0_7_6`, declared experimental/version-coupled), a
-statically enforced decode-time resource bound (`declared_output_len ≤ 2*P+1024`,
-ADR-0016), and an **opt-in** `deflate-replay` feature (the default build is
-permissive-only). The universe string therefore changed to
-`phase6;exact-bytes;dra-8;…;deflate-replay-preflate-0.7.6-experimental` and every
-serialized size shifted by the fixed universe/codec-tag increase.
-
-The court was re-run byte-for-byte at commit `0d0bb79` into the new receipt
-`evidence/campaigns/2026-10-05-phase6-0d0bb79`. Verdict remains **PASS**; the
-`PDF_DEFLATE_REPLAY_RANS` win over `BYTE_RANS` on `flate.pdf` persists
-(`win 1, lose 0, decline 11`). The v8 numbers in ADR-0015/PROJECT_STATE/README/
-CHANGELOG are the re-baseline; the numbers above remain the historical v7 record.
