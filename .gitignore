@@ -33,3 +33,12 @@
 /evidence/corpus/**/*.pdf
 /evidence/corpus/**/*.bin
 /evidence/corpus/**/.tmp/
+
+# Phase-7.0b generator-family corpus: same rule for the producers service, plus
+# its intermediate generator inputs and LibreOffice profile scratch.
+/evidence/corpus/phase7-producers/**/*.html
+/evidence/corpus/phase7-producers/**/*.fodt
+/evidence/corpus/phase7-producers/**/*.tex
+/evidence/corpus/phase7-producers/**/*.aux
+/evidence/corpus/phase7-producers/**/*.log
+/evidence/corpus/phase7-producers/**/loprofile/
