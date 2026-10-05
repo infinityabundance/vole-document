@@ -8,6 +8,14 @@
 | Exact | `tests/exact.rs` | `materialize(encode(X)) == X`, digest equal, deterministic encode, bounded overhead, empty/tiny/large/random/text/sequential corpora |
 | Malformed | `tests/malformed.rs` | every single-byte flip detected; truncation rejected; unknown mandatory record fails closed; unknown optional record skipped; duplicate records rejected; future version and feature bits fail closed; expansion bounded; the court rejects inexact candidates |
 | Conformance | `tests/conformance.rs` | canonical `serialize(parse(x)) == x`; model round-trip; universe-id binding; golden structural length; coverage authority split; verify report accuracy |
+| Entropy | `tests/entropy.rs` | Phase-2 acceptance gates: byte-exact round-trip; complete cost (model bytes charged, no "free model"); negative controls (RAW on incompressible/tiny, RLE on runs, deterministic tie-break); determinism; honest record when rANS loses |
+| Goldens | `tests/goldens.rs` | **reference-oracle parity** (a from-scratch, integer-only decoder agrees byte-for-byte with `entropy::rans::decode_channel`, both ending at the encoder lower bound with the payload fully consumed); frozen model/capsule/descriptor golden bytes; truncation and single-byte flips ⇒ typed error; model decode never panics |
+| Property | `tests/property.rs` | deterministic mutation/round-trip fuzzing over descriptor/model/channel/DRA parsers: `decode(encode(x)) == x`; `parse(serialize(d)) == d`; random and mutated bytes never panic and never report an internal invariant; oversized claims are bounded; limits never change reconstructed bytes |
+| Soak (script) | `tools/soak-fuzz.sh` | longer deterministic run (`VOLE_FUZZ_ITERS`, default `200000`) of the property, entropy, goldens, and malformed courts |
+
+Test counts (inside the pinned `dev` image): **142** with default features,
+**110** with `--no-default-features` (the rANS-dependent integration courts are
+skipped), of which **88** are library unit tests.
 
 Run everything:
 
@@ -27,13 +35,27 @@ docker compose run --rm --no-TTY dev cargo fmt --all --check
 4. Resource bounds are enforced before allocation.
 5. Encoding is deterministic for a pinned universe and feature set.
 6. `serialize(parse(x)) == x` for canonical descriptors.
+7. **Reference-oracle parity**: an independent, from-scratch decoder reproduces
+   `entropy::rans::decode_channel` byte-for-byte for every tested model, and both
+   consume the payload exactly and return the decoder state to `RANS_BYTE_L`.
+8. **Structural exact-consumption**: a channel stream is accepted only if it
+   consumes its payload exactly and the decoder state returns to `RANS_BYTE_L`.
+   This is a structural invariant, *not* a checksum: it rejects truncation and
+   many corruptions, while content corruption is caught by the enclosing
+   per-record CRC-32C and the whole-source SHA-256 — not by the channel check.
+9. **Feature-set behaviour**: with the `rans` feature, channel-bearing
+   descriptors materialize byte-for-byte; without it, channel-free descriptors
+   still materialize exactly and channel-bearing ones fail closed with
+   `UnsupportedFeature` (never a silent reinterpretation).
 
-## Fuzz targets (planned, added as parsers land)
+## Fuzz targets (added as parsers land)
 
-`.voldoc` header/record parser · DRA parser/evaluator · rANS model parser · rANS
-channel decoder · PDF physical scanner · PDF lexical parser · xref parser ·
-stream-boundary parser · DEFLATE replay wrapper · coverage certificate · partial
-materializer.
+The Phase-2 property/mutation court already exercises the `.voldoc`
+header/record parser, the DRA parser/evaluator, the rANS model parser, the rANS
+channel decoder, and the coverage certificate (`tests/property.rs`,
+`tests/goldens.rs`, `tools/soak-fuzz.sh`). Still planned for later phases: PDF
+physical scanner · PDF lexical parser · xref parser · stream-boundary parser ·
+DEFLATE replay wrapper · partial materializer.
 
 Useful properties: never panic · bounded failure · round trip · descriptor
 parse/serialize stability · materialized length bound · RAW fallback preserves

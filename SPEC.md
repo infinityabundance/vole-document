@@ -48,8 +48,8 @@ document defers to that source of truth.
 | `0x02` | `FORMAT` | `source_format:u8`, `basis_len:u32`, `basis:[u8]` |
 | `0x10` | `OBJECT` | raw object bytes |
 | `0x20` | `GRAPH` | encoded reconstruction program |
-| `0x30` | `MODEL` | reserved (Phase 2+) |
-| `0x40` | `ENTROPY_CHANNEL` | reserved (Phase 2+) |
+| `0x30` | `MODEL` | canonical dense entropy model (see [Entropy records](#entropy-records-phase-2)) |
+| `0x40` | `ENTROPY_CHANNEL` | typed channel capsule: 33-byte header + renorm payload |
 | `0x50` | `RESIDUAL` | reserved (later) |
 | `0x60` | `CHECKPOINT` | reserved (later) |
 | `0x70` | `INDEX` | reserved (later) |
@@ -72,10 +72,11 @@ Requirements enforced by `Descriptor::parse`:
 ## Graph (reconstruction program)
 
 ```text
-graph := version:u8=1 op_count:u32 op*
+graph := version:u8=2 op_count:u32 op*
 op    := EMIT_OBJECT(0x01) u32_object_id
        | INLINE(0x02)      u32_len [u8;len]
        | REPEAT_LAST(0x03) u32_count
+       | DECODE_CHANNEL(0x04) u32_channel_id
 ```
 
 Semantics:
@@ -85,6 +86,10 @@ Semantics:
 - `REPEAT_LAST` repeats the bytes produced by the *immediately preceding literal
   instruction* `count` more times (authority: **Generated**). Consecutive
   `REPEAT_LAST` and a leading `REPEAT_LAST` are invalid.
+- `DECODE_CHANNEL` appends the exact decoded bytes of the referenced entropy
+  channel (authority: **EntropyChannel**). The channel's decoded length is known
+  statically from its descriptor, so the op's output length is still bounded at
+  parse time.
 
 ## Coverage certificate (checked invariant, not stored bytes)
 
@@ -100,6 +105,73 @@ A descriptor whose predicted length disagrees with `declared_source_len`, or
 whose spans are not contiguous, is rejected with `CoverageViolation` **before**
 allocation. This catches the dangerous "the parser forgot a source distinction"
 class of bugs at the representation boundary.
+
+## Universe declaration
+
+The Phase-2 universe string is:
+
+```text
+vole-document;universe;phase-2;exact-bytes;dra-2;opaque+entropy
+```
+
+The header's `universe_id` is the first 16 bytes of `SHA-256` over this string.
+Any change to an opcode, coder, limit semantic, adapter meaning, or hash semantic
+requires a new universe string.
+
+## Entropy records (Phase 2)
+
+Phase 2 introduces exactly two entropy records and one graph op. They are
+implemented and measured but remain **PROVISIONAL** (the wire format is not
+frozen v1).
+
+### `MODEL` (`0x30`)
+
+A canonical, self-describing frequency table over the fixed 256-symbol byte
+alphabet. The payload is the dense canonical model, exactly **516 bytes**:
+
+```text
+model := version:u8=1 scale_bits:u8 count:u16=256 freq:[u16;256]
+```
+
+- `freq` entries are little-endian and **must sum to exactly `1 << scale_bits`**.
+- `scale_bits` is in `1..=15` (frequencies are stored as `u16`).
+- Normalization from observed counts is integer-only, deterministic, and
+  tie-broken by lower symbol index; symbols seen zero times get frequency zero.
+- A channel's `scale_bits` must equal the `scale_bits` of the model it names, and
+  a channel may not name a missing model; both are checked during `parse`.
+
+### `ENTROPY_CHANNEL` (`0x40`)
+
+One typed channel capsule. The payload is a fixed **33-byte header** followed by
+the renormalization payload; the total record payload length must equal
+`33 + payload_len` exactly (no trailing bytes, no truncation).
+
+| Offset | Len | Field | Notes |
+|---|---|---|---|
+| 0 | 1 | `coder` | `1 = CODER_ORDER0_BYTE_RANS` |
+| 1 | 2 | `coder_version` | `1` |
+| 3 | 1 | `scale_bits` | must match the referenced model |
+| 4 | 1 | `lane_count` | `1` (single-lane only; else `UnsupportedFeature`) |
+| 5 | 4 | `model_id` | index into the descriptor's `MODEL` table |
+| 9 | 8 | `symbol_count` | number of symbols encoded |
+| 17 | 8 | `decoded_length` | exact decoded bytes |
+| 25 | 4 | `initial_state` | scalar decoder entry state |
+| 29 | 4 | `payload_len` | length of the following payload |
+| 33 | `payload_len` | `payload` | renormalization bytes in forward decoder-consumption order |
+
+A channel is never a bare seed: the model, decoder state, payload, and counts
+are all required to reconstruct bytes (see [`docs/adr/0006-rans-substrate.md`](docs/adr/0006-rans-substrate.md)).
+
+## Feature policy
+
+- `default = ["rans"]`: the native scalar entropy decoder (`ryg-rans-rs`
+  `=0.5.1`, **safe manual** API only) is present by default.
+- Built with `--no-default-features`, the exact RAW/RLE floor still compiles and
+  materializes channel-free descriptors byte-for-byte.
+- A descriptor that declares `MODEL`/`ENTROPY_CHANNEL` records but is decoded
+  without the `rans` feature returns an explicit `UnsupportedFeature`
+  (`ErrorClass` exit code 6). It is never silently reinterpreted and never
+  partially materialized.
 
 ## Canonical descriptor encoding
 

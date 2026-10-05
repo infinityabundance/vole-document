@@ -34,16 +34,49 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 | Candidate complete-cost court + decode-before-commit | **Implemented** | `src/encode/` |
 | CLI (`encode`/`decode`/`verify`/`inspect`/`capabilities`) | **Implemented** | `src/main.rs` |
 | Exact court over a mixed corpus | **Measured** | `evidence/campaigns/` |
-| Native rANS floor (Phase 2) | Planned | — |
+| Native rANS floor (order-0 / typed byte channels) | **Measured** | campaign `2026-10-05-phase2-f6af30b` |
+| RLE candidate (`REPEAT_LAST` run-length) | **Measured** | campaign `2026-10-05-phase2-f6af30b` |
+| BYTE_RANS candidate (order-0 byte channel) | **Measured** | campaign `2026-10-05-phase2-f6af30b` |
+| Entropy capsule (full decoder-entry state, not a seed) | **Measured** | ADR-0006; `src/entropy/` |
 | PDF physical authority + adapters (Phase 3–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
 | Partial materialization (Phase 11) | Planned | — |
 
 "Implemented" means the mechanism exists and is tested. "Measured" means there is
-a sealed campaign under `evidence/`. No compression headline is claimed yet: the
-Phase-1 core establishes exactness, framing, integrity, bounds, and receipts
-before any entropy or format-aware mechanism is allowed to compete.
+a sealed campaign under `evidence/`. The Phase-1 core establishes exactness,
+framing, integrity, bounds, and receipts before any entropy or format-aware
+mechanism is allowed to compete; Phase 2 then measures entropy channels on that
+same exactness floor.
+
+### Phase 2 measured results
+
+Phase 2 is **order-0 typed byte channels only** — no context model, no typed
+residuals, and no format awareness. On a 9-file mixed corpus the cumulative
+core→full ladder over serialized `.voldoc` bytes is:
+
+```text
+sum_source = 590081
+sum_core   = 464474   (RAW + RLE)
+sum_full   = 291304   (RAW + RLE + BYTE_RANS)
+delta      = 173170   (sum_core - sum_full)
+```
+
+The entire delta is attributed to the two files where `BYTE_RANS` wins
+(`text-256k.bin` 262144 → 143746; `skewed.bin` 65536 → 11382). `RLE` wins the
+long runs (`zeros-64k.bin` 65536 → 283; `runs.bin` 65536 → 3088). Negative
+controls hold: `BYTE_RANS` never wins on random 64 KiB (stored RAW at 65536 →
+65845, a 309-byte fixed framing overhead) or on empty/one-byte inputs (RLE).
+The canonical model's bytes are charged like any other bytes, so on tiny or
+high-entropy inputs order-0 rANS loses to RAW/RLE as required — this is a scoped
+measurement on one deterministic corpus, not a general compression claim.
+
+The entropy substrate is optional in the build: `default = ["rans"]`, and a
+channel-bearing descriptor decoded without the feature returns an explicit
+`UnsupportedFeature`, never a silent reinterpretation.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase2-f6af30b/`](evidence/campaigns/2026-10-05-phase2-f6af30b/).
 
 ## Quick start (Docker only)
 
