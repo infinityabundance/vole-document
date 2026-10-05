@@ -32,7 +32,7 @@ USAGE:
     vole-document capabilities
 
 KIND (for encode --force): raw | rle | byte-rans | pdf-physical | pdf-channels |
-    pdf-layout | pdf-layout-rans
+    pdf-layout | pdf-layout-rans | pdf-deflate-replay | pdf-deflate-replay-rans
     Forces the complete-cost court to consider only that candidate family, for
     honest per-mechanism ablation. Fails when the input does not propose it.
 
@@ -177,8 +177,10 @@ fn parse_force_kind(s: &str) -> Result<CandidateKind> {
         "pdf-channels" => Ok(CandidateKind::PdfChannels),
         "pdf-layout" => Ok(CandidateKind::PdfLayout),
         "pdf-layout-rans" => Ok(CandidateKind::PdfLayoutRans),
+        "pdf-deflate-replay" => Ok(CandidateKind::PdfDeflateReplay),
+        "pdf-deflate-replay-rans" => Ok(CandidateKind::PdfDeflateReplayRans),
         other => Err(Error::usage(format!(
-            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans"
+            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans, pdf-deflate-replay, pdf-deflate-replay-rans"
         ))),
     }
 }
@@ -401,12 +403,13 @@ fn describe_op(op: &Op) -> String {
             declared_output_len,
         } => format!("PACKED_CHANNELS({data_channel},{plan_channel},{declared_output_len})"),
         Op::DeflateReplay {
-            plaintext_object,
+            source_kind,
+            source_id,
             corrections_object,
             declared_output_len,
-        } => {
-            format!("DEFLATE_REPLAY({plaintext_object},{corrections_object},{declared_output_len})")
-        }
+        } => format!(
+            "DEFLATE_REPLAY({source_kind},{source_id},{corrections_object},{declared_output_len})"
+        ),
     }
 }
 

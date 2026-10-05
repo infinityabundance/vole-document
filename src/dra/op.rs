@@ -85,16 +85,22 @@ pub enum Op {
         declared_output_len: u64,
     },
     /// Reconstruct the *exact original raw DEFLATE bitstream* from a plaintext
-    /// object plus an opaque correction object, replaying the producer's DEFLATE
+    /// source plus an opaque correction object, replaying the producer's DEFLATE
     /// coding decisions. Emits raw DEFLATE (RFC 1951) bytes only; any zlib framing
     /// is composed by surrounding instructions. `declared_output_len` is the exact
     /// expected raw payload length, validated at evaluation.
     ///
-    /// Reconstruction can panic internally on hostile correction data, so it is
-    /// isolated and never panics the decoder (see `crate::codec::deflate`).
+    /// The plaintext may come from either the object table (`source_kind =
+    /// `[`DEFLATE_SOURCE_OBJECT`]) or an entropy channel (`source_kind =
+    /// `[`DEFLATE_SOURCE_CHANNEL`]); the channel form lets several streams share
+    /// one stored plaintext capsule. Reconstruction can panic internally on
+    /// hostile correction data, so it is isolated and never panics the decoder
+    /// (see `crate::codec::deflate`).
     DeflateReplay {
-        /// Index into the descriptor's object table holding the plaintext.
-        plaintext_object: u32,
+        /// Plaintext source kind ([`DEFLATE_SOURCE_OBJECT`] / [`DEFLATE_SOURCE_CHANNEL`]).
+        source_kind: u8,
+        /// Index into the object or channel table selected by `source_kind`.
+        source_id: u32,
         /// Index into the descriptor's object table holding the corrections.
         corrections_object: u32,
         /// Exact length (bytes) of the raw DEFLATE payload the op reproduces.
@@ -144,6 +150,10 @@ pub const OP_PACK_SEGMENTS: u8 = 0x08;
 pub const OP_PACKED_CHANNELS: u8 = 0x09;
 /// Opcode byte for [`Op::DeflateReplay`].
 pub const OP_DEFLATE_REPLAY: u8 = 0x0A;
+/// [`Op::DeflateReplay`] plaintext source: the object table.
+pub const DEFLATE_SOURCE_OBJECT: u8 = 0;
+/// [`Op::DeflateReplay`] plaintext source: the entropy channel table.
+pub const DEFLATE_SOURCE_CHANNEL: u8 = 1;
 
 /// Item tag for [`PackItem::Literal`].
 const PACK_ITEM_LITERAL: u8 = 0x01;
@@ -212,12 +222,14 @@ impl Op {
                 out.extend_from_slice(&declared_output_len.to_le_bytes());
             }
             Op::DeflateReplay {
-                plaintext_object,
+                source_kind,
+                source_id,
                 corrections_object,
                 declared_output_len,
             } => {
                 out.push(OP_DEFLATE_REPLAY);
-                out.extend_from_slice(&plaintext_object.to_le_bytes());
+                out.push(*source_kind);
+                out.extend_from_slice(&source_id.to_le_bytes());
                 out.extend_from_slice(&corrections_object.to_le_bytes());
                 out.extend_from_slice(&declared_output_len.to_le_bytes());
             }
@@ -302,11 +314,18 @@ impl Op {
                 })
             }
             OP_DEFLATE_REPLAY => {
-                let plaintext_object = read_u32(data, pos)?;
+                let source_kind = read_u8(data, pos)?;
+                if source_kind != DEFLATE_SOURCE_OBJECT && source_kind != DEFLATE_SOURCE_CHANNEL {
+                    return Err(Error::invalid_graph(format!(
+                        "DEFLATE_REPLAY source kind {source_kind} is not 0 (object) or 1 (channel)"
+                    )));
+                }
+                let source_id = read_u32(data, pos)?;
                 let corrections_object = read_u32(data, pos)?;
                 let declared_output_len = read_u32(data, pos)?;
                 Ok(Op::DeflateReplay {
-                    plaintext_object,
+                    source_kind,
+                    source_id,
                     corrections_object,
                     declared_output_len,
                 })
@@ -540,12 +559,14 @@ mod tests {
             declared_output_len: u64::MAX,
         });
         roundtrip(Op::DeflateReplay {
-            plaintext_object: 0,
+            source_kind: DEFLATE_SOURCE_OBJECT,
+            source_id: 0,
             corrections_object: 1,
             declared_output_len: 1234,
         });
         roundtrip(Op::DeflateReplay {
-            plaintext_object: u32::MAX,
+            source_kind: DEFLATE_SOURCE_CHANNEL,
+            source_id: u32::MAX,
             corrections_object: u32::MAX,
             declared_output_len: u32::MAX,
         });

@@ -37,6 +37,12 @@ pub enum CandidateKind {
     /// PDF layout plan (data object + item table) carried through two rANS
     /// entropy channels (Phase 5.8).
     PdfLayoutRans = 6,
+    /// PDF exact DEFLATE replay: eligible `/FlateDecode` streams are
+    /// inverse-proceduralized to (plaintext, corrections) and replayed (Phase 6).
+    PdfDeflateReplay = 7,
+    /// PDF DEFLATE replay whose plaintexts are carried as shared order-0 byte-rANS
+    /// entropy channels (Phase 6.5).
+    PdfDeflateReplayRans = 8,
 }
 
 impl CandidateKind {
@@ -50,6 +56,8 @@ impl CandidateKind {
             CandidateKind::PdfChannels => "PDF_CHANNELS",
             CandidateKind::PdfLayout => "PDF_LAYOUT",
             CandidateKind::PdfLayoutRans => "PDF_LAYOUT_RANS",
+            CandidateKind::PdfDeflateReplay => "PDF_DEFLATE_REPLAY",
+            CandidateKind::PdfDeflateReplayRans => "PDF_DEFLATE_REPLAY_RANS",
         }
     }
 }
@@ -98,6 +106,16 @@ pub fn propose_all(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
     #[cfg(feature = "rans")]
     if let Some(pdf_layout_rans) = crate::adapter::pdf::propose_pdf_layout_rans(input, limits)? {
         out.push(pdf_layout_rans);
+    }
+    #[cfg(feature = "deflate-replay")]
+    if let Some(pdf_deflate) = crate::adapter::pdf::propose_pdf_deflate_replay(input, limits)? {
+        out.push(pdf_deflate);
+    }
+    #[cfg(all(feature = "deflate-replay", feature = "rans"))]
+    if let Some(pdf_deflate_rans) =
+        crate::adapter::pdf::propose_pdf_deflate_replay_rans(input, limits)?
+    {
+        out.push(pdf_deflate_rans);
     }
     Ok(out)
 }

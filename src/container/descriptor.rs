@@ -552,7 +552,8 @@ mod tests {
 
     fn replay_program() -> Program {
         Program::new(vec![Op::DeflateReplay {
-            plaintext_object: 0,
+            source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
+            source_id: 0,
             corrections_object: 0,
             declared_output_len: 3,
         }])

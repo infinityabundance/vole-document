@@ -429,14 +429,31 @@ impl Program {
                     have_last = true;
                 }
                 Op::DeflateReplay {
-                    plaintext_object,
+                    source_kind,
+                    source_id,
                     corrections_object,
                     declared_output_len,
                 } => {
-                    if *plaintext_object as usize >= object_lens.len() {
-                        return Err(Error::invalid_graph(format!(
-                            "graph references missing object {plaintext_object}"
-                        )));
+                    match *source_kind {
+                        crate::dra::op::DEFLATE_SOURCE_OBJECT => {
+                            if *source_id as usize >= object_lens.len() {
+                                return Err(Error::invalid_graph(format!(
+                                    "graph references missing object {source_id}"
+                                )));
+                            }
+                        }
+                        crate::dra::op::DEFLATE_SOURCE_CHANNEL => {
+                            if *source_id as usize >= channel_lens.len() {
+                                return Err(Error::invalid_graph(format!(
+                                    "graph references missing entropy channel {source_id}"
+                                )));
+                            }
+                        }
+                        other => {
+                            return Err(Error::invalid_graph(format!(
+                                "DEFLATE_REPLAY source kind {other} is invalid"
+                            )));
+                        }
                     }
                     if *corrections_object as usize >= object_lens.len() {
                         return Err(Error::invalid_graph(format!(
@@ -449,7 +466,7 @@ impl Program {
                             limits.max_output_bytes
                         )));
                     }
-                    // The raw DEFLATE length is not derivable from the object
+                    // The raw DEFLATE length is not derivable from the source
                     // lengths, so the declared length is the static prediction and
                     // evaluation proves it exact.
                     let len = u64::from(*declared_output_len);
@@ -719,15 +736,32 @@ impl Program {
                     have_last = true;
                 }
                 Op::DeflateReplay {
-                    plaintext_object,
+                    source_kind,
+                    source_id,
                     corrections_object,
                     declared_output_len,
                 } => {
-                    let plaintext = objects.get(*plaintext_object as usize).ok_or_else(|| {
-                        Error::invalid_graph(format!(
-                            "graph references missing object {plaintext_object}"
-                        ))
-                    })?;
+                    let plaintext: &[u8] = match *source_kind {
+                        crate::dra::op::DEFLATE_SOURCE_OBJECT => {
+                            objects.get(*source_id as usize).ok_or_else(|| {
+                                Error::invalid_graph(format!(
+                                    "graph references missing object {source_id}"
+                                ))
+                            })?
+                        }
+                        crate::dra::op::DEFLATE_SOURCE_CHANNEL => {
+                            channels.get(*source_id as usize).ok_or_else(|| {
+                                Error::invalid_graph(format!(
+                                    "graph references missing entropy channel {source_id}"
+                                ))
+                            })?
+                        }
+                        other => {
+                            return Err(Error::invalid_graph(format!(
+                                "DEFLATE_REPLAY source kind {other} is invalid"
+                            )));
+                        }
+                    };
                     let corrections =
                         objects.get(*corrections_object as usize).ok_or_else(|| {
                             Error::invalid_graph(format!(
@@ -1580,7 +1614,8 @@ mod tests {
                 bytes: plan.header.to_vec(),
             },
             Op::DeflateReplay {
-                plaintext_object: 0,
+                source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
+                source_id: 0,
                 corrections_object: 1,
                 declared_output_len: plan.raw_len,
             },
@@ -1609,7 +1644,8 @@ mod tests {
         let plan = crate::codec::deflate::try_replay(&z, Limits::DEFAULT).unwrap();
         let objects = objs(&[&plan.plaintext, &plan.corrections]);
         let p = Program::new(vec![Op::DeflateReplay {
-            plaintext_object: 0,
+            source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
+            source_id: 0,
             corrections_object: 1,
             declared_output_len: plan.raw_len + 1,
         }]);
@@ -1621,7 +1657,8 @@ mod tests {
     fn deflate_replay_missing_object_errors() {
         let objects = objs(&[b"plain"]);
         let p = Program::new(vec![Op::DeflateReplay {
-            plaintext_object: 0,
+            source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
+            source_id: 0,
             corrections_object: 9,
             declared_output_len: 3,
         }]);
@@ -1638,7 +1675,8 @@ mod tests {
         }
         let objects = objs(&[b"some plaintext bytes here", &blob]);
         let p = Program::new(vec![Op::DeflateReplay {
-            plaintext_object: 0,
+            source_kind: crate::dra::op::DEFLATE_SOURCE_OBJECT,
+            source_id: 0,
             corrections_object: 1,
             declared_output_len: 8,
         }]);
