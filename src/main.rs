@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use vole_document::adapter::pdf;
 use vole_document::container::UNIVERSE;
 use vole_document::dra::Op;
 use vole_document::error::{Error, Result};
@@ -25,6 +26,7 @@ USAGE:
     vole-document materialize INPUT.voldoc    OUTPUT
     vole-document verify     INPUT.voldoc
     vole-document inspect    INPUT.voldoc
+    vole-document pdf-inspect INPUT
     vole-document capabilities
 
 EXIT CODES:
@@ -79,6 +81,10 @@ fn run(args: &[String]) -> Result<()> {
         "inspect" => {
             let input = arg(args, 2, "INPUT.voldoc")?;
             cmd_inspect(&input, limits)
+        }
+        "pdf-inspect" => {
+            let input = arg(args, 2, "INPUT")?;
+            cmd_pdf_inspect(&input, limits)
         }
         other => Err(Error::usage(format!(
             "unknown subcommand {other:?}\n\n{USAGE}"
@@ -176,6 +182,82 @@ fn cmd_inspect(input: &Path, limits: Limits) -> Result<()> {
         parsed.cost.to_json(),
     );
     Ok(())
+}
+
+/// Machine-readable structural view of a PDF input for the differential oracle.
+///
+/// Emits one JSON line. `is_pdf` mirrors [`pdf::detect`]: a `%PDF-` header, at
+/// least one indirect object, and at least one `%%EOF`. Non-PDFs are reported
+/// with `"is_pdf":false` and exit 0; a real scan failure (I/O, resource limit,
+/// coverage) is returned as a typed error with a nonzero exit code.
+fn cmd_pdf_inspect(input: &Path, limits: Limits) -> Result<()> {
+    let bytes = fs::read(input)?;
+    let is_pdf = pdf::detect(&bytes, limits);
+    let physical = pdf::scan(&bytes, limits)?;
+
+    let objects: Vec<String> = physical
+        .objects
+        .iter()
+        .map(|o| {
+            format!(
+                "{{\"number\":{},\"generation\":{},\"role\":\"{}\"}}",
+                o.number,
+                o.generation,
+                role_name(o.role)
+            )
+        })
+        .collect();
+    let startxref: Vec<String> = physical.startxref.iter().map(u64::to_string).collect();
+
+    println!(
+        concat!(
+            "{{",
+            "\"file\":\"{}\",",
+            "\"is_pdf\":{},",
+            "\"span_count\":{},",
+            "\"object_count\":{},",
+            "\"objects\":[{}],",
+            "\"revision_count\":{},",
+            "\"startxref\":[{}],",
+            "\"eof_count\":{}",
+            "}}"
+        ),
+        json_escape(&input.display().to_string()),
+        is_pdf,
+        physical.spans.len(),
+        physical.objects.len(),
+        objects.join(","),
+        physical.revisions.len(),
+        startxref.join(","),
+        physical.eofs.len(),
+    );
+    Ok(())
+}
+
+/// Stable string name for an object role, as used in the oracle JSON.
+fn role_name(role: pdf::ObjRole) -> &'static str {
+    match role {
+        pdf::ObjRole::Generic => "Generic",
+        pdf::ObjRole::XRefStream => "XRefStream",
+        pdf::ObjRole::ObjectStream => "ObjectStream",
+    }
+}
+
+/// Minimal JSON string escaping for the `file` field (paths may contain quotes).
+fn json_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 fn cmd_capabilities() -> Result<()> {
