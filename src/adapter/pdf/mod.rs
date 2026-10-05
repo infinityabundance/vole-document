@@ -8,6 +8,7 @@ pub mod adapter;
 pub mod cos;
 pub mod lexer;
 pub mod physical;
+pub mod samples;
 pub mod span;
 
 pub use adapter::{detect, propose_pdf};
@@ -19,4 +20,5 @@ pub use physical::{
     LengthSource, ObjRole, PdfObjectSpan, PdfPhysical, PdfStreamSpan, PhysicalKind, PhysicalSpan,
     RevisionInfo, scan,
 };
+pub use samples::{is_negative_control, sample_pdfs};
 pub use span::{Span, SpanKind, SpanSet};

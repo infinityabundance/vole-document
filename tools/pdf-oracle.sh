@@ -16,13 +16,18 @@
 # A disagreement is a FINDING to report (and exits nonzero), never something to
 # hide. Run from inside the tools image, cwd /work:
 #
-#   docker compose run --rm --no-TTY tools sh tools/pdf-oracle.sh
+#   docker compose run --rm --no-TTY tools sh tools/pdf-oracle.sh [OUTDIR]
+#
+# OUTDIR defaults to evidence/scratch/pdfs; oracle.jsonl is written there.
 set -eu
 
 cd /work
 
-BIN="${BIN:-/work/evidence/scratch/pdfs/vole-document}"
-WORK=evidence/scratch/pdfs
+# Optional first argument: the output directory (default evidence/scratch/pdfs).
+# `oracle.jsonl`, the generated corpus, and scratch files all live there.
+OUTDIR="${1:-evidence/scratch/pdfs}"
+WORK="$OUTDIR"
+BIN="${BIN:-$WORK/vole-document}"
 CORPUS="$WORK/corpus"
 JSONL="$WORK/oracle.jsonl"
 SCRATCH="$WORK/oracle-scratch"

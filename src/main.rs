@@ -27,6 +27,7 @@ USAGE:
     vole-document verify     INPUT.voldoc
     vole-document inspect    INPUT.voldoc
     vole-document pdf-inspect INPUT
+    vole-document pdf-make-samples DIR
     vole-document capabilities
 
 EXIT CODES:
@@ -85,6 +86,10 @@ fn run(args: &[String]) -> Result<()> {
         "pdf-inspect" => {
             let input = arg(args, 2, "INPUT")?;
             cmd_pdf_inspect(&input, limits)
+        }
+        "pdf-make-samples" => {
+            let dir = arg(args, 2, "DIR")?;
+            cmd_pdf_make_samples(&dir)
         }
         other => Err(Error::usage(format!(
             "unknown subcommand {other:?}\n\n{USAGE}"
@@ -230,6 +235,28 @@ fn cmd_pdf_inspect(input: &Path, limits: Limits) -> Result<()> {
         physical.revisions.len(),
         startxref.join(","),
         physical.eofs.len(),
+    );
+    Ok(())
+}
+
+/// Write the deterministic Phase-3 sample corpus to `dir`, one file per entry.
+///
+/// Every sample is assembled with correct `/Length` and `startxref` by
+/// construction; see [`pdf::samples`]. Writing is atomic per file so a failed
+/// run cannot leave a partially written sample in place.
+fn cmd_pdf_make_samples(dir: &Path) -> Result<()> {
+    fs::create_dir_all(dir)?;
+    let samples = pdf::samples::sample_pdfs();
+    let mut names: Vec<String> = Vec::with_capacity(samples.len());
+    for (name, bytes) in &samples {
+        write_atomic(&dir.join(name), bytes)?;
+        names.push(format!("\"{}\"", json_escape(name)));
+    }
+    println!(
+        "{{\"ok\":true,\"dir\":\"{}\",\"count\":{},\"samples\":[{}]}}",
+        json_escape(&dir.display().to_string()),
+        names.len(),
+        names.join(",")
     );
     Ok(())
 }
