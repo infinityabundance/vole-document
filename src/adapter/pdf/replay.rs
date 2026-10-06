@@ -326,6 +326,10 @@ pub fn propose_pdf_deflate_replay_rans_indexed(
         return Ok(None);
     };
     descriptor.observation_index = Some(index);
+    // Only this candidate enables the optional seek DIRECTORY record; every other
+    // construction site leaves `seek_directory == false`, so their bytes are the
+    // exact Phase-7 record sequence.
+    descriptor.seek_directory = true;
     Ok(Some(Candidate {
         kind: CandidateKind::PdfDeflateReplayRansIndexed,
         descriptor,

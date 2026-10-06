@@ -5,6 +5,8 @@
 //! destination.
 
 use std::fs;
+#[cfg(feature = "rans")]
+use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -411,9 +413,15 @@ fn cmd_view(
 ) -> Result<()> {
     let encoded = fs::read(input)?;
     let parsed = vole_document::container::Descriptor::parse(&encoded, limits)?;
-    let report = vole_document::materialize::observation::materialize_observation(
-        &parsed, selector, limits,
-    )?;
+    // A descriptor carrying a seek DIRECTORY is served by the seek reader, which
+    // opens the file and reads only the records the query needs and reports a
+    // real `bytes_read`; a descriptor without one keeps the Phase-7 in-memory path.
+    let report = if parsed.descriptor.seek_directory {
+        let file = File::open(input)?;
+        vole_document::materialize::seek::materialize_observation_seeked(file, selector, limits)?
+    } else {
+        vole_document::materialize::observation::materialize_observation(&parsed, selector, limits)?
+    };
     let json = observation_json(&selector, &parsed, &report);
     match output {
         Some(path) => {
@@ -457,6 +465,8 @@ fn observation_json(
             "\"channels_total\":{},",
             "\"entropy_bytes_decoded\":{},",
             "\"descriptor_bytes_traversed\":{},",
+            "\"bytes_read\":{},",
+            "\"integrity_verified\":{},",
             "\"output_bytes\":{},",
             "\"work_amplification\":{:.6}",
             "}}"
@@ -474,6 +484,8 @@ fn observation_json(
         s.channels_total,
         s.entropy_bytes_decoded,
         s.descriptor_bytes_traversed,
+        s.bytes_read,
+        s.integrity_verified,
         s.output_bytes,
         s.work_amplification(),
     )

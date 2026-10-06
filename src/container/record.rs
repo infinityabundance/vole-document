@@ -8,6 +8,8 @@
 //! zero. The `flags` bit [`FLAG_OPTIONAL`] marks a record whose *tag* a decoder
 //! may skip if unknown; unknown non-optional tags fail closed.
 
+use std::io::{Read, Seek, SeekFrom};
+
 use crate::error::{Error, Result};
 use crate::integrity::crc32c;
 use crate::limits::Limits;
@@ -154,6 +156,73 @@ pub fn write_record(out: &mut Vec<u8>, tag: u8, flags: u8, payload: &[u8]) -> Re
     let crc = crc32c(&out[start..]);
     out.extend_from_slice(&crc.to_le_bytes());
     Ok(())
+}
+
+/// Read and CRC-check exactly one record located at `offset` in a seekable
+/// source.
+///
+/// This is the seek-reader counterpart of
+/// [`RecordReader::next_record`]: it applies the *same* framing checks (reserved
+/// must be zero, `len <= max_record_len`, CRC32C over the 8-byte header plus the
+/// payload) but seeks to an absolute offset instead of walking sequentially, so a
+/// caller reads only the records a query needs. It returns the fully materialized
+/// [`Record`]; the tag byte, flags byte, and payload length are the framing's own
+/// claim and must still be cross-checked by the caller against any directory
+/// locator.
+pub fn read_record_at<R: Read + Seek>(
+    reader: &mut R,
+    offset: u64,
+    limits: Limits,
+) -> Result<Record> {
+    reader
+        .seek(SeekFrom::Start(offset))
+        .map_err(|e| Error::invalid_container(format!("seek to record at {offset} failed: {e}")))?;
+    let mut hdr = [0u8; RECORD_HEADER_LEN];
+    reader.read_exact(&mut hdr).map_err(|_| {
+        Error::invalid_container(format!("truncated record header at offset {offset}"))
+    })?;
+    let tag = hdr[0];
+    let flags = hdr[1];
+    let reserved = u16::from_le_bytes([hdr[2], hdr[3]]);
+    if reserved != 0 {
+        return Err(Error::invalid_container(
+            "record reserved field must be zero",
+        ));
+    }
+    let len = u32::from_le_bytes([hdr[4], hdr[5], hdr[6], hdr[7]]);
+    if len > limits.max_record_len {
+        return Err(Error::resource_limit(format!(
+            "record payload length {len} exceeds limit {}",
+            limits.max_record_len
+        )));
+    }
+    let body_len = RECORD_HEADER_LEN
+        .checked_add(len as usize)
+        .ok_or_else(|| Error::invalid_container("record length overflow"))?;
+    let mut body = vec![0u8; body_len];
+    body[..RECORD_HEADER_LEN].copy_from_slice(&hdr);
+    reader
+        .read_exact(&mut body[RECORD_HEADER_LEN..])
+        .map_err(|_| {
+            Error::invalid_container(format!("truncated record payload at offset {offset}"))
+        })?;
+    let mut crc = [0u8; RECORD_TRAILER_LEN];
+    reader.read_exact(&mut crc).map_err(|_| {
+        Error::invalid_container(format!("truncated record CRC at offset {offset}"))
+    })?;
+    let want_crc = u32::from_le_bytes(crc);
+    let got_crc = crc32c(&body);
+    if want_crc != got_crc {
+        return Err(Error::invalid_container(format!(
+            "record CRC32C mismatch at offset {offset}: declared {want_crc:#010x}, computed {got_crc:#010x}"
+        )));
+    }
+    let payload = body[RECORD_HEADER_LEN..].to_vec();
+    Ok(Record {
+        tag,
+        flags,
+        payload,
+    })
 }
 
 /// An iterator over the records of a byte slice.

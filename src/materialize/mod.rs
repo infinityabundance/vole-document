@@ -5,6 +5,7 @@
 //! searches, guesses, optimizes, or invokes external tools.
 
 pub mod observation;
+pub mod seek;
 
 use crate::container::{Descriptor, ParsedDescriptor};
 use crate::error::{Error, Result};

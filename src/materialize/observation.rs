@@ -42,23 +42,32 @@
 //!
 //! ## `descriptor_bytes_traversed` is an approximation
 //!
-//! v1 parses the whole framed descriptor into memory, so there is no true I/O
-//! seek accounting yet. [`ObservationStats::descriptor_bytes_traversed`] reports
-//! the sum of the serialized record payload lengths the path *needed* — the graph
-//! record, the referenced object payloads, the referenced channel payloads, and
-//! the index record — as a documented CPU-side approximation, not a byte-read
-//! figure. The referenced channel payloads are already included here, so
-//! [`ObservationStats::entropy_bytes_decoded`] is a **subset** of
-//! `descriptor_bytes_traversed` and the two fields must never be summed. A later
-//! stage may add an mmap/seek reader to make it a real I/O
-//! number; the field name and this caveat are deliberate.
+//! This in-memory path parses the whole framed descriptor into memory, so it has
+//! no true I/O seek accounting. [`ObservationStats::descriptor_bytes_traversed`]
+//! reports the sum of the serialized record payload lengths the path *needed* —
+//! the graph record, the referenced object payloads, the referenced channel
+//! payloads, and the index record — as a documented CPU-side approximation, not
+//! a byte-read figure. The referenced channel payloads are already included here,
+//! so [`ObservationStats::entropy_bytes_decoded`] is a **subset** of
+//! `descriptor_bytes_traversed` and the two fields must never be summed. This
+//! path reports `bytes_read == 0` (it performs no I/O of its own); the
+//! seek reader ([`crate::materialize::seek::materialize_observation_seeked`],
+//! Phase 8) reports a real, instrumented `bytes_read` while sharing this path's
+//! op selection and evaluation verbatim.
+//!
+//! A partial `view` — in-memory or seeked — is an *observation*: it serves bytes
+//! consistent with the descriptor's own validated program/index/directory, but it
+//! never recomputes the whole-source SHA-256, so `integrity_verified` is `false`.
+//! Only `materialize`/`decode`/`verify` are the archival authority.
 
+use crate::container::ParsedDescriptor;
 use crate::container::observation::{
     ObservationIndex, ObservationSelector as IndexSelector, SECTION_PDF_SELECTORS, SELECTOR_OBJECT,
     SELECTOR_REVISION, SELECTOR_STREAM,
 };
-use crate::container::{Descriptor, ParsedDescriptor};
 use crate::dra::{Op, Program};
+use crate::entropy::codec::EntropyChannelDescriptor;
+use crate::entropy::model::EntropyModel;
 use crate::error::{Error, Result};
 use crate::limits::Limits;
 
@@ -135,6 +144,21 @@ pub struct ObservationStats {
     pub descriptor_bytes_traversed: u64,
     /// Number of output bytes served.
     pub output_bytes: u64,
+    /// Real bytes read from the source by the seek reader.
+    ///
+    /// Zero for the in-memory Phase-7 path, which is handed a fully parsed
+    /// descriptor and performs no I/O of its own. This is a *real* I/O figure and
+    /// is distinct from [`Self::descriptor_bytes_traversed`], which is a CPU-side
+    /// approximation kept for comparison.
+    pub bytes_read: u64,
+    /// Whether the whole-source archival digest was verified for this report.
+    ///
+    /// Always `false` for an observation view: a partial read cannot recompute the
+    /// whole-source SHA-256, so a served slice is an *observation* consistent with
+    /// the descriptor's own validated program/index/directory -- not a verified
+    /// archival read. Only `materialize`/`decode`/`verify` check `INTEGRITY` and
+    /// are the archival authority.
+    pub integrity_verified: bool,
 }
 
 impl ObservationStats {
@@ -163,6 +187,185 @@ pub struct ObservationReport {
     pub stats: ObservationStats,
 }
 
+/// The op window an observation range selects, shared by the in-memory
+/// (Phase-7) and seek (Phase-8) readers so the two selection paths cannot
+/// diverge.
+#[derive(Debug, Clone)]
+pub(crate) struct OpWindow {
+    /// The ops to evaluate, in program order.
+    pub ops: Vec<Op>,
+    /// The absolute output offset the evaluated buffer begins at. Zero when the
+    /// program was walked as a prefix (a position-dependent op forced a fallback).
+    pub buf_start: u64,
+    /// Total ops in the descriptor's program (for `work_amplification`).
+    pub ops_total: usize,
+}
+
+/// Select the minimal op set serving output range `[a, b)`.
+///
+/// This is the exact Phase-7 selection, factored out so `materialize_observation`
+/// and the seek reader share one implementation. For a program of linear,
+/// independent block producers only the ops whose output intersects `[a, b)` are
+/// selected (and `buf_start` is that window's absolute start); any
+/// position-dependent op forces the honest bounded prefix `ops[..=last]` with
+/// `buf_start == 0`.
+pub(crate) fn select_ops(
+    program: &Program,
+    object_lens: &[u64],
+    channel_lens: &[u64],
+    a: u64,
+    b: u64,
+    limits: Limits,
+) -> Result<OpWindow> {
+    let per_op = program.analyze_ops(object_lens, channel_lens, limits)?;
+
+    let mut starts: Vec<u64> = Vec::with_capacity(per_op.len());
+    let mut ends: Vec<u64> = Vec::with_capacity(per_op.len());
+    let mut acc: u64 = 0;
+    for &len in &per_op {
+        starts.push(acc);
+        acc = acc
+            .checked_add(len)
+            .ok_or_else(|| Error::invalid_graph("observation op length overflow"))?;
+        ends.push(acc);
+    }
+
+    let intersects = |i: usize| per_op[i] > 0 && starts[i] < b && ends[i] > a;
+    let first = (0..per_op.len())
+        .find(|&i| intersects(i))
+        .ok_or_else(|| Error::invalid_graph("observation range is not covered by the program"))?;
+    let last = (0..per_op.len())
+        .rev()
+        .find(|&i| intersects(i))
+        .ok_or_else(|| Error::invalid_graph("observation range is not covered by the program"))?;
+
+    let (ops, buf_start) = if is_linear_independent(program) {
+        let ops = program
+            .ops
+            .iter()
+            .enumerate()
+            .filter(|&(i, _)| intersects(i))
+            .map(|(_, op)| op.clone())
+            .collect();
+        (ops, starts[first])
+    } else {
+        (program.ops[..=last].to_vec(), 0)
+    };
+
+    Ok(OpWindow {
+        ops,
+        buf_start,
+        ops_total: program.ops.len(),
+    })
+}
+
+/// Mark the objects and channels a selected op set references.
+///
+/// The seek reader uses this to decide which `OBJECT`/`ENTROPY_CHANNEL`/`MODEL`
+/// records it must read; the in-memory path uses it to decode lazily. Both paths
+/// must agree, so it lives here.
+pub(crate) fn selection_references(
+    ops: &[Op],
+    objects_len: usize,
+    channels_len: usize,
+) -> (Vec<bool>, Vec<bool>) {
+    let mut objects_used = vec![false; objects_len];
+    let mut channels_used = vec![false; channels_len];
+    for op in ops {
+        mark_references(op, &mut objects_used, &mut channels_used);
+    }
+    (objects_used, channels_used)
+}
+
+/// The served bytes plus the measured cost attribution of one evaluated
+/// selection, before the path-specific `descriptor_bytes_traversed`/`bytes_read`
+/// fields are attached.
+pub(crate) struct ServedSelection {
+    pub bytes: Vec<u8>,
+    pub ops_evaluated: usize,
+    pub ops_total: usize,
+    pub objects_fetched: usize,
+    pub referenced_object_bytes: u64,
+    pub channels_decoded: usize,
+    pub entropy_bytes_decoded: u64,
+    pub referenced_channel_bytes: u64,
+}
+
+/// Evaluate `window` and slice the requested `[a, b)`, decoding only the
+/// referenced channels.
+///
+/// This is the unchanged Phase-7 evaluation body: lazy channel decoding, the
+/// sub-program `eval`, and the window slice. It is shared by both readers; the
+/// seek reader passes partial `objects`/`channels`/`models` vectors where only the
+/// referenced index positions are populated, and every unreferenced position is a
+/// never-dereferenced placeholder.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn serve_selection(
+    objects: &[Vec<u8>],
+    channels_desc: &[EntropyChannelDescriptor],
+    models: &[EntropyModel],
+    window: OpWindow,
+    objects_used: &[bool],
+    channels_used: &[bool],
+    a: u64,
+    b: u64,
+    limits: Limits,
+) -> Result<ServedSelection> {
+    let channels = decode_referenced_channels(channels_desc, models, channels_used, limits)?;
+
+    let ops_evaluated = window.ops.len();
+    let ops_total = window.ops_total;
+    let buf_start = window.buf_start;
+    let sub = Program::new(window.ops);
+    let out = sub.eval(objects, &channels, limits)?;
+
+    let lo = a
+        .checked_sub(buf_start)
+        .and_then(|v| usize::try_from(v).ok())
+        .ok_or_else(|| Error::internal_invariant("observation window precedes evaluated buffer"))?;
+    let hi = b
+        .checked_sub(buf_start)
+        .and_then(|v| usize::try_from(v).ok())
+        .ok_or_else(|| Error::internal_invariant("observation window overflow"))?;
+    if hi > out.len() {
+        return Err(Error::internal_invariant(
+            "evaluated buffer is shorter than the requested observation window",
+        ));
+    }
+    let bytes = out[lo..hi].to_vec();
+
+    let mut entropy_bytes_decoded: u64 = 0;
+    let mut referenced_channel_bytes: u64 = 0;
+    let mut channels_decoded: usize = 0;
+    for (id, used) in channels_used.iter().enumerate() {
+        if *used {
+            channels_decoded += 1;
+            let payload_len = channels_desc[id].payload.len() as u64;
+            entropy_bytes_decoded += payload_len;
+            referenced_channel_bytes += payload_len;
+        }
+    }
+    let mut objects_fetched: usize = 0;
+    let mut referenced_object_bytes: u64 = 0;
+    for (id, used) in objects_used.iter().enumerate() {
+        if *used {
+            objects_fetched += 1;
+            referenced_object_bytes += objects[id].len() as u64;
+        }
+    }
+
+    Ok(ServedSelection {
+        bytes,
+        ops_evaluated,
+        ops_total,
+        objects_fetched,
+        referenced_object_bytes,
+        channels_decoded,
+        entropy_bytes_decoded,
+        referenced_channel_bytes,
+    })
+}
+
 /// Serve one observation from a parsed descriptor carrying an observation index.
 ///
 /// The returned bytes equal `materialize(parsed)[a..b]` for the resolved range;
@@ -187,120 +390,51 @@ pub fn materialize_observation(
     //    index's op table was already cross-checked against it at parse time.
     let object_lens: Vec<u64> = d.objects.iter().map(|o| o.len() as u64).collect();
     let channel_lens: Vec<u64> = d.channels.iter().map(|c| c.decoded_length).collect();
-    let per_op = d.program.analyze_ops(&object_lens, &channel_lens, limits)?;
 
-    let mut starts: Vec<u64> = Vec::with_capacity(per_op.len());
-    let mut ends: Vec<u64> = Vec::with_capacity(per_op.len());
-    let mut acc: u64 = 0;
-    for &len in &per_op {
-        starts.push(acc);
-        acc = acc
-            .checked_add(len)
-            .ok_or_else(|| Error::invalid_graph("observation op length overflow"))?;
-        ends.push(acc);
-    }
+    // 4. Selection and lazy evaluation, shared verbatim with the seek reader.
+    let window = select_ops(&d.program, &object_lens, &channel_lens, a, b, limits)?;
+    let (objects_used, channels_used) =
+        selection_references(&window.ops, d.objects.len(), d.channels.len());
+    let served = serve_selection(
+        &d.objects,
+        &d.channels,
+        &d.models,
+        window,
+        &objects_used,
+        &channels_used,
+        a,
+        b,
+        limits,
+    )?;
 
-    let intersects = |i: usize| per_op[i] > 0 && starts[i] < b && ends[i] > a;
-    let first = (0..per_op.len())
-        .find(|&i| intersects(i))
-        .ok_or_else(|| Error::invalid_graph("observation range is not covered by the program"))?;
-    let last = (0..per_op.len())
-        .rev()
-        .find(|&i| intersects(i))
-        .ok_or_else(|| Error::invalid_graph("observation range is not covered by the program"))?;
-
-    // 4. Linear independent-block ops can be skipped; anything else needs a
-    //    prefix. `buf_start` is the absolute output offset the evaluated buffer
-    //    begins at.
-    let linear = is_linear_independent(&d.program);
-    let (selected_ops, buf_start): (Vec<Op>, u64) = if linear {
-        let ops = d
-            .program
-            .ops
-            .iter()
-            .enumerate()
-            .filter(|&(i, _)| intersects(i))
-            .map(|(_, op)| op.clone())
-            .collect();
-        (ops, starts[first])
-    } else {
-        (d.program.ops[..=last].to_vec(), 0)
-    };
-
-    // 5. Mark the objects and channels the evaluated ops reference, then decode
-    //    only those channels.
-    let mut objects_used = vec![false; d.objects.len()];
-    let mut channels_used = vec![false; d.channels.len()];
-    for op in &selected_ops {
-        mark_references(op, &mut objects_used, &mut channels_used);
-    }
-    let channels = decode_referenced_channels(d, &channels_used, limits)?;
-
-    // 6. Evaluate the selected ops and slice the requested window. The op list is
-    //    moved into the sub-program, so skipped inline bytes are never copied.
-    let sub = Program::new(selected_ops);
-    let out = sub.eval(&d.objects, &channels, limits)?;
-
-    let lo = a
-        .checked_sub(buf_start)
-        .and_then(|v| usize::try_from(v).ok())
-        .ok_or_else(|| Error::internal_invariant("observation window precedes evaluated buffer"))?;
-    let hi = b
-        .checked_sub(buf_start)
-        .and_then(|v| usize::try_from(v).ok())
-        .ok_or_else(|| Error::internal_invariant("observation window overflow"))?;
-    if hi > out.len() {
-        return Err(Error::internal_invariant(
-            "evaluated buffer is shorter than the requested observation window",
-        ));
-    }
-    let bytes = out[lo..hi].to_vec();
-
-    // 7. Cost attribution.
-    let mut entropy_bytes_decoded: u64 = 0;
-    let mut referenced_channel_bytes: u64 = 0;
-    let mut channels_decoded: usize = 0;
-    for (id, used) in channels_used.iter().enumerate() {
-        if *used {
-            channels_decoded += 1;
-            let payload_len = d.channels[id].payload.len() as u64;
-            entropy_bytes_decoded += payload_len;
-            referenced_channel_bytes += payload_len;
-        }
-    }
-    let mut objects_fetched: usize = 0;
-    let mut referenced_object_bytes: u64 = 0;
-    for (id, used) in objects_used.iter().enumerate() {
-        if *used {
-            objects_fetched += 1;
-            referenced_object_bytes += d.objects[id].len() as u64;
-        }
-    }
-
-    let descriptor_bytes_traversed =
-        parsed.cost.graph + parsed.cost.index + referenced_object_bytes + referenced_channel_bytes;
+    let descriptor_bytes_traversed = parsed.cost.graph
+        + parsed.cost.index
+        + served.referenced_object_bytes
+        + served.referenced_channel_bytes;
 
     let stats = ObservationStats {
-        ops_evaluated: sub.ops.len(),
-        ops_total: d.program.ops.len(),
-        objects_fetched,
+        ops_evaluated: served.ops_evaluated,
+        ops_total: served.ops_total,
+        objects_fetched: served.objects_fetched,
         objects_total: d.objects.len(),
-        channels_decoded,
+        channels_decoded: served.channels_decoded,
         channels_total: d.channels.len(),
-        entropy_bytes_decoded,
+        entropy_bytes_decoded: served.entropy_bytes_decoded,
         descriptor_bytes_traversed,
-        output_bytes: bytes.len() as u64,
+        output_bytes: served.bytes.len() as u64,
+        bytes_read: 0,
+        integrity_verified: false,
     };
 
     Ok(ObservationReport {
         range: (a, b),
-        bytes,
+        bytes: served.bytes,
         stats,
     })
 }
 
 /// Resolve a selector to a target output range `[a, b)`.
-fn resolve_selector(
+pub(crate) fn resolve_selector(
     index: &ObservationIndex,
     selector: ObservationSelector,
     source_len: u64,
@@ -476,14 +610,15 @@ fn mark(flags: &mut [bool], id: u32) {
 /// Decode only the entropy channels referenced by the evaluated ops.
 #[cfg(feature = "rans")]
 fn decode_referenced_channels(
-    d: &Descriptor,
+    channels_desc: &[EntropyChannelDescriptor],
+    models: &[EntropyModel],
     channels_used: &[bool],
     limits: Limits,
 ) -> Result<Vec<Vec<u8>>> {
-    let mut channels: Vec<Vec<u8>> = vec![Vec::new(); d.channels.len()];
+    let mut channels: Vec<Vec<u8>> = vec![Vec::new(); channels_desc.len()];
     for (id, used) in channels_used.iter().enumerate() {
         if *used {
-            channels[id] = decode_channel_by_id(d, id, limits)?;
+            channels[id] = decode_channel_by_id(channels_desc, models, id, limits)?;
         }
     }
     Ok(channels)
@@ -493,7 +628,8 @@ fn decode_referenced_channels(
 /// explicitly rather than silently producing wrong bytes.
 #[cfg(not(feature = "rans"))]
 fn decode_referenced_channels(
-    d: &Descriptor,
+    channels_desc: &[EntropyChannelDescriptor],
+    _models: &[EntropyModel],
     channels_used: &[bool],
     _limits: Limits,
 ) -> Result<Vec<Vec<u8>>> {
@@ -502,18 +638,23 @@ fn decode_referenced_channels(
             "this build was compiled without the `rans` feature",
         ));
     }
-    Ok(vec![Vec::new(); d.channels.len()])
+    Ok(vec![Vec::new(); channels_desc.len()])
 }
 
 /// Decode one referenced channel against the model it names.
 #[cfg(feature = "rans")]
-fn decode_channel_by_id(d: &Descriptor, id: usize, limits: Limits) -> Result<Vec<u8>> {
-    let channel = d.channels.get(id).ok_or_else(|| {
+fn decode_channel_by_id(
+    channels_desc: &[EntropyChannelDescriptor],
+    models: &[EntropyModel],
+    id: usize,
+    limits: Limits,
+) -> Result<Vec<u8>> {
+    let channel = channels_desc.get(id).ok_or_else(|| {
         Error::invalid_model(format!(
             "observation references missing entropy channel {id}"
         ))
     })?;
-    let model = d.models.get(channel.model_id as usize).ok_or_else(|| {
+    let model = models.get(channel.model_id as usize).ok_or_else(|| {
         Error::invalid_model(format!(
             "entropy channel {id} references missing model {}",
             channel.model_id
