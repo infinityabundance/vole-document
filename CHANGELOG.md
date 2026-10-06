@@ -2,6 +2,65 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.12] — unreleased
+
+Phase 10 — **DSFB encoder-only search governance** (10.1) and the **top-level
+negative-results consolidation** (10.2). Docs + version only: no wire, candidate,
+decoder, or feature-bit change.
+
+### Added
+
+- **Phase 10.1 — encoder-only search governance** (`src/encode/governor.rs`,
+  ADR-0022; landed under this version). A non-default, **dependency-free** feature
+  `dsfb-search = []` (**not** `["dep:dsfb"]`) adds typed, integer-only residual
+  diagnostics, a tiny parametric candidate space over *existing* mechanisms
+  (`SearchConfig { scale_bits, partition, replay, packed, depth }`), a pure
+  `govern(&ResidualTrace) -> SearchDirective`, and `propose_configured`. **Zero
+  decode authority:** no wire change, `header.rs` untouched, no feature bit;
+  every candidate reaches the unmodified complete-cost court. The published
+  `dsfb 0.1.2` crate is recorded as real, MSRV-OK, transitively present only via
+  `entropyfs-store`, and *unavailable-for-purpose* (it is Drift-Slew Fusion
+  Bootstrap state estimation, not a search governor).
+- **Phase 10.2 — `FINDINGS.md` + ADR-0023 (top-level consolidated decision).**
+  One authoritative document stating what was built, what was measured, against
+  which baseline, what won, what lost, and why — every claim linked to a sealed
+  receipt and naming its baseline. [`FINDINGS.md`](FINDINGS.md) supersedes the
+  per-phase narratives. ADR-0023 records the verdict: **the current VOLE
+  representation stack does not beat purpose-built baselines on any measured
+  axis; the durable results are byte-exactness, an auditable representation, and
+  the recorded negatives.** It consolidates ADR-0017 (whole-file loss, 0/27),
+  ADR-0018/0019 (scoped partial-decode wins), ADR-0021 (cross-document sharing
+  loss), and ADR-0022 (no byte benefit). The falsified-claims log (the Phase-6
+  qpdf "win" and the Phase-7.0b Cairo "win", both fixture artifacts) and the
+  three falsifiable directions that could change the conclusion are included.
+- README gains a prominent **Findings** pointer and scoped status wording;
+  `PROJECT_STATE.md` gains the consolidated ledger row.
+
+### Measured — Phase 10.1 governor court (recorded negative)
+
+- **The parametric search adds no bytes on the frozen cohort** (campaign
+  `2026-10-05-phase10-governor-d2b09c9`; ADR-0022). Over small deterministic
+  samples + a synthetic trio (disjoint tune/holdout/control sets; H2 judged only
+  on holdout): **H1 HELD** (`DsfbGuided.final ≤ FixedHeuristic.final` everywhere),
+  **H2 HELD** (guided == exhaustive on 8/8 holdout with ≤ ½ the candidates),
+  **H3 HELD** (`fixed == exhaustive` on *every* workload; median byte benefit
+  0 ‰), **H4 HELD** (negative controls `Stop(Raw)` match the RAW descriptor
+  byte-for-byte). Representative rows (final bytes / candidates): `flate.pdf`
+  36,161/10 (fixed), 36,161/438 (exhaustive), 36,161/150 (guided); `bigtext.pdf`
+  38,274 at 7/414/126; `many.pdf` 5,301 at 7/414/126. **Zero decode authority,
+  proven:** a governor-produced descriptor decodes byte-exactly in the **default**
+  build (no `dsfb-search`). Small locally generated cohort; **no population
+  claim**. The fixed complete-cost court is retained.
+
+### Notes
+
+- **Claim discipline is now normative (ADR-0023).** No whole-file "compression"
+  claim without the four generic compressors on a committed corpus and a sealed
+  receipt; cross-document sharing is store *amortization*, never "compression";
+  exactness is the invariant, not a competitive win; no population claim from the
+  locally generated corpora; withdrawn claims stay withdrawn wherever the
+  affected phase is described.
+
 ## [0.1.0-alpha.11] — unreleased
 
 Phase 9 — **cross-document content-addressed store** (9.1 store core, 9.2

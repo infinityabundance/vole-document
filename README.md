@@ -20,18 +20,31 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 > rANS is the entropy substrate beneath the representation, never the procedural
 > model. See [`SPEC.md`](SPEC.md) and [`docs/`](docs/) for the architecture.
 
+> ### 📌 Findings
+>
+> **The current VOLE representation stack does not beat purpose-built baselines
+> on any measured axis.** The durable results are byte-exactness, an auditable
+> reconstruction representation, and a complete, receipted record of the
+> negatives. Read the authoritative consolidation: **[`FINDINGS.md`](FINDINGS.md)**
+> and **[ADR-0023](docs/adr/0023-consolidated-findings.md)**.
+
 ## Status
 
-Current release: **`0.1.0-alpha.11`** (Phase 9). Exactness is unchanged
-(`materialize(descriptor) == original_bytes`); whole-file compression remains a
-recorded loss against generic lossless tools (ADR-0017). Phase 7 measured a
-scoped random-access **decode-CPU** win (ADR-0018); Phase 8 measured a scoped
-random-access **bytes-read** win versus **non-seekable sequential** codecs only
-(ADR-0019); Phase 9 adds the cross-document content-addressed **store** and
-records a robust — but partly externalization-granularity-artifact — loss on the
-store axis (ADR-0020/0021); Phase 10.1 adds an optional, **encoder-only** search
-governor behind the non-default, dependency-free `dsfb-search` feature and records
-that the parametric search buys **no bytes** on its cohort (ADR-0022).
+Current release: **`0.1.0-alpha.12`** (Phase 10 — DSFB encoder-only governance +
+negative-results consolidation). The consolidated verdict (ADR-0023,
+[`FINDINGS.md`](FINDINGS.md)) supersedes every earlier "win" claim: **no measured
+axis beats a purpose-built baseline.** Exactness is unchanged
+(`materialize(descriptor) == original_bytes`) and is stated as the invariant, not
+as a competitive win; whole-file size remains a recorded loss against generic
+lossless tools, **0/27** (ADR-0017). Phase 7 measured a scoped random-access
+**decode-CPU** win (ADR-0018); Phase 8 measured a scoped random-access
+**bytes-read** win versus **non-seekable sequential** codecs only — it loses to
+seekable/blocked formats (ADR-0019); Phase 9 adds the cross-document
+content-addressed **store** and records a robust — but partly
+externalization-granularity-artifact — loss on the store axis (ADR-0020/0021);
+Phase 10.1 adds an optional, **encoder-only** search governor behind the
+non-default, dependency-free `dsfb-search` feature and records that the
+parametric search buys **no bytes** on its cohort (ADR-0022). Nothing else wins.
 
 Phase 9 (branch `phase9`, ADR-0020/0021) adds a cross-document
 **content-addressed object store** and then measures the one axis a single-file
@@ -91,7 +104,7 @@ than one object per file (ADR-0021, `docs/evidence/phase9-store-report.md`,
 | Lexer stream opacity (`stream`+EOL opaque span) | **Adopted** | campaign `2026-10-05-phase6-0d0bb79`; stream-data bytes are a byte-authoritative span, so `/FlateDecode` stream spans are exact |
 | `DEFLATE_REPLAY` DRA op (DRA v8) | **Implemented** | `src/dra/op.rs`; opcode `0x0A`, explicit `replay_codec` tag (`preflate-0.7.6-experimental`), exact raw-DEFLATE replay from `(plaintext, corrections)` with a declared output length statically bounded before the engine runs, `catch_unwind`-isolated, mandatory feature bit (opt-in `deflate-replay` cargo feature) |
 | Exact DEFLATE replay, raw plaintext (`PDF_DEFLATE_REPLAY`) | **Recorded — rejected vs `BYTE_RANS`** | campaign `2026-10-05-phase6-0d0bb79`; byte-exact, but on `flate.pdf` 56,736 vs `BYTE_RANS` 49,291 (plaintext ≈ bitstream) |
-| Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | **Adopted — first structural win** | campaign `2026-10-05-phase6-0d0bb79`; `flate.pdf` 36,102 vs `BYTE_RANS` 49,291 (**−13,189 B**) (ADR-0015) |
+| Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | **Adopted — first structural win (over `BYTE_RANS`, on a self-authored fixture)** | campaign `2026-10-05-phase6-0d0bb79`; `flate.pdf` 36,102 vs `BYTE_RANS` 49,291 (**−13,189 B**). A per-mechanism result only: not a generic-compressor win, and its enabling condition is not produced by tested transformers (ADR-0015, `docs/evidence/phase7b-skeptic-review.md`) |
 | Phase-6 replay court (`--force pdf-deflate-replay[-rans]`) | **Measured** | `tools/phase6-court.sh`; campaign `2026-10-05-phase6-0d0bb79` |
 | Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; amendment campaign `2026-10-05-phase7-corpus-b-c4eb77e` (supersedes `2026-10-05-phase7-corpus-f1f8d26`); 24/24 replayed, 0 declined; diagnostic only, no new candidate |
 | Generator-family Flate corpus (`producers`: ReportLab/Cairo/LibreOffice/pdfTeX) | **Measured (claim corrected 7.0c)** | campaign `2026-10-05-phase7-producers-e071250`; 87/87 replayed; `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` on Cairo (58,711 → 34,574, −24,137 B) but the Cairo file is a **repeated-identical-bytes harness artifact** (six byte-identical streams), and generic LZ does ~2× better (gzip -9 17,382 B; xz -9e 16,852 B); the "first authoring-generator witness" claim is withdrawn; no candidate changed |
@@ -107,7 +120,7 @@ than one object per file (ADR-0021, `docs/evidence/phase9-store-report.md`,
 | Three accounting universes (standalone / unique-reachable / amortized) | **Measured** | campaign `2026-10-05-phase9-store-fdb2845`; `store account`; `Σ amortized == unique reachable` by construction |
 | Cross-document store court (universes vs per-file LZ + generic CDC) | **Recorded — store axis is a loss** | campaign `2026-10-05-phase9-store-fdb2845` (ADR-0021); `U = 3,369,900 B` loses to per-file min LZ (`1,304,307 B`) and to CDC borg 1.2.4 (`771,383 B` raw deterministic / 210,835–210,840 B compressed, non-deterministic); the negative is robust (forced `--force pdf-deflate-replay` `U = 2,360,054 B`; per-stratum oracle ~`2,537,730 B`) but partly an externalization-granularity artifact; under the auto candidate only `repeat-bin` wins (`133,048 B`), while forcing `PDF_DEFLATE_REPLAY` flips `shared-payload` to `264,139 B` (win over raw CDC, loss to LZ/zstd); no current candidate emits >1 object/file; 37/37 byte-exact; `docs/evidence/phase9-skeptic-review.md` |
 | EntropyFS store backend (`EntropyFsStore`, optional adapter) | **Implemented (optional, not the measured backend)** | non-default `entropyfs-store` feature; `list`/`remove` decline (no per-blob delete); ADR-0008/0020 |
-| DSFB search governance (Phase 10) | Planned | — |
+| DSFB search governance (Phase 10.1) | **Implemented (encoder-only, `dsfb-search`) / search recorded negative** | campaign `2026-10-05-phase10-governor-d2b09c9`; dependency-free `dsfb-search = []`; guided never worse than fixed (H1) and matches exhaustive on 8/8 holdout with ≤ ½ candidates (H2), but the fixed heuristic already equals exhaustive on every workload, so the search adds **zero bytes** (H3); zero decode authority proven (ADR-0022) |
 | Partial materialization checkpoints (beyond v1) | Planned | v1 random-access `view` measured in 7.3 (ADR-0018); the **seek reader landed in Phase 8** (ADR-0019), leaving checkpoint bytes as future work |
 
 "Implemented" means the mechanism exists and is tested. "Measured" means there is
