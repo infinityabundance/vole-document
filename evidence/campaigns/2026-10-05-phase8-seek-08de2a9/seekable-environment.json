@@ -1,0 +1,35 @@
+{
+  "campaign": "2026-10-05-phase8-seek-08de2a9",
+  "amendment": "seekable-background",
+  "phase": "Phase 8.4 — seekable/blocked random-access baseline",
+  "utc_date": "2026-10-06",
+  "git_commit": "9670c56",
+  "git_dirty_tracked": "0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "baseline_image": "vole-document/baseline:1.99.0@sha256:41ec104c87b6063772332b667aa3dd351b74e8fcb08b36808bfaabde2bb953b6",
+  "baseline_stage_from": "dev (same pinned base digest as the measurement toolchain) + gzip/zstd/xz/brotli/jq/pv/time/strace + tabix(bgzip)/pixz + perl 5.36",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "83f144dbdeea5afaa7469c318c690d2aab7f4924da5aa0825c3aac54c528bf96",
+  "oracles": {
+    "bgzip": "htslib 1.16 (Debian tabix 1.16+ds-3)",
+    "pixz": "1.0.7-2",
+    "xz": "5.4.1",
+    "gzip": "1.12",
+    "zstd": "1.5.4",
+    "brotli": "1.0.9",
+    "pv": "1.6.20",
+    "strace": "6.1",
+    "perl": "5.36.0",
+    "jq": "1.6",
+    "time": "GNU time"
+  },
+  "commands": [
+    "docker compose build baseline   # adds tabix(bgzip) + pixz to the dev-derived stage",
+    "docker compose run --rm --no-TTY baseline sh tools/seekable-baselines.sh evidence/scratch/phase8/seekable.jsonl evidence/corpus/phase8-large/large.pdf evidence/scratch/phase8/large.seek.voldoc evidence/scratch/phase8/sb",
+    "jq -rs -f tools/seekable-table.jq seekable.jsonl > seekable-table.md"
+  ],
+  "method": "For each pre-registered byte range the seekable baseline court builds the archive, locates the compressed block(s) that cover the range from the format's own index (`tools/bgzf-seek-probe.pl` reads the `.gzi` index plus the BGZF block map via each block's gzip ISIZE trailer; `tools/xz-seek-probe.pl` reads the xz Stream Footer and Index field), and counts bytes-read as the covering compressed block(s) + the index/framing that locates them. xz and pixz covering blocks are decoded *in isolation* (`tools/xz-block-reframe.pl` rebuilds a minimal single-stream `.xz` of exactly those blocks, proving the `--block-size` blocks are independently decodable); BGZF covering blocks are decoded as lone gzip members. Every extracted slice is `cmp`-identical to the source range. The VOLE row is the seeked `view`'s instrumented `bytes_read` on the same range. Archives built here: `bgzip -l 9` (7,995,600 B), `xz --block-size=64KiB` (6,393,552 B), `1MiB` (5,797,248 B), `4MiB` (5,725,576 B), `pixz` (5,689,264 B); VOLE seekable descriptor 17,566,832 B; source 33,789,340 B.",
+  "caveats": "This is the honest random-access comparison: against *seekable/blocked* formats VOLE does NOT win generally. For the late query (a=32,505,856) VOLE reads 460,713 B versus bgzip 23,808 B (~19x fewer), xz --block-size=64KiB 15,344 B (~30x fewer) and 1MiB 179,892 B (~2.6x fewer); it reads *more* than xz --block-size=4MiB (708,612 B) and pixz (2,810,832 B, whose default 16 MiB blocks make a byte-range seek expensive). The Phase-8.3 claim is therefore restated: the win is over *non-seekable sequential* gzip/zstd/xz prefixes only. `pixz --seekable` does not exist; `zstd` 1.5.4 has no seekable mode. Costs model what a random-access reader must read (covering blocks + index); they are not sequential prefix reads. Single locally generated corpus; no population claim."
+}

@@ -41,5 +41,23 @@
     "provenance": "evidence/corpus/phase8-large/provenance.json",
     "bytes_committed": false
   },
-  "verdict": "BYTES-READ WIN (scoped): constant ~0.44-0.46 MB read for mid/late queries versus 2.7-9.8 MB gzip prefixes; loses at a=0 (gzip) and early (xz); whole-file size still a loss"
+  "verdict": "BYTES-READ WIN (scoped): constant ~0.44-0.46 MB read for mid/late queries versus 2.7-9.8 MB gzip prefixes; loses at a=0 (gzip) and early (xz); whole-file size still a loss",
+  "seekable_amendment": {
+    "phase": "8.4 — seekable/blocked random-access baseline (falsifies the framing that this is a general random-access-I/O win)",
+    "baseline_image": "vole-document/baseline:1.99.0@sha256:41ec104c87b6063772332b667aa3dd351b74e8fcb08b36808bfaabde2bb953b6",
+    "added_tooling": {"bgzip": "htslib 1.16 (Debian tabix 1.16+ds-3)", "pixz": "1.0.7-2", "perl": "5.36.0"},
+    "driver": "tools/seekable-baselines.sh",
+    "late_query_a": 32505856,
+    "late_query_bytes_read": {"vole": 460713, "bgzip": 23808, "xz64k": 15344, "xz1m": 179892, "xz4m": 708612, "pixz": 2810832},
+    "late_query_vole_ratio": {"bgzip": 19.35, "xz64k": 30.02, "xz1m": 2.56, "xz4m": 0.65, "pixz": 0.16},
+    "whole_file_bytes": {"pixz": 5689264, "xz4m": 5725576, "xz1m": 5797248, "xz64k": 6393552, "bgzip": 7995600, "voldoc": 17566832},
+    "verdict": "NOT a general random-access-I/O win: VOLE reads 2.6-30x MORE than a seekable/blocked format (BGZF ~24 KB; blocked xz 15-180 KB) for the same late query; it loses at offset 0 and early; whole-file is 3.01x xz and 0.46x BGZF. The Phase-8.3 claim stands only versus non-seekable sequential gzip/zstd/xz prefixes.",
+    "artifacts": {
+      "seekable.jsonl": "e53ea37d9f0b0ea107b89c733c7a32ecea344001b7d971dc19dda8c6ae2b80b4",
+      "seekable-table.md": "9060f91aa163caef9ed96a81d7b815de9b615e8bef13f795bbc9e4995b7e0c1a",
+      "seekable-report.md": "e3460b14575af20c6cdeb1a3b2583ff8d8a89d0c4262f66806ca81ee8541d536",
+      "seekable-environment.json": "1ddd62d4e443f819890ad13156b5d5cb8c40399a6b00fd8246d448c839c01caf"
+    },
+    "note": "results.json, report.md, environment.json and query-table.md are unchanged; this amendment adds new artifacts only."
+  }
 }
