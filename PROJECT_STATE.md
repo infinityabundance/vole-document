@@ -39,13 +39,21 @@ accounting universes are kept permanently distinct (standalone / unique-reachabl
 `2026-10-05-phase9-store-fdb2845`, ADR-0021): over 37 locally generated files
 (5,579,469 B, 10 deliberate-sharing strata) the unique-reachable universe
 `U = 3,369,900 B` **loses** to per-file min LZ (`1,304,307 B`) and to the strongest
-pinned content-defined-chunk dedup (borg 1.2.4, `771,383 B` raw / `210,836 B`
-compressed). The only win is byte-identical opaque repeats (`repeat-bin`,
-`U = 133,048 B`); `shared-payload`, `shared-bin`, `one-changed`, `incremental`,
-`reexport`, `repeat-pdf` and the pre-registered `shifted` control all lose to CDC,
-because the auto winner's bulk lives in entropy channels / `GRAPH` bytes that
-`externalize` does not share. Cross-document sharing is reported as store
-*amortization*, never "compression".
+pinned content-defined-chunk dedup (borg 1.2.4, `771,383 B` raw deterministic /
+210,835–210,840 B compressed non-deterministic). The negative is **robust** — a
+forced `--force pdf-deflate-replay` run gives `U = 2,360,054 B` and a per-stratum
+oracle ~`2,537,730 B`, both still losses — but its size is **partly an artifact of
+externalization granularity / candidate selection**: the auto winner emits 0–1
+objects per file. Under the auto candidate the only win is byte-identical opaque
+repeats (`repeat-bin`, `U = 133,048 B`); forcing `PDF_DEFLATE_REPLAY` (one object
+per deflate stream) flips `shared-payload` to `U = 264,139 B`, a win over *raw*
+CDC (`285,257 B`) that still loses to LZ (`34,591 B`) and compressed CDC
+(`28,195 B`). `shared-bin`, `one-changed`, `incremental`, `reexport`, `repeat-pdf`
+and the pre-registered `shifted` control all lose to CDC, because the auto
+winner's bulk lives in entropy channels / `GRAPH` bytes that `externalize` does
+not share; no current candidate emits more than one object per file. Cross-document
+sharing is reported as store *amortization*, never "compression"
+(`docs/evidence/phase9-skeptic-review.md`).
 
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED`).
@@ -98,7 +106,7 @@ because the auto winner's bulk lives in entropy channels / `GRAPH` bytes that
 | EntropyFS store-backed form (`EntropyFsStore` adapter) | 9.2 | IMPLEMENTED (optional; not measured) | non-default feature `entropyfs-store`; a thin `ObjectStore` adapter over `entropyfs 0.7.17` `engine::Engine` (`default-features = false`) — `put → put_blob`, `get → get_blob` (whole-blob BLAKE3 gate), `get_range → read_blob_range` + a strict `offset+len <= stored_len` check, `contains`. `BlobId` is BLAKE3-256, identical to our `Id`; an `EmbeddedStore`-externalized descriptor materializes byte-exactly through it (`tests/entropyfs.rs`). `list`/`remove` decline with `UnsupportedFeature` (no per-blob delete), so mark-and-sweep GC cannot reclaim through it. Viable but **heavy** (non-optional `dsfb` + a ~40-crate tree), never required for the standalone form (ADR-0020) |
 | `ObjectStore` + `EmbeddedStore` + store-backed descriptor form | 9.1 | ADOPTED | `Id = BLAKE3-256` (archival identity stays SHA-256); `EXTERNAL_REF` (`0x80`, 40 B) + mandatory `FEATURE_EXTERNAL_OBJECTS`; `externalize`/`hydrate`; `gc` mark-and-sweep; `EmbeddedStore` (raw content-addressed directory, atomic write-then-rename `put`, strict `get_range`, per-object `remove`); `tests/store.rs`. Universe sufficed `+external-objects-v1` |
 | Three accounting universes (standalone / unique-reachable / amortized) | 9.1/9.2 | ADOPTED | `src/store/account.rs`; `store account` CLI. `S = Σ|serialize(d_i)|`, `U = Σ|serialize(e_i)| + Σ len(o)`, `A = Σ(|serialize(e_i)| + Σ len(o)/refcount(o))` with the amortized split fractional by reference count and integerized so `Σ A_i == U` exactly. `S` is the only whole-file-comparable universe (ADR-0020) |
-| Cross-document store court (three universes vs per-file LZ and generic CDC) | 9.3 | RECORDED (store axis: loss) | campaign `2026-10-05-phase9-store-fdb2845` (ADR-0021, `docs/evidence/phase9-store-report.md`); 37 locally generated files, 5,579,469 B, 10 strata; 37/37 standalone + store-backed roots `cmp`-byte-exact, closure `dangling = 0`. `S = 3,762,694`; `U = A = 3,369,900`; unique object bytes `786,501`. Per-file min LZ `1,304,307`; strongest CDC (borg 1.2.4, chunker `10,15,11,127`, `--compression none`) `771,383`, with `--compression zstd,19` `210,836`. **`U` loses to all three.** Only win: `repeat-bin` (4 byte-identical opaque binaries, `U = 133,048` vs LZ 524,308 / CDC 140,640 / CDC-zstd 133,865). `shared-payload` (expected win) loses because the auto winner codes the shared stream in entropy channels, not the object table; `shifted` loses to CDC exactly as pre-registered. `tools/store-cohort.sh`, `tools/store-court.sh`, `tools/chunk-dedup.sh` |
+| Cross-document store court (three universes vs per-file LZ and generic CDC) | 9.3 | RECORDED (store axis: loss) | campaign `2026-10-05-phase9-store-fdb2845` (ADR-0021, `docs/evidence/phase9-store-report.md`, `docs/evidence/phase9-skeptic-review.md`); 37 locally generated files, 5,579,469 B, 10 strata; 37/37 standalone + store-backed roots `cmp`-byte-exact, closure `dangling = 0`. `S = 3,762,694`; `U = A = 3,369,900`; unique object bytes `786,501`. Per-file min LZ `1,304,307`; strongest CDC (borg 1.2.4, chunker `10,15,11,127`, `--compression none`) deterministic `771,383`, with `--compression zstd,19` **non-deterministic** 210,835–210,840. **`U` loses to all three.** The negative is robust (forced `--force pdf-deflate-replay` `U = 2,360,054`; per-stratum oracle ~`2,537,730`) but partly an externalization-granularity/candidate-selection artifact: the auto winner emits 0–1 objects per file. Auto-candidate only win: `repeat-bin` (4 byte-identical opaque binaries, `U = 133,048` vs LZ 524,308 / CDC 140,640 / CDC-zstd 133,865). Forcing `PDF_DEFLATE_REPLAY` (one object per deflate stream — a current-set candidate) flips `shared-payload` to `264,139` (win over raw CDC 285,257; loss to LZ 34,591 / zstd 28,195); no current candidate emits >1 object/file. `shifted` loses to CDC exactly as pre-registered. `tools/store-cohort.sh`, `tools/store-court.sh`, `tools/chunk-dedup.sh` |
 | DSFB encoder-only search governance | 10 | PROPOSED | **zero** decode authority |
 | Partial materialization (checkpoints beyond v1) | 11+ | PROPOSED | v1 random-access `view` measured in 7.3 (ADR-0018); the **seek/mmap descriptor reader landed in Phase 8** (ADR-0019), leaving checkpoint bytes as future work |
 | Coverage-guided fuzzing (`cargo-fuzz`/libFuzzer) | 7.1 | IMPLEMENTED | pinned dated nightly + `cargo-fuzz 0.13.2`; ten targets in `fuzz/fuzz_targets/`; bounded campaign `2026-10-05-phase7-fuzz-ca6a92b` (9/10 targets zero-crash; `deflate_replay` reported two upstream `preflate-rs` findings — F1 mitigated via the library's fail-closed `catch_unwind` boundary + regression test, F2 unbounded allocation now **contained on the decode path by process isolation**, ADR-0016); deterministic property/soak courts retained (`tests/property.rs`, `tools/soak-fuzz.sh`) |

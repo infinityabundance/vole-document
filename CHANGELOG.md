@@ -64,19 +64,37 @@ LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
   `U = 3,369,900 B` (`==` amortized `A`); unique object bytes `786,501 B`.
   Per-file min LZ `1,304,307 B` (gzip 1,495,074 / zstd 1,334,444 / xz 1,307,612 /
   brotli 1,306,498). Strongest CDC (pinned borg 1.2.4, chunker `10,15,11,127`,
-  `--compression none`) `771,383 B`; the same with `--compression zstd,19`
-  `210,836 B`. **`U` loses to all three.** All 37 standalone and store-backed
-  roots decoded and `cmp` byte-exact; closure `dangling = 0`.
-- The only genuine win is `repeat-bin` (four byte-identical opaque binaries):
-  `U = 133,048 B` vs per-file LZ `524,308 B` and CDC `140,640 B` raw / `133,865 B`
-  compressed. `shared-payload` — the fixture expected to win — loses (`U = S =
-  800,210 B` vs CDC `285,257 B`) because the auto winner codes the shared stream in
-  entropy channels, not the object table. `shared-bin`, `one-changed`,
-  `incremental`, `reexport`, `repeat-pdf` and the pre-registered `shifted` control
-  all lose to CDC. **Cause:** `externalize` replaces only `Descriptor.objects`;
-  for channels/program winners that table is empty or a single whole-file object,
-  so sharing is whole-object-granular and coarse and CDC captures the same (and
-  near-duplicate) sharing the store misses.
+  `--compression none`) deterministic `771,383 B`; the same with
+  `--compression zstd,19` is **non-deterministic** (observed 210,835–210,840 B,
+  never a fixed citation). **`U` loses to all three.** All 37 standalone and
+  store-backed roots decoded and `cmp` byte-exact; closure `dangling = 0`.
+- **The negative is robust but its size is partly an artifact of candidate
+  selection / externalization granularity, not of the mechanism's limits.**
+  `externalize` replaces only `Descriptor.objects`, and the auto complete-cost
+  winner codes most PDF bulk in entropy channels / `GRAPH` inlines, so it emits
+  0–1 objects per file. Forcing `PDF_DEFLATE_REPLAY` — a candidate **in the
+  current set** — emits one object per deflate stream: the global `U` falls to
+  `2,360,054 B` (a per-stratum oracle gives ~`2,537,730 B`), still a loss vs LZ
+  and raw CDC. The earlier claim that no current candidate could share finer than
+  a whole file is **withdrawn**: the finest unit the current set can emit is the
+  whole deflate stream; no current candidate emits more than one object per file,
+  and finer sharing (channel payloads / sub-object chunks) remains a
+  representation change.
+- Under the **auto** candidate the only win is `repeat-bin` (four byte-identical
+  opaque binaries): `U = 133,048 B` vs per-file LZ `524,308 B` (−74.6 %), CDC
+  `140,640 B` raw (−5.4 %) / `133,865 B` compressed (−0.6 %, ~0.8 KB — real but
+  marginal). `shared-payload` — the fixture expected to win — loses in the auto
+  run (`U = S = 800,210 B` vs CDC `285,257 B`) because the auto winner codes the
+  shared stream in entropy channels, not the object table; **forcing
+  `PDF_DEFLATE_REPLAY` flips it to `264,139 B`** (2 unique objects), a win over
+  *raw* CDC (`285,257 B`) that still loses to per-file LZ (`34,591 B`) and
+  compressed CDC (`28,195 B`). `shared-bin`, `one-changed`, `incremental`,
+  `reexport`, `repeat-pdf` and the pre-registered `shifted` control all lose to
+  CDC. **Cause:** `externalize` replaces only `Descriptor.objects`; for
+  channels/program winners that table is empty or a single whole-file object, so
+  sharing is whole-object-granular and coarse and CDC captures the same (and
+  near-duplicate) sharing the store misses. Independent adversarial review:
+  `docs/evidence/phase9-skeptic-review.md`.
 - **Tooling.** `tools/store-cohort.sh` (deterministic sharing cohort + committed
   `cohort.json` ledger), `tools/store-court.sh` (three universes vs per-file LZ
   and strongest CDC, per stratum), `tools/chunk-dedup.sh` (pinned borg CDC with a
@@ -93,6 +111,15 @@ LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
   axis to generic CDC on this cohort (ADR-0021). `dsfb` remains a hard dependency
   of the *optional* `entropyfs-store` feature only and retains **zero** decode
   authority (ADR-0008).
+- **Corrections (independent adversarial review, `docs/evidence/phase9-skeptic-review.md`).**
+  The Phase-9.3 claims were corrected after an independent review: (i) the
+  negative is restated as robust but **partly an externalization-granularity /
+  candidate-selection artifact** (`PDF_DEFLATE_REPLAY` is in the current set and,
+  forced, flips `shared-payload` to a win over raw CDC); (ii) the "only win is
+  byte-identical opaque repeats" wording is replaced by the accurate statement;
+  (iii) the compressed-CDC citation is a **non-deterministic range**
+  (210,835–210,840 B), with the deterministic raw figure (`771,383 B`) as the
+  primary baseline. No measured campaign number in `results.json` was altered.
 
 ## [0.1.0-alpha.10] — unreleased
 

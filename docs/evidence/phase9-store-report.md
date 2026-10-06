@@ -2,6 +2,7 @@
 
 Campaign: `evidence/campaigns/2026-10-05-phase9-store-fdb2845/` (branch `phase9`,
 commit `fdb2845`). ADR: [0021](../adr/0021-cross-document-sharing-result.md).
+Independent adversarial review: [phase9-skeptic-review.md](phase9-skeptic-review.md).
 
 ## Question
 
@@ -46,8 +47,11 @@ court sweeps fixed parameter sets and keeps the smallest unique bytes:
 | **10,15,11,127 (kept)** | **771,359–771,383** |
 
 Determinism was verified by running each configuration twice and comparing
-`unique_csize` (identical). The same winning params with chunk compression on
-(`--compression zstd,19`) give `210,836 B`.
+`unique_csize` (identical) **for `--compression none`**. The same winning params
+with chunk compression on (`--compression zstd,19`) are **not deterministic**
+across runs (observed 210,835–210,840 B), so that figure is cited only as a
+non-deterministic range and never as a fixed number. The primary comparison uses
+the deterministic raw number.
 
 ## Totals (bytes)
 
@@ -64,12 +68,23 @@ Determinism was verified by running each configuration twice and comparing
 | xz -9e sum | 1,307,612 |
 | brotli -q11 sum | 1,306,498 |
 | per-file min LZ sum | 1,304,307 |
-| CDC raw (none) | 771,383 |
-| CDC (zstd,19 chunks) | 210,836 |
+| CDC raw (none, deterministic) | 771,383 |
+| CDC (zstd,19 chunks, non-deterministic) | 210,835–210,840 |
 
 **Verdict: LOSS on the store axis.** U loses to per-file min LZ, to raw CDC, and
 to compressed CDC; `U` is even ~2.58 MB larger than its own object bytes because
-the store roots carry the documents' entropy channels and `GRAPH` bytes.
+the store roots carry the documents' entropy channels and `GRAPH` bytes. The
+negative is **robust** — it survives forcing the finest candidate in the current
+set (`--force pdf-deflate-replay`, `U = 2,360,054 B`) and a per-stratum candidate
+oracle (~`2,537,730 B`), both still losses vs LZ and raw CDC — but its size is
+**partly an artifact of candidate selection and externalization granularity, not
+of the mechanism's limits**: the auto winner emits 0–1 objects per file, so
+`externalize` has almost nothing to share. Forcing `PDF_DEFLATE_REPLAY` emits one
+object per deflate stream and flips `shared-payload` to `U = 264,139 B` (2 unique
+objects), a win over **raw** CDC (`285,257 B`) that still loses to per-file LZ
+(`34,591 B`) and CDC+zstd (`28,195 B`). The earlier claim that no current candidate
+could share finer than a whole file is **false**; the finest unit the current set
+can emit is the whole deflate stream. See `phase9-skeptic-review.md`.
 
 ## Per stratum (bytes)
 
@@ -87,7 +102,10 @@ the store roots carry the documents' entropy channels and `GRAPH` bytes.
 | shifted | 2 | 320,094 | 320,094 | 13,934 | 288,854 | 28,867 | LOSS | LOSS | LOSS |
 
 WIN/TIE = U below / within 2 % of the baseline; a store root is never compared to
-a whole file (`S` is the whole-file universe).
+a whole file (`S` is the whole-file universe). These columns are the **auto**
+candidate. Under `--force pdf-deflate-replay` the global `U` falls to 2,360,054 B
+and `shared-payload` flips to `264,139 B` (a win over *raw* CDC only); see the
+verdict above.
 
 ## What happened, mechanically
 
@@ -100,10 +118,17 @@ whose bulk is in `ENTROPY_CHANNEL` payloads and `Op::Inline` bytes in the `GRAPH
 and `shared-bin`. Sharing is therefore whole-object-granular and coarse:
 
 - **repeat-bin** wins: one whole-file object is shared by four identical files,
-  beating both per-file LZ and CDC (by ~0.6 % over compressed CDC).
-- **shared-payload** (the fixture that was *expected* to win) loses: the shared
-  stream is coded in channels, so nothing is externalized; CDC keeps the payload
-  once.
+  beating both per-file LZ (-74.6 %) and CDC (raw -5.4 %; compressed -0.6 %,
+  ~0.8 KB — real but marginal).
+- **shared-payload** (the fixture that was *expected* to win) loses in the auto
+  run: the shared stream is coded in channels, so nothing is externalized; CDC
+  keeps the payload once. Forcing `PDF_DEFLATE_REPLAY` emits one object per
+  deflate stream and flips it to a win over raw CDC (`264,139` vs `285,257 B`),
+  still losing to LZ and compressed CDC.
+- **No current candidate emits more than one object per file.** The finest
+  shareable unit in the set is the whole deflate stream; finer sharing
+  (individual `ENTROPY_CHANNEL` payloads, sub-object chunks) is a representation
+  change.
 - **shared-bin** loses to CDC: distinct 8-byte prefixes change the whole-file RAW
   object, so nothing is shared.
 - **shifted** loses to CDC, exactly as pre-registered: one inserted byte breaks
@@ -114,8 +139,12 @@ and `shared-bin`. Sharing is therefore whole-object-granular and coarse:
 ## Honest comparison caveats
 
 - `cdc_unique_raw` is dedup-only (no chunk compression), so it *understates* a
-  compressing chunk store; the `zstd,19` number is reported alongside. The VOLE
-  loss is identical against both.
+  compressing chunk store; the `zstd,19` number is reported alongside as a
+  **non-deterministic range** (210,835–210,840 B). The VOLE loss is identical
+  against both.
+- The compressed CDC figure is not reproducible run-to-run, so the deterministic
+  raw CDC number (`771,383 B`, run1 == run2) is the primary comparison; the
+  compressed figure is marked non-deterministic wherever it appears.
 - borg's repository index/metadata is not counted in `unique_csize`, whereas the
   VOLE `U` includes every store root's framing; this asymmetry favours VOLE and
   the loss stands regardless.

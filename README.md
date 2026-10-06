@@ -38,12 +38,19 @@ accounting universes are kept permanently distinct. The **measured result is a
 recorded negative**: over 37 locally generated files (5,579,469 B, 10
 deliberate-sharing strata) the unique-reachable universe `U = 3,369,900 B` loses
 to per-file min LZ (`1,304,307 B`) and to the strongest pinned
-content-defined-chunk dedup (borg 1.2.4: `771,383 B` raw, `210,836 B`
-compressed). Only byte-identical opaque repeats win (`repeat-bin`,
-`U = 133,048 B`); the shared-payload fixture loses because the auto winner codes
-the shared stream in entropy channels, not the object table, so `externalize`
-shares only whole DRA objects (ADR-0021, `docs/evidence/phase9-store-report.md`).
-Cross-document sharing is store *amortization*, never "compression".
+content-defined-chunk dedup (borg 1.2.4: deterministic `771,383 B` raw;
+compressed non-deterministic, 210,835–210,840 B). The negative is **robust** —
+forcing the finest candidate in the current set (`--force pdf-deflate-replay`)
+still gives `U = 2,360,054 B`, and a per-stratum oracle ~`2,537,730 B` — but its
+size is **partly an artifact of externalization granularity/candidate selection**:
+the auto winner emits only 0–1 objects per file. Under the auto candidate only
+byte-identical opaque repeats win (`repeat-bin`, `U = 133,048 B`); forcing
+`PDF_DEFLATE_REPLAY` (one object per deflate stream) flips the `shared-payload`
+fixture to `264,139 B`, a win over **raw** CDC (`285,257 B`) that still loses to
+LZ (`34,591 B`) and compressed CDC (`28,195 B`). No current candidate emits more
+than one object per file (ADR-0021, `docs/evidence/phase9-store-report.md`,
+`docs/evidence/phase9-skeptic-review.md`). Cross-document sharing is store
+*amortization*, never "compression".
 
 | Area | State | Evidence |
 |---|---|---|
@@ -95,7 +102,7 @@ Cross-document sharing is store *amortization*, never "compression".
 | PDF structural adapters (Phases 7–8) | Planned | — |
 | Content-addressed object store (`ObjectStore`/`EmbeddedStore`, `EXTERNAL_REF`) | **Implemented** | `src/store/`, `tests/store.rs`; ADR-0020; `Id = BLAKE3-256`, mandatory `FEATURE_EXTERNAL_OBJECTS`, `externalize`/`hydrate`, `gc` |
 | Three accounting universes (standalone / unique-reachable / amortized) | **Measured** | campaign `2026-10-05-phase9-store-fdb2845`; `store account`; `Σ amortized == unique reachable` by construction |
-| Cross-document store court (universes vs per-file LZ + generic CDC) | **Recorded — store axis is a loss** | campaign `2026-10-05-phase9-store-fdb2845` (ADR-0021); `U = 3,369,900 B` loses to per-file min LZ (`1,304,307 B`) and to CDC borg 1.2.4 (`771,383 B` raw / `210,836 B` compressed); only `repeat-bin` wins (`133,048 B`); `shared-payload`, `shared-bin`, `one-changed`, `incremental`, `reexport`, `repeat-pdf`, `shifted` lose to CDC; 37/37 byte-exact |
+| Cross-document store court (universes vs per-file LZ + generic CDC) | **Recorded — store axis is a loss** | campaign `2026-10-05-phase9-store-fdb2845` (ADR-0021); `U = 3,369,900 B` loses to per-file min LZ (`1,304,307 B`) and to CDC borg 1.2.4 (`771,383 B` raw deterministic / 210,835–210,840 B compressed, non-deterministic); the negative is robust (forced `--force pdf-deflate-replay` `U = 2,360,054 B`; per-stratum oracle ~`2,537,730 B`) but partly an externalization-granularity artifact; under the auto candidate only `repeat-bin` wins (`133,048 B`), while forcing `PDF_DEFLATE_REPLAY` flips `shared-payload` to `264,139 B` (win over raw CDC, loss to LZ/zstd); no current candidate emits >1 object/file; 37/37 byte-exact; `docs/evidence/phase9-skeptic-review.md` |
 | EntropyFS store backend (`EntropyFsStore`, optional adapter) | **Implemented (optional, not the measured backend)** | non-default `entropyfs-store` feature; `list`/`remove` decline (no per-blob delete); ADR-0008/0020 |
 | DSFB search governance (Phase 10) | Planned | — |
 | Partial materialization checkpoints (beyond v1) | Planned | v1 random-access `view` measured in 7.3 (ADR-0018); the **seek reader landed in Phase 8** (ADR-0019), leaving checkpoint bytes as future work |

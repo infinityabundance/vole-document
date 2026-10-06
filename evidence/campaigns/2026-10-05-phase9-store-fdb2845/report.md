@@ -18,10 +18,14 @@ Cohort: 37 files, source 5579469 B. All standalone and all store-backed roots de
 | brotli11_sum | 1306498 |
 | perfile_min_lz_sum | 1304307 |
 | cdc_unique_raw | 771383 |
-| cdc_unique_zstd (chunk compression on) | 210838 |
+| cdc_unique_zstd (chunk compression on, **non-deterministic**) | 210835–210840 |
 | cdc_params | 10,15,11,127 |
 
+`cdc_unique_raw` (`--compression none`) is deterministic (run1 == run2) and is the primary comparison. `cdc_unique_zstd` is **not** deterministic across runs (observed 210,835–210,840 B); the single value printed here in `results.json` is one such run and must not be quoted as a fixed figure.
+
 VOLE unique-reachable vs per-file min LZ: **LOSS**; vs strongest CDC (borg 1.2.4, params 10,15,11,127, compression none): **LOSS**; vs the same CDC with chunk compression (zstd,19): **LOSS**; vs min(both): **LOSS**.
+
+The negative is robust but its size is partly an artifact of candidate selection / externalization granularity: the auto winner emits 0–1 objects per file, whereas forcing `PDF_DEFLATE_REPLAY` (a candidate in the current set) emits one object per deflate stream and lowers the global `U` to 2,360,054 B (per-stratum oracle ~2,537,730 B), flipping `shared-payload` to 264,139 B — a win over *raw* CDC (285,257 B) that still loses to LZ (34,591 B) and CDC+zstd (28,195 B). No current candidate emits more than one object per file. See `docs/evidence/phase9-skeptic-review.md`.
 
 ## Per stratum (bytes)
 

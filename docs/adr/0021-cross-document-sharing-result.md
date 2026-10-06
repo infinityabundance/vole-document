@@ -33,22 +33,37 @@ and `cmp`-ed byte-exact (37/37); `store account` closure reported zero dangling.
 ```text
 source_bytes                    5,579,469
 standalone S                    3,762,694
-unique reachable U              3,369,900   (== amortized A)
+unique reachable U (auto)       3,369,900   (== amortized A)
 unique object bytes               786,501
 store physical bytes              786,501
 per-file min LZ (gzip/zstd/xz/brotli)   1,304,307
   gzip -9 1,495,074 | zstd -19 1,334,444 | xz -9e 1,307,612 | brotli -q11 1,306,498
 generic CDC, borg 1.2.4, chunker 10,15,11,127, --compression none   771,383
-generic CDC, same chunks, --compression zstd,19                     210,836
+  (deterministic: run1 == run2)
+generic CDC, same chunks, --compression zstd,19   210,835-210,840
+  (NON-deterministic across runs; not a stable citation)
+U forced, --force pdf-deflate-replay            2,360,054
+U, per-stratum candidate oracle (approx.)       ~2,537,730
 ```
 
-**The store does not win the cross-document axis on this cohort.** `U` (3.37 MB)
-is **larger** than per-file min LZ (1.30 MB) and larger than the strongest
-content-defined-chunk dedup (0.77 MB raw, 0.21 MB compressed). `U` also exceeds
-its own object bytes by ~2.58 MB of root framing, because the roots carry the
-document's entropy channels and program bytes. Object-granularity sharing beats
-*per-file LZ* only where duplicate files make the whole-object dedup pay; it must
-not be described as compression.
+**The store loses the cross-document axis on this cohort.** The negative is
+**robust and reproducible** — it survives forcing the finest candidate the current
+set contains and a per-stratum oracle — but its *size* is **partly an artifact of
+candidate selection and externalization granularity, not of the mechanism's
+limits**. The auto complete-cost winner codes most PDF bulk in `ENTROPY_CHANNEL`
+payloads and `GRAPH` inlines, which `externalize` (it replaces only
+`Descriptor.objects`) does not touch; the auto winner therefore has 0-1 objects per
+file and `U = 3,369,900 B`. Forcing `PDF_DEFLATE_REPLAY` — a candidate **in the
+current set** — emits one object per deflate stream and lowers the global `U` to
+**2,360,054 B**; the best per-stratum candidate choice (oracle) is ~**2,537,730 B**.
+Both still lose to per-file min LZ (1.30 MB) and to raw CDC (0.77 MB), and the
+store still loses to LZ and compressed CDC on `shared-payload` — so the verdict
+stands — but the earlier claim that no current candidate could share finer than a
+whole file was **false** (see Consequences). `U` also exceeds its own object bytes
+by ~2.58 MB of root framing, because the roots carry the document's entropy
+channels and program bytes. Object-granularity sharing beats *per-file LZ* only
+where duplicate files make whole-object dedup pay; it must not be described as
+compression.
 
 ### Per-stratum verdict (`vs LZ` / `vs CDC raw` / `vs CDC+zstd`)
 
@@ -65,15 +80,26 @@ not be described as compression.
 | repeat-pdf | 4 | 298,720 | 298,720 | 11,536 | 82,106 | 9,198 | LOSS | LOSS |
 | shifted | 2 | 320,094 | 320,094 | 13,934 | 288,854 | 28,867 | LOSS | LOSS |
 
-- **The one genuine win is `repeat-bin`**: four byte-identical opaque binaries.
-  A RAW-winner descriptor stores the whole file as one object, so the store keeps
-  one copy (`U = 133,048 B`) where per-file LZ pays 524,308 B and borg's chunked
-  dedup pays 140,640 B raw / 133,865 B compressed. Whole-object dedup edges out
+- **`repeat-bin` — the only auto-candidate win**: four byte-identical opaque
+  binaries. A RAW-winner descriptor stores the whole file as one object, so the
+  store keeps one copy (`U = 133,048 B`, -74.6 % vs LZ) where per-file LZ pays
+  524,308 B and borg's chunked dedup pays 140,640 B raw (-5.4 %) / 133,865 B
+  compressed (-0.6 %, ~0.8 KB — real but marginal). Whole-object dedup edges out
   chunk dedup by ~0.6 % on this stratum.
-- **`shared-payload` — the expected win fixture — loses.** Five documents embed
-  the same ~200 KB stream, but the auto winner codes the bulk in entropy channels
-  and program `INLINE` ops, not in the object table, so `externalize` has nothing
-  to share (`U = S = 800,210 B`); CDC separates the payload (`285,257 B`).
+- **A second win appears only when a finer-object candidate is forced.** Under
+  `--force pdf-deflate-replay`, `shared-payload` drops from `U = 800,210 B` to
+  `264,139 B` (2 unique objects) against CDC raw `285,257 B` — a win over **raw**
+  CDC — though it still loses to per-file LZ (`34,591 B`) and CDC+zstd
+  (`28,195 B`). That candidate is in the *current* set; the auto winner simply
+  never selects it. `shared-bin` (`657,870` vs `147,253`) remains a pure
+  granularity loss.
+- **`shared-payload` — the expected win fixture — loses in the auto run.** Five
+  documents embed the same ~200 KB stream, but the auto winner codes the bulk in
+  entropy channels and program `INLINE` ops, not in the object table, so
+  `externalize` has nothing to share (`U = S = 800,210 B`); CDC separates the
+  payload (`285,257 B`). Forcing `PDF_DEFLATE_REPLAY` (one object per deflate
+  stream) **flips this stratum** to `264,139 B`, beating raw CDC but not LZ or
+  compressed CDC (above).
 - **`shared-bin` loses to CDC.** One 128 KB payload under five distinct 8-byte
   prefixes: the RAW whole-file objects differ, so the store shares nothing
   (`U = 657,870 B`) while CDC keeps the payload once (`147,253 B`).
@@ -97,7 +123,11 @@ object-table entry. The object table is therefore usually either empty (0 object
 the whole file (one RAW object; `repeat-bin`, `shared-bin`). Sharing is
 whole-object-granular and coarse; generic CDC operates at sub-object granularity
 and therefore captures the same sharing (and near-duplicate sharing) that the
-store misses.
+store misses. The finest shareable unit the current candidate set can *emit* is
+therefore the whole (per-file) deflate stream: `PDF_DEFLATE_REPLAY` produces one
+object per stream — still not a sub-stream chunk, and never more than one object
+per file for any current candidate. Finer sharing (individual channel payloads,
+arbitrary sub-object chunks) remains a representation change.
 
 ## Consequences
 
@@ -110,11 +140,27 @@ store misses.
   per-file LZ or generic CDC on this cohort. The `ObjectStore` mechanism and the
   exactness of the store-backed form are unaffected and remain correct (37/37
   byte-exact, closure valid).
-- A future positive would require the *shareable unit* to be finer than a whole
-  DRA object — e.g. externalizing channel payloads or sub-object chunks — which
-  is a representation change, not implied by the current candidate set. Until
-  such a change is measured, the honest result stands: **generic CDC is the
-  stronger cross-document baseline.**
+- **The current candidate set already contains a finer-object candidate.**
+  `PDF_DEFLATE_REPLAY` is in the set and, when forced, emits one object per
+  deflate stream instead of one per file: that lowers the global `U` from
+  3,369,900 B to 2,360,054 B and flips `shared-payload` to a win over **raw** CDC
+  (`264,139` vs `285,257` B, 2 unique objects). The earlier claim that a finer
+  shareable unit was "not implied by the current candidate set" is therefore
+  **false**. What the current set does *not* contain is any candidate that emits
+  **more than one object per file**: the finest existing shareable unit is the
+  whole deflate stream. Finer sharing still (externalizing individual
+  `ENTROPY_CHANNEL` payloads or arbitrary sub-object chunks) remains a
+  representation change. The negative survives both candidate selection and
+  granularity: even the best forced choice (2,360,054 B) and a per-stratum oracle
+  (~2,537,730 B) lose to per-file min LZ (1,304,307 B) and raw CDC (771,383 B),
+  and the store still loses to LZ and compressed CDC on `shared-payload`. Until a
+  finer representation is measured, the honest result stands: **generic CDC is
+  the stronger cross-document baseline.**
+- **CDC-compressed determinism caveat.** The raw CDC figure (`--compression none`,
+  771,383 B) is deterministic (run1 == run2) and is the primary comparison. The
+  *compressed* CDC figure is **not** stable across runs (observed 210,835-210,840
+  B); it is cited (where at all) only as a non-deterministic range, never as a
+  fixed number. This does not change any verdict.
 
 ## References
 
@@ -122,5 +168,5 @@ store misses.
   `environment.json`, `cohort.json`, `results.json`, `report.md`,
   `cdc-sweep.json`, `perfile.jsonl`)
 - `tools/store-cohort.sh`, `tools/store-court.sh`, `tools/chunk-dedup.sh`
-- `docs/evidence/phase9-store-report.md`
+- `docs/evidence/phase9-store-report.md`, `docs/evidence/phase9-skeptic-review.md`
 - ADR-0017 (per-file LZ is the whole-file comparator), ADR-0020 (store contract)
