@@ -1,0 +1,1122 @@
+{
+  "campaign": "phase12-lifetime-court",
+  "corpus": "evidence/scratch/phase12-lifetime-corpus",
+  "corpus_generator": "tools/fixtures/phase12-corpus-gen.py",
+  "documents": [
+    {
+      "cases": [
+        {
+          "arg": "page:1",
+          "expected": "XF12A",
+          "expected_kind": "contains",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "metadata",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "page:1",
+          "expected": "XF12A",
+          "expected_kind": "contains",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF12A",
+          "expected": "XF12A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "byte-range:0:64",
+          "expected": "fe241f93e17c53fad662486f14c5424eb9b56c1a6d6e0c724ad43933511f18f6",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "full-source",
+          "expected": "fae3034c76c49e0f99af687e710147353b25c48bd6cd2acdb557ac9e174ebd07",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "page:1",
+          "expected": "",
+          "expected_kind": "declined",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        6,
+        1
+      ],
+      "format": "pdf",
+      "length": 905,
+      "markers": [
+        "XF12A",
+        "XF12B"
+      ],
+      "name": "alpha.pdf",
+      "sha256": "fae3034c76c49e0f99af687e710147353b25c48bd6cd2acdb557ac9e174ebd07",
+      "source": "alpha.pdf",
+      "variant": "alpha"
+    },
+    {
+      "cases": [
+        {
+          "arg": "block:1",
+          "expected": "Alpha paragraph carries marker XF12A.",
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "heading:0",
+          "expected": "Introduction",
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "kind": "text"
+        },
+        {
+          "arg": "block:3",
+          "expected": "Bravo paragraph carries marker XF12B.",
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "kind": "text"
+        },
+        {
+          "arg": "cell:0:6:1",
+          "expected": "bravo-seven",
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "kind": "text"
+        },
+        {
+          "arg": "table:0",
+          "expected": "alpha",
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "kind": "text"
+        },
+        {
+          "arg": "resource:0",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "kind": "metadata"
+        },
+        {
+          "arg": "metadata",
+          "expected": "docx",
+          "expected_kind": "contains",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "block:2",
+          "expected": "Method",
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF12A",
+          "expected": "XF12A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "full-source",
+          "expected": "18a55a0830da155f482a4b3790b3a1f2671474edfa7a5e48a59d8ddccb8a2fd9",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "resource-bytes:0",
+          "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "block:0",
+          "expected": "format=docx",
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        6,
+        1
+      ],
+      "format": "docx",
+      "length": 3458,
+      "markers": [
+        "XF12A",
+        "XF12B"
+      ],
+      "name": "alpha.docx",
+      "sha256": "18a55a0830da155f482a4b3790b3a1f2671474edfa7a5e48a59d8ddccb8a2fd9",
+      "source": "alpha.docx",
+      "variant": "alpha"
+    },
+    {
+      "cases": [
+        {
+          "arg": "block:1",
+          "expected": "Alpha paragraph carries marker XF12A.",
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "heading:0",
+          "expected": "Introduction",
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "kind": "text"
+        },
+        {
+          "arg": "block:3",
+          "expected": "Bravo paragraph carries marker XF12B.",
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "kind": "text"
+        },
+        {
+          "arg": "cell:0:6:1",
+          "expected": "bravo-seven",
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "kind": "text"
+        },
+        {
+          "arg": "table:0",
+          "expected": "alpha",
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "kind": "text"
+        },
+        {
+          "arg": "resource:0",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "kind": "metadata"
+        },
+        {
+          "arg": "metadata",
+          "expected": "spine",
+          "expected_kind": "contains",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "block:2",
+          "expected": "Method",
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF12A",
+          "expected": "XF12A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "full-source",
+          "expected": "88f8b9120c8914911abadf30e25ef890faba70bfae28c67bc2ba7dfa2bbc09be",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "resource-bytes:0",
+          "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "block:0",
+          "expected": "format=epub",
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        6,
+        1
+      ],
+      "format": "epub",
+      "length": 2858,
+      "markers": [
+        "XF12A",
+        "XF12B"
+      ],
+      "name": "alpha.epub",
+      "sha256": "88f8b9120c8914911abadf30e25ef890faba70bfae28c67bc2ba7dfa2bbc09be",
+      "source": "alpha.epub",
+      "variant": "alpha"
+    },
+    {
+      "cases": [
+        {
+          "arg": "page:1",
+          "expected": "XF13A",
+          "expected_kind": "contains",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "metadata",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "page:1",
+          "expected": "XF13A",
+          "expected_kind": "contains",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF13A",
+          "expected": "XF13A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "byte-range:0:64",
+          "expected": "fe241f93e17c53fad662486f14c5424eb9b56c1a6d6e0c724ad43933511f18f6",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "full-source",
+          "expected": "254aaa986f846e0faaac74ca1765d9c4b4bcdf1273f7d4db909207942d1dbdd6",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "page:1",
+          "expected": "",
+          "expected_kind": "declined",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        10,
+        2
+      ],
+      "format": "pdf",
+      "length": 957,
+      "markers": [
+        "XF13A",
+        "XF13B",
+        "XF13C"
+      ],
+      "name": "bravo.pdf",
+      "sha256": "254aaa986f846e0faaac74ca1765d9c4b4bcdf1273f7d4db909207942d1dbdd6",
+      "source": "bravo.pdf",
+      "variant": "bravo"
+    },
+    {
+      "cases": [
+        {
+          "arg": "block:1",
+          "expected": "Alpha record carries marker XF13A.",
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "heading:0",
+          "expected": "Overview",
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "kind": "text"
+        },
+        {
+          "arg": "block:3",
+          "expected": "Bravo record carries marker XF13B.",
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "kind": "text"
+        },
+        {
+          "arg": "cell:0:10:2",
+          "expected": "value10",
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "kind": "text"
+        },
+        {
+          "arg": "table:0",
+          "expected": "row01",
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "kind": "text"
+        },
+        {
+          "arg": "resource:0",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "kind": "metadata"
+        },
+        {
+          "arg": "metadata",
+          "expected": "docx",
+          "expected_kind": "contains",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "block:2",
+          "expected": "Scope",
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF13A",
+          "expected": "XF13A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "full-source",
+          "expected": "3d075838be55d6d4db8465171337423fda2503239c59e7ad92e88f83d69f8ab6",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "resource-bytes:0",
+          "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "block:0",
+          "expected": "format=docx",
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        10,
+        2
+      ],
+      "format": "docx",
+      "length": 3636,
+      "markers": [
+        "XF13A",
+        "XF13B",
+        "XF13C"
+      ],
+      "name": "bravo.docx",
+      "sha256": "3d075838be55d6d4db8465171337423fda2503239c59e7ad92e88f83d69f8ab6",
+      "source": "bravo.docx",
+      "variant": "bravo"
+    },
+    {
+      "cases": [
+        {
+          "arg": "block:1",
+          "expected": "Alpha record carries marker XF13A.",
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "heading:0",
+          "expected": "Overview",
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "kind": "text"
+        },
+        {
+          "arg": "block:3",
+          "expected": "Bravo record carries marker XF13B.",
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "kind": "text"
+        },
+        {
+          "arg": "cell:0:10:2",
+          "expected": "value10",
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "kind": "text"
+        },
+        {
+          "arg": "table:0",
+          "expected": "row01",
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "kind": "text"
+        },
+        {
+          "arg": "resource:0",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "kind": "metadata"
+        },
+        {
+          "arg": "metadata",
+          "expected": "spine",
+          "expected_kind": "contains",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "block:2",
+          "expected": "Scope",
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF13A",
+          "expected": "XF13A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "full-source",
+          "expected": "aa38ebba1ac58837d6e63c3609eff379bf9dc28b2e79b72e7d773dc84912c8f5",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "resource-bytes:0",
+          "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "block:0",
+          "expected": "format=epub",
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        10,
+        2
+      ],
+      "format": "epub",
+      "length": 3012,
+      "markers": [
+        "XF13A",
+        "XF13B",
+        "XF13C"
+      ],
+      "name": "bravo.epub",
+      "sha256": "aa38ebba1ac58837d6e63c3609eff379bf9dc28b2e79b72e7d773dc84912c8f5",
+      "source": "bravo.epub",
+      "variant": "bravo"
+    },
+    {
+      "cases": [
+        {
+          "arg": "page:1",
+          "expected": "XF14A",
+          "expected_kind": "contains",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "metadata",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "page:1",
+          "expected": "XF14A",
+          "expected_kind": "contains",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF14A",
+          "expected": "XF14A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "byte-range:0:64",
+          "expected": "fe241f93e17c53fad662486f14c5424eb9b56c1a6d6e0c724ad43933511f18f6",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "full-source",
+          "expected": "2f714753bd7f85ac7c104abc71e401865aef7166fba25f65ce1dbb99ab0bdde6",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "page:1",
+          "expected": "",
+          "expected_kind": "declined",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        3,
+        1
+      ],
+      "format": "pdf",
+      "length": 841,
+      "markers": [
+        "XF14A"
+      ],
+      "name": "charlie.pdf",
+      "sha256": "2f714753bd7f85ac7c104abc71e401865aef7166fba25f65ce1dbb99ab0bdde6",
+      "source": "charlie.pdf",
+      "variant": "charlie"
+    },
+    {
+      "cases": [
+        {
+          "arg": "block:1",
+          "expected": "Solo record carries marker XF14A.",
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "heading:0",
+          "expected": "Preamble",
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "kind": "text"
+        },
+        {
+          "arg": "block:3",
+          "expected": "One",
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "kind": "text"
+        },
+        {
+          "arg": "cell:0:3:1",
+          "expected": "v3",
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "kind": "text"
+        },
+        {
+          "arg": "table:0",
+          "expected": "k1",
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "kind": "text"
+        },
+        {
+          "arg": "resource:0",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "kind": "metadata"
+        },
+        {
+          "arg": "metadata",
+          "expected": "docx",
+          "expected_kind": "contains",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "block:2",
+          "expected": "Details",
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF14A",
+          "expected": "XF14A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "full-source",
+          "expected": "4e4601a9f01a4fb14e9b8ede3340be9617110ec7f173e06b36e64b74dad2de21",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "resource-bytes:0",
+          "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "block:0",
+          "expected": "format=docx",
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        3,
+        1
+      ],
+      "format": "docx",
+      "length": 3282,
+      "markers": [
+        "XF14A"
+      ],
+      "name": "charlie.docx",
+      "sha256": "4e4601a9f01a4fb14e9b8ede3340be9617110ec7f173e06b36e64b74dad2de21",
+      "source": "charlie.docx",
+      "variant": "charlie"
+    },
+    {
+      "cases": [
+        {
+          "arg": "block:1",
+          "expected": "Solo record carries marker XF14A.",
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "heading:0",
+          "expected": "Preamble",
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "kind": "text"
+        },
+        {
+          "arg": "block:3",
+          "expected": "One\nTwo",
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "kind": "text"
+        },
+        {
+          "arg": "cell:0:3:1",
+          "expected": "v3",
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "kind": "text"
+        },
+        {
+          "arg": "table:0",
+          "expected": "k1",
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "kind": "text"
+        },
+        {
+          "arg": "resource:0",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "kind": "metadata"
+        },
+        {
+          "arg": "metadata",
+          "expected": "spine",
+          "expected_kind": "contains",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "block:2",
+          "expected": "Details",
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF14A",
+          "expected": "XF14A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "full-source",
+          "expected": "337024cd1a5c5728d7bfea8ae63ba892265d0b10e487e19de6f7c7ef9b8ff667",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "resource-bytes:0",
+          "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "block:0",
+          "expected": "format=epub",
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        3,
+        1
+      ],
+      "format": "epub",
+      "length": 2723,
+      "markers": [
+        "XF14A"
+      ],
+      "name": "charlie.epub",
+      "sha256": "337024cd1a5c5728d7bfea8ae63ba892265d0b10e487e19de6f7c7ef9b8ff667",
+      "source": "charlie.epub",
+      "variant": "charlie"
+    },
+    {
+      "cases": [
+        {
+          "arg": "page:1",
+          "expected": "XF15A",
+          "expected_kind": "contains",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "metadata",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "page:1",
+          "expected": "XF15A",
+          "expected_kind": "contains",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF15A",
+          "expected": "XF15A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "byte-range:0:64",
+          "expected": "fe241f93e17c53fad662486f14c5424eb9b56c1a6d6e0c724ad43933511f18f6",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "full-source",
+          "expected": "e8d34a0a21e388ed7006a544b6354f08d2caf87e6cd779247340781ed606ebde",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "page:1",
+          "expected": "",
+          "expected_kind": "declined",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        600,
+        2
+      ],
+      "format": "pdf",
+      "length": 29231,
+      "markers": [
+        "XF15A",
+        "XF15B",
+        "XF15C"
+      ],
+      "name": "delta.pdf",
+      "sha256": "e8d34a0a21e388ed7006a544b6354f08d2caf87e6cd779247340781ed606ebde",
+      "source": "delta.pdf",
+      "variant": "delta"
+    },
+    {
+      "cases": [
+        {
+          "arg": "block:1",
+          "expected": "Delta record 000 carries marker XF15A.",
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "heading:0",
+          "expected": "Delta Overview",
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "kind": "text"
+        },
+        {
+          "arg": "block:3",
+          "expected": "Delta record 001 carries marker XF15B.",
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "kind": "text"
+        },
+        {
+          "arg": "cell:0:600:2",
+          "expected": "d-value599 v5c799d2bf6ffecb04ceafab4",
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "kind": "text"
+        },
+        {
+          "arg": "table:0",
+          "expected": "d-row0000",
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "kind": "text"
+        },
+        {
+          "arg": "resource:0",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "kind": "metadata"
+        },
+        {
+          "arg": "metadata",
+          "expected": "docx",
+          "expected_kind": "contains",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "block:2",
+          "expected": "Delta Scope",
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF15A",
+          "expected": "XF15A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "full-source",
+          "expected": "5a6fe261d8a15f6fa733db642e346f9a54aa2240fbecfeafdc9773b4a937a4ed",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "resource-bytes:0",
+          "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "block:0",
+          "expected": "format=docx",
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        600,
+        2
+      ],
+      "format": "docx",
+      "length": 61232,
+      "markers": [
+        "XF15A",
+        "XF15B",
+        "XF15C"
+      ],
+      "name": "delta.docx",
+      "sha256": "5a6fe261d8a15f6fa733db642e346f9a54aa2240fbecfeafdc9773b4a937a4ed",
+      "source": "delta.docx",
+      "variant": "delta"
+    },
+    {
+      "cases": [
+        {
+          "arg": "block:1",
+          "expected": "Delta record 000 carries marker XF15A.",
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "kind": "text"
+        },
+        {
+          "arg": "heading:0",
+          "expected": "Delta Overview",
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "kind": "text"
+        },
+        {
+          "arg": "block:3",
+          "expected": "Delta record 001 carries marker XF15B.",
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "kind": "text"
+        },
+        {
+          "arg": "cell:0:600:2",
+          "expected": "d-value599 v5c799d2bf6ffecb04ceafab4",
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "kind": "text"
+        },
+        {
+          "arg": "table:0",
+          "expected": "d-row0000",
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "kind": "text"
+        },
+        {
+          "arg": "resource:0",
+          "expected": "",
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "kind": "metadata"
+        },
+        {
+          "arg": "metadata",
+          "expected": "spine",
+          "expected_kind": "contains",
+          "id": "metadata",
+          "kind": "metadata"
+        },
+        {
+          "arg": "block:2",
+          "expected": "Delta Scope",
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "kind": "text"
+        },
+        {
+          "arg": "search:XF15A",
+          "expected": "XF15A",
+          "expected_kind": "contains",
+          "id": "search",
+          "kind": "text"
+        },
+        {
+          "arg": "full-source",
+          "expected": "31655cfa38e50089bfaa3cd19a37fffcb5862e3bc438dc5660aac3401f6daab8",
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "kind": "exact"
+        },
+        {
+          "arg": "resource-bytes:0",
+          "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "kind": "exact"
+        },
+        {
+          "arg": "block:0",
+          "expected": "format=epub",
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "kind": "text"
+        }
+      ],
+      "cell_ref": [
+        0,
+        600,
+        2
+      ],
+      "format": "epub",
+      "length": 58599,
+      "markers": [
+        "XF15A",
+        "XF15B",
+        "XF15C"
+      ],
+      "name": "delta.epub",
+      "sha256": "31655cfa38e50089bfaa3cd19a37fffcb5862e3bc438dc5660aac3401f6daab8",
+      "source": "delta.epub",
+      "variant": "delta"
+    }
+  ],
+  "notes": [
+    "Order is frozen before measurement; the court refuses to run without this file.",
+    "Each case is a (document, surface) point named by id; the full schedule for all",
+    "three systems (A0/A1/V) is this same ordered list expanded by the rule above.",
+    "A0 = direct per-query tooling; A1 = one-time preprocessed source-retaining",
+    "SQLite+FTS5; V = the Phase-12 VOLE field. No system may reorder the schedule."
+  ],
+  "ns": [
+    1,
+    10,
+    100,
+    1000
+  ],
+  "passes": 2,
+  "pre_registered": true,
+  "rule": "case(i) = cases[(i-1) mod len(cases)], i = 1..N"
+}

@@ -158,6 +158,30 @@ services:
       - cargo-target:/work/target
     command: ["sh", "-c", "sqlite3 --version; pdftotext -v; qpdf --version | head -1"]
 
+  # Phase-12.11 multi-format lifetime court. Same pinned base digest as
+  # `db-baseline` plus `python3` (stdlib only) for the DOCX/EPUB A0/A1 lanes.
+  # Capped exactly like `db-baseline`: mem_limit == memswap_limit (no zram
+  # evasion), pids_limit bounds fork/thread bombs, cpus bounds the long lane.
+  doc-baseline:
+    build:
+      context: .
+      target: doc-baseline
+    image: vole-document/doc-baseline:1.99.0
+    network_mode: host
+    working_dir: /work
+    mem_limit: 6g
+    memswap_limit: 6g
+    pids_limit: 4096
+    cpus: 8
+    environment:
+      CARGO_TERM_COLOR: never
+      VOLE_BIN: ./target/debug/vole-document
+    volumes:
+      - .:/work
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/work/target
+    command: ["sh", "-c", "python3 --version; sqlite3 --version; pdftotext -v"]
+
   # Phase-11.13 LLM working-set *token* court (opt-in; never part of a fast
   # gate). Same pinned base digest as `dev`/`baseline`, plus Poppler (`pdftotext`
   # for B0/B1), `jq`, and a pinned HuggingFace `tokenizers` runtime. Runs
