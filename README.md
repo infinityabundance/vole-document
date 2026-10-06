@@ -29,7 +29,9 @@ scoped random-access **decode-CPU** win (ADR-0018); Phase 8 measured a scoped
 random-access **bytes-read** win versus **non-seekable sequential** codecs only
 (ADR-0019); Phase 9 adds the cross-document content-addressed **store** and
 records a robust — but partly externalization-granularity-artifact — loss on the
-store axis (ADR-0020/0021).
+store axis (ADR-0020/0021); Phase 10.1 adds an optional, **encoder-only** search
+governor behind the non-default, dependency-free `dsfb-search` feature and records
+that the parametric search buys **no bytes** on its cohort (ADR-0022).
 
 Phase 9 (branch `phase9`, ADR-0020/0021) adds a cross-document
 **content-addressed object store** and then measures the one axis a single-file
@@ -643,6 +645,46 @@ Receipt:
 [`docs/evidence/phase8-skeptic-review.md`](docs/evidence/phase8-skeptic-review.md);
 drivers `tools/seek-court.sh`, `tools/seek-table.jq`,
 `tools/seekable-baselines.sh`; ADR-0019.
+
+### Encoder-only search governance (Phase 10.1) measured results
+
+The brief's Phase 10 asks for a **DSFB**-style search governor with **zero decode
+authority**. Empirically, the published `dsfb 0.1.2` crate is **Drift-Slew Fusion
+Bootstrap state estimation** — a Kalman-like `f64` observer over sensor channels
+with no candidate / residual / search-directive API — present in the lockfile only
+transitively through the optional EntropyFS engine. It is therefore recorded as
+*unavailable-for-purpose* and is **not** a dependency: the feature is the
+**dependency-free** `dsfb-search = []`.
+
+The governor (`src/encode/governor.rs`) is encoder-only and integer-only. It
+produces typed residual diagnostics, proposes candidates from a tiny parametric
+space over *existing* mechanisms (`scale_bits`, `partition`, `replay`, `packed`,
+`depth`), and maps the incumbent's dominant residual to a directive with a pure
+`govern` function. Every candidate it can enable is serialized, parsed,
+materialized, byte-compared, and priced by the *same* complete-cost court; no
+governance state is persisted and `src/container/header.rs` is untouched, so a
+governer-produced descriptor decodes byte-exactly in a build **without** the
+feature.
+
+The court (`tools/governor-court.sh`, campaign
+`2026-10-05-phase10-governor-d2b09c9`, ADR-0022) compares `Exhaustive`,
+`FixedHeuristic`, and `DsfbGuided` over a small deterministic cohort split into
+disjoint tune/holdout/control sets. Pre-registered hypotheses: **H1 HELD**
+(`DsfbGuided.final ≤ FixedHeuristic.final` everywhere); **H2 HELD**
+(`guided.final == exhaustive.final` on 8/8 holdout with ≤ ½ the candidates);
+**H4 HELD** (negative controls `Stop(Raw)` and match the RAW descriptor
+byte-for-byte). But **H3 also HOLDS**, and it is the substantive result: the fixed
+heuristic already attains the exhaustive minimum on **every** workload, so the
+parametric search adds **zero bytes**. Representative rows (final bytes /
+candidates): `flate.pdf` 36,161 (fixed 10, exhaustive 438, guided 150);
+`bigtext.pdf` 38,274 (7/414/126); `many.pdf` 5,301 (7/414/126). **The fixed
+complete-cost court is retained**; the governor remains an optional, encoder-only
+feature. Small locally generated cohort; **no population claim**.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase10-governor-d2b09c9/`](evidence/campaigns/2026-10-05-phase10-governor-d2b09c9/)
+(`results.json`, `hypotheses.json`, `decode-proof.json`, `report.md`); driver
+`tools/governor-court.sh`; ADR-0022.
 
 ## Quick start (Docker only)
 

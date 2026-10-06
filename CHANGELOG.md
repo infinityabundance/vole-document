@@ -54,6 +54,22 @@ LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
   `Σ A_i == U` exactly. `store account` prints all three and the per-root split.
 - Docs: `SPEC.md` (`EXTERNAL_REF` record, `ObjectSource` model, mandatory feature
   bits, universe string, feature policy), `docs/adr/0020-content-addressed-store.md`.
+- **Phase 10.1 — encoder-only search governance** (`src/encode/governor.rs`, ADR-0022).
+  A non-default, **dependency-free** feature `dsfb-search = []` (**not**
+  `["dep:dsfb"]`) adds typed, integer-only residual diagnostics
+  (`SourceRegion`, `FormatStructure`, `ResidualClass`, `RunStats`/`Periodicity`/
+  `Recurrence`, `ResidualDiagnostic`, `ResidualTrace`), a tiny parametric candidate
+  space over existing mechanisms (`SearchConfig { scale_bits ∈ {8,10,12},
+  partition ∈ {ByKind,ByRole}, replay ∈ {Off,Dedup,DedupRans}, packed, depth }`), a
+  pure `govern(&ResidualTrace) -> SearchDirective` with a frozen dominant-residual
+  table and a bounded `Budget`, and `propose_configured` (parameterizes `BYTE_RANS`
+  and `PDF_CHANNELS` by `scale_bits`, toggles partition/replay/packed/depth). **Zero
+  decode authority:** no wire change, `header.rs` untouched, no feature bit; every
+  candidate reaches the unmodified complete-cost court. The example
+  `governor_court`, `tools/governor-court.sh`, and `tests/governor.rs` are gated by
+  the feature. The `dsfb 0.1.2` crate is recorded as real, MSRV-OK, transitively
+  present only via `entropyfs-store`, and unavailable-for-purpose (it is Drift-Slew
+  Fusion Bootstrap state estimation, not a search governor).
 
 ### Measured — Phase 9.3 store court (recorded negative)
 
@@ -101,6 +117,29 @@ LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
   parameter sweep), `borgbackup=1.2.4-1` added to the `baseline` image. Full
   report `docs/evidence/phase9-store-report.md`; ADR-0021.
 
+### Measured — Phase 10.1 governor court (recorded negative)
+
+- **The parametric search adds no bytes on the frozen cohort** (campaign
+  `2026-10-05-phase10-governor-d2b09c9`; ADR-0022). Over small deterministic
+  samples + a synthetic trio (disjoint tune/holdout/control sets; H2 judged only on
+  holdout): **H1 HELD** (`DsfbGuided.final ≤ FixedHeuristic.final` everywhere),
+  **H2 HELD** (guided == exhaustive on 8/8 holdout with ≤ ½ the candidates),
+  **H3 HELD** (`fixed == exhaustive` on *every* workload; median byte benefit
+  0 ‰), **H4 HELD** (negative controls `Stop(Raw)` and match the RAW descriptor
+  byte-for-byte). Representative rows (final bytes / candidates): `flate.pdf`
+  36,161/10 (fixed), 36,161/438 (exhaustive), 36,161/150 (guided); `bigtext.pdf`
+  38,274 at 7/414/126; `many.pdf` 5,301 at 7/414/126.
+- **Zero decode authority, proven.** A governor-produced descriptor for `many.pdf`
+  (winner `BYTE_RANS`) decodes byte-exactly in the **default** build (no
+  `dsfb-search`); a `flate.pdf` descriptor (winner `PDF_DEFLATE_REPLAY_RANS`)
+  decodes in a build with the underlying `deflate-replay` capability and still no
+  `dsfb-search`. A grep gate asserts the decode path references neither `governor`
+  nor `crate::encode`.
+- **Honest verdict:** the fixed heuristic already attains the exhaustive minimum
+  on every workload, so the governance mechanism is retained as an optional
+  encoder feature but the **fixed complete-cost court is retained**; the negative
+  is recorded, not hidden. Small locally generated cohort; **no population claim**.
+
 ### Notes
 
 - **Claim discipline.** No size or compression claim is made for the store; a
@@ -110,7 +149,8 @@ LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
   sharing is store *amortization*, never "compression", and it loses the store
   axis to generic CDC on this cohort (ADR-0021). `dsfb` remains a hard dependency
   of the *optional* `entropyfs-store` feature only and retains **zero** decode
-  authority (ADR-0008).
+  authority (ADR-0008). Phase 10.1 adds an encoder-only governor that likewise has
+  **zero** decode authority and does **not** depend on `dsfb` (ADR-0022).
 - **Corrections (independent adversarial review, `docs/evidence/phase9-skeptic-review.md`).**
   The Phase-9.3 claims were corrected after an independent review: (i) the
   negative is restated as robust but **partly an externalization-granularity /

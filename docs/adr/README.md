@@ -26,6 +26,7 @@ the written rationale that must survive chat history.
 | [0019](0019-seek-based-io.md) | Seek-based partial I/O makes a late observation view a measured bytes-read win | Accepted — scoped positive result, with recorded early/small-descriptor losses (Phase 8.3) |
 | [0020](0020-content-addressed-store.md) | A content-addressed object store; three accounting universes | Accepted (design; cohort measurement Phase 9.3) |
 | [0021](0021-cross-document-sharing-result.md) | Cross-document sharing does not beat generic chunk dedup (measured) | Accepted — recorded negative result (Phase 9.3) |
+| [0022](0022-encoder-only-search-governance.md) | Encoder-only search governance, with zero decode authority | Accepted — mechanism implemented; parametric search is a recorded negative (Phase 10.1) |
 
 ## Adding an ADR
 
