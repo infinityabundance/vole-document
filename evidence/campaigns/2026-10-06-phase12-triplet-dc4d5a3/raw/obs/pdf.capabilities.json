@@ -1,0 +1,1 @@
+{"root":"document","format":"pdf","adapter":"pdf","compiled":true,"selectors":[{"selector":"metadata","representations":["metadata"]},{"selector":"text","representations":["text"]},{"selector":"search-match","representations":["text"]}],"profiles":[],"native_selectors":["document","object","stream","revision","page","byte-range","text-match"]}

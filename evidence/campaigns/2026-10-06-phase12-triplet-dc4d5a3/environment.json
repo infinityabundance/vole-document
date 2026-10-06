@@ -1,0 +1,24 @@
+{
+  "campaign": "2026-10-06-phase12-triplet-dc4d5a3",
+  "run_utc": "2026-10-06T15:42:16Z",
+  "arch": "x86_64",
+  "git_branch": "phase12",
+  "git_commit": "dc4d5a34666246f421558763e73807709e204fbc",
+  "git_dirty": " M tools/phase12-removal-court.sh; M tools/phase12-triplet-court.sh;?? evidence/campaigns/2026-10-06-phase12-removal-dc4d5a3/;?? evidence/campaigns/2026-10-06-phase12-triplet-dc4d5a3/;",
+  "cargo_lock_sha256": "710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e",
+  "db_baseline": {
+    "service_image": "vole-document/db-baseline:1.99.0",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "rustc": "1.99.0",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)"
+  },
+  "generator": {
+    "script": "tools/fixtures/doc-triplet-gen.py",
+    "service_image": "vole-document/producers:bookworm",
+    "python": "3.11.2",
+    "stdlib_only": true
+  },
+  "features_under_test": "all-features (field, package, opc, docx, epub, ...)",
+  "env_vars_affecting_semantics": { "CARGO_TERM_COLOR": "never", "LC_ALL": "C" },
+  "notes": "All commands ran through compose.yaml inside pinned images; nothing ran on the host except git and docker. Same logical report, different native provenance."
+}

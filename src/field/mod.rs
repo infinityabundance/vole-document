@@ -13,18 +13,25 @@
 //! state. A field never weakens `materialize(root) == original_bytes` (ADR-0024).
 
 pub mod cache;
+pub mod capabilities;
 pub mod dag;
 pub mod derive;
+pub mod document_format;
 pub mod edit;
 pub mod explain;
 pub mod index;
 pub mod ingest;
+#[cfg(feature = "package")]
+pub mod ingest_package;
 pub mod manifest;
 pub mod node;
 pub mod observe;
+#[cfg(feature = "opc")]
+pub mod opc;
 pub mod partial;
 pub mod plan;
 pub mod provenance;
+pub mod resource;
 pub mod share;
 
 pub use manifest::{FieldId, FieldRoot};
@@ -51,6 +58,15 @@ use self::node::{NodeKind, SeedNode};
 
 /// The canonical universe string for a Phase-11 field.
 pub const FIELD_UNIVERSE: &str = "vole-document;universe;phase11;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1+seek-directory-v1+external-objects-v1+procedural-seed-field-v1+hier-index-v1";
+
+/// The canonical universe string for a Phase-12 **package** (ZIP/OCF/OPC) field.
+///
+/// It is the Phase-11 universe plus an explicit `package-v1` marker. The marker is
+/// recorded in the manifest's `universe_id`; it is **not** a new wire record and
+/// does not change the exact `.voldoc` descriptor, which remains the ordinary
+/// exact form.
+#[cfg(feature = "package")]
+pub const PACKAGE_UNIVERSE: &str = "vole-document;universe;phase11;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1+seek-directory-v1+external-objects-v1+procedural-seed-field-v1+hier-index-v1+package-v1";
 
 /// A cheaply cloneable handle to a field's seed substrate.
 ///

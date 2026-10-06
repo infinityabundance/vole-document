@@ -1,0 +1,145 @@
+{
+  "formats": {
+    "docx": {
+      "cell_b7_ref": "0:6:1",
+      "common_declined": [],
+      "common_supported": [
+        "metadata",
+        "text",
+        "heading",
+        "block",
+        "table",
+        "cell",
+        "resource",
+        "link",
+        "search-match"
+      ],
+      "file": "report.docx",
+      "length": 3458,
+      "resource_rel": "rIdImg",
+      "sha256": "18a55a0830da155f482a4b3790b3a1f2671474edfa7a5e48a59d8ddccb8a2fd9"
+    },
+    "epub": {
+      "cell_b7_ref": "0:6:1",
+      "common_declined": [],
+      "common_supported": [
+        "metadata",
+        "text",
+        "heading",
+        "block",
+        "table",
+        "cell",
+        "resource",
+        "link",
+        "search-match"
+      ],
+      "file": "report.epub",
+      "length": 2858,
+      "resource_href": "images/image1.png",
+      "resource_media_type": "image/png",
+      "sha256": "88f8b9120c8914911abadf30e25ef890faba70bfae28c67bc2ba7dfa2bbc09be"
+    },
+    "pdf": {
+      "common_declined": [
+        "heading",
+        "block",
+        "table",
+        "cell",
+        "resource",
+        "link"
+      ],
+      "common_supported": [
+        "metadata",
+        "text",
+        "search-match"
+      ],
+      "file": "report.pdf",
+      "length": 905,
+      "native_selectors_expected": [
+        "document",
+        "object",
+        "stream",
+        "revision",
+        "page",
+        "byte-range",
+        "text-match"
+      ],
+      "sha256": "fae3034c76c49e0f99af687e710147353b25c48bd6cd2acdb557ac9e174ebd07"
+    }
+  },
+  "generator": {
+    "name": "doc-triplet-gen.py",
+    "note": "stdlib only (zipfile/zlib/hashlib/json); pinned by the producers image",
+    "python": "3.11.2"
+  },
+  "logical_report": {
+    "headings": [
+      "Introduction",
+      "Method",
+      "Findings"
+    ],
+    "identifier": "urn:uuid:8e0f2c4a-1b2d-4c3e-9f10-1234567890ab",
+    "language": "en",
+    "link": {
+      "href": "https://example.com/phase12",
+      "text": "external"
+    },
+    "list_items": [
+      "First step",
+      "Second step",
+      "Third step"
+    ],
+    "markers": [
+      "XF12A",
+      "XF12B"
+    ],
+    "paragraphs": [
+      "Alpha paragraph carries marker XF12A.",
+      "Bravo paragraph carries marker XF12B."
+    ],
+    "resource": {
+      "href": "images/image1.png",
+      "length": 1032,
+      "media_type": "image/png",
+      "sha256": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba"
+    },
+    "table": {
+      "cell_b7": "bravo-seven",
+      "rows": [
+        [
+          "Key",
+          "Value"
+        ],
+        [
+          "alpha",
+          "one"
+        ],
+        [
+          "bravo",
+          "two"
+        ],
+        [
+          "charlie",
+          "three"
+        ],
+        [
+          "delta",
+          "four"
+        ],
+        [
+          "echo",
+          "five"
+        ],
+        [
+          "golf",
+          "bravo-seven"
+        ],
+        [
+          "hotel",
+          "eight"
+        ]
+      ]
+    },
+    "title": "Phase Twelve Equivalence Report"
+  }
+}

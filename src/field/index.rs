@@ -69,6 +69,39 @@ pub const SEL_RESOURCE: u8 = 5;
 /// observation resolve in `O(depth)` index reads instead of enumerating the
 /// whole seed store.
 pub const SEL_STREAM_DECODED: u8 = 6;
+/// Selector kind: a package (ZIP/OCF/OPC) member's exact raw compressed/stored
+/// span, keyed by the member's central-directory **ordinal** (Phase 12.2).
+///
+/// The key number is the physical ordinal ([`crate::adapter::package::PhysicalMemberId`]'s
+/// `ordinal`), never the member name: duplicate names therefore stay distinct.
+pub const SEL_PACKAGE_MEMBER_RAW: u8 = 7;
+/// Selector kind: a package member's decoded bytes, keyed by the same ordinal.
+///
+/// A `PackageMemberDecoded` node is a deterministic function of its raw node and
+/// method, so it gets its own entry (mirroring `SEL_STREAM_DECODED`); a
+/// `Member(n) + DecodedBytes` observation resolves in `O(depth)` index reads.
+pub const SEL_PACKAGE_MEMBER_DECODED: u8 = 8;
+/// Selector kind: the generic OPC package model (Phase 12.3).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// canonical OPC graph (content types + parts + package/part relationships) as
+/// `Q_gen` derived state. It is computed on demand from the exact package source,
+/// never eagerly at ingest, and the exact bytes remain the 12.2 member raw spans.
+pub const SEL_OPC_MODEL: u8 = 9;
+/// Selector kind: the canonical DOCX discovery model (Phase 12.4).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// DOCX main-part/story discovery (main part via the `officeDocument`
+/// relationship, styles, headers/footers, notes, comments) as `Q_gen` derived
+/// state, computed on demand from the OPC model.
+pub const SEL_DOCX_MODEL: u8 = 10;
+/// Selector kind: the canonical EPUB (OCF) discovery model (Phase 12.5).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// EPUB container + Package Document graph (`mimetype` facts, rootfiles, metadata,
+/// manifest, spine, nav identity) as `Q_gen` derived state, computed on demand from
+/// the exact package source — never via OPC (EPUB has no `[Content_Types].xml`).
+pub const SEL_EPUB_MODEL: u8 = 11;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;
@@ -111,9 +144,11 @@ const MAX_INTERNAL_CHILDREN: usize = {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SelectorKey {
     /// [`SEL_PAGE`], [`SEL_OBJECT`], [`SEL_STREAM`], [`SEL_STREAM_DECODED`],
-    /// [`SEL_REVISION`], or [`SEL_RESOURCE`].
+    /// [`SEL_REVISION`], [`SEL_RESOURCE`], [`SEL_PACKAGE_MEMBER_RAW`],
+    /// [`SEL_PACKAGE_MEMBER_DECODED`], or [`SEL_OPC_MODEL`].
     pub kind: u8,
-    /// The page/object/stream/revision/resource number.
+    /// The page/object/stream/revision/resource number, or a package member's
+    /// central-directory ordinal.
     pub number: u32,
     /// The generation (`0` where the kind has none).
     pub generation: u16,

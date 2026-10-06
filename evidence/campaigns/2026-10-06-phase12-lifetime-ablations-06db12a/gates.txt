@@ -1,0 +1,46 @@
+# Phase 12.11b — gates (branch phase12, commit 06db12a)
+
+## Full gate: cargo fmt + clippy (-D warnings) + tests (all-features, no-default-features)
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features --locked && cargo test --no-default-features'
+# -> exit 0. `cargo fmt --all` clean; clippy --all-features 0 warnings (deny).
+#    --all-features: 740 passed, 0 failed, 2 ignored (incl. tests/phase12_lifetime.rs
+#      7 tests: the 5 prior + 2 new ladder tests).
+#    --no-default-features: 245 passed, 0 failed.
+#    Total "test result: ok" assertions summed: 985 passed, 0 failed.
+#    Transcript: raw/gate.txt (committed verbatim).
+
+## Court run (pinned capped service)
+docker compose run --rm --no-TTY -e HOST_IMAGE_ID=sha256:dc17f388a49349eb39f89e30705a554a3ceaeae277a22518fd307e526c7159af \
+  doc-baseline bash tools/phase12-lifetime-court.sh \
+  evidence/campaigns/2026-10-06-phase12-lifetime-ablations-06db12a
+# -> OK; receipt.json, SUMMARY.md, commands.txt, gates.txt, raw/ written. 12 documents,
+#    ns=1,10,100,1000, passes=2, 10 lanes (a0,a1,a1b,a2,a3,a4,a5,a6,a9,a11); 960
+#    cumulative rows. dirty="" recorded. 0 assertion failures
+#    (`grep -c FAIL raw/assertions.tsv` = 0). Capability declines are recorded, not
+#    failures (A2/A3/A4 decline the semantic surfaces for DOCX/EPUB; DOCX declines
+#    resource-decoded exact bytes for A5+).
+#    Ladder binaries are built **inside** this service from feature sets:
+#      A2    rans,store,field
+#      A3    +package
+#      A4    +opc                (package graph only; no docx/epub content)
+#      A5/A6 +package,opc,docx,epub  (--no-cache selects A5; cache on selects A6)
+#      A9/A11 --all-features     (--entropyfs selects A9)
+#    The baseline per-case byte columns were re-measured after fixing a missing
+#    newline in the a0/a1/a1b casebytes TSV (see commit 06db12a); A0's warm
+#    N=1000 read on alpha.docx is 1,357,772,923 B, matching the prior 3eaf576
+#    receipt's A0 lane.
+
+## Images (all measurement lanes on one pinned base digest)
+service image          : vole-document/doc-baseline:1.99.0 (id sha256:dc17f388a49349eb39f89e30705a554a3ceaeae277a22518fd307e526c7159af)
+BASE_STABLE            : rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+BASE_TOOLS             : debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+rustc                  : 1.99.0 (b940084d7 2026-09-28)
+cargo                  : 1.99.0 (5f94df478 2026-08-27)
+Cargo.lock sha256      : 710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e
+arch                   : x86_64
+commit under test      : 06db12a (branch phase12)
+
+## Resource caps
+doc-baseline : mem_limit 6g, memswap_limit 6g, pids_limit 4096, cpus 8
+No cap was raised; the court builds its ladder binaries in the pinned cargo-target
+volume; nothing was built on the host.

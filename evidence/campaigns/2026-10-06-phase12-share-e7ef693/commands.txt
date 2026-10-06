@@ -1,0 +1,18 @@
+# Phase 12.8 cross-document procedural state court — exact commands
+# Commit under test: e7ef693ffa3811f0f001689e742a7ecaff2f40eb (branch phase12); dirty:  M Cargo.toml; M src/field/dag.rs; M src/field/explain.rs; M src/field/ingest.rs; M src/field/ingest_package.rs; M src/field/manifest.rs; M src/field/mod.rs; M src/field/node.rs; M src/field/observe.rs; M src/main.rs;?? evidence/campaigns/2026-10-06-phase12-share-e7ef693/;?? examples/phase12_share_court.rs;?? src/field/resource.rs;?? tests/cross_document_reuse.rs;?? tools/phase12-share-court.sh;
+# Run (UTC): 2026-10-06T15:32:27Z
+# Base image (ARG BASE_STABLE): rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+# Service image: vole-document/dev:1.99.0
+# rustc 1.99.0, cargo 1.99.0 (5f94df478 2026-08-27), arch x86_64
+# Cargo.lock sha256: 710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e
+# All commands run inside the pinned dev image; nothing on the host.
+
+docker compose run --rm --no-TTY dev sh tools/phase12-share-court.sh
+
+# Inside phase12-share-court.sh:
+#   cargo run --quiet --locked --all-features --example phase12_share_court -- CAMPAIGN random evidence/scratch/phase12-share
+# The example writes into CAMPAIGN/raw/:
+#   shared.resource.bin, control.resource.bin      (the exact embedded resource bytes)
+#   docx_shared.docx, epub_shared.epub, epub_control.epub  (the randomized cohort)
+#   metrics.json                                   (the measured receipt)
+# and CAMPAIGN/SUMMARY.md. FieldStore bytes go to the gitignored evidence/scratch/.

@@ -345,3 +345,55 @@ policy sh -c 'cargo audit && cargo deny check'
 
 All of the above run inside Docker (`docker compose run --rm --no-TTY <service>
 <cmd>`). Gate receipts are recorded alongside the campaigns.
+
+---
+
+## 9. Phase-12 addendum (released as `0.1.0-alpha.16`)
+
+This consolidated document is frozen at Phase 10.2 and does **not** yet cover
+Phase 11 or Phase 12. The following is inserted only so a reader does not mistake
+it for an endorsement of the Phase-12 headline; the authoritative Phase-12
+evidence is [`docs/phases/phase-12-results.md`](docs/phases/phase-12-results.md),
+its sealed receipts under `evidence/campaigns/2026-10-06-phase12-*`, and the
+independent review
+[`docs/reviews/phase-12-skeptic-review.md`](docs/reviews/phase-12-skeptic-review.md).
+
+**Scoped Phase-12 verdict (measured).** On a **self-authored** 12-document
+PDF/DOCX/EPUB corpus (841 B – 61 KB), the persistent procedural field (a) is
+byte-exact for all three formats after source **and** descriptor deletion in a
+fresh process (length + SHA-256 + `cmp`), (b) shares an exactly byte-identical
+resource across DOCX/EPUB by content id, and (c) beats direct per-query tooling
+(and the source-retaining SQLite+FTS5 baseline in the cold one-time comparison)
+on the small-document lifetime frontier — while **losing** to that baseline on
+the large synthetic documents' byte frontier (N=10–1000) and wall/CPU at N=1000,
+and losing PDF page text to Poppler in the LLM working-set court.
+
+**Corrections and open gates (Phase-12.15 skeptic, `15b5729`).**
+
+* The required Phase-12 ablation ladder (`A1b`, `A2`–`A10`, eager-vs-progressive,
+  raw-vs-decoded) was **not run**; only A0/A1/V were measured, so no named
+  mechanism is attributable.
+* The §109/`N6` **"PDF no regression" gate has no receipt**.
+* ADR-0034's mandated post-`cache --clear`, OS-witness and CDC controls for the
+  reuse fraction are **absent** from the 12.8 receipt; `N3` is not evaluated.
+* The 12.13 hostile-input class tally was corrected to **16 reject / 22 decline /
+  7 accept** (45 fixtures).
+
+**Close-out (Phase 12.16, `0d23a02` + sealed receipts; released as
+`0.1.0-alpha.16`).** The required ablation ladder **has now been run**
+(`evidence/campaigns/2026-10-06-phase12-lifetime-ablations-06db12a/`): the win is
+attributed to the **content adapters** (A4→A5) and to **persistent semantic reuse**
+(A5→A6, bytes for CPU); EntropyFS (A9) is a loss; `A7`/`A8` are **not separable**.
+`N6` (PDF no regression) is **closed** (A2 vs A11: 32/32 byte-exact, 0 regressions).
+`N3` is **evaluated and VIOLATED**: post-`cache --clear` reuse is `0.0` (in-process
+and fresh process), so cross-document **work** reuse is a recorded negative while
+representation identity remains shared. FTS5 is measured (trigram ties `LIKE` but
+reads more; `unicode61` misses embedded markers). Default-feature clippy is clean
+and the 12.14 demo has a sealed receipt. `N4` (decline-rate threshold) remains
+**not evaluated**.
+* The 12.9 equivalence is a **generator-defined, circular** triplet, not an
+  independent real-world corpus.
+* The default-feature build fails `cargo clippy -- -D warnings` on pre-existing
+  dead code in `src/field/document_format.rs` (four items).
+
+No Phase-12 claim should be stated more strongly than this.

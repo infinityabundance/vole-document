@@ -1,0 +1,38 @@
+{
+  "git": {
+    "commit": "0d23a02e7b1379f70e39f31f385e7e4cc93199ad",
+    "commit_short": "0d23a02",
+    "branch": "phase12",
+    "dirty": ""
+  },
+  "arch": "x86_64",
+  "cargo_lock_sha256": "710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e",
+  "run_utc": "2026-10-06T19:04:08Z",
+  "service_image": "vole-document/doc-baseline:1.99.0",
+  "doc_baseline_image_id": "sha256:dc17f388a49349eb39f89e30705a554a3ceaeae277a22518fd307e526c7159af",
+  "toolchain": {
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)"
+  },
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "base_tools": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "oracles": {
+    "poppler_pdftotext": "22.12.0",
+    "sqlite3": "3.40.1",
+    "strace": "strace -- version 6.1",
+    "jq": "jq-1.6"
+  },
+  "lanes": {
+    "a2": "rans,store,field (Phase-11 PDF field)",
+    "a11": "--all-features (full Phase-12 unified field)"
+  },
+  "counts": {
+    "documents": 16,
+    "observations": 128,
+    "exact_equal": 32,
+    "exact_rows": 32,
+    "regressions": 0,
+    "failures": 0
+  },
+  "camera": "fresh process per observation; observe answer + explain --analyze counters; exactness = length + SHA-256 + cmp vs the unmodified source; per-lane lanes built inside this service"
+}

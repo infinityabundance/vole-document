@@ -1,0 +1,52 @@
+{
+  "lane": "a5",
+  "rung": "A5 + progressive semantic inversion (docx/epub content, no persistent reuse)",
+  "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-a46",
+  "flags": "--no-cache",
+  "one_time": {
+    "wall_ms": 2,
+    "cpu_ms": 0,
+    "process_read_bytes": 20323
+  },
+  "encode": {
+    "wall_ms": 1,
+    "cpu_ms": 0
+  },
+  "ingest": {
+    "wall_ms": 1,
+    "cpu_ms": 0
+  },
+  "ingest_report": {
+    "format": "docx",
+    "field": "a6ef3f0f859fd6891b02485db0bdae388995a76bbef7349bc38219ca32643522",
+    "root_node": "51efe2cc7a3305cf2aca110958eac3e9e648805d961958b9a4b2ef81e2f95261",
+    "index_root": "625fd0058207228e5165df6cb251dfaec990996fdab6796c8e8eec85230c6e04",
+    "node_count": 18,
+    "index_node_count": 1,
+    "source_len": 3458,
+    "member_count": 7,
+    "raw_nodes": 7,
+    "decoded_nodes": 7,
+    "declined_decodes": 0,
+    "opc_model_nodes": 1,
+    "docx_model_nodes": 1,
+    "epub_model_nodes": 1,
+    "resource_blob_nodes": 1,
+    "shared_resource_ids": 0,
+    "shared_resource_bytes": 0,
+    "nodes_id_shared": 0,
+    "seed_bytes_written": 2617,
+    "index_bytes_written": 943
+  },
+  "store_universe_bytes": {
+    "descriptor": 3999,
+    "seed": 5317,
+    "index": 1123,
+    "manifest": 366,
+    "derived_cache": 40,
+    "total": 10985
+  },
+  "answered_cases": 11,
+  "declined_cases": 1,
+  "failed_cases": 0
+}

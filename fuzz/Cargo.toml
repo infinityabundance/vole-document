@@ -15,7 +15,7 @@ libfuzzer-sys = "=0.4.13"
 
 [dependencies.vole-document]
 path = ".."
-features = ["rans", "deflate-replay"]
+features = ["rans", "deflate-replay", "docx", "epub"]
 
 # Standalone workspace so this never joins a parent workspace.
 [workspace]
@@ -91,6 +91,62 @@ bench = false
 [[bin]]
 name = "materializer"
 path = "fuzz_targets/materializer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "zip_scan"
+path = "fuzz_targets/zip_scan.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "zip_decode"
+path = "fuzz_targets/zip_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "opc_rels"
+path = "fuzz_targets/opc_rels.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "docx_wml"
+path = "fuzz_targets/docx_wml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "epub_package"
+path = "fuzz_targets/epub_package.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "epub_content"
+path = "fuzz_targets/epub_content.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xml_part"
+path = "fuzz_targets/xml_part.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "common_observe"
+path = "fuzz_targets/common_observe.rs"
 test = false
 doc = false
 bench = false

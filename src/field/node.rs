@@ -54,6 +54,41 @@ pub enum NodeKind {
     Concat = 0x0C,
     /// A raw exact literal held in the seed store.
     Literal = 0x0D,
+    /// The whole exact package (ZIP/OCF/OPC) source, materialized through the
+    /// descriptor (`serve_document`). Exact (Phase 12.2).
+    PackageRoot = 0x0E,
+    /// One package member's exact raw compressed/stored span (a `SourceSlice`
+    /// with package provenance). Exact (Phase 12.2).
+    PackageMemberRaw = 0x0F,
+    /// One package member's decoded bytes: raw-DEFLATE inflate (method 8) or the
+    /// stored identity (method 0). Derived, never exact (Phase 12.2).
+    PackageMemberDecoded = 0x10,
+    /// The canonical generic-OPC package graph (content types, parts, package and
+    /// part relationships) derived on demand from the exact package source.
+    /// Derived, never exact (Phase 12.3).
+    PackageOpcModel = 0x11,
+    /// The canonical DOCX discovery model (main part, styles part, stories)
+    /// derived on demand from the canonical OPC model. Derived, never exact
+    /// (Phase 12.4).
+    DocxModel = 0x12,
+    /// One WordprocessingML story parsed into its canonical [`crate::adapter::docx::wml::StoryModel`],
+    /// honoring a declared extraction profile. Derived, never exact (Phase 12.4).
+    DocxStory = 0x13,
+    /// The canonical EPUB (OCF) discovery model: `mimetype` conformance facts,
+    /// container rootfiles, and the Package Document metadata/manifest/spine,
+    /// derived on demand from the exact package source. Derived, never exact
+    /// (Phase 12.5).
+    EpubModel = 0x14,
+    /// One spine item's XHTML content document parsed into its bounded native
+    /// content model (headings/paragraphs/lists/tables/links/resources), honoring
+    /// a declared extraction profile. Derived, never exact (Phase 12.6).
+    EpubContent = 0x15,
+    /// A byte-identical shareable resource (image/font/attachment) held inline and
+    /// addressed by **content identity** (Phase 12.8, ADR-0034). Its canonical
+    /// encoding embeds the exact bytes, so two documents carrying the same resource
+    /// share one node id (and one persisted blob) with no second identity scheme.
+    /// Exact (a resource's bytes are the source bytes).
+    ResourceBlob = 0x16,
 }
 
 impl NodeKind {
@@ -73,6 +108,15 @@ impl NodeKind {
             0x0B => NodeKind::ResourceRef,
             0x0C => NodeKind::Concat,
             0x0D => NodeKind::Literal,
+            0x0E => NodeKind::PackageRoot,
+            0x0F => NodeKind::PackageMemberRaw,
+            0x10 => NodeKind::PackageMemberDecoded,
+            0x11 => NodeKind::PackageOpcModel,
+            0x12 => NodeKind::DocxModel,
+            0x13 => NodeKind::DocxStory,
+            0x14 => NodeKind::EpubModel,
+            0x15 => NodeKind::EpubContent,
+            0x16 => NodeKind::ResourceBlob,
             _ => return None,
         })
     }
@@ -93,6 +137,15 @@ impl NodeKind {
             NodeKind::ResourceRef => "ResourceRef",
             NodeKind::Concat => "Concat",
             NodeKind::Literal => "Literal",
+            NodeKind::PackageRoot => "PackageRoot",
+            NodeKind::PackageMemberRaw => "PackageMemberRaw",
+            NodeKind::PackageMemberDecoded => "PackageMemberDecoded",
+            NodeKind::PackageOpcModel => "PackageOpcModel",
+            NodeKind::DocxModel => "DocxModel",
+            NodeKind::DocxStory => "DocxStory",
+            NodeKind::EpubModel => "EpubModel",
+            NodeKind::EpubContent => "EpubContent",
+            NodeKind::ResourceBlob => "ResourceBlob",
         }
     }
 
@@ -111,6 +164,12 @@ impl NodeKind {
                 | NodeKind::ResourceRef
                 | NodeKind::Concat
                 | NodeKind::Literal
+                // Package physical leaves are exact source spans; a decoded
+                // member (`PackageMemberDecoded`) is derived and is **not** exact.
+                | NodeKind::PackageRoot
+                | NodeKind::PackageMemberRaw
+                // A shared resource is the exact embedded bytes.
+                | NodeKind::ResourceBlob
         )
     }
 }

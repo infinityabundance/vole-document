@@ -1,0 +1,580 @@
+{
+  "campaign": "phase12-llm-workingset",
+  "phase": "Phase 12.12 — mixed PDF/DOCX/EPUB LLM working-set court (pinned tokenizer)",
+  "environment": {
+    "git": {
+      "commit": "3eaf57661a70476cdbf90e9265cc34d8b740c4ad",
+      "commit_short": "3eaf576",
+      "dirty": "?? evidence/campaigns/2026-10-06-phase12-lifetime-3eaf576/;?? evidence/campaigns/2026-10-06-phase12-llm-3eaf576/;"
+    },
+    "arch": "x86_64",
+    "cargo_lock_sha256": "710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e",
+    "service_image": "vole-document/llm-workingset:1.99.0",
+    "llm_workingset_image_id": "sha256:28aee8f6fe427b6b68659cb20ab08be4b2ef7fc629a66d5ad9a784196b6597bd",
+    "toolchain": {
+      "rustc": "1.99.0 (b940084d7 2026-09-28)",
+      "cargo": "1.99.0 (5f94df478 2026-08-27)",
+      "python": "3.11.2"
+    },
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "oracles": {
+      "poppler_pdftotext": "22.12.0",
+      "jq": "jq-1.6"
+    },
+    "env_affecting_semantics": {
+      "LC_ALL": "C",
+      "VOLE_BIN": "./target/debug/vole-document"
+    },
+    "tokenizer": {
+      "name": "bert-base-uncased",
+      "implementation": "huggingface/tokenizers (Python bindings)",
+      "implementation_version": "0.20.3",
+      "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+      "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+      "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+      "asset_verified": true,
+      "add_special_tokens": false,
+      "config": {
+        "tokenizer_json_version": "1.0",
+        "model": "WordPiece",
+        "unk_token": "[UNK]",
+        "continuing_subword_prefix": "##",
+        "max_input_chars_per_word": 100,
+        "normalizer": {
+          "type": "BertNormalizer",
+          "clean_text": true,
+          "handle_chinese_chars": true,
+          "strip_accents": null,
+          "lowercase": true
+        },
+        "pre_tokenizer": {
+          "type": "BertPreTokenizer"
+        },
+        "post_processor": "TemplateProcessing",
+        "decoder": "WordPiece",
+        "vocab_size": 30522
+      }
+    }
+  },
+  "tokenizer": {
+    "name": "bert-base-uncased",
+    "implementation": "huggingface/tokenizers (Python bindings)",
+    "implementation_version": "0.20.3",
+    "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+    "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+    "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+    "asset_verified": true,
+    "add_special_tokens": false,
+    "config": {
+      "tokenizer_json_version": "1.0",
+      "model": "WordPiece",
+      "unk_token": "[UNK]",
+      "continuing_subword_prefix": "##",
+      "max_input_chars_per_word": 100,
+      "normalizer": {
+        "type": "BertNormalizer",
+        "clean_text": true,
+        "handle_chinese_chars": true,
+        "strip_accents": null,
+        "lowercase": true
+      },
+      "pre_tokenizer": {
+        "type": "BertPreTokenizer"
+      },
+      "post_processor": "TemplateProcessing",
+      "decoder": "WordPiece",
+      "vocab_size": 30522
+    }
+  },
+  "cases": [
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "question": "what is on page 1?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "poppler-pdftotext-whole",
+          "bytes": 210,
+          "tokens": 48
+        },
+        "B1_local_extract": {
+          "profile": "poppler-pdftotext-f1-l1",
+          "bytes": 210,
+          "tokens": 48
+        },
+        "V_vole_observation": {
+          "repr": "page:1",
+          "bytes": 234,
+          "tokens": 51,
+          "provenance": ""
+        }
+      }
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "question": "what is the first body paragraph (block 1)?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "docx-story-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+          "bytes": 242,
+          "tokens": 46
+        },
+        "B1_local_extract": {
+          "profile": "docx-block-txt-v1 (first body paragraph block)",
+          "bytes": 37,
+          "tokens": 9
+        },
+        "V_vole_observation": {
+          "repr": "block:1",
+          "bytes": 37,
+          "tokens": 9,
+          "provenance": "format=docx;common;docx;story=main;part=/word/document.xml;block=1;profile=v1-final-result-h1-f1-e1-c1-x0-t1-b1"
+        }
+      }
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "question": "what is the first spine paragraph (block 1)?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "epub-spine-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+          "bytes": 246,
+          "tokens": 48
+        },
+        "B1_local_extract": {
+          "profile": "epub-block-txt-v1 (first spine paragraph block)",
+          "bytes": 37,
+          "tokens": 9
+        },
+        "V_vole_observation": {
+          "repr": "block:1",
+          "bytes": 37,
+          "tokens": 9,
+          "provenance": "format=epub;common;epub;spine=0;part=OEBPS/chapter1.xhtml;block=1;ordinal=1;profile=v1-linear-only-excluded-h0-s1"
+        }
+      }
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "question": "what is on page 1?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "poppler-pdftotext-whole",
+          "bytes": 314,
+          "tokens": 71
+        },
+        "B1_local_extract": {
+          "profile": "poppler-pdftotext-f1-l1",
+          "bytes": 314,
+          "tokens": 71
+        },
+        "V_vole_observation": {
+          "repr": "page:1",
+          "bytes": 365,
+          "tokens": 78,
+          "provenance": ""
+        }
+      }
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "question": "what is the first body paragraph (block 1)?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "docx-story-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+          "bytes": 613,
+          "tokens": 153
+        },
+        "B1_local_extract": {
+          "profile": "docx-block-txt-v1 (first body paragraph block)",
+          "bytes": 34,
+          "tokens": 9
+        },
+        "V_vole_observation": {
+          "repr": "block:1",
+          "bytes": 34,
+          "tokens": 9,
+          "provenance": "format=docx;common;docx;story=main;part=/word/document.xml;block=1;profile=v1-final-result-h1-f1-e1-c1-x0-t1-b1"
+        }
+      }
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "question": "what is the first spine paragraph (block 1)?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "epub-spine-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+          "bytes": 617,
+          "tokens": 155
+        },
+        "B1_local_extract": {
+          "profile": "epub-block-txt-v1 (first spine paragraph block)",
+          "bytes": 34,
+          "tokens": 9
+        },
+        "V_vole_observation": {
+          "repr": "block:1",
+          "bytes": 34,
+          "tokens": 9,
+          "provenance": "format=epub;common;epub;spine=0;part=OEBPS/chapter1.xhtml;block=1;ordinal=1;profile=v1-linear-only-excluded-h0-s1"
+        }
+      }
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "question": "what is on page 1?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "poppler-pdftotext-whole",
+          "bytes": 107,
+          "tokens": 29
+        },
+        "B1_local_extract": {
+          "profile": "poppler-pdftotext-f1-l1",
+          "bytes": 107,
+          "tokens": 29
+        },
+        "V_vole_observation": {
+          "repr": "page:1",
+          "bytes": 106,
+          "tokens": 27,
+          "provenance": ""
+        }
+      }
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "question": "what is the first body paragraph (block 1)?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "docx-story-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+          "bytes": 87,
+          "tokens": 29
+        },
+        "B1_local_extract": {
+          "profile": "docx-block-txt-v1 (first body paragraph block)",
+          "bytes": 33,
+          "tokens": 9
+        },
+        "V_vole_observation": {
+          "repr": "block:1",
+          "bytes": 33,
+          "tokens": 9,
+          "provenance": "format=docx;common;docx;story=main;part=/word/document.xml;block=1;profile=v1-final-result-h1-f1-e1-c1-x0-t1-b1"
+        }
+      }
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "question": "what is the first spine paragraph (block 1)?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "epub-spine-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+          "bytes": 86,
+          "tokens": 29
+        },
+        "B1_local_extract": {
+          "profile": "epub-block-txt-v1 (first spine paragraph block)",
+          "bytes": 33,
+          "tokens": 9
+        },
+        "V_vole_observation": {
+          "repr": "block:1",
+          "bytes": 33,
+          "tokens": 9,
+          "provenance": "format=epub;common;epub;spine=0;part=OEBPS/chapter1.xhtml;block=1;ordinal=1;profile=v1-linear-only-excluded-h0-s1"
+        }
+      }
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "question": "what is on page 1?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "poppler-pdftotext-whole",
+          "bytes": 51724,
+          "tokens": 34319
+        },
+        "B1_local_extract": {
+          "profile": "poppler-pdftotext-f1-l1",
+          "bytes": 51724,
+          "tokens": 34319
+        },
+        "V_vole_observation": {
+          "repr": "page:1",
+          "bytes": 78933,
+          "tokens": 38853,
+          "provenance": ""
+        }
+      }
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "question": "what is the first body paragraph (block 1)?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "docx-story-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+          "bytes": 163602,
+          "tokens": 91257
+        },
+        "B1_local_extract": {
+          "profile": "docx-block-txt-v1 (first body paragraph block)",
+          "bytes": 38,
+          "tokens": 10
+        },
+        "V_vole_observation": {
+          "repr": "block:1",
+          "bytes": 38,
+          "tokens": 10,
+          "provenance": "format=docx;common;docx;story=main;part=/word/document.xml;block=1;profile=v1-final-result-h1-f1-e1-c1-x0-t1-b1"
+        }
+      }
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "question": "what is the first spine paragraph (block 1)?",
+      "baselines": {
+        "B0_whole_document": {
+          "profile": "epub-spine-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+          "bytes": 163572,
+          "tokens": 91255
+        },
+        "B1_local_extract": {
+          "profile": "epub-block-txt-v1 (first spine paragraph block)",
+          "bytes": 38,
+          "tokens": 10
+        },
+        "V_vole_observation": {
+          "repr": "block:1",
+          "bytes": 38,
+          "tokens": 10,
+          "provenance": "format=epub;common;epub;spine=0;part=OEBPS/chapter1.xhtml;block=1;ordinal=1;profile=v1-linear-only-excluded-h0-s1"
+        }
+      }
+    }
+  ],
+  "verdict": {
+    "per_case": [
+      {
+        "name": "alpha.pdf",
+        "format": "pdf",
+        "B0_bytes": 210,
+        "B1_bytes": 210,
+        "V_bytes": 234,
+        "B0_tokens": 48,
+        "B1_tokens": 48,
+        "V_tokens": 51,
+        "context_waste_ratio": 0.8974358974358975,
+        "token_context_waste_ratio": 0.9411764705882353,
+        "verdict_vs_B1_tokens": "loss",
+        "verdict_vs_B0_tokens": "loss",
+        "losses": [
+          "V_bytes_larger_than_B1",
+          "V_bytes_larger_than_B0",
+          "V_tokens_exceed_B1",
+          "V_tokens_exceed_B0"
+        ]
+      },
+      {
+        "name": "alpha.docx",
+        "format": "docx",
+        "B0_bytes": 242,
+        "B1_bytes": 37,
+        "V_bytes": 37,
+        "B0_tokens": 46,
+        "B1_tokens": 9,
+        "V_tokens": 9,
+        "context_waste_ratio": 6.54054054054054,
+        "token_context_waste_ratio": 5.111111111111111,
+        "verdict_vs_B1_tokens": "tie",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      },
+      {
+        "name": "alpha.epub",
+        "format": "epub",
+        "B0_bytes": 246,
+        "B1_bytes": 37,
+        "V_bytes": 37,
+        "B0_tokens": 48,
+        "B1_tokens": 9,
+        "V_tokens": 9,
+        "context_waste_ratio": 6.648648648648648,
+        "token_context_waste_ratio": 5.333333333333333,
+        "verdict_vs_B1_tokens": "tie",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      },
+      {
+        "name": "bravo.pdf",
+        "format": "pdf",
+        "B0_bytes": 314,
+        "B1_bytes": 314,
+        "V_bytes": 365,
+        "B0_tokens": 71,
+        "B1_tokens": 71,
+        "V_tokens": 78,
+        "context_waste_ratio": 0.8602739726027397,
+        "token_context_waste_ratio": 0.9102564102564102,
+        "verdict_vs_B1_tokens": "loss",
+        "verdict_vs_B0_tokens": "loss",
+        "losses": [
+          "V_bytes_larger_than_B1",
+          "V_bytes_larger_than_B0",
+          "V_tokens_exceed_B1",
+          "V_tokens_exceed_B0"
+        ]
+      },
+      {
+        "name": "bravo.docx",
+        "format": "docx",
+        "B0_bytes": 613,
+        "B1_bytes": 34,
+        "V_bytes": 34,
+        "B0_tokens": 153,
+        "B1_tokens": 9,
+        "V_tokens": 9,
+        "context_waste_ratio": 18.029411764705884,
+        "token_context_waste_ratio": 17,
+        "verdict_vs_B1_tokens": "tie",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      },
+      {
+        "name": "bravo.epub",
+        "format": "epub",
+        "B0_bytes": 617,
+        "B1_bytes": 34,
+        "V_bytes": 34,
+        "B0_tokens": 155,
+        "B1_tokens": 9,
+        "V_tokens": 9,
+        "context_waste_ratio": 18.147058823529413,
+        "token_context_waste_ratio": 17.22222222222222,
+        "verdict_vs_B1_tokens": "tie",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      },
+      {
+        "name": "charlie.pdf",
+        "format": "pdf",
+        "B0_bytes": 107,
+        "B1_bytes": 107,
+        "V_bytes": 106,
+        "B0_tokens": 29,
+        "B1_tokens": 29,
+        "V_tokens": 27,
+        "context_waste_ratio": 1.009433962264151,
+        "token_context_waste_ratio": 1.0740740740740742,
+        "verdict_vs_B1_tokens": "win",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      },
+      {
+        "name": "charlie.docx",
+        "format": "docx",
+        "B0_bytes": 87,
+        "B1_bytes": 33,
+        "V_bytes": 33,
+        "B0_tokens": 29,
+        "B1_tokens": 9,
+        "V_tokens": 9,
+        "context_waste_ratio": 2.6363636363636362,
+        "token_context_waste_ratio": 3.2222222222222223,
+        "verdict_vs_B1_tokens": "tie",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      },
+      {
+        "name": "charlie.epub",
+        "format": "epub",
+        "B0_bytes": 86,
+        "B1_bytes": 33,
+        "V_bytes": 33,
+        "B0_tokens": 29,
+        "B1_tokens": 9,
+        "V_tokens": 9,
+        "context_waste_ratio": 2.606060606060606,
+        "token_context_waste_ratio": 3.2222222222222223,
+        "verdict_vs_B1_tokens": "tie",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      },
+      {
+        "name": "delta.pdf",
+        "format": "pdf",
+        "B0_bytes": 51724,
+        "B1_bytes": 51724,
+        "V_bytes": 78933,
+        "B0_tokens": 34319,
+        "B1_tokens": 34319,
+        "V_tokens": 38853,
+        "context_waste_ratio": 0.6552899294338236,
+        "token_context_waste_ratio": 0.8833037345893496,
+        "verdict_vs_B1_tokens": "loss",
+        "verdict_vs_B0_tokens": "loss",
+        "losses": [
+          "V_bytes_larger_than_B1",
+          "V_bytes_larger_than_B0",
+          "V_tokens_exceed_B1",
+          "V_tokens_exceed_B0"
+        ]
+      },
+      {
+        "name": "delta.docx",
+        "format": "docx",
+        "B0_bytes": 163602,
+        "B1_bytes": 38,
+        "V_bytes": 38,
+        "B0_tokens": 91257,
+        "B1_tokens": 10,
+        "V_tokens": 10,
+        "context_waste_ratio": 4305.315789473684,
+        "token_context_waste_ratio": 9125.7,
+        "verdict_vs_B1_tokens": "tie",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      },
+      {
+        "name": "delta.epub",
+        "format": "epub",
+        "B0_bytes": 163572,
+        "B1_bytes": 38,
+        "V_bytes": 38,
+        "B0_tokens": 91255,
+        "B1_tokens": 10,
+        "V_tokens": 10,
+        "context_waste_ratio": 4304.526315789473,
+        "token_context_waste_ratio": 9125.5,
+        "verdict_vs_B1_tokens": "tie",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      }
+    ],
+    "vs_B1": {
+      "win": 1,
+      "tie": 8,
+      "loss": 3
+    },
+    "vs_B0": {
+      "win": 9,
+      "tie": 0,
+      "loss": 3
+    },
+    "any_token_reduction_vs_B1": true,
+    "all_token_reduction_vs_B1": false
+  },
+  "claim_scope": "Token counts are bert-base-uncased (WordPiece, vocab 30522) under the pinned tokenizers 0.20.3 runtime; they are not a claim about any other model. A smaller V is a working-set measurement, not a text-quality claim.",
+  "accounting_note": "B0/B1 are independent whole-document / local extracts (Poppler for PDF; the named stdlib DOCX/EPUB profiles). V is the VOLE observe payload (a bounded projection, not Poppler reading order)."
+}

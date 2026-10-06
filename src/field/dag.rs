@@ -216,6 +216,62 @@ pub struct ReuseStats {
     pub cache_bytes_written: u64,
 }
 
+/// The inverse work of one reconstruction, in abstract integer units (ADR-0034,
+/// plan §91). A unit is one node execution **or** one cold input byte the
+/// reconstruction had to read; it is never derived from the source size.
+///
+/// For a *cold* run (`use_cache = false`, or a cleared cache) `node_executions`
+/// is the run's `nodes_executed`; for a warm run the numerator comes from the
+/// difference the persisted store made.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct InverseWork {
+    /// Node executions the run performed.
+    pub node_executions: u64,
+    /// Cold input bytes the run read (descriptor + manifest + index + seed).
+    pub input_bytes: u64,
+}
+
+impl InverseWork {
+    /// Assemble a receipt from the two independently measured integers.
+    pub const fn new(node_executions: u64, input_bytes: u64) -> Self {
+        InverseWork {
+            node_executions,
+            input_bytes,
+        }
+    }
+
+    /// Total work units: one per execution plus one per cold input byte.
+    pub const fn units(self) -> u64 {
+        self.node_executions.saturating_add(self.input_bytes)
+    }
+}
+
+/// `retained_inverse_work_fraction` (ADR-0034, plan §91):
+///
+/// ```text
+/// reused_persisted_inverse_work / total_inverse_work_required_by_cold_reconstruction
+/// ```
+///
+/// `cold` and `warm` are two receipts of the **same** query (cold = cache
+/// disabled or cleared; warm = the persisted store present). Work avoided is the
+/// drop in executions plus the drop in cold input bytes; the denominator is the
+/// cold run's total. Both are integer work units ([`InverseWork::units`]), so the
+/// fraction is derived from receipted integers, never from source size.
+///
+/// Returns `1.0` when the cold run required no work (an empty reconstruction),
+/// which is the honest limit rather than a fabricated ratio.
+pub fn retained_inverse_work_fraction(cold: InverseWork, warm: InverseWork) -> f64 {
+    let total = cold.units();
+    if total == 0 {
+        return 1.0;
+    }
+    let reused = cold
+        .node_executions
+        .saturating_sub(warm.node_executions)
+        .saturating_add(cold.input_bytes.saturating_sub(warm.input_bytes));
+    reused as f64 / total as f64
+}
+
 /// Materialize one node's output bytes, recursively resolving dependencies.
 pub fn materialize_node(
     parsed: &ParsedDescriptor,
@@ -350,6 +406,228 @@ fn materialize_inner(
             out
         }
         NodeKind::Literal => node.params.clone(),
+        // A shared resource's canonical payload *is* its exact bytes; identity is
+        // content identity, so identical bytes across documents share this node.
+        NodeKind::ResourceBlob => node.params.clone(),
+        NodeKind::PackageRoot => source.serve_document(limits)?,
+        NodeKind::PackageMemberRaw => {
+            let (offset, len) = read_span_params(&node.params)?;
+            source.serve_range(offset, len, limits)?
+        }
+        NodeKind::PackageMemberDecoded => {
+            let (_ordinal, method, _extra) = read_object_params(&node.params)?;
+            let dep = node
+                .deps
+                .first()
+                .ok_or_else(|| Error::usage("PackageMemberDecoded has no dependency"))?;
+            let child = load_node(store, dep)?;
+            let encoded = materialize_inner(
+                source,
+                store,
+                cache,
+                &child,
+                limits,
+                budget,
+                depth - 1,
+                reuse,
+            )?;
+            match method {
+                // Stored (method 0): the raw span *is* the decoded bytes.
+                0 => {
+                    if encoded.len() as u64 != node.logical_output_len {
+                        return Err(Error::reconstruction_mismatch(format!(
+                            "stored member is {} bytes but the node declared {}",
+                            encoded.len(),
+                            node.logical_output_len
+                        )));
+                    }
+                    encoded
+                }
+                // Deflate (method 8): ZIP stores bare DEFLATE, not zlib-wrapped.
+                8 => derive::inflate_raw_deflate(&encoded, node.logical_output_len, limits)?,
+                // Any other method is a typed decline; the exact bytes are untouched.
+                other => {
+                    return Err(Error::unsupported_feature(format!(
+                        "zip member compression method {other} has no decoded representation"
+                    )));
+                }
+            }
+        }
+        NodeKind::PackageOpcModel => {
+            // The canonical OPC graph is derived on demand from the exact package
+            // source (the single dependency is the exact `PackageRoot`). XML parsing
+            // and all bounds live in `field::opc` / `adapter::package::opc`.
+            #[cfg(feature = "opc")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PackageOpcModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let source = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::field::opc::build_opc_model(&source, limits)?
+            }
+            #[cfg(not(feature = "opc"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "OPC support is not compiled in (feature `opc`)",
+                ));
+            }
+        }
+        NodeKind::DocxModel => {
+            #[cfg(feature = "docx")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("DocxModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let opc_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::docx::build_docx_model(&opc_bytes, limits)?
+            }
+            #[cfg(not(feature = "docx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "DOCX support is not compiled in (feature `docx`)",
+                ));
+            }
+        }
+        NodeKind::DocxStory => {
+            #[cfg(feature = "docx")]
+            {
+                let (story, part_name, profile) =
+                    crate::adapter::docx::read_story_params(&node.params)?;
+                let part_dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("DocxStory has no part dependency"))?;
+                let part_node = load_node(store, part_dep)?;
+                let part_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &part_node,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                let styles = match node.deps.get(1) {
+                    Some(styles_dep) => {
+                        let styles_node = load_node(store, styles_dep)?;
+                        let styles_bytes = materialize_inner(
+                            source,
+                            store,
+                            cache,
+                            &styles_node,
+                            limits,
+                            budget,
+                            depth - 1,
+                            reuse,
+                        )?;
+                        Some(crate::adapter::docx::parse_styles(&styles_bytes, limits)?)
+                    }
+                    None => None,
+                };
+                crate::adapter::docx::wml::parse_story(
+                    &part_bytes,
+                    &part_name,
+                    story,
+                    &profile,
+                    styles.as_ref(),
+                    limits,
+                )?
+                .encode()
+            }
+            #[cfg(not(feature = "docx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "DOCX support is not compiled in (feature `docx`)",
+                ));
+            }
+        }
+        NodeKind::EpubModel => {
+            // The canonical EPUB (OCF) graph is derived on demand from the exact
+            // package source (the single dependency is the exact `PackageRoot`). It
+            // does not route through OPC. XML parsing and all bounds live in
+            // `adapter::epub`.
+            #[cfg(feature = "epub")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("EpubModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let source = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::epub::build_epub_model(&source, limits)?
+            }
+            #[cfg(not(feature = "epub"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "EPUB support is not compiled in (feature `epub`)",
+                ));
+            }
+        }
+        NodeKind::EpubContent => {
+            // One spine item's XHTML content document parsed into its bounded native
+            // model. Its single dependency is the decoded member node; the parse is
+            // bounded entirely inside `adapter::epub::content`. It never executes
+            // scripts and never fetches an external target.
+            #[cfg(feature = "epub")]
+            {
+                let (_spine, _ordinal, base_dir, _profile) =
+                    crate::adapter::epub::read_content_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("EpubContent has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::epub::parse_content(&bytes, &base_dir, limits)?.encode()
+            }
+            #[cfg(not(feature = "epub"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "EPUB support is not compiled in (feature `epub`)",
+                ));
+            }
+        }
         NodeKind::PdfStreamDecoded => {
             let dep = node
                 .deps

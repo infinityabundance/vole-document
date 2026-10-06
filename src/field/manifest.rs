@@ -175,6 +175,19 @@ impl FieldRoot {
     }
 }
 
+/// Read an integer `key=<n>;` token from a field manifest's provenance string.
+///
+/// Ingest records representation facts such as `id_shared=<n>;res_shared=<n>;`
+/// (Phase 12.8) so an observation can report them without a store-wide scan.
+/// Returns `0` for a manifest that predates the token.
+pub fn provenance_counter(provenance: &str, key: &str) -> u64 {
+    provenance
+        .split(';')
+        .find_map(|token| token.strip_prefix(key).and_then(|v| v.strip_prefix('=')))
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

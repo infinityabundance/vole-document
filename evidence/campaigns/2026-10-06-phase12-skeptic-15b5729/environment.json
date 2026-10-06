@@ -1,0 +1,34 @@
+{
+  "campaign": "2026-10-06-phase12-skeptic-15b5729",
+  "phase": "Phase 12.15 — independent adversarial skeptic review",
+  "run_utc": "2026-10-06T16:45:00Z",
+  "arch": "x86_64",
+  "git_branch": "phase12",
+  "git_commit": "15b5729bc1b43ae420ac31851586feb151f3989d",
+  "git_commit_short": "15b5729",
+  "git_dirty_at_review": "?? evidence/campaigns/2026-10-06-phase12-skeptic-15b5729/",
+  "cargo_lock_sha256": "710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e",
+  "services": {
+    "dev": {
+      "name": "vole-document/dev:1.99.0",
+      "image_id": "sha256:652fbf80bd6631f9a80df84589bc1227e374a576d5267c343b87471b911415c8",
+      "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e"
+    },
+    "doc_baseline": {
+      "name": "vole-document/doc-baseline:1.99.0",
+      "image_id": "sha256:dc17f388a49349eb39f89e30705a554a3ceaeae277a22518fd307e526c7159af"
+    }
+  },
+  "toolchain": {
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)"
+  },
+  "env_affecting_semantics": {
+    "LC_ALL": "C",
+    "CARGO_TERM_COLOR": "never",
+    "default_features": "rans,store,field",
+    "all_features": "adds package,opc,docx,epub,xml,deflate-replay,dsfb-search,entropyfs-store"
+  },
+  "notes": "Read-only review of src/. The full gate and the default-feature clippy were run in the pinned dev service; the flagship demo was run in the pinned doc-baseline service. All host operations were git + docker only.",
+  "raw_artifacts": ["gate.txt", "clippy-default.txt", "demo.txt"]
+}

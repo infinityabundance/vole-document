@@ -1,0 +1,15 @@
+# Phase-12 PDF no-regression gate (N6) — exact commands
+# Commit under test: 0d23a02e7b1379f70e39f31f385e7e4cc93199ad (branch phase12); dirty: 
+# Service image: vole-document/doc-baseline:1.99.0 (id sha256:dc17f388a49349eb39f89e30705a554a3ceaeae277a22518fd307e526c7159af); base rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+# rustc 1.99.0 (b940084d7 2026-09-28), cargo 1.99.0 (5f94df478 2026-08-27); Cargo.lock sha256: 710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e; arch x86_64
+# Run (UTC): 2026-10-06T19:04:08Z
+# All commands run inside the pinned, capped doc-baseline image; nothing on the host.
+
+docker compose run --rm --no-TTY -e HOST_IMAGE_ID=sha256:dc17f388a49349eb39f89e30705a554a3ceaeae277a22518fd307e526c7159af \
+    doc-baseline bash tools/phase12-pdf-noregression.sh evidence/campaigns/2026-10-06-phase12-pdf-noregression-0d23a02
+
+# Inside the script (fresh builds in the pinned service):
+#   cargo build --locked --no-default-features --features rans,store,field   -> vole-a2
+#   cargo build --locked --all-features                                      -> vole-a11
+# per PDF and lane: encode --force raw; field-ingest; materialize --exact;
+#   observe <selector>; explain --analyze <selector>; find --text <page-1 token>.

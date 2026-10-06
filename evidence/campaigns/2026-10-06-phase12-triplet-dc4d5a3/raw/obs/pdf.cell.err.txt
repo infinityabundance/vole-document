@@ -1,0 +1,1 @@
+error: UnsupportedFeature: unsupported common observation: format pdf does not support selector cell:0:6:1 with representation text

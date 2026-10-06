@@ -1,0 +1,32 @@
+# Phase 12.15 independent adversarial skeptic — exact commands
+# Commit under review: 15b5729 (branch phase12)
+# Reviewer role: independent adversarial skeptic; READ-ONLY on src/.
+# All commands run inside pinned, memory-capped Docker services; nothing on the host
+# except git + docker.
+#
+# Cargo.lock sha256: 710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e
+# arch: x86_64
+# rustc 1.99.0 (b940084d7 2026-09-28); cargo 1.99.0 (5f94df478 2026-08-27)
+#
+# 1) Full acceptance gate (mandated by the task):
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features --locked && cargo test --no-default-features'
+#    -> exit 0; raw/gate.txt
+#
+# 2) Default-feature clippy (the task requires checking for warnings):
+docker compose run --rm --no-TTY dev sh -c 'cargo clippy --all-targets -- -D warnings'
+#    -> exit 101; four dead-code errors in src/field/document_format.rs; raw/clippy-default.txt
+#
+# 3) Flagship demo, to test whether its reported output is live:
+docker compose run --rm --no-TTY doc-baseline sh tools/phase12-demo.sh
+#    -> exit 0; reproduces the results-doc values; raw/demo.txt
+#
+# 4) Evidence checks (host, read-only):
+grep -ri 'cache --clear|cdc|witness' tools/phase12-share-court.sh examples/phase12_share_court.rs tests/cross_document_reuse.rs evidence/campaigns/2026-10-06-phase12-share-e7ef693/
+#    -> no output (ADR-0034 controls absent)
+awk -F'\t' 'NR>1{print $4}' evidence/campaigns/2026-10-06-phase12-security-33f6d04/outcomes.tsv | sort | uniq -c
+#    -> 7 accept / 22 opaque-preserve-and-decline / 16 reject
+jq -r '.documents[].name + " " + ([.cases[].id]|join(","))' tools/fixtures/phase12-lifetime-schedule.json
+cat evidence/campaigns/2026-10-06-phase12-lifetime-3eaf576/raw/case_bytes.tsv
+#    -> declined cases are scheduled and charged 0 bytes to the decliner
+git --no-pager ls-tree -r --name-only 7ac2b09 | grep phase12-demo
+#    -> empty (demo did not exist at 7ac2b09; added in 15b5729)

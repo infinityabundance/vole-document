@@ -26,12 +26,25 @@
 use std::cell::Cell;
 use std::time::Instant;
 
+#[cfg(feature = "docx")]
+use crate::adapter::docx::wml::StoryModel;
+#[cfg(feature = "docx")]
+use crate::adapter::docx::{DocxExtractProfile, DocxModel, DocxPartRef, DocxStory, story_params};
+#[cfg(feature = "epub")]
+use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
 use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, ReuseStats, SourceServer};
+use crate::field::document_format::DocumentFormat;
+#[cfg(feature = "docx")]
+use crate::field::index::SEL_DOCX_MODEL;
+#[cfg(feature = "epub")]
+use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "opc")]
+use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::{
-    FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PAGE, SEL_REVISION, SEL_STREAM, SEL_STREAM_DECODED,
-    SelectorKey, lookup,
+    FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PACKAGE_MEMBER_DECODED, SEL_PACKAGE_MEMBER_RAW,
+    SEL_PAGE, SEL_REVISION, SEL_STREAM, SEL_STREAM_DECODED, SelectorKey, lookup,
 };
 use crate::field::ingest;
 use crate::field::manifest::FieldRoot;
@@ -59,6 +72,16 @@ pub enum Selector {
     Stream(u32),
     /// A physical revision, by 0-based index.
     Revision(u32),
+    /// A package (ZIP/OCF/OPC) member, by central-directory ordinal. The ordinal is
+    /// the physical identity; duplicate names stay distinct (Phase 12.2).
+    Member(u32),
+    /// A generic OPC package part, by absolute part name (Phase 12.3). Part-name
+    /// equivalence is case-insensitive. Resolution is by the OPC relationship graph,
+    /// never by a hardcoded path.
+    PackagePart(String),
+    /// A generic OPC relationship, by id (Phase 12.3). Ids are only unique within one
+    /// `.rels` part, so a duplicated id across owners is a typed ambiguity decline.
+    Relationship(String),
     /// A half-open exact source byte range.
     ByteRange {
         /// Start offset.
@@ -68,6 +91,168 @@ pub enum Selector {
     },
     /// Every text line containing a pattern (case-sensitive).
     TextMatch(String),
+    /// **Common** document-level metadata projection (format-neutral). Only the
+    /// detected format's native metadata is projected; the answer names the format
+    /// and its native provenance (Phase 12.7, ADR-0031).
+    Metadata,
+    /// **Common** whole-document reading-text projection.
+    Text,
+    /// **Common** the `n`-th heading in reading order (0-based).
+    Heading(u32),
+    /// **Common** the `n`-th block (paragraph or table) in reading order (0-based).
+    Block(u32),
+    /// **Common** the `n`-th top-level table in reading order (0-based).
+    Table(u32),
+    /// **Common** a table cell by 0-based `table`, `row`, and physical grid `col`.
+    Cell {
+        /// 0-based table index in reading order.
+        table: u32,
+        /// 0-based row index.
+        row: u32,
+        /// 0-based physical column index (a DOCX grid column; an EPUB cell position).
+        col: u32,
+    },
+    /// **Common** the `n`-th embedded resource (image/embedded object) in reading
+    /// order (0-based).
+    Resource(u32),
+    /// **Common** the `n`-th hyperlink in reading order (0-based).
+    Link(u32),
+    /// **Common** a deterministic, case-sensitive lexical search over the
+    /// document's reading text. Never an embedding or a model call.
+    SearchMatch(String),
+    /// A DOCX story, scoped to exactly one story and one extraction profile
+    /// (Phase 12.4). A story is never silently mixed with another.
+    #[cfg(feature = "docx")]
+    DocxStory {
+        /// The story to observe.
+        story: DocxStory,
+        /// The extraction profile identity.
+        profile: DocxExtractProfile,
+    },
+    /// A body-level paragraph of a DOCX story, by 0-based document-order index.
+    #[cfg(feature = "docx")]
+    DocxParagraph {
+        /// The owning story.
+        story: DocxStory,
+        /// The paragraph index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: DocxExtractProfile,
+    },
+    /// A top-level DOCX table, by 0-based index.
+    #[cfg(feature = "docx")]
+    DocxTable {
+        /// The owning story.
+        story: DocxStory,
+        /// The table index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: DocxExtractProfile,
+    },
+    /// A DOCX table cell, addressed by an A1-style reference (e.g. `B7`).
+    #[cfg(feature = "docx")]
+    DocxCell {
+        /// The owning story.
+        story: DocxStory,
+        /// The table index.
+        table: u32,
+        /// The cell reference (`B7`: column `B`, 1-based row `7`).
+        cell: String,
+        /// The extraction profile identity.
+        profile: DocxExtractProfile,
+    },
+    /// A story-scoped text search over paragraphs.
+    #[cfg(feature = "docx")]
+    DocxFind {
+        /// The owning story.
+        story: DocxStory,
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The extraction profile identity.
+        profile: DocxExtractProfile,
+    },
+    /// The EPUB (OCF) container + Package Document as a whole (Phase 12.5).
+    #[cfg(feature = "epub")]
+    EpubPackage,
+    /// A Package Document manifest item, by 0-based document-order index. `ExactBytes`
+    /// and `DecodedBytes` resolve to the item's container member; an external target
+    /// is an inert identifier and is a typed decline, never a fetch.
+    #[cfg(feature = "epub")]
+    EpubManifestItem {
+        /// The manifest index.
+        index: u32,
+    },
+    /// A spine item as the reading-order coordinate (Phase 12.5). The index is into
+    /// the reading order selected by `profile` (`linear-only` by default). This is
+    /// **not** `Page(n)`: reflowable EPUB has no intrinsic pages.
+    #[cfg(feature = "epub")]
+    EpubSpineItem {
+        /// The reading-order index.
+        index: u32,
+        /// The reading profile identity.
+        profile: EpubExtractProfile,
+    },
+    /// The EPUB Navigation Document (its `toc`/`landmarks`/`page-list` sets).
+    #[cfg(feature = "epub")]
+    EpubNav,
+    /// One flattened navigation entry, by 0-based index.
+    #[cfg(feature = "epub")]
+    EpubNavNode {
+        /// The entry index.
+        index: u32,
+    },
+    /// A container resource by member name (e.g. `OEBPS/text/ch1.xhtml`), resolved
+    /// through the manifest; external targets are inert and never fetched.
+    #[cfg(feature = "epub")]
+    EpubResource(String),
+    /// One block of a spine item's content document (Phase 12.6), by 0-based
+    /// document-order index into that item's parsed [`crate::adapter::epub::Block`]
+    /// list (heading/paragraph/list/table).
+    #[cfg(feature = "epub")]
+    EpubBlock {
+        /// The reading-order spine index.
+        index: u32,
+        /// The block index.
+        block: u32,
+        /// The reading profile identity.
+        profile: EpubExtractProfile,
+    },
+    /// One table cell of a spine item, addressed by **physical** position: the
+    /// 0-based table index among the item's tables, the 0-based `tr` index, and the
+    /// 0-based cell index within that row (spans are reported, never projected).
+    #[cfg(feature = "epub")]
+    EpubCell {
+        /// The reading-order spine index.
+        index: u32,
+        /// The 0-based table index.
+        table: u32,
+        /// The 0-based row index.
+        row: u32,
+        /// The 0-based physical cell index within the row.
+        col: u32,
+        /// The reading profile identity.
+        profile: EpubExtractProfile,
+    },
+    /// One link of a spine item's content document, by 0-based index.
+    #[cfg(feature = "epub")]
+    EpubLink {
+        /// The reading-order spine index.
+        index: u32,
+        /// The link index.
+        link: u32,
+        /// The reading profile identity.
+        profile: EpubExtractProfile,
+    },
+    /// A text search over one spine item's blocks, scoped by the reading profile.
+    #[cfg(feature = "epub")]
+    EpubFind {
+        /// The reading-order spine index.
+        index: u32,
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The reading profile identity.
+        profile: EpubExtractProfile,
+    },
 }
 
 impl Selector {
@@ -79,9 +264,142 @@ impl Selector {
             Selector::Object(n) => format!("object:{n}"),
             Selector::Stream(n) => format!("stream:{n}"),
             Selector::Revision(n) => format!("revision:{n}"),
+            Selector::Member(n) => format!("member:{n}"),
+            Selector::PackagePart(name) => format!("package-part:{name}"),
+            Selector::Relationship(id) => format!("relationship:{id}"),
             Selector::ByteRange { offset, len } => format!("byte-range:{offset}:{len}"),
             Selector::TextMatch(p) => format!("text-match:{p}"),
+            Selector::Metadata => "metadata".to_string(),
+            Selector::Text => "text".to_string(),
+            Selector::Heading(n) => format!("heading:{n}"),
+            Selector::Block(n) => format!("block:{n}"),
+            Selector::Table(n) => format!("table:{n}"),
+            Selector::Cell { table, row, col } => format!("cell:{table}:{row}:{col}"),
+            Selector::Resource(n) => format!("resource:{n}"),
+            Selector::Link(n) => format!("link:{n}"),
+            Selector::SearchMatch(p) => format!("search-match:{p}"),
+            #[cfg(feature = "docx")]
+            Selector::DocxStory { story, profile } => {
+                format!(
+                    "docx-story:{};profile={}",
+                    story.name(),
+                    profile.fingerprint()
+                )
+            }
+            #[cfg(feature = "docx")]
+            Selector::DocxParagraph {
+                story,
+                index,
+                profile,
+            } => format!(
+                "docx-paragraph:{}:{};profile={}",
+                story.name(),
+                index,
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "docx")]
+            Selector::DocxTable {
+                story,
+                index,
+                profile,
+            } => format!(
+                "docx-table:{}:{};profile={}",
+                story.name(),
+                index,
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "docx")]
+            Selector::DocxCell {
+                story,
+                table,
+                cell,
+                profile,
+            } => format!(
+                "docx-cell:{}:{}:{};profile={}",
+                story.name(),
+                table,
+                cell,
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "docx")]
+            Selector::DocxFind {
+                story,
+                pattern,
+                profile,
+            } => format!(
+                "docx-find:{}:{};profile={}",
+                story.name(),
+                pattern,
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "epub")]
+            Selector::EpubPackage => "epub-package".to_string(),
+            #[cfg(feature = "epub")]
+            Selector::EpubManifestItem { index } => format!("epub-manifest-item:{index}"),
+            #[cfg(feature = "epub")]
+            Selector::EpubSpineItem { index, profile } => {
+                format!("epub-spine-item:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "epub")]
+            Selector::EpubNav => "epub-nav".to_string(),
+            #[cfg(feature = "epub")]
+            Selector::EpubNavNode { index } => format!("epub-nav-node:{index}"),
+            #[cfg(feature = "epub")]
+            Selector::EpubResource(name) => format!("epub-resource:{name}"),
+            #[cfg(feature = "epub")]
+            Selector::EpubBlock {
+                index,
+                block,
+                profile,
+            } => format!(
+                "epub-block:{index}:{block};profile={}",
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "epub")]
+            Selector::EpubCell {
+                index,
+                table,
+                row,
+                col,
+                profile,
+            } => format!(
+                "epub-cell:{index}:{table}:{row}:{col};profile={}",
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "epub")]
+            Selector::EpubLink {
+                index,
+                link,
+                profile,
+            } => format!("epub-link:{index}:{link};profile={}", profile.fingerprint()),
+            #[cfg(feature = "epub")]
+            Selector::EpubFind {
+                index,
+                pattern,
+                profile,
+            } => format!(
+                "epub-find:{index}:{pattern};profile={}",
+                profile.fingerprint()
+            ),
         }
+    }
+
+    /// Whether this selector belongs to the format-neutral common vocabulary
+    /// (Phase 12.7). Common selectors dispatch through the detected format's
+    /// adapter; native selectors are first-class peers, never fallbacks.
+    pub fn is_common(&self) -> bool {
+        matches!(
+            self,
+            Selector::Metadata
+                | Selector::Text
+                | Selector::Heading(_)
+                | Selector::Block(_)
+                | Selector::Table(_)
+                | Selector::Cell { .. }
+                | Selector::Resource(_)
+                | Selector::Link(_)
+                | Selector::SearchMatch(_)
+        )
     }
 }
 
@@ -213,6 +531,15 @@ pub struct ObserveStats {
     pub seed_nodes_reused: u64,
     /// Output bytes written to the derived cache during this observation.
     pub cache_bytes_written: u64,
+    /// Content-shared representation fact (Phase 12.8): the number of seed nodes
+    /// this field's **ingest** found already present by content id, so it wrote
+    /// nothing for them. This is deliberately distinct from
+    /// [`Self::seed_nodes_reused`], which is a *work* fact about this
+    /// observation. Read from the manifest provenance; `0` for an older field.
+    pub nodes_id_shared: u64,
+    /// Resource blobs this field shares with an earlier document (Phase 12.8);
+    /// `0` when the field shares none. Read from the manifest provenance.
+    pub shared_resource_ids: u64,
     /// Descriptor bytes physically fetched to open this observation's field.
     /// For the full path this is the whole `.voldoc` blob; for the seek-based
     /// partial path it is only the record closure the query needed (see
@@ -236,6 +563,16 @@ pub struct ObserveStats {
     pub bytes_returned: u64,
     /// Whether a Stage-C promotion (deepening) happened during this observation.
     pub deepened: bool,
+    /// Decoded package members this observation required (Phase 12.7), counted
+    /// where the adapter resolves them. A member served whole from the persisted
+    /// cache still counts as required; [`Self::seed_nodes_reused`] tells you it was
+    /// not re-executed, so a warm observation can report the requirement without
+    /// claiming fresh work.
+    pub member_decodes: u64,
+    /// Materialization requests for **XML-derived model nodes**
+    /// (`PackageOpcModel`/`DocxModel`/`DocxStory`/`EpubModel`/`EpubContent`) at the
+    /// observation boundary (Phase 12.7). Same honest scope as [`Self::member_decodes`].
+    pub xml_parses: u64,
     /// Wall-clock duration in microseconds.
     pub wall_micros: u64,
 }
@@ -774,6 +1111,7 @@ fn partial_eligible(req: &ObserveRequest) -> bool {
             | (Selector::Object(_), R::ExactBytes | R::EncodedBytes)
             | (Selector::Revision(_), R::ExactBytes)
             | (Selector::Stream(_), R::EncodedBytes)
+            | (Selector::Member(_), R::EncodedBytes | R::DecodedBytes)
             | (Selector::Page(_), R::Text | R::Preview | R::Structure)
     )
 }
@@ -928,6 +1266,12 @@ fn observe_with_stores_pre<'a, S: SeedStore>(
     stats.seed_nodes_executed = ctx.reuse.nodes_executed;
     stats.seed_nodes_reused = ctx.reuse.nodes_reused;
     stats.cache_bytes_written = ctx.reuse.cache_bytes_written;
+    // Representation facts recorded at ingest (Phase 12.8): a same-id node is
+    // *not* work reuse, so these are reported separately from `seed_nodes_reused`.
+    stats.nodes_id_shared =
+        crate::field::manifest::provenance_counter(view.manifest.provenance.as_str(), "id_shared");
+    stats.shared_resource_ids =
+        crate::field::manifest::provenance_counter(view.manifest.provenance.as_str(), "res_shared");
     stats.bytes_returned = produced;
     stats.wall_micros = started.elapsed().as_micros().min(u128::from(u64::MAX)) as u64;
     Ok((answer, stats, ctx.current_id))
@@ -958,8 +1302,75 @@ struct Ctx<'a, S: SeedStore> {
     current_id: FieldId,
 }
 
+/// A resolved DOCX story view: the parsed story model plus the provenance it is
+/// bound to (backing part, dependency ids, and the exact compressed member span).
+#[cfg(feature = "docx")]
+struct DocxStoryView {
+    model: StoryModel,
+    part: DocxPartRef,
+    deps: Vec<NodeId>,
+    span: Option<(u64, u64)>,
+}
+
+#[cfg(feature = "docx")]
+fn opt_u8_json(v: Option<u8>) -> String {
+    match v {
+        Some(n) => n.to_string(),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "docx")]
+fn opt_str_json(v: Option<&str>) -> String {
+    match v {
+        Some(s) => format!("\"{}\"", json_escape(s)),
+        None => "null".to_string(),
+    }
+}
+
+/// Parse an A1-style cell reference (`B7`) into a 0-based grid column and a
+/// 0-based row index. Column letters are case-insensitive; row numbers are
+/// 1-based and must be non-zero.
+#[cfg(feature = "docx")]
+fn parse_cell_ref(s: &str) -> Option<(u32, u32)> {
+    let letters: String = s.chars().take_while(|c| c.is_ascii_alphabetic()).collect();
+    let digits: String = s.chars().skip(letters.len()).collect();
+    if letters.is_empty() || digits.is_empty() || digits.len() != s.len() - letters.len() {
+        return None;
+    }
+    if !digits.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    let mut col: u32 = 0;
+    for c in letters.chars() {
+        let v = c.to_ascii_uppercase() as u32 - 'A' as u32 + 1;
+        col = col.checked_mul(26)?.checked_add(v)?;
+    }
+    let col = col.checked_sub(1)?;
+    let row: u32 = digits.parse().ok()?;
+    if row == 0 {
+        return None;
+    }
+    Some((col, row - 1))
+}
+
 impl<S: SeedStore> Ctx<'_, S> {
     fn materialize(&mut self, node: &SeedNode) -> Result<Vec<u8>> {
+        // Observation-boundary accounting (Phase 12.7): a requested XML-derived
+        // model node is charged its class. This counts *requests* (a cache-served
+        // request is still a request); `seed_nodes_reused` reports whether the
+        // underlying work was reused rather than re-executed. Decoded-member
+        // requests are counted where the adapter resolves them.
+        match node.kind {
+            NodeKind::PackageOpcModel
+            | NodeKind::DocxModel
+            | NodeKind::DocxStory
+            | NodeKind::EpubModel
+            | NodeKind::EpubContent => {
+                self.stats.xml_parses = self.stats.xml_parses.saturating_add(1);
+            }
+            _ => {}
+        }
         let depth = node.limits.max_depth;
         if self.use_cache {
             // The cache-first probe may have already read and integrity-checked
@@ -1033,6 +1444,11 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 
     fn dispatch(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        // The common vocabulary dispatches through the detected format's adapter
+        // (Phase 12.7). Native selectors fall through to the format-specific match.
+        if req.selector.is_common() {
+            return self.common_dispatch(req);
+        }
         use Representation as R;
         match (&req.selector, req.representation) {
             (Selector::Document, R::FullDocument | R::ExactBytes) => self.document_full(req),
@@ -1046,6 +1462,18 @@ impl<S: SeedStore> Ctx<'_, S> {
             (Selector::Revision(n), R::ExactBytes) => {
                 self.indexed_exact(req, SelectorKey::new(SEL_REVISION, *n), "revision")
             }
+            (Selector::Member(n), R::EncodedBytes) => self.indexed_exact(
+                req,
+                SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, *n),
+                "package member",
+            ),
+            (Selector::Member(n), R::DecodedBytes) => self.member_decoded(req, *n),
+            (Selector::PackagePart(_), R::Metadata | R::ExactBytes | R::DecodedBytes) => {
+                self.package_part_opc(req)
+            }
+            (Selector::Relationship(_), R::Metadata | R::ExactBytes | R::DecodedBytes) => {
+                self.relationship_opc(req)
+            }
             (Selector::Stream(n), R::EncodedBytes) => {
                 self.indexed_exact(req, SelectorKey::new(SEL_STREAM, *n), "stream")
             }
@@ -1055,6 +1483,133 @@ impl<S: SeedStore> Ctx<'_, S> {
             (Selector::Page(n), R::Preview) => self.page_preview(req, *n),
             (Selector::Page(n), R::Structure) => self.page_structure(req, *n),
             (Selector::TextMatch(p), R::Text) => self.text_match(req, p),
+            #[cfg(feature = "docx")]
+            (Selector::DocxStory { story, profile }, R::Text) => {
+                self.docx_story_text(req, *story, profile)
+            }
+            #[cfg(feature = "docx")]
+            (Selector::DocxStory { story, profile }, R::Structure) => {
+                self.docx_story_structure(req, *story, profile)
+            }
+            #[cfg(feature = "docx")]
+            (Selector::DocxStory { story, profile }, R::Metadata) => {
+                self.docx_story_metadata(req, *story, profile)
+            }
+            #[cfg(feature = "docx")]
+            (
+                Selector::DocxParagraph {
+                    story,
+                    index,
+                    profile,
+                },
+                R::Text | R::Metadata,
+            ) => self.docx_paragraph(req, *story, *index, profile),
+            #[cfg(feature = "docx")]
+            (
+                Selector::DocxTable {
+                    story,
+                    index,
+                    profile,
+                },
+                R::Text | R::Metadata,
+            ) => self.docx_table(req, *story, *index, profile),
+            #[cfg(feature = "docx")]
+            (
+                Selector::DocxCell {
+                    story,
+                    table,
+                    cell,
+                    profile,
+                },
+                R::Text | R::Metadata,
+            ) => self.docx_cell(req, *story, *table, cell, profile),
+            #[cfg(feature = "docx")]
+            (
+                Selector::DocxFind {
+                    story,
+                    pattern,
+                    profile,
+                },
+                R::Text,
+            ) => self.docx_find(req, *story, pattern, profile),
+            #[cfg(feature = "epub")]
+            (Selector::EpubPackage, R::Metadata | R::Structure) => self.epub_package(req),
+            #[cfg(feature = "epub")]
+            (Selector::EpubManifestItem { index }, R::Metadata) => {
+                self.epub_manifest_item_meta(req, *index)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubManifestItem { index }, R::ExactBytes | R::DecodedBytes) => {
+                self.epub_manifest_item_bytes(req, *index)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubSpineItem { index, profile }, R::Metadata) => {
+                self.epub_spine_item_meta(req, *index, profile)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubSpineItem { index, profile }, R::Text) => {
+                self.epub_spine_item_text(req, *index, profile)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubSpineItem { index, profile }, R::Structure) => {
+                self.epub_spine_item_structure(req, *index, profile)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubSpineItem { index, profile }, R::Preview) => {
+                self.epub_spine_item_preview(req, *index, profile)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubSpineItem { index, profile }, R::ExactBytes | R::DecodedBytes) => {
+                self.epub_spine_item_bytes(req, *index, profile)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubNav, R::Metadata | R::Structure) => self.epub_nav(req),
+            #[cfg(feature = "epub")]
+            (Selector::EpubNavNode { index }, R::Metadata) => self.epub_nav_node(req, *index),
+            #[cfg(feature = "epub")]
+            (Selector::EpubResource(name), R::Metadata) => self.epub_resource_meta(req, name),
+            #[cfg(feature = "epub")]
+            (Selector::EpubResource(name), R::ExactBytes | R::DecodedBytes) => {
+                self.epub_resource_bytes(req, name)
+            }
+            #[cfg(feature = "epub")]
+            (
+                Selector::EpubBlock {
+                    index,
+                    block,
+                    profile,
+                },
+                R::Text | R::Metadata | R::Structure,
+            ) => self.epub_block(req, *index, *block, profile),
+            #[cfg(feature = "epub")]
+            (
+                Selector::EpubCell {
+                    index,
+                    table,
+                    row,
+                    col,
+                    profile,
+                },
+                R::Text | R::Metadata,
+            ) => self.epub_cell(req, *index, *table, *row, *col, profile),
+            #[cfg(feature = "epub")]
+            (
+                Selector::EpubLink {
+                    index,
+                    link,
+                    profile,
+                },
+                R::Metadata,
+            ) => self.epub_link(req, *index, *link, profile),
+            #[cfg(feature = "epub")]
+            (
+                Selector::EpubFind {
+                    index,
+                    pattern,
+                    profile,
+                },
+                R::Text,
+            ) => self.epub_find(req, *index, pattern, profile),
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
                 req.selector.canonical(),
@@ -1071,6 +1626,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: Some((0, self.manifest.source_len)),
+            provenance: String::new(),
             dependency_ids: vec![self.manifest.root_node],
             integrity_scope: IntegrityScope::WholeSource,
             exact: true,
@@ -1100,6 +1656,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: Vec::new(),
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1124,6 +1681,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: Some((offset, end)),
+            provenance: String::new(),
             dependency_ids: Vec::new(),
             integrity_scope: IntegrityScope::Node,
             exact: true,
@@ -1146,6 +1704,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: Some((entry.out_off, end)),
+            provenance: String::new(),
             dependency_ids: vec![entry.node_id],
             integrity_scope: IntegrityScope::Node,
             exact: true,
@@ -1163,10 +1722,209 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: vec![id],
             integrity_scope: IntegrityScope::None,
             exact: false,
         })
+    }
+
+    /// A package member's decoded bytes (Phase 12.2).
+    ///
+    /// Resolved through the index to the `PackageMemberDecoded` node, which is a
+    /// deterministic function of its raw node, so the observation never enumerates
+    /// the seed store. The answer is `DeterministicallyDerived`, never exact: it is
+    /// not a byte-identical observation of the source.
+    fn member_decoded(&mut self, req: &ObserveRequest, ordinal: u32) -> Result<FieldAnswer> {
+        let entry = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, ordinal),
+            "decoded package member",
+        )?;
+        let node = self.load(&entry.node_id)?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let id = node.content_id();
+        let raw_deps = node.deps.clone();
+        let bytes = self.materialize(&node)?;
+        let mut dependency_ids = vec![id];
+        dependency_ids.extend(raw_deps);
+        Ok(FieldAnswer {
+            value: AnswerValue::Bytes(bytes),
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: None,
+            provenance: String::new(),
+            dependency_ids,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        })
+    }
+
+    /// Materialize and decode the generic OPC model (derived, `Q_gen`).
+    #[cfg(feature = "opc")]
+    fn opc_model(&mut self) -> Result<crate::adapter::package::opc::OpcModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_OPC_MODEL, 0), "OPC model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        crate::adapter::package::opc::OpcModel::decode(&bytes)
+    }
+
+    /// A generic OPC part observation (Phase 12.3): exact/decoded bytes resolve
+    /// through the OPC part's physical member ordinal, so the exact leaf stays the
+    /// 12.2 raw member span. Metadata is derived (`Q_gen`).
+    #[cfg(feature = "opc")]
+    fn package_part_opc(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        use Representation as R;
+        let Selector::PackagePart(name) = &req.selector else {
+            return Err(Error::internal_invariant(
+                "package_part_opc needs PackagePart",
+            ));
+        };
+        let name = name.clone();
+        let model = self.opc_model()?;
+        let part = model.part_by_name(&name).ok_or_else(|| {
+            Error::invalid_package_structure(format!("no package part named {name:?}"))
+        })?;
+        let ordinal = part.ordinal;
+        match req.representation {
+            R::ExactBytes => self.indexed_exact(
+                req,
+                SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, ordinal),
+                "package part",
+            ),
+            R::DecodedBytes => self.member_decoded(req, ordinal),
+            R::Metadata => {
+                let rel_count = model
+                    .part_rels
+                    .iter()
+                    .find(|(o, _)| *o == ordinal)
+                    .map_or(0, |(_, r)| r.len());
+                let ct = match &part.content_type {
+                    Some(c) => format!("\"{}\"", json_escape(c)),
+                    None => "null".to_string(),
+                };
+                let json = format!(
+                    "{{\"name\":\"{}\",\"ordinal\":{},\"content_type\":{},\"relationships\":{}}}",
+                    json_escape(&part.name),
+                    ordinal,
+                    ct,
+                    rel_count
+                );
+                Ok(FieldAnswer {
+                    value: AnswerValue::Json(json),
+                    basis: Basis::DeterministicallyDerived,
+                    selector: req.selector.canonical(),
+                    representation: req.representation.name().to_string(),
+                    source_span: None,
+                    provenance: String::new(),
+                    dependency_ids: Vec::new(),
+                    integrity_scope: IntegrityScope::None,
+                    exact: false,
+                })
+            }
+            _ => Err(Error::unsupported_feature(format!(
+                "unsupported observation: selector {} with representation {}",
+                req.selector.canonical(),
+                req.representation.name()
+            ))),
+        }
+    }
+
+    /// A generic OPC relationship observation (Phase 12.3). For an internal
+    /// relationship, `ExactBytes`/`DecodedBytes` resolve to the target part's member
+    /// bytes. An external relationship is an inert identifier: asking for its bytes
+    /// is a typed decline, never a fetch.
+    #[cfg(feature = "opc")]
+    fn relationship_opc(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        use Representation as R;
+        let Selector::Relationship(id) = &req.selector else {
+            return Err(Error::internal_invariant(
+                "relationship_opc needs Relationship",
+            ));
+        };
+        let id = id.clone();
+        let model = self.opc_model()?;
+        let (rel, owner) = model.relationship_by_id(&id)?.ok_or_else(|| {
+            Error::invalid_package_structure(format!("no package relationship with id {id:?}"))
+        })?;
+        match req.representation {
+            R::Metadata => {
+                let resolved = match &rel.resolved {
+                    Some(r) => format!("\"{}\"", json_escape(r)),
+                    None => "null".to_string(),
+                };
+                let owner_json = match owner {
+                    Some(o) => o.to_string(),
+                    None => "null".to_string(),
+                };
+                let json = format!(
+                    concat!(
+                        "{{\"id\":\"{}\",\"type\":\"{}\",\"target\":\"{}\",",
+                        "\"target_mode\":\"{}\",\"resolved\":{},\"owner\":{}}}"
+                    ),
+                    json_escape(&rel.id),
+                    json_escape(&rel.rel_type),
+                    json_escape(&rel.target),
+                    rel.mode.name(),
+                    resolved,
+                    owner_json
+                );
+                Ok(FieldAnswer {
+                    value: AnswerValue::Json(json),
+                    basis: Basis::DeterministicallyDerived,
+                    selector: req.selector.canonical(),
+                    representation: req.representation.name().to_string(),
+                    source_span: None,
+                    provenance: String::new(),
+                    dependency_ids: Vec::new(),
+                    integrity_scope: IntegrityScope::None,
+                    exact: false,
+                })
+            }
+            R::ExactBytes | R::DecodedBytes => {
+                let resolved = rel.resolved.clone().ok_or_else(|| {
+                    Error::invalid_package_structure(format!(
+                        "relationship {id:?} is external: its target is an inert identifier, never fetched"
+                    ))
+                })?;
+                let part = model.part_by_name(&resolved).ok_or_else(|| {
+                    Error::invalid_package_structure(format!(
+                        "relationship {id:?} target {resolved:?} is not a package part"
+                    ))
+                })?;
+                let ordinal = part.ordinal;
+                if req.representation == R::ExactBytes {
+                    self.indexed_exact(
+                        req,
+                        SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, ordinal),
+                        "relationship target part",
+                    )
+                } else {
+                    self.member_decoded(req, ordinal)
+                }
+            }
+            _ => Err(Error::unsupported_feature(format!(
+                "unsupported observation: selector {} with representation {}",
+                req.selector.canonical(),
+                req.representation.name()
+            ))),
+        }
+    }
+
+    /// Non-OPC builds keep the selector surface stable but fail closed.
+    #[cfg(not(feature = "opc"))]
+    fn package_part_opc(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "OPC support is not compiled in (feature `opc`)",
+        ))
+    }
+
+    /// Non-OPC builds keep the selector surface stable but fail closed.
+    #[cfg(not(feature = "opc"))]
+    fn relationship_opc(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "OPC support is not compiled in (feature `opc`)",
+        ))
     }
 
     fn stream_operators(&mut self, req: &ObserveRequest, object: u32) -> Result<FieldAnswer> {
@@ -1188,6 +1946,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: vec![id, decoded_id],
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1238,6 +1997,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: vec![text_id, ops.content_id(), pc],
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1255,6 +2015,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: vec![preview_id, pc],
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1304,6 +2065,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: vec![preview_id, pc],
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1348,10 +2110,436 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: Vec::new(),
             integrity_scope: IntegrityScope::None,
             exact: false,
         })
+    }
+
+    // -- DOCX (Phase 12.4) --------------------------------------------------
+
+    /// Materialize and decode the DOCX discovery model (derived, `Q_gen`).
+    #[cfg(feature = "docx")]
+    fn docx_model(&mut self) -> Result<DocxModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_DOCX_MODEL, 0), "DOCX model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        DocxModel::decode(&bytes)
+    }
+
+    /// Resolve one story to its parsed [`StoryModel`], parsing **only** that
+    /// story's part (plus the shared styles part) and persisting the canonical
+    /// result in the derived cache. A story is never silently mixed with another.
+    #[cfg(feature = "docx")]
+    fn docx_story_view(
+        &mut self,
+        story: DocxStory,
+        profile: &DocxExtractProfile,
+    ) -> Result<DocxStoryView> {
+        if story.kind_index().is_none() {
+            return Err(Error::unsupported_feature(format!(
+                "DOCX story {} is declared but not part-backed; preserved exactly, not interpreted",
+                story.name()
+            )));
+        }
+        let model = self.docx_model()?;
+        let part = model.story_part(story).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "DOCX package has no part for story {}",
+                story.name()
+            ))
+        })?;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "DOCX story part decoded bytes",
+        )?;
+        let mut deps = vec![dec.node_id];
+        if let Some(styles) = &model.styles
+            && let Ok(e) = self.require_entry(
+                SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, styles.ordinal),
+                "DOCX styles decoded bytes",
+            )
+        {
+            deps.push(e.node_id);
+        }
+        // The observation requires these decoded members; a cache-served decode is
+        // still a required decoded member, and `seed_nodes_reused` reports reuse.
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(deps.len() as u64);
+        let span = self
+            .lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal))?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)));
+        let mut node = SeedNode::new(
+            NodeKind::DocxStory,
+            self.limits.max_output_bytes,
+            story_params(story, &part.name, profile),
+            deps.clone(),
+            "docx:story",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let sm = StoryModel::decode(&bytes)?;
+        let mut ids = vec![id];
+        ids.extend(deps);
+        Ok(DocxStoryView {
+            model: sm,
+            part,
+            deps: ids,
+            span,
+        })
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_story_text(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let text = v.model.text();
+        let provenance = format!(
+            "docx;story={};part={};profile={}",
+            story.name(),
+            v.part.name,
+            profile.fingerprint()
+        );
+        Ok(self.docx_answer(req, AnswerValue::Text(text), provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_story_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let json = format!(
+            concat!(
+                "{{\"story\":\"{}\",\"part\":\"{}\",\"ordinal\":{},\"root\":\"{}\",",
+                "\"paragraphs\":{},\"tables\":{},\"hyperlinks\":{},\"bookmarks\":{},",
+                "\"resources\":{},\"sections\":{},\"profile\":\"{}\"}}"
+            ),
+            json_escape(&story.name()),
+            json_escape(&v.part.name),
+            v.part.ordinal,
+            json_escape(&v.model.root_local),
+            v.model.paragraphs().count(),
+            v.model.tables().count(),
+            v.model.hyperlinks.len(),
+            v.model.bookmarks.len(),
+            v.model.resources.len(),
+            v.model.section_count,
+            profile.fingerprint(),
+        );
+        let provenance = format!("docx;story={};part={}", story.name(), v.part.name);
+        Ok(self.docx_answer(req, AnswerValue::Json(json), provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_story_structure(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let paras = v
+            .model
+            .paragraphs()
+            .map(|p| {
+                format!(
+                    "{{\"index\":{},\"heading\":{},\"style\":{},\"text_len\":{}}}",
+                    p.index,
+                    opt_u8_json(p.heading_level),
+                    opt_str_json(p.style_id.as_deref()),
+                    p.text.len()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let tables = v
+            .model
+            .tables()
+            .map(|t| {
+                format!(
+                    "{{\"index\":{},\"rows\":{},\"cols_row0\":{}}}",
+                    t.index,
+                    t.rows.len(),
+                    t.rows.first().map_or(0, |r| r.cells.len())
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let json = format!(
+            concat!(
+                "{{\"story\":\"{}\",\"part\":\"{}\",\"blocks\":{},",
+                "\"paragraphs\":[{}],\"tables\":[{}],\"profile\":\"{}\"}}"
+            ),
+            json_escape(&story.name()),
+            json_escape(&v.part.name),
+            v.model.blocks.len(),
+            paras,
+            tables,
+            profile.fingerprint(),
+        );
+        Ok(self.docx_answer(
+            req,
+            AnswerValue::Json(json),
+            format!("docx;story={};part={}", story.name(), v.part.name),
+            v.span,
+            v.deps,
+        ))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_paragraph(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        index: u32,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let p = v
+            .model
+            .paragraphs()
+            .find(|p| p.index == index)
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "DOCX story {} has no body paragraph {index}",
+                    story.name()
+                ))
+            })?;
+        let text = p.text.clone();
+        let style = p.style_id.clone();
+        let heading = p.heading_level;
+        let run_count = p.runs.len();
+        let provenance = format!(
+            "docx;story={};part={};paragraph={};profile={}",
+            story.name(),
+            v.part.name,
+            index,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"story\":\"{}\",\"part\":\"{}\",\"paragraph\":{},",
+                    "\"style\":{},\"heading\":{},\"runs\":{},\"text_len\":{}}}"
+                ),
+                json_escape(&story.name()),
+                json_escape(&v.part.name),
+                index,
+                opt_str_json(style.as_deref()),
+                opt_u8_json(heading),
+                run_count,
+                text.len(),
+            )),
+            _ => {
+                return Err(Error::unsupported_feature(format!(
+                    "unsupported observation: selector {} with representation {}",
+                    req.selector.canonical(),
+                    req.representation.name()
+                )));
+            }
+        };
+        Ok(self.docx_answer(req, value, provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_table(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        index: u32,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let t = v.model.tables().find(|t| t.index == index).ok_or_else(|| {
+            Error::unsupported_feature(format!("DOCX story {} has no table {index}", story.name()))
+        })?;
+        let text = t.text();
+        let rows = t.rows.len();
+        let cells: Vec<usize> = t.rows.iter().map(|r| r.cells.len()).collect();
+        let provenance = format!(
+            "docx;story={};part={};table={};profile={}",
+            story.name(),
+            v.part.name,
+            index,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => {
+                let dims = cells
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"story\":\"{}\",\"part\":\"{}\",\"table\":{},",
+                        "\"rows\":{},\"cells_per_row\":[{}],\"profile\":\"{}\"}}"
+                    ),
+                    json_escape(&story.name()),
+                    json_escape(&v.part.name),
+                    index,
+                    rows,
+                    dims,
+                    profile.fingerprint(),
+                ))
+            }
+            _ => {
+                return Err(Error::unsupported_feature(format!(
+                    "unsupported observation: selector {} with representation {}",
+                    req.selector.canonical(),
+                    req.representation.name()
+                )));
+            }
+        };
+        Ok(self.docx_answer(req, value, provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_cell(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        table: u32,
+        cell: &str,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (col, row_idx) = parse_cell_ref(cell).ok_or_else(|| {
+            Error::usage(format!("cell reference {cell:?} is not A1-style (e.g. B7)"))
+        })?;
+        let v = self.docx_story_view(story, profile)?;
+        let t = v.model.tables().find(|t| t.index == table).ok_or_else(|| {
+            Error::unsupported_feature(format!("DOCX story {} has no table {table}", story.name()))
+        })?;
+        let r = t.rows.get(row_idx as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("DOCX table {table} has no row {}", row_idx + 1))
+        })?;
+        let found = r
+            .cells
+            .iter()
+            .find(|c| col >= c.grid_col && col < c.grid_col.saturating_add(c.grid_span))
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "DOCX table {table} row {} has no cell {cell}",
+                    row_idx + 1
+                ))
+            })?;
+        let text = found.text.clone();
+        let grid_col = found.grid_col;
+        let grid_span = found.grid_span;
+        let vmerge = found.vmerge_continue;
+        let provenance = format!(
+            "docx;story={};part={};table={};row={};cell={};profile={}",
+            story.name(),
+            v.part.name,
+            table,
+            row_idx + 1,
+            cell,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"story\":\"{}\",\"part\":\"{}\",\"table\":{},",
+                    "\"row\":{},\"cell\":\"{}\",\"grid_col\":{},\"grid_span\":{},",
+                    "\"vmerge_continue\":{},\"text_len\":{},\"profile\":\"{}\"}}"
+                ),
+                json_escape(&story.name()),
+                json_escape(&v.part.name),
+                table,
+                row_idx + 1,
+                json_escape(cell),
+                grid_col,
+                grid_span,
+                vmerge,
+                text.len(),
+                profile.fingerprint(),
+            )),
+            _ => {
+                return Err(Error::unsupported_feature(format!(
+                    "unsupported observation: selector {} with representation {}",
+                    req.selector.canonical(),
+                    req.representation.name()
+                )));
+            }
+        };
+        Ok(self.docx_answer(req, value, provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_find(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        pattern: &str,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for p in v.model.paragraphs() {
+            if p.text.contains(pattern) {
+                estimated = estimated.saturating_add(p.text.len() as u64 + 48);
+                if estimated > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "DOCX find exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                items.push(format!(
+                    "{{\"paragraph\":{},\"text\":\"{}\"}}",
+                    p.index,
+                    json_escape(&p.text)
+                ));
+            }
+        }
+        let provenance = format!(
+            "docx;story={};part={};profile={}",
+            story.name(),
+            v.part.name,
+            profile.fingerprint()
+        );
+        Ok(self.docx_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            v.span,
+            v.deps,
+        ))
     }
 
     /// Resolve the `PdfStreamDecoded` node for `object`.
@@ -1394,6 +2582,1515 @@ impl<S: SeedStore> Ctx<'_, S> {
         self.stats.deepened = true;
         Ok(node)
     }
+}
+
+#[cfg(feature = "epub")]
+fn epub_opt_str(v: Option<&str>) -> String {
+    match v {
+        Some(s) => format!("\"{}\"", json_escape(s)),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "epub")]
+fn epub_opt_u32(v: Option<u32>) -> String {
+    match v {
+        Some(n) => n.to_string(),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "epub")]
+fn epub_str_array(items: &[String]) -> String {
+    format!(
+        "[{}]",
+        items
+            .iter()
+            .map(|s| format!("\"{}\"", json_escape(s)))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_dir_of(name: &str) -> String {
+    match name.rfind('/') {
+        Some(i) => name[..=i].to_string(),
+        None => String::new(),
+    }
+}
+
+#[cfg(feature = "epub")]
+fn epub_mimetype_json(m: &crate::adapter::epub::MimetypeFacts) -> String {
+    format!(
+        "{{\"present\":{},\"first\":{},\"stored\":{},\"no_extra\":{},\"exact_bytes\":{},\"conformant\":{}}}",
+        m.present, m.first, m.stored, m.no_extra, m.exact_bytes, m.conformant
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_rootfile_json(r: &crate::adapter::epub::RootFile) -> String {
+    let ord = if r.ordinal == u32::MAX {
+        None
+    } else {
+        Some(r.ordinal)
+    };
+    format!(
+        "{{\"full_path\":\"{}\",\"member\":\"{}\",\"media_type\":\"{}\",\"ordinal\":{}}}",
+        json_escape(&r.full_path),
+        json_escape(&r.member),
+        json_escape(&r.media_type),
+        epub_opt_u32(ord)
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_meta_json(e: &crate::adapter::epub::MetadataEntry) -> String {
+    format!(
+        "{{\"name\":\"{}\",\"property\":{},\"refines\":{},\"id\":{},\"scheme\":{},\"value\":\"{}\"}}",
+        json_escape(&e.name),
+        epub_opt_str(e.property.as_deref()),
+        epub_opt_str(e.refines.as_deref()),
+        epub_opt_str(e.id.as_deref()),
+        epub_opt_str(e.scheme.as_deref()),
+        json_escape(&e.value)
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_manifest_json(it: &crate::adapter::epub::ManifestItem) -> String {
+    format!(
+        "{{\"id\":\"{}\",\"href\":\"{}\",\"media_type\":\"{}\",\"properties\":{},\"fallback\":{},\"resolved\":{},\"ordinal\":{},\"external\":{}}}",
+        json_escape(&it.id),
+        json_escape(&it.href),
+        json_escape(&it.media_type),
+        epub_str_array(&it.properties),
+        epub_opt_str(it.fallback.as_deref()),
+        epub_opt_str(it.resolved.as_deref()),
+        epub_opt_u32(it.resolved_ordinal()),
+        it.external
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_spine_json(s: &crate::adapter::epub::SpineItemRef) -> String {
+    let index = if s.item_index == u32::MAX {
+        None
+    } else {
+        Some(s.item_index)
+    };
+    let ord = if s.ordinal == u32::MAX {
+        None
+    } else {
+        Some(s.ordinal)
+    };
+    format!(
+        "{{\"idref\":\"{}\",\"linear\":{},\"properties\":{},\"item_index\":{},\"ordinal\":{}}}",
+        json_escape(&s.idref),
+        s.linear,
+        epub_str_array(&s.properties),
+        epub_opt_u32(index),
+        epub_opt_u32(ord)
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_nav_json(index: u32, e: &crate::adapter::epub::NavEntry) -> String {
+    format!(
+        "{{\"index\":{},\"depth\":{},\"nav\":\"{}\",\"label\":\"{}\",\"href\":\"{}\",\"member\":{},\"fragment\":{},\"external\":{}}}",
+        index,
+        e.depth,
+        json_escape(&e.nav_type),
+        json_escape(&e.label),
+        json_escape(&e.href),
+        epub_opt_str(e.member.as_deref()),
+        epub_opt_str(e.fragment.as_deref()),
+        e.external
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_block_json(index: u32, b: &crate::adapter::epub::Block) -> String {
+    use crate::adapter::epub::Block;
+    match b {
+        Block::Heading {
+            level,
+            id,
+            epub_type,
+            text,
+        } => format!(
+            "{{\"index\":{index},\"kind\":\"heading\",\"level\":{level},\"id\":{},\"epub_type\":{},\"text\":\"{}\"}}",
+            epub_opt_str(id.as_deref()),
+            epub_opt_str(epub_type.as_deref()),
+            json_escape(text)
+        ),
+        Block::Paragraph { text } => format!(
+            "{{\"index\":{index},\"kind\":\"paragraph\",\"text\":\"{}\"}}",
+            json_escape(text)
+        ),
+        Block::List { ordered, items } => format!(
+            "{{\"index\":{index},\"kind\":\"list\",\"ordered\":{ordered},\"items\":{}}}",
+            epub_str_array(items)
+        ),
+        Block::Table { rows } => format!(
+            "{{\"index\":{index},\"kind\":\"table\",\"rows\":{},\"cols\":{}}}",
+            rows.len(),
+            rows.first().map_or(0, |r| r.cells.len())
+        ),
+    }
+}
+
+#[cfg(feature = "epub")]
+fn epub_cell_json(table: u32, row: u32, col: u32, c: &crate::adapter::epub::Cell) -> String {
+    format!(
+        "{{\"table\":{table},\"row\":{row},\"col\":{col},\"header\":{},\"colspan\":{},\"rowspan\":{},\"text_len\":{}}}",
+        c.header,
+        c.colspan,
+        c.rowspan,
+        c.text.len()
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_link_json(index: u32, l: &crate::adapter::epub::Link) -> String {
+    format!(
+        "{{\"index\":{index},\"href\":\"{}\",\"text\":\"{}\",\"fragment\":{},\"member\":{},\"external\":{},\"epub_type\":{}}}",
+        json_escape(&l.href),
+        json_escape(&l.text),
+        epub_opt_str(l.fragment.as_deref()),
+        epub_opt_str(l.member.as_deref()),
+        l.external,
+        epub_opt_str(l.epub_type.as_deref())
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_resource_json(index: usize, r: &crate::adapter::epub::Resource) -> String {
+    format!(
+        "{{\"index\":{index},\"kind\":\"{}\",\"attr\":\"{}\",\"value\":\"{}\",\"member\":{},\"external\":{}}}",
+        json_escape(&r.kind),
+        json_escape(&r.attr),
+        json_escape(&r.value),
+        epub_opt_str(r.member.as_deref()),
+        r.external
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_section_json(index: usize, s: &crate::adapter::epub::Section) -> String {
+    format!(
+        "{{\"index\":{index},\"local\":\"{}\",\"epub_type\":{},\"depth\":{}}}",
+        json_escape(&s.local),
+        epub_opt_str(s.epub_type.as_deref()),
+        s.depth
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_content_structure_json(
+    index: u32,
+    model: &crate::adapter::epub::ContentModel,
+    item: &ManifestItem,
+    profile: &EpubExtractProfile,
+) -> String {
+    let blocks = model
+        .blocks
+        .iter()
+        .enumerate()
+        .map(|(i, b)| epub_block_json(i as u32, b))
+        .collect::<Vec<_>>()
+        .join(",");
+    let headings = model
+        .blocks
+        .iter()
+        .enumerate()
+        .filter(|(_, b)| matches!(b, crate::adapter::epub::Block::Heading { .. }))
+        .map(|(i, b)| epub_block_json(i as u32, b))
+        .collect::<Vec<_>>()
+        .join(",");
+    let links = model
+        .links
+        .iter()
+        .enumerate()
+        .map(|(i, l)| epub_link_json(i as u32, l))
+        .collect::<Vec<_>>()
+        .join(",");
+    let resources = model
+        .resources
+        .iter()
+        .enumerate()
+        .map(|(i, r)| epub_resource_json(i, r))
+        .collect::<Vec<_>>()
+        .join(",");
+    let sections = model
+        .sections
+        .iter()
+        .enumerate()
+        .map(|(i, s)| epub_section_json(i, s))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        concat!(
+            "{{\"spine\":{},\"part\":\"{}\",\"profile\":\"{}\",\"root\":\"{}\",",
+            "\"body\":{},\"scripted\":{},\"xhtml_nodes\":{},",
+            "\"blocks\":[{}],\"headings\":[{}],\"links\":[{}],",
+            "\"resources\":[{}],\"fragments\":{},\"sections\":[{}]}}"
+        ),
+        index,
+        json_escape(item.resolved.as_deref().unwrap_or("")),
+        profile.fingerprint(),
+        json_escape(&model.root_local),
+        model.body_seen,
+        model.scripted,
+        model.xhtml_nodes,
+        blocks,
+        headings,
+        links,
+        resources,
+        epub_str_array(&model.fragments),
+        sections
+    )
+}
+
+#[cfg(feature = "epub")]
+type EpubContentView = (
+    crate::adapter::epub::ContentModel,
+    ManifestItem,
+    Option<(u64, u64)>,
+    Vec<NodeId>,
+);
+
+#[cfg(feature = "epub")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn epub_model(&mut self) -> Result<EpubModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_EPUB_MODEL, 0), "EPUB model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        EpubModel::decode(&bytes)
+    }
+
+    fn epub_package_doc(&mut self) -> Result<PackageDoc> {
+        let model = self.epub_model()?;
+        model.package.ok_or_else(|| {
+            Error::invalid_package_structure("EPUB container has no resolvable package document")
+        })
+    }
+
+    fn epub_member_decoded_bytes(&mut self, ordinal: u32) -> Result<Vec<u8>> {
+        let entry = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, ordinal),
+            "EPUB resource decoded bytes",
+        )?;
+        let node = self.load(&entry.node_id)?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        self.materialize(&node)
+    }
+
+    fn epub_member_span(&mut self, ordinal: Option<u32>) -> Option<(u64, u64)> {
+        let o = ordinal?;
+        self.lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, o))
+            .ok()?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)))
+    }
+
+    fn epub_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn epub_package(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.epub_model()?;
+        let doc = model.package.as_ref().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB container has no resolvable package document")
+        })?;
+        let rootfiles = model
+            .rootfiles
+            .iter()
+            .map(epub_rootfile_json)
+            .collect::<Vec<_>>()
+            .join(",");
+        let mut s = String::new();
+        s.push_str("{\"package\":\"");
+        s.push_str(&json_escape(&doc.member));
+        s.push_str("\",\"version\":");
+        s.push_str(&epub_opt_str(doc.version.as_deref()));
+        s.push_str(",\"unique_identifier\":");
+        s.push_str(&epub_opt_str(doc.unique_identifier.as_deref()));
+        s.push_str(",\"page_progression_direction\":");
+        s.push_str(&epub_opt_str(doc.page_progression.as_deref()));
+        s.push_str(",\"rendition_layout\":");
+        s.push_str(&epub_opt_str(doc.layout.as_deref()));
+        s.push_str(",\"cover_id\":");
+        s.push_str(&epub_opt_str(doc.cover_id.as_deref()));
+        s.push_str(",\"nav_item\":");
+        s.push_str(&epub_opt_u32(doc.nav_item));
+        s.push_str(",\"ncx_item\":");
+        s.push_str(&epub_opt_u32(doc.ncx_item));
+        s.push_str(&format!(
+            ",\"manifest_items\":{},\"spine_items\":{},\"metadata_entries\":{}",
+            doc.manifest.len(),
+            doc.spine.len(),
+            doc.metadata.len()
+        ));
+        s.push_str(",\"rootfiles\":[");
+        s.push_str(&rootfiles);
+        s.push_str("],\"mimetype\":");
+        s.push_str(&epub_mimetype_json(&model.mimetype));
+        if req.representation == Representation::Structure {
+            let man = doc
+                .manifest
+                .iter()
+                .map(epub_manifest_json)
+                .collect::<Vec<_>>()
+                .join(",");
+            let sp = doc
+                .spine
+                .iter()
+                .map(epub_spine_json)
+                .collect::<Vec<_>>()
+                .join(",");
+            let md = doc
+                .metadata
+                .iter()
+                .map(epub_meta_json)
+                .collect::<Vec<_>>()
+                .join(",");
+            s.push_str(",\"manifest\":[");
+            s.push_str(&man);
+            s.push_str("],\"spine\":[");
+            s.push_str(&sp);
+            s.push_str("],\"metadata\":[");
+            s.push_str(&md);
+            s.push(']');
+        }
+        s.push_str(",\"issues\":");
+        s.push_str(&epub_str_array(&doc.issues));
+        s.push('}');
+        let provenance = format!("epub;package={}", doc.member);
+        Ok(self.epub_answer(req, AnswerValue::Json(s), provenance, None, Vec::new()))
+    }
+
+    fn epub_manifest_item_meta(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let item = doc
+            .manifest
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("no EPUB manifest item {index}")))?;
+        let json = epub_manifest_json(item);
+        let provenance = format!("epub;manifest={index};id={}", item.id);
+        let span = self.epub_member_span(item.resolved_ordinal());
+        Ok(self.epub_answer(req, AnswerValue::Json(json), provenance, span, Vec::new()))
+    }
+
+    fn epub_manifest_item_bytes(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let item =
+            doc.manifest.get(index as usize).cloned().ok_or_else(|| {
+                Error::unsupported_feature(format!("no EPUB manifest item {index}"))
+            })?;
+        self.epub_item_bytes(req, &item)
+    }
+
+    fn epub_item_bytes(
+        &mut self,
+        req: &ObserveRequest,
+        item: &ManifestItem,
+    ) -> Result<FieldAnswer> {
+        if item.external {
+            return Err(Error::invalid_package_structure(format!(
+                "EPUB manifest item {:?} is an external target: inert, never fetched",
+                item.id
+            )));
+        }
+        let ordinal = item.resolved_ordinal().ok_or_else(|| {
+            Error::invalid_package_structure(format!(
+                "EPUB manifest item {:?} has no resolvable container member",
+                item.id
+            ))
+        })?;
+        if req.representation == Representation::ExactBytes {
+            self.indexed_exact(
+                req,
+                SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, ordinal),
+                "EPUB resource",
+            )
+        } else {
+            self.member_decoded(req, ordinal)
+        }
+    }
+
+    fn epub_spine_item_meta(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let order = doc.reading_order(profile);
+        let mi = *order.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "no EPUB spine item {index} under profile {}",
+                profile.fingerprint()
+            ))
+        })?;
+        if mi == u32::MAX {
+            return Err(Error::invalid_package_structure(
+                "EPUB spine item does not resolve to a manifest item",
+            ));
+        }
+        let item = doc.manifest.get(mi as usize).ok_or_else(|| {
+            Error::invalid_package_structure("EPUB spine item manifest index is out of range")
+        })?;
+        let spine_ref = doc.spine.iter().find(|s| s.item_index == mi);
+        let json = match spine_ref {
+            Some(s) => format!(
+                "{{\"index\":{},\"profile\":\"{}\",\"idref\":\"{}\",\"linear\":{},\"properties\":{},\"item\":{}}}",
+                index,
+                profile.fingerprint(),
+                json_escape(&s.idref),
+                s.linear,
+                epub_str_array(&s.properties),
+                epub_manifest_json(item)
+            ),
+            None => format!(
+                "{{\"index\":{},\"profile\":\"{}\",\"idref\":null,\"item\":{}}}",
+                index,
+                profile.fingerprint(),
+                epub_manifest_json(item)
+            ),
+        };
+        let provenance = format!(
+            "epub;spine={index};profile={};id={};part={}",
+            profile.fingerprint(),
+            item.id,
+            item.resolved.as_deref().unwrap_or("")
+        );
+        let span = self.epub_member_span(item.resolved_ordinal());
+        Ok(self.epub_answer(req, AnswerValue::Json(json), provenance, span, Vec::new()))
+    }
+
+    fn epub_spine_item_bytes(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let order = doc.reading_order(profile);
+        let mi = *order.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "no EPUB spine item {index} under profile {}",
+                profile.fingerprint()
+            ))
+        })?;
+        let item = doc.manifest.get(mi as usize).cloned().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB spine item manifest index is out of range")
+        })?;
+        self.epub_item_bytes(req, &item)
+    }
+
+    /// Resolve a spine item to its parsed content model, parsing **only** that
+    /// item's XHTML member (plus the shared model/decoded member) and persisting
+    /// the derived content node in the disposable cache so later queries reuse it.
+    /// Nothing here parses any *other* spine item.
+    fn epub_content_view(
+        &mut self,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<EpubContentView> {
+        let doc = self.epub_package_doc()?;
+        let order = doc.reading_order(profile);
+        let mi = *order.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "no EPUB spine item {index} under profile {}",
+                profile.fingerprint()
+            ))
+        })?;
+        let item = doc.manifest.get(mi as usize).cloned().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB spine item manifest index is out of range")
+        })?;
+        let ordinal = item.resolved_ordinal().ok_or_else(|| {
+            Error::invalid_package_structure(format!(
+                "EPUB spine item {:?} has no resolvable container member",
+                item.id
+            ))
+        })?;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, ordinal),
+            "EPUB spine content decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let base_dir = epub_dir_of(item.resolved.as_deref().unwrap_or(""));
+        let mut node = SeedNode::new(
+            NodeKind::EpubContent,
+            self.limits.max_output_bytes,
+            crate::adapter::epub::content_params(index, ordinal, &base_dir, profile),
+            vec![dec.node_id],
+            "epub:content",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let model = crate::adapter::epub::ContentModel::decode(&bytes)?;
+        let span = self.epub_member_span(Some(ordinal));
+        Ok((model, item, span, vec![id, dec.node_id]))
+    }
+
+    fn epub_spine_item_text(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let provenance = format!(
+            "epub;spine={index};part={};profile={};content",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        Ok(self.epub_answer(req, AnswerValue::Text(model.text()), provenance, span, deps))
+    }
+
+    fn epub_spine_item_structure(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let json = epub_content_structure_json(index, &model, &item, profile);
+        let provenance = format!(
+            "epub;spine={index};part={};profile={};structure",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        Ok(self.epub_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    fn epub_spine_item_preview(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let text = model.preview_text(
+            index,
+            item.resolved.as_deref().unwrap_or(""),
+            &profile.fingerprint(),
+        );
+        let provenance = format!(
+            "epub;spine={index};part={};profile={};preview",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        Ok(self.epub_answer(req, AnswerValue::Text(text), provenance, span, deps))
+    }
+
+    fn epub_block(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        block: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let b = model.blocks.get(block as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("EPUB spine item {index} has no block {block}"))
+        })?;
+        let provenance = format!(
+            "epub;spine={index};part={};block={block};profile={}",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(b.text()),
+            Representation::Metadata | Representation::Structure => {
+                AnswerValue::Json(epub_block_json(block, b))
+            }
+            _ => {
+                return Err(Error::unsupported_feature(format!(
+                    "unsupported observation: selector {} with representation {}",
+                    req.selector.canonical(),
+                    req.representation.name()
+                )));
+            }
+        };
+        Ok(self.epub_answer(req, value, provenance, span, deps))
+    }
+
+    fn epub_cell(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        table: u32,
+        row: u32,
+        col: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let t = model.table(table).ok_or_else(|| {
+            Error::unsupported_feature(format!("EPUB spine item {index} has no table {table}"))
+        })?;
+        let crate::adapter::epub::Block::Table { rows } = t else {
+            return Err(Error::internal_invariant(
+                "table selector resolved a non-table",
+            ));
+        };
+        let r = rows.get(row as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("EPUB table {table} has no row {row}"))
+        })?;
+        let c = r.cells.get(col as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("EPUB table {table} row {row} has no cell {col}"))
+        })?;
+        let provenance = format!(
+            "epub;spine={index};part={};table={table};row={row};col={col};profile={}",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(c.text.clone()),
+            Representation::Metadata => AnswerValue::Json(epub_cell_json(table, row, col, c)),
+            _ => {
+                return Err(Error::unsupported_feature(format!(
+                    "unsupported observation: selector {} with representation {}",
+                    req.selector.canonical(),
+                    req.representation.name()
+                )));
+            }
+        };
+        Ok(self.epub_answer(req, value, provenance, span, deps))
+    }
+
+    fn epub_link(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        link: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let l = model.links.get(link as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("EPUB spine item {index} has no link {link}"))
+        })?;
+        let provenance = format!(
+            "epub;spine={index};part={};link={link};profile={}",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        Ok(self.epub_answer(
+            req,
+            AnswerValue::Json(epub_link_json(link, l)),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+
+    fn epub_find(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        pattern: &str,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for (i, b) in model.blocks.iter().enumerate() {
+            let t = b.text();
+            if t.contains(pattern) {
+                estimated = estimated.saturating_add(t.len() as u64 + 48);
+                if estimated > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "EPUB find exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                items.push(format!(
+                    "{{\"block\":{i},\"kind\":\"{}\",\"text\":\"{}\"}}",
+                    b.kind(),
+                    json_escape(&t)
+                ));
+            }
+        }
+        let provenance = format!(
+            "epub;spine={index};part={};profile={};find",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        Ok(self.epub_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+
+    fn epub_resource_meta(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let item = doc
+            .manifest
+            .iter()
+            .find(|m| m.resolved.as_deref() == Some(name))
+            .ok_or_else(|| {
+                Error::invalid_package_structure(format!("no EPUB resource named {name:?}"))
+            })?;
+        let json = epub_manifest_json(item);
+        let span = self.epub_member_span(item.resolved_ordinal());
+        Ok(self.epub_answer(
+            req,
+            AnswerValue::Json(json),
+            format!("epub;resource={name}"),
+            span,
+            Vec::new(),
+        ))
+    }
+
+    fn epub_resource_bytes(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let item = doc
+            .manifest
+            .iter()
+            .find(|m| m.resolved.as_deref() == Some(name))
+            .cloned()
+            .ok_or_else(|| {
+                Error::invalid_package_structure(format!("no EPUB resource named {name:?}"))
+            })?;
+        self.epub_item_bytes(req, &item)
+    }
+
+    fn epub_nav(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let idx = doc.nav_item.ok_or_else(|| {
+            Error::invalid_package_structure(
+                "EPUB package has no navigation document (properties nav)",
+            )
+        })?;
+        let item = doc.manifest.get(idx as usize).cloned().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB nav manifest index is out of range")
+        })?;
+        let ordinal = item.resolved_ordinal().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB navigation document has no resolvable member")
+        })?;
+        let bytes = self.epub_member_decoded_bytes(ordinal)?;
+        let base = epub_dir_of(item.resolved.as_deref().unwrap_or(""));
+        let entries = crate::adapter::epub::parse_nav_document(&bytes, &base, self.limits)?;
+        let body = entries
+            .iter()
+            .enumerate()
+            .map(|(i, e)| epub_nav_json(i as u32, e))
+            .collect::<Vec<_>>()
+            .join(",");
+        let json = format!(
+            "{{\"nav_item\":\"{}\",\"entries\":[{}]}}",
+            json_escape(&item.id),
+            body
+        );
+        let provenance = format!(
+            "epub;nav={};part={}",
+            item.id,
+            item.resolved.as_deref().unwrap_or("")
+        );
+        let span = self.epub_member_span(Some(ordinal));
+        Ok(self.epub_answer(req, AnswerValue::Json(json), provenance, span, Vec::new()))
+    }
+
+    fn epub_nav_node(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let idx = doc.nav_item.ok_or_else(|| {
+            Error::invalid_package_structure(
+                "EPUB package has no navigation document (properties nav)",
+            )
+        })?;
+        let item = doc.manifest.get(idx as usize).cloned().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB nav manifest index is out of range")
+        })?;
+        let ordinal = item.resolved_ordinal().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB navigation document has no resolvable member")
+        })?;
+        let bytes = self.epub_member_decoded_bytes(ordinal)?;
+        let base = epub_dir_of(item.resolved.as_deref().unwrap_or(""));
+        let entries = crate::adapter::epub::parse_nav_document(&bytes, &base, self.limits)?;
+        let e = entries
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("no EPUB nav entry {index}")))?;
+        let json = epub_nav_json(index, e);
+        Ok(self.epub_answer(
+            req,
+            AnswerValue::Json(json),
+            format!("epub;nav-node={index}"),
+            None,
+            Vec::new(),
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Common (format-neutral) observations (Phase 12.7)
+// ---------------------------------------------------------------------------
+
+impl<S: SeedStore> Ctx<'_, S> {
+    /// The detected document format recorded in the manifest provenance.
+    fn document_format(&self) -> Option<DocumentFormat> {
+        DocumentFormat::from_provenance(&self.manifest.provenance)
+    }
+
+    /// Tag a native answer with the common layer's format + native provenance.
+    fn tag_common(&self, fmt: DocumentFormat, mut answer: FieldAnswer) -> FieldAnswer {
+        answer.provenance = format!("format={};common;{}", fmt.name(), answer.provenance);
+        answer
+    }
+
+    /// Dispatch a common selector through the detected format's adapter.
+    fn common_dispatch(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        use crate::field::capabilities;
+        let fmt = self.document_format().ok_or_else(|| {
+            Error::unsupported_feature(
+                "field manifest does not record a document format; common observations are unavailable",
+            )
+        })?;
+        if !capabilities::common_supported(fmt, &req.selector, req.representation) {
+            return Err(Error::unsupported_feature(format!(
+                "unsupported common observation: format {} does not support selector {} with representation {}",
+                fmt.name(),
+                req.selector.canonical(),
+                req.representation.name()
+            )));
+        }
+        let answer = match fmt {
+            DocumentFormat::Pdf => self.common_pdf(req)?,
+            DocumentFormat::Docx => self.common_docx(req)?,
+            DocumentFormat::Epub => self.common_epub(req)?,
+            DocumentFormat::Opaque => {
+                return Err(Error::unsupported_feature(
+                    "opaque fields have no common observations",
+                ));
+            }
+        };
+        Ok(self.tag_common(fmt, answer))
+    }
+
+    // -- PDF ---------------------------------------------------------------
+
+    fn common_pdf(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => {
+                let mut a = self.document_metadata(req)?;
+                a.provenance = "pdf;document-metadata".to_string();
+                Ok(a)
+            }
+            Selector::Text => self.pdf_document_text(req),
+            Selector::SearchMatch(p) => self.text_match(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "PDF does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document reading text of a PDF: every recovered page's text in
+    /// page order. Bounded by the output budget and the page-scan cap.
+    fn pdf_document_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let mut out = String::new();
+        let mut pages: u64 = 0;
+        let mut page: u32 = 1;
+        while page <= MAX_TEXTMATCH_PAGES {
+            let entries = self.lookup(SelectorKey::new(SEL_PAGE, page))?;
+            let Some(entry) = entries.into_iter().next() else {
+                break;
+            };
+            let pc = entry.node_id;
+            let (_ops, text, _preview) = self.ensure_page_derived(page, pc)?;
+            let bytes = self.materialize(&text)?;
+            out.push_str(&String::from_utf8_lossy(&bytes));
+            if !out.ends_with('\n') {
+                out.push('\n');
+            }
+            if out.len() as u64 > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "whole-document text exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            pages += 1;
+            page += 1;
+        }
+        Ok(FieldAnswer {
+            value: AnswerValue::Text(out),
+            basis: Basis::Heuristic,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: None,
+            provenance: format!("pdf;pages={pages}"),
+            dependency_ids: Vec::new(),
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        })
+    }
+
+    // -- DOCX --------------------------------------------------------------
+
+    #[cfg(feature = "docx")]
+    fn common_docx(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let profile = DocxExtractProfile::DEFAULT;
+        match &req.selector {
+            Selector::Metadata => self.docx_common_metadata(req, &profile),
+            Selector::Text => self.docx_story_text(req, DocxStory::Main, &profile),
+            Selector::Heading(i) => self.docx_common_heading(req, *i, &profile),
+            Selector::Block(i) => self.docx_common_block(req, *i, &profile),
+            Selector::Table(i) => self.docx_table(req, DocxStory::Main, *i, &profile),
+            Selector::Cell { table, row, col } => {
+                let cell = a1_ref(*col, *row);
+                self.docx_cell(req, DocxStory::Main, *table, &cell, &profile)
+            }
+            Selector::Resource(i) => self.docx_common_resource(req, *i, &profile),
+            Selector::Link(i) => self.docx_common_link(req, *i, &profile),
+            Selector::SearchMatch(p) => self.docx_find(req, DocxStory::Main, p, &profile),
+            other => Err(Error::unsupported_feature(format!(
+                "DOCX does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    #[cfg(not(feature = "docx"))]
+    fn common_docx(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "DOCX observations require a build with the docx feature",
+        ))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_common_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(DocxStory::Main, profile)?;
+        let json = format!(
+            concat!(
+                "{{\"format\":\"docx\",\"story\":\"main\",\"part\":\"{}\",\"ordinal\":{},",
+                "\"root\":\"{}\",\"blocks\":{},\"paragraphs\":{},\"tables\":{},",
+                "\"hyperlinks\":{},\"bookmarks\":{},\"resources\":{},\"sections\":{},",
+                "\"profile\":\"{}\"}}"
+            ),
+            json_escape(&v.part.name),
+            v.part.ordinal,
+            json_escape(&v.model.root_local),
+            v.model.blocks.len(),
+            v.model.paragraphs().count(),
+            v.model.tables().count(),
+            v.model.hyperlinks.len(),
+            v.model.bookmarks.len(),
+            v.model.resources.len(),
+            v.model.section_count,
+            profile.fingerprint(),
+        );
+        let provenance = format!("docx;story=main;part={}", v.part.name);
+        Ok(self.docx_answer(req, AnswerValue::Json(json), provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_common_heading(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(DocxStory::Main, profile)?;
+        let p = v
+            .model
+            .paragraphs()
+            .filter(|p| p.heading_level.is_some())
+            .nth(ordinal as usize)
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!("DOCX main story has no heading {ordinal}"))
+            })?;
+        let index = p.index;
+        let text = p.text.clone();
+        let level = p.heading_level;
+        let style = p.style_id.clone();
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"story\":\"main\",\"heading\":{ordinal},\"paragraph\":{index},\"level\":{},\"style\":{},\"text_len\":{}}}",
+                opt_u8_json(level),
+                opt_str_json(style.as_deref()),
+                text.len()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        let provenance = format!(
+            "docx;story=main;part={};heading={ordinal};paragraph={index};profile={}",
+            v.part.name,
+            profile.fingerprint()
+        );
+        Ok(self.docx_answer(req, value, provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_common_block(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        use crate::adapter::docx::wml::Block as WmlBlock;
+        let v = self.docx_story_view(DocxStory::Main, profile)?;
+        let b = v.model.blocks.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("DOCX main story has no block {ordinal}"))
+        })?;
+        let (kind, text, detail) = match b {
+            WmlBlock::Paragraph(p) => (
+                "paragraph",
+                p.text.clone(),
+                format!(
+                    "\"paragraph\":{},\"level\":{}",
+                    p.index,
+                    opt_u8_json(p.heading_level)
+                ),
+            ),
+            WmlBlock::Table(t) => (
+                "table",
+                t.text(),
+                format!("\"table\":{},\"rows\":{}", t.index, t.rows.len()),
+            ),
+        };
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"story\":\"main\",\"block\":{ordinal},\"kind\":\"{kind}\",{detail},\"text_len\":{}}}",
+                text.len()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        let provenance = format!(
+            "docx;story=main;part={};block={ordinal};profile={}",
+            v.part.name,
+            profile.fingerprint()
+        );
+        Ok(self.docx_answer(req, value, provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_common_resource(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(DocxStory::Main, profile)?;
+        let rel = v.model.resources.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("DOCX main story has no resource {ordinal}"))
+        })?;
+        let json = format!(
+            "{{\"story\":\"main\",\"resource\":{ordinal},\"rel\":\"{}\"}}",
+            json_escape(rel)
+        );
+        let provenance = format!(
+            "docx;story=main;part={};resource={ordinal};profile={}",
+            v.part.name,
+            profile.fingerprint()
+        );
+        Ok(self.docx_answer(req, AnswerValue::Json(json), provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_common_link(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(DocxStory::Main, profile)?;
+        let l = v.model.hyperlinks.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("DOCX main story has no hyperlink {ordinal}"))
+        })?;
+        let json = format!(
+            "{{\"story\":\"main\",\"link\":{ordinal},\"text\":\"{}\",\"rel_id\":{},\"anchor\":{}}}",
+            json_escape(&l.text),
+            opt_str_json(l.rel_id.as_deref()),
+            opt_str_json(l.anchor.as_deref())
+        );
+        let provenance = format!(
+            "docx;story=main;part={};link={ordinal};profile={}",
+            v.part.name,
+            profile.fingerprint()
+        );
+        Ok(self.docx_answer(req, AnswerValue::Json(json), provenance, v.span, v.deps))
+    }
+
+    // -- EPUB --------------------------------------------------------------
+
+    #[cfg(feature = "epub")]
+    fn common_epub(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let profile = EpubExtractProfile::DEFAULT;
+        match &req.selector {
+            Selector::Metadata => self.epub_package(req),
+            Selector::Text => self.epub_common_text(req, &profile),
+            Selector::Heading(i) => self.epub_common_block(req, *i, true, &profile),
+            Selector::Block(i) => self.epub_common_block(req, *i, false, &profile),
+            Selector::Table(i) => self.epub_common_table(req, *i, &profile),
+            Selector::Cell { table, row, col } => {
+                self.epub_common_cell(req, *table, *row, *col, &profile)
+            }
+            Selector::Resource(i) => self.epub_common_resource(req, *i, &profile),
+            Selector::Link(i) => self.epub_common_link(req, *i, &profile),
+            Selector::SearchMatch(p) => self.epub_common_search(req, p, &profile),
+            other => Err(Error::unsupported_feature(format!(
+                "EPUB does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    #[cfg(not(feature = "epub"))]
+    fn common_epub(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "EPUB observations require a build with the epub feature",
+        ))
+    }
+
+    #[cfg(feature = "epub")]
+    fn epub_common_text(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let order_len = doc.reading_order(profile).len() as u32;
+        let mut out = String::new();
+        let mut items: u64 = 0;
+        for index in 0..order_len {
+            let (model, _item, _span, _deps) = self.epub_content_view(index, profile)?;
+            out.push_str(&model.text());
+            if !out.ends_with('\n') {
+                out.push('\n');
+            }
+            if out.len() as u64 > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "whole-document text exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            items += 1;
+        }
+        let provenance = format!("epub;spine-items={items};profile={}", profile.fingerprint());
+        Ok(self.epub_answer(req, AnswerValue::Text(out), provenance, None, Vec::new()))
+    }
+
+    /// The `ordinal`-th block across the reading order; `headings_only` restricts
+    /// the count to heading blocks.
+    #[cfg(feature = "epub")]
+    fn epub_common_block(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        headings_only: bool,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let order_len = doc.reading_order(profile).len() as u32;
+        let mut remaining = ordinal as usize;
+        for index in 0..order_len {
+            let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+            for (local, b) in model.blocks.iter().enumerate() {
+                if headings_only && !matches!(b, crate::adapter::epub::Block::Heading { .. }) {
+                    continue;
+                }
+                if remaining == 0 {
+                    let text = b.text();
+                    let value = match req.representation {
+                        Representation::Text => AnswerValue::Text(text),
+                        Representation::Metadata => {
+                            AnswerValue::Json(epub_block_json(local as u32, b))
+                        }
+                        _ => return Err(unsupported_common(req)),
+                    };
+                    let provenance = format!(
+                        "epub;spine={index};part={};block={local};ordinal={ordinal};profile={}",
+                        item.resolved.as_deref().unwrap_or(""),
+                        profile.fingerprint()
+                    );
+                    return Ok(self.epub_answer(req, value, provenance, span, deps));
+                }
+                remaining -= 1;
+            }
+        }
+        let what = if headings_only { "heading" } else { "block" };
+        Err(Error::unsupported_feature(format!(
+            "EPUB reading order has no {what} {ordinal}"
+        )))
+    }
+
+    #[cfg(feature = "epub")]
+    fn epub_common_table(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let order_len = doc.reading_order(profile).len() as u32;
+        let mut remaining = ordinal as usize;
+        for index in 0..order_len {
+            let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+            for (local, b) in model.blocks.iter().enumerate() {
+                if !matches!(b, crate::adapter::epub::Block::Table { .. }) {
+                    continue;
+                }
+                if remaining == 0 {
+                    let value = match req.representation {
+                        Representation::Text => AnswerValue::Text(b.text()),
+                        Representation::Metadata => {
+                            AnswerValue::Json(epub_block_json(local as u32, b))
+                        }
+                        _ => return Err(unsupported_common(req)),
+                    };
+                    let provenance = format!(
+                        "epub;spine={index};part={};table={local};ordinal={ordinal};profile={}",
+                        item.resolved.as_deref().unwrap_or(""),
+                        profile.fingerprint()
+                    );
+                    return Ok(self.epub_answer(req, value, provenance, span, deps));
+                }
+                remaining -= 1;
+            }
+        }
+        Err(Error::unsupported_feature(format!(
+            "EPUB reading order has no table {ordinal}"
+        )))
+    }
+
+    #[cfg(feature = "epub")]
+    fn epub_common_cell(
+        &mut self,
+        req: &ObserveRequest,
+        table: u32,
+        row: u32,
+        col: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        use crate::adapter::epub::Block as EBlock;
+        let doc = self.epub_package_doc()?;
+        let order_len = doc.reading_order(profile).len() as u32;
+        let mut remaining = table as usize;
+        for index in 0..order_len {
+            let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+            for (local, b) in model.blocks.iter().enumerate() {
+                let EBlock::Table { rows } = b else { continue };
+                if remaining > 0 {
+                    remaining -= 1;
+                    continue;
+                }
+                let r = rows.get(row as usize).ok_or_else(|| {
+                    Error::unsupported_feature(format!("EPUB table {table} has no row {row}"))
+                })?;
+                let c = r.cells.get(col as usize).ok_or_else(|| {
+                    Error::unsupported_feature(format!(
+                        "EPUB table {table} row {row} has no cell {col}"
+                    ))
+                })?;
+                let value = match req.representation {
+                    Representation::Text => AnswerValue::Text(c.text.clone()),
+                    Representation::Metadata => {
+                        AnswerValue::Json(epub_cell_json(table, row, col, c))
+                    }
+                    _ => return Err(unsupported_common(req)),
+                };
+                let provenance = format!(
+                    "epub;spine={index};part={};table={local};row={row};col={col};profile={}",
+                    item.resolved.as_deref().unwrap_or(""),
+                    profile.fingerprint()
+                );
+                return Ok(self.epub_answer(req, value, provenance, span, deps));
+            }
+        }
+        Err(Error::unsupported_feature(format!(
+            "EPUB reading order has no table {table}"
+        )))
+    }
+
+    #[cfg(feature = "epub")]
+    fn epub_common_resource(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let resources: Vec<&ManifestItem> = doc
+            .manifest
+            .iter()
+            .filter(|i| !is_document_media_type(&i.media_type))
+            .collect();
+        let item = resources
+            .get(ordinal as usize)
+            .copied()
+            .ok_or_else(|| Error::unsupported_feature(format!("EPUB has no resource {ordinal}")))?;
+        if req.representation == Representation::Metadata {
+            let json = format!(
+                concat!(
+                    "{{\"resource\":{},\"id\":\"{}\",\"href\":\"{}\",",
+                    "\"media_type\":\"{}\",\"member\":{},\"profile\":\"{}\"}}"
+                ),
+                ordinal,
+                json_escape(&item.id),
+                json_escape(&item.href),
+                json_escape(&item.media_type),
+                epub_opt_str(item.resolved.as_deref()),
+                profile.fingerprint()
+            );
+            let provenance = format!(
+                "epub;resource={ordinal};id={};profile={}",
+                item.id,
+                profile.fingerprint()
+            );
+            return Ok(self.epub_answer(
+                req,
+                AnswerValue::Json(json),
+                provenance,
+                None,
+                Vec::new(),
+            ));
+        }
+        // Exact/decoded bytes resolve to the container member.
+        self.epub_item_bytes(req, item)
+    }
+
+    #[cfg(feature = "epub")]
+    fn epub_common_link(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let order_len = doc.reading_order(profile).len() as u32;
+        let mut remaining = ordinal as usize;
+        for index in 0..order_len {
+            let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+            for (local, l) in model.links.iter().enumerate() {
+                if remaining == 0 {
+                    let provenance = format!(
+                        "epub;spine={index};part={};link={local};ordinal={ordinal};profile={}",
+                        item.resolved.as_deref().unwrap_or(""),
+                        profile.fingerprint()
+                    );
+                    return Ok(self.epub_answer(
+                        req,
+                        AnswerValue::Json(epub_link_json(local as u32, l)),
+                        provenance,
+                        span,
+                        deps,
+                    ));
+                }
+                remaining -= 1;
+            }
+        }
+        Err(Error::unsupported_feature(format!(
+            "EPUB reading order has no link {ordinal}"
+        )))
+    }
+
+    #[cfg(feature = "epub")]
+    fn epub_common_search(
+        &mut self,
+        req: &ObserveRequest,
+        pattern: &str,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let order_len = doc.reading_order(profile).len() as u32;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for index in 0..order_len {
+            let (model, item, _span, _deps) = self.epub_content_view(index, profile)?;
+            let _ = item;
+            for (local, b) in model.blocks.iter().enumerate() {
+                let t = b.text();
+                if t.contains(pattern) {
+                    estimated = estimated.saturating_add(t.len() as u64 + 64);
+                    if estimated > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "EPUB search exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                    items.push(format!(
+                        "{{\"spine\":{index},\"block\":{local},\"kind\":\"{}\",\"text\":\"{}\"}}",
+                        b.kind(),
+                        json_escape(&t)
+                    ));
+                }
+            }
+        }
+        let provenance = format!("epub;search;profile={}", profile.fingerprint());
+        Ok(self.epub_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            None,
+            Vec::new(),
+        ))
+    }
+}
+
+/// The standard `unsupported observation` error for a common pair that reached a
+/// representation the capability guard admitted but the adapter does not serve.
+#[cfg(any(feature = "docx", feature = "epub"))]
+fn unsupported_common(req: &ObserveRequest) -> Error {
+    Error::unsupported_feature(format!(
+        "unsupported observation: selector {} with representation {}",
+        req.selector.canonical(),
+        req.representation.name()
+    ))
+}
+
+/// Convert a 0-based grid column and row into an A1-style reference (`B7`).
+#[cfg(feature = "docx")]
+fn a1_ref(col: u32, row: u32) -> String {
+    let mut c = col + 1;
+    let mut letters: Vec<char> = Vec::new();
+    while c > 0 {
+        let rem = ((c - 1) % 26) as u8;
+        letters.push((b'A' + rem) as char);
+        c = (c - 1) / 26;
+    }
+    letters.reverse();
+    format!("{}{}", letters.into_iter().collect::<String>(), row + 1)
+}
+
+/// Whether a manifest media type is a reading document (not a binary resource).
+#[cfg(feature = "epub")]
+fn is_document_media_type(media_type: &str) -> bool {
+    media_type == "application/xhtml+xml"
+        || media_type == "application/oebps-package+xml"
+        || media_type == "application/x-dtbncx+xml"
 }
 
 /// The deterministic Stage-C chain beneath a page's `PageContent` node. Must
@@ -1746,12 +4443,13 @@ mod tests {
             explain::explain_analyze(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap();
         assert_eq!(
             plan.json,
-            "{\"selector\":\"document\",\"representation\":\"full\",\"shape\":\"full_materialize\",\"index_reads\":0,\"required_nodes\":1,\"will_materialize\":[\"DocumentExact\"],\"will_not_materialize\":[]}"
+            "{\"selector\":\"document\",\"representation\":\"full\",\"format\":\"pdf\",\"adapter\":\"pdf\",\"capability\":\"native\",\"index_route\":\"hier-index\",\"shape\":\"full_materialize\",\"index_reads\":0,\"required_nodes\":1,\"will_materialize\":[\"DocumentExact\"],\"will_not_materialize\":[]}"
         );
         let actual_json = actual.to_json();
         let mut keys = top_level_keys(&actual_json);
         keys.sort();
         let mut expected = vec![
+            "adapter",
             "basis",
             "bytes_read",
             "bytes_returned",
@@ -1759,13 +4457,20 @@ mod tests {
             "descriptor_bytes_read",
             "descriptor_read_mode",
             "exact",
+            "format",
             "index_bytes_read",
             "index_nodes_read",
+            "inverse_work_units",
             "manifest_bytes_read",
+            "member_decodes",
+            "nodes_id_shared",
             "seed_bytes_read",
             "seed_nodes_fetched",
             "seed_nodes_materialized",
+            "shared_resource_ids",
             "wall_micros",
+            "whole_source_materialized",
+            "xml_parses",
         ];
         expected.sort_unstable();
         assert_eq!(keys, expected, "actual json keys: {actual_json}");

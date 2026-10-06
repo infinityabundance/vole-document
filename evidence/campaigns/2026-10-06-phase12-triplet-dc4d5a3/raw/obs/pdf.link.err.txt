@@ -1,0 +1,1 @@
+error: UnsupportedFeature: unsupported common observation: format pdf does not support selector link:0 with representation text

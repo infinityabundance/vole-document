@@ -2,6 +2,118 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.16] — Phase 12: universal multi-format document field
+
+Phase 12 makes the persistent procedural field **format-universal**. PDF, DOCX and
+EPUB now enter through separate **native inverse compilers** — the Phase-11 PDF
+adapter, a WordprocessingML (DOCX) inverse and a bounded-XHTML/OCF (EPUB) inverse —
+built over a shared **byte-authoritative ZIP** layer (a physical member scanner plus
+an OPC/OCF package graph), and all three converge on **one** persistent
+`DocumentField` exposing **common** observations *and* retained **format-native**
+structure. Exactness is unchanged and remains the only normative profile:
+`materialize(descriptor) == original_bytes` (length + SHA-256 + `cmp`). The wire is
+unchanged (`dra-8`, `FORMAT_MINOR` do not move) and no decode-path semantics changed.
+The courts are deliberately mixed; every loss, tie and negative below is recorded.
+
+### Added
+
+- **Byte-authoritative ZIP layer** (`src/adapter/package/`) — a deterministic
+  physical member scanner (cover = exact partition; spans, central directory,
+  ZIP64, data descriptors, prefix/trailing bytes, CRC) and an OPC/OCF package graph
+  (content types, part/relationship resolution; cycles and depth bounded).
+  Feature-gated behind `package` / `opc`.
+- **DOCX inverse** (`src/adapter/docx/`, feature `docx`) — a bounded
+  WordprocessingML projection: story structure, paragraphs/runs, tables/grids,
+  tracked changes, notes, textboxes.
+- **EPUB inverse** (`src/adapter/epub/`, feature `epub`) — a bounded OCF/XHTML
+  projection: package summary, spine/reading order, blocks, links and resources.
+- **Format-agnostic field ingest + common vocabulary** — one `field-ingest` and one
+  common CLI (`capabilities`, `find`, `text`, `metadata`, `observe`, `explain
+  [--analyze]`) over PDF+DOCX+EPUB, with per-answer provenance
+  (`format=<fmt>;common;<native>`); format detection is byte-based.
+- **Feature-gated Phase-12 courts** — `examples/phase12_share_court.rs`
+  (`docx`+`epub`), `tools/phase12-*.sh`, `tests/phase12_courts.rs`,
+  `tests/phase12_lifetime.rs`, `tests/phase12_security.rs`, and 8 new bounded fuzz
+  targets (`zip_scan`, `zip_decode`, `opc_rels`, `docx_wml`, `epub_package`,
+  `epub_content`, `xml_part`, `common_observe`).
+
+### Measured
+
+- **Exactness after source + descriptor deletion.** The removal court deletes the
+  private source and the `.voldoc` descriptor, then rematerializes each format in a
+  **new process**, asserting length + SHA-256 + `cmp` against a sealed oracle:
+  **38/38 assertions pass** (PDF, DOCX, EPUB).
+- **Triplet court (12.9).** One known logical report emitted as `.pdf`/`.docx`/
+  `.epub` and queried through the **one** common CLI: **96/96 assertions pass**; the
+  same logical answers carry different native provenance. *(Ground truth is
+  generator-defined — self-authored consistency, not third-party independence.)*
+- **Ablation ladder (12.11b).** `A1b`, `A2`–`A6`, `A9`, `A11` are measured lanes;
+  `A7`/`A8` are recorded **not separable**; `A10` is measured ingest-side; §106 is
+  not separable; §107 is proxied by A5 (`--no-cache`) vs A6. The win is attributed
+  to the **content adapters** (A4→A5: the DOCX/EPUB answered set moves 1/12 →
+  11–12/12 cases) and to **persistent semantic reuse** (A5→A6), which **trades
+  bytes for CPU** (`delta.docx` warm N=1000 CPU 4590→1480 ms while process reads
+  66→330 MB). The ZIP/OPC rungs (A2→A3→A4) do not move the frozen schedule's
+  answered set. **EntropyFS (A9) is a loss**: `delta.docx` reads 694 MB vs A11's
+  331 MB.
+- **Mixed lifetime result (12.11).** VOLE owns the **small-document** frontier
+  (wall/CPU/bytes vs A0, and vs the source-retaining SQLite+FTS5 baseline A1 on
+  small documents) and the cold one-time comparison, but A1 wins the **large ~60 KB
+  synthetic** documents' byte frontier from N=10 (`delta.docx`), N=100
+  (`delta.epub`) and N=1000 (`delta.pdf`), and wall/CPU at N=1000 for
+  `delta.docx`/`delta.epub`.
+- **LLM working set (12.12).** Pinned, offline `bert-base-uncased` (WordPiece voc-30522,
+  hash-verified at court time). V vs the page-local extract B1: **1 win / 8 tie /
+  3 loss**; V vs the whole document B0: **9 win / 0 tie / 3 loss**.
+- **Security + fuzzing (12.13).** **315/315 court assertions pass** over 45 hostile
+  fixtures (**16** typed `reject`, **22** `opaque-preserve-and-decline`, **7**
+  `accept`; every fixture `materialize --exact`); library court 15/15; the 8 new
+  fuzz targets all `exit=0` with no crash/OOM/timeout.
+- **`N6` PDF no-regression — closed.** A2 (the Phase-11 PDF field) vs A11 (the
+  unified field) over 16 corpus PDFs / 128 `explain --analyze` observations:
+  **32/32 lane-documents byte-exact, 0 regressions**.
+- **FTS5 amendment.** A real FTS5 `trigram` index answers identically to `LIKE` here
+  but reads *more*; the whole-token `unicode61` index misses embedded markers. No
+  "FTS5 is faster" claim is made.
+
+### Recorded losses and negatives
+
+- **`N3` cross-document durable reuse — VIOLATED (negative).** The warm
+  `retained_inverse_work_fraction` (**0.339907**) drops to **0.0** after
+  `cache --clear`, both in-process and in a fresh OS process; the reuse was served
+  by the on-disk derived cache, not by durable seed-store work. Representation
+  identity is still genuinely shared (`nodes_id_shared=2`, `shared_resource_ids=1`),
+  and the strongest raw CDC baseline saved `−1374` bytes. Cross-document **work**
+  reuse is a recorded negative.
+- A1 wins the large-document byte frontier (N=10–1000) and wall/CPU at N=1000.
+- VOLE's one-time read is **2.3×–22.6×** the source; its store exceeds A1's `.db` on
+  `delta.pdf`/`delta.docx` (but is smaller on `delta.epub`).
+- VOLE **declines** DOCX exact resource bytes; PDF has **no** native provenance and
+  no heading/table/cell/resource/link coordinate (typed declines); there is no
+  cross-format document-title observation.
+- PDF page text **loses to Poppler** in tokens on 3/4 PDFs; DOCX/EPUB narrow token
+  answers **tie** the local extract (they win only against the whole document).
+- `N4` (decline-rate threshold) is **not evaluated** — no pre-registered threshold
+  exists; the 22/45 decline rate is a hostile-input property, not a capability.
+- EntropyFS (A9) is a loss on this lifetime frontier.
+
+### Fixed
+
+- Default-feature `cargo clippy -- -D warnings`: the `package`-only constants and
+  helper in `src/field/document_format.rs` are now gated behind
+  `#[cfg(feature = "package")]`.
+
+### Notes
+
+- An independent adversarial review
+  ([`docs/reviews/phase-12-skeptic-review.md`](docs/reviews/phase-12-skeptic-review.md))
+  re-checked every headline; its corrections and amendments are applied — the
+  security class tally, the crossover/store scoping, the withdrawal of the
+  unmeasured FTS5 claim, the now-run ablation ladder, the sealed PDF no-regression /
+  reuse-controls / FTS5 / demo receipts, and the default-feature clippy fix. The
+  authoritative results are
+  [`docs/phases/phase-12-results.md`](docs/phases/phase-12-results.md).
+
 ## [0.1.0-alpha.15] — docs/status tables
 
 Documentation-only release. **No behaviour change; exactness is unchanged.** The

@@ -201,6 +201,23 @@ RUN apt-get update \
 WORKDIR /work
 
 # ---------------------------------------------------------------------------
+# Phase-12.11 multi-format lifetime court. Derives from `db-baseline` (the same
+# pinned base digest, so rustc/cargo/sqlite3/Poppler match every other
+# measurement lane) and adds only `python3` (Debian bookworm = Python 3.11.2)
+# so the DOCX/EPUB A0/A1 lanes can extract text/structure with the **stdlib**
+# `zipfile` + `xml.etree.ElementTree` (no third-party parser, no floating
+# dependency). The task's <8-document mixed corpus and the four-universe
+# footprint are measured here; nothing runs on the host.
+# ---------------------------------------------------------------------------
+FROM db-baseline AS doc-baseline
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      python3 \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
+
+# ---------------------------------------------------------------------------
 # Phase-11.13 LLM working-set *token* court (priority #8). Derives from the
 # pinned `dev` toolchain (same base digest as `dev`/`baseline`, so rustc/cargo
 # match the measurement binary) and adds the two things the token court needs

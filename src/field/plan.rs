@@ -12,6 +12,7 @@
 
 use crate::error::{Error, Result};
 use crate::field::FieldStore;
+use crate::field::document_format::DocumentFormat;
 use crate::field::index::{FsIndexStore, IndexEntry, SEL_PAGE, SelectorKey, lookup};
 use crate::field::manifest::FieldRoot;
 use crate::store::NodeId;
@@ -68,6 +69,12 @@ pub struct ObservePlan {
 
 /// Plan an observation. Pure: no materialization and no writes.
 pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> Result<ObservePlan> {
+    // Common (format-neutral) selectors plan through the detected format's
+    // capability set, so an unsupported pair fails closed here exactly as it does
+    // at evaluation time (Phase 12.7).
+    if req.selector.is_common() {
+        return common_plan(manifest, req);
+    }
     use Representation as R;
     match (&req.selector, req.representation) {
         (Selector::Document, R::FullDocument | R::ExactBytes) => Ok(ObservePlan {
@@ -93,6 +100,70 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
         }),
         (Selector::Object(_), R::ExactBytes | R::EncodedBytes) => Ok(index_plan("PdfObject")),
         (Selector::Revision(_), R::ExactBytes) => Ok(index_plan("PdfRevision")),
+        (Selector::Member(_), R::EncodedBytes) => Ok(ObservePlan {
+            shape: PlanShape::IndexLookup,
+            index_reads: 1,
+            required_nodes: 1,
+            will_materialize: kinds(&["PackageMemberRaw"]),
+            will_not_materialize: kinds(&["other-members", "whole-document"]),
+        }),
+        (Selector::Member(_), R::DecodedBytes) => Ok(ObservePlan {
+            shape: PlanShape::NodeMaterialize,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["PackageMemberDecoded", "PackageMemberRaw"]),
+            will_not_materialize: kinds(&["other-members", "whole-document"]),
+        }),
+        (Selector::PackagePart(_), R::Metadata) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["PackageOpcModel"]),
+            will_not_materialize: kinds(&["other-parts", "whole-document"]),
+        }),
+        (Selector::PackagePart(_), R::ExactBytes) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 3,
+            will_materialize: kinds(&["PackageOpcModel", "PackageMemberRaw"]),
+            will_not_materialize: kinds(&["other-parts", "whole-document"]),
+        }),
+        (Selector::PackagePart(_), R::DecodedBytes) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 4,
+            will_materialize: kinds(&[
+                "PackageOpcModel",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-parts", "whole-document"]),
+        }),
+        (Selector::Relationship(_), R::Metadata) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["PackageOpcModel"]),
+            will_not_materialize: kinds(&["other-relationships", "whole-document"]),
+        }),
+        (Selector::Relationship(_), R::ExactBytes) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 3,
+            will_materialize: kinds(&["PackageOpcModel", "PackageMemberRaw"]),
+            will_not_materialize: kinds(&["external-targets", "whole-document"]),
+        }),
+        (Selector::Relationship(_), R::DecodedBytes) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 4,
+            will_materialize: kinds(&[
+                "PackageOpcModel",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["external-targets", "whole-document"]),
+        }),
         (Selector::Stream(_), R::EncodedBytes) => Ok(index_plan("PdfStreamEncoded")),
         (Selector::Stream(_), R::DecodedBytes) => Ok(ObservePlan {
             shape: PlanShape::NodeMaterialize,
@@ -117,6 +188,70 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             required_nodes: 3,
             will_materialize: kinds(&["PageContent", "ContentOperators", "TextRuns"]),
             will_not_materialize: kinds(&["images", "xobjects", "whole-document"]),
+        }),
+        #[cfg(feature = "docx")]
+        (Selector::DocxStory { .. }, R::Text | R::Structure | R::Metadata)
+        | (Selector::DocxParagraph { .. }, R::Text | R::Metadata)
+        | (Selector::DocxTable { .. }, R::Text | R::Metadata)
+        | (Selector::DocxCell { .. }, R::Text | R::Metadata)
+        | (Selector::DocxFind { .. }, R::Text) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 4,
+            will_materialize: kinds(&[
+                "DocxModel",
+                "DocxStory",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-stories", "whole-document"]),
+        }),
+        #[cfg(feature = "epub")]
+        (Selector::EpubPackage, R::Metadata | R::Structure)
+        | (Selector::EpubNav, R::Metadata | R::Structure)
+        | (Selector::EpubNavNode { .. }, R::Metadata) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 3,
+            will_materialize: kinds(&["EpubModel", "PackageMemberDecoded", "PackageMemberRaw"]),
+            will_not_materialize: kinds(&["other-resources", "whole-document"]),
+        }),
+        #[cfg(feature = "epub")]
+        (Selector::EpubManifestItem { .. }, R::Metadata)
+        | (Selector::EpubSpineItem { .. }, R::Metadata)
+        | (Selector::EpubResource(_), R::Metadata) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["EpubModel"]),
+            will_not_materialize: kinds(&["external-targets", "whole-document"]),
+        }),
+        #[cfg(feature = "epub")]
+        (Selector::EpubSpineItem { .. }, R::Text | R::Structure | R::Preview)
+        | (Selector::EpubBlock { .. }, R::Text | R::Metadata | R::Structure)
+        | (Selector::EpubCell { .. }, R::Text | R::Metadata)
+        | (Selector::EpubLink { .. }, R::Metadata)
+        | (Selector::EpubFind { .. }, R::Text) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 4,
+            will_materialize: kinds(&[
+                "EpubModel",
+                "EpubContent",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-spine-items", "whole-document"]),
+        }),
+        #[cfg(feature = "epub")]
+        (Selector::EpubManifestItem { .. }, R::ExactBytes | R::DecodedBytes)
+        | (Selector::EpubSpineItem { .. }, R::ExactBytes | R::DecodedBytes)
+        | (Selector::EpubResource(_), R::ExactBytes | R::DecodedBytes) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 3,
+            will_materialize: kinds(&["EpubModel", "PackageMemberRaw", "PackageMemberDecoded"]),
+            will_not_materialize: kinds(&["external-targets", "whole-document"]),
         }),
         _ => Err(Error::unsupported_feature(format!(
             "unsupported observation: selector {} with representation {}",
@@ -144,6 +279,62 @@ fn index_plan(kind: &str) -> ObservePlan {
         required_nodes: 1,
         will_materialize: kinds(&[kind]),
         will_not_materialize: kinds(&["images", "xobjects", "PageContent", "whole-document"]),
+    }
+}
+
+/// Plan a common (format-neutral) observation. Pure and capability-checked: an
+/// unsupported pair fails closed with the same typed error the evaluator raises.
+fn common_plan(manifest: &FieldRoot, req: &ObserveRequest) -> Result<ObservePlan> {
+    use crate::field::capabilities;
+    let fmt = DocumentFormat::from_provenance(&manifest.provenance).ok_or_else(|| {
+        Error::unsupported_feature(
+            "field manifest does not record a document format; common observations are unavailable",
+        )
+    })?;
+    if !capabilities::common_supported(fmt, &req.selector, req.representation) {
+        return Err(Error::unsupported_feature(format!(
+            "unsupported common observation: format {} does not support selector {} with representation {}",
+            fmt.name(),
+            req.selector.canonical(),
+            req.representation.name()
+        )));
+    }
+    // Document metadata is answered from already-validated state; every other
+    // common observation materializes the format's model/content closure.
+    if matches!(req.selector, Selector::Metadata) {
+        return Ok(ObservePlan {
+            shape: PlanShape::CachedObservation,
+            index_reads: 0,
+            required_nodes: 0,
+            will_materialize: Vec::new(),
+            will_not_materialize: kinds(&["whole-document", "seed-nodes"]),
+        });
+    }
+    Ok(ObservePlan {
+        shape: PlanShape::DeepenThenObserve,
+        index_reads: 2,
+        required_nodes: 4,
+        will_materialize: kinds(common_materialize(fmt)),
+        will_not_materialize: kinds(&["other-spine-items", "other-stories", "whole-document"]),
+    })
+}
+
+fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
+    match fmt {
+        DocumentFormat::Pdf => &["PageContent", "TextRuns"],
+        DocumentFormat::Docx => &[
+            "DocxModel",
+            "DocxStory",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Epub => &[
+            "EpubModel",
+            "EpubContent",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Opaque => &[],
     }
 }
 

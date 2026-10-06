@@ -38,6 +38,28 @@ pub fn inflate_zlib(encoded: &[u8], expected_len: u64, limits: Limits) -> Result
     Ok(decoded)
 }
 
+/// Inflate a **raw** DEFLATE stream (RFC 1951, no zlib/gzip wrapper) with a hard
+/// bound on the decoded length.
+///
+/// This is the ZIP `method 8` decodable: ZIP stores bare DEFLATE, not a
+/// zlib-wrapped stream, so `decompress_to_vec_zlib_*` would reject it. Like
+/// [`inflate_zlib`], it is a deterministic pure function and the declared
+/// `expected_len` is enforced exactly.
+pub fn inflate_raw_deflate(encoded: &[u8], expected_len: u64, limits: Limits) -> Result<Vec<u8>> {
+    let cap = usize::try_from(expected_len.min(limits.max_output_bytes)).unwrap_or(usize::MAX);
+    let decoded =
+        miniz_oxide::inflate::decompress_to_vec_with_limit(encoded, cap).map_err(|e| {
+            Error::reconstruction_mismatch(format!("raw deflate inflate failed: {:?}", e.status))
+        })?;
+    if decoded.len() as u64 != expected_len {
+        return Err(Error::reconstruction_mismatch(format!(
+            "decoded member is {} bytes but the node declared {expected_len}",
+            decoded.len()
+        )));
+    }
+    Ok(decoded)
+}
+
 /// Map a lexical span kind to a compact canonical byte.
 const fn span_kind_byte(k: SpanKind) -> u8 {
     match k {

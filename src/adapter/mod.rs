@@ -4,7 +4,13 @@
 //! byte authority: a hypothesis is only admitted after it reproduces the exact
 //! source bytes and wins the complete-cost court.
 
+#[cfg(feature = "docx")]
+pub mod docx;
+#[cfg(feature = "epub")]
+pub mod epub;
 pub mod opaque;
+#[cfg(feature = "package")]
+pub mod package;
 pub mod pdf;
 
 /// The source-format class decision for an input.

@@ -32,6 +32,14 @@ The service sets `RUSTUP_TOOLCHAIN=nightly-2026-10-04` to override the root
 | `pdf_xref` | xref/revision + `/Prev` handling via `scan` |
 | `deflate_replay` | `codec::deflate::replay_raw` (plaintext, corrections) |
 | `materializer` | `materialize` / `verify` on arbitrary bytes |
+| `zip_scan` | Phase-12 ZIP physical scanner cover invariant |
+| `zip_decode` | bounded ZIP member inflate + stored CRC (12.2) |
+| `opc_rels` | OPC content types / relationships / part-name resolution (12.3) |
+| `docx_wml` | WordprocessingML story/styles extraction (12.4) |
+| `epub_package` | OCF/Package/nav discovery (12.5) |
+| `epub_content` | bounded XHTML content model (12.6) |
+| `xml_part` | shared bounded-XML part policy (12.5) |
+| `common_observe` | format detection + capability self-consistency (12.7) |
 
 ## Build
 
@@ -78,3 +86,10 @@ isolation works, and the test asserts a typed `CodecReplay` error.
 - `deflate_replay_unbounded_alloc.bin` (33 B) — a multi-gigabyte reconstruction
 allocation; an unresolved upstream resource limitation (ADR-0016). The fixture
 is committed but deliberately not executed in-process by CI.
+
+The Phase-12 campaign (`FUZZ_SECONDS=10`, all 18 targets; receipt
+`evidence/campaigns/2026-10-06-phase12-security-33f6d04/fuzz-campaign/`) added the
+eight targets above and found **no new crash, hang, or resource amplification**.
+The only artifact was the known `deflate_replay` OOM (F2 above). The hostile
+seeds in `fuzz/seeds/hostile*` are copied from the committed Phase-12 corpus
+(`tests/fixtures/phase12-hostile/`).

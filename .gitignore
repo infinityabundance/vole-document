@@ -23,6 +23,10 @@
 .DS_Store
 *.swp
 
+# Python bytecode from the corpus/schedule/baseline helpers (stdlib only).
+__pycache__/
+*.pyc
+
 # Evidence campaign scratch (sealed campaigns live under /evidence/campaigns/
 # and are committed deliberately; intermediate scratch is ignored).
 /evidence/scratch/

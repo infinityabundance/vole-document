@@ -1,0 +1,16 @@
+{
+  "shared_resource_bytes": 4104,
+  "shared_blob_id": "5eea8a49fd873891e365ca3db67c94d21acc832993871d92109dcd5581d4bb2b",
+  "blob_present_in_store": true,
+  "docx": { "resource_blob_nodes": 1, "shared_resource_ids": 0, "shared_resource_bytes": 0, "nodes_id_shared": 0, "seed_bytes_written": 5161, "index_bytes_written": 613 },
+  "epub": { "resource_blob_nodes": 1, "shared_resource_ids": 1, "shared_resource_bytes": 4104, "nodes_id_shared": 2, "seed_bytes_written": 1079, "index_bytes_written": 723 },
+  "epub_control": { "resource_blob_nodes": 1, "shared_resource_ids": 0, "shared_resource_bytes": 0, "nodes_id_shared": 0, "seed_bytes_written": 5337, "index_bytes_written": 723 },
+  "shared_lane": { "seed_bytes_written": 6240, "index_bytes_written": 1336 },
+  "control_lane": { "seed_bytes_written": 5337, "index_bytes_written": 723 },
+  "seed_bytes_saved_on_second_document": 4258,
+  "cold": { "node_executions": 4, "input_bytes": 12217, "work_units": 12221 },
+  "warm": { "node_executions": 2, "input_bytes": 8065, "work_units": 8067, "nodes_reused": 1, "nodes_id_shared": 2 },
+  "retained_inverse_work_fraction": 0.339907,
+  "warm_bytes_exact": true,
+  "exactness": [{"lane":"shared","field":"44cb5e6deb1dbbb3b1b3964755b4a6cfaaf5f150148935d4f7224be6cb017347","source_len":5521,"materialize_exact":true},{"lane":"shared","field":"525940a532ad8a5a414270ff3a1af0a02281de8330960edb784607d2bcac0ecd","source_len":5607,"materialize_exact":true},{"lane":"control","field":"b53c458ac469d9d559eb88bb63a1913918e37cfd4a242ac7dcbb4a765a2c4256","source_len":5607,"materialize_exact":true}]
+}

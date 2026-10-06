@@ -1,0 +1,19 @@
+{
+  "campaign": "2026-10-06-phase12-share-e7ef693",
+  "run_utc": "2026-10-06T15:32:27Z",
+  "arch": "x86_64",
+  "git_branch": "phase12",
+  "git_commit": "e7ef693ffa3811f0f001689e742a7ecaff2f40eb",
+  "git_dirty": " M Cargo.toml; M src/field/dag.rs; M src/field/explain.rs; M src/field/ingest.rs; M src/field/ingest_package.rs; M src/field/manifest.rs; M src/field/mod.rs; M src/field/node.rs; M src/field/observe.rs; M src/main.rs;?? evidence/campaigns/2026-10-06-phase12-share-e7ef693/;?? examples/phase12_share_court.rs;?? src/field/resource.rs;?? tests/cross_document_reuse.rs;?? tools/phase12-share-court.sh;",
+  "cargo_lock_sha256": "710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e",
+  "dev": {
+    "service_image": "vole-document/dev:1.99.0",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "rustc": "1.99.0",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)"
+  },
+  "features_under_test": "all-features (field, package, opc, docx, epub, entropyfs-store, deflate-replay, ...)",
+  "env_vars_affecting_semantics": { "CARGO_TERM_COLOR": "never", "LC_ALL": "C" },
+  "randomized": "the embedded resource bytes are read from /dev/urandom (seed recorded in metrics.json)",
+  "notes": "All commands ran through compose.yaml inside the pinned dev image; nothing ran on the host except git and docker. No compression claim: a shared blob is scored as state/work."
+}

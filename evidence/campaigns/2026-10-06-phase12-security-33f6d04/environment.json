@@ -1,0 +1,19 @@
+{
+  "campaign": "2026-10-06-phase12-security-33f6d04",
+  "run_utc": "2026-10-06T16:28:23Z",
+  "arch": "x86_64",
+  "git_branch": "phase12",
+  "git_commit": "33f6d044b1b1d5a74c6e561376b6a93170e08385",
+  "git_dirty": " M fuzz/Cargo.lock; M fuzz/Cargo.toml; M fuzz/README.md; M tools/fuzz.sh;?? evidence/campaigns/2026-10-06-phase12-security-33f6d04/;?? fuzz/fuzz_targets/common_observe.rs;?? fuzz/fuzz_targets/docx_wml.rs;?? fuzz/fuzz_targets/epub_content.rs;?? fuzz/fuzz_targets/epub_package.rs;?? fuzz/fuzz_targets/opc_rels.rs;?? fuzz/fuzz_targets/xml_part.rs;?? fuzz/fuzz_targets/zip_decode.rs;?? fuzz/fuzz_targets/zip_scan.rs;?? fuzz/seeds/hostile.docx;?? fuzz/seeds/hostile.epub;?? fuzz/seeds/hostile_bad_eocd.zip;?? fuzz/seeds/hostile_doctype.docx;?? fuzz/seeds/hostile_scripted.epub;?? fuzz/seeds/hostile_truncated.zip;?? tests/fixtures/phase12-hostile/;?? tests/phase12_security.rs;?? tools/fixtures/phase12-hostile-gen.py;?? tools/phase12-security-court.sh;",
+  "cargo_lock_sha256": "710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e",
+  "court_image": "vole-document/doc-baseline:1.99.0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "1.99.0",
+  "cargo": "1.99.0 (5f94df478 2026-08-27)",
+  "corpus_generator": "tools/fixtures/phase12-hostile-gen.py",
+  "corpus_determinism": "ok",
+  "per_fixture_timeout_s": 60,
+  "features_under_test": "all-features (field, package, opc, docx, epub, xml, ...)",
+  "env_vars_affecting_semantics": { "LC_ALL": "C", "CARGO_TERM_COLOR": "never" },
+  "notes": "Each fixture is a tiny locally-generated hostile input (no third-party document bytes). field-ingest + observe run under strace -f (network,process) and a wall-clock timeout; a canary file outside the working tree is checked for path-escape; every failure class is parsed from stderr and required to be typed."
+}

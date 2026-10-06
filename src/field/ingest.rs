@@ -70,6 +70,8 @@ const MAX_PAGES: usize = 1 << 16;
 /// What one ingest recovered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IngestReport {
+    /// The detected document format (byte-based, Phase 12.7).
+    pub format: crate::field::document_format::DocumentFormat,
     /// The (richest) field id, whose manifest binds the recovered index.
     pub field: FieldId,
     /// The exact `DocumentExact` root node id.
@@ -94,6 +96,21 @@ pub struct IngestReport {
     pub revision_nodes: u64,
     /// Lone-`FlateDecode` streams we refused to inflate.
     pub declined_streams: u64,
+    /// Content-addressed shared-resource blobs registered. Always `0`: the
+    /// Phase-11 PDF adapter does not extract embedded images/fonts as resource
+    /// blobs, so a PDF shares no resource with any other document in Phase 12
+    /// (a recorded limitation, not a failure). Package formats (DOCX/EPUB) do.
+    pub resource_blob_nodes: u64,
+    /// Resource blobs shared with an earlier document. Always `0` for PDF (see
+    /// [`Self::resource_blob_nodes`]).
+    pub shared_resource_ids: u64,
+    /// Resource bytes not rewritten because they were already present. Always
+    /// `0` for PDF (see [`Self::resource_blob_nodes`]).
+    pub shared_resource_bytes: u64,
+    /// Seed nodes whose content id already existed (nothing new written).
+    pub nodes_id_shared: u64,
+    /// Seed-node canonical bytes physically written by this ingest.
+    pub seed_bytes_written: u64,
 }
 
 /// Stage A (durable exact capture) + Stage B (cheap eager inversion).
@@ -113,6 +130,10 @@ pub fn ingest_pdf(
         (field.manifest().clone(), field.materialize_exact(limits)?)
     };
     let source_len = source.len() as u64;
+    // Byte-based format detection, recorded in the manifest provenance so the
+    // universal observation API can dispatch common selectors without re-reading
+    // the source (Phase 12.7). Never derived from a file name.
+    let fmt = crate::field::document_format::detect_document_format(&source, limits);
 
     let mut acc = StageB::new(manifest.node_count);
     let scanned = match scan(&source, limits) {
@@ -141,6 +162,16 @@ pub fn ingest_pdf(
     } else {
         (None, 0, "field:ingest-b;declined=scan".to_string())
     };
+    // Prefix the machine-readable format token (idempotent if already present),
+    // then the Phase-12.8 sharing counters (representation facts, read back by
+    // observations so `nodes_id_shared` is reported alongside `nodes_reused`).
+    let provenance = format!(
+        "{}id_shared={};res_shared={};{}",
+        fmt.provenance_prefix(),
+        acc.nodes_id_shared,
+        acc.shared_resource_ids,
+        provenance
+    );
 
     let mut new_manifest = manifest.clone();
     if let Some(root) = &index_root {
@@ -152,6 +183,7 @@ pub fn ingest_pdf(
     let field = store.put_field(&new_manifest)?;
 
     Ok(IngestReport {
+        format: fmt,
         field,
         root_node: manifest.root_node,
         index_root,
@@ -164,7 +196,48 @@ pub fn ingest_pdf(
         page_nodes: acc.page_nodes,
         revision_nodes: acc.revision_nodes,
         declined_streams: acc.declined_streams,
+        resource_blob_nodes: acc.resource_blob_nodes,
+        shared_resource_ids: acc.shared_resource_ids,
+        shared_resource_bytes: acc.shared_resource_bytes,
+        nodes_id_shared: acc.nodes_id_shared,
+        seed_bytes_written: acc.seed_bytes_written,
     })
+}
+
+/// A universal ingest outcome: which native inverse compiler ran.
+#[cfg(feature = "package")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IngestOutcome {
+    /// A PDF (or opaque non-ZIP) field, produced by [`ingest_pdf`].
+    Pdf(IngestReport),
+    /// A ZIP-based package (DOCX/EPUB/generic ZIP), produced by
+    /// [`crate::field::ingest_package::ingest_package`].
+    Package(crate::field::ingest_package::PackageIngestReport),
+}
+
+/// Detect the source format **from bytes** and invert it with the right adapter
+/// (Phase 12.7). A validated ZIP is inverted through the byte-authoritative
+/// package layer; everything else (PDF and the opaque floor) goes through
+/// [`ingest_pdf`]. Never consults a file name.
+#[cfg(feature = "package")]
+pub fn ingest(
+    store: &mut FieldStore,
+    descriptor_bytes: &[u8],
+    limits: Limits,
+) -> Result<IngestOutcome> {
+    let parsed = crate::container::Descriptor::parse(descriptor_bytes, limits)?;
+    let source = crate::materialize::materialize(&parsed, limits)?;
+    if crate::field::document_format::is_zip(&source, limits) {
+        Ok(IngestOutcome::Package(
+            crate::field::ingest_package::ingest_package(store, descriptor_bytes, limits)?,
+        ))
+    } else {
+        Ok(IngestOutcome::Pdf(ingest_pdf(
+            store,
+            descriptor_bytes,
+            limits,
+        )?))
+    }
 }
 
 /// Add a minimal observation-index op table to a descriptor blob that lacks one,
@@ -177,7 +250,7 @@ pub fn ingest_pdf(
 /// already carries an index, or an op length does not fit the index's `u32`
 /// field, the input is returned unchanged (the observation then uses the full
 /// descriptor path).
-fn with_observation_index(bytes: &[u8], limits: Limits) -> Result<Vec<u8>> {
+pub(crate) fn with_observation_index(bytes: &[u8], limits: Limits) -> Result<Vec<u8>> {
     let parsed: ParsedDescriptor = Descriptor::parse(bytes, limits)?;
     if parsed.descriptor.observation_index.is_some() {
         return Ok(bytes.to_vec());
@@ -240,8 +313,16 @@ pub fn deepen_page_with_manifest(
     if !manifest.has_index() {
         return Ok(field);
     }
-    // Already promoted for this page: idempotent no-op.
-    if manifest.provenance == format!("field:deepen;page={page}") {
+    // Already promoted for this page: idempotent no-op. The format token is
+    // preserved so a promoted field still serves common observations.
+    let format_token = manifest
+        .provenance
+        .split(';')
+        .next()
+        .filter(|t| t.starts_with("format="))
+        .map_or(String::new(), |t| format!("{t};"));
+    let target = format!("{format_token}field:deepen;page={page}");
+    if manifest.provenance == target {
         return Ok(field);
     }
 
@@ -265,7 +346,7 @@ pub fn deepen_page_with_manifest(
 
     let mut new_manifest = manifest.clone();
     new_manifest.node_count = manifest.node_count.saturating_add(3);
-    new_manifest.provenance = format!("field:deepen;page={page}");
+    new_manifest.provenance = format!("{format_token}field:deepen;page={page}");
     store.put_field(&new_manifest)
 }
 
@@ -321,6 +402,12 @@ struct StageB {
     revision_nodes: u64,
     declined_streams: u64,
     total_decoded: u64,
+    /// Phase 12.8 cross-document sharing counters.
+    resource_blob_nodes: u64,
+    shared_resource_ids: u64,
+    shared_resource_bytes: u64,
+    nodes_id_shared: u64,
+    seed_bytes_written: u64,
 }
 
 impl StageB {
@@ -337,17 +424,35 @@ impl StageB {
             revision_nodes: 0,
             declined_streams: 0,
             total_decoded: 0,
+            resource_blob_nodes: 0,
+            shared_resource_ids: 0,
+            shared_resource_bytes: 0,
+            nodes_id_shared: 0,
+            seed_bytes_written: 0,
         }
     }
 
+    /// Content-addressed `put_node` that records id-shared and newly-written
+    /// bytes (Phase 12.8). The `put_node` call is idempotent, so an id that
+    /// already existed writes nothing.
     fn put(&mut self, store: &mut FieldStore, node: &SeedNode) -> Result<NodeId> {
         if self.node_count >= MAX_INGEST_NODES {
             return Err(Error::resource_limit(format!(
                 "ingest would exceed {MAX_INGEST_NODES} seed nodes"
             )));
         }
-        let id = store.seeds_mut().put_node(&node.encode_canonical())?;
+        let id = node.content_id();
+        let preexisting = store.seeds().contains_node(&id)?;
+        let canonical = node.encode_canonical();
+        store.seeds_mut().put_node(&canonical)?;
         self.node_count += 1;
+        if preexisting {
+            self.nodes_id_shared += 1;
+        } else {
+            self.seed_bytes_written = self
+                .seed_bytes_written
+                .saturating_add(canonical.len() as u64);
+        }
         Ok(id)
     }
 

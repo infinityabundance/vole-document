@@ -1,0 +1,52 @@
+{
+  "lane": "a9",
+  "rung": "A9 + EntropyFS fine-grained range access (entropyfs-store backend)",
+  "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-full",
+  "flags": "--entropyfs",
+  "one_time": {
+    "wall_ms": 3,
+    "cpu_ms": 0,
+    "process_read_bytes": 77882
+  },
+  "encode": {
+    "wall_ms": 1,
+    "cpu_ms": 0
+  },
+  "ingest": {
+    "wall_ms": 2,
+    "cpu_ms": 0
+  },
+  "ingest_report": {
+    "format": "epub",
+    "field": "f0f5230793786040b2f8bfcbfd01fbd8e91ddeca8c73d50204864bb334663ea3",
+    "root_node": "b9bae18bd29646dbc8e1008d3cd5ba99e04b7543a314743144907875e0d8f19e",
+    "index_root": "d0a8f9bed896b44079d0002194a1e548ac3c90fac693cdda27b839204e38d8a4",
+    "node_count": 16,
+    "index_node_count": 1,
+    "source_len": 2858,
+    "member_count": 6,
+    "raw_nodes": 6,
+    "decoded_nodes": 6,
+    "declined_decodes": 0,
+    "opc_model_nodes": 1,
+    "docx_model_nodes": 1,
+    "epub_model_nodes": 1,
+    "resource_blob_nodes": 1,
+    "shared_resource_ids": 0,
+    "shared_resource_bytes": 0,
+    "nodes_id_shared": 0,
+    "seed_bytes_written": 2441,
+    "index_bytes_written": 833
+  },
+  "store_universe_bytes": {
+    "descriptor": 0,
+    "seed": 0,
+    "index": 1013,
+    "manifest": 0,
+    "derived_cache": 7939,
+    "total": 66371
+  },
+  "answered_cases": 12,
+  "declined_cases": 0,
+  "failed_cases": 0
+}

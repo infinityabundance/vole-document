@@ -1,0 +1,55 @@
+{
+  "git": {
+    "commit": "3eaf57661a70476cdbf90e9265cc34d8b740c4ad",
+    "commit_short": "3eaf576",
+    "dirty": "?? evidence/campaigns/2026-10-06-phase12-lifetime-3eaf576/;?? evidence/campaigns/2026-10-06-phase12-llm-3eaf576/;"
+  },
+  "arch": "x86_64",
+  "cargo_lock_sha256": "710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e",
+  "service_image": "vole-document/llm-workingset:1.99.0",
+  "llm_workingset_image_id": "sha256:28aee8f6fe427b6b68659cb20ab08be4b2ef7fc629a66d5ad9a784196b6597bd",
+  "toolchain": {
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "python": "3.11.2"
+  },
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "oracles": {
+    "poppler_pdftotext": "22.12.0",
+    "jq": "jq-1.6"
+  },
+  "env_affecting_semantics": {
+    "LC_ALL": "C",
+    "VOLE_BIN": "./target/debug/vole-document"
+  },
+  "tokenizer": {
+    "name": "bert-base-uncased",
+    "implementation": "huggingface/tokenizers (Python bindings)",
+    "implementation_version": "0.20.3",
+    "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+    "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+    "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+    "asset_verified": true,
+    "add_special_tokens": false,
+    "config": {
+      "tokenizer_json_version": "1.0",
+      "model": "WordPiece",
+      "unk_token": "[UNK]",
+      "continuing_subword_prefix": "##",
+      "max_input_chars_per_word": 100,
+      "normalizer": {
+        "type": "BertNormalizer",
+        "clean_text": true,
+        "handle_chinese_chars": true,
+        "strip_accents": null,
+        "lowercase": true
+      },
+      "pre_tokenizer": {
+        "type": "BertPreTokenizer"
+      },
+      "post_processor": "TemplateProcessing",
+      "decoder": "WordPiece",
+      "vocab_size": 30522
+    }
+  }
+}

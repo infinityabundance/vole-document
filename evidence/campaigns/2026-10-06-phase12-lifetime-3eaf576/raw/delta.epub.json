@@ -1,0 +1,92 @@
+{
+  "name": "delta.epub",
+  "format": "epub",
+  "source": {
+    "path": "evidence/scratch/phase12-lifetime-corpus/delta.epub",
+    "len": 58599,
+    "sha256": "31655cfa38e50089bfaa3cd19a37fffcb5862e3bc438dc5660aac3401f6daab8"
+  },
+  "schedule": {
+    "cases": 12,
+    "ns": [
+      1,
+      10,
+      100,
+      1000
+    ],
+    "passes": 2
+  },
+  "vole": {
+    "encode": {
+      "wall_ms": 3,
+      "cpu_ms": 0
+    },
+    "ingest": {
+      "wall_ms": 2,
+      "cpu_ms": 0,
+      "field": "ae2edcd7d9dd9928bea142e135ab6f4230b0aa2f2f8c7d37c0c84e98630a07ac"
+    },
+    "one_time": {
+      "wall_ms": 5,
+      "cpu_ms": 0,
+      "process_read_bytes": 133249
+    },
+    "ingest_report": {
+      "format": "epub",
+      "field": "ae2edcd7d9dd9928bea142e135ab6f4230b0aa2f2f8c7d37c0c84e98630a07ac",
+      "root_node": "1774fceb31e831b707d033c2f7b6961c85ac5892e1dcf97faa8cd19657a372f9",
+      "index_root": "4cbe132a83a574d5e4c4dccf984afce28ea589759dbdbc5e83289e7907a449f2",
+      "node_count": 16,
+      "index_node_count": 1,
+      "source_len": 58599,
+      "member_count": 6,
+      "raw_nodes": 6,
+      "decoded_nodes": 6,
+      "declined_decodes": 0,
+      "opc_model_nodes": 1,
+      "docx_model_nodes": 1,
+      "epub_model_nodes": 1,
+      "resource_blob_nodes": 1,
+      "shared_resource_ids": 0,
+      "shared_resource_bytes": 0,
+      "nodes_id_shared": 0,
+      "seed_bytes_written": 2441,
+      "index_bytes_written": 833
+    },
+    "store_universe_bytes": {
+      "descriptor": 59140,
+      "seed": 4861,
+      "index": 1013,
+      "manifest": 366,
+      "derived_cache": 533904,
+      "total": 599424
+    }
+  },
+  "a0": {
+    "one_time": {
+      "wall_ms": 0,
+      "cpu_ms": 0,
+      "process_read_bytes": 0
+    }
+  },
+  "a1": {
+    "preprocessing": {
+      "wall_ms": 36,
+      "cpu_ms": 30,
+      "process_read_bytes": 2729888
+    },
+    "db_bytes": 819200,
+    "wal_bytes": 0,
+    "shm_bytes": 0,
+    "persistent_bytes": 819200,
+    "retained_source_bytes": 58599,
+    "extraction_metrics": {
+      "db_bytes": 819200,
+      "decompressed_bytes": 207999,
+      "external_invocations": 0,
+      "member_decodes": 4,
+      "source_reparses": 1,
+      "xml_bytes_parsed": 206967
+    }
+  }
+}

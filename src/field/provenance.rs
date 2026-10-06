@@ -109,6 +109,10 @@ pub struct FieldAnswer {
     pub representation: String,
     /// The exact source span this answer maps to, when one exists.
     pub source_span: Option<(u64, u64)>,
+    /// Short provenance/basis string: which layer and format-specific identity
+    /// produced this answer (e.g. a DOCX story, part, table/row/cell, and the
+    /// extraction profile). Advisory and deterministic; never authority.
+    pub provenance: String,
     /// The seed nodes actually read to produce this answer.
     pub dependency_ids: Vec<NodeId>,
     /// How much source integrity was verified.

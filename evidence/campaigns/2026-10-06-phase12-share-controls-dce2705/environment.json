@@ -1,0 +1,27 @@
+{
+  "campaign": "2026-10-06-phase12-share-controls-dce2705",
+  "run_utc": "2026-10-06T19:06:48Z",
+  "arch": "x86_64",
+  "git_branch": "phase12",
+  "git_commit": "dce2705b59a7b5abd60c14c982a3fcef16c53cbf",
+  "git_dirty": "",
+  "cargo_lock_sha256": "710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e",
+  "doc_baseline": {
+    "service_image": "vole-document/doc-baseline:1.99.0",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "rustc": "1.99.0",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "borg": "1.2.4",
+    "jq": "jq-1.6"
+  },
+  "features_under_test": "all-features (field, package, opc, docx, epub, entropyfs-store, deflate-replay, ...)",
+  "env_vars_affecting_semantics": { "CARGO_TERM_COLOR": "never", "LC_ALL": "C" },
+  "controls": {
+    "post_cache_clear_in_process": "raw/post_clear.json",
+    "post_cache_clear_fresh_process": "raw/witness.measure.json",
+    "os_witness": "raw/shared_blob_path.txt, raw/store_bytes.tsv",
+    "cdc_baseline": "raw/cdc.json, raw/cdc-16.json, raw/cdc-12.json (borg, --compression none)"
+  },
+  "randomized": "the embedded resource bytes are read from /dev/urandom (seed recorded in metrics.json)",
+  "notes": "All commands ran through compose.yaml inside the pinned, capped doc-baseline image; nothing ran on the host except git and docker. No compression claim: a shared blob is scored as state/work."
+}

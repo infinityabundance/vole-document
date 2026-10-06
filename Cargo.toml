@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.15"
+version = "0.1.0-alpha.16"
 edition = "2024"
 rust-version = "1.89"
 description = "Persistent procedural document runtime: byte-exact reconstruction plus a content-addressed procedural seed DAG, queryable observations with provenance, and selective late materialization."
@@ -30,6 +30,13 @@ path = "src/main.rs"
 name = "governor_court"
 path = "examples/governor_court.rs"
 required-features = ["dsfb-search"]
+
+# The Phase-12.8 cross-document procedural-state court driver. Feature-gated to
+# the formats it exercises so the default build never compiles it.
+[[example]]
+name = "phase12_share_court"
+path = "examples/phase12_share_court.rs"
+required-features = ["docx", "epub"]
 
 [dependencies]
 # Archival source identity. Pinned exactly for the first sealed universe.
@@ -66,6 +73,25 @@ entropyfs = { version = "=0.7.17", optional = true, default-features = false }
 # stream state for observations. `miniz_oxide` is permissive (MIT/Apache/Zlib)
 # and has no C toolchain. Pinned exactly.
 miniz_oxide = { version = "=0.8.9", optional = true }
+
+# Phase 12: ZIP CRC-32/ISO-HDLC (the polynomial the ZIP format mandates — **not**
+# CRC-32C/Castagnoli). Optional and gated by the non-default `package` feature;
+# it is used only to verify the CRC of `stored` members and to build derived
+# observations, never in the exactness path (a member's exact leaf is its raw
+# compressed span). `crc32fast` is permissive (MIT/Apache-2.0) and pure Rust.
+# Already present in `Cargo.lock` transitively; pinned exactly.
+crc32fast = { version = "=1.5.2", optional = true }
+
+# Phase 12.3: the generic OPC (Open Packaging Conventions) core. `quick-xml` is
+# permissive (MIT), pulls only `memchr` (already locked), is `#![forbid(unsafe_code)]`,
+# and with `default-features = false` has no DTD/entity resolver and no
+# `encoding_rs` (which `deny.toml` rejects). Gated by the non-default `opc`
+# feature; XML is derived (`Q_gen`) state only and never feeds an exact node.
+#
+# `xml` (Phase 12.5) is the shared bounded-XML policy enabled by both `opc` and
+# `epub`; it is a separate feature so the EPUB adapter never depends on the OPC
+# feature ("reuse the ZIP layer and the XML policy, not OPC").
+quick-xml = { version = "=0.42.0", optional = true, default-features = false }
 
 [dev-dependencies]
 # Test-only zlib stream generator for the exact-replay courts. Never a runtime
@@ -114,6 +140,38 @@ dsfb-search = []
 # behavior: a descriptor produced with the field present decodes identically in
 # a build without it, and the field is never in the exactness path.
 field = ["dep:miniz_oxide", "store"]
+# Phase 12: the byte-authoritative ZIP physical layer shared by DOCX and EPUB.
+# Optional and **never** in `default`: it pulls a pure-Rust CRC-32 (`crc32fast`)
+# used only for `stored`-member CRC verification and derived observations. It
+# adds **no** decoder behavior to the exactness path — a ZIP source's exact leaf
+# is its raw compressed span — so enabling it never changes `.voldoc` bytes.
+package = ["dep:crc32fast"]
+# Phase 12.3: the generic OPC core (content types, package/part relationships,
+# part-name resolution, RFC 3986 target resolution, the OPC package graph). It
+# implies `xml` (the shared bounded-XML policy) and `package`/`field` (the ZIP
+# physical layer and the procedural wiring). Optional and **never** in `default`.
+# Every OPC node is `Q_gen`; exact bytes remain the 12.2 member raw spans.
+opc = ["package", "field", "xml"]
+# Phase 12.4: the WordprocessingML (WordprocessingML/`w:`) DOCX adapter built on the
+# generic OPC core. It adds a declared, versioned extraction profile, explicit story
+# scoping, and derived (`Q_gen`) WordprocessingML observations. It implies `opc`
+# (discovery by relationship, never a hardcoded `/word/document.xml`) and adds **no**
+# decoder behavior: a DOCX source's exact leaf is still its 12.2 member raw spans, so
+# enabling it never changes `.voldoc` bytes and exactness is untouched. Never in
+# `default`.
+docx = ["opc"]
+# Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
+# both the OPC and EPUB cores. `quick-xml` only; adds **no** decoder behavior and is
+# never in `default` on its own (it is implied by `opc` and `epub`).
+xml = ["dep:quick-xml"]
+# Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
+# discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
+# Document metadata/manifest/spine, the navigation document, the resource graph,
+# and a bounded reading profile. It reuses the 12.1/12.2 ZIP physical layer and the
+# shared XML policy but **not** OPC (EPUB has no `[Content_Types].xml`). Everything
+# is derived (`Q_gen`); exact authority stays the 12.2 member raw spans, so enabling
+# it never changes `.voldoc` bytes. Never in `default`.
+epub = ["package", "field", "xml"]
 # Later phases (declared so the feature surface is deliberate, not accidental):
 # pdf = []
 

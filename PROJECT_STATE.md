@@ -7,8 +7,8 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.13` (Phase 11 — the persistent procedural
-document field). **Top-level verdict (ADR-0023, the
+**Current release:** `0.1.0-alpha.16` (Phase 12 — universal multi-format
+document field: PDF + DOCX + EPUB). **Top-level verdict (ADR-0023, the
 authoritative [`FINDINGS.md`](../FINDINGS.md)):** the current representation stack
 does not beat purpose-built baselines on any measured axis; the durable results
 are byte-exactness, an auditable representation, and the recorded negatives; the
@@ -119,6 +119,35 @@ bound vs 160,668 B CDC and 92,752 B `tar` + `xz -9e`; ADR-0028). Phase 11.13 is
 an independent adversarial skeptic review that corrected the overreach in place
 (F1–F8, `docs/reviews/phase-11-skeptic-review.md`).
 
+Phase 12 (branch `phase12`, ADRs 0029–0035) makes the persistent procedural field
+**format-universal**: PDF, DOCX and EPUB enter through separate native inverse
+compilers — the Phase-11 PDF adapter, a WordprocessingML (DOCX) inverse and a
+bounded-XHTML/OCF (EPUB) inverse — over a shared **byte-authoritative ZIP** layer
+(physical member scanner + OPC/OCF package graph), converging on one
+`DocumentField` that exposes **common** observations and retained **format-native**
+structure with per-answer provenance (`format=<fmt>;common;<native>`). Exactness is
+unchanged (`materialize == original`; length + SHA-256 + `cmp`, source and
+descriptor deleted, fresh process). The courts are deliberately mixed: DOCX/EPUB
+are byte-exact after source **and** descriptor deletion (38/38) and the triplet is
+96/96; hostile input is 315/315 (16 reject / 22 opaque-preserve-and-decline / 7
+accept, 45 fixtures) with the 12.14 demo sealed; the required ablation ladder
+attributes the small-document win to the **content adapters** (A4→A5) and to
+**persistent semantic reuse** (A5→A6, which trades bytes for CPU), with **EntropyFS
+(A9) a loss**, `A7`/`A8` not separable, and the ZIP/OPC rungs invisible on the
+frozen schedule. The lifetime result is honest and mixed: VOLE wins the
+small-document frontier and the cold one-time comparison, but the source-retaining
+SQLite+FTS5 baseline (A1) wins the large ~60 KB synthetic documents' byte frontier
+(N=10–1000) and wall/CPU at N=1000; the LLM working set is 1 win / 8 tie / 3 loss
+vs page-local B1 and 9 win / 0 tie / 3 loss vs the whole document (pinned
+`bert-base-uncased`). **Cross-document durable work reuse is a recorded negative
+(`N3`):** the warm `retained_inverse_work_fraction` 0.339907 falls to **0.0** after
+`cache --clear` (in-process and fresh process), while representation identity
+remains shared; the `N6` PDF no-regression gate is **closed** (A2 vs A11: 32/32
+byte-exact, 0 regressions). An independent adversarial review
+(`docs/reviews/phase-12-skeptic-review.md`) found, and the close-out corrected, the
+security class tally, the unmeasured FTS5 claim, the un-run ablation ladder, the
+missing PDF/reuse/demo receipts, and a default-feature clippy failure.
+
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED` / `SUPERSEDED` / `PARTLY DELIVERED`).
 
@@ -189,8 +218,12 @@ an independent adversarial skeptic review that corrected the overreach in place
 | Seek `DIRECTORY` record + `Read + Seek` reader | 8.1–8.2 | ADOPTED | optional `seek_directory_v1` record (`RecordTag::Directory = 0x71`) written as the first record at fixed offset 64 with `FLAG_OPTIONAL` (no header field, no `FORMAT_MINOR` bump; new ignorable `FEATURE_SEEK_DIRECTORY` optional bit), carrying LOCATORS (offset + payload_len per record), CLASS_INDEX (O(1) k-th record of a class), and CHANNEL_LENGTHS. `materialize_observation_seeked` reads only the header, DIRECTORY, GRAPH, OBSERVATION_INDEX, INTEGRITY, and the referenced OBJECT/ENTROPY_CHANNEL/MODEL records. The directory is **advisory, never authority**: every locator is cross-checked against the record framing, the class index against a linear scan, and the observation index is re-derived over directory-derived lengths — a lying directory is rejected; a missing/oversized/unknown one declines with `UnsupportedFeature` and never silently reads the whole file. A partial read is an **observation**: `integrity_verified == false`; `materialize`/`decode`/`verify` remain the archival authority. `cmd_view` peeks only the 64-byte header before choosing the seek path. Non-seek serialization is unchanged except the `+seek-directory-v1` universe suffix (+18 B on this corpus). Tests: `src/container/directory.rs` (roundtrip/geometry/framing), `src/materialize/seek.rs` (seeked slice == full slice, tamper rejections, no-directory decline) |
 | Seek bytes-read court (`tools/seek-court.sh`) | 8.3 | ADOPTED (scoped) | campaign `2026-10-05-phase8-seek-08de2a9`; seekable descriptor 17,566,832 B (DIRECTORY +27,390 B; index + directory = 174,101 B over the non-seek base). 18/18 pre-registered queries byte-exact; the seeked `view` reads a constant **439,679–461,367 B** (floor = header 64 + DIRECTORY 27,390 + GRAPH 265,462 + OBSERVATION_INDEX 146,711 + INTEGRITY 52), ≤ 2.6 % of the descriptor for every query (H1 18/18) and 4.7 %–~21× fewer bytes than gzip's compressed prefix in the late region (H2 8/8); a `strace -P` descriptor-file cross-check equals the instrumented count + exactly 64 B (the header peek). CPU ~0.00 s and peak RSS ~3.8 MB (vs Phase 7's ~38 MB). **Loses on bytes at a=0 vs gzip and early (≤ ~1.7 MiB) vs xz**; whole-file size still 3.01× xz. One locally generated corpus; no population claim (ADR-0019) |
 | Seekable/blocked random-access baseline (`tools/seekable-baselines.sh`) | 8.4 | RECORDED (amendment; **falsifies the “general random-access win” framing**) | campaign `2026-10-05-phase8-seek-08de2a9` amendment (`seekable.jsonl`/`seekable-report.md`); adds tabix(bgzip 1.16) + pixz 1.0.7 to the `baseline` image. Compared to `bgzip -l 9` (BGZF), `xz --block-size=64KiB|1MiB|4MiB`, and `pixz` (16 MiB blocks) on the same 6 byte-ranges (all slices `cmp`-exact; xz/pixz covering blocks decoded **in isolation**). Late query (`a=32,505,856`): VOLE 460,713 B vs bgzip **23,808 B** (~19×), xz-64KiB **15,344 B** (~30×), xz-1MiB **179,892 B** (~2.6×), xz-4MiB 708,612 B (0.65×, VOLE wins), pixz 2,810,832 B (0.16×, VOLE wins). BGZF is also smaller whole-file (7,995,600 B < 17,566,832 B). **VOLE reads 2.6–30× more than BGZF/compact-block xz; not a general random-access-I/O win.** `docs/evidence/phase8-skeptic-review.md` |
-| Cross-document proceduralization | 12+ | PROPOSED | byte-level sharing is measured and negative (Phase 9 store: `U` loses to LZ and CDC, ADR-0021; Phase 11.14 finer-than-object units lose to CDC/`tar|xz`, ADR-0028); the untested remainder is **state-level** sharing |
-| Non-PDF adapters (DOCX/ODT/EPUB/…) | later | PROPOSED | adapters over the same core |
+| Universal multi-format `DocumentField` (PDF+DOCX+EPUB over a byte-authoritative ZIP layer) | 12.0–12.10 | ADOPTED | ADRs 0029–0035; `src/adapter/package/` (physical ZIP span scan + OPC/OCF package graph), `src/adapter/docx/`, `src/adapter/epub/`; one format-agnostic `field-ingest` + common CLI vocabulary with `format=<fmt>;common;<native>` provenance; byte-based format detection. Exactness unchanged (`materialize == original`; length + SHA-256 + `cmp`). Sealed receipts: removal **38/38**, triplet **96/96** (`2026-10-06-phase12-triplet-dc4d5a3`, `…-removal-dc4d5a3`), PDF no-regression `…-pdf-noregression-0d23a02` (A2 vs A11, 32/32 exact, 0 regressions; **`N6` closed**) |
+| Lifetime + LLM working-set courts (A0 raw tooling, A1 source-retaining SQLite+FTS5, pre-registered ablation ladder) | 12.11/12.11b/12.12 | RECORDED (mixed) | campaigns `2026-10-06-phase12-lifetime-3eaf576`, `…-lifetime-ablations-06db12a`, `…-llm-3eaf576`, `…-fts5-amendment-22302f9`; VOLE wins the small-document frontier and the cold one-time comparison but A1 wins the large ~60 KB synthetic documents' byte frontier (N=10–1000) and wall/CPU at N=1000; the ladder attributes the win to the content adapters (A4→A5) and to persistent semantic reuse (A5→A6, bytes for CPU), with EntropyFS (A9) a **loss** and `A7`/`A8` **not separable**; tokens (pinned `bert-base-uncased`) 1 win / 8 tie / 3 loss vs page-local B1 and 9 win / 0 tie / 3 loss vs whole-document B0; FTS5-trigram ties `LIKE` but reads more (`unicode61` misses embedded markers) |
+| Cross-document procedural reuse (state-level) | 12.8 | RECORDED (`N3` VIOLATED — negative) | ADRs 0034/0035; campaign `2026-10-06-phase12-share-e7ef693` + controls `…-share-controls-dce2705`; a byte-identical resource shared DOCX↔EPUB resolves to one content-addressed blob (representation identity shared; warm `retained_inverse_work_fraction` 0.339907), but reuse falls to **0.0** after `cache --clear` (in-process and fresh process), so cross-document **work** reuse is a recorded negative; strongest raw CDC baseline saved −1374 B |
+| Security/fuzz for ZIP/OPC/OCF/XML surfaces | 12.13 | ADOPTED (scoped) | campaign `2026-10-06-phase12-security-33f6d04`; **315/315** court assertions over 45 hostile fixtures (16 reject / 22 opaque-preserve-and-decline / 7 accept; all `materialize --exact`); library court 15/15; 8 new fuzz targets `exit=0`; no new crash/hang/amplification; `N4` (decline-rate threshold) **not evaluated** |
+| Cross-document proceduralization | 12+ | RECORDED (12.8: representation identity shared; durable **work** reuse negative, `N3`) | byte-level sharing is measured and negative (Phase 9 store: `U` loses to LZ and CDC, ADR-0021; Phase 11.14 finer-than-object units lose to CDC/`tar|xz`, ADR-0028); Phase 12 measured **state-level** sharing: one content-addressed blob shared DOCX↔EPUB, but the warm reuse fraction drops to 0.0 after `cache --clear` |
+| Non-PDF adapters (DOCX/ODT/EPUB/…) | 12 (DOCX/EPUB) | ADOPTED (DOCX/EPUB); ODT PROPOSED | adapters over the same core; Phase 12 delivered the DOCX (WordprocessingML) and EPUB (OCF/XHTML) adapters (ADRs 0029–0035); ODT and other formats remain PROPOSED |
 
 The PDF **physical authority** (lexer span cover, structural scanner, revision
 map, and object roles) is `ADOPTED` as of Phase 3 (campaign

@@ -1,0 +1,12 @@
+alpha.pdf	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=yes	tri_eq_like=yes
+alpha.docx	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=yes	tri_eq_like=yes
+alpha.epub	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=yes	tri_eq_like=yes
+bravo.pdf	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=no	tri_eq_like=yes
+bravo.docx	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=yes	tri_eq_like=yes
+bravo.epub	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=yes	tri_eq_like=yes
+charlie.pdf	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=yes	tri_eq_like=yes
+charlie.docx	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=yes	tri_eq_like=yes
+charlie.epub	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=yes	tri_eq_like=yes
+delta.pdf	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=yes	tri_eq_like=yes
+delta.docx	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=yes	tri_eq_like=yes
+delta.epub	contains	like_ok=yes	fts_tri_ok=yes	fts_uni_ok=yes	tri_eq_like=yes

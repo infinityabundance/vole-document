@@ -55,6 +55,73 @@ pub struct Limits {
     /// `13 * record_count` bytes, so this also caps the record count a directory
     /// can describe.
     pub max_directory_bytes: u32,
+    // The ZIP caps below mirror the threat model and DEFAULT/STRICT values frozen
+    // in `research/subagents/phase-12/I-security.md` §6 (threat ids Z1–Z15), as
+    // required by plan §DEC-3/§DEC-9.
+    /// Maximum number of ZIP members accepted in one archive (Phase 12, Z2).
+    pub max_zip_members: u32,
+    /// Maximum declared compressed size of a single ZIP member (Phase 12, Z1).
+    pub max_zip_member_compressed: u64,
+    /// Maximum declared uncompressed size of a single ZIP member (Phase 12, Z1).
+    pub max_zip_member_uncompressed: u64,
+    /// Maximum sum of declared uncompressed sizes across all members (Z2).
+    pub max_zip_aggregate_uncompressed: u64,
+    /// Maximum declared uncompressed/compressed ratio for one member (Z1).
+    pub max_zip_compression_ratio: u32,
+    /// Maximum raw name byte length of one member (Phase 12, Z13/Z14).
+    pub max_zip_name_bytes: u32,
+    /// Maximum raw extra-field byte length of one member (Z7/Z14).
+    pub max_zip_extra_bytes: u32,
+    /// Maximum per-entry comment byte length (Z14).
+    pub max_zip_entry_comment_bytes: u32,
+    /// Maximum archive comment byte length (Z14/Z15).
+    pub max_zip_archive_comment_bytes: u32,
+    /// Maximum central-directory byte length (Z14).
+    pub max_zip_central_dir_bytes: u64,
+    /// Maximum leading bytes before the first local header (Z14).
+    pub max_zip_prefix_bytes: u64,
+    /// Maximum trailing bytes after the EOCD record (Z14).
+    pub max_zip_trailing_bytes: u64,
+    // The XML/OPC caps below mirror the threat model and DEFAULT/STRICT values
+    // frozen in `research/subagents/phase-12/I-security.md` §6 (§2 XML, §3 OPC),
+    // as required by plan §DEC-4/§DEC-9. XML is derived (`Q_gen`) state only.
+    /// Maximum XML element nesting depth before a typed decline (Phase 12, §2).
+    pub max_xml_depth: u32,
+    /// Maximum decoded byte length of a single XML part (Phase 12, §2).
+    pub max_xml_part_bytes: u64,
+    /// Maximum number of XML pull events in a single part (Phase 12, §2).
+    pub max_xml_events: u64,
+    /// Maximum number of XML element nodes in a single part (Phase 12, §2).
+    pub max_xml_nodes: u64,
+    /// Maximum number of attributes on a single XML element (Phase 12, §2).
+    pub max_xml_attrs_per_element: u32,
+    /// Maximum total text bytes accepted across a single XML part (Phase 12, §2).
+    pub max_xml_text_bytes: u64,
+    /// Maximum number of `<!DOCTYPE` declarations accepted (Phase 12: always 0).
+    pub max_xml_doctype: u32,
+    /// Maximum relationships across all `.rels` parts (Phase 12, §3).
+    pub max_opc_rels: u32,
+    /// Maximum internal relationship traversal depth (Phase 12 cycles, §3).
+    pub max_opc_rel_depth: u32,
+    /// Maximum `Default`+`Override` entries in `[Content_Types].xml` (Phase 12, §3).
+    pub max_opc_content_types_overrides: u32,
+    /// Maximum byte length of an OPC part name (Phase 12, §3).
+    pub max_opc_part_name_bytes: u32,
+    // The EPUB/OCF caps below mirror the threat model and DEFAULT/STRICT values
+    // frozen in `research/subagents/phase-12/I-security.md` §6 (§4 EPUB), as
+    // required by plan §DEC-5/§DEC-9. EPUB semantics are derived (`Q_gen`) only.
+    /// Maximum `rootfile` entries accepted in `META-INF/container.xml` (Phase 12, §4).
+    pub max_epub_rootfiles: u32,
+    /// Maximum Package Document manifest items accepted (Phase 12, §4).
+    pub max_epub_manifest_items: u32,
+    /// Maximum Package Document spine `itemref`s accepted (Phase 12, §4).
+    pub max_epub_spine_items: u32,
+    /// Maximum navigation-document nesting depth accepted (Phase 12, §4).
+    pub max_epub_nav_depth: u32,
+    /// Maximum manifest `fallback` chain length followed (Phase 12, §4).
+    pub max_epub_fallback_chain: u32,
+    /// Maximum XHTML element nodes accepted in one content/nav document (Phase 12, §4).
+    pub max_xhtml_nodes: u32,
 }
 
 impl Limits {
@@ -75,6 +142,35 @@ impl Limits {
         max_pdf_spans: 1 << 26,
         max_index_selectors: 1 << 20,
         max_directory_bytes: 1 << 20,
+        max_zip_members: 1 << 20,
+        max_zip_member_compressed: 1 << 34,
+        max_zip_member_uncompressed: 1 << 34,
+        max_zip_aggregate_uncompressed: 1 << 36,
+        max_zip_compression_ratio: 1024,
+        max_zip_name_bytes: 1 << 16,
+        max_zip_extra_bytes: 1 << 16,
+        max_zip_entry_comment_bytes: 1 << 16,
+        max_zip_archive_comment_bytes: 1 << 16,
+        max_zip_central_dir_bytes: 1 << 28,
+        max_zip_prefix_bytes: 1 << 20,
+        max_zip_trailing_bytes: 1 << 20,
+        max_xml_depth: 256,
+        max_xml_part_bytes: 1 << 28,
+        max_xml_events: 1 << 24,
+        max_xml_nodes: 1 << 24,
+        max_xml_attrs_per_element: 4096,
+        max_xml_text_bytes: 1 << 28,
+        max_xml_doctype: 0,
+        max_opc_rels: 1 << 20,
+        max_opc_rel_depth: 64,
+        max_opc_content_types_overrides: 1 << 20,
+        max_opc_part_name_bytes: 1 << 16,
+        max_epub_rootfiles: 16,
+        max_epub_manifest_items: 1 << 20,
+        max_epub_spine_items: 1 << 20,
+        max_epub_nav_depth: 64,
+        max_epub_fallback_chain: 32,
+        max_xhtml_nodes: 1 << 24,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -94,6 +190,35 @@ impl Limits {
         max_pdf_spans: 1 << 16,
         max_index_selectors: 1 << 16,
         max_directory_bytes: 1 << 18,
+        max_zip_members: 1 << 16,
+        max_zip_member_compressed: 1 << 26,
+        max_zip_member_uncompressed: 1 << 26,
+        max_zip_aggregate_uncompressed: 1 << 27,
+        max_zip_compression_ratio: 256,
+        max_zip_name_bytes: 4096,
+        max_zip_extra_bytes: 4096,
+        max_zip_entry_comment_bytes: 4096,
+        max_zip_archive_comment_bytes: 4096,
+        max_zip_central_dir_bytes: 1 << 20,
+        max_zip_prefix_bytes: 1 << 16,
+        max_zip_trailing_bytes: 1 << 16,
+        max_xml_depth: 64,
+        max_xml_part_bytes: 1 << 20,
+        max_xml_events: 1 << 16,
+        max_xml_nodes: 1 << 16,
+        max_xml_attrs_per_element: 256,
+        max_xml_text_bytes: 1 << 20,
+        max_xml_doctype: 0,
+        max_opc_rels: 1 << 14,
+        max_opc_rel_depth: 16,
+        max_opc_content_types_overrides: 1 << 12,
+        max_opc_part_name_bytes: 4096,
+        max_epub_rootfiles: 4,
+        max_epub_manifest_items: 1 << 14,
+        max_epub_spine_items: 1 << 14,
+        max_epub_nav_depth: 16,
+        max_epub_fallback_chain: 8,
+        max_xhtml_nodes: 1 << 16,
     };
 }
 

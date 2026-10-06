@@ -1,0 +1,1 @@
+error: UnsupportedFeature: unsupported common observation: format pdf does not support selector heading:0 with representation text
