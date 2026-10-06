@@ -394,6 +394,36 @@ fn materialize_inner(
                 }
             }
         }
+        NodeKind::PackageOpcModel => {
+            // The canonical OPC graph is derived on demand from the exact package
+            // source (the single dependency is the exact `PackageRoot`). XML parsing
+            // and all bounds live in `field::opc` / `adapter::package::opc`.
+            #[cfg(feature = "opc")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PackageOpcModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let source = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::field::opc::build_opc_model(&source, limits)?
+            }
+            #[cfg(not(feature = "opc"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "OPC support is not compiled in (feature `opc`)",
+                ));
+            }
+        }
         NodeKind::PdfStreamDecoded => {
             let dep = node
                 .deps

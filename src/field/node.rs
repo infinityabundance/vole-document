@@ -63,6 +63,10 @@ pub enum NodeKind {
     /// One package member's decoded bytes: raw-DEFLATE inflate (method 8) or the
     /// stored identity (method 0). Derived, never exact (Phase 12.2).
     PackageMemberDecoded = 0x10,
+    /// The canonical generic-OPC package graph (content types, parts, package and
+    /// part relationships) derived on demand from the exact package source.
+    /// Derived, never exact (Phase 12.3).
+    PackageOpcModel = 0x11,
 }
 
 impl NodeKind {
@@ -85,6 +89,7 @@ impl NodeKind {
             0x0E => NodeKind::PackageRoot,
             0x0F => NodeKind::PackageMemberRaw,
             0x10 => NodeKind::PackageMemberDecoded,
+            0x11 => NodeKind::PackageOpcModel,
             _ => return None,
         })
     }
@@ -108,6 +113,7 @@ impl NodeKind {
             NodeKind::PackageRoot => "PackageRoot",
             NodeKind::PackageMemberRaw => "PackageMemberRaw",
             NodeKind::PackageMemberDecoded => "PackageMemberDecoded",
+            NodeKind::PackageOpcModel => "PackageOpcModel",
         }
     }
 

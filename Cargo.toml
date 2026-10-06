@@ -75,6 +75,13 @@ miniz_oxide = { version = "=0.8.9", optional = true }
 # Already present in `Cargo.lock` transitively; pinned exactly.
 crc32fast = { version = "=1.5.2", optional = true }
 
+# Phase 12.3: the generic OPC (Open Packaging Conventions) core. `quick-xml` is
+# permissive (MIT), pulls only `memchr` (already locked), is `#![forbid(unsafe_code)]`,
+# and with `default-features = false` has no DTD/entity resolver and no
+# `encoding_rs` (which `deny.toml` rejects). Gated by the non-default `opc`
+# feature; XML is derived (`Q_gen`) state only and never feeds an exact node.
+quick-xml = { version = "=0.42.0", optional = true, default-features = false }
+
 [dev-dependencies]
 # Test-only zlib stream generator for the exact-replay courts. Never a runtime
 # dependency of the library. The `zlib-rs` backend is used deliberately: it is a
@@ -128,6 +135,12 @@ field = ["dep:miniz_oxide", "store"]
 # adds **no** decoder behavior to the exactness path — a ZIP source's exact leaf
 # is its raw compressed span — so enabling it never changes `.voldoc` bytes.
 package = ["dep:crc32fast"]
+# Phase 12.3: the generic OPC core (content types, package/part relationships,
+# part-name resolution, RFC 3986 target resolution, the OPC package graph). It
+# implies `package` (the ZIP physical layer) and `field` (the procedural wiring
+# and the `miniz_oxide` member decode). Optional and **never** in `default`.
+# Every OPC node is `Q_gen`; exact bytes remain the 12.2 member raw spans.
+opc = ["package", "field", "dep:quick-xml"]
 # Later phases (declared so the feature surface is deliberate, not accidental):
 # pdf = []
 

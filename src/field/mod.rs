@@ -24,6 +24,8 @@ pub mod ingest_package;
 pub mod manifest;
 pub mod node;
 pub mod observe;
+#[cfg(feature = "opc")]
+pub mod opc;
 pub mod partial;
 pub mod plan;
 pub mod provenance;

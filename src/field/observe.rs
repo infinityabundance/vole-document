@@ -29,6 +29,8 @@ use std::time::Instant;
 use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, ReuseStats, SourceServer};
+#[cfg(feature = "opc")]
+use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::{
     FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PACKAGE_MEMBER_DECODED, SEL_PACKAGE_MEMBER_RAW,
     SEL_PAGE, SEL_REVISION, SEL_STREAM, SEL_STREAM_DECODED, SelectorKey, lookup,
@@ -62,6 +64,13 @@ pub enum Selector {
     /// A package (ZIP/OCF/OPC) member, by central-directory ordinal. The ordinal is
     /// the physical identity; duplicate names stay distinct (Phase 12.2).
     Member(u32),
+    /// A generic OPC package part, by absolute part name (Phase 12.3). Part-name
+    /// equivalence is case-insensitive. Resolution is by the OPC relationship graph,
+    /// never by a hardcoded path.
+    PackagePart(String),
+    /// A generic OPC relationship, by id (Phase 12.3). Ids are only unique within one
+    /// `.rels` part, so a duplicated id across owners is a typed ambiguity decline.
+    Relationship(String),
     /// A half-open exact source byte range.
     ByteRange {
         /// Start offset.
@@ -83,6 +92,8 @@ impl Selector {
             Selector::Stream(n) => format!("stream:{n}"),
             Selector::Revision(n) => format!("revision:{n}"),
             Selector::Member(n) => format!("member:{n}"),
+            Selector::PackagePart(name) => format!("package-part:{name}"),
+            Selector::Relationship(id) => format!("relationship:{id}"),
             Selector::ByteRange { offset, len } => format!("byte-range:{offset}:{len}"),
             Selector::TextMatch(p) => format!("text-match:{p}"),
         }
@@ -1057,6 +1068,12 @@ impl<S: SeedStore> Ctx<'_, S> {
                 "package member",
             ),
             (Selector::Member(n), R::DecodedBytes) => self.member_decoded(req, *n),
+            (Selector::PackagePart(_), R::Metadata | R::ExactBytes | R::DecodedBytes) => {
+                self.package_part_opc(req)
+            }
+            (Selector::Relationship(_), R::Metadata | R::ExactBytes | R::DecodedBytes) => {
+                self.relationship_opc(req)
+            }
             (Selector::Stream(n), R::EncodedBytes) => {
                 self.indexed_exact(req, SelectorKey::new(SEL_STREAM, *n), "stream")
             }
@@ -1207,6 +1224,171 @@ impl<S: SeedStore> Ctx<'_, S> {
             integrity_scope: IntegrityScope::None,
             exact: false,
         })
+    }
+
+    /// Materialize and decode the generic OPC model (derived, `Q_gen`).
+    #[cfg(feature = "opc")]
+    fn opc_model(&mut self) -> Result<crate::adapter::package::opc::OpcModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_OPC_MODEL, 0), "OPC model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        crate::adapter::package::opc::OpcModel::decode(&bytes)
+    }
+
+    /// A generic OPC part observation (Phase 12.3): exact/decoded bytes resolve
+    /// through the OPC part's physical member ordinal, so the exact leaf stays the
+    /// 12.2 raw member span. Metadata is derived (`Q_gen`).
+    #[cfg(feature = "opc")]
+    fn package_part_opc(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        use Representation as R;
+        let Selector::PackagePart(name) = &req.selector else {
+            return Err(Error::internal_invariant(
+                "package_part_opc needs PackagePart",
+            ));
+        };
+        let name = name.clone();
+        let model = self.opc_model()?;
+        let part = model.part_by_name(&name).ok_or_else(|| {
+            Error::invalid_package_structure(format!("no package part named {name:?}"))
+        })?;
+        let ordinal = part.ordinal;
+        match req.representation {
+            R::ExactBytes => self.indexed_exact(
+                req,
+                SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, ordinal),
+                "package part",
+            ),
+            R::DecodedBytes => self.member_decoded(req, ordinal),
+            R::Metadata => {
+                let rel_count = model
+                    .part_rels
+                    .iter()
+                    .find(|(o, _)| *o == ordinal)
+                    .map_or(0, |(_, r)| r.len());
+                let ct = match &part.content_type {
+                    Some(c) => format!("\"{}\"", json_escape(c)),
+                    None => "null".to_string(),
+                };
+                let json = format!(
+                    "{{\"name\":\"{}\",\"ordinal\":{},\"content_type\":{},\"relationships\":{}}}",
+                    json_escape(&part.name),
+                    ordinal,
+                    ct,
+                    rel_count
+                );
+                Ok(FieldAnswer {
+                    value: AnswerValue::Json(json),
+                    basis: Basis::DeterministicallyDerived,
+                    selector: req.selector.canonical(),
+                    representation: req.representation.name().to_string(),
+                    source_span: None,
+                    dependency_ids: Vec::new(),
+                    integrity_scope: IntegrityScope::None,
+                    exact: false,
+                })
+            }
+            _ => Err(Error::unsupported_feature(format!(
+                "unsupported observation: selector {} with representation {}",
+                req.selector.canonical(),
+                req.representation.name()
+            ))),
+        }
+    }
+
+    /// A generic OPC relationship observation (Phase 12.3). For an internal
+    /// relationship, `ExactBytes`/`DecodedBytes` resolve to the target part's member
+    /// bytes. An external relationship is an inert identifier: asking for its bytes
+    /// is a typed decline, never a fetch.
+    #[cfg(feature = "opc")]
+    fn relationship_opc(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        use Representation as R;
+        let Selector::Relationship(id) = &req.selector else {
+            return Err(Error::internal_invariant(
+                "relationship_opc needs Relationship",
+            ));
+        };
+        let id = id.clone();
+        let model = self.opc_model()?;
+        let (rel, owner) = model.relationship_by_id(&id)?.ok_or_else(|| {
+            Error::invalid_package_structure(format!("no package relationship with id {id:?}"))
+        })?;
+        match req.representation {
+            R::Metadata => {
+                let resolved = match &rel.resolved {
+                    Some(r) => format!("\"{}\"", json_escape(r)),
+                    None => "null".to_string(),
+                };
+                let owner_json = match owner {
+                    Some(o) => o.to_string(),
+                    None => "null".to_string(),
+                };
+                let json = format!(
+                    concat!(
+                        "{{\"id\":\"{}\",\"type\":\"{}\",\"target\":\"{}\",",
+                        "\"target_mode\":\"{}\",\"resolved\":{},\"owner\":{}}}"
+                    ),
+                    json_escape(&rel.id),
+                    json_escape(&rel.rel_type),
+                    json_escape(&rel.target),
+                    rel.mode.name(),
+                    resolved,
+                    owner_json
+                );
+                Ok(FieldAnswer {
+                    value: AnswerValue::Json(json),
+                    basis: Basis::DeterministicallyDerived,
+                    selector: req.selector.canonical(),
+                    representation: req.representation.name().to_string(),
+                    source_span: None,
+                    dependency_ids: Vec::new(),
+                    integrity_scope: IntegrityScope::None,
+                    exact: false,
+                })
+            }
+            R::ExactBytes | R::DecodedBytes => {
+                let resolved = rel.resolved.clone().ok_or_else(|| {
+                    Error::invalid_package_structure(format!(
+                        "relationship {id:?} is external: its target is an inert identifier, never fetched"
+                    ))
+                })?;
+                let part = model.part_by_name(&resolved).ok_or_else(|| {
+                    Error::invalid_package_structure(format!(
+                        "relationship {id:?} target {resolved:?} is not a package part"
+                    ))
+                })?;
+                let ordinal = part.ordinal;
+                if req.representation == R::ExactBytes {
+                    self.indexed_exact(
+                        req,
+                        SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, ordinal),
+                        "relationship target part",
+                    )
+                } else {
+                    self.member_decoded(req, ordinal)
+                }
+            }
+            _ => Err(Error::unsupported_feature(format!(
+                "unsupported observation: selector {} with representation {}",
+                req.selector.canonical(),
+                req.representation.name()
+            ))),
+        }
+    }
+
+    /// Non-OPC builds keep the selector surface stable but fail closed.
+    #[cfg(not(feature = "opc"))]
+    fn package_part_opc(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "OPC support is not compiled in (feature `opc`)",
+        ))
+    }
+
+    /// Non-OPC builds keep the selector surface stable but fail closed.
+    #[cfg(not(feature = "opc"))]
+    fn relationship_opc(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "OPC support is not compiled in (feature `opc`)",
+        ))
     }
 
     fn stream_operators(&mut self, req: &ObserveRequest, object: u32) -> Result<FieldAnswer> {

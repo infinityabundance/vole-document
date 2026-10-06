@@ -82,6 +82,31 @@ pub struct Limits {
     pub max_zip_prefix_bytes: u64,
     /// Maximum trailing bytes after the EOCD record (Z14).
     pub max_zip_trailing_bytes: u64,
+    // The XML/OPC caps below mirror the threat model and DEFAULT/STRICT values
+    // frozen in `research/subagents/phase-12/I-security.md` §6 (§2 XML, §3 OPC),
+    // as required by plan §DEC-4/§DEC-9. XML is derived (`Q_gen`) state only.
+    /// Maximum XML element nesting depth before a typed decline (Phase 12, §2).
+    pub max_xml_depth: u32,
+    /// Maximum decoded byte length of a single XML part (Phase 12, §2).
+    pub max_xml_part_bytes: u64,
+    /// Maximum number of XML pull events in a single part (Phase 12, §2).
+    pub max_xml_events: u64,
+    /// Maximum number of XML element nodes in a single part (Phase 12, §2).
+    pub max_xml_nodes: u64,
+    /// Maximum number of attributes on a single XML element (Phase 12, §2).
+    pub max_xml_attrs_per_element: u32,
+    /// Maximum total text bytes accepted across a single XML part (Phase 12, §2).
+    pub max_xml_text_bytes: u64,
+    /// Maximum number of `<!DOCTYPE` declarations accepted (Phase 12: always 0).
+    pub max_xml_doctype: u32,
+    /// Maximum relationships across all `.rels` parts (Phase 12, §3).
+    pub max_opc_rels: u32,
+    /// Maximum internal relationship traversal depth (Phase 12 cycles, §3).
+    pub max_opc_rel_depth: u32,
+    /// Maximum `Default`+`Override` entries in `[Content_Types].xml` (Phase 12, §3).
+    pub max_opc_content_types_overrides: u32,
+    /// Maximum byte length of an OPC part name (Phase 12, §3).
+    pub max_opc_part_name_bytes: u32,
 }
 
 impl Limits {
@@ -114,6 +139,17 @@ impl Limits {
         max_zip_central_dir_bytes: 1 << 28,
         max_zip_prefix_bytes: 1 << 20,
         max_zip_trailing_bytes: 1 << 20,
+        max_xml_depth: 256,
+        max_xml_part_bytes: 1 << 28,
+        max_xml_events: 1 << 24,
+        max_xml_nodes: 1 << 24,
+        max_xml_attrs_per_element: 4096,
+        max_xml_text_bytes: 1 << 28,
+        max_xml_doctype: 0,
+        max_opc_rels: 1 << 20,
+        max_opc_rel_depth: 64,
+        max_opc_content_types_overrides: 1 << 20,
+        max_opc_part_name_bytes: 1 << 16,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -145,6 +181,17 @@ impl Limits {
         max_zip_central_dir_bytes: 1 << 20,
         max_zip_prefix_bytes: 1 << 16,
         max_zip_trailing_bytes: 1 << 16,
+        max_xml_depth: 64,
+        max_xml_part_bytes: 1 << 20,
+        max_xml_events: 1 << 16,
+        max_xml_nodes: 1 << 16,
+        max_xml_attrs_per_element: 256,
+        max_xml_text_bytes: 1 << 20,
+        max_xml_doctype: 0,
+        max_opc_rels: 1 << 14,
+        max_opc_rel_depth: 16,
+        max_opc_content_types_overrides: 1 << 12,
+        max_opc_part_name_bytes: 4096,
     };
 }
 

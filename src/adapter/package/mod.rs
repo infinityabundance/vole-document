@@ -13,6 +13,9 @@
 
 pub mod zip;
 
+#[cfg(feature = "opc")]
+pub mod opc;
+
 pub use zip::{
     CentralEntry, DataDescriptor, DescriptorStyle, EocdRecord, NameHazard, PhysicalMemberId,
     Zip64Eocd, Zip64EocdLocator, Zip64Records, ZipMember, ZipPhysical, ZipSpan, ZipSpanKind,

@@ -27,6 +27,8 @@
 use crate::adapter::package::zip::scan;
 use crate::container::Descriptor;
 use crate::error::{Error, Result};
+#[cfg(feature = "opc")]
+use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::{
     FsIndexStore, IndexEntry, SEL_PACKAGE_MEMBER_DECODED, SEL_PACKAGE_MEMBER_RAW, SelectorKey,
     build, validate,
@@ -64,6 +66,8 @@ pub struct PackageIngestReport {
     pub decoded_nodes: u64,
     /// Members whose decode was declined (encrypted or unsupported method).
     pub declined_decodes: u64,
+    /// Whether a generic OPC model node was registered (feature `opc`).
+    pub opc_model_nodes: u64,
 }
 
 fn charge_node(node_count: &mut u64) -> Result<()> {
@@ -129,6 +133,7 @@ pub fn ingest_package(
     let mut raw_nodes: u64 = 0;
     let mut decoded_nodes: u64 = 0;
     let mut declined_decodes: u64 = 0;
+    let opc_model_nodes: u64;
 
     for member in &physical.members {
         let ordinal = member.id.ordinal;
@@ -188,6 +193,38 @@ pub fn ingest_package(
         )?;
     }
 
+    // The generic OPC model (Phase 12.3): a single derived node that materializes
+    // the canonical OPC graph on demand from the exact package root. It is created
+    // here so an OPC observation resolves through the index without enumerating the
+    // store; the XML parse happens only when the node is first materialized.
+    #[cfg(feature = "opc")]
+    {
+        let mut model = SeedNode::new(
+            NodeKind::PackageOpcModel,
+            limits.max_output_bytes,
+            Vec::new(),
+            vec![root_id],
+            "pkg:opc-model",
+        );
+        model.limits.max_output_bytes = limits.max_output_bytes;
+        charge_node(&mut node_count)?;
+        let model_id = store.seeds_mut().put_node(&model.encode_canonical())?;
+        push_entry(
+            &mut entries,
+            IndexEntry {
+                key: SelectorKey::new(SEL_OPC_MODEL, 0),
+                out_off: 0,
+                out_len: 0,
+                node_id: model_id,
+            },
+        )?;
+        opc_model_nodes = 1;
+    }
+    #[cfg(not(feature = "opc"))]
+    {
+        opc_model_nodes = 0;
+    }
+
     let (index_root, index_node_count) = if entries.is_empty() {
         (None, 0)
     } else {
@@ -207,11 +244,12 @@ pub fn ingest_package(
         node_count,
         index_node_count,
         provenance: format!(
-            "field:package;members={};raw={};decoded={};declined={}",
+            "field:package;members={};raw={};decoded={};declined={};opc={}",
             physical.members.len(),
             raw_nodes,
             decoded_nodes,
-            declined_decodes
+            declined_decodes,
+            opc_model_nodes
         ),
     };
     let field = store.put_field(&manifest)?;
@@ -227,5 +265,6 @@ pub fn ingest_package(
         raw_nodes,
         decoded_nodes,
         declined_decodes,
+        opc_model_nodes,
     })
 }
