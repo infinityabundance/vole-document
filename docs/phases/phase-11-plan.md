@@ -1,7 +1,9 @@
 # Phase 11 — Persistent procedural document field
 
 Branch: `phase11`. Base: `main` @ `be69026` (`v0.1.0-alpha.12`).
-Status: **IN PROGRESS**.
+Status: **COMPLETE** (released as `v0.1.0-alpha.13`; see
+`docs/phases/phase-11-results.md`, ADRs 0024–0028, and the independent review
+`docs/reviews/phase-11-skeptic-review.md`).
 
 Phase 10 keeps its existing role (DSFB encoder-only search governance; recorded
 **negative**: 0‰ measurable benefit, ADR-0022). Phase 11 does not renumber or

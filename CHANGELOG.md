@@ -2,6 +2,136 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.13] — unreleased
+
+Phase 11 — **the persistent procedural document field**. A content-addressed,
+queryable field over the exact `.voldoc` descriptor: a fine-grained procedural
+seed DAG, a bounded hierarchical observation index, and a typed observation
+query engine with provenance and `EXPLAIN`. Exactness is unchanged and remains
+the only normative profile (`materialize(root) == original_bytes`; length +
+SHA-256 + `cmp`, with the source removed and in a new process). The field is a
+reconstruction of *observations over* the exact archive — it is never on the
+decode path and never a substitute for it. Docs + version only: `dra-8` and
+`FORMAT_MINOR` do not move.
+
+### Added
+
+- **Phase 11.2 — persistent procedural entropy seed DAG** (`src/field/node.rs`,
+  `dag.rs`; `src/store/seed.rs`; ADR-0025). Canonical, immutable `SeedNode`s with
+  `NodeId = BLAKE3-256("VOLE:PSEED:v1" || canonical state || canonical dependency
+  ids)`, domain-separated from the object table's `Id`. Green = present with a
+  complete id-matching closure; red = absent; no mutation and no invalidation
+  pass — the content id *is* the fingerprint. `SeedStore` with the reference
+  `FsSeedStore` (atomic tmp→sync→rename, range reads) and the optional
+  `EntropyFsSeedStore` (one blob per node) behind the existing `entropyfs-store`
+  feature.
+- **Phase 11.3 — hierarchical observation index** (new optional record
+  `HIER_INDEX = 0x72`; `src/field/index.rs`; ADR-0024/0026). Bounded, advisory,
+  and re-derivable: a lying, corrupt, cyclic, out-of-closure, or oversized index
+  is rejected fail-closed; a missing index falls back to the honest prefix path.
+- **Phase 11.4–11.6 — progressive inverse-proceduralization, observation engine,
+  and selective late materialization** (`src/field/ingest.rs`, `observe.rs`,
+  `plan.rs`, `explain.rs`, `provenance.rs`, `cache.rs`; ADRs 0024, 0026, 0027).
+  Typed Rust API + CLI (`field-ingest`/`query`/`observe`/`find`/`explain`/
+  `preview`), a typed `FieldAnswer { basis, scope, dependency ids, source spans }`
+  with `basis ∈ {authored, directly-observed, deterministically-derived,
+  inferred, heuristic, unresolved}`, and `EXPLAIN` / `EXPLAIN ANALYZE`. A
+  deterministic planner and per-component late-materialization frontier mean a
+  narrow observation need not rebuild the document; no agent/LLM/model is ever on
+  the decode path.
+- **Phase 11.8 — persistent computation reuse** (ADR-0025). A repeated query in a
+  fresh OS process reports `seed_nodes_executed = 0`. The reuse is served by the
+  **persisted derived cache** (off-wire, closure-keyed, disposable, and counted as
+  a fourth accounting universe); after `cache --clear` a fresh process
+  re-executes the nodes. The claim holds *with the derived cache present*.
+- **Phase 11.12 — optional immutable edit witness** (`src/field/edit.rs`;
+  declared narrow subset only). A node-level page-content override derives a new
+  root that shares everything unaffected **by content id** — the descriptor blob
+  and the `DocumentExact` root id are neither read nor rewritten, only their
+  content ids are written into the new manifest. Limits: one page per call,
+  ≤ 48 KiB content, no insert/delete/reorder, descriptor unchanged,
+  `materialize(R1) == original` trivially.
+- **Phase 11.14 — finer-than-object shareable units** (`src/field/share.rs`, the
+  `share-account` CLI; ADR-0028), externalizing channel payloads / sub-object
+  chunks as their own units.
+
+### Measured — Phase 11 courts (recorded wins, ties, and losses)
+
+- **Exactness after source removal (win — the invariant).** For all three court
+  cases, with the source PDF deleted, a new process answered queries and
+  `materialize --exact`ed a file with matching length, matching SHA-256, and
+  `cmp` byte-equality (`large-50` 33,571,029 B; `large-400` 33,673,730 B;
+  producer 74,371 B). Receipt `2026-10-06-phase11-63f43fb`.
+- **Fair baselines vs A1 preprocessed SQLite and A0 raw tooling (losses
+  recorded).** A page-text lookup from the indexed SQLite baseline reads
+  **24,393 B** (18 syscalls) in ~1 ms; A0 `pdftotext -f 1 -l 1` reads
+  **136,128 B** and returns 91 B of text. A cold VOLE `observe` reloads its
+  descriptor closure (**35,686,961 B** `large-50`, **34,767,035 B** `large-400`,
+  **169,126 B** producer via `read`/`pread64`). The SQLite one-time cost is
+  charged in full (400 pages extracted with `pdftotext` in 1,612 ms into a
+  53,248 B database). VOLE is not a whole-file compressor (ADR-0017): xz -9e on
+  the 33.67 MB source is 5,691,168 B vs the best complete `.voldoc` 17,283,279 B.
+- **Lifetime court** (1 / 10 / 100 / 1,000 queries, fresh process per query;
+  `2026-10-06-phase11-lifetime-5a7edd3`) — **mixed.** VOLE crosses A0 raw tooling
+  on wall on every document, but crosses the preprocessed SQLite baseline on wall
+  only on the two smallest documents at N=1000 and **loses on cairo-vector,
+  libreoffice-export, and large** (the A1 wall crossover is absent on 3 of 5
+  documents). VOLE crosses A1 on bytes-read on the four small documents (N=100)
+  but never on `large`. Ingest amortization at N=1000 ranges 7.5%–67.2%.
+- **Descriptor-free warm path (priority #2) — overhead-only, not a process-level
+  byte win** (`2026-10-06-phase11-desc-free-a8ad6f4`). Warm narrow observations
+  read **0 descriptor bytes**; the **8.4–8.9 KB** procedural-overhead figure
+  excludes the cached answer payload the warm process physically re-reads
+  (65.9 KB on `large-400`, 527 KB on `large`), so the byte win over A1 is
+  withdrawn on the large cases. The warm **wall** win (99 µs vs A1 ~1 ms / A0
+  ~8 ms) and the vs-A0 win stand.
+- **LLM working set with a pinned offline tokenizer**
+  (`2026-10-06-phase11-llm-tokens-824faa9`). `bert-base-uncased` (WordPiece,
+  vocab 30522), loaded by the hash-pinned `tokenizers==0.20.3` runtime from a
+  vendored asset whose SHA-256 is verified **at court time**; the court never
+  touches the network and `add_special_tokens=false`. Against page-local Poppler
+  B1: **2 win / 2 tie / 2 loss**; against whole-document B0: 4 win / 2 loss.
+  Token counts are tokenizer-specific; a smaller V is a **working-set**
+  measurement, never a text-quality claim.
+- **Finer-than-object sharing loses to CDC (recorded negative; ADR-0028).** Over
+  4 real producer documents + a byte-identical repeat + a few-bytes-changed
+  near-duplicate (8 files, 337,877 B), the fine-unit unique **lower bound**
+  (208,001 B) loses to the strongest content-defined chunking (160,668 B) and to
+  `tar | xz -9e` (92,752 B), with a per-stratum loss on the near stratum.
+  `unique_bytes` is explicitly a lower bound (excludes 8,435 B of
+  root/program/GRAPH framing). Receipt `2026-10-06-phase11-share-d9f818a`.
+- **Immutable edit witness (scoped win).** 318 index entries carried forward by
+  id, 2 new seed nodes, `descriptor_bytes_read = 0`; cost 43,688 B of index read
+  vs 8,776 B written (recorded as a loss). Receipt
+  `2026-10-06-phase11-edit-8cceaac`.
+
+### Corrected — independent adversarial skeptic review (Phase 11.13)
+
+- An independent review (`docs/reviews/phase-11-skeptic-review.md`; receipt
+  `2026-10-06-phase11-skeptic-9bd766d`) attacked every headline claim. Corrections
+  applied in place: the warm descriptor-free byte "win" is **overhead-only** and
+  is withdrawn vs A1 on the large cases; the cold working-set headline is the
+  **449 B seed class only** (the honest total cold observation is 232–364 KB —
+  descriptor closure + index — so "bounded" means page-closure-bounded, not
+  O(1)); cross-process reuse is **cache-served**, not seed-DAG recomputation; a
+  dangling ADR-0028/`FINDINGS.md` receipt pointer was fixed
+  (`…-share-0f3d1d3` → `…-share-d9f818a`); the edit witness **shares the
+  descriptor by content id**, it does not copy it. Confirmed without correction:
+  exactness after source removal; a pinned offline tokenizer; shareable units
+  losing to CDC with `unique_bytes` a lower bound; and `descriptor_bytes_read ==
+  0` on the warm short-circuit.
+
+### Notes
+
+- The seed DAG and the field manifest live in the **store**, referenced by
+  content id; the descriptor remains the exact archival authority. The new
+  `HIER_INDEX` record is skippable — a decoder without it still fully
+  materializes via the DRA.
+- The `63f43fb` field-court receipt was sealed from a **dirty** tree
+  (`tools/field-court.sh` modified). The exactness triple it proves is still
+  valid (materialize in a new process against a pre-removal golden copy), but the
+  committed tool is not byte-identical to the one that ran. Recorded, not hidden.
+
 ## [0.1.0-alpha.12] — unreleased
 
 Phase 10 — **DSFB encoder-only search governance** (10.1) and the **top-level

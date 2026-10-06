@@ -7,8 +7,8 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.12` (Phase 10 — DSFB encoder-only search
-governance + negative-results consolidation). **Top-level verdict (ADR-0023, the
+**Current release:** `0.1.0-alpha.13` (Phase 11 — the persistent procedural
+document field). **Top-level verdict (ADR-0023, the
 authoritative [`FINDINGS.md`](../FINDINGS.md)):** the current representation stack
 does not beat purpose-built baselines on any measured axis; the durable results
 are byte-exactness, an auditable representation, and the recorded negatives; the
@@ -20,7 +20,10 @@ random-access decode-CPU win (ADR-0018); Phase 8 measured a scoped random-access
 bytes-read win **versus non-seekable sequential codecs** (ADR-0019); Phase 9 adds
 the store and records a robust but partly externalization-granularity-artifact
 loss on the store axis (ADR-0020/0021); Phase 10.1 adds an optional encoder-only
-search governor that buys no bytes on its cohort (ADR-0022).
+search governor that buys no bytes on its cohort (ADR-0022); Phase 11 adds a
+persistent procedural field over the exact descriptor whose courts are
+deliberately mixed (some wins, several losses and corrections); it changes no
+exactness semantics and none of the ADR-0023 verdict above.
 
 Phase 8 (branch `phase8`, ADR-0019) adds an optional seek `DIRECTORY` record and
 a `Read + Seek` reader. On the same 33.8 MB corpus a seeked `view` reads a
@@ -87,6 +90,35 @@ complete-cost court is retained and the governor remains an optional encoder
 feature. Zero decode authority is proven, not asserted: a governor-produced
 descriptor decodes byte-exactly in a default build **without** the feature.
 
+Phase 11 (branch `phase11`, ADRs 0024–0028) adds a **persistent procedural
+document field** over the exact `.voldoc` descriptor: a canonical, immutable
+procedural seed DAG (`NodeId = BLAKE3-256("VOLE:PSEED:v1" + state + dep ids)`,
+one `FsSeedStore` file per node, optional `EntropyFsSeedStore`), a bounded
+advisory hierarchical observation index (`HIER_INDEX = 0x72`, fail-closed on a
+lying/cyclic/out-of-closure index), and a typed observation query engine with
+provenance (`basis` ∈ {authored, directly-observed, deterministically-derived,
+inferred, heuristic, unresolved}) and `EXPLAIN` / `EXPLAIN ANALYZE`. Exactness
+is unchanged: with the source removed and in a new process every court case
+`materialize --exact`s with matching length + SHA-256 + `cmp` (campaign
+`2026-10-06-phase11-63f43fb`). The courts are deliberately mixed and honest: the
+field's **seed class** is 449 B cold / 0 B warm, but the honest total cold
+observation is 232–364 KB (descriptor closure + index), so "bounded" is
+page-closure-bounded, **not** O(1); cross-process reuse is real across an OS
+process but **served by the disposable derived cache**, not seed-DAG
+recomputation; the warm descriptor-free 8.4–8.9 KB is an **overhead-only** figure
+(the warm process also reads the cached answer payload), so the warm byte win
+over A1 is withdrawn on the large cases while the warm wall win and the vs-A0
+win stand; the fair A1 preprocessed-SQLite baseline wins the narrow-query byte
+court (24,393 B) and its wall crossover is absent on 3 of 5 documents; the
+pinned-tokenizer (`bert-base-uncased`, offline, hash-verified at court time)
+token court is 2 win / 2 tie / 2 loss vs page-local Poppler; the immutable edit
+witness shares the descriptor and unaffected nodes **by content id** (0
+descriptor bytes read) within a declared narrow subset; and finer-than-object
+shareable units **lose to content-defined chunking** (208,001 B unique lower
+bound vs 160,668 B CDC and 92,752 B `tar` + `xz -9e`; ADR-0028). Phase 11.13 is
+an independent adversarial skeptic review that corrected the overreach in place
+(F1–F8, `docs/reviews/phase-11-skeptic-review.md`).
+
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED`).
 
@@ -141,6 +173,13 @@ descriptor decodes byte-exactly in a default build **without** the feature.
 | Cross-document store court (three universes vs per-file LZ and generic CDC) | 9.3 | RECORDED (store axis: loss) | campaign `2026-10-05-phase9-store-fdb2845` (ADR-0021, `docs/evidence/phase9-store-report.md`, `docs/evidence/phase9-skeptic-review.md`); 37 locally generated files, 5,579,469 B, 10 strata; 37/37 standalone + store-backed roots `cmp`-byte-exact, closure `dangling = 0`. `S = 3,762,694`; `U = A = 3,369,900`; unique object bytes `786,501`. Per-file min LZ `1,304,307`; strongest CDC (borg 1.2.4, chunker `10,15,11,127`, `--compression none`) deterministic `771,383`, with `--compression zstd,19` **non-deterministic** 210,835–210,840. **`U` loses to all three.** The negative is robust (forced `--force pdf-deflate-replay` `U = 2,360,054`; per-stratum oracle ~`2,537,730`) but partly an externalization-granularity/candidate-selection artifact: the auto winner emits 0–1 objects per file. Auto-candidate only win: `repeat-bin` (4 byte-identical opaque binaries, `U = 133,048` vs LZ 524,308 / CDC 140,640 / CDC-zstd 133,863). Forcing `PDF_DEFLATE_REPLAY` (one object per deflate stream — a current-set candidate) flips `shared-payload` to `264,139` (win over raw CDC 285,257; loss to LZ 34,591 / zstd 28,195); no current candidate emits >1 object/file. `shifted` loses to CDC exactly as pre-registered. `tools/store-cohort.sh`, `tools/store-court.sh`, `tools/chunk-dedup.sh` |
 | Encoder-only search governance (typed residual diagnostics + parametric space + pure governor + court) | 10.1 | IMPLEMENTED (feature `dsfb-search`, encoder-only) / search RECORDED (negative) | campaign `2026-10-05-phase10-governor-d2b09c9` (ADR-0022); dependency-free, non-default `dsfb-search = []` (**not** `dep:dsfb`); `src/encode/governor.rs`; `ResidualClass`/`ResidualDiagnostic`/`ResidualTrace` + `SearchConfig{scale_bits∈{8,10,12}, partition∈{ByKind,ByRole}, replay∈{Off,Dedup,DedupRans}, packed, depth}` + `govern(&ResidualTrace)->SearchDirective`; **zero decode authority** (no wire change, `header.rs` untouched, no feature bit; grep gate; a governed descriptor decodes byte-exactly in a default build without the feature). Court: H1 (guided never worse than fixed) HELD, H2 (guided==exhaustive on 8/8 holdout with ≤½ candidates) HELD, **H3 (no measurable byte benefit: `fixed == exhaustive` on every workload) HELD**, H4 (negative controls `Stop(Raw)` byte-exact) HELD. The fixed complete-cost court is retained; the parametric search buys nothing on this small locally generated cohort (no population claim) |
 | **Consolidated findings (top-level verdict)** | **10.2** | **ADOPTED (superseding decision)** | **[`FINDINGS.md`](../FINDINGS.md)** + **ADR-0023**: the current representation stack does not beat a purpose-built baseline on any measured axis. Whole-file size (0/27, ADR-0017), random-access bytes read vs seekable/blocked (2.6–30× more, ADR-0019), and cross-document sharing vs LZ + CDC (`U = 3,369,900` vs 1,304,307 vs 771,383, ADR-0021) are recorded losses; the only scoped wins are partial-decode CPU / bytes-read vs **non-seekable** codecs (ADR-0018/0019) and whole-object dedup of identical opaque files (marginal vs CDC, ADR-0021); the governor buys no bytes (ADR-0022). Falsified claims (Phase-6 qpdf, Phase-7.0b Cairo) recorded with their reviews. Docs-only; no wire/semantics change |
+| Procedural seed DAG (canonical immutable nodes + content-addressed `SeedStore`) | 11.2 | IMPLEMENTED | ADR-0025; `NodeId = BLAKE3-256("VOLE:PSEED:v1" + canonical state + canonical dependency ids)`, domain-separated from the object `Id`; `FsSeedStore` (atomic tmp→sync→rename, range reads) + optional `EntropyFsSeedStore` (one blob per node); green = present with a complete id-matching closure, red = absent; no mutation/invalidation pass; exactness unchanged (`materialize(root) == original`) |
+| Hierarchical observation index (`HIER_INDEX = 0x72`) | 11.3 | IMPLEMENTED | ADR-0024/0026; bounded, advisory, re-derivable; a lying/cyclic/out-of-closure/oversized index is rejected fail-closed; a missing index falls back to the honest prefix path; every served slice is an observation (`integrity_verified == false`) |
+| Observation query engine + provenance + `EXPLAIN` | 11.5–11.6 | IMPLEMENTED / MEASURED | ADRs 0024/0026/0027; typed `FieldAnswer{basis, scope, dependency ids, source spans}`, `basis ∈ {authored, directly-observed, deterministically-derived, inferred, heuristic, unresolved}`; `EXPLAIN` / `EXPLAIN ANALYZE`; deterministic planner + per-component late-materialization frontier; no agent/LLM/model on the decode path |
+| Fair-baseline, lifetime, and pinned-tokenizer courts (A0 raw tooling, A1 preprocessed SQLite, LLM working set) | 11.9/11.10/11.12 | RECORDED (mixed) | campaigns `2026-10-06-phase11-63f43fb`, `…-lifetime-5a7edd3`, `…-llm-tokens-824faa9`; new pinned `db-baseline` and `llm-workingset` services. Exactness after source removal **confirmed** (length + SHA-256 + `cmp`, new process); A1 SQLite wins the narrow-query byte court (24,393 B); VOLE crosses A0 on wall on every doc but the A1 wall crossover is **absent on 3/5** documents; tokens (`bert-base-uncased`, pinned offline, hash-verified) 2 win / 2 tie / 2 loss vs page-local B1; no "tokens saved" without naming the tokenizer |
+| Descriptor-free warm path (partial/lazy descriptor reads) | 11 priority #2 | RECORDED (overhead-only + wall win) | campaign `…-desc-free-a8ad6f4`; warm `descriptor_bytes_read == 0` and `seed_nodes_executed == 0`; the 8.4–8.9 KB is **overhead-only** (the warm process also reads the cached answer: 65.9 KB `large-400`, 527 KB `large`), so the byte win over A1 is withdrawn on the large cases; warm wall win and vs-A0 win stand |
+| Immutable edit witness (declared narrow subset) | 11.12 | IMPLEMENTED (scoped) | ADR-0025; `src/field/edit.rs`; shares the descriptor/root/unaffected nodes **by content id** (0 bytes read, 0 blobs opened); 2 new seed nodes; `materialize(R1) == original` trivially; cost 43,688 B index read vs 8,776 B written (recorded loss) |
+| Finer-than-object shareable units | 11.14 | RECORDED (loss to CDC) | ADR-0028; campaign `…-share-d9f818a`; unique **lower bound** 208,001 B loses to strongest CDC (160,668 B) and to `tar` + `xz -9e` (92,752 B); per-stratum loss on the near stratum |
 | Partial materialization (checkpoints beyond v1) | 11+ | PROPOSED | v1 random-access `view` measured in 7.3 (ADR-0018); the **seek/mmap descriptor reader landed in Phase 8** (ADR-0019), leaving checkpoint bytes as future work |
 | Coverage-guided fuzzing (`cargo-fuzz`/libFuzzer) | 7.1 | IMPLEMENTED | pinned dated nightly + `cargo-fuzz 0.13.2`; ten targets in `fuzz/fuzz_targets/`; bounded campaign `2026-10-05-phase7-fuzz-ca6a92b` (9/10 targets zero-crash; `deflate_replay` reported two upstream `preflate-rs` findings — F1 mitigated via the library's fail-closed `catch_unwind` boundary + regression test, F2 unbounded allocation now **contained on the decode path by process isolation**, ADR-0016); deterministic property/soak courts retained (`tests/property.rs`, `tools/soak-fuzz.sh`) |
 | Process-isolated DEFLATE replay (F2 containment) | 7.1b | IMPLEMENTED | the decoder's `DEFLATE_REPLAY` arm calls `replay_bounded`: `preflate` runs in a child process (`sh -c 'ulimit -v …; ulimit -t …; exec "$0" __replay-worker'`) under an `RLIMIT_AS` address-space cap and a wall-clock timeout, returning a typed `CodecReplay` on abort/timeout/crash/malformed reply; hidden `__replay-worker` stdin/stdout protocol with length-bounded fields and a non-aborting panic hook; knobs `VOLE_REPLAY_WORKER` / `VOLE_REPLAY_MEM_MB` / `VOLE_REPLAY_TIMEOUT_MS` (default 30000); the CLI sets itself as the default worker (safe library setter, since `std::env::set_var` is `unsafe` under Rust 2024), while a library embedder with no worker falls back to the in-process `replay_raw` (the residual); no wire/candidate change; `tests/replay_isolation.rs` |
