@@ -1,0 +1,19 @@
+# Phase 12.12 LLM working-set court — exact commands
+# Commit under test: 3eaf57661a70476cdbf90e9265cc34d8b740c4ad (branch phase12); dirty: ?? evidence/campaigns/2026-10-06-phase12-lifetime-3eaf576/;?? evidence/campaigns/2026-10-06-phase12-llm-3eaf576/;
+# Tokenizer: bert-base-uncased; asset sha256: ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98
+# All commands run inside the pinned, capped llm-workingset image; nothing on the host.
+
+docker compose build llm-workingset
+docker compose run --rm --no-TTY dev sh -c 'cargo build --all-features --locked'
+docker compose run --rm --no-TTY -e HOST_IMAGE_ID=<llm-workingset image id> llm-workingset \
+    bash tools/phase12-llm-court.sh evidence/campaigns/2026-10-06-phase12-llm-3eaf576
+
+# Per document:
+#   $BIN encode SRC d.voldoc ; $BIN field-ingest d.voldoc --store store
+#   pdf : pdftotext SRC b0.txt ; pdftotext -f 1 -l 1 SRC b1.txt ; $BIN observe --page 1 --kind text
+#   docx: python3 tools/fixtures/phase12-baseline.py query --case doc-text  (B0)
+#         python3 tools/fixtures/phase12-baseline.py query --case block --arg 1 (B1)
+#         $BIN observe --block 1 --kind text (V)
+#   epub: same as docx with --format epub
+#   python3 tools/llm-tokenize.py --tokenizer tools/tokenizers/bert-base-uncased.tokenizer.json --expect-sha256 ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98 \
+#       --name bert-base-uncased --files b0.txt b1.txt v.txt

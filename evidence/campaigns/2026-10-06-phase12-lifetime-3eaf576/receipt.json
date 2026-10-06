@@ -1,0 +1,6297 @@
+{
+  "campaign": "phase12-lifetime-court",
+  "phase": "Phase 12.11 — mixed PDF/DOCX/EPUB lifetime AI-document workload court (A0/A1 vs V)",
+  "environment": {
+    "git": {
+      "commit": "3eaf57661a70476cdbf90e9265cc34d8b740c4ad",
+      "commit_short": "3eaf576",
+      "dirty": ""
+    },
+    "arch": "x86_64",
+    "cargo_lock_sha256": "710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e",
+    "service_image": "vole-document/doc-baseline:1.99.0",
+    "doc_baseline_image_id": "sha256:dc17f388a49349eb39f89e30705a554a3ceaeae277a22518fd307e526c7159af",
+    "toolchain": {
+      "rustc": "1.99.0 (b940084d7 2026-09-28)",
+      "cargo": "1.99.0 (5f94df478 2026-08-27)",
+      "python": "3.11.2"
+    },
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "base_tools": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+    "oracles": {
+      "sqlite3": "3.40.1",
+      "poppler_pdftotext": "22.12.0",
+      "strace": "6.1",
+      "jq": "jq-1.6"
+    },
+    "env_affecting_semantics": {
+      "LC_ALL": "C",
+      "VOLE_BIN": "./target/debug/vole-document",
+      "LIFETIME_NS": "1 10 100 1000",
+      "LIFETIME_PASSES": 2,
+      "SCHEDULE": "tools/fixtures/phase12-lifetime-schedule.json"
+    },
+    "camera": "fresh process per query; per-query wall via bash EPOCHREALTIME; CPU/peak-RSS on a batch of the first N queries with /usr/bin/time -v; per-query bytes = process read/pread64 under strace for all three systems; VOLE instrumented stats.bytes_read reported alongside"
+  },
+  "schedule": {
+    "campaign": "phase12-lifetime-court",
+    "corpus": "evidence/scratch/phase12-lifetime-corpus",
+    "corpus_generator": "tools/fixtures/phase12-corpus-gen.py",
+    "documents": [
+      {
+        "cases": [
+          {
+            "arg": "page:1",
+            "expected": "XF12A",
+            "expected_kind": "contains",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "metadata",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "page:1",
+            "expected": "XF12A",
+            "expected_kind": "contains",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF12A",
+            "expected": "XF12A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "byte-range:0:64",
+            "expected": "fe241f93e17c53fad662486f14c5424eb9b56c1a6d6e0c724ad43933511f18f6",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "full-source",
+            "expected": "fae3034c76c49e0f99af687e710147353b25c48bd6cd2acdb557ac9e174ebd07",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "page:1",
+            "expected": "",
+            "expected_kind": "declined",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          6,
+          1
+        ],
+        "format": "pdf",
+        "length": 905,
+        "markers": [
+          "XF12A",
+          "XF12B"
+        ],
+        "name": "alpha.pdf",
+        "sha256": "fae3034c76c49e0f99af687e710147353b25c48bd6cd2acdb557ac9e174ebd07",
+        "source": "alpha.pdf",
+        "variant": "alpha"
+      },
+      {
+        "cases": [
+          {
+            "arg": "block:1",
+            "expected": "Alpha paragraph carries marker XF12A.",
+            "expected_kind": "equals",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "heading:0",
+            "expected": "Introduction",
+            "expected_kind": "equals",
+            "id": "heading-section",
+            "kind": "text"
+          },
+          {
+            "arg": "block:3",
+            "expected": "Bravo paragraph carries marker XF12B.",
+            "expected_kind": "equals",
+            "id": "paragraph-context",
+            "kind": "text"
+          },
+          {
+            "arg": "cell:0:6:1",
+            "expected": "bravo-seven",
+            "expected_kind": "equals",
+            "id": "table-cell",
+            "kind": "text"
+          },
+          {
+            "arg": "table:0",
+            "expected": "alpha",
+            "expected_kind": "contains",
+            "id": "expand-table",
+            "kind": "text"
+          },
+          {
+            "arg": "resource:0",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "resource",
+            "kind": "metadata"
+          },
+          {
+            "arg": "metadata",
+            "expected": "docx",
+            "expected_kind": "contains",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "block:2",
+            "expected": "Method",
+            "expected_kind": "equals",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF12A",
+            "expected": "XF12A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "full-source",
+            "expected": "18a55a0830da155f482a4b3790b3a1f2671474edfa7a5e48a59d8ddccb8a2fd9",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "resource-bytes:0",
+            "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "block:0",
+            "expected": "format=docx",
+            "expected_kind": "nonempty",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          6,
+          1
+        ],
+        "format": "docx",
+        "length": 3458,
+        "markers": [
+          "XF12A",
+          "XF12B"
+        ],
+        "name": "alpha.docx",
+        "sha256": "18a55a0830da155f482a4b3790b3a1f2671474edfa7a5e48a59d8ddccb8a2fd9",
+        "source": "alpha.docx",
+        "variant": "alpha"
+      },
+      {
+        "cases": [
+          {
+            "arg": "block:1",
+            "expected": "Alpha paragraph carries marker XF12A.",
+            "expected_kind": "equals",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "heading:0",
+            "expected": "Introduction",
+            "expected_kind": "equals",
+            "id": "heading-section",
+            "kind": "text"
+          },
+          {
+            "arg": "block:3",
+            "expected": "Bravo paragraph carries marker XF12B.",
+            "expected_kind": "equals",
+            "id": "paragraph-context",
+            "kind": "text"
+          },
+          {
+            "arg": "cell:0:6:1",
+            "expected": "bravo-seven",
+            "expected_kind": "equals",
+            "id": "table-cell",
+            "kind": "text"
+          },
+          {
+            "arg": "table:0",
+            "expected": "alpha",
+            "expected_kind": "contains",
+            "id": "expand-table",
+            "kind": "text"
+          },
+          {
+            "arg": "resource:0",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "resource",
+            "kind": "metadata"
+          },
+          {
+            "arg": "metadata",
+            "expected": "spine",
+            "expected_kind": "contains",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "block:2",
+            "expected": "Method",
+            "expected_kind": "equals",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF12A",
+            "expected": "XF12A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "full-source",
+            "expected": "88f8b9120c8914911abadf30e25ef890faba70bfae28c67bc2ba7dfa2bbc09be",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "resource-bytes:0",
+            "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "block:0",
+            "expected": "format=epub",
+            "expected_kind": "nonempty",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          6,
+          1
+        ],
+        "format": "epub",
+        "length": 2858,
+        "markers": [
+          "XF12A",
+          "XF12B"
+        ],
+        "name": "alpha.epub",
+        "sha256": "88f8b9120c8914911abadf30e25ef890faba70bfae28c67bc2ba7dfa2bbc09be",
+        "source": "alpha.epub",
+        "variant": "alpha"
+      },
+      {
+        "cases": [
+          {
+            "arg": "page:1",
+            "expected": "XF13A",
+            "expected_kind": "contains",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "metadata",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "page:1",
+            "expected": "XF13A",
+            "expected_kind": "contains",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF13A",
+            "expected": "XF13A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "byte-range:0:64",
+            "expected": "fe241f93e17c53fad662486f14c5424eb9b56c1a6d6e0c724ad43933511f18f6",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "full-source",
+            "expected": "254aaa986f846e0faaac74ca1765d9c4b4bcdf1273f7d4db909207942d1dbdd6",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "page:1",
+            "expected": "",
+            "expected_kind": "declined",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          10,
+          2
+        ],
+        "format": "pdf",
+        "length": 957,
+        "markers": [
+          "XF13A",
+          "XF13B",
+          "XF13C"
+        ],
+        "name": "bravo.pdf",
+        "sha256": "254aaa986f846e0faaac74ca1765d9c4b4bcdf1273f7d4db909207942d1dbdd6",
+        "source": "bravo.pdf",
+        "variant": "bravo"
+      },
+      {
+        "cases": [
+          {
+            "arg": "block:1",
+            "expected": "Alpha record carries marker XF13A.",
+            "expected_kind": "equals",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "heading:0",
+            "expected": "Overview",
+            "expected_kind": "equals",
+            "id": "heading-section",
+            "kind": "text"
+          },
+          {
+            "arg": "block:3",
+            "expected": "Bravo record carries marker XF13B.",
+            "expected_kind": "equals",
+            "id": "paragraph-context",
+            "kind": "text"
+          },
+          {
+            "arg": "cell:0:10:2",
+            "expected": "value10",
+            "expected_kind": "equals",
+            "id": "table-cell",
+            "kind": "text"
+          },
+          {
+            "arg": "table:0",
+            "expected": "row01",
+            "expected_kind": "contains",
+            "id": "expand-table",
+            "kind": "text"
+          },
+          {
+            "arg": "resource:0",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "resource",
+            "kind": "metadata"
+          },
+          {
+            "arg": "metadata",
+            "expected": "docx",
+            "expected_kind": "contains",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "block:2",
+            "expected": "Scope",
+            "expected_kind": "equals",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF13A",
+            "expected": "XF13A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "full-source",
+            "expected": "3d075838be55d6d4db8465171337423fda2503239c59e7ad92e88f83d69f8ab6",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "resource-bytes:0",
+            "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "block:0",
+            "expected": "format=docx",
+            "expected_kind": "nonempty",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          10,
+          2
+        ],
+        "format": "docx",
+        "length": 3636,
+        "markers": [
+          "XF13A",
+          "XF13B",
+          "XF13C"
+        ],
+        "name": "bravo.docx",
+        "sha256": "3d075838be55d6d4db8465171337423fda2503239c59e7ad92e88f83d69f8ab6",
+        "source": "bravo.docx",
+        "variant": "bravo"
+      },
+      {
+        "cases": [
+          {
+            "arg": "block:1",
+            "expected": "Alpha record carries marker XF13A.",
+            "expected_kind": "equals",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "heading:0",
+            "expected": "Overview",
+            "expected_kind": "equals",
+            "id": "heading-section",
+            "kind": "text"
+          },
+          {
+            "arg": "block:3",
+            "expected": "Bravo record carries marker XF13B.",
+            "expected_kind": "equals",
+            "id": "paragraph-context",
+            "kind": "text"
+          },
+          {
+            "arg": "cell:0:10:2",
+            "expected": "value10",
+            "expected_kind": "equals",
+            "id": "table-cell",
+            "kind": "text"
+          },
+          {
+            "arg": "table:0",
+            "expected": "row01",
+            "expected_kind": "contains",
+            "id": "expand-table",
+            "kind": "text"
+          },
+          {
+            "arg": "resource:0",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "resource",
+            "kind": "metadata"
+          },
+          {
+            "arg": "metadata",
+            "expected": "spine",
+            "expected_kind": "contains",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "block:2",
+            "expected": "Scope",
+            "expected_kind": "equals",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF13A",
+            "expected": "XF13A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "full-source",
+            "expected": "aa38ebba1ac58837d6e63c3609eff379bf9dc28b2e79b72e7d773dc84912c8f5",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "resource-bytes:0",
+            "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "block:0",
+            "expected": "format=epub",
+            "expected_kind": "nonempty",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          10,
+          2
+        ],
+        "format": "epub",
+        "length": 3012,
+        "markers": [
+          "XF13A",
+          "XF13B",
+          "XF13C"
+        ],
+        "name": "bravo.epub",
+        "sha256": "aa38ebba1ac58837d6e63c3609eff379bf9dc28b2e79b72e7d773dc84912c8f5",
+        "source": "bravo.epub",
+        "variant": "bravo"
+      },
+      {
+        "cases": [
+          {
+            "arg": "page:1",
+            "expected": "XF14A",
+            "expected_kind": "contains",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "metadata",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "page:1",
+            "expected": "XF14A",
+            "expected_kind": "contains",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF14A",
+            "expected": "XF14A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "byte-range:0:64",
+            "expected": "fe241f93e17c53fad662486f14c5424eb9b56c1a6d6e0c724ad43933511f18f6",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "full-source",
+            "expected": "2f714753bd7f85ac7c104abc71e401865aef7166fba25f65ce1dbb99ab0bdde6",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "page:1",
+            "expected": "",
+            "expected_kind": "declined",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          3,
+          1
+        ],
+        "format": "pdf",
+        "length": 841,
+        "markers": [
+          "XF14A"
+        ],
+        "name": "charlie.pdf",
+        "sha256": "2f714753bd7f85ac7c104abc71e401865aef7166fba25f65ce1dbb99ab0bdde6",
+        "source": "charlie.pdf",
+        "variant": "charlie"
+      },
+      {
+        "cases": [
+          {
+            "arg": "block:1",
+            "expected": "Solo record carries marker XF14A.",
+            "expected_kind": "equals",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "heading:0",
+            "expected": "Preamble",
+            "expected_kind": "equals",
+            "id": "heading-section",
+            "kind": "text"
+          },
+          {
+            "arg": "block:3",
+            "expected": "One",
+            "expected_kind": "equals",
+            "id": "paragraph-context",
+            "kind": "text"
+          },
+          {
+            "arg": "cell:0:3:1",
+            "expected": "v3",
+            "expected_kind": "equals",
+            "id": "table-cell",
+            "kind": "text"
+          },
+          {
+            "arg": "table:0",
+            "expected": "k1",
+            "expected_kind": "contains",
+            "id": "expand-table",
+            "kind": "text"
+          },
+          {
+            "arg": "resource:0",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "resource",
+            "kind": "metadata"
+          },
+          {
+            "arg": "metadata",
+            "expected": "docx",
+            "expected_kind": "contains",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "block:2",
+            "expected": "Details",
+            "expected_kind": "equals",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF14A",
+            "expected": "XF14A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "full-source",
+            "expected": "4e4601a9f01a4fb14e9b8ede3340be9617110ec7f173e06b36e64b74dad2de21",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "resource-bytes:0",
+            "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "block:0",
+            "expected": "format=docx",
+            "expected_kind": "nonempty",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          3,
+          1
+        ],
+        "format": "docx",
+        "length": 3282,
+        "markers": [
+          "XF14A"
+        ],
+        "name": "charlie.docx",
+        "sha256": "4e4601a9f01a4fb14e9b8ede3340be9617110ec7f173e06b36e64b74dad2de21",
+        "source": "charlie.docx",
+        "variant": "charlie"
+      },
+      {
+        "cases": [
+          {
+            "arg": "block:1",
+            "expected": "Solo record carries marker XF14A.",
+            "expected_kind": "equals",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "heading:0",
+            "expected": "Preamble",
+            "expected_kind": "equals",
+            "id": "heading-section",
+            "kind": "text"
+          },
+          {
+            "arg": "block:3",
+            "expected": "One\nTwo",
+            "expected_kind": "equals",
+            "id": "paragraph-context",
+            "kind": "text"
+          },
+          {
+            "arg": "cell:0:3:1",
+            "expected": "v3",
+            "expected_kind": "equals",
+            "id": "table-cell",
+            "kind": "text"
+          },
+          {
+            "arg": "table:0",
+            "expected": "k1",
+            "expected_kind": "contains",
+            "id": "expand-table",
+            "kind": "text"
+          },
+          {
+            "arg": "resource:0",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "resource",
+            "kind": "metadata"
+          },
+          {
+            "arg": "metadata",
+            "expected": "spine",
+            "expected_kind": "contains",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "block:2",
+            "expected": "Details",
+            "expected_kind": "equals",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF14A",
+            "expected": "XF14A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "full-source",
+            "expected": "337024cd1a5c5728d7bfea8ae63ba892265d0b10e487e19de6f7c7ef9b8ff667",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "resource-bytes:0",
+            "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "block:0",
+            "expected": "format=epub",
+            "expected_kind": "nonempty",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          3,
+          1
+        ],
+        "format": "epub",
+        "length": 2723,
+        "markers": [
+          "XF14A"
+        ],
+        "name": "charlie.epub",
+        "sha256": "337024cd1a5c5728d7bfea8ae63ba892265d0b10e487e19de6f7c7ef9b8ff667",
+        "source": "charlie.epub",
+        "variant": "charlie"
+      },
+      {
+        "cases": [
+          {
+            "arg": "page:1",
+            "expected": "XF15A",
+            "expected_kind": "contains",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "metadata",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "page:1",
+            "expected": "XF15A",
+            "expected_kind": "contains",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF15A",
+            "expected": "XF15A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "byte-range:0:64",
+            "expected": "fe241f93e17c53fad662486f14c5424eb9b56c1a6d6e0c724ad43933511f18f6",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "full-source",
+            "expected": "e8d34a0a21e388ed7006a544b6354f08d2caf87e6cd779247340781ed606ebde",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "page:1",
+            "expected": "",
+            "expected_kind": "declined",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          600,
+          2
+        ],
+        "format": "pdf",
+        "length": 29231,
+        "markers": [
+          "XF15A",
+          "XF15B",
+          "XF15C"
+        ],
+        "name": "delta.pdf",
+        "sha256": "e8d34a0a21e388ed7006a544b6354f08d2caf87e6cd779247340781ed606ebde",
+        "source": "delta.pdf",
+        "variant": "delta"
+      },
+      {
+        "cases": [
+          {
+            "arg": "block:1",
+            "expected": "Delta record 000 carries marker XF15A.",
+            "expected_kind": "equals",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "heading:0",
+            "expected": "Delta Overview",
+            "expected_kind": "equals",
+            "id": "heading-section",
+            "kind": "text"
+          },
+          {
+            "arg": "block:3",
+            "expected": "Delta record 001 carries marker XF15B.",
+            "expected_kind": "equals",
+            "id": "paragraph-context",
+            "kind": "text"
+          },
+          {
+            "arg": "cell:0:600:2",
+            "expected": "d-value599 v5c799d2bf6ffecb04ceafab4",
+            "expected_kind": "equals",
+            "id": "table-cell",
+            "kind": "text"
+          },
+          {
+            "arg": "table:0",
+            "expected": "d-row0000",
+            "expected_kind": "contains",
+            "id": "expand-table",
+            "kind": "text"
+          },
+          {
+            "arg": "resource:0",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "resource",
+            "kind": "metadata"
+          },
+          {
+            "arg": "metadata",
+            "expected": "docx",
+            "expected_kind": "contains",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "block:2",
+            "expected": "Delta Scope",
+            "expected_kind": "equals",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF15A",
+            "expected": "XF15A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "full-source",
+            "expected": "5a6fe261d8a15f6fa733db642e346f9a54aa2240fbecfeafdc9773b4a937a4ed",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "resource-bytes:0",
+            "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "block:0",
+            "expected": "format=docx",
+            "expected_kind": "nonempty",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          600,
+          2
+        ],
+        "format": "docx",
+        "length": 61232,
+        "markers": [
+          "XF15A",
+          "XF15B",
+          "XF15C"
+        ],
+        "name": "delta.docx",
+        "sha256": "5a6fe261d8a15f6fa733db642e346f9a54aa2240fbecfeafdc9773b4a937a4ed",
+        "source": "delta.docx",
+        "variant": "delta"
+      },
+      {
+        "cases": [
+          {
+            "arg": "block:1",
+            "expected": "Delta record 000 carries marker XF15A.",
+            "expected_kind": "equals",
+            "id": "narrow-text",
+            "kind": "text"
+          },
+          {
+            "arg": "heading:0",
+            "expected": "Delta Overview",
+            "expected_kind": "equals",
+            "id": "heading-section",
+            "kind": "text"
+          },
+          {
+            "arg": "block:3",
+            "expected": "Delta record 001 carries marker XF15B.",
+            "expected_kind": "equals",
+            "id": "paragraph-context",
+            "kind": "text"
+          },
+          {
+            "arg": "cell:0:600:2",
+            "expected": "d-value599 v5c799d2bf6ffecb04ceafab4",
+            "expected_kind": "equals",
+            "id": "table-cell",
+            "kind": "text"
+          },
+          {
+            "arg": "table:0",
+            "expected": "d-row0000",
+            "expected_kind": "contains",
+            "id": "expand-table",
+            "kind": "text"
+          },
+          {
+            "arg": "resource:0",
+            "expected": "",
+            "expected_kind": "nonempty",
+            "id": "resource",
+            "kind": "metadata"
+          },
+          {
+            "arg": "metadata",
+            "expected": "spine",
+            "expected_kind": "contains",
+            "id": "metadata",
+            "kind": "metadata"
+          },
+          {
+            "arg": "block:2",
+            "expected": "Delta Scope",
+            "expected_kind": "equals",
+            "id": "adjacent-region",
+            "kind": "text"
+          },
+          {
+            "arg": "search:XF15A",
+            "expected": "XF15A",
+            "expected_kind": "contains",
+            "id": "search",
+            "kind": "text"
+          },
+          {
+            "arg": "full-source",
+            "expected": "31655cfa38e50089bfaa3cd19a37fffcb5862e3bc438dc5660aac3401f6daab8",
+            "expected_kind": "sha256",
+            "id": "full-source",
+            "kind": "exact"
+          },
+          {
+            "arg": "resource-bytes:0",
+            "expected": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba",
+            "expected_kind": "sha256",
+            "id": "exact-member",
+            "kind": "exact"
+          },
+          {
+            "arg": "block:0",
+            "expected": "format=epub",
+            "expected_kind": "nonempty",
+            "id": "native-provenance",
+            "kind": "text"
+          }
+        ],
+        "cell_ref": [
+          0,
+          600,
+          2
+        ],
+        "format": "epub",
+        "length": 58599,
+        "markers": [
+          "XF15A",
+          "XF15B",
+          "XF15C"
+        ],
+        "name": "delta.epub",
+        "sha256": "31655cfa38e50089bfaa3cd19a37fffcb5862e3bc438dc5660aac3401f6daab8",
+        "source": "delta.epub",
+        "variant": "delta"
+      }
+    ],
+    "notes": [
+      "Order is frozen before measurement; the court refuses to run without this file.",
+      "Each case is a (document, surface) point named by id; the full schedule for all",
+      "three systems (A0/A1/V) is this same ordered list expanded by the rule above.",
+      "A0 = direct per-query tooling; A1 = one-time preprocessed source-retaining",
+      "SQLite+FTS5; V = the Phase-12 VOLE field. No system may reorder the schedule."
+    ],
+    "ns": [
+      1,
+      10,
+      100,
+      1000
+    ],
+    "passes": 2,
+    "pre_registered": true,
+    "rule": "case(i) = cases[(i-1) mod len(cases)], i = 1..N"
+  },
+  "accounting_universes_adr0027": {
+    "source": "original document bytes (archival reality)",
+    "descriptor_store": "exact .voldoc descriptor + externalized objects (normative reconstruction)",
+    "procedural_field": "seed DAG nodes + hierarchical index bytes (normative for observations)",
+    "derived_cache": "disposable observation caches (never normative)"
+  },
+  "boundary_note": "Per-query bytes are the process read/pread64 total under strace for A0, A1 and V alike (one boundary). VOLE ObserveStats.bytes_read is reported separately in raw/case_bytes.tsv and is never summed with process reads. CPU/peak-RSS are aggregate measurements over the first N queries.",
+  "documents": [
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/alpha.pdf",
+        "len": 905,
+        "sha256": "fae3034c76c49e0f99af687e710147353b25c48bd6cd2acdb557ac9e174ebd07"
+      },
+      "schedule": {
+        "cases": 7,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 2,
+          "cpu_ms": 0
+        },
+        "ingest": {
+          "wall_ms": 1,
+          "cpu_ms": 0,
+          "field": "141a3f60585390ec0f65db4098e0590200c675573704325407491af085c43974"
+        },
+        "one_time": {
+          "wall_ms": 3,
+          "cpu_ms": 0,
+          "process_read_bytes": 19202
+        },
+        "ingest_report": {
+          "format": "pdf",
+          "field": "141a3f60585390ec0f65db4098e0590200c675573704325407491af085c43974",
+          "root_node": "ca996b53a0f5a344ead38db848ff78ab8e431752785c0d0b209199fe1fae39f2",
+          "index_root": "c53ea0bc31afc7dbbb7091012d290b1cc405948db481634d370727e570ddffc9",
+          "node_count": 11,
+          "index_node_count": 1,
+          "source_len": 905,
+          "object_nodes": 6,
+          "stream_nodes": 1,
+          "decoded_stream_nodes": 1,
+          "page_nodes": 1,
+          "revision_nodes": 1,
+          "declined_streams": 0,
+          "resource_blob_nodes": 0,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 724
+        },
+        "store_universe_bytes": {
+          "descriptor": 1446,
+          "seed": 3058,
+          "index": 738,
+          "manifest": 819,
+          "derived_cache": 2419,
+          "total": 8620
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 27,
+          "cpu_ms": 20,
+          "process_read_bytes": 1864353
+        },
+        "db_bytes": 77824,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 77824,
+        "retained_source_bytes": 905,
+        "extraction_metrics": {
+          "db_bytes": 77824,
+          "decompressed_bytes": 210,
+          "external_invocations": 2,
+          "member_decodes": 0,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 0
+        }
+      }
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/alpha.docx",
+        "len": 3458,
+        "sha256": "18a55a0830da155f482a4b3790b3a1f2671474edfa7a5e48a59d8ddccb8a2fd9"
+      },
+      "schedule": {
+        "cases": 12,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 1,
+          "cpu_ms": 0
+        },
+        "ingest": {
+          "wall_ms": 1,
+          "cpu_ms": 0,
+          "field": "a6ef3f0f859fd6891b02485db0bdae388995a76bbef7349bc38219ca32643522"
+        },
+        "one_time": {
+          "wall_ms": 2,
+          "cpu_ms": 0,
+          "process_read_bytes": 23077
+        },
+        "ingest_report": {
+          "format": "docx",
+          "field": "a6ef3f0f859fd6891b02485db0bdae388995a76bbef7349bc38219ca32643522",
+          "root_node": "51efe2cc7a3305cf2aca110958eac3e9e648805d961958b9a4b2ef81e2f95261",
+          "index_root": "625fd0058207228e5165df6cb251dfaec990996fdab6796c8e8eec85230c6e04",
+          "node_count": 18,
+          "index_node_count": 1,
+          "source_len": 3458,
+          "member_count": 7,
+          "raw_nodes": 7,
+          "decoded_nodes": 7,
+          "declined_decodes": 0,
+          "opc_model_nodes": 1,
+          "docx_model_nodes": 1,
+          "epub_model_nodes": 1,
+          "resource_blob_nodes": 1,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 2617,
+          "index_bytes_written": 943
+        },
+        "store_universe_bytes": {
+          "descriptor": 3999,
+          "seed": 5317,
+          "index": 1123,
+          "manifest": 366,
+          "derived_cache": 10420,
+          "total": 21365
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 23,
+          "cpu_ms": 10,
+          "process_read_bytes": 1822632
+        },
+        "db_bytes": 77824,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 77824,
+        "retained_source_bytes": 3458,
+        "extraction_metrics": {
+          "db_bytes": 77824,
+          "decompressed_bytes": 3539,
+          "external_invocations": 0,
+          "member_decodes": 3,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 2507
+        }
+      }
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/alpha.epub",
+        "len": 2858,
+        "sha256": "88f8b9120c8914911abadf30e25ef890faba70bfae28c67bc2ba7dfa2bbc09be"
+      },
+      "schedule": {
+        "cases": 12,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 1,
+          "cpu_ms": 0
+        },
+        "ingest": {
+          "wall_ms": 1,
+          "cpu_ms": 0,
+          "field": "f0f5230793786040b2f8bfcbfd01fbd8e91ddeca8c73d50204864bb334663ea3"
+        },
+        "one_time": {
+          "wall_ms": 2,
+          "cpu_ms": 0,
+          "process_read_bytes": 21767
+        },
+        "ingest_report": {
+          "format": "epub",
+          "field": "f0f5230793786040b2f8bfcbfd01fbd8e91ddeca8c73d50204864bb334663ea3",
+          "root_node": "b9bae18bd29646dbc8e1008d3cd5ba99e04b7543a314743144907875e0d8f19e",
+          "index_root": "d0a8f9bed896b44079d0002194a1e548ac3c90fac693cdda27b839204e38d8a4",
+          "node_count": 16,
+          "index_node_count": 1,
+          "source_len": 2858,
+          "member_count": 6,
+          "raw_nodes": 6,
+          "decoded_nodes": 6,
+          "declined_decodes": 0,
+          "opc_model_nodes": 1,
+          "docx_model_nodes": 1,
+          "epub_model_nodes": 1,
+          "resource_blob_nodes": 1,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 2441,
+          "index_bytes_written": 833
+        },
+        "store_universe_bytes": {
+          "descriptor": 3399,
+          "seed": 4861,
+          "index": 1013,
+          "manifest": 366,
+          "derived_cache": 7939,
+          "total": 17718
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 23,
+          "cpu_ms": 10,
+          "process_read_bytes": 1821289
+        },
+        "db_bytes": 77824,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 77824,
+        "retained_source_bytes": 2858,
+        "extraction_metrics": {
+          "db_bytes": 77824,
+          "decompressed_bytes": 2673,
+          "external_invocations": 0,
+          "member_decodes": 4,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 1641
+        }
+      }
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/bravo.pdf",
+        "len": 957,
+        "sha256": "254aaa986f846e0faaac74ca1765d9c4b4bcdf1273f7d4db909207942d1dbdd6"
+      },
+      "schedule": {
+        "cases": 7,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 3,
+          "cpu_ms": 0
+        },
+        "ingest": {
+          "wall_ms": 1,
+          "cpu_ms": 0,
+          "field": "e2c8be71524c8475849a1fe8e971a5b6e7109cc93f6e43c97e4df210ecff951a"
+        },
+        "one_time": {
+          "wall_ms": 4,
+          "cpu_ms": 0,
+          "process_read_bytes": 19358
+        },
+        "ingest_report": {
+          "format": "pdf",
+          "field": "e2c8be71524c8475849a1fe8e971a5b6e7109cc93f6e43c97e4df210ecff951a",
+          "root_node": "825f91bb8dd0341948a7e332cb40f5ca899b3edb10489d688f69f8e22a6811e6",
+          "index_root": "068adaff35add7e529884f3946cbf41a3c5850af1d3190ac8c7aa4d20c369f66",
+          "node_count": 11,
+          "index_node_count": 1,
+          "source_len": 957,
+          "object_nodes": 6,
+          "stream_nodes": 1,
+          "decoded_stream_nodes": 1,
+          "page_nodes": 1,
+          "revision_nodes": 1,
+          "declined_streams": 0,
+          "resource_blob_nodes": 0,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 724
+        },
+        "store_universe_bytes": {
+          "descriptor": 1498,
+          "seed": 3058,
+          "index": 738,
+          "manifest": 819,
+          "derived_cache": 3475,
+          "total": 9728
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 27,
+          "cpu_ms": 20,
+          "process_read_bytes": 1864869
+        },
+        "db_bytes": 77824,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 77824,
+        "retained_source_bytes": 957,
+        "extraction_metrics": {
+          "db_bytes": 77824,
+          "decompressed_bytes": 314,
+          "external_invocations": 2,
+          "member_decodes": 0,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 0
+        }
+      }
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/bravo.docx",
+        "len": 3636,
+        "sha256": "3d075838be55d6d4db8465171337423fda2503239c59e7ad92e88f83d69f8ab6"
+      },
+      "schedule": {
+        "cases": 12,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 1,
+          "cpu_ms": 0
+        },
+        "ingest": {
+          "wall_ms": 1,
+          "cpu_ms": 0,
+          "field": "f8d9f2b9dc4ca2656c13d57b56b20da55c981c28c4d3452ec9dd72bdf3bd5323"
+        },
+        "one_time": {
+          "wall_ms": 2,
+          "cpu_ms": 0,
+          "process_read_bytes": 23433
+        },
+        "ingest_report": {
+          "format": "docx",
+          "field": "f8d9f2b9dc4ca2656c13d57b56b20da55c981c28c4d3452ec9dd72bdf3bd5323",
+          "root_node": "215c6d16bfa8a28b18d872737927640afe677b656cb797dc445406e8e4a2ce45",
+          "index_root": "d08dc816fe146833d480f30e0968ca2505d05cc18f0eb17b1e12c243c927e7bd",
+          "node_count": 18,
+          "index_node_count": 1,
+          "source_len": 3636,
+          "member_count": 7,
+          "raw_nodes": 7,
+          "decoded_nodes": 7,
+          "declined_decodes": 0,
+          "opc_model_nodes": 1,
+          "docx_model_nodes": 1,
+          "epub_model_nodes": 1,
+          "resource_blob_nodes": 1,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 2617,
+          "index_bytes_written": 943
+        },
+        "store_universe_bytes": {
+          "descriptor": 4177,
+          "seed": 5317,
+          "index": 1123,
+          "manifest": 366,
+          "derived_cache": 14348,
+          "total": 25471
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 23,
+          "cpu_ms": 10,
+          "process_read_bytes": 1823166
+        },
+        "db_bytes": 77824,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 77824,
+        "retained_source_bytes": 3636,
+        "extraction_metrics": {
+          "db_bytes": 77824,
+          "decompressed_bytes": 5776,
+          "external_invocations": 0,
+          "member_decodes": 3,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 4744
+        }
+      }
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/bravo.epub",
+        "len": 3012,
+        "sha256": "aa38ebba1ac58837d6e63c3609eff379bf9dc28b2e79b72e7d773dc84912c8f5"
+      },
+      "schedule": {
+        "cases": 12,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 1,
+          "cpu_ms": 0
+        },
+        "ingest": {
+          "wall_ms": 1,
+          "cpu_ms": 0,
+          "field": "93e862222567ec54cca3c38bf730a9a0a96306b89917ed1e7b1ede7cbe2c1e23"
+        },
+        "one_time": {
+          "wall_ms": 2,
+          "cpu_ms": 0,
+          "process_read_bytes": 22075
+        },
+        "ingest_report": {
+          "format": "epub",
+          "field": "93e862222567ec54cca3c38bf730a9a0a96306b89917ed1e7b1ede7cbe2c1e23",
+          "root_node": "ca4fa092cbdec575e4d38e4f9cbdbb3aae2cfdc5d24f4450fcc8aacf41b26253",
+          "index_root": "8f9bb4380ab1cba1c5c4f0a949faaede944f78b4ad5242f3ad43a66462d9f6b5",
+          "node_count": 16,
+          "index_node_count": 1,
+          "source_len": 3012,
+          "member_count": 6,
+          "raw_nodes": 6,
+          "decoded_nodes": 6,
+          "declined_decodes": 0,
+          "opc_model_nodes": 1,
+          "docx_model_nodes": 1,
+          "epub_model_nodes": 1,
+          "resource_blob_nodes": 1,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 2441,
+          "index_bytes_written": 833
+        },
+        "store_universe_bytes": {
+          "descriptor": 3553,
+          "seed": 4861,
+          "index": 1013,
+          "manifest": 366,
+          "derived_cache": 9730,
+          "total": 19663
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 23,
+          "cpu_ms": 10,
+          "process_read_bytes": 1821751
+        },
+        "db_bytes": 77824,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 77824,
+        "retained_source_bytes": 3012,
+        "extraction_metrics": {
+          "db_bytes": 77824,
+          "decompressed_bytes": 3396,
+          "external_invocations": 0,
+          "member_decodes": 4,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 2364
+        }
+      }
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/charlie.pdf",
+        "len": 841,
+        "sha256": "2f714753bd7f85ac7c104abc71e401865aef7166fba25f65ce1dbb99ab0bdde6"
+      },
+      "schedule": {
+        "cases": 7,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 3,
+          "cpu_ms": 0
+        },
+        "ingest": {
+          "wall_ms": 1,
+          "cpu_ms": 0,
+          "field": "9d7b36e96fc427798b5a044c91d24e1d064d5be2e21d04414b954dca51d678f8"
+        },
+        "one_time": {
+          "wall_ms": 4,
+          "cpu_ms": 0,
+          "process_read_bytes": 19010
+        },
+        "ingest_report": {
+          "format": "pdf",
+          "field": "9d7b36e96fc427798b5a044c91d24e1d064d5be2e21d04414b954dca51d678f8",
+          "root_node": "01c556b4906cbe0bb3434f4864e2ee0b599c658838bda300ff3d7b73bf943b20",
+          "index_root": "f31f84238dacea219ab9b6cd6061cd6c5607d72264bae021fd842b797bd80351",
+          "node_count": 11,
+          "index_node_count": 1,
+          "source_len": 841,
+          "object_nodes": 6,
+          "stream_nodes": 1,
+          "decoded_stream_nodes": 1,
+          "page_nodes": 1,
+          "revision_nodes": 1,
+          "declined_streams": 0,
+          "resource_blob_nodes": 0,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 724
+        },
+        "store_universe_bytes": {
+          "descriptor": 1382,
+          "seed": 2998,
+          "index": 738,
+          "manifest": 819,
+          "derived_cache": 1692,
+          "total": 7769
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 28,
+          "cpu_ms": 20,
+          "process_read_bytes": 1863738
+        },
+        "db_bytes": 77824,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 77824,
+        "retained_source_bytes": 841,
+        "extraction_metrics": {
+          "db_bytes": 77824,
+          "decompressed_bytes": 107,
+          "external_invocations": 2,
+          "member_decodes": 0,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 0
+        }
+      }
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/charlie.docx",
+        "len": 3282,
+        "sha256": "4e4601a9f01a4fb14e9b8ede3340be9617110ec7f173e06b36e64b74dad2de21"
+      },
+      "schedule": {
+        "cases": 12,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 1,
+          "cpu_ms": 0
+        },
+        "ingest": {
+          "wall_ms": 1,
+          "cpu_ms": 0,
+          "field": "564d6e59603129fef828264e58cf44d66f80bf6162b30ec9e0951dc80bde76c5"
+        },
+        "one_time": {
+          "wall_ms": 2,
+          "cpu_ms": 0,
+          "process_read_bytes": 22725
+        },
+        "ingest_report": {
+          "format": "docx",
+          "field": "564d6e59603129fef828264e58cf44d66f80bf6162b30ec9e0951dc80bde76c5",
+          "root_node": "e3d942dc4b1794e49e2880ed1f336c68141693436de192512b95d73518ae3768",
+          "index_root": "2892868b6db2e0c0eedc1a79d7320ab8ecabbd9fd8852331dec4e4c1c05524ac",
+          "node_count": 18,
+          "index_node_count": 1,
+          "source_len": 3282,
+          "member_count": 7,
+          "raw_nodes": 7,
+          "decoded_nodes": 7,
+          "declined_decodes": 0,
+          "opc_model_nodes": 1,
+          "docx_model_nodes": 1,
+          "epub_model_nodes": 1,
+          "resource_blob_nodes": 1,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 2617,
+          "index_bytes_written": 943
+        },
+        "store_universe_bytes": {
+          "descriptor": 3823,
+          "seed": 5317,
+          "index": 1123,
+          "manifest": 366,
+          "derived_cache": 8493,
+          "total": 19262
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 24,
+          "cpu_ms": 10,
+          "process_read_bytes": 1822104
+        },
+        "db_bytes": 77824,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 77824,
+        "retained_source_bytes": 3282,
+        "extraction_metrics": {
+          "db_bytes": 77824,
+          "decompressed_bytes": 2660,
+          "external_invocations": 0,
+          "member_decodes": 3,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 1628
+        }
+      }
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/charlie.epub",
+        "len": 2723,
+        "sha256": "337024cd1a5c5728d7bfea8ae63ba892265d0b10e487e19de6f7c7ef9b8ff667"
+      },
+      "schedule": {
+        "cases": 12,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 1,
+          "cpu_ms": 0
+        },
+        "ingest": {
+          "wall_ms": 1,
+          "cpu_ms": 0,
+          "field": "e18e215c2d5ce4671a088dfb270d457d719959c2912ac2495a57bdcc1db96c63"
+        },
+        "one_time": {
+          "wall_ms": 2,
+          "cpu_ms": 0,
+          "process_read_bytes": 21497
+        },
+        "ingest_report": {
+          "format": "epub",
+          "field": "e18e215c2d5ce4671a088dfb270d457d719959c2912ac2495a57bdcc1db96c63",
+          "root_node": "1045bd4edf8df724c839c4e493c94182d478281c8ac815824ff0556c6846e0d2",
+          "index_root": "530e6539324be02826acaf2ef3497d8786375632c7c7327bb2cd4e5cb0f0e98d",
+          "node_count": 16,
+          "index_node_count": 1,
+          "source_len": 2723,
+          "member_count": 6,
+          "raw_nodes": 6,
+          "decoded_nodes": 6,
+          "declined_decodes": 0,
+          "opc_model_nodes": 1,
+          "docx_model_nodes": 1,
+          "epub_model_nodes": 1,
+          "resource_blob_nodes": 1,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 2441,
+          "index_bytes_written": 833
+        },
+        "store_universe_bytes": {
+          "descriptor": 3264,
+          "seed": 4801,
+          "index": 1013,
+          "manifest": 366,
+          "derived_cache": 7011,
+          "total": 16595
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 23,
+          "cpu_ms": 10,
+          "process_read_bytes": 1820884
+        },
+        "db_bytes": 77824,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 77824,
+        "retained_source_bytes": 2723,
+        "extraction_metrics": {
+          "db_bytes": 77824,
+          "decompressed_bytes": 2348,
+          "external_invocations": 0,
+          "member_decodes": 4,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 1316
+        }
+      }
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/delta.pdf",
+        "len": 29231,
+        "sha256": "e8d34a0a21e388ed7006a544b6354f08d2caf87e6cd779247340781ed606ebde"
+      },
+      "schedule": {
+        "cases": 7,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 21,
+          "cpu_ms": 10
+        },
+        "ingest": {
+          "wall_ms": 2,
+          "cpu_ms": 0,
+          "field": "e5535acf15d717e05363f43f85e57b70e19cb670dd290fe6e06f02a3944d546d"
+        },
+        "one_time": {
+          "wall_ms": 23,
+          "cpu_ms": 10,
+          "process_read_bytes": 104180
+        },
+        "ingest_report": {
+          "format": "pdf",
+          "field": "e5535acf15d717e05363f43f85e57b70e19cb670dd290fe6e06f02a3944d546d",
+          "root_node": "c11fd1ffda4d417404bb5bb9042b0cdfc9f3d2d1f235b12ca4725ee5c5615cf9",
+          "index_root": "bbd9b1d099f0fde4f7194ab9e6fa62ba07c9193a04e7d8d0cee370e0ec2ca8fa",
+          "node_count": 11,
+          "index_node_count": 1,
+          "source_len": 29231,
+          "object_nodes": 6,
+          "stream_nodes": 1,
+          "decoded_stream_nodes": 1,
+          "page_nodes": 1,
+          "revision_nodes": 1,
+          "declined_streams": 0,
+          "resource_blob_nodes": 0,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 724
+        },
+        "store_universe_bytes": {
+          "descriptor": 29772,
+          "seed": 3058,
+          "index": 738,
+          "manifest": 819,
+          "derived_cache": 427449,
+          "total": 461976
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 65,
+          "cpu_ms": 50,
+          "process_read_bytes": 2144337
+        },
+        "db_bytes": 221184,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 221184,
+        "retained_source_bytes": 29231,
+        "extraction_metrics": {
+          "db_bytes": 221184,
+          "decompressed_bytes": 51724,
+          "external_invocations": 2,
+          "member_decodes": 0,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 0
+        }
+      }
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/delta.docx",
+        "len": 61232,
+        "sha256": "5a6fe261d8a15f6fa733db642e346f9a54aa2240fbecfeafdc9773b4a937a4ed"
+      },
+      "schedule": {
+        "cases": 12,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 3,
+          "cpu_ms": 0
+        },
+        "ingest": {
+          "wall_ms": 1,
+          "cpu_ms": 0,
+          "field": "a01cc54c533f68e337fdffe68bee4c836b769f433172cc91c7bab226f4a46b65"
+        },
+        "one_time": {
+          "wall_ms": 4,
+          "cpu_ms": 0,
+          "process_read_bytes": 138625
+        },
+        "ingest_report": {
+          "format": "docx",
+          "field": "a01cc54c533f68e337fdffe68bee4c836b769f433172cc91c7bab226f4a46b65",
+          "root_node": "b0aaa624a9535608985277006886514e494ab05e37844a8dc0323e4a1cfb97c9",
+          "index_root": "fbf54c68d9ba91e9c8078c31c5f685c5a9ea4aa5c7ae07e28646c20403e451ba",
+          "node_count": 18,
+          "index_node_count": 1,
+          "source_len": 61232,
+          "member_count": 7,
+          "raw_nodes": 7,
+          "decoded_nodes": 7,
+          "declined_decodes": 0,
+          "opc_model_nodes": 1,
+          "docx_model_nodes": 1,
+          "epub_model_nodes": 1,
+          "resource_blob_nodes": 1,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 2617,
+          "index_bytes_written": 943
+        },
+        "store_universe_bytes": {
+          "descriptor": 61773,
+          "seed": 5317,
+          "index": 1123,
+          "manifest": 366,
+          "derived_cache": 833050,
+          "total": 901769
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 39,
+          "cpu_ms": 30,
+          "process_read_bytes": 2741426
+        },
+        "db_bytes": 823296,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 823296,
+        "retained_source_bytes": 61232,
+        "extraction_metrics": {
+          "db_bytes": 823296,
+          "decompressed_bytes": 394746,
+          "external_invocations": 0,
+          "member_decodes": 3,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 393714
+        }
+      }
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "source": {
+        "path": "evidence/scratch/phase12-lifetime-corpus/delta.epub",
+        "len": 58599,
+        "sha256": "31655cfa38e50089bfaa3cd19a37fffcb5862e3bc438dc5660aac3401f6daab8"
+      },
+      "schedule": {
+        "cases": 12,
+        "ns": [
+          1,
+          10,
+          100,
+          1000
+        ],
+        "passes": 2
+      },
+      "vole": {
+        "encode": {
+          "wall_ms": 3,
+          "cpu_ms": 0
+        },
+        "ingest": {
+          "wall_ms": 2,
+          "cpu_ms": 0,
+          "field": "ae2edcd7d9dd9928bea142e135ab6f4230b0aa2f2f8c7d37c0c84e98630a07ac"
+        },
+        "one_time": {
+          "wall_ms": 5,
+          "cpu_ms": 0,
+          "process_read_bytes": 133249
+        },
+        "ingest_report": {
+          "format": "epub",
+          "field": "ae2edcd7d9dd9928bea142e135ab6f4230b0aa2f2f8c7d37c0c84e98630a07ac",
+          "root_node": "1774fceb31e831b707d033c2f7b6961c85ac5892e1dcf97faa8cd19657a372f9",
+          "index_root": "4cbe132a83a574d5e4c4dccf984afce28ea589759dbdbc5e83289e7907a449f2",
+          "node_count": 16,
+          "index_node_count": 1,
+          "source_len": 58599,
+          "member_count": 6,
+          "raw_nodes": 6,
+          "decoded_nodes": 6,
+          "declined_decodes": 0,
+          "opc_model_nodes": 1,
+          "docx_model_nodes": 1,
+          "epub_model_nodes": 1,
+          "resource_blob_nodes": 1,
+          "shared_resource_ids": 0,
+          "shared_resource_bytes": 0,
+          "nodes_id_shared": 0,
+          "seed_bytes_written": 2441,
+          "index_bytes_written": 833
+        },
+        "store_universe_bytes": {
+          "descriptor": 59140,
+          "seed": 4861,
+          "index": 1013,
+          "manifest": 366,
+          "derived_cache": 533904,
+          "total": 599424
+        }
+      },
+      "a0": {
+        "one_time": {
+          "wall_ms": 0,
+          "cpu_ms": 0,
+          "process_read_bytes": 0
+        }
+      },
+      "a1": {
+        "preprocessing": {
+          "wall_ms": 36,
+          "cpu_ms": 30,
+          "process_read_bytes": 2729888
+        },
+        "db_bytes": 819200,
+        "wal_bytes": 0,
+        "shm_bytes": 0,
+        "persistent_bytes": 819200,
+        "retained_source_bytes": 58599,
+        "extraction_metrics": {
+          "db_bytes": 819200,
+          "decompressed_bytes": 207999,
+          "external_invocations": 0,
+          "member_decodes": 4,
+          "source_reparses": 1,
+          "xml_bytes_parsed": 206967
+        }
+      }
+    }
+  ],
+  "cumulative": [
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 3.038,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 6244,
+      "cumulative_process_read_bytes": 31373,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 17.131,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 6284,
+      "cumulative_process_read_bytes": 235636,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 141.755,
+      "cumulative_cpu_ms": 150,
+      "peak_rss_kb": 6280,
+      "cumulative_process_read_bytes": 2033935,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1415.056,
+      "cumulative_cpu_ms": 1630,
+      "peak_rss_kb": 6368,
+      "cumulative_process_read_bytes": 20126392,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 2.343,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 6076,
+      "cumulative_process_read_bytes": 31373,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 17.314,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 6216,
+      "cumulative_process_read_bytes": 235636,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 144.578,
+      "cumulative_cpu_ms": 160,
+      "peak_rss_kb": 6288,
+      "cumulative_process_read_bytes": 2033935,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1423.352,
+      "cumulative_cpu_ms": 1640,
+      "peak_rss_kb": 6368,
+      "cumulative_process_read_bytes": 20126392,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 28.299,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 2920,
+      "cumulative_process_read_bytes": 1892826,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864353
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 36.441,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3004,
+      "cumulative_process_read_bytes": 2120610,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864353
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 118.53,
+      "cumulative_cpu_ms": 120,
+      "peak_rss_kb": 3148,
+      "cumulative_process_read_bytes": 4313031,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864353
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 925.288,
+      "cumulative_cpu_ms": 1080,
+      "peak_rss_kb": 3176,
+      "cumulative_process_read_bytes": 26294187,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864353
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 28.114,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 2916,
+      "cumulative_process_read_bytes": 1892826,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864353
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 36.439,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3016,
+      "cumulative_process_read_bytes": 2120610,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864353
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 120.213,
+      "cumulative_cpu_ms": 120,
+      "peak_rss_kb": 3104,
+      "cumulative_process_read_bytes": 4313031,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864353
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 935.523,
+      "cumulative_cpu_ms": 1100,
+      "peak_rss_kb": 3152,
+      "cumulative_process_read_bytes": 26294187,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864353
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 3.995,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4116,
+      "cumulative_process_read_bytes": 27685,
+      "one_time_wall_ms": 3,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19202
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 10.537,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4320,
+      "cumulative_process_read_bytes": 107385,
+      "one_time_wall_ms": 3,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19202
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 74.083,
+      "cumulative_cpu_ms": 80,
+      "peak_rss_kb": 4460,
+      "cumulative_process_read_bytes": 907138,
+      "one_time_wall_ms": 3,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19202
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 708.541,
+      "cumulative_cpu_ms": 880,
+      "peak_rss_kb": 4544,
+      "cumulative_process_read_bytes": 8901315,
+      "one_time_wall_ms": 3,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19202
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 3.808,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 3892,
+      "cumulative_process_read_bytes": 27685,
+      "one_time_wall_ms": 3,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19202
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 10.07,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4408,
+      "cumulative_process_read_bytes": 107385,
+      "one_time_wall_ms": 3,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19202
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 71.249,
+      "cumulative_cpu_ms": 70,
+      "peak_rss_kb": 4476,
+      "cumulative_process_read_bytes": 907138,
+      "one_time_wall_ms": 3,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19202
+    },
+    {
+      "name": "alpha.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 704.881,
+      "cumulative_cpu_ms": 870,
+      "peak_rss_kb": 4516,
+      "cumulative_process_read_bytes": 8901315,
+      "one_time_wall_ms": 3,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19202
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 20.598,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 15192,
+      "cumulative_process_read_bytes": 1627234,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 178.568,
+      "cumulative_cpu_ms": 180,
+      "peak_rss_kb": 15360,
+      "cumulative_process_read_bytes": 14650964,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 1655.539,
+      "cumulative_cpu_ms": 1660,
+      "peak_rss_kb": 15340,
+      "cumulative_process_read_bytes": 136751248,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 16423.697,
+      "cumulative_cpu_ms": 16570,
+      "peak_rss_kb": 15376,
+      "cumulative_process_read_bytes": 1357772923,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 20.216,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 15020,
+      "cumulative_process_read_bytes": 1627234,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 178.343,
+      "cumulative_cpu_ms": 170,
+      "peak_rss_kb": 15292,
+      "cumulative_process_read_bytes": 14650964,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 1680.34,
+      "cumulative_cpu_ms": 1680,
+      "peak_rss_kb": 15332,
+      "cumulative_process_read_bytes": 136751248,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 16724.192,
+      "cumulative_cpu_ms": 16750,
+      "peak_rss_kb": 15364,
+      "cumulative_process_read_bytes": 1357772923,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 24.464,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2928,
+      "cumulative_process_read_bytes": 1851105,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822632
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 35.294,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3064,
+      "cumulative_process_read_bytes": 2119650,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822632
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 133.693,
+      "cumulative_cpu_ms": 130,
+      "peak_rss_kb": 3156,
+      "cumulative_process_read_bytes": 4585508,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822632
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1122.441,
+      "cumulative_cpu_ms": 1320,
+      "peak_rss_kb": 3176,
+      "cumulative_process_read_bytes": 29304533,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822632
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 24.106,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2924,
+      "cumulative_process_read_bytes": 1851105,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822632
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 35.433,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 3104,
+      "cumulative_process_read_bytes": 2119650,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822632
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 134.102,
+      "cumulative_cpu_ms": 130,
+      "peak_rss_kb": 3160,
+      "cumulative_process_read_bytes": 4585508,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822632
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1088.93,
+      "cumulative_cpu_ms": 1270,
+      "peak_rss_kb": 3172,
+      "cumulative_process_read_bytes": 29304533,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822632
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 2.99,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4336,
+      "cumulative_process_read_bytes": 39938,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23077
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 10.108,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4476,
+      "cumulative_process_read_bytes": 186453,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23077
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 78.867,
+      "cumulative_cpu_ms": 80,
+      "peak_rss_kb": 4532,
+      "cumulative_process_read_bytes": 1532417,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23077
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 742.009,
+      "cumulative_cpu_ms": 910,
+      "peak_rss_kb": 4544,
+      "cumulative_process_read_bytes": 15050192,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23077
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 2.906,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4344,
+      "cumulative_process_read_bytes": 39938,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23077
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 9.927,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4444,
+      "cumulative_process_read_bytes": 186453,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23077
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 81.822,
+      "cumulative_cpu_ms": 90,
+      "peak_rss_kb": 4500,
+      "cumulative_process_read_bytes": 1532417,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23077
+    },
+    {
+      "name": "alpha.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 771.346,
+      "cumulative_cpu_ms": 950,
+      "peak_rss_kb": 4544,
+      "cumulative_process_read_bytes": 15050192,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23077
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 20.887,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 14976,
+      "cumulative_process_read_bytes": 1626491,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 188.468,
+      "cumulative_cpu_ms": 170,
+      "peak_rss_kb": 15280,
+      "cumulative_process_read_bytes": 14643677,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 1684.773,
+      "cumulative_cpu_ms": 1690,
+      "peak_rss_kb": 15332,
+      "cumulative_process_read_bytes": 123655380,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 16905.447,
+      "cumulative_cpu_ms": 16970,
+      "peak_rss_kb": 15372,
+      "cumulative_process_read_bytes": 1221931155,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 21.183,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 15216,
+      "cumulative_process_read_bytes": 1626491,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 182.831,
+      "cumulative_cpu_ms": 170,
+      "peak_rss_kb": 15244,
+      "cumulative_process_read_bytes": 14643677,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 1691.935,
+      "cumulative_cpu_ms": 1690,
+      "peak_rss_kb": 15292,
+      "cumulative_process_read_bytes": 123655380,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 17092.146,
+      "cumulative_cpu_ms": 17070,
+      "peak_rss_kb": 15380,
+      "cumulative_process_read_bytes": 1221931155,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 24.378,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2960,
+      "cumulative_process_read_bytes": 1849762,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821289
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 35.127,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3084,
+      "cumulative_process_read_bytes": 2118307,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821289
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 131.7,
+      "cumulative_cpu_ms": 130,
+      "peak_rss_kb": 3152,
+      "cumulative_process_read_bytes": 4584165,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821289
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1087.265,
+      "cumulative_cpu_ms": 1270,
+      "peak_rss_kb": 3156,
+      "cumulative_process_read_bytes": 29303190,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821289
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 24.074,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2904,
+      "cumulative_process_read_bytes": 1849762,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821289
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 33.871,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3060,
+      "cumulative_process_read_bytes": 2118307,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821289
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 125.966,
+      "cumulative_cpu_ms": 130,
+      "peak_rss_kb": 3160,
+      "cumulative_process_read_bytes": 4584165,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821289
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1043.912,
+      "cumulative_cpu_ms": 1210,
+      "peak_rss_kb": 3172,
+      "cumulative_process_read_bytes": 29303190,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821289
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 3.061,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4272,
+      "cumulative_process_read_bytes": 38372,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21767
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 10.014,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4476,
+      "cumulative_process_read_bytes": 174285,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21767
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 79.826,
+      "cumulative_cpu_ms": 80,
+      "peak_rss_kb": 4568,
+      "cumulative_process_read_bytes": 1558219,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21767
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 759.853,
+      "cumulative_cpu_ms": 930,
+      "peak_rss_kb": 4592,
+      "cumulative_process_read_bytes": 15339769,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21767
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 2.819,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4136,
+      "cumulative_process_read_bytes": 38372,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21767
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 9.774,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4592,
+      "cumulative_process_read_bytes": 174285,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21767
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 78.771,
+      "cumulative_cpu_ms": 80,
+      "peak_rss_kb": 4576,
+      "cumulative_process_read_bytes": 1558219,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21767
+    },
+    {
+      "name": "alpha.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 771.143,
+      "cumulative_cpu_ms": 940,
+      "peak_rss_kb": 4592,
+      "cumulative_process_read_bytes": 15339769,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21767
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 3.093,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 6264,
+      "cumulative_process_read_bytes": 31519,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 17.369,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 6404,
+      "cumulative_process_read_bytes": 236834,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 149.216,
+      "cumulative_cpu_ms": 170,
+      "peak_rss_kb": 6380,
+      "cumulative_process_read_bytes": 2044737,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1421.492,
+      "cumulative_cpu_ms": 1630,
+      "peak_rss_kb": 6488,
+      "cumulative_process_read_bytes": 20233642,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 2.25,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 6328,
+      "cumulative_process_read_bytes": 31519,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 16.557,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 6260,
+      "cumulative_process_read_bytes": 236834,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 143.971,
+      "cumulative_cpu_ms": 160,
+      "peak_rss_kb": 6404,
+      "cumulative_process_read_bytes": 2044737,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1426.865,
+      "cumulative_cpu_ms": 1640,
+      "peak_rss_kb": 6460,
+      "cumulative_process_read_bytes": 20233642,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 28.353,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 2936,
+      "cumulative_process_read_bytes": 1893342,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864869
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 36.937,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3012,
+      "cumulative_process_read_bytes": 2121126,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864869
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 119.731,
+      "cumulative_cpu_ms": 120,
+      "peak_rss_kb": 3152,
+      "cumulative_process_read_bytes": 4313547,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864869
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 935.421,
+      "cumulative_cpu_ms": 1100,
+      "peak_rss_kb": 3176,
+      "cumulative_process_read_bytes": 26294703,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864869
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 28.089,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3012,
+      "cumulative_process_read_bytes": 1893342,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864869
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 36.506,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3088,
+      "cumulative_process_read_bytes": 2121126,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864869
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 115.296,
+      "cumulative_cpu_ms": 110,
+      "peak_rss_kb": 3144,
+      "cumulative_process_read_bytes": 4313547,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864869
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 933.793,
+      "cumulative_cpu_ms": 1100,
+      "peak_rss_kb": 3172,
+      "cumulative_process_read_bytes": 26294703,
+      "one_time_wall_ms": 27,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1864869
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 4.966,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 3976,
+      "cumulative_process_read_bytes": 27972,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19358
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 11.513,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4404,
+      "cumulative_process_read_bytes": 108535,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19358
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 76.817,
+      "cumulative_cpu_ms": 80,
+      "peak_rss_kb": 4476,
+      "cumulative_process_read_bytes": 916997,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19358
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 721.616,
+      "cumulative_cpu_ms": 900,
+      "peak_rss_kb": 4484,
+      "cumulative_process_read_bytes": 8998580,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19358
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 4.815,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4084,
+      "cumulative_process_read_bytes": 27972,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19358
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 11.174,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4388,
+      "cumulative_process_read_bytes": 108535,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19358
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 75.286,
+      "cumulative_cpu_ms": 80,
+      "peak_rss_kb": 4484,
+      "cumulative_process_read_bytes": 916997,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19358
+    },
+    {
+      "name": "bravo.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 711.287,
+      "cumulative_cpu_ms": 890,
+      "peak_rss_kb": 4532,
+      "cumulative_process_read_bytes": 8998580,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19358
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 20.446,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 14924,
+      "cumulative_process_read_bytes": 1627590,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 177.871,
+      "cumulative_cpu_ms": 170,
+      "peak_rss_kb": 15312,
+      "cumulative_process_read_bytes": 14654346,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 1659.564,
+      "cumulative_cpu_ms": 1660,
+      "peak_rss_kb": 15356,
+      "cumulative_process_read_bytes": 136782576,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 16465.788,
+      "cumulative_cpu_ms": 16630,
+      "peak_rss_kb": 15420,
+      "cumulative_process_read_bytes": 1358084601,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 19.535,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 15292,
+      "cumulative_process_read_bytes": 1627590,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 176.491,
+      "cumulative_cpu_ms": 170,
+      "peak_rss_kb": 15344,
+      "cumulative_process_read_bytes": 14654346,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 1671.116,
+      "cumulative_cpu_ms": 1680,
+      "peak_rss_kb": 15344,
+      "cumulative_process_read_bytes": 136782576,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 17283.126,
+      "cumulative_cpu_ms": 17390,
+      "peak_rss_kb": 15364,
+      "cumulative_process_read_bytes": 1358084601,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 24.59,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2912,
+      "cumulative_process_read_bytes": 1851639,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1823166
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 35.207,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3128,
+      "cumulative_process_read_bytes": 2120184,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1823166
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 133.645,
+      "cumulative_cpu_ms": 130,
+      "peak_rss_kb": 3160,
+      "cumulative_process_read_bytes": 4586042,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1823166
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1099.952,
+      "cumulative_cpu_ms": 1290,
+      "peak_rss_kb": 3160,
+      "cumulative_process_read_bytes": 29305067,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1823166
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 24.179,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2924,
+      "cumulative_process_read_bytes": 1851639,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1823166
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 34.466,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 2940,
+      "cumulative_process_read_bytes": 2120184,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1823166
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 134.115,
+      "cumulative_cpu_ms": 130,
+      "peak_rss_kb": 3144,
+      "cumulative_process_read_bytes": 4586042,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1823166
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1099.613,
+      "cumulative_cpu_ms": 1290,
+      "peak_rss_kb": 3172,
+      "cumulative_process_read_bytes": 29305067,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1823166
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 3.075,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4484,
+      "cumulative_process_read_bytes": 41563,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23433
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 10.481,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4480,
+      "cumulative_process_read_bytes": 198408,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23433
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 79.678,
+      "cumulative_cpu_ms": 90,
+      "peak_rss_kb": 4544,
+      "cumulative_process_read_bytes": 1640793,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23433
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 794.693,
+      "cumulative_cpu_ms": 970,
+      "peak_rss_kb": 4544,
+      "cumulative_process_read_bytes": 16123668,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23433
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 2.868,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4128,
+      "cumulative_process_read_bytes": 41563,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23433
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 9.801,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4460,
+      "cumulative_process_read_bytes": 198408,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23433
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 79.93,
+      "cumulative_cpu_ms": 90,
+      "peak_rss_kb": 4544,
+      "cumulative_process_read_bytes": 1640793,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23433
+    },
+    {
+      "name": "bravo.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 777.446,
+      "cumulative_cpu_ms": 960,
+      "peak_rss_kb": 4544,
+      "cumulative_process_read_bytes": 16123668,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 23433
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 21.619,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 15104,
+      "cumulative_process_read_bytes": 1626799,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 185.254,
+      "cumulative_cpu_ms": 180,
+      "peak_rss_kb": 15276,
+      "cumulative_process_read_bytes": 14646603,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 1712.479,
+      "cumulative_cpu_ms": 1720,
+      "peak_rss_kb": 15340,
+      "cumulative_process_read_bytes": 123680020,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 17088.858,
+      "cumulative_cpu_ms": 17240,
+      "peak_rss_kb": 15372,
+      "cumulative_process_read_bytes": 1222175245,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 21.69,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 14788,
+      "cumulative_process_read_bytes": 1626799,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 186.317,
+      "cumulative_cpu_ms": 170,
+      "peak_rss_kb": 15292,
+      "cumulative_process_read_bytes": 14646603,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 1725.504,
+      "cumulative_cpu_ms": 1730,
+      "peak_rss_kb": 15324,
+      "cumulative_process_read_bytes": 123680020,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 17068.658,
+      "cumulative_cpu_ms": 17220,
+      "peak_rss_kb": 15372,
+      "cumulative_process_read_bytes": 1222175245,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 24.305,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2940,
+      "cumulative_process_read_bytes": 1850224,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821751
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 34.542,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 3008,
+      "cumulative_process_read_bytes": 2118769,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821751
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 125.595,
+      "cumulative_cpu_ms": 130,
+      "peak_rss_kb": 3132,
+      "cumulative_process_read_bytes": 4584627,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821751
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1032.978,
+      "cumulative_cpu_ms": 1200,
+      "peak_rss_kb": 3164,
+      "cumulative_process_read_bytes": 29303652,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821751
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 24.129,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2920,
+      "cumulative_process_read_bytes": 1850224,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821751
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 33.881,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3164,
+      "cumulative_process_read_bytes": 2118769,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821751
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 127.337,
+      "cumulative_cpu_ms": 130,
+      "peak_rss_kb": 3140,
+      "cumulative_process_read_bytes": 4584627,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821751
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1049.985,
+      "cumulative_cpu_ms": 1220,
+      "peak_rss_kb": 3172,
+      "cumulative_process_read_bytes": 29303652,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1821751
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 3.029,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4268,
+      "cumulative_process_read_bytes": 39622,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22075
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 10.143,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4556,
+      "cumulative_process_read_bytes": 181655,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22075
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 78.035,
+      "cumulative_cpu_ms": 80,
+      "peak_rss_kb": 4572,
+      "cumulative_process_read_bytes": 1627583,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22075
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 757.662,
+      "cumulative_cpu_ms": 920,
+      "peak_rss_kb": 4592,
+      "cumulative_process_read_bytes": 16021208,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22075
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 2.896,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4008,
+      "cumulative_process_read_bytes": 39622,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22075
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 9.543,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4388,
+      "cumulative_process_read_bytes": 181655,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22075
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 80.132,
+      "cumulative_cpu_ms": 90,
+      "peak_rss_kb": 4592,
+      "cumulative_process_read_bytes": 1627583,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22075
+    },
+    {
+      "name": "bravo.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 775.269,
+      "cumulative_cpu_ms": 950,
+      "peak_rss_kb": 4592,
+      "cumulative_process_read_bytes": 16021208,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22075
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 3.204,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 6188,
+      "cumulative_process_read_bytes": 31173,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 17.787,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 6276,
+      "cumulative_process_read_bytes": 234085,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 147.385,
+      "cumulative_cpu_ms": 160,
+      "peak_rss_kb": 6276,
+      "cumulative_process_read_bytes": 2020117,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1511.237,
+      "cumulative_cpu_ms": 1750,
+      "peak_rss_kb": 6304,
+      "cumulative_process_read_bytes": 19989255,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 2.573,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 6088,
+      "cumulative_process_read_bytes": 31173,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 19.132,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 6276,
+      "cumulative_process_read_bytes": 234085,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 148.202,
+      "cumulative_cpu_ms": 160,
+      "peak_rss_kb": 6276,
+      "cumulative_process_read_bytes": 2020117,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1456.414,
+      "cumulative_cpu_ms": 1680,
+      "peak_rss_kb": 6300,
+      "cumulative_process_read_bytes": 19989255,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 29.353,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 2916,
+      "cumulative_process_read_bytes": 1892211,
+      "one_time_wall_ms": 28,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1863738
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 37.527,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3000,
+      "cumulative_process_read_bytes": 2119995,
+      "one_time_wall_ms": 28,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1863738
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 116.984,
+      "cumulative_cpu_ms": 120,
+      "peak_rss_kb": 3112,
+      "cumulative_process_read_bytes": 4312416,
+      "one_time_wall_ms": 28,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1863738
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 934.789,
+      "cumulative_cpu_ms": 1100,
+      "peak_rss_kb": 3172,
+      "cumulative_process_read_bytes": 26293572,
+      "one_time_wall_ms": 28,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1863738
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 29.139,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3028,
+      "cumulative_process_read_bytes": 1892211,
+      "one_time_wall_ms": 28,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1863738
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 38.014,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3040,
+      "cumulative_process_read_bytes": 2119995,
+      "one_time_wall_ms": 28,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1863738
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 121.828,
+      "cumulative_cpu_ms": 120,
+      "peak_rss_kb": 3156,
+      "cumulative_process_read_bytes": 4312416,
+      "one_time_wall_ms": 28,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1863738
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 981.922,
+      "cumulative_cpu_ms": 1160,
+      "peak_rss_kb": 3176,
+      "cumulative_process_read_bytes": 26293572,
+      "one_time_wall_ms": 28,
+      "one_time_cpu_ms": 20,
+      "one_time_process_read_bytes": 1863738
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 4.975,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 3880,
+      "cumulative_process_read_bytes": 27365,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19010
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 11.93,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4348,
+      "cumulative_process_read_bytes": 106169,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19010
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 84.341,
+      "cumulative_cpu_ms": 100,
+      "peak_rss_kb": 4452,
+      "cumulative_process_read_bytes": 896898,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19010
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 731.72,
+      "cumulative_cpu_ms": 910,
+      "peak_rss_kb": 4532,
+      "cumulative_process_read_bytes": 8800579,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19010
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 4.783,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4116,
+      "cumulative_process_read_bytes": 27365,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19010
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 11.43,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4320,
+      "cumulative_process_read_bytes": 106169,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19010
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 73.041,
+      "cumulative_cpu_ms": 70,
+      "peak_rss_kb": 4424,
+      "cumulative_process_read_bytes": 896898,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19010
+    },
+    {
+      "name": "charlie.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 716.001,
+      "cumulative_cpu_ms": 890,
+      "peak_rss_kb": 4540,
+      "cumulative_process_read_bytes": 8800579,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 19010
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 22.176,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 15020,
+      "cumulative_process_read_bytes": 1626882,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 184.294,
+      "cumulative_cpu_ms": 170,
+      "peak_rss_kb": 15248,
+      "cumulative_process_read_bytes": 14647620,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 1705.882,
+      "cumulative_cpu_ms": 1710,
+      "peak_rss_kb": 15340,
+      "cumulative_process_read_bytes": 136720272,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 17084.455,
+      "cumulative_cpu_ms": 17210,
+      "peak_rss_kb": 15404,
+      "cumulative_process_read_bytes": 1357464747,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 21.077,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 15280,
+      "cumulative_process_read_bytes": 1626882,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 178.616,
+      "cumulative_cpu_ms": 180,
+      "peak_rss_kb": 15292,
+      "cumulative_process_read_bytes": 14647620,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 1653.942,
+      "cumulative_cpu_ms": 1660,
+      "peak_rss_kb": 15368,
+      "cumulative_process_read_bytes": 136720272,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 16404.638,
+      "cumulative_cpu_ms": 16560,
+      "peak_rss_kb": 15356,
+      "cumulative_process_read_bytes": 1357464747,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 25.318,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2952,
+      "cumulative_process_read_bytes": 1850577,
+      "one_time_wall_ms": 24,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822104
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 35.299,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3060,
+      "cumulative_process_read_bytes": 2119122,
+      "one_time_wall_ms": 24,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822104
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 127.704,
+      "cumulative_cpu_ms": 120,
+      "peak_rss_kb": 3148,
+      "cumulative_process_read_bytes": 4584980,
+      "one_time_wall_ms": 24,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822104
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1040.124,
+      "cumulative_cpu_ms": 1220,
+      "peak_rss_kb": 3172,
+      "cumulative_process_read_bytes": 29304005,
+      "one_time_wall_ms": 24,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822104
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 25.048,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2912,
+      "cumulative_process_read_bytes": 1850577,
+      "one_time_wall_ms": 24,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822104
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 34.995,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 3132,
+      "cumulative_process_read_bytes": 2119122,
+      "one_time_wall_ms": 24,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822104
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 126.593,
+      "cumulative_cpu_ms": 130,
+      "peak_rss_kb": 3156,
+      "cumulative_process_read_bytes": 4584980,
+      "one_time_wall_ms": 24,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822104
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1032.558,
+      "cumulative_cpu_ms": 1210,
+      "peak_rss_kb": 3160,
+      "cumulative_process_read_bytes": 29304005,
+      "one_time_wall_ms": 24,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1822104
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 2.98,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4332,
+      "cumulative_process_read_bytes": 38931,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22725
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 9.57,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4464,
+      "cumulative_process_read_bytes": 180030,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22725
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 76.694,
+      "cumulative_cpu_ms": 80,
+      "peak_rss_kb": 4532,
+      "cumulative_process_read_bytes": 1475637,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22725
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 735.219,
+      "cumulative_cpu_ms": 910,
+      "peak_rss_kb": 4544,
+      "cumulative_process_read_bytes": 14488962,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22725
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 2.84,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4464,
+      "cumulative_process_read_bytes": 38931,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22725
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 9.536,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4380,
+      "cumulative_process_read_bytes": 180030,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22725
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 76.161,
+      "cumulative_cpu_ms": 80,
+      "peak_rss_kb": 4484,
+      "cumulative_process_read_bytes": 1475637,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22725
+    },
+    {
+      "name": "charlie.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 735.115,
+      "cumulative_cpu_ms": 900,
+      "peak_rss_kb": 4544,
+      "cumulative_process_read_bytes": 14488962,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 22725
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 23.504,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 15324,
+      "cumulative_process_read_bytes": 1626221,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 191.265,
+      "cumulative_cpu_ms": 190,
+      "peak_rss_kb": 15176,
+      "cumulative_process_read_bytes": 14641112,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 1791.487,
+      "cumulative_cpu_ms": 1800,
+      "peak_rss_kb": 15324,
+      "cumulative_process_read_bytes": 123633780,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 17069.372,
+      "cumulative_cpu_ms": 17230,
+      "peak_rss_kb": 15376,
+      "cumulative_process_read_bytes": 1221717180,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 20.283,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 15188,
+      "cumulative_process_read_bytes": 1626221,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 186.166,
+      "cumulative_cpu_ms": 180,
+      "peak_rss_kb": 15344,
+      "cumulative_process_read_bytes": 14641112,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 1713.327,
+      "cumulative_cpu_ms": 1720,
+      "peak_rss_kb": 15324,
+      "cumulative_process_read_bytes": 123633780,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 17008.824,
+      "cumulative_cpu_ms": 17160,
+      "peak_rss_kb": 15388,
+      "cumulative_process_read_bytes": 1221717180,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 24.529,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2892,
+      "cumulative_process_read_bytes": 1849357,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1820884
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 34.262,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3160,
+      "cumulative_process_read_bytes": 2117902,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1820884
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 127.516,
+      "cumulative_cpu_ms": 120,
+      "peak_rss_kb": 3156,
+      "cumulative_process_read_bytes": 4583760,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1820884
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1054.772,
+      "cumulative_cpu_ms": 1230,
+      "peak_rss_kb": 3176,
+      "cumulative_process_read_bytes": 29302785,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1820884
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 24.155,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 2896,
+      "cumulative_process_read_bytes": 1849357,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1820884
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 34.103,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 3156,
+      "cumulative_process_read_bytes": 2117902,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1820884
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 126.853,
+      "cumulative_cpu_ms": 120,
+      "peak_rss_kb": 3132,
+      "cumulative_process_read_bytes": 4583760,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1820884
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1063.825,
+      "cumulative_cpu_ms": 1240,
+      "peak_rss_kb": 3160,
+      "cumulative_process_read_bytes": 29302785,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 1820884
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 3.284,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4328,
+      "cumulative_process_read_bytes": 37640,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21497
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 10.281,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4576,
+      "cumulative_process_read_bytes": 170386,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21497
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 79.217,
+      "cumulative_cpu_ms": 90,
+      "peak_rss_kb": 4592,
+      "cumulative_process_read_bytes": 1522333,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21497
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 770.279,
+      "cumulative_cpu_ms": 940,
+      "peak_rss_kb": 4592,
+      "cumulative_process_read_bytes": 14987308,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21497
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 2.86,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4292,
+      "cumulative_process_read_bytes": 37640,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21497
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 9.6,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4456,
+      "cumulative_process_read_bytes": 170386,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21497
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 76.359,
+      "cumulative_cpu_ms": 90,
+      "peak_rss_kb": 4552,
+      "cumulative_process_read_bytes": 1522333,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21497
+    },
+    {
+      "name": "charlie.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 758.488,
+      "cumulative_cpu_ms": 940,
+      "peak_rss_kb": 4592,
+      "cumulative_process_read_bytes": 14987308,
+      "one_time_wall_ms": 2,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 21497
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 40.032,
+      "cumulative_cpu_ms": 30,
+      "peak_rss_kb": 18880,
+      "cumulative_process_read_bytes": 59929,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 206.566,
+      "cumulative_cpu_ms": 200,
+      "peak_rss_kb": 19168,
+      "cumulative_process_read_bytes": 458044,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 1766.435,
+      "cumulative_cpu_ms": 1780,
+      "peak_rss_kb": 19196,
+      "cumulative_process_read_bytes": 4378013,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 17899.673,
+      "cumulative_cpu_ms": 18110,
+      "peak_rss_kb": 19216,
+      "cumulative_process_read_bytes": 43778878,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 40.481,
+      "cumulative_cpu_ms": 30,
+      "peak_rss_kb": 18944,
+      "cumulative_process_read_bytes": 59929,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 208.565,
+      "cumulative_cpu_ms": 200,
+      "peak_rss_kb": 19196,
+      "cumulative_process_read_bytes": 458044,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 1780.656,
+      "cumulative_cpu_ms": 1790,
+      "peak_rss_kb": 19204,
+      "cumulative_process_read_bytes": 4378013,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 17601.439,
+      "cumulative_cpu_ms": 17840,
+      "peak_rss_kb": 19204,
+      "cumulative_process_read_bytes": 43778878,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 66.417,
+      "cumulative_cpu_ms": 50,
+      "peak_rss_kb": 3056,
+      "cumulative_process_read_bytes": 2221962,
+      "one_time_wall_ms": 65,
+      "one_time_cpu_ms": 50,
+      "one_time_process_read_bytes": 2144337
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 75.445,
+      "cumulative_cpu_ms": 50,
+      "peak_rss_kb": 3068,
+      "cumulative_process_read_bytes": 2703698,
+      "one_time_wall_ms": 65,
+      "one_time_cpu_ms": 50,
+      "one_time_process_read_bytes": 2144337
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 155.606,
+      "cumulative_cpu_ms": 150,
+      "peak_rss_kb": 3152,
+      "cumulative_process_read_bytes": 7509367,
+      "one_time_wall_ms": 65,
+      "one_time_cpu_ms": 50,
+      "one_time_process_read_bytes": 2144337
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 973.681,
+      "cumulative_cpu_ms": 1130,
+      "peak_rss_kb": 3172,
+      "cumulative_process_read_bytes": 55860571,
+      "one_time_wall_ms": 65,
+      "one_time_cpu_ms": 50,
+      "one_time_process_read_bytes": 2144337
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 66.112,
+      "cumulative_cpu_ms": 50,
+      "peak_rss_kb": 3040,
+      "cumulative_process_read_bytes": 2221962,
+      "one_time_wall_ms": 65,
+      "one_time_cpu_ms": 50,
+      "one_time_process_read_bytes": 2144337
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 74.698,
+      "cumulative_cpu_ms": 60,
+      "peak_rss_kb": 3156,
+      "cumulative_process_read_bytes": 2703698,
+      "one_time_wall_ms": 65,
+      "one_time_cpu_ms": 50,
+      "one_time_process_read_bytes": 2144337
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 155.963,
+      "cumulative_cpu_ms": 150,
+      "peak_rss_kb": 3160,
+      "cumulative_process_read_bytes": 7509367,
+      "one_time_wall_ms": 65,
+      "one_time_cpu_ms": 50,
+      "one_time_process_read_bytes": 2144337
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 974.444,
+      "cumulative_cpu_ms": 1130,
+      "peak_rss_kb": 3176,
+      "cumulative_process_read_bytes": 55860571,
+      "one_time_wall_ms": 65,
+      "one_time_cpu_ms": 50,
+      "one_time_process_read_bytes": 2144337
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 24.321,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 4476,
+      "cumulative_process_read_bytes": 191362,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 104180
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 32.127,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 4504,
+      "cumulative_process_read_bytes": 777861,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 104180
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 109.77,
+      "cumulative_cpu_ms": 110,
+      "peak_rss_kb": 4588,
+      "cumulative_process_read_bytes": 6695977,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 104180
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 892.73,
+      "cumulative_cpu_ms": 1060,
+      "peak_rss_kb": 4612,
+      "cumulative_process_read_bytes": 66075276,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 104180
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 24.061,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 4356,
+      "cumulative_process_read_bytes": 191362,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 104180
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 32.188,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 4500,
+      "cumulative_process_read_bytes": 777861,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 104180
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 110.504,
+      "cumulative_cpu_ms": 110,
+      "peak_rss_kb": 4592,
+      "cumulative_process_read_bytes": 6695977,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 104180
+    },
+    {
+      "name": "delta.pdf",
+      "format": "pdf",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 894.57,
+      "cumulative_cpu_ms": 1060,
+      "peak_rss_kb": 4660,
+      "cumulative_process_read_bytes": 66075276,
+      "one_time_wall_ms": 23,
+      "one_time_cpu_ms": 10,
+      "one_time_process_read_bytes": 104180
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 28.542,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 20200,
+      "cumulative_process_read_bytes": 1742782,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 251.758,
+      "cumulative_cpu_ms": 250,
+      "peak_rss_kb": 20360,
+      "cumulative_process_read_bytes": 15748670,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 2364.547,
+      "cumulative_cpu_ms": 2370,
+      "peak_rss_kb": 20380,
+      "cumulative_process_read_bytes": 146919472,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 23445.744,
+      "cumulative_cpu_ms": 23610,
+      "peak_rss_kb": 20412,
+      "cumulative_process_read_bytes": 1458935197,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 27.606,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 20296,
+      "cumulative_process_read_bytes": 1742782,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 247.919,
+      "cumulative_cpu_ms": 230,
+      "peak_rss_kb": 20268,
+      "cumulative_process_read_bytes": 15748670,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 2277.233,
+      "cumulative_cpu_ms": 2280,
+      "peak_rss_kb": 20404,
+      "cumulative_process_read_bytes": 146919472,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 22815.329,
+      "cumulative_cpu_ms": 22970,
+      "peak_rss_kb": 20428,
+      "cumulative_process_read_bytes": 1458935197,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 40.52,
+      "cumulative_cpu_ms": 30,
+      "peak_rss_kb": 2928,
+      "cumulative_process_read_bytes": 2773995,
+      "one_time_wall_ms": 39,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2741426
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 51.32,
+      "cumulative_cpu_ms": 40,
+      "peak_rss_kb": 3332,
+      "cumulative_process_read_bytes": 3435756,
+      "one_time_wall_ms": 39,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2741426
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 145.609,
+      "cumulative_cpu_ms": 150,
+      "peak_rss_kb": 3328,
+      "cumulative_process_read_bytes": 9162030,
+      "one_time_wall_ms": 39,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2741426
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1078.915,
+      "cumulative_cpu_ms": 1250,
+      "peak_rss_kb": 3416,
+      "cumulative_process_read_bytes": 67980255,
+      "one_time_wall_ms": 39,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2741426
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 40.076,
+      "cumulative_cpu_ms": 30,
+      "peak_rss_kb": 3048,
+      "cumulative_process_read_bytes": 2773995,
+      "one_time_wall_ms": 39,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2741426
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 50.516,
+      "cumulative_cpu_ms": 30,
+      "peak_rss_kb": 3340,
+      "cumulative_process_read_bytes": 3435756,
+      "one_time_wall_ms": 39,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2741426
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 144.669,
+      "cumulative_cpu_ms": 140,
+      "peak_rss_kb": 3340,
+      "cumulative_process_read_bytes": 9162030,
+      "one_time_wall_ms": 39,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2741426
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1085.053,
+      "cumulative_cpu_ms": 1260,
+      "peak_rss_kb": 3416,
+      "cumulative_process_read_bytes": 67980255,
+      "one_time_wall_ms": 39,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2741426
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 5.687,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 5804,
+      "cumulative_process_read_bytes": 528511,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 138625
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 20.556,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 5840,
+      "cumulative_process_read_bytes": 3717000,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 138625
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 148.156,
+      "cumulative_cpu_ms": 160,
+      "peak_rss_kb": 5868,
+      "cumulative_process_read_bytes": 33444257,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 138625
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1397.107,
+      "cumulative_cpu_ms": 1570,
+      "peak_rss_kb": 5908,
+      "cumulative_process_read_bytes": 331063832,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 138625
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 5.752,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 5488,
+      "cumulative_process_read_bytes": 528511,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 138625
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 18.772,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 5868,
+      "cumulative_process_read_bytes": 3717000,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 138625
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 142.991,
+      "cumulative_cpu_ms": 150,
+      "peak_rss_kb": 5872,
+      "cumulative_process_read_bytes": 33444257,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 138625
+    },
+    {
+      "name": "delta.docx",
+      "format": "docx",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1457.357,
+      "cumulative_cpu_ms": 1640,
+      "peak_rss_kb": 5908,
+      "cumulative_process_read_bytes": 331063832,
+      "one_time_wall_ms": 4,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 138625
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 24.243,
+      "cumulative_cpu_ms": 10,
+      "peak_rss_kb": 17396,
+      "cumulative_process_read_bytes": 1737973,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 216.566,
+      "cumulative_cpu_ms": 200,
+      "peak_rss_kb": 17788,
+      "cumulative_process_read_bytes": 15702756,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 1973.986,
+      "cumulative_cpu_ms": 1980,
+      "peak_rss_kb": 17920,
+      "cumulative_process_read_bytes": 132573940,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 20283.8,
+      "cumulative_cpu_ms": 20470,
+      "peak_rss_kb": 17920,
+      "cumulative_process_read_bytes": 1310280640,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 25.171,
+      "cumulative_cpu_ms": 20,
+      "peak_rss_kb": 17592,
+      "cumulative_process_read_bytes": 1737973,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 223.274,
+      "cumulative_cpu_ms": 220,
+      "peak_rss_kb": 17796,
+      "cumulative_process_read_bytes": 15702756,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 2042.721,
+      "cumulative_cpu_ms": 2040,
+      "peak_rss_kb": 17860,
+      "cumulative_process_read_bytes": 132573940,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a0",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 20708.314,
+      "cumulative_cpu_ms": 20670,
+      "peak_rss_kb": 17968,
+      "cumulative_process_read_bytes": 1310280640,
+      "one_time_wall_ms": 0,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 0
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 37.459,
+      "cumulative_cpu_ms": 30,
+      "peak_rss_kb": 3056,
+      "cumulative_process_read_bytes": 2762457,
+      "one_time_wall_ms": 36,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2729888
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 48.302,
+      "cumulative_cpu_ms": 40,
+      "peak_rss_kb": 3296,
+      "cumulative_process_read_bytes": 3420122,
+      "one_time_wall_ms": 36,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2729888
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 147.35,
+      "cumulative_cpu_ms": 150,
+      "peak_rss_kb": 3352,
+      "cumulative_process_read_bytes": 9117724,
+      "one_time_wall_ms": 36,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2729888
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1126.501,
+      "cumulative_cpu_ms": 1310,
+      "peak_rss_kb": 3412,
+      "cumulative_process_read_bytes": 67628749,
+      "one_time_wall_ms": 36,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2729888
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 37.118,
+      "cumulative_cpu_ms": 30,
+      "peak_rss_kb": 3040,
+      "cumulative_process_read_bytes": 2762457,
+      "one_time_wall_ms": 36,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2729888
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 47.612,
+      "cumulative_cpu_ms": 30,
+      "peak_rss_kb": 3128,
+      "cumulative_process_read_bytes": 3420122,
+      "one_time_wall_ms": 36,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2729888
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 146.615,
+      "cumulative_cpu_ms": 150,
+      "peak_rss_kb": 3408,
+      "cumulative_process_read_bytes": 9117724,
+      "one_time_wall_ms": 36,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2729888
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "a1",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1142.483,
+      "cumulative_cpu_ms": 1340,
+      "peak_rss_kb": 3416,
+      "cumulative_process_read_bytes": 67628749,
+      "one_time_wall_ms": 36,
+      "one_time_cpu_ms": 30,
+      "one_time_process_read_bytes": 2729888
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 1,
+      "cumulative_wall_ms": 6.552,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 5152,
+      "cumulative_process_read_bytes": 414800,
+      "one_time_wall_ms": 5,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 133249
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 10,
+      "cumulative_wall_ms": 17.534,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 5112,
+      "cumulative_process_read_bytes": 2307618,
+      "one_time_wall_ms": 5,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 133249
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 100,
+      "cumulative_wall_ms": 121.391,
+      "cumulative_cpu_ms": 130,
+      "peak_rss_kb": 5420,
+      "cumulative_process_read_bytes": 21469813,
+      "one_time_wall_ms": 5,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 133249
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 1,
+      "n": 1000,
+      "cumulative_wall_ms": 1183.573,
+      "cumulative_cpu_ms": 1360,
+      "peak_rss_kb": 5452,
+      "cumulative_process_read_bytes": 210941938,
+      "one_time_wall_ms": 5,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 133249
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 1,
+      "cumulative_wall_ms": 6.287,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 4940,
+      "cumulative_process_read_bytes": 414800,
+      "one_time_wall_ms": 5,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 133249
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 10,
+      "cumulative_wall_ms": 17.256,
+      "cumulative_cpu_ms": 0,
+      "peak_rss_kb": 5036,
+      "cumulative_process_read_bytes": 2307618,
+      "one_time_wall_ms": 5,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 133249
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 100,
+      "cumulative_wall_ms": 123.174,
+      "cumulative_cpu_ms": 130,
+      "peak_rss_kb": 5344,
+      "cumulative_process_read_bytes": 21469813,
+      "one_time_wall_ms": 5,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 133249
+    },
+    {
+      "name": "delta.epub",
+      "format": "epub",
+      "system": "v",
+      "pass": 2,
+      "n": 1000,
+      "cumulative_wall_ms": 1163.447,
+      "cumulative_cpu_ms": 1350,
+      "peak_rss_kb": 5456,
+      "cumulative_process_read_bytes": 210941938,
+      "one_time_wall_ms": 5,
+      "one_time_cpu_ms": 0,
+      "one_time_process_read_bytes": 133249
+    }
+  ]
+}

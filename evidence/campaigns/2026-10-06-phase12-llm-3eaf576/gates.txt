@@ -1,0 +1,34 @@
+# Phase 12.12 — gates (branch phase12, commit 3eaf576)
+
+## Full gate: cargo fmt + clippy (-D warnings) + tests (all-features, no-default-features)
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features --locked && cargo test --no-default-features'
+# -> exit 0; clippy clean (0 warnings); tests/phase12_lifetime.rs 5 passed under both
+#    --all-features and --no-default-features.
+
+## Court run (pinned capped service)
+docker compose run --rm --no-TTY -e HOST_IMAGE_ID=sha256:28aee8f6fe427b6b68659cb20ab08be4b2ef7fc629a66d5ad9a784196b6597bd \
+  llm-workingset bash tools/phase12-llm-court.sh evidence/campaigns/2026-10-06-phase12-llm-3eaf576
+# -> OK; receipt.json, SUMMARY.md, commands.txt, raw/ written. 12 documents,
+#    tokenizer bert-base-uncased verified (asset SHA-256 checked at court time).
+
+## Images (all measurement lanes on one pinned base digest)
+service image          : vole-document/llm-workingset:1.99.0 (id sha256:28aee8f6fe427b6b68659cb20ab08be4b2ef7fc629a66d5ad9a784196b6597bd)
+BASE_STABLE            : rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+BASE_TOOLS             : debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+rustc                  : 1.99.0 (b940084d7 2026-09-28)
+cargo                  : 1.99.0 (5f94df478 2026-08-27)
+Cargo.lock sha256      : 710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e
+arch                   : x86_64
+commit under test      : 3eaf57661a70476cdbf90e9265cc34d8b740c4ad
+
+## Resource caps
+doc-baseline : mem_limit 6g, memswap_limit 6g, pids_limit 4096, cpus 8
+llm-workingset: mem_limit 4g, memswap_limit 4g, pids_limit 2048, cpus 4
+No cap was raised; both courts ran inside the existing capped services.
+
+## Source changes
+Dockerfile (new doc-baseline stage), compose.yaml (new capped doc-baseline
+service), tools/fixtures/phase12-{corpus-gen,baseline,schedule}.py,
+tools/fixtures/phase12-lifetime-schedule.json (the committed pre-registration),
+tools/phase12-lifetime-court.sh, tools/phase12-llm-court.sh,
+tests/phase12_lifetime.rs, .gitignore. No src/ change; Cargo.lock unchanged.

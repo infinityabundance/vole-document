@@ -1,0 +1,278 @@
+[
+  {
+    "name": "alpha.pdf",
+    "format": "pdf",
+    "question": "what is on page 1?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "poppler-pdftotext-whole",
+        "bytes": 210,
+        "tokens": 48
+      },
+      "B1_local_extract": {
+        "profile": "poppler-pdftotext-f1-l1",
+        "bytes": 210,
+        "tokens": 48
+      },
+      "V_vole_observation": {
+        "repr": "page:1",
+        "bytes": 234,
+        "tokens": 51,
+        "provenance": ""
+      }
+    }
+  },
+  {
+    "name": "alpha.docx",
+    "format": "docx",
+    "question": "what is the first body paragraph (block 1)?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "docx-story-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+        "bytes": 242,
+        "tokens": 46
+      },
+      "B1_local_extract": {
+        "profile": "docx-block-txt-v1 (first body paragraph block)",
+        "bytes": 37,
+        "tokens": 9
+      },
+      "V_vole_observation": {
+        "repr": "block:1",
+        "bytes": 37,
+        "tokens": 9,
+        "provenance": "format=docx;common;docx;story=main;part=/word/document.xml;block=1;profile=v1-final-result-h1-f1-e1-c1-x0-t1-b1"
+      }
+    }
+  },
+  {
+    "name": "alpha.epub",
+    "format": "epub",
+    "question": "what is the first spine paragraph (block 1)?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "epub-spine-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+        "bytes": 246,
+        "tokens": 48
+      },
+      "B1_local_extract": {
+        "profile": "epub-block-txt-v1 (first spine paragraph block)",
+        "bytes": 37,
+        "tokens": 9
+      },
+      "V_vole_observation": {
+        "repr": "block:1",
+        "bytes": 37,
+        "tokens": 9,
+        "provenance": "format=epub;common;epub;spine=0;part=OEBPS/chapter1.xhtml;block=1;ordinal=1;profile=v1-linear-only-excluded-h0-s1"
+      }
+    }
+  },
+  {
+    "name": "bravo.pdf",
+    "format": "pdf",
+    "question": "what is on page 1?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "poppler-pdftotext-whole",
+        "bytes": 314,
+        "tokens": 71
+      },
+      "B1_local_extract": {
+        "profile": "poppler-pdftotext-f1-l1",
+        "bytes": 314,
+        "tokens": 71
+      },
+      "V_vole_observation": {
+        "repr": "page:1",
+        "bytes": 365,
+        "tokens": 78,
+        "provenance": ""
+      }
+    }
+  },
+  {
+    "name": "bravo.docx",
+    "format": "docx",
+    "question": "what is the first body paragraph (block 1)?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "docx-story-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+        "bytes": 613,
+        "tokens": 153
+      },
+      "B1_local_extract": {
+        "profile": "docx-block-txt-v1 (first body paragraph block)",
+        "bytes": 34,
+        "tokens": 9
+      },
+      "V_vole_observation": {
+        "repr": "block:1",
+        "bytes": 34,
+        "tokens": 9,
+        "provenance": "format=docx;common;docx;story=main;part=/word/document.xml;block=1;profile=v1-final-result-h1-f1-e1-c1-x0-t1-b1"
+      }
+    }
+  },
+  {
+    "name": "bravo.epub",
+    "format": "epub",
+    "question": "what is the first spine paragraph (block 1)?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "epub-spine-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+        "bytes": 617,
+        "tokens": 155
+      },
+      "B1_local_extract": {
+        "profile": "epub-block-txt-v1 (first spine paragraph block)",
+        "bytes": 34,
+        "tokens": 9
+      },
+      "V_vole_observation": {
+        "repr": "block:1",
+        "bytes": 34,
+        "tokens": 9,
+        "provenance": "format=epub;common;epub;spine=0;part=OEBPS/chapter1.xhtml;block=1;ordinal=1;profile=v1-linear-only-excluded-h0-s1"
+      }
+    }
+  },
+  {
+    "name": "charlie.pdf",
+    "format": "pdf",
+    "question": "what is on page 1?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "poppler-pdftotext-whole",
+        "bytes": 107,
+        "tokens": 29
+      },
+      "B1_local_extract": {
+        "profile": "poppler-pdftotext-f1-l1",
+        "bytes": 107,
+        "tokens": 29
+      },
+      "V_vole_observation": {
+        "repr": "page:1",
+        "bytes": 106,
+        "tokens": 27,
+        "provenance": ""
+      }
+    }
+  },
+  {
+    "name": "charlie.docx",
+    "format": "docx",
+    "question": "what is the first body paragraph (block 1)?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "docx-story-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+        "bytes": 87,
+        "tokens": 29
+      },
+      "B1_local_extract": {
+        "profile": "docx-block-txt-v1 (first body paragraph block)",
+        "bytes": 33,
+        "tokens": 9
+      },
+      "V_vole_observation": {
+        "repr": "block:1",
+        "bytes": 33,
+        "tokens": 9,
+        "provenance": "format=docx;common;docx;story=main;part=/word/document.xml;block=1;profile=v1-final-result-h1-f1-e1-c1-x0-t1-b1"
+      }
+    }
+  },
+  {
+    "name": "charlie.epub",
+    "format": "epub",
+    "question": "what is the first spine paragraph (block 1)?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "epub-spine-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+        "bytes": 86,
+        "tokens": 29
+      },
+      "B1_local_extract": {
+        "profile": "epub-block-txt-v1 (first spine paragraph block)",
+        "bytes": 33,
+        "tokens": 9
+      },
+      "V_vole_observation": {
+        "repr": "block:1",
+        "bytes": 33,
+        "tokens": 9,
+        "provenance": "format=epub;common;epub;spine=0;part=OEBPS/chapter1.xhtml;block=1;ordinal=1;profile=v1-linear-only-excluded-h0-s1"
+      }
+    }
+  },
+  {
+    "name": "delta.pdf",
+    "format": "pdf",
+    "question": "what is on page 1?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "poppler-pdftotext-whole",
+        "bytes": 51724,
+        "tokens": 34319
+      },
+      "B1_local_extract": {
+        "profile": "poppler-pdftotext-f1-l1",
+        "bytes": 51724,
+        "tokens": 34319
+      },
+      "V_vole_observation": {
+        "repr": "page:1",
+        "bytes": 78933,
+        "tokens": 38853,
+        "provenance": ""
+      }
+    }
+  },
+  {
+    "name": "delta.docx",
+    "format": "docx",
+    "question": "what is the first body paragraph (block 1)?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "docx-story-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+        "bytes": 163602,
+        "tokens": 91257
+      },
+      "B1_local_extract": {
+        "profile": "docx-block-txt-v1 (first body paragraph block)",
+        "bytes": 38,
+        "tokens": 10
+      },
+      "V_vole_observation": {
+        "repr": "block:1",
+        "bytes": 38,
+        "tokens": 10,
+        "provenance": "format=docx;common;docx;story=main;part=/word/document.xml;block=1;profile=v1-final-result-h1-f1-e1-c1-x0-t1-b1"
+      }
+    }
+  },
+  {
+    "name": "delta.epub",
+    "format": "epub",
+    "question": "what is the first spine paragraph (block 1)?",
+    "baselines": {
+      "B0_whole_document": {
+        "profile": "epub-spine-txt-v1 (stdlib zipfile+ElementTree, all blocks)",
+        "bytes": 163572,
+        "tokens": 91255
+      },
+      "B1_local_extract": {
+        "profile": "epub-block-txt-v1 (first spine paragraph block)",
+        "bytes": 38,
+        "tokens": 10
+      },
+      "V_vole_observation": {
+        "repr": "block:1",
+        "bytes": 38,
+        "tokens": 10,
+        "provenance": "format=epub;common;epub;spine=0;part=OEBPS/chapter1.xhtml;block=1;ordinal=1;profile=v1-linear-only-excluded-h0-s1"
+      }
+    }
+  }
+]

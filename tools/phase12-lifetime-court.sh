@@ -579,3 +579,34 @@ jq -n \
 } > "$OUTDIR/SUMMARY.md"
 
 echo "phase12-lifetime-court: wrote $OUTDIR" >&2
+
+cat > "$OUTDIR/commands.txt" <<EOF
+# Phase 12.11 mixed-format lifetime court — exact commands
+# Commit under test: $COMMIT (branch $(git rev-parse --abbrev-ref HEAD 2>/dev/null)); dirty: $DIRTY
+# Service image: vole-document/doc-baseline:1.99.0 (id $IMAGE_ID); base $BASE_STABLE
+# rustc $RUSTC_V, cargo $CARGO_V, python $PY_V, sqlite3 $SQLITE_V, poppler $POPPLER_V, strace $STRACE_V
+# Cargo.lock sha256: $LOCK_SHA; arch $ARCH
+# All commands run inside pinned, capped images; nothing on the host except git + docker.
+
+# 1) deterministic mixed corpus (Generators reuse the 12.9 triplet builders):
+docker compose run --rm --no-TTY producers python3 tools/fixtures/phase12-corpus-gen.py evidence/scratch/phase12-lifetime-corpus
+
+# 2) pre-register the schedule BEFORE measuring:
+docker compose run --rm --no-TTY doc-baseline python3 tools/fixtures/phase12-schedule.py \\
+    evidence/scratch/phase12-lifetime-corpus tools/fixtures/phase12-lifetime-schedule.json
+
+# 3) the court:
+docker compose run --rm --no-TTY -e HOST_IMAGE_ID=$IMAGE_ID \\
+    doc-baseline bash tools/phase12-lifetime-court.sh $OUTDIR
+
+# Inside the court, per document (pdf/docx/epub):
+#   V one-time : \$BIN encode --force raw SRC D.voldoc ; \$BIN field-ingest D.voldoc --store STORE
+#   A1 one-time: python3 tools/fixtures/phase12-baseline.py build --format F --source SRC --db DB
+#   A0         : pdftotext/pdfinfo/dd/cat (pdf) or python3 phase12-baseline.py query (docx/epub)
+#   A1 query   : sqlite3 DB "SELECT ..." (point lookups; writefile for exact bytes)
+#   V query    : \$BIN observe --store STORE --field FIELD <selector> --kind KIND | find | materialize
+#   per-query bytes: strace -f -e trace=read,pread64 (all three systems)
+#   CPU + peak RSS : /usr/bin/time -v on a batch of the first N queries
+#   schedule   : round-robin over the committed case list, N in {1,10,100,1000}, passes 2 (cold+warm)
+EOF
+echo "commands: $OUTDIR/commands.txt" >&2

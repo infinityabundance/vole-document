@@ -1,0 +1,92 @@
+{
+  "name": "charlie.docx",
+  "format": "docx",
+  "source": {
+    "path": "evidence/scratch/phase12-lifetime-corpus/charlie.docx",
+    "len": 3282,
+    "sha256": "4e4601a9f01a4fb14e9b8ede3340be9617110ec7f173e06b36e64b74dad2de21"
+  },
+  "schedule": {
+    "cases": 12,
+    "ns": [
+      1,
+      10,
+      100,
+      1000
+    ],
+    "passes": 2
+  },
+  "vole": {
+    "encode": {
+      "wall_ms": 1,
+      "cpu_ms": 0
+    },
+    "ingest": {
+      "wall_ms": 1,
+      "cpu_ms": 0,
+      "field": "564d6e59603129fef828264e58cf44d66f80bf6162b30ec9e0951dc80bde76c5"
+    },
+    "one_time": {
+      "wall_ms": 2,
+      "cpu_ms": 0,
+      "process_read_bytes": 22725
+    },
+    "ingest_report": {
+      "format": "docx",
+      "field": "564d6e59603129fef828264e58cf44d66f80bf6162b30ec9e0951dc80bde76c5",
+      "root_node": "e3d942dc4b1794e49e2880ed1f336c68141693436de192512b95d73518ae3768",
+      "index_root": "2892868b6db2e0c0eedc1a79d7320ab8ecabbd9fd8852331dec4e4c1c05524ac",
+      "node_count": 18,
+      "index_node_count": 1,
+      "source_len": 3282,
+      "member_count": 7,
+      "raw_nodes": 7,
+      "decoded_nodes": 7,
+      "declined_decodes": 0,
+      "opc_model_nodes": 1,
+      "docx_model_nodes": 1,
+      "epub_model_nodes": 1,
+      "resource_blob_nodes": 1,
+      "shared_resource_ids": 0,
+      "shared_resource_bytes": 0,
+      "nodes_id_shared": 0,
+      "seed_bytes_written": 2617,
+      "index_bytes_written": 943
+    },
+    "store_universe_bytes": {
+      "descriptor": 3823,
+      "seed": 5317,
+      "index": 1123,
+      "manifest": 366,
+      "derived_cache": 8493,
+      "total": 19262
+    }
+  },
+  "a0": {
+    "one_time": {
+      "wall_ms": 0,
+      "cpu_ms": 0,
+      "process_read_bytes": 0
+    }
+  },
+  "a1": {
+    "preprocessing": {
+      "wall_ms": 24,
+      "cpu_ms": 10,
+      "process_read_bytes": 1822104
+    },
+    "db_bytes": 77824,
+    "wal_bytes": 0,
+    "shm_bytes": 0,
+    "persistent_bytes": 77824,
+    "retained_source_bytes": 3282,
+    "extraction_metrics": {
+      "db_bytes": 77824,
+      "decompressed_bytes": 2660,
+      "external_invocations": 0,
+      "member_decodes": 3,
+      "source_reparses": 1,
+      "xml_bytes_parsed": 1628
+    }
+  }
+}
