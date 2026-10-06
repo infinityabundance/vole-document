@@ -7,8 +7,11 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
 Phase 7 is **hardening plus a pivoted result**. It closes two Phase-6 unknowns
 (behaviour on a producer corpus, and coverage-guided fuzzing), then retires the
 whole-file *compression* claim honestly and measures a different axis —
-random-access decode cost. No wire format or candidate semantics change; the only
-new wire record is the optional, advisory `OBSERVATION_INDEX` (Phase 7.3).
+random-access decode cost. Phase 7 adds no wire record beyond the optional,
+advisory `OBSERVATION_INDEX` (Phase 7.3). Phase 8 (branch `phase8`, ADR-0019)
+adds a second optional wire record, the seek `DIRECTORY`, and a seek reader; its
+measured **bytes-read** result is recorded under Measured below. Exactness is
+unchanged in both phases.
 
 ### Added
 
@@ -162,6 +165,39 @@ new wire record is the optional, advisory `OBSERVATION_INDEX` (Phase 7.3).
   `vole-document;universe;phase7;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1`
   (DRA stays v8; no existing candidate bytes change beyond the universe bump and
   the optional index record).
+- Phase 8 — seek-based partial I/O (branch `phase8`, ADR-0019):
+  - An optional seek `DIRECTORY` record (`RecordTag::Directory = 0x71`,
+    `seek_directory_v1`) written as the first record at fixed offset 64 with
+    `FLAG_OPTIONAL`, carrying per-record LOCATORS (tag, offset, payload_len), a
+    CLASS_INDEX for O(1) class lookup, and CHANNEL_LENGTHS. Its position is a
+    constant, so no header field is consumed and `FORMAT_MINOR` does not bump; a
+    new ignorable `FEATURE_SEEK_DIRECTORY` optional bit is set and a decoder that
+    ignores the record still materializes exactly. Descriptor serialization
+    becomes a two-pass build when the directory is enabled, and `cost.directory`
+    charges its payload + framing so `cost.total()` stays exactly the serialized
+    length. Bounded by `Limits::max_directory_bytes` / `max_directory_entries`; an
+    oversized directory is declined before allocation.
+  - `materialize_observation_seeked` (`src/materialize/seek.rs`) serves the same
+    narrow observation as Phase 7.3 but from a `Read + Seek` source, reading only
+    the header, DIRECTORY, GRAPH, OBSERVATION_INDEX, INTEGRITY, and the referenced
+    OBJECT/ENTROPY_CHANNEL/MODEL records. The directory is **advisory, never
+    authority**: locators are cross-checked against record framing, the class
+    index against a linear scan, and the observation index is re-derived over
+    directory-derived lengths; a missing/oversized/lying directory is declined
+    (`UnsupportedFeature`) or rejected (`InvalidContainer`), never silently fully
+    read. The report carries a real `bytes_read` (an internal `CountingReader`)
+    and `integrity_verified == false` — a partial read is an *observation*, not
+    an archival verification.
+  - `view` peeks only the 64-byte header before choosing the seek path, so the
+    CLI no longer `fs::read`s the whole descriptor when it is seekable.
+  - New Phase-8 universe suffix `+seek-directory-v1`; the serialized record
+    sequence for `seek_directory == false` is otherwise byte-identical to
+    Phase 7 (non-seek lanes re-base only by the universe length, +18 B here).
+  - Measurement tooling: `strace` added to the opt-in `baseline` image, and
+    `tools/seek-court.sh` / `tools/seek-table.jq` record the instrumented
+    `bytes_read`, a descriptor-file-attributed `strace` cross-check, syscall
+    count, wall/CPU/peak-RSS, the Phase-7 stats, and sequential gzip/zstd/xz
+    compressed-prefix baselines.
 
 ### Fixed
 
@@ -307,15 +343,40 @@ new wire record is the optional, advisory `OBSERVATION_INDEX` (Phase 7.3).
   `evidence/campaigns/2026-10-05-phase7-partial-a5764c9/`; report
   `docs/evidence/phase7-partial-report.md`; review
   `docs/evidence/phase7c-skeptic-review.md`; ADR-0018.
+- Campaign `2026-10-05-phase8-seek-08de2a9` (verdict SCOPED POSITIVE on bytes
+  read; ADR-0019) — the **seek-based partial-I/O court**, closing ADR-0018's
+  explicit no-I/O-win caveat. On the same 33,789,340 B (32.22 MiB), 800-stream
+  deterministic PDF as Phase 7.3, the seekable descriptor is **17,566,832 B**
+  (the new DIRECTORY adds 27,390 B; index + directory = 174,101 B over the
+  non-seek base). All 18 pre-registered queries are byte-exact. The seeked `view`
+  reads a **constant 439,679–461,367 B** regardless of offset — exactly header 64
+  + DIRECTORY 27,390 + GRAPH 265,462 + OBSERVATION_INDEX 146,711 + INTEGRITY 52
+  at `a = 0`, plus one referenced channel + model where a channel is needed —
+  which is ≤ 2.6 % of the descriptor for every query (H1 18/18). In the late
+  region (≥ 50 % in, H2 8/8) that is **4.7 %–~21× fewer bytes than gzip's
+  compressed prefix** (9,764,864 B vs 460,713 B at 31 MiB) and ~12–13× fewer than
+  zstd/xz. A `strace -P` descriptor-file cross-check equals the instrumented
+  count + exactly 64 B (the header peek), so there is no hidden whole-file read.
+  CPU drops to ~0.00 s and peak RSS from Phase 7's ~38 MB to **~3.8 MB**. It
+  **loses on bytes at `a = 0`** versus gzip (327,680 B) and xz (73,728 B) and at
+  early queries (≤ ~1.7 MiB) versus xz's tiny compressed prefix; the floor is
+  constant in the offset and would dominate a descriptor below ~9 MB. Whole-file
+  size is still **3.01×** xz. One locally generated corpus; **no population
+  claim**. Receipt under `evidence/campaigns/2026-10-05-phase8-seek-08de2a9/`;
+  report `docs/evidence/phase8-seek-report.md`; drivers `tools/seek-court.sh`,
+  `tools/seek-table.jq`.
 
 ### Notes
 
 - **Honest framing.** VOLE's prime directive is exactness
   (`materialize(descriptor) == original_bytes`), and on whole-file size VOLE's
   best lane loses to every generic lossless compressor tested (ADR-0017). The
-  pivot is deliberate: Phase 7 measures **random-access decode cost** instead of
-  whole-file ratio, and reports it with the explicit v1 I/O caveat (ADR-0018).
-  Both axes are separate receipts and separate verdicts and are never conflated.
+  pivot is deliberate: Phase 7 measures **random-access decode cost** and Phase 8
+  the **random-access I/O cost** (bytes read), each against sequential
+  decompression to the same offset. Both axes are separate receipts and separate
+  verdicts and are never conflated; the Phase-8 bytes-read win is scoped to one
+  large locally generated PDF and loses at the start of the file and versus xz's
+  early prefix.
 - The wire format remains **PROVISIONAL** and is not frozen v1. `OBSERVATION_INDEX`
   (`observation_index_v1`) is optional and **advisory**: it is re-derived and
   re-checked against the authoritative program at parse and can only cause a

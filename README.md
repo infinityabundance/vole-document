@@ -560,6 +560,40 @@ Receipt:
 [`docs/evidence/phase7-partial-report.md`](docs/evidence/phase7-partial-report.md);
 drivers `tools/partial-court.sh`, `tools/partial-table.jq`; ADR-0018.
 
+### Seek-based partial I/O (Phase 8.3) measured results
+
+Phase 8 supplies the mmap/seek reader ADR-0018 required. A descriptor may carry
+an optional seek `DIRECTORY` record (first record, fixed offset 64,
+`FLAG_OPTIONAL`, cross-checked and never trusted); the `view` CLI peeks only the
+64-byte header and serves from a `Read + Seek` reader that fetches **only the
+records the query needs** (header, directory, GRAPH, OBSERVATION_INDEX,
+INTEGRITY, and the one referenced object/channel/model) — it never `fs::read`s
+the whole descriptor. A partial read is an *observation* (`integrity_verified ==
+false`); `materialize`/`decode`/`verify` remain the archival authority.
+
+**Result: a scoped bytes-read win, byte-exact on all 18 pre-registered
+queries.** On the same 33,789,340 B (32.22 MiB) corpus the seekable descriptor is
+17,566,832 B (DIRECTORY 27,390 B). The seeked `view` reads a **constant
+439,679–461,367 B** regardless of offset (floor = header 64 + DIRECTORY 27,390 +
+GRAPH 265,462 + OBSERVATION_INDEX 146,711 + INTEGRITY 52), ≤ 2.6 % of the
+descriptor for every query. In the late region (≥ 50 % in, 8/8 queries) that is
+**4.7 %–~21× fewer bytes than gzip's compressed prefix** (9,764,864 B vs
+460,713 B at 31 MiB) and ~12–13× fewer than zstd/xz; a `strace -P`
+descriptor-file cross-check equals the instrumented count + exactly 64 B (the
+header peek). CPU drops to ~0.00 s and peak RSS from ~38 MB to **~3.8 MB**.
+
+**Where it loses (recorded).** At `a = 0` the constant floor exceeds gzip's first
+bytes (327,680 B) and xz's (73,728 B); at early queries (≤ ~1.7 MiB) it loses to
+xz's tiny compressed prefix. The floor is constant in the offset, so it would
+dominate a descriptor smaller than ~9 MB — a large-document mechanism. Whole-file
+size is still **3.01×** xz. One locally generated corpus; **no population claim**.
+
+Receipt:
+[`evidence/campaigns/2026-10-05-phase8-seek-08de2a9/`](evidence/campaigns/2026-10-05-phase8-seek-08de2a9/)
+(`query-table.md`, `report.md`); report
+[`docs/evidence/phase8-seek-report.md`](docs/evidence/phase8-seek-report.md);
+drivers `tools/seek-court.sh`, `tools/seek-table.jq`; ADR-0019.
+
 ## Quick start (Docker only)
 
 All project commands run inside pinned containers. The host only invokes Docker.
@@ -591,6 +625,14 @@ docker compose run --rm --no-TTY dev ./target/debug/vole-document encode \
 docker compose run --rm --no-TTY baseline \
   sh tools/partial-court.sh /tmp/queries.jsonl evidence/corpus/phase7-large/large.pdf \
   /tmp/large.voldoc /tmp/large.pdf.gz /tmp/large.pdf.zst /tmp/large.pdf.xz
+
+# Seek-based partial-I/O bytes-read court (Phase 8.3; opt-in baseline image)
+docker compose build baseline   # adds strace to the dev-derived toolchain
+docker compose run --rm --no-TTY dev ./target/debug/vole-document encode \
+  --force pdf-deflate-replay-rans-indexed evidence/corpus/phase8-large/large.pdf /tmp/large.seek.voldoc
+docker compose run --rm --no-TTY baseline \
+  sh tools/seek-court.sh /tmp/queries.jsonl evidence/corpus/phase8-large/large.pdf \
+  /tmp/large.seek.voldoc /tmp/large.pdf.gz /tmp/large.pdf.zst /tmp/large.pdf.xz
 
 # Phase 1 exact court (writes an evidence receipt)
 docker compose run --rm --no-TTY dev sh tools/phase1-court.sh
