@@ -88,7 +88,7 @@ impl EvalBudget {
         Ok(())
     }
 
-    fn charge_bytes(&mut self, n: u64) -> Result<()> {
+    pub(crate) fn charge_bytes(&mut self, n: u64) -> Result<()> {
         self.produced = self
             .produced
             .checked_add(n)

@@ -599,6 +599,19 @@ impl Field {
     pub fn open(store: &FieldStore, id: &FieldId, limits: Limits) -> Result<Field> {
         let io_before = store.io().snapshot();
         let manifest = store.get_field(id)?;
+        Field::open_after_manifest(store, manifest, io_before, limits)
+    }
+
+    /// The body of [`Field::open`] from an already-read manifest. `io_before` is
+    /// the snapshot `open_io` is measured from: pass one taken before the
+    /// manifest read to charge it here (the ordinary path), or after it to charge
+    /// it elsewhere (the narrow probe, which already counted it in `base_io`).
+    pub(crate) fn open_after_manifest(
+        store: &FieldStore,
+        manifest: FieldRoot,
+        io_before: IoSnapshot,
+        limits: Limits,
+    ) -> Result<Field> {
         let descriptor_bytes = store.get_descriptor(&Id::from_bytes(manifest.descriptor_id))?;
         let open_io = io_before.delta(&store.io().snapshot());
         let mut parsed = crate::container::Descriptor::parse(&descriptor_bytes, limits)?;

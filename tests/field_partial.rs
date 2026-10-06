@@ -24,6 +24,7 @@ use std::path::PathBuf;
 use vole_document::container::record::{RECORD_HEADER_LEN, RECORD_TRAILER_LEN, RecordTag};
 use vole_document::container::{Descriptor, HEADER_LEN, ObjectSource};
 use vole_document::dra::{Op, Program};
+use vole_document::field::cache::DerivedCache;
 use vole_document::field::observe::{
     DescriptorReadMode, ObserveRequest, Representation, Selector, observe, observe_with_field,
 };
@@ -138,6 +139,32 @@ fn fixture_pdf() -> Vec<u8> {
     w.stream_obj(4, " /Filter /FlateDecode", &encoded);
     w.obj(5, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
     w.classic_trailer(6, " /Root 1 0 R");
+    w.buf
+}
+
+/// A classic-xref PDF with one page, a lone-Flate content stream `(Hello) Tj`,
+/// and a 64 KiB Flate image XObject that dominates the descriptor.
+fn fixture_pdf_with_image() -> Vec<u8> {
+    let content = b"BT /F1 12 Tf 72 720 Td (Hello) Tj ET\n";
+    let encoded = zlib_stored(content);
+    let image = vec![0x80u8; 256 * 256];
+    let image_encoded = zlib_stored(&image);
+    let mut w = PdfBuilder::new();
+    w.text("%PDF-1.5\n");
+    w.obj(1, b"<< /Type /Catalog /Pages 2 0 R >>");
+    w.obj(2, b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+    w.obj(
+        3,
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> /XObject << /Im0 6 0 R >> >> /Contents 4 0 R >>",
+    );
+    w.stream_obj(4, " /Filter /FlateDecode", &encoded);
+    w.obj(5, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+    w.stream_obj(
+        6,
+        " /Type /XObject /Subtype /Image /Width 256 /Height 256 /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode",
+        &image_encoded,
+    );
+    w.classic_trailer(7, " /Root 1 0 R");
     w.buf
 }
 
@@ -408,6 +435,185 @@ fn archival_materialize_remains_exact_after_partial_use() {
     let _ = observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
     let field = Field::open(&store, &id, Limits::DEFAULT).unwrap();
     assert_eq!(field.materialize_exact(Limits::DEFAULT).unwrap(), source);
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// The cache-first short-circuit returns a byte-identical answer to the normal
+/// path, with zero descriptor bytes and every other work counter equal.
+#[test]
+fn cache_hit_short_circuit_is_byte_identical_to_the_normal_path() {
+    let dir = temp_dir("shortcircuit");
+    let source = fixture_pdf_with_image();
+    let desc = opaque_descriptor(&source);
+    let mut store = FieldStore::open(&dir).unwrap();
+    let id = field_ingest::ingest_pdf(&mut store, &desc, Limits::DEFAULT)
+        .unwrap()
+        .field;
+
+    for (selector, representation) in [
+        (Selector::Page(1), Representation::Text),
+        (Selector::Page(1), Representation::Preview),
+        (Selector::Page(1), Representation::Structure),
+        (Selector::Stream(4), Representation::DecodedBytes),
+        (Selector::Stream(4), Representation::Operators),
+    ] {
+        let req = ObserveRequest::new(selector.clone(), representation);
+        // Warm the derived chain and the disposable cache.
+        let (first, _, _) = observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+
+        // The short-circuit path: `observe` on a warm field.
+        let (short, short_stats, short_field) =
+            observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+        // The normal path: an explicitly opened `Field`, never short-circuited.
+        let field = Field::open(&store, &id, Limits::DEFAULT).unwrap();
+        let (normal, normal_stats, normal_field) =
+            observe_with_field(&mut store, &field, &req, Limits::DEFAULT).unwrap();
+
+        assert_eq!(
+            short,
+            normal,
+            "answer mismatch for {} {}",
+            req.selector.canonical(),
+            req.representation.name()
+        );
+        assert_eq!(short.value, first.value, "warm answer changed");
+        assert_eq!(short_field, normal_field, "promoted field id changed");
+
+        // The short-circuit reads no descriptor bytes at all; the normal path,
+        // which opened the descriptor, must charge them.
+        assert_eq!(
+            short_stats.descriptor_bytes_read, 0,
+            "short-circuit must not read the descriptor: {short_stats:?}"
+        );
+        assert_eq!(
+            short_stats.descriptor_read_mode,
+            DescriptorReadMode::Partial,
+            "{short_stats:?}"
+        );
+        assert!(
+            normal_stats.descriptor_bytes_read > 0,
+            "the normal path must charge its descriptor read: {normal_stats:?}"
+        );
+
+        // Every work counter that is not the descriptor read agrees exactly.
+        assert_eq!(short_stats.index_nodes_read, normal_stats.index_nodes_read);
+        assert_eq!(
+            short_stats.seed_nodes_fetched,
+            normal_stats.seed_nodes_fetched
+        );
+        assert_eq!(
+            short_stats.seed_nodes_executed,
+            normal_stats.seed_nodes_executed
+        );
+        assert_eq!(
+            short_stats.seed_nodes_reused,
+            normal_stats.seed_nodes_reused
+        );
+        assert_eq!(
+            short_stats.manifest_bytes_read,
+            normal_stats.manifest_bytes_read
+        );
+        assert_eq!(short_stats.index_bytes_read, normal_stats.index_bytes_read);
+        assert_eq!(short_stats.seed_bytes_read, normal_stats.seed_bytes_read);
+        assert_eq!(short_stats.bytes_returned, normal_stats.bytes_returned);
+    }
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// A warm page-text observation is served from the derived cache and reads **no**
+/// descriptor bytes; the manifest and hierarchical index it resolved against are
+/// charged honestly.
+#[test]
+fn warm_page_text_observation_charges_zero_descriptor_bytes() {
+    let dir = temp_dir("zero-desc");
+    let source = fixture_pdf_with_image();
+    let desc = opaque_descriptor(&source);
+    let mut store = FieldStore::open(&dir).unwrap();
+    let id = field_ingest::ingest_pdf(&mut store, &desc, Limits::DEFAULT)
+        .unwrap()
+        .field;
+
+    let req = ObserveRequest::new(Selector::Page(1), Representation::Text);
+    // Warm: the first observation deepens and populates the cache.
+    let (_, cold_stats, _) = observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+    assert!(
+        cold_stats.descriptor_bytes_read > 0,
+        "the cold observation must read the descriptor: {cold_stats:?}"
+    );
+
+    // Warm: no descriptor read at all.
+    let (answer, warm_stats, _) = observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+    match &answer.value {
+        AnswerValue::Text(t) => assert!(t.contains("Hello"), "got {t:?}"),
+        other => panic!("expected text, got {other:?}"),
+    }
+    assert_eq!(
+        warm_stats.descriptor_bytes_read, 0,
+        "warm page text must read zero descriptor bytes: {warm_stats:?}"
+    );
+    assert_eq!(warm_stats.descriptor_read_mode, DescriptorReadMode::Partial);
+    assert!(warm_stats.manifest_bytes_read > 0, "{warm_stats:?}");
+    assert!(warm_stats.index_bytes_read > 0, "{warm_stats:?}");
+    assert!(warm_stats.seed_nodes_reused > 0, "{warm_stats:?}");
+    assert_eq!(warm_stats.seed_nodes_executed, 0, "{warm_stats:?}");
+    assert_eq!(
+        warm_stats.bytes_read,
+        warm_stats
+            .manifest_bytes_read
+            .saturating_add(warm_stats.index_bytes_read)
+            .saturating_add(warm_stats.seed_bytes_read),
+        "bytes_read must be the non-descriptor class sum: {warm_stats:?}"
+    );
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// A cache miss falls through to the normal path, returns the correct bytes, and
+/// charges only its closure — reading the hierarchical index exactly once (the
+/// probe's read is carried through, never repeated).
+#[test]
+fn cache_miss_returns_correct_bytes_and_charges_only_its_closure() {
+    let dir = temp_dir("miss");
+    let source = fixture_pdf_with_image();
+    let desc = opaque_descriptor(&source);
+    let mut store = FieldStore::open(&dir).unwrap();
+    let id = field_ingest::ingest_pdf(&mut store, &desc, Limits::DEFAULT)
+        .unwrap()
+        .field;
+
+    let req = ObserveRequest::new(Selector::Page(1), Representation::Text);
+    // Warm once to build the derived chain and learn the hit's index closure.
+    let _ = observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+    let (_, hit_stats, _) = observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+    assert_eq!(hit_stats.descriptor_bytes_read, 0);
+
+    // Drop just the disposable cache: the derived seed chain remains, so the
+    // next observation is a pure cache miss on a warm field.
+    let cache = DerivedCache::open(store.root().join("cache")).unwrap();
+    assert!(cache.clear().unwrap() > 0);
+
+    let (missed, miss_stats, _) = observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+    match &missed.value {
+        AnswerValue::Text(t) => assert!(t.contains("Hello"), "got {t:?}"),
+        other => panic!("expected text, got {other:?}"),
+    }
+    assert!(
+        miss_stats.descriptor_bytes_read > 0,
+        "a cache miss must read its descriptor closure: {miss_stats:?}"
+    );
+    // The probe's index read is carried, not duplicated: a miss reads the same
+    // index closure as a hit.
+    assert_eq!(
+        miss_stats.index_bytes_read, hit_stats.index_bytes_read,
+        "a miss must read the index exactly once: {miss_stats:?} vs {hit_stats:?}"
+    );
+    assert_eq!(miss_stats.index_nodes_read, hit_stats.index_nodes_read);
+
+    // The observation repopulated the cache, so the next one is a hit again.
+    let (_, again_stats, _) = observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+    assert_eq!(again_stats.descriptor_bytes_read, 0, "{again_stats:?}");
 
     std::fs::remove_dir_all(&dir).ok();
 }

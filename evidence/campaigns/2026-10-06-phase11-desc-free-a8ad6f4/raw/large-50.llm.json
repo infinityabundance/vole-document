@@ -1,0 +1,32 @@
+{
+  "question": "what is on page 1",
+  "baselines": {
+    "B0_whole_document": {
+      "oracle": "pdftotext (poppler)",
+      "bytes": 4485,
+      "sha256": "c62ae260be8ec9a9d0ac8d9f73200c29147f416d166ce0e597f012cf23df2c8f"
+    },
+    "B1_page_local": {
+      "oracle": "pdftotext -f/-l (poppler)",
+      "bytes": 91,
+      "sha256": "bd2af578e2e1eac00c0f399ba650ebc959bba2b713194b8316c45cfa5869ea38"
+    },
+    "V_vole_page_text": {
+      "repr": "observe --page --kind text",
+      "bytes": 527275,
+      "stats": "{\"index_nodes_read\":1,\"seed_nodes_fetched\":0,\"seed_nodes_materialized\":0,\"seed_nodes_executed\":0,\"seed_nodes_reused\":1,\"cache_bytes_written\":0,\"descriptor_bytes_read\":0,\"descriptor_read_mode\":\"partial\",\"manifest_bytes_read\":201,\"index_bytes_read\":8240,\"seed_bytes_read\":0,\"bytes_read\":8441,\"bytes_returned\":527275,\"deepened\":false,\"wall_micros\":459}"
+    }
+  },
+  "context_waste_ratio": 0.008505997818974919,
+  "ratios": {
+    "B0_over_V": 0.008505997818974919,
+    "B1_over_V": 0.000172585462993694,
+    "B0_over_B1": 49.285714285714285
+  },
+  "tokens": null,
+  "tokens_reason": "no pinned offline tokenizer (no vendored BPE/model with a recorded SHA-256); UTF-8 bytes reported only, token counts not claimed",
+  "honest_losses": [
+    "V_page_text_larger_than_B1_page_local",
+    "V_page_text_larger_than_B0_whole_document"
+  ]
+}

@@ -303,8 +303,254 @@ pub fn observe(
     limits: Limits,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let started = Instant::now();
-    let opened = OpenedField::open(store, id, req, limits)?;
-    observe_view(store, opened.view(), req, limits, started)
+    match narrow_probe(store, id, req)? {
+        // The target is served wholly from the disposable derived cache: the
+        // descriptor is never opened. The ordinary evaluation core still runs,
+        // against a trip-wire source, so the answer and every work counter are
+        // those of the normal path while `descriptor_bytes_read` stays zero.
+        NarrowProbe::Probed {
+            hit: true,
+            manifest,
+            carry,
+        } => {
+            let view = FieldView {
+                manifest: manifest.as_ref(),
+                id: *id,
+                open_io: IoSnapshot::default(),
+                source: &NO_SOURCE,
+                loader: None,
+                object_count: 0,
+                graph_ops: 0,
+                read_mode: DescriptorReadMode::Partial,
+            };
+            let (seeds, istore) = open_sub_stores(store)?;
+            observe_with_stores_pre(store, view, req, limits, started, seeds, istore, carry)
+        }
+        // The selector resolved from the manifest + hierarchical index, but the
+        // target is not cached: fall through to the normal path, reusing the
+        // manifest, the probe's physical bytes, and its resolved index entries
+        // so nothing is read a second time.
+        NarrowProbe::Probed {
+            hit: false,
+            manifest,
+            carry,
+        } => {
+            let opened = OpenedField::open_with_manifest(store, req, *manifest, limits)?;
+            observe_view_pre(store, opened.view(), req, limits, started, carry)
+        }
+        NarrowProbe::NotEligible => {
+            let opened = OpenedField::open(store, id, req, limits)?;
+            observe_view(store, opened.view(), req, limits, started)
+        }
+    }
+}
+
+/// A [`SourceServer`] that serves nothing. A fully cache-served observation must
+/// never call it; reaching it means the short-circuit admitted a request it
+/// could not answer from the cache, which is a hard internal invariant failure
+/// rather than a silent descriptor read.
+struct NoSource;
+
+static NO_SOURCE: NoSource = NoSource;
+
+impl SourceServer for NoSource {
+    fn serve_range(&self, _offset: u64, _len: u64, _limits: Limits) -> Result<Vec<u8>> {
+        Err(Error::internal_invariant(
+            "a cache-served observation attempted a descriptor range read",
+        ))
+    }
+
+    fn serve_document(&self, _limits: Limits) -> Result<Vec<u8>> {
+        Err(Error::internal_invariant(
+            "a cache-served observation attempted a descriptor document read",
+        ))
+    }
+}
+
+/// Hierarchical-index entries the cache-first probe already resolved, so the
+/// evaluation that follows never reads the same index nodes a second time.
+#[derive(Default)]
+struct PrefetchedIndex {
+    entries: Vec<(SelectorKey, Vec<IndexEntry>)>,
+}
+
+impl PrefetchedIndex {
+    fn insert(&mut self, key: SelectorKey, entries: Vec<IndexEntry>) {
+        self.entries.push((key, entries));
+    }
+
+    fn get(&self, key: &SelectorKey) -> Option<&Vec<IndexEntry>> {
+        self.entries.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+    }
+}
+
+/// State the cache-first probe already produced, carried into the path that
+/// follows so nothing it fetched, resolved, or read is done twice.
+#[derive(Default)]
+struct ProbeCarry {
+    /// Physical bytes the probe fetched before the field was opened.
+    base_io: IoSnapshot,
+    /// Hierarchical-index entries the probe resolved.
+    prefetched: PrefetchedIndex,
+    /// The target's cache bytes, already integrity-checked by the probe, so the
+    /// evaluation core serves them without re-reading the cache file.
+    output: Option<(NodeId, Vec<u8>)>,
+}
+
+/// The outcome of the cache-first narrow probe.
+enum NarrowProbe {
+    /// The request is not one the short-circuit serves.
+    NotEligible,
+    /// The selector resolved without reading the descriptor. `hit` is whether
+    /// the target derived node is served by the disposable cache.
+    Probed {
+        hit: bool,
+        manifest: Box<FieldRoot>,
+        carry: ProbeCarry,
+    },
+}
+
+/// Resolve a narrow observation's target node from the field manifest and the
+/// hierarchical index **only** — never the descriptor — and report whether the
+/// disposable cache can serve it whole.
+///
+/// The target ids are computed with the same constructors `ingest`/`deepen` use
+/// ([`derived_nodes`], the `ContentOperators`/`PdfStreamDecoded` builders), so a
+/// hit means the *identical* node the normal path would materialize. A miss
+/// carries the manifest, the physical bytes the probe fetched, and the resolved
+/// index entries back to the normal path so a cold observation pays nothing
+/// extra.
+fn narrow_probe(store: &FieldStore, id: &FieldId, req: &ObserveRequest) -> Result<NarrowProbe> {
+    use Representation as R;
+    if !req.use_cache {
+        return Ok(NarrowProbe::NotEligible);
+    }
+    // The short-circuit is a further step of the seek-based *partial* lane: on a
+    // backend with no partial descriptor (EntropyFS) the honest label would be
+    // `full`, so leave that path unchanged.
+    if !store.supports_partial_descriptor() {
+        return Ok(NarrowProbe::NotEligible);
+    }
+    let cacheable = matches!(
+        (&req.selector, req.representation),
+        (Selector::Page(_), R::Text | R::Preview | R::Structure)
+            | (Selector::Stream(_), R::DecodedBytes | R::Operators)
+    );
+    if !cacheable {
+        return Ok(NarrowProbe::NotEligible);
+    }
+
+    let io_before = store.io().snapshot();
+    let manifest = store.get_field(id)?;
+    let mut prefetched = PrefetchedIndex::default();
+    if !manifest.has_index() {
+        // Nothing to resolve from; let the normal path produce its typed error.
+        let base_io = io_before.delta(&store.io().snapshot());
+        return Ok(NarrowProbe::Probed {
+            hit: false,
+            manifest: Box::new(manifest),
+            carry: ProbeCarry {
+                base_io,
+                prefetched,
+                output: None,
+            },
+        });
+    }
+
+    let istore = FsIndexStore::open_with_io(store.root(), store.io().handle())?;
+    let root = NodeId::from_bytes(manifest.index_root);
+    let seeds = store.seed_substrate();
+
+    // Compute the deterministic target `(id, max_output_bytes)`.
+    let target: Option<(NodeId, u64)> = match (&req.selector, req.representation) {
+        (Selector::Page(page), R::Text | R::Preview | R::Structure) => {
+            let key = SelectorKey::new(SEL_PAGE, *page);
+            let entries = lookup(&istore, &root, &key)?;
+            prefetched.insert(key, entries.clone());
+            match entries.first() {
+                Some(entry) => {
+                    let (ops, text, preview) = derived_nodes(*page, entry.node_id);
+                    // The short-circuit only applies once the whole derived chain
+                    // already exists, so the normal path cannot promote (deepen)
+                    // and the answer is a pure cache read.
+                    if seeds.contains_node(&ops.content_id())?
+                        && seeds.contains_node(&text.content_id())?
+                        && seeds.contains_node(&preview.content_id())?
+                    {
+                        let node = match req.representation {
+                            R::Preview | R::Structure => preview,
+                            _ => text,
+                        };
+                        Some((node.content_id(), node.limits.max_output_bytes))
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            }
+        }
+        (Selector::Stream(object), R::DecodedBytes | R::Operators) => {
+            let enc_key = SelectorKey::new(SEL_STREAM, *object);
+            let enc = lookup(&istore, &root, &enc_key)?;
+            prefetched.insert(enc_key, enc.clone());
+            let dec_key = SelectorKey::new(SEL_STREAM_DECODED, *object);
+            let dec = lookup(&istore, &root, &dec_key)?;
+            prefetched.insert(dec_key, dec.clone());
+            // The normal path requires a `SEL_STREAM` entry and, for a pure cache
+            // hit, an already-registered decoded node; otherwise it would deepen
+            // from the descriptor.
+            if enc.is_empty() {
+                None
+            } else {
+                match dec.first() {
+                    // The index entry's id *is* the decoded node's content id.
+                    // Every decoded node is built with `NodeLimits::DEFAULT`.
+                    Some(entry) if req.representation == R::DecodedBytes => Some((
+                        entry.node_id,
+                        crate::field::node::NodeLimits::DEFAULT.max_output_bytes,
+                    )),
+                    Some(entry) => {
+                        let node = SeedNode::new(
+                            NodeKind::ContentOperators,
+                            0,
+                            Vec::new(),
+                            vec![entry.node_id],
+                            "pdf:content-operators",
+                        );
+                        Some((node.content_id(), node.limits.max_output_bytes))
+                    }
+                    None => None,
+                }
+            }
+        }
+        _ => None,
+    };
+
+    // Read the target's cached bytes at most once here: a hit is served from
+    // this buffer, so neither the cache nor the descriptor is read again.
+    let (hit, output) = match target {
+        // Mirror `dag::materialize_inner`'s hit guard exactly: a cache error or
+        // an oversized entry is a miss, never a wrong answer.
+        Some((target_id, max_output_bytes)) => {
+            match DerivedCache::open(store.root().join("cache"))?.get(&target_id) {
+                Ok(Some(bytes)) if bytes.len() as u64 <= max_output_bytes => {
+                    (true, Some((target_id, bytes)))
+                }
+                _ => (false, None),
+            }
+        }
+        None => (false, None),
+    };
+    let base_io = io_before.delta(&store.io().snapshot());
+    Ok(NarrowProbe::Probed {
+        hit,
+        manifest: Box::new(manifest),
+        carry: ProbeCarry {
+            base_io,
+            prefetched,
+            output,
+        },
+    })
 }
 
 /// Observe against an already-opened [`OpenedField`], for callers that open once
@@ -361,6 +607,30 @@ impl OpenedField {
             return Ok(OpenedField::Partial(Box::new(pf)));
         }
         Ok(OpenedField::Full(Box::new(Field::open(store, id, limits)?)))
+    }
+
+    /// Open the cheapest admissible path from an **already-read** manifest. The
+    /// manifest bytes are charged by the caller (the narrow probe counts them in
+    /// its `base_io`), so `open_io` here never re-reads them.
+    pub(crate) fn open_with_manifest(
+        store: &FieldStore,
+        req: &ObserveRequest,
+        manifest: FieldRoot,
+        limits: Limits,
+    ) -> Result<OpenedField> {
+        if store.supports_partial_descriptor()
+            && partial_eligible(req)
+            && let Some(pf) =
+                PartialField::finish_open(store, manifest.clone(), store.io().snapshot(), limits)?
+        {
+            return Ok(OpenedField::Partial(Box::new(pf)));
+        }
+        Ok(OpenedField::Full(Box::new(Field::open_after_manifest(
+            store,
+            manifest,
+            store.io().snapshot(),
+            limits,
+        )?)))
     }
 
     /// A view over this opened field for the evaluation core.
@@ -430,6 +700,21 @@ impl PartialField {
     ) -> Result<Option<PartialField>> {
         let io_before = store.io().snapshot();
         let manifest = store.get_field(id)?;
+        PartialField::finish_open(store, manifest, io_before, limits)
+    }
+
+    /// The body of [`PartialField::try_open`] from an already-read manifest.
+    ///
+    /// `io_before` is the snapshot `open_io` is measured from: pass one taken
+    /// *before* the manifest read to charge it to this open (the ordinary
+    /// path), or one taken after it to charge it elsewhere (the narrow probe,
+    /// which already counted the manifest in its `base_io`).
+    pub(crate) fn finish_open(
+        store: &FieldStore,
+        manifest: FieldRoot,
+        io_before: IoSnapshot,
+        limits: Limits,
+    ) -> Result<Option<PartialField>> {
         let descriptor_id = Id::from_bytes(manifest.descriptor_id);
         let Some(path) = store.descriptor_path(&descriptor_id) else {
             // The descriptor is not a filesystem file (EntropyFS backend): the
@@ -457,8 +742,9 @@ impl PartialField {
         // the observation completes (once, so the read *count* stays one), so the
         // open snapshot carries only the manifest read here.
         let open_io = io_before.delta(&store.io().snapshot());
+        let id = manifest.content_id();
         Ok(Some(PartialField {
-            id: manifest.content_id(),
+            id,
             manifest,
             open_io,
             loader: *loader,
@@ -507,12 +793,27 @@ fn observe_view<'a>(
     limits: Limits,
     started: Instant,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
-    let (seeds, istore) = open_sub_stores(store)?;
-    observe_with_stores(store, view, req, limits, started, seeds, istore)
+    observe_view_pre(store, view, req, limits, started, ProbeCarry::default())
 }
 
-/// The evaluation core. Takes explicit sub-stores so a test can supply a seed
-/// store wrapper that forbids enumeration.
+/// [`observe_view`] with the cache-first probe's carried state: physical bytes it
+/// already fetched, index entries it resolved, and integrity-checked cache bytes
+/// — so the evaluation core never reads any of them a second time.
+fn observe_view_pre<'a>(
+    store: &'a mut FieldStore,
+    view: FieldView<'a>,
+    req: &ObserveRequest,
+    limits: Limits,
+    started: Instant,
+    carry: ProbeCarry,
+) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
+    let (seeds, istore) = open_sub_stores(store)?;
+    observe_with_stores_pre(store, view, req, limits, started, seeds, istore, carry)
+}
+
+/// Test-only wrapper over [`observe_with_stores_pre`] with no probe state, so a
+/// test can supply a seed store wrapper that forbids enumeration.
+#[cfg(test)]
 fn observe_with_stores<'a, S: SeedStore>(
     store: &'a mut FieldStore,
     view: FieldView<'a>,
@@ -522,6 +823,37 @@ fn observe_with_stores<'a, S: SeedStore>(
     seeds: CountingSeedStore<S>,
     istore: FsIndexStore,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
+    observe_with_stores_pre(
+        store,
+        view,
+        req,
+        limits,
+        started,
+        seeds,
+        istore,
+        ProbeCarry::default(),
+    )
+}
+
+/// The evaluation core. Takes explicit sub-stores so a test can supply a seed
+/// store wrapper that forbids enumeration; `carry` is the cache-first probe's
+/// already-counted bytes, resolved index entries, and cached target bytes.
+#[allow(clippy::too_many_arguments)]
+fn observe_with_stores_pre<'a, S: SeedStore>(
+    store: &'a mut FieldStore,
+    view: FieldView<'a>,
+    req: &ObserveRequest,
+    limits: Limits,
+    started: Instant,
+    seeds: CountingSeedStore<S>,
+    istore: FsIndexStore,
+    carry: ProbeCarry,
+) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
+    let ProbeCarry {
+        base_io,
+        prefetched,
+        output,
+    } = carry;
     // Snapshot after the field is open: only the reads this observation performs
     // during evaluation are counted as deltas; the field-open bytes come from
     // `view.open_io` below so they cannot be dropped on the floor.
@@ -543,6 +875,8 @@ fn observe_with_stores<'a, S: SeedStore>(
         read_mode: view.read_mode,
         seeds,
         istore,
+        prefetched,
+        prefetched_output: output,
         limits,
         budget,
         stats: ObserveStats::default(),
@@ -568,15 +902,22 @@ fn observe_with_stores<'a, S: SeedStore>(
     if let Some(loader) = ctx.loader {
         ctx.store.io().add_descriptor(loader.bytes_read());
     }
-    // Every physical byte fetched by this observation: the field-open bytes plus
-    // any additional reads (e.g. a Stage-C promotion) performed during dispatch.
+    // Every physical byte fetched by this observation: the probe's `base_io`, the
+    // field-open bytes, plus any additional reads (e.g. a Stage-C promotion)
+    // performed during dispatch.
     let open = ctx.open_io;
     let extra = io_base.delta(&ctx.store.io().snapshot());
-    stats.descriptor_bytes_read = open.descriptor_bytes.saturating_add(extra.descriptor_bytes);
+    stats.descriptor_bytes_read = base_io
+        .descriptor_bytes
+        .saturating_add(open.descriptor_bytes)
+        .saturating_add(extra.descriptor_bytes);
     stats.descriptor_read_mode = ctx.read_mode;
-    stats.manifest_bytes_read = open.manifest_bytes.saturating_add(extra.manifest_bytes);
-    stats.index_bytes_read = extra.index_bytes;
-    stats.seed_bytes_read = extra.seed_bytes;
+    stats.manifest_bytes_read = base_io
+        .manifest_bytes
+        .saturating_add(open.manifest_bytes)
+        .saturating_add(extra.manifest_bytes);
+    stats.index_bytes_read = base_io.index_bytes.saturating_add(extra.index_bytes);
+    stats.seed_bytes_read = base_io.seed_bytes.saturating_add(extra.seed_bytes);
     stats.bytes_read = stats
         .descriptor_bytes_read
         .saturating_add(stats.manifest_bytes_read)
@@ -604,6 +945,10 @@ struct Ctx<'a, S: SeedStore> {
     read_mode: DescriptorReadMode,
     seeds: CountingSeedStore<S>,
     istore: FsIndexStore,
+    /// Index entries the cache-first probe already resolved, keyed by selector.
+    prefetched: PrefetchedIndex,
+    /// The target's cache bytes, already read and integrity-checked by the probe.
+    prefetched_output: Option<(NodeId, Vec<u8>)>,
     limits: Limits,
     budget: EvalBudget,
     stats: ObserveStats,
@@ -617,6 +962,17 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn materialize(&mut self, node: &SeedNode) -> Result<Vec<u8>> {
         let depth = node.limits.max_depth;
         if self.use_cache {
+            // The cache-first probe may have already read and integrity-checked
+            // this exact node's output. Serving it here is byte-identical to a
+            // cache hit and avoids reading the entry a second time.
+            if let Some((id, bytes)) = self.prefetched_output.take() {
+                if id == node.content_id() {
+                    self.reuse.nodes_reused = self.reuse.nodes_reused.saturating_add(1);
+                    self.budget.charge_bytes(bytes.len() as u64)?;
+                    return Ok(bytes);
+                }
+                self.prefetched_output = Some((id, bytes));
+            }
             dag::materialize_node_cached_with(
                 self.source,
                 &self.seeds,
@@ -650,8 +1006,18 @@ impl<S: SeedStore> Ctx<'_, S> {
         if !self.manifest.has_index() {
             return Ok(Vec::new());
         }
-        let root = NodeId::from_bytes(self.manifest.index_root);
-        let entries = lookup(&self.istore, &root, &key)?;
+        // A probe-resolved key is served from memory: the index nodes were read
+        // (and charged) before the field opened, so reading them again would both
+        // double the bytes and lie about the work. Counting the entries keeps
+        // `index_nodes_read` identical to the normal path.
+        let prefetched = self.prefetched.get(&key).cloned();
+        let entries = match prefetched {
+            Some(entries) => entries,
+            None => {
+                let root = NodeId::from_bytes(self.manifest.index_root);
+                lookup(&self.istore, &root, &key)?
+            }
+        };
         self.stats.index_nodes_read += entries.len() as u64;
         Ok(entries)
     }

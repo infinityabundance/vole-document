@@ -256,3 +256,77 @@ per call) and decoded-stream (~82 KB per call) observations.
   query setup; it is not charged to any lifetime cost.
 * The generated document is the unmodified `pdf-make-large` output (fixed ~32 MiB
   source, 50 pages); the generator has no size flag.
+
+## Descriptor-free narrow observations (Phase 11 priority #2)
+
+Receipt: [`evidence/campaigns/2026-10-06-phase11-desc-free-a8ad6f4/`](../../evidence/campaigns/2026-10-06-phase11-desc-free-a8ad6f4/SUMMARY.md)
+(field court) and its [`lifetime/`](../../evidence/campaigns/2026-10-06-phase11-desc-free-a8ad6f4/lifetime/SUMMARY.md)
+sub-receipt (lifetime court). Both courts were run unchanged; every prior
+receipt is retained.
+
+**What changed.** `observe` now tries a cache-first short-circuit before opening
+the descriptor. For `Page(Text|Preview|Structure)` and `Stream(Decoded|Operators)`
+with caching enabled, it resolves the selector from the **field manifest + the
+hierarchical observation index only**, computes the target derived node id with
+the *same* constructors `ingest`/`deepen` use, and asks the disposable derived
+cache. On a hit the ordinary evaluation core still runs — against a trip-wire
+`SourceServer` — so the `FieldAnswer` and every work counter are byte-identical to
+the normal path while `descriptor_bytes_read` is **0**. On a miss the probe hands
+the normal path the manifest it read, the index entries it resolved, and the
+target's integrity-checked cache bytes, so a cold observation reads nothing
+(descriptor, manifest, or index) a second time. The short-circuit is limited to
+the filesystem backend's partial lane; `materialize_exact` is untouched.
+
+**Measured (same court, same machine).** Page-1 text, `bytes_read` classes.
+"Before" is receipt `2026-10-06-phase11-partial-b7de39d` (identical cold
+numbers in both runs).
+
+| case | cold desc B (before=after) | cold manifest B | cold index B | cold seed B | cold total B (before=after) |
+|---|---:|---:|---:|---:|---:|
+| large-50 | 354712 | 246 | 8240 | 449 | 363647 |
+| large-400 | 223073 | 249 | 8744 | 449 | 232515 |
+| producer | 72908 | 246 | 8282 | 449 | 81885 |
+
+| case | warm desc B before | warm desc B after | warm manifest B | warm index B | warm seed B | warm total B before | warm total B after | warm wall µs before → after |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| large-50 | 23632 | **0** | 201 | 8240 | 0 | 32073 | **8441** | 505 → 352 |
+| large-400 | 182483 | **0** | 201 | 8744 | 0 | 191428 | **8945** | 777 → 99 |
+| producer | 481 | **0** | 201 | 8282 | 0 | 8964 | **8483** | 57 → 56 |
+
+A0 Poppler (`pdftotext -f 1 -l 1`, primary 33,673,730 B document): **136,128 B**
+read/pread, 8 ms. A1 preprocessed SQLite: **24,393 B** read/pread, 1 ms.
+
+**Verdict — narrow page-text byte + wall court.** For a **warm/reused** page-text
+observation the win is plain and large: `descriptor_bytes_read` drops from
+23,632 / 182,483 / 481 B to **0**, and the honest total drops to 8,441 / 8,945 /
+8,483 B. On the primary `large-400` case the warm total (8,945 B, 0.099 ms) is
+below **both** baselines — A1's 24,393 B / 1 ms and A0's 136,128 B / 8 ms — so the
+warm byte court and the warm wall court are both **wins** (not ties). The **cold**
+observation is a **loss**: it is byte-identical to before (232,515 B / 13.7 ms)
+and above both baselines; the win exists only because the second observation is
+served from the persisted derived cache. The lifetime court confirms the
+per-query effect: warm page-text marginal `bytes_read` falls from 32,118 → 8,486
+B (`large`) and from 9,424 → 2,890 B (`cairo-vector`); the `large` document's
+bytes-read crossover is still **absent** because the one-time ingest (~406 MB)
+dominates within N ≤ 1,000.
+
+**Honest losses.**
+
+* **Cold is unchanged and loses.** A cache miss still reads the descriptor
+  closure; VOLE cold (232,515 B on `large-400`) is above A1 (24,393 B) and A0
+  (136,128 B). Nothing here improves the first observation.
+* **The win is reuse-only.** It needs both a warm derived cache *and* the derived
+  seed chain already present; if either is absent the probe falls through.
+* **Limited surface.** Only `Page(Text|Preview|Structure)` and
+  `Stream(Decoded|Operators)` are short-circuited, and only on the filesystem
+  backend. `ByteRange`, `Object`, `Revision`, `Stream(EncodedBytes)`, whole-
+  document reads, and the EntropyFS backend still open the descriptor.
+* **Manifest + index still dominate the warm total.** 201 B manifest + 8,240–
+  8,744 B index leaf = 98% of the 8,441–8,945 B warm read. A larger index, or a
+  selector spread across more index leaves, would erode the margin.
+* **Not a whole-document win.** The derived cache must first be written (one
+  `bytes_returned`-sized entry per observed node), and VOLE remains far larger
+  than A0/A1 on cold and whole-file comparisons.
+* **Dependency-cache integrity still fails closed.** The probe mirrors
+  `materialize_inner`'s guard exactly: a cache error or oversized entry is a
+  miss, never wrong bytes, and a poisoned cache forces recomputation.
