@@ -1,0 +1,25 @@
+# Phase 10.1 governor court — exact commands
+# Commit: d2b09c94432c61de3ff256429fab8d46d38adcdc (branch phase10); run 2026-10-06T04:15:37Z
+# All commands run through compose.yaml; nothing runs on the host.
+
+docker compose run --rm --no-TTY dev sh tools/governor-court.sh
+
+# inside the container:
+#   cargo run --quiet --locked --features dsfb-search,deflate-replay \
+#       --example governor_court -- evidence/campaigns/2026-10-05-phase10-governor-d2b09c9
+#   cargo build --locked
+#   target/debug/vole-document decode evidence/scratch/phase10-governor/governed-many.voldoc evidence/scratch/phase10-governor/decoded-many.bin
+#   cmp evidence/scratch/phase10-governor/decoded-many.bin evidence/scratch/phase10-governor/governed-many.src
+#   cargo build --locked --features deflate-replay
+#   target/debug/vole-document decode evidence/scratch/phase10-governor/governed-flate.voldoc evidence/scratch/phase10-governor/decoded-flate.bin
+#   cmp evidence/scratch/phase10-governor/decoded-flate.bin evidence/scratch/phase10-governor/governed-flate.src
+
+# gates (recorded in gates.txt):
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --all-features --locked
+#   cargo test --locked
+#   cargo test --no-default-features
+#   cargo test --features dsfb-search
+#   msrv: cargo test --locked --all-features
+#   policy: cargo audit && cargo deny check

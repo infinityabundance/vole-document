@@ -7,7 +7,7 @@ abstract: >-
   and (later) typed rANS channels — and materializes the exact original document
   bytes on demand. The exact profile's invariant is
   materialize(descriptor) == original_bytes.
-version: 0.1.0-alpha.11
+version: 0.1.0-alpha.12
 license: "MIT OR Apache-2.0"
 type: software
 repository-code: "https://github.com/infinityabundance/vole-document"

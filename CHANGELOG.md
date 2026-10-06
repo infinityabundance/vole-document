@@ -2,6 +2,65 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.12] — unreleased
+
+Phase 10 — **DSFB encoder-only search governance** (10.1) and the **top-level
+negative-results consolidation** (10.2). Docs + version only: no wire, candidate,
+decoder, or feature-bit change.
+
+### Added
+
+- **Phase 10.1 — encoder-only search governance** (`src/encode/governor.rs`,
+  ADR-0022; landed under this version). A non-default, **dependency-free** feature
+  `dsfb-search = []` (**not** `["dep:dsfb"]`) adds typed, integer-only residual
+  diagnostics, a tiny parametric candidate space over *existing* mechanisms
+  (`SearchConfig { scale_bits, partition, replay, packed, depth }`), a pure
+  `govern(&ResidualTrace) -> SearchDirective`, and `propose_configured`. **Zero
+  decode authority:** no wire change, `header.rs` untouched, no feature bit;
+  every candidate reaches the unmodified complete-cost court. The published
+  `dsfb 0.1.2` crate is recorded as real, MSRV-OK, transitively present only via
+  `entropyfs-store`, and *unavailable-for-purpose* (it is Drift-Slew Fusion
+  Bootstrap state estimation, not a search governor).
+- **Phase 10.2 — `FINDINGS.md` + ADR-0023 (top-level consolidated decision).**
+  One authoritative document stating what was built, what was measured, against
+  which baseline, what won, what lost, and why — every claim linked to a sealed
+  receipt and naming its baseline. [`FINDINGS.md`](FINDINGS.md) supersedes the
+  per-phase narratives. ADR-0023 records the verdict: **the current VOLE
+  representation stack does not beat purpose-built baselines on any measured
+  axis; the durable results are byte-exactness, an auditable representation, and
+  the recorded negatives.** It consolidates ADR-0017 (whole-file loss, 0/27),
+  ADR-0018/0019 (scoped partial-decode wins), ADR-0021 (cross-document sharing
+  loss), and ADR-0022 (no byte benefit). The falsified-claims log (the Phase-6
+  qpdf "win" and the Phase-7.0b Cairo "win", both fixture artifacts) and the
+  three falsifiable directions that could change the conclusion are included.
+- README gains a prominent **Findings** pointer and scoped status wording;
+  `PROJECT_STATE.md` gains the consolidated ledger row.
+
+### Measured — Phase 10.1 governor court (recorded negative)
+
+- **The parametric search adds no bytes on the frozen cohort** (campaign
+  `2026-10-05-phase10-governor-d2b09c9`; ADR-0022). Over small deterministic
+  samples + a synthetic trio (disjoint tune/holdout/control sets; H2 judged only
+  on holdout): **H1 HELD** (`DsfbGuided.final ≤ FixedHeuristic.final` everywhere),
+  **H2 HELD** (guided == exhaustive on 8/8 holdout with ≤ ½ the candidates),
+  **H3 HELD** (`fixed == exhaustive` on *every* workload; median byte benefit
+  0 ‰), **H4 HELD** (negative controls `Stop(Raw)` match the RAW descriptor
+  byte-for-byte). Representative rows (final bytes / candidates): `flate.pdf`
+  36,161/10 (fixed), 36,161/438 (exhaustive), 36,161/150 (guided); `bigtext.pdf`
+  38,274 at 7/414/126; `many.pdf` 5,301 at 7/414/126. **Zero decode authority,
+  proven:** a governor-produced descriptor decodes byte-exactly in the **default**
+  build (no `dsfb-search`). Small locally generated cohort; **no population
+  claim**. The fixed complete-cost court is retained.
+
+### Notes
+
+- **Claim discipline is now normative (ADR-0023).** No whole-file "compression"
+  claim without the four generic compressors on a committed corpus and a sealed
+  receipt; cross-document sharing is store *amortization*, never "compression";
+  exactness is the invariant, not a competitive win; no population claim from the
+  locally generated corpora; withdrawn claims stay withdrawn wherever the
+  affected phase is described.
+
 ## [0.1.0-alpha.11] — unreleased
 
 Phase 9 — **cross-document content-addressed store** (9.1 store core, 9.2
@@ -54,6 +113,22 @@ LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
   `Σ A_i == U` exactly. `store account` prints all three and the per-root split.
 - Docs: `SPEC.md` (`EXTERNAL_REF` record, `ObjectSource` model, mandatory feature
   bits, universe string, feature policy), `docs/adr/0020-content-addressed-store.md`.
+- **Phase 10.1 — encoder-only search governance** (`src/encode/governor.rs`, ADR-0022).
+  A non-default, **dependency-free** feature `dsfb-search = []` (**not**
+  `["dep:dsfb"]`) adds typed, integer-only residual diagnostics
+  (`SourceRegion`, `FormatStructure`, `ResidualClass`, `RunStats`/`Periodicity`/
+  `Recurrence`, `ResidualDiagnostic`, `ResidualTrace`), a tiny parametric candidate
+  space over existing mechanisms (`SearchConfig { scale_bits ∈ {8,10,12},
+  partition ∈ {ByKind,ByRole}, replay ∈ {Off,Dedup,DedupRans}, packed, depth }`), a
+  pure `govern(&ResidualTrace) -> SearchDirective` with a frozen dominant-residual
+  table and a bounded `Budget`, and `propose_configured` (parameterizes `BYTE_RANS`
+  and `PDF_CHANNELS` by `scale_bits`, toggles partition/replay/packed/depth). **Zero
+  decode authority:** no wire change, `header.rs` untouched, no feature bit; every
+  candidate reaches the unmodified complete-cost court. The example
+  `governor_court`, `tools/governor-court.sh`, and `tests/governor.rs` are gated by
+  the feature. The `dsfb 0.1.2` crate is recorded as real, MSRV-OK, transitively
+  present only via `entropyfs-store`, and unavailable-for-purpose (it is Drift-Slew
+  Fusion Bootstrap state estimation, not a search governor).
 
 ### Measured — Phase 9.3 store court (recorded negative)
 
@@ -82,7 +157,7 @@ LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
   representation change.
 - Under the **auto** candidate the only win is `repeat-bin` (four byte-identical
   opaque binaries): `U = 133,048 B` vs per-file LZ `524,308 B` (−74.6 %), CDC
-  `140,640 B` raw (−5.4 %) / `133,865 B` compressed (−0.6 %, ~0.8 KB — real but
+  `140,640 B` raw (−5.4 %) / `133,863 B` compressed (−0.6 %, ~0.8 KB — real but
   marginal). `shared-payload` — the fixture expected to win — loses in the auto
   run (`U = S = 800,210 B` vs CDC `285,257 B`) because the auto winner codes the
   shared stream in entropy channels, not the object table; **forcing
@@ -101,6 +176,29 @@ LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
   parameter sweep), `borgbackup=1.2.4-1` added to the `baseline` image. Full
   report `docs/evidence/phase9-store-report.md`; ADR-0021.
 
+### Measured — Phase 10.1 governor court (recorded negative)
+
+- **The parametric search adds no bytes on the frozen cohort** (campaign
+  `2026-10-05-phase10-governor-d2b09c9`; ADR-0022). Over small deterministic
+  samples + a synthetic trio (disjoint tune/holdout/control sets; H2 judged only on
+  holdout): **H1 HELD** (`DsfbGuided.final ≤ FixedHeuristic.final` everywhere),
+  **H2 HELD** (guided == exhaustive on 8/8 holdout with ≤ ½ the candidates),
+  **H3 HELD** (`fixed == exhaustive` on *every* workload; median byte benefit
+  0 ‰), **H4 HELD** (negative controls `Stop(Raw)` and match the RAW descriptor
+  byte-for-byte). Representative rows (final bytes / candidates): `flate.pdf`
+  36,161/10 (fixed), 36,161/438 (exhaustive), 36,161/150 (guided); `bigtext.pdf`
+  38,274 at 7/414/126; `many.pdf` 5,301 at 7/414/126.
+- **Zero decode authority, proven.** A governor-produced descriptor for `many.pdf`
+  (winner `BYTE_RANS`) decodes byte-exactly in the **default** build (no
+  `dsfb-search`); a `flate.pdf` descriptor (winner `PDF_DEFLATE_REPLAY_RANS`)
+  decodes in a build with the underlying `deflate-replay` capability and still no
+  `dsfb-search`. A grep gate asserts the decode path references neither `governor`
+  nor `crate::encode`.
+- **Honest verdict:** the fixed heuristic already attains the exhaustive minimum
+  on every workload, so the governance mechanism is retained as an optional
+  encoder feature but the **fixed complete-cost court is retained**; the negative
+  is recorded, not hidden. Small locally generated cohort; **no population claim**.
+
 ### Notes
 
 - **Claim discipline.** No size or compression claim is made for the store; a
@@ -110,7 +208,8 @@ LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
   sharing is store *amortization*, never "compression", and it loses the store
   axis to generic CDC on this cohort (ADR-0021). `dsfb` remains a hard dependency
   of the *optional* `entropyfs-store` feature only and retains **zero** decode
-  authority (ADR-0008).
+  authority (ADR-0008). Phase 10.1 adds an encoder-only governor that likewise has
+  **zero** decode authority and does **not** depend on `dsfb` (ADR-0022).
 - **Corrections (independent adversarial review, `docs/evidence/phase9-skeptic-review.md`).**
   The Phase-9.3 claims were corrected after an independent review: (i) the
   negative is restated as robust but **partly an externalization-granularity /

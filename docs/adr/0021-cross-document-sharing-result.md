@@ -69,7 +69,7 @@ compression.
 
 | stratum | files | S | U | LZ | CDC raw | CDC zstd | vs LZ | vs CDC |
 |---|---:|---:|---:|---:|---:|---:|---|---|
-| repeat-bin | 4 | 526,104 | 133,048 | 524,308 | 140,640 | 133,865 | WIN | WIN |
+| repeat-bin | 4 | 526,104 | 133,048 | 524,308 | 140,640 | 133,863 | WIN | WIN |
 | dup-resource | 1 | 56,944 | 56,984 | 3,454 | 101,586 | 11,531 | LOSS | (WIN raw / LOSS zstd) |
 | shared-bin | 5 | 657,670 | 657,870 | 655,425 | 147,253 | 138,450 | TIE | LOSS |
 | shared-payload | 5 | 800,210 | 800,210 | 34,591 | 285,257 | 28,195 | LOSS | LOSS |
@@ -83,7 +83,7 @@ compression.
 - **`repeat-bin` — the only auto-candidate win**: four byte-identical opaque
   binaries. A RAW-winner descriptor stores the whole file as one object, so the
   store keeps one copy (`U = 133,048 B`, -74.6 % vs LZ) where per-file LZ pays
-  524,308 B and borg's chunked dedup pays 140,640 B raw (-5.4 %) / 133,865 B
+  524,308 B and borg's chunked dedup pays 140,640 B raw (-5.4 %) / 133,863 B
   compressed (-0.6 %, ~0.8 KB — real but marginal). Whole-object dedup edges out
   chunk dedup by ~0.6 % on this stratum.
 - **A second win appears only when a finer-object candidate is forced.** Under

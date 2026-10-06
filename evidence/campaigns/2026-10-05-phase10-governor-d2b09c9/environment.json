@@ -1,0 +1,18 @@
+{
+  "campaign": "2026-10-05-phase10-governor-d2b09c9",
+  "run_utc": "2026-10-06T04:15:37Z",
+  "arch": "x86_64",
+  "git_branch": "phase10",
+  "git_commit": "d2b09c94432c61de3ff256429fab8d46d38adcdc",
+  "git_dirty_files": 4,
+  "cargo_lock_sha256": "40476500a2d9eff5441041ca36627623e4170a55e3a611ba014304fa7f829f91",
+  "dev": {
+    "service_image": "vole-document/dev:1.99.0",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "rustc": "1.99.0",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)"
+  },
+  "features_under_test": "dsfb-search,deflate-replay (+ default rans,store)",
+  "env_vars_affecting_semantics": { "CARGO_TERM_COLOR": "never", "LC_ALL": "C" },
+  "notes": "All commands ran through compose.yaml; nothing ran on the host except git and docker. The decode-without-the-feature proof builds the DEFAULT binary (no dsfb-search) and decodes the governed descriptor."
+}

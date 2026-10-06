@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.11"
+version = "0.1.0-alpha.12"
 edition = "2024"
 rust-version = "1.89"
 description = "Byte-exact procedural document storage: deterministic reconstruction state, typed residuals, and entropy-coded channels that materialize the exact original document bytes."
@@ -23,6 +23,13 @@ path = "src/lib.rs"
 [[bin]]
 name = "vole-document"
 path = "src/main.rs"
+
+# The Phase-10 governor court driver is a *measured* entry point, not part of the
+# shipped binary. It is feature-gated so the default build never compiles it.
+[[example]]
+name = "governor_court"
+path = "examples/governor_court.rs"
+required-features = ["dsfb-search"]
 
 [dependencies]
 # Archival source identity. Pinned exactly for the first sealed universe.
@@ -78,9 +85,23 @@ deflate-replay = ["dep:preflate-rs"]
 # **never** in `default`; enabling it implies `store` (the `ObjectStore` trait and
 # `Id`). The engine is not required to materialize a store-backed descriptor.
 entropyfs-store = ["dep:entropyfs", "store"]
+# Phase 10.1: encoder-only search governance (typed residual diagnostics + a
+# parametric candidate space + a pure governor + its court).
+#
+# This feature is deliberately **dependency-free**: it adds `dsfb-search = []`,
+# NOT `["dep:dsfb"]`. The published `dsfb 0.1.2` crate is a real but unrelated
+# algorithm — "Drift-Slew Fusion Bootstrap (DSFB) state estimation" (a Kalman-like
+# `f64` observer with `rand`/`rand_distr`) — with no candidate-family / residual /
+# search-directive API. It is present in this lockfile only transitively through
+# the optional `entropyfs-store` feature. Adding it would force a `rand` tree and
+# a floating-point decision path into the encoder for no applicable API, so the
+# Phase-10 governor is a small VOLE-owned, integer-only, encoder-only module.
+# The feature changes **no** wire bytes and adds **no** decoder behavior: a
+# descriptor produced under governance decodes in any build without this feature.
+# Never in `default`.
+dsfb-search = []
 # Later phases (declared so the feature surface is deliberate, not accidental):
 # pdf = []
-# dsfb-search = ["dep:dsfb"]
 
 [profile.release]
 opt-level = 3

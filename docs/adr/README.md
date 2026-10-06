@@ -23,9 +23,11 @@ the written rationale that must survive chat history.
 | [0016](0016-replay-resource-bound.md) | Decode-time DEFLATE replay is statically resource-bounded | Accepted (Phase 6.7) |
 | [0017](0017-generic-lossless-baselines.md) | Generic lossless compressors are the whole-file comparator; VOLE's whole-file lanes lose to them (0/27) | Accepted — recorded methodology and negative result (Phase 7.0c) |
 | [0018](0018-partial-materialization.md) | Partial materialization is a scoped random-access query-cost win on decode CPU, with no I/O win in v1 | Accepted — scoped positive result (Phase 7.3) |
-| [0019](0019-seek-based-io.md) | Seek-based partial I/O makes a late observation view a measured bytes-read win | Accepted — scoped positive result, with recorded early/small-descriptor losses (Phase 8.3) |
+| [0019](0019-seek-based-io.md) | Seek-based partial I/O makes a late observation view a measured bytes-read win (versus non-seekable sequential codecs only) | Accepted — scoped positive result, with recorded early/small-descriptor and seekable/blocked losses (Phase 8.3) |
 | [0020](0020-content-addressed-store.md) | A content-addressed object store; three accounting universes | Accepted (design; cohort measurement Phase 9.3) |
 | [0021](0021-cross-document-sharing-result.md) | Cross-document sharing does not beat generic chunk dedup (measured) | Accepted — recorded negative result (Phase 9.3) |
+| [0022](0022-encoder-only-search-governance.md) | Encoder-only search governance, with zero decode authority | Accepted — mechanism implemented; parametric search is a recorded negative (Phase 10.1) |
+| [0023](0023-consolidated-findings.md) | The current representation stack does not beat purpose-built baselines on any measured axis (superseding consolidated decision) | Accepted — top-level negative-results consolidation (Phase 10.2) |
 
 ## Adding an ADR
 
