@@ -1,0 +1,277 @@
+{
+  "fixture_count": 45,
+  "fixtures": {
+    "docx_ambiguous_main.docx": {
+      "category": "opc",
+      "expect": "reject",
+      "length": 1241,
+      "sha256": "0f82e5274ff9a6dadb20385bad0e74d7a684a789ce8e9efce023cf9385a29d91"
+    },
+    "docx_bad_content_types.docx": {
+      "category": "opc",
+      "expect": "reject",
+      "length": 743,
+      "sha256": "2ec3c21eea2b4984ae91ba714662ed53be1d1e4e26a38658faa667a3b5ffec77"
+    },
+    "docx_deep_nesting.docx": {
+      "category": "xml",
+      "expect": "reject",
+      "length": 891,
+      "sha256": "11b9df63135cc75d3adc348bd8f45af82519a42ccfa7167239d0a7e85bdae666"
+    },
+    "docx_doctype.docx": {
+      "category": "xml",
+      "expect": "reject",
+      "length": 912,
+      "sha256": "26ab798e9b8e57e70f3ee261723645924a7cf1de9f8de351df58b84efdf73c56"
+    },
+    "docx_duplicate_part.docx": {
+      "category": "opc",
+      "expect": "reject",
+      "length": 1235,
+      "sha256": "9367cb615405079a225aa1d0846fab8a60001fcd55dd0f931b55d6a291a6b72e"
+    },
+    "docx_entity_bomb.docx": {
+      "category": "xml",
+      "expect": "reject",
+      "length": 937,
+      "sha256": "d0e2d2ef4c424cb7b6af45c804fc9a2a707197446bedba624e6355b1cd43af01"
+    },
+    "docx_external_main.docx": {
+      "category": "opc",
+      "expect": "reject",
+      "length": 962,
+      "sha256": "fa1ec35292a07b814778881e14d7bb83030b28e91f62f7b56588ba81c63251cb"
+    },
+    "docx_missing_main_rel.docx": {
+      "category": "opc",
+      "expect": "reject",
+      "length": 939,
+      "sha256": "c9156441f5a6a0541505474d0f1c26b32f35dd9ab1f542092b423171b46ddb5b"
+    },
+    "docx_non_utf8.docx": {
+      "category": "xml",
+      "expect": "reject",
+      "length": 848,
+      "sha256": "50e0d01b37e86004a8d51a1f71ae740dfba7b7f32f96d862967ecdfc7d2dbcdd"
+    },
+    "docx_nul.docx": {
+      "category": "xml",
+      "expect": "reject",
+      "length": 866,
+      "sha256": "c6f83d56e324f094ffb779c12a34702953e8a9c0fe3a9d063b1fb74e72d519b3"
+    },
+    "docx_ok.docx": {
+      "category": "opc",
+      "expect": "accept",
+      "length": 937,
+      "sha256": "4e1e7d05e5f4934d8ddad393df5e3efc57568abad436f7e7f8cdf83e7e8ab4d2"
+    },
+    "docx_oversized_text.docx": {
+      "category": "xml",
+      "expect": "accept",
+      "length": 1918,
+      "sha256": "06863e50bd106428dd626b70fcc26ced8f6ce1ddc3df5a2ded279a996b6fbdcb"
+    },
+    "docx_traversal_part.docx": {
+      "category": "opc",
+      "expect": "reject",
+      "length": 1069,
+      "sha256": "7a54b52ff962a645bc75777f41c388a690693e30c17d88b48ccbab93b36b4344"
+    },
+    "epub_bad_container.epub": {
+      "category": "epub",
+      "expect": "reject",
+      "length": 1176,
+      "sha256": "012c6f7abb5b7c6cc48f8eb8202ca0059adac1b7896424bf10ad3c47647fb129"
+    },
+    "epub_bad_mimetype.epub": {
+      "category": "epub",
+      "expect": "accept",
+      "length": 1310,
+      "sha256": "4a82caf2a3c9439e3f638674fbb2146d0ba98cf5127fe4b6a1d11a6df33fa914"
+    },
+    "epub_bad_opf.epub": {
+      "category": "epub",
+      "expect": "reject",
+      "length": 1072,
+      "sha256": "933eadd0c29a8a5e483dceba566e969901a634f96fbd242e445780962b56bc1a"
+    },
+    "epub_doctype_xhtml.epub": {
+      "category": "epub",
+      "expect": "reject",
+      "length": 1322,
+      "sha256": "1d7427a4936c663e44c2b6148907aa3b1b6b387bd93d96f0c6ee0cb398ae8313"
+    },
+    "epub_encrypted.epub": {
+      "category": "epub",
+      "expect": "accept",
+      "length": 1583,
+      "sha256": "31eca0fd0498c9de6576499e6a5bdb2f897e858cf156ec0296e59076cdba8a62"
+    },
+    "epub_missing_opf.epub": {
+      "category": "epub",
+      "expect": "reject",
+      "length": 1321,
+      "sha256": "64e58e375a076a25a6a8aefc6a27ed04ec559ffc00b1653f8a70985180448e1b"
+    },
+    "epub_ok.epub": {
+      "category": "epub",
+      "expect": "accept",
+      "length": 1320,
+      "sha256": "f4d9227ddf8f319835747a0290b15f85a39278bab0ecbd398b0785d40ff64788"
+    },
+    "epub_remote.epub": {
+      "category": "epub",
+      "expect": "accept",
+      "length": 1335,
+      "sha256": "a6382a81bd9303c883dd7e25d7cd8fd466ad199c00568a1684f948ea466a5354"
+    },
+    "epub_scripted.epub": {
+      "category": "epub",
+      "expect": "accept",
+      "length": 1346,
+      "sha256": "2d523c4ee4488aa96ccc26ce52f6798276e12590b176c438dc404e2c758ef58e"
+    },
+    "epub_spine_inconsistent.epub": {
+      "category": "epub",
+      "expect": "reject",
+      "length": 1316,
+      "sha256": "9891a7efa6aa4ec7341101b3131bf9d96b2b7633321deffb97e5a1cc1537d59e"
+    },
+    "z_absolute_name.zip": {
+      "category": "zip-identity",
+      "expect": "decline",
+      "length": 121,
+      "sha256": "143f55298aeca29328f5bebc9986197a799795c5611f063679401977024390a0"
+    },
+    "z_backslash_name.zip": {
+      "category": "zip-identity",
+      "expect": "decline",
+      "length": 105,
+      "sha256": "7617b6e12203b18776d941db7a97c004940590e937f45f84091a06fa3285d97a"
+    },
+    "z_bad_cd_offset.zip": {
+      "category": "zip-structure",
+      "expect": "decline",
+      "length": 109,
+      "sha256": "1fa7756f2c0c3ca625385a71ef162184d7185bd00fed08801418eba89e27a602"
+    },
+    "z_bad_crc.zip": {
+      "category": "zip-resource",
+      "expect": "decline",
+      "length": 117,
+      "sha256": "6aed1d9402f0e46bbd12b7f22300aff8ef1051e1a7b29c06bb3fd07a6d7f1c88"
+    },
+    "z_bad_descriptor.zip": {
+      "category": "zip-structure",
+      "expect": "decline",
+      "length": 119,
+      "sha256": "b1bbd14762f747db7c52a2dbda583cd1ca6904bc3a949a319d222a9ed731d98e"
+    },
+    "z_bad_eocd_comment.zip": {
+      "category": "zip-structure",
+      "expect": "decline",
+      "length": 109,
+      "sha256": "1ad61127c53048575416a759f2f43df7aae2609dfc5f12f8e3bdeaf45430eb2f"
+    },
+    "z_drive_name.zip": {
+      "category": "zip-identity",
+      "expect": "decline",
+      "length": 121,
+      "sha256": "bc3571ffedee7d4f3ff9451ba8f76e35310bb9f009bd906b59cccb0eec945686"
+    },
+    "z_duplicate_names.zip": {
+      "category": "zip-identity",
+      "expect": "decline",
+      "length": 208,
+      "sha256": "881119112988194499b39b4b86dc2b7c7aef0aa50351ab1dddcce1fe07d8cac3"
+    },
+    "z_empty.zip": {
+      "category": "zip-benign",
+      "expect": "decline",
+      "length": 43,
+      "sha256": "ccbd40a896aeb28d5d8f67a122921c59ed34a789e2520405a398a0f917342552"
+    },
+    "z_encrypted.zip": {
+      "category": "zip-resource",
+      "expect": "decline",
+      "length": 121,
+      "sha256": "8e5bf207fac9908c3a62654d7adcbe1389f0270825067b7b7e14933a11d64c99"
+    },
+    "z_eps_stored.zip": {
+      "category": "zip-benign",
+      "expect": "decline",
+      "length": 128,
+      "sha256": "afc89a61d0501ecd0e8b83db3300b2b7ec7358d6da0cdc0b934799956618b390"
+    },
+    "z_huge_declared.zip": {
+      "category": "zip-resource",
+      "expect": "decline",
+      "length": 130,
+      "sha256": "5d3a4f22ec4a9985cdca72688ecf9c7ebc157319359978aaf422395940a8b8d5"
+    },
+    "z_multidisk.zip": {
+      "category": "zip-structure",
+      "expect": "decline",
+      "length": 109,
+      "sha256": "cbb83d93bd40b11ea6f99ab7398f47f5c884023d02d313e1147f5a9e99138714"
+    },
+    "z_no_eocd.zip": {
+      "category": "zip-structure",
+      "expect": "decline",
+      "length": 80,
+      "sha256": "b31e40dbe2ff2527b2bd118378828a2806664824eae41c916a3cfb94413a7123"
+    },
+    "z_nul_name.zip": {
+      "category": "zip-identity",
+      "expect": "decline",
+      "length": 105,
+      "sha256": "fa44f95a4941b5c0930053aac22921b366bbfb5df697c6e3168fbe9b975acea9"
+    },
+    "z_overlap.zip": {
+      "category": "zip-structure",
+      "expect": "decline",
+      "length": 210,
+      "sha256": "11a064ba6fef595040d365260019c956f793d350829046903823d7f4803adfee"
+    },
+    "z_prefix_stub.zip": {
+      "category": "zip-benign",
+      "expect": "decline",
+      "length": 145,
+      "sha256": "b8aa17f882b176f8b4d2f747fa37ebd100597af3e92566f75081894862f3ebfc"
+    },
+    "z_ratio_bomb.zip": {
+      "category": "zip-resource",
+      "expect": "decline",
+      "length": 130,
+      "sha256": "b4379ba78f3edcbd812fcd0f2d1a4c7c19f9013f9e01708d8619c32634220998"
+    },
+    "z_traversal_name.zip": {
+      "category": "zip-identity",
+      "expect": "decline",
+      "length": 131,
+      "sha256": "af4f5e1cce1c2424d6cbbd70ac1be815fac0d46a2e2dcbb96236e3ea3dc97b25"
+    },
+    "z_truncated.zip": {
+      "category": "zip-structure",
+      "expect": "decline",
+      "length": 120,
+      "sha256": "5140a076b94df57d25544ff5ed923d84c719270bcaf5ce5e8bef5351f84523b1"
+    },
+    "z_unknown_method.zip": {
+      "category": "zip-resource",
+      "expect": "decline",
+      "length": 123,
+      "sha256": "c1d357de17eff2ac741442f6429cfbb53387b8ec2a01a69900e1c81e0895be7d"
+    },
+    "z_zip64_inconsistent.zip": {
+      "category": "zip-structure",
+      "expect": "decline",
+      "length": 109,
+      "sha256": "80d7893c38c99f243aa7bef6d4153a7d18eb4377ccc2ff1a81ce8e4c753a6cb7"
+    }
+  },
+  "generator": "phase12-hostile-gen.py",
+  "total_bytes": 29292
+}

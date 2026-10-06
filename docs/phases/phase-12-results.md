@@ -285,3 +285,100 @@ one-time comparison, ties or loses PDF-page and simple-lookup surfaces, and
 **loses the large-document frontier to the source-retaining SQLite baseline** at
 N ≥ 10–1000 bytes and N = 1000 wall/CPU. Every loss is recorded above; a headline
 that never lost would not have been credible.
+
+## Security + fuzzing (12.13)
+
+Subphase 12.13 asks whether the new ZIP/OPC/OCF/XML surfaces stay safe on
+hostile input: **never panic, never build a filesystem path from a member name,
+never fetch the network, never execute script, never exceed configured bounds
+uncontrollably**, and either **return a typed error** or **preserve the exact
+bytes and decline the observation**. The security contract is
+`SECURITY.md`; the threat list is research I §1–§10 and plan §DEC-9/§123.
+
+**Receipt:** `evidence/campaigns/2026-10-06-phase12-security-33f6d04/`
+(`SUMMARY.md`, `commands.txt`, `environment.json`, `outcomes.tsv`,
+`raw/assertions.tsv`, `fuzz-campaign/`). Generator:
+`tools/fixtures/phase12-hostile-gen.py`. Courts:
+`tools/phase12-security-court.sh` + `tests/phase12_security.rs`.
+
+### Hostile corpus (deterministic, locally generated, tiny)
+
+45 fixtures, **29,292 bytes total**, built from the Python standard library alone
+(no third-party document bytes). The court regenerates the corpus and asserts it
+is byte-identical to the committed `tests/fixtures/phase12-hostile/`
+(`determinism: ok`). Coverage: truncated/bad-EOCD/bad-central-offset/
+ZIP64-inconsistent/multi-disk/overlapping/malformed-descriptor ZIPs;
+traversal/absolute/drive/backslash/NUL names; duplicate names; ratio and
+declared-expansion bombs; bad CRC; encrypted and unknown-method members; empty
+and prefix-stub archives; DOCTYPE/entity-bomb/deep-nesting/non-UTF-8/NUL XML;
+malformed `[Content_Types].xml`; missing/ambiguous/external main relationship;
+duplicate/traversal part names; malformed/missing/ambiguous package document;
+malformed `container.xml`; spine inconsistency; scripted and remote XHTML;
+encryption annotation; oversized text.
+
+### Outcome classes (all 45 fixtures, `exact=yes`)
+
+**Result: 315/315 court assertions passed.** Every fixture was
+`materialize --exact == original` through both the opaque floor and the field
+store; `net=clean` and `subproc=clean` for every `field-ingest` (strace showed
+no `connect` and no foreign `execve`); no panic, no timeout, and no
+`InternalInvariant` anywhere.
+
+| class | count | meaning |
+|---|---:|---|
+| `reject` (typed) | 16 | a valid package whose identity/XML/DOCX/EPUB structure is broken; the derived model parse returns `InvalidPackageStructure`/`InvalidXmlStructure` **before** any semantics are guessed |
+| `opaque-preserve-and-decline` (typed) | 29 | a raw malformed/hostile ZIP; the universal ingest falls back to the byte-exact opaque floor and the unsupported observation declines `UnsupportedFeature` |
+| `accept` | 10 | a well-formed (if unusual) DOCX/EPUB the pipeline answers; scripted/remote/encrypted content is retained as inert data |
+
+The split is exactly the plan §DEC-9 contract: **cover/identity broken → typed
+reject; semantics/resource only → preserve exact bytes, decline typed.** Note the
+architecture-level detail (recorded, not hidden): a raw ZIP whose *physical*
+cover is broken (`z_truncated`, `z_overlap`, …) is **not** rejected by the
+`field-ingest` verb — `is_zip` is a scan probe, so the input routes to the opaque
+PDF lane and is preserved exactly. The typed **scanner** rejection
+(`InvalidZipStructure`/`CoverageViolation`/`ResourceLimit`) is asserted directly
+at the library layer in `tests/phase12_security.rs` (`zip_scan_is_cover_exact_and_typed`,
+`structural_zip_faults_are_rejected_typed`, `name_hazards_are_rejected_and_never_become_paths`).
+Both statements hold; neither is a substitute for the other.
+
+### Library court (`tests/phase12_security.rs`, 15/15 pass)
+
+Runs every fixture through `scan`, `build_opc_model`, `build_docx_model`,
+`build_epub_model`, `detect_document_format`, and `capabilities_for_format`
+under **both** `Limits::STRICT` and `Limits::DEFAULT`, plus direct XML-hardening
+cases (DOCTYPE, NUL, non-UTF-8, UTF-16 BOM, depth bomb), relationship traps
+(external inert, traversal rejected), and the EPUB reading path (`<!DOCTYPE`
+refused; `<script>` is inert data, never reading text). No panic and no
+`InternalInvariant` on any fixture.
+
+### Fuzz campaign (8 new targets, bounded)
+
+New coverage-guided targets reusing the existing `fuzz/` architecture (pinned
+nightly + `cargo-fuzz`, 4 g / 4 cpus): `zip_scan`, `zip_decode`, `opc_rels`,
+`docx_wml`, `epub_package`, `epub_content`, `xml_part`, `common_observe`
+(features `docx`+`epub` now enabled in the fuzz package). Their invariants are
+the cover-is-an-exact-partition rule, bounded decode/CRC, typed-only
+failures, and capability self-consistency.
+
+`FUZZ_SECONDS=10`, `FUZZ_RSS_MB=2048`, all 18 targets: the **eight Phase-12
+targets finished `exit=0` with zero crash/OOM/timeout artifacts**. The only
+artifact of the whole campaign was `deflate_replay`
+(`oom-cba63e89…`) — the **pre-existing** upstream `preflate-rs` 0.7.6 F2
+resource limitation already recorded in `fuzz/README.md` (ADR-0016), not a
+Phase-12 surface and not a new finding. **No crash, hang, or resource
+amplification was found in the new surfaces**, so no new regression fixture was
+needed beyond the committed hostile corpus itself.
+
+### Honest gaps
+
+* The corpus is 45 hand-built fixtures from the research-I threat list, not a
+  large real-world DOCX/EPUB corpus; it bounds the *named* threats, not every
+  malformed package in the wild.
+* The court measures the ingest/observe path plus the scanner/OpcModel/Docx/Epub
+  builders; it does not drive the *full* field query planner over every native
+  selector on every hostile package.
+* The fuzz campaign is bounded (10 s/target on 4 cpus); it is a smoke-to-coverage
+  sample, not a long soak. Deeper/longer campaigns remain available via
+  `tools/fuzz.sh`.
+* The one `deflate_replay` OOM is a known upstream limitation carried forward,
+  not resolved here.

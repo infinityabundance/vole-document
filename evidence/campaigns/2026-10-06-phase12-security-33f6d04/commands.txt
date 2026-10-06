@@ -1,0 +1,21 @@
+# Phase 12.13 security court — exact commands
+# Commit under test: 33f6d044b1b1d5a74c6e561376b6a93170e08385 (branch phase12); dirty:  M fuzz/Cargo.lock; M fuzz/Cargo.toml; M fuzz/README.md; M tools/fuzz.sh;?? evidence/campaigns/2026-10-06-phase12-security-33f6d04/;?? fuzz/fuzz_targets/common_observe.rs;?? fuzz/fuzz_targets/docx_wml.rs;?? fuzz/fuzz_targets/epub_content.rs;?? fuzz/fuzz_targets/epub_package.rs;?? fuzz/fuzz_targets/opc_rels.rs;?? fuzz/fuzz_targets/xml_part.rs;?? fuzz/fuzz_targets/zip_decode.rs;?? fuzz/fuzz_targets/zip_scan.rs;?? fuzz/seeds/hostile.docx;?? fuzz/seeds/hostile.epub;?? fuzz/seeds/hostile_bad_eocd.zip;?? fuzz/seeds/hostile_doctype.docx;?? fuzz/seeds/hostile_scripted.epub;?? fuzz/seeds/hostile_truncated.zip;?? tests/fixtures/phase12-hostile/;?? tests/phase12_security.rs;?? tools/fixtures/phase12-hostile-gen.py;?? tools/phase12-security-court.sh;
+# Run (UTC): 2026-10-06T16:28:23Z   Base image (ARG BASE_STABLE): rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+# Service: vole-document/doc-baseline:1.99.0 (mem 6g == memswap; pids 4096; cpus 8)
+# rustc 1.99.0, cargo 1.99.0 (5f94df478 2026-08-27), arch x86_64; Cargo.lock sha256: 710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e
+
+# 0) determinism + 1) build
+python3 tools/fixtures/phase12-hostile-gen.py <REGEN>   # diff -r == committed corpus
+cargo build --locked --all-features
+
+# 2) per fixture FIXTURE in tests/fixtures/phase12-hostile/:
+#   vole-document encode --force raw FIXTURE src.voldoc
+#   vole-document decode src.voldoc roundtrip && cmp roundtrip FIXTURE
+#   vole-document capabilities FIXTURE
+#   /usr/bin/time -v timeout 60 strace -f -e trace=network,process \
+#       vole-document field-ingest src.voldoc --store store
+#   vole-document observe --store store --field F --metadata --kind metadata
+#   vole-document observe --store store --field F --doc-text --kind text
+#   vole-document find    --store store --field F --text XF
+#   vole-document materialize --store store --field F --exact --output out.bin
+#   cmp out.bin FIXTURE

@@ -21,7 +21,7 @@ cd /work
 
 : "${FUZZ_SECONDS:=60}"
 : "${FUZZ_RSS_MB:=2048}"
-: "${FUZZ_TARGETS:=voldoc_parse voldoc_roundtrip dra_program rans_model rans_channel pdf_lexer pdf_scan pdf_xref deflate_replay materializer}"
+: "${FUZZ_TARGETS:=voldoc_parse voldoc_roundtrip dra_program rans_model rans_channel pdf_lexer pdf_scan pdf_xref deflate_replay materializer zip_scan zip_decode opc_rels docx_wml epub_package epub_content xml_part common_observe}"
 : "${FUZZ_OUT:=/work/fuzz/campaign}"
 
 ART=/work/fuzz/artifacts
