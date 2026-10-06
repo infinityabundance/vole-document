@@ -31,6 +31,13 @@ name = "governor_court"
 path = "examples/governor_court.rs"
 required-features = ["dsfb-search"]
 
+# The Phase-12.8 cross-document procedural-state court driver. Feature-gated to
+# the formats it exercises so the default build never compiles it.
+[[example]]
+name = "phase12_share_court"
+path = "examples/phase12_share_court.rs"
+required-features = ["docx", "epub"]
+
 [dependencies]
 # Archival source identity. Pinned exactly for the first sealed universe.
 sha2 = "=0.10.9"

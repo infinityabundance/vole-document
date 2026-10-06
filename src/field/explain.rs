@@ -12,6 +12,7 @@
 //!   `will_materialize`, `will_not_materialize`.
 //! * actual — `format`, `adapter`, `index_nodes_read`, `seed_nodes_fetched`,
 //!   `seed_nodes_materialized`, `member_decodes`, `xml_parses`,
+//!   `nodes_id_shared`, `shared_resource_ids`, `inverse_work_units`,
 //!   `descriptor_bytes_read`, `descriptor_read_mode`, `manifest_bytes_read`,
 //!   `index_bytes_read`, `seed_bytes_read`, `bytes_read`, `bytes_returned`,
 //!   `deepened`, `whole_source_materialized`, `wall_micros`, `basis`, `exact`.
@@ -76,6 +77,9 @@ impl ExplainActual {
                 "\"seed_nodes_materialized\":{},",
                 "\"member_decodes\":{},",
                 "\"xml_parses\":{},",
+                "\"nodes_id_shared\":{},",
+                "\"shared_resource_ids\":{},",
+                "\"inverse_work_units\":{},",
                 "\"descriptor_bytes_read\":{},",
                 "\"descriptor_read_mode\":\"{}\",",
                 "\"manifest_bytes_read\":{},",
@@ -97,6 +101,9 @@ impl ExplainActual {
             s.seed_nodes_materialized,
             s.member_decodes,
             s.xml_parses,
+            s.nodes_id_shared,
+            s.shared_resource_ids,
+            s.seed_nodes_executed.saturating_add(s.bytes_read),
             s.descriptor_bytes_read,
             s.descriptor_read_mode.name(),
             s.manifest_bytes_read,
@@ -228,7 +235,7 @@ mod tests {
         };
         assert_eq!(
             actual.to_json(),
-            "{\"format\":\"unknown\",\"adapter\":\"unknown\",\"index_nodes_read\":0,\"seed_nodes_fetched\":0,\"seed_nodes_materialized\":0,\"member_decodes\":0,\"xml_parses\":0,\"descriptor_bytes_read\":0,\"descriptor_read_mode\":\"full\",\"manifest_bytes_read\":0,\"index_bytes_read\":0,\"seed_bytes_read\":0,\"bytes_read\":0,\"bytes_returned\":0,\"deepened\":false,\"whole_source_materialized\":false,\"wall_micros\":0,\"basis\":\"directly-observed\",\"exact\":true}"
+            "{\"format\":\"unknown\",\"adapter\":\"unknown\",\"index_nodes_read\":0,\"seed_nodes_fetched\":0,\"seed_nodes_materialized\":0,\"member_decodes\":0,\"xml_parses\":0,\"nodes_id_shared\":0,\"shared_resource_ids\":0,\"inverse_work_units\":0,\"descriptor_bytes_read\":0,\"descriptor_read_mode\":\"full\",\"manifest_bytes_read\":0,\"index_bytes_read\":0,\"seed_bytes_read\":0,\"bytes_read\":0,\"bytes_returned\":0,\"deepened\":false,\"whole_source_materialized\":false,\"wall_micros\":0,\"basis\":\"directly-observed\",\"exact\":true}"
         );
     }
 

@@ -216,6 +216,62 @@ pub struct ReuseStats {
     pub cache_bytes_written: u64,
 }
 
+/// The inverse work of one reconstruction, in abstract integer units (ADR-0034,
+/// plan §91). A unit is one node execution **or** one cold input byte the
+/// reconstruction had to read; it is never derived from the source size.
+///
+/// For a *cold* run (`use_cache = false`, or a cleared cache) `node_executions`
+/// is the run's `nodes_executed`; for a warm run the numerator comes from the
+/// difference the persisted store made.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct InverseWork {
+    /// Node executions the run performed.
+    pub node_executions: u64,
+    /// Cold input bytes the run read (descriptor + manifest + index + seed).
+    pub input_bytes: u64,
+}
+
+impl InverseWork {
+    /// Assemble a receipt from the two independently measured integers.
+    pub const fn new(node_executions: u64, input_bytes: u64) -> Self {
+        InverseWork {
+            node_executions,
+            input_bytes,
+        }
+    }
+
+    /// Total work units: one per execution plus one per cold input byte.
+    pub const fn units(self) -> u64 {
+        self.node_executions.saturating_add(self.input_bytes)
+    }
+}
+
+/// `retained_inverse_work_fraction` (ADR-0034, plan §91):
+///
+/// ```text
+/// reused_persisted_inverse_work / total_inverse_work_required_by_cold_reconstruction
+/// ```
+///
+/// `cold` and `warm` are two receipts of the **same** query (cold = cache
+/// disabled or cleared; warm = the persisted store present). Work avoided is the
+/// drop in executions plus the drop in cold input bytes; the denominator is the
+/// cold run's total. Both are integer work units ([`InverseWork::units`]), so the
+/// fraction is derived from receipted integers, never from source size.
+///
+/// Returns `1.0` when the cold run required no work (an empty reconstruction),
+/// which is the honest limit rather than a fabricated ratio.
+pub fn retained_inverse_work_fraction(cold: InverseWork, warm: InverseWork) -> f64 {
+    let total = cold.units();
+    if total == 0 {
+        return 1.0;
+    }
+    let reused = cold
+        .node_executions
+        .saturating_sub(warm.node_executions)
+        .saturating_add(cold.input_bytes.saturating_sub(warm.input_bytes));
+    reused as f64 / total as f64
+}
+
 /// Materialize one node's output bytes, recursively resolving dependencies.
 pub fn materialize_node(
     parsed: &ParsedDescriptor,
@@ -350,6 +406,9 @@ fn materialize_inner(
             out
         }
         NodeKind::Literal => node.params.clone(),
+        // A shared resource's canonical payload *is* its exact bytes; identity is
+        // content identity, so identical bytes across documents share this node.
+        NodeKind::ResourceBlob => node.params.clone(),
         NodeKind::PackageRoot => source.serve_document(limits)?,
         NodeKind::PackageMemberRaw => {
             let (offset, len) = read_span_params(&node.params)?;

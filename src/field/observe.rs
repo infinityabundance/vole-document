@@ -531,6 +531,15 @@ pub struct ObserveStats {
     pub seed_nodes_reused: u64,
     /// Output bytes written to the derived cache during this observation.
     pub cache_bytes_written: u64,
+    /// Content-shared representation fact (Phase 12.8): the number of seed nodes
+    /// this field's **ingest** found already present by content id, so it wrote
+    /// nothing for them. This is deliberately distinct from
+    /// [`Self::seed_nodes_reused`], which is a *work* fact about this
+    /// observation. Read from the manifest provenance; `0` for an older field.
+    pub nodes_id_shared: u64,
+    /// Resource blobs this field shares with an earlier document (Phase 12.8);
+    /// `0` when the field shares none. Read from the manifest provenance.
+    pub shared_resource_ids: u64,
     /// Descriptor bytes physically fetched to open this observation's field.
     /// For the full path this is the whole `.voldoc` blob; for the seek-based
     /// partial path it is only the record closure the query needed (see
@@ -1257,6 +1266,12 @@ fn observe_with_stores_pre<'a, S: SeedStore>(
     stats.seed_nodes_executed = ctx.reuse.nodes_executed;
     stats.seed_nodes_reused = ctx.reuse.nodes_reused;
     stats.cache_bytes_written = ctx.reuse.cache_bytes_written;
+    // Representation facts recorded at ingest (Phase 12.8): a same-id node is
+    // *not* work reuse, so these are reported separately from `seed_nodes_reused`.
+    stats.nodes_id_shared =
+        crate::field::manifest::provenance_counter(view.manifest.provenance.as_str(), "id_shared");
+    stats.shared_resource_ids =
+        crate::field::manifest::provenance_counter(view.manifest.provenance.as_str(), "res_shared");
     stats.bytes_returned = produced;
     stats.wall_micros = started.elapsed().as_micros().min(u128::from(u64::MAX)) as u64;
     Ok((answer, stats, ctx.current_id))
@@ -4445,11 +4460,14 @@ mod tests {
             "format",
             "index_bytes_read",
             "index_nodes_read",
+            "inverse_work_units",
             "manifest_bytes_read",
             "member_decodes",
+            "nodes_id_shared",
             "seed_bytes_read",
             "seed_nodes_fetched",
             "seed_nodes_materialized",
+            "shared_resource_ids",
             "wall_micros",
             "whole_source_materialized",
             "xml_parses",

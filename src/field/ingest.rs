@@ -96,6 +96,21 @@ pub struct IngestReport {
     pub revision_nodes: u64,
     /// Lone-`FlateDecode` streams we refused to inflate.
     pub declined_streams: u64,
+    /// Content-addressed shared-resource blobs registered. Always `0`: the
+    /// Phase-11 PDF adapter does not extract embedded images/fonts as resource
+    /// blobs, so a PDF shares no resource with any other document in Phase 12
+    /// (a recorded limitation, not a failure). Package formats (DOCX/EPUB) do.
+    pub resource_blob_nodes: u64,
+    /// Resource blobs shared with an earlier document. Always `0` for PDF (see
+    /// [`Self::resource_blob_nodes`]).
+    pub shared_resource_ids: u64,
+    /// Resource bytes not rewritten because they were already present. Always
+    /// `0` for PDF (see [`Self::resource_blob_nodes`]).
+    pub shared_resource_bytes: u64,
+    /// Seed nodes whose content id already existed (nothing new written).
+    pub nodes_id_shared: u64,
+    /// Seed-node canonical bytes physically written by this ingest.
+    pub seed_bytes_written: u64,
 }
 
 /// Stage A (durable exact capture) + Stage B (cheap eager inversion).
@@ -147,8 +162,16 @@ pub fn ingest_pdf(
     } else {
         (None, 0, "field:ingest-b;declined=scan".to_string())
     };
-    // Prefix the machine-readable format token (idempotent if already present).
-    let provenance = format!("{}{}", fmt.provenance_prefix(), provenance);
+    // Prefix the machine-readable format token (idempotent if already present),
+    // then the Phase-12.8 sharing counters (representation facts, read back by
+    // observations so `nodes_id_shared` is reported alongside `nodes_reused`).
+    let provenance = format!(
+        "{}id_shared={};res_shared={};{}",
+        fmt.provenance_prefix(),
+        acc.nodes_id_shared,
+        acc.shared_resource_ids,
+        provenance
+    );
 
     let mut new_manifest = manifest.clone();
     if let Some(root) = &index_root {
@@ -173,6 +196,11 @@ pub fn ingest_pdf(
         page_nodes: acc.page_nodes,
         revision_nodes: acc.revision_nodes,
         declined_streams: acc.declined_streams,
+        resource_blob_nodes: acc.resource_blob_nodes,
+        shared_resource_ids: acc.shared_resource_ids,
+        shared_resource_bytes: acc.shared_resource_bytes,
+        nodes_id_shared: acc.nodes_id_shared,
+        seed_bytes_written: acc.seed_bytes_written,
     })
 }
 
@@ -374,6 +402,12 @@ struct StageB {
     revision_nodes: u64,
     declined_streams: u64,
     total_decoded: u64,
+    /// Phase 12.8 cross-document sharing counters.
+    resource_blob_nodes: u64,
+    shared_resource_ids: u64,
+    shared_resource_bytes: u64,
+    nodes_id_shared: u64,
+    seed_bytes_written: u64,
 }
 
 impl StageB {
@@ -390,17 +424,35 @@ impl StageB {
             revision_nodes: 0,
             declined_streams: 0,
             total_decoded: 0,
+            resource_blob_nodes: 0,
+            shared_resource_ids: 0,
+            shared_resource_bytes: 0,
+            nodes_id_shared: 0,
+            seed_bytes_written: 0,
         }
     }
 
+    /// Content-addressed `put_node` that records id-shared and newly-written
+    /// bytes (Phase 12.8). The `put_node` call is idempotent, so an id that
+    /// already existed writes nothing.
     fn put(&mut self, store: &mut FieldStore, node: &SeedNode) -> Result<NodeId> {
         if self.node_count >= MAX_INGEST_NODES {
             return Err(Error::resource_limit(format!(
                 "ingest would exceed {MAX_INGEST_NODES} seed nodes"
             )));
         }
-        let id = store.seeds_mut().put_node(&node.encode_canonical())?;
+        let id = node.content_id();
+        let preexisting = store.seeds().contains_node(&id)?;
+        let canonical = node.encode_canonical();
+        store.seeds_mut().put_node(&canonical)?;
         self.node_count += 1;
+        if preexisting {
+            self.nodes_id_shared += 1;
+        } else {
+            self.seed_bytes_written = self
+                .seed_bytes_written
+                .saturating_add(canonical.len() as u64);
+        }
         Ok(id)
     }
 

@@ -83,6 +83,12 @@ pub enum NodeKind {
     /// content model (headings/paragraphs/lists/tables/links/resources), honoring
     /// a declared extraction profile. Derived, never exact (Phase 12.6).
     EpubContent = 0x15,
+    /// A byte-identical shareable resource (image/font/attachment) held inline and
+    /// addressed by **content identity** (Phase 12.8, ADR-0034). Its canonical
+    /// encoding embeds the exact bytes, so two documents carrying the same resource
+    /// share one node id (and one persisted blob) with no second identity scheme.
+    /// Exact (a resource's bytes are the source bytes).
+    ResourceBlob = 0x16,
 }
 
 impl NodeKind {
@@ -110,6 +116,7 @@ impl NodeKind {
             0x13 => NodeKind::DocxStory,
             0x14 => NodeKind::EpubModel,
             0x15 => NodeKind::EpubContent,
+            0x16 => NodeKind::ResourceBlob,
             _ => return None,
         })
     }
@@ -138,6 +145,7 @@ impl NodeKind {
             NodeKind::DocxStory => "DocxStory",
             NodeKind::EpubModel => "EpubModel",
             NodeKind::EpubContent => "EpubContent",
+            NodeKind::ResourceBlob => "ResourceBlob",
         }
     }
 
@@ -160,6 +168,8 @@ impl NodeKind {
                 // member (`PackageMemberDecoded`) is derived and is **not** exact.
                 | NodeKind::PackageRoot
                 | NodeKind::PackageMemberRaw
+                // A shared resource is the exact embedded bytes.
+                | NodeKind::ResourceBlob
         )
     }
 }

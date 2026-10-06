@@ -40,6 +40,7 @@ use crate::field::index::{
 use crate::field::ingest::{MAX_INGEST_INDEX_ENTRIES, MAX_INGEST_NODES, with_observation_index};
 use crate::field::manifest::{ABSENT_ROOT, FieldRoot};
 use crate::field::node::{NodeKind, SeedNode, object_params, span_params};
+use crate::field::resource::{is_shareable_resource, resource_blob_node};
 use crate::field::{FieldId, FieldStore, PACKAGE_UNIVERSE};
 use crate::limits::Limits;
 use crate::store::NodeId;
@@ -78,6 +79,20 @@ pub struct PackageIngestReport {
     pub docx_model_nodes: u64,
     /// Whether an EPUB (OCF) discovery model node was registered (feature `epub`).
     pub epub_model_nodes: u64,
+    /// Content-addressed shared-resource blobs registered (Phase 12.8).
+    pub resource_blob_nodes: u64,
+    /// Resource blobs whose content id already existed in the store, i.e. bytes
+    /// physically shared with an earlier document (a representation fact).
+    pub shared_resource_ids: u64,
+    /// Bytes held by [`Self::shared_resource_ids`] — the resource bytes this
+    /// ingest did **not** rewrite because they were already present.
+    pub shared_resource_bytes: u64,
+    /// Seed nodes whose content id already existed (nothing new written).
+    pub nodes_id_shared: u64,
+    /// Seed-node canonical bytes physically written by this ingest.
+    pub seed_bytes_written: u64,
+    /// Index-node bytes physically written by this ingest.
+    pub index_bytes_written: u64,
 }
 
 fn charge_node(node_count: &mut u64) -> Result<()> {
@@ -88,6 +103,37 @@ fn charge_node(node_count: &mut u64) -> Result<()> {
     }
     *node_count += 1;
     Ok(())
+}
+
+/// Mutable share/work counters threaded through a package ingest (Phase 12.8).
+#[derive(Debug, Default)]
+struct ShareCounters {
+    resource_blob_nodes: u64,
+    shared_resource_ids: u64,
+    shared_resource_bytes: u64,
+    nodes_id_shared: u64,
+    seed_bytes_written: u64,
+}
+
+/// Content-addressed `put_node` that records whether the id already existed (a
+/// zero-write share) and how many canonical bytes were newly persisted.
+fn put_counted(
+    store: &mut FieldStore,
+    node: &SeedNode,
+    counters: &mut ShareCounters,
+) -> Result<(NodeId, bool)> {
+    let id = node.content_id();
+    let preexisting = store.seeds().contains_node(&id)?;
+    let canonical = node.encode_canonical();
+    store.seeds_mut().put_node(&canonical)?;
+    if preexisting {
+        counters.nodes_id_shared += 1;
+    } else {
+        counters.seed_bytes_written = counters
+            .seed_bytes_written
+            .saturating_add(canonical.len() as u64);
+    }
+    Ok((id, preexisting))
 }
 
 fn push_entry(entries: &mut Vec<IndexEntry>, entry: IndexEntry) -> Result<()> {
@@ -138,7 +184,8 @@ pub fn ingest_package(
         "pkg:root",
     );
     root.limits.max_output_bytes = root.limits.max_output_bytes.max(source_len);
-    let root_id = store.seeds_mut().put_node(&root.encode_canonical())?;
+    let mut share = ShareCounters::default();
+    let (root_id, _) = put_counted(store, &root, &mut share)?;
 
     let mut entries: Vec<IndexEntry> = Vec::new();
     let mut node_count: u64 = 1;
@@ -164,7 +211,7 @@ pub fn ingest_package(
         );
         raw.limits.max_output_bytes = raw.limits.max_output_bytes.max(data_len);
         charge_node(&mut node_count)?;
-        let raw_id = store.seeds_mut().put_node(&raw.encode_canonical())?;
+        let (raw_id, _) = put_counted(store, &raw, &mut share)?;
         raw_nodes += 1;
         push_entry(
             &mut entries,
@@ -176,6 +223,35 @@ pub fn ingest_package(
             },
         )?;
 
+        // Cross-document sharing (Phase 12.8): a *stored* member whose bytes are a
+        // recognized binary resource is recorded as one content-addressed blob.
+        // The blob's id depends only on the bytes, so an identical resource in
+        // another document resolves to this same node with nothing re-written, and
+        // the decoded member below can depend on it (content identity, not the
+        // per-source span) so the decoded state is shared too. A DEFLATE resource
+        // keeps its per-source raw leaf: its two occurrences may differ in
+        // compression, so byte identity is not guaranteed.
+        let shared_blob_id = if member.method == 0 {
+            let span = source.get(data_off as usize..(data_off + data_len) as usize);
+            match span {
+                Some(bytes) if is_shareable_resource(bytes) => {
+                    let blob = resource_blob_node(bytes);
+                    let (blob_id, preexisting) = put_counted(store, &blob, &mut share)?;
+                    share.resource_blob_nodes += 1;
+                    if preexisting {
+                        share.shared_resource_ids += 1;
+                        share.shared_resource_bytes = share
+                            .shared_resource_bytes
+                            .saturating_add(bytes.len() as u64);
+                    }
+                    Some(blob_id)
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
+
         // Progressive decode: register the computation now; inflate only on demand.
         let decodable = member.method == 0 || member.method == 8;
         let encrypted = member.flags & FLAG_ENCRYPTED != 0;
@@ -183,11 +259,18 @@ pub fn ingest_package(
             declined_decodes += 1;
             continue;
         }
+        // A resource-backed decoded member is content-addressed (ordinal 0, the
+        // blob as its whole input); every other decoded member keeps its per-source
+        // raw-span dependency.
+        let (decoded_params, decoded_deps) = match shared_blob_id {
+            Some(blob_id) => (object_params(0, member.method, 0), vec![blob_id]),
+            None => (object_params(ordinal, member.method, 0), vec![raw_id]),
+        };
         let mut decoded = SeedNode::new(
             NodeKind::PackageMemberDecoded,
             member.uncompressed_size,
-            object_params(ordinal, member.method, 0),
-            vec![raw_id],
+            decoded_params,
+            decoded_deps,
             "pkg:member-decoded",
         );
         decoded.limits.max_output_bytes = decoded
@@ -195,7 +278,7 @@ pub fn ingest_package(
             .max_output_bytes
             .max(member.uncompressed_size);
         charge_node(&mut node_count)?;
-        let decoded_id = store.seeds_mut().put_node(&decoded.encode_canonical())?;
+        let (decoded_id, _) = put_counted(store, &decoded, &mut share)?;
         decoded_nodes += 1;
         push_entry(
             &mut entries,
@@ -223,7 +306,7 @@ pub fn ingest_package(
         );
         model.limits.max_output_bytes = limits.max_output_bytes;
         charge_node(&mut node_count)?;
-        let model_id = store.seeds_mut().put_node(&model.encode_canonical())?;
+        let (model_id, _) = put_counted(store, &model, &mut share)?;
         push_entry(
             &mut entries,
             IndexEntry {
@@ -260,7 +343,7 @@ pub fn ingest_package(
         );
         docx_model.limits.max_output_bytes = limits.max_output_bytes;
         charge_node(&mut node_count)?;
-        let docx_id = store.seeds_mut().put_node(&docx_model.encode_canonical())?;
+        let (docx_id, _) = put_counted(store, &docx_model, &mut share)?;
         push_entry(
             &mut entries,
             IndexEntry {
@@ -296,7 +379,7 @@ pub fn ingest_package(
         );
         epub_model.limits.max_output_bytes = limits.max_output_bytes;
         charge_node(&mut node_count)?;
-        let epub_id = store.seeds_mut().put_node(&epub_model.encode_canonical())?;
+        let (epub_id, _) = put_counted(store, &epub_model, &mut share)?;
         push_entry(
             &mut entries,
             IndexEntry {
@@ -313,6 +396,7 @@ pub fn ingest_package(
         epub_model_nodes = 0;
     }
 
+    let index_before = dir_bytes(&store.root().join("index"));
     let (index_root, index_node_count) = if entries.is_empty() {
         (None, 0)
     } else {
@@ -321,6 +405,7 @@ pub fn ingest_package(
         let (count, _depth) = validate(&istore, &root)?;
         (Some(root), count)
     };
+    let index_bytes_written = dir_bytes(&store.root().join("index")).saturating_sub(index_before);
 
     let manifest = FieldRoot {
         universe_id: crate::container::universe_id_from_str(PACKAGE_UNIVERSE),
@@ -332,15 +417,18 @@ pub fn ingest_package(
         node_count,
         index_node_count,
         provenance: format!(
-            "{}field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={}",
+            "{}id_shared={};res_shared={};field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={};resource_blobs={}",
             detected_format.provenance_prefix(),
+            share.nodes_id_shared,
+            share.shared_resource_ids,
             physical.members.len(),
             raw_nodes,
             decoded_nodes,
             declined_decodes,
             opc_model_nodes,
             docx_model_nodes,
-            epub_model_nodes
+            epub_model_nodes,
+            share.resource_blob_nodes,
         ),
     };
     let field = store.put_field(&manifest)?;
@@ -360,5 +448,29 @@ pub fn ingest_package(
         opc_model_nodes,
         docx_model_nodes,
         epub_model_nodes,
+        resource_blob_nodes: share.resource_blob_nodes,
+        shared_resource_ids: share.shared_resource_ids,
+        shared_resource_bytes: share.shared_resource_bytes,
+        nodes_id_shared: share.nodes_id_shared,
+        seed_bytes_written: share.seed_bytes_written,
+        index_bytes_written,
     })
+}
+
+/// Total byte length of every regular file under `root` (0 when it does not
+/// exist). A cheap physical witness for the procedural-index bytes one ingest
+/// writes; never derived from a logical size.
+fn dir_bytes(root: &std::path::Path) -> u64 {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return 0;
+    };
+    let mut total = 0u64;
+    for entry in entries.flatten() {
+        match entry.metadata() {
+            Ok(meta) if meta.is_file() => total = total.saturating_add(meta.len()),
+            Ok(meta) if meta.is_dir() => total = total.saturating_add(dir_bytes(&entry.path())),
+            _ => {}
+        }
+    }
+    total
 }
