@@ -59,6 +59,12 @@ SeedNode {
 * Reuse is proved by **execution counters across a process boundary**
   (`nodes_executed` drops, `nodes_reused` equals the closure size), never by
   wall-clock and never by bytes alone — this kills the "warm HashMap" illusion.
+  *(Correction 2026-10-06, Phase-11.13 skeptic review F3: the counters are
+  genuine and across a real OS process, but the reuse is served by the persisted
+  **derived cache** (universe 4), not by recomputation from the seed DAG; after
+  `cache --clear` a fresh process re-executes the nodes
+  (`seed_nodes_executed` > 0). The claim therefore holds "with the derived cache
+  present" and must name that dependency.)*
 * Cache/index bytes are a fourth accounting universe, never folded into the
   descriptor/store/source universes.
 * GC generalizes the one-level object mark-sweep to a transitive closure with

@@ -72,3 +72,22 @@ one-time extraction and warm materialized views.
 * Every Phase-11 claim names its universe, profile, corpus, and baseline class.
 * A cache-heavy or index-heavy win must pay for its cache/index bytes.
 * The headline is a *lifetime systems frontier*, not `VOLE < xz`.
+
+### Correction — cache-payload reads and cross-definition comparisons (2026-10-06)
+
+Added after the Phase-11.13 skeptic review
+([`docs/reviews/phase-11-skeptic-review.md`](../reviews/phase-11-skeptic-review.md),
+findings F1/F6a), superseding the earlier silence on this boundary:
+
+* A **cache-served** observation must count the cached payload bytes it
+  physically re-reads before it is compared to another system's byte read. The
+  derived cache is universe 4 and is excluded from `ObserveStats.bytes_read`
+  (descriptor+manifest+index+seed), but the process still reads the cached
+  answer: the warm `large` observation reads 246 B manifest + 8,148 B index +
+  **527,275 B cached page text** = 543,175 B `read`/`pread64`. Reporting only
+  the 8,486 B overlap-free overhead as "the warm total" is a boundary shift.
+* `bytes read` defined by **instrumentation** (VOLE) and by **process
+  `read`/`pread64`** (A0/A1) are *not* the same measurement (this ADR already said
+  percentages with differing boundaries are never compared; that rule applies to
+  these scalars too). A win/loss declared by comparing the two is not admissible
+  unless both are reduced to the same boundary.

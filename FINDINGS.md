@@ -275,7 +275,7 @@ Each of these is a concrete, falsifiable next step — and each carries an expli
    current store.
    **Measured (2026-10-06, Phase 11.14; ADR-0028).** Implemented and measured
    (`share-account` + `tools/field-share-court.sh`;
-   [`receipt`](evidence/campaigns/2026-10-06-phase11-share-0f3d1d3/)). Over 4 real
+   [`receipt`](evidence/campaigns/2026-10-06-phase11-share-d9f818a/)). Over 4 real
    producer documents + a byte-identical repeat + a few-bytes-changed
    near-duplicate (8 files, 337,877 B), the fine-unit unique **lower bound**
    (208,001 B) **loses to** the strongest content-defined chunking (borg

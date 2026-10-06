@@ -1,0 +1,47 @@
+# Phase 11.13 skeptic review — exact commands
+# Branch phase11 @ 9bd766d; reviewer read-only on src/; Docker only (nothing on host).
+
+## 1. Full gate (required)
+cd /mnt/1tb_kingston/vole-document
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features --locked && cargo test --no-default-features'
+# -> EXIT=0 ; 58 "test result: ok" groups ; no FAILED, no `error[`, no warnings.
+# Full output: raw/gate.txt
+
+## 2. Environment record (pinned dev service)
+docker compose run --rm --no-TTY dev sh -c 'rustc --version; cargo --version; sha256sum Cargo.lock; uname -m'
+# rustc 1.99.0 (b940084d7 2026-09-28) / cargo 1.99.0 (5f94df478 2026-08-27)
+# Cargo.lock 25fc018b20d57fe22b704fd528cfa9f3dc64969ed7aa0345fb0cd294e913eea2 ; x86_64
+# base digest rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+
+## 3. F1 counter-evidence — warm process reads the cached payload
+# Read-only analysis of the retained lifetime receipt; NOT re-run (the source the
+# court used is gone). Sums read/pread64 return values exactly as
+# tools/field-court.sh::rp_bytes does.
+cd evidence/campaigns/2026-10-06-phase11-desc-free-a8ad6f4/lifetime/raw
+awk 'match($0,/^[0-9 ]*(read|pread64)\(/){if(match($0,/ = [0-9]+$/)){s+=substr($0,RSTART+2)+0}} match($0,/^[0-9 ]*<\.\.\. (read|pread64) resumed>/){if(match($0,/ = [0-9]+$/)){s+=substr($0,RSTART+2)+0}} END{print s+0}' large.vole.warm.strace
+# -> 543175   (manifest 246 + index 8148 + cached page-text answer 527275 + ELF/libc)
+# Full per-document table + the large strace: raw/warm-process-reads.txt
+
+## 4. F1 corroboration — the excluded instrumented number and the payload
+cd evidence/campaigns/2026-10-06-phase11-desc-free-a8ad6f4
+jq -c '.cases[] | {name, warm: .observe_new_process.text_warm_reuse}' receipt.json
+# large-400 warm bytes_read 8945 (descriptor 0 + manifest 201 + index 8744 + seed 0), bytes_returned 65913
+
+## 5. F2 — stale 357 vs current 449
+grep -n 'seed bytes\|449' evidence/campaigns/2026-10-06-phase11-partial-b7de39d/SUMMARY.md
+grep -n '357' evidence/campaigns/2026-10-06-phase11-63f43fb/SUMMARY.md
+
+## 6. F4 — dangling receipt pointer
+ls -d evidence/campaigns/2026-10-06-phase11-share-0f3d1d3   # No such file or directory
+ls -d evidence/campaigns/2026-10-06-phase11-share-d9f818a   # present
+git merge-base --is-ancestor 0f3d1d3 HEAD || echo UNREACHABLE
+
+## 7. F5 — edit shares the descriptor by id, not by copy
+grep -n 'Read the manifest only' src/field/edit.rs
+grep -cE '/descriptor/[0-9a-f]{64}' evidence/campaigns/2026-10-06-phase11-edit-8cceaac/raw/edit.strace  # -> 0
+jq -c '.case.edit | {descriptor_bytes_read, descriptor_file_opens, seed_nodes_new, index_entries_reused}' evidence/campaigns/2026-10-06-phase11-edit-8cceaac/receipt.json
+# -> {"descriptor_bytes_read":0,"descriptor_file_opens":0,"seed_nodes_new":2,"index_entries_reused":318}
+
+## 8. Tokenizer (F7/claim 5) — pinned asset digest
+sha256sum tools/tokenizers/bert-base-uncased.tokenizer.json
+# ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98 == recorded in the receipt

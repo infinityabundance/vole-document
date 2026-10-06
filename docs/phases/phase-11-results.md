@@ -1,10 +1,22 @@
 # Phase 11 — results (11.9 fair baselines, 11.10 LLM working set, 11.11 resilience + source removal)
 
-Branch: `phase11`. Commit under test: `63f43fb` (plus this subphase's court
-re-run; no `src/`, `tests/`, `fuzz/`, or `Cargo.*` change beyond the
-`observe`-JSON comma fix already in `63f43fb`).
+Branch: `phase11`. This is a **cumulative** results document: the field court
+below was measured at `63f43fb`, and the later sections carry their own commit
+under test (`…-llm-tokens-824faa9`, `…-lifetime-5a7edd3`, `…-desc-free-a8ad6f4`,
+`…-edit-8cceaac`). No `src/`, `tests/`, `fuzz/`, or `Cargo.*` change beyond the
+`observe`-JSON comma fix already in `63f43fb` and the per-subphase changes each
+section names.
 
-Sealed receipt:
+> **Skeptic correction note (2026-10-06, `9bd766d`).** An independent adversarial
+> review ([`docs/reviews/phase-11-skeptic-review.md`](../reviews/phase-11-skeptic-review.md))
+> found the *Wins* bullets below stale or overstated relative to later receipts
+> and corrected them in place; the corrected text is marked "(corr.)". Nothing
+> was deleted — the receipt numbers are unchanged, only their scope is fixed. The
+> strongest correction: the warm "descriptor-free" byte win is an
+> **overhead-only** figure, not a process-level byte win (see *Descriptor-free
+> narrow observations*).
+
+Sealed receipt (field court at `63f43fb`):
 `evidence/campaigns/2026-10-06-phase11-63f43fb/`
 (`receipt.json`, `SUMMARY.md`, `commands.txt`, `gates.txt`, `raw/`).
 
@@ -58,13 +70,24 @@ process.
   deleted, a new process both answered queries and `materialize --exact`d a file
   with matching length, matching SHA-256, and `cmp` byte-equality
   (`large-50` 33,571,029 B, `large-400` 33,673,730 B, producer 74,371 B).
-* **Bounded procedural working set.** The instrumented seed-store `bytes_read`
-  is **357 B** cold on every page of every case (50 pages, 400 pages, and the
-  74 KB producer), i.e. it does not grow with page count or document size, and
-  is **0 B** warm.
-* **Cross-process reuse.** A repeated query in a fresh process reports
-  `seed_nodes_reused = 1`, `seed_nodes_executed = 0`
-  (`seed_nodes_fetched = 0`, `bytes_read = 0`).
+  **Confirmed** (receipt `length` + `SHA-256` + `cmp`, `source_removed=true`).
+* **Bounded *seed* working set (corr.).** The instrumented **seed-store**
+  `bytes_read` is **449 B** cold on every page of every case (50 pages, 400
+  pages, and the 74 KB producer), i.e. it does not grow with page count or
+  document size, and is **0 B** warm. *(Superseded number: `63f43fb` reported
+  357 B; the partial-lane receipts `…-io-2e0a840` / `…-partial-b7de39d` /
+  `…-desc-free-a8ad6f4` report 449 B and are the current ones. This is the
+  **seed class only**: the honest total cold observation is
+  **232,515–363,647 B** — descriptor record closure + manifest + index + seed —
+  so "bounded" means page-closure-bounded, **not** O(1).)*
+* **Cross-process reuse (corr.).** A repeated query in a fresh **OS process**
+  reports `seed_nodes_reused = 1`, `seed_nodes_executed = 0`
+  (`seed_nodes_fetched = 0`). The reuse is served by the **persisted derived
+  cache** (universe 4), not by recomputation from the seed DAG: after
+  `cache --clear` a fresh process re-executes the nodes
+  (`seed_nodes_executed = 2`, `seed_nodes_fetched = 2`,
+  `cache_bytes_written = 1,677,797`; `raw/…explain-after-clear.json`). The claim
+  holds "with the derived cache present".
 * **Disposable cache.** After `cache --clear` (reclaiming 26,366,641 /
   3,298,225 / 305,123 B), the raw `preview` output SHA-256 is unchanged and
   observation remains correct — the cache is confirmed off-wire.
@@ -144,7 +167,10 @@ cargo `1.99.0 (5f94df478 2026-08-27)`, `Cargo.lock` SHA-256
 * The two generated sizes share a fixed 32 MiB source (the generator has no
   size flag), so "document size" in the boundedness table varies by **page
   count**; the real producer document supplies the genuine source-size
-  variation (74 KB vs 33 MB), and page-cold `bytes_read` is 357 B at both ends.
+  variation (74 KB vs 33 MB), and the page-cold **seed-class** `bytes_read` is
+  357 B at both ends in `63f43fb` (**449 B** in the current partial-lane receipts
+  `…-partial-b7de39d` / `…-desc-free-a8ad6f4`; the total cold observation there is
+  232–364 KB once the descriptor closure and index are charged).
 * Poppler's page-local path is measured on `read`/`pread64` **and** on `mmap`;
   the mmap figure is lazy and is reported separately. VOLE's cold path is not
   page-local in total process I/O because it reloads the descriptor.
@@ -374,17 +400,25 @@ A0 Poppler (`pdftotext -f 1 -l 1`, primary 33,673,730 B document): **136,128 B**
 read/pread, 8 ms. A1 preprocessed SQLite: **24,393 B** read/pread, 1 ms.
 
 **Verdict — narrow page-text byte + wall court.** For a **warm/reused** page-text
-observation the win is plain and large: `descriptor_bytes_read` drops from
-23,632 / 182,483 / 481 B to **0**, and the honest total drops to 8,441 / 8,945 /
-8,483 B. On the primary `large-400` case the warm total (8,945 B, 0.099 ms) is
-below **both** baselines — A1's 24,393 B / 1 ms and A0's 136,128 B / 8 ms — so the
-warm byte court and the warm wall court are both **wins** (not ties). The **cold**
-observation is a **loss**: it is byte-identical to before (232,515 B / 13.7 ms)
-and above both baselines; the win exists only because the second observation is
-served from the persisted derived cache. The lifetime court confirms the
-per-query effect: warm page-text marginal `bytes_read` falls from 32,118 → 8,486
-B (`large`) and from 9,424 → 2,890 B (`cairo-vector`); the `large` document's
-bytes-read crossover is still **absent** because the one-time ingest (~406 MB)
+observation `descriptor_bytes_read` drops from 23,632 / 182,483 / 481 B to **0**,
+and the instrumented **procedural-overhead** total (descriptor + manifest +
+index + seed) is 8,441 / 8,945 / 8,483 B. *(Skeptic correction, `9bd766d`: this
+8.4–8.9 KB is an **overhead-only** figure — it excludes the cached answer
+payload, which the warm process physically re-reads from the derived cache.
+`evidence/…-desc-free-a8ad6f4/lifetime/raw/large.vole.warm.strace` shows the warm
+process reading 246 B manifest + 8,148 B index + **527,275 B cached page-text
+answer** = 543,175 B `read`/`pread64`, while the instrumented `bytes_read` is
+8,486 B. On the primary `large-400` case `bytes_returned` is 65,913 B, so the
+warm process read is ≥ 8,945 + 65,913 ≈ **74.9 KB** — above A1's 24,393 B. The
+warm **byte** court is therefore **NOT a win over A1** on `large-400` or `large`
+under a like-for-like process measurement; it is an overhead/
+latency observation.)* What is genuinely measured: warm `descriptor_bytes_read
+== 0`; a warm **wall** win (0.099 ms vs A1 1 ms / A0 8 ms); and a warm *process*
+byte win over A0 (136,128 B) and over A1 on the small producer documents
+(process reads 10.4–22.2 KB vs A1 ≈ 27.8–32.9 KB per query). The **cold**
+observation is a **loss**: byte-identical to before (232,515 B / 13.7 ms) and
+above both baselines. The lifetime court's `large` bytes-read crossover is still
+**absent** (and larger at process level) because the one-time ingest (~406 MB)
 dominates within N ≤ 1,000.
 
 **Honest losses.**
@@ -392,15 +426,22 @@ dominates within N ≤ 1,000.
 * **Cold is unchanged and loses.** A cache miss still reads the descriptor
   closure; VOLE cold (232,515 B on `large-400`) is above A1 (24,393 B) and A0
   (136,128 B). Nothing here improves the first observation.
+* **The warm "total" excludes the cached answer payload (corr., `9bd766d`).**
+  The 8,441–8,945 B is descriptor + manifest + index + seed only; the warm
+  process also reads the derived-cache answer it returns (65,913 B on
+  `large-400`, 527,275 B on `large`). A like-for-like process byte comparison vs
+  A1 is therefore a **loss** on the large cases; the win over A1 survives only
+  on the small producer documents and over A0 everywhere.
 * **The win is reuse-only.** It needs both a warm derived cache *and* the derived
   seed chain already present; if either is absent the probe falls through.
 * **Limited surface.** Only `Page(Text|Preview|Structure)` and
   `Stream(Decoded|Operators)` are short-circuited, and only on the filesystem
   backend. `ByteRange`, `Object`, `Revision`, `Stream(EncodedBytes)`, whole-
   document reads, and the EntropyFS backend still open the descriptor.
-* **Manifest + index still dominate the warm total.** 201 B manifest + 8,240–
-  8,744 B index leaf = 98% of the 8,441–8,945 B warm read. A larger index, or a
-  selector spread across more index leaves, would erode the margin.
+* **Manifest + index dominate the *overhead*.** 201 B manifest + 8,240–8,744 B
+  index leaf = 98% of the 8,441–8,945 B non-payload overhead (the returned cached
+  payload is a separate, larger read). A larger index, or a selector spread
+  across more index leaves, would erode the overhead margin.
 * **Not a whole-document win.** The derived cache must first be written (one
   `bytes_returned`-sized entry per observed node), and VOLE remains far larger
   than A0/A1 on cold and whole-file comparisons.
@@ -454,12 +495,19 @@ the identical edit yields the identical `R1` and writes zero new bytes
 
 **Supported subset (narrow, stated honestly).** Exactly one operation: replace
 one existing page's decoded content bytes in an already-indexed filesystem field,
-with new content `<= MAX_EDIT_CONTENT_BYTES` (48 KiB). The `.voldoc` descriptor is
-copied verbatim, so this is a **procedural edit of a derived page projection, not
-a rewrite of the PDF**, and it makes no authorial-intent claim. There is no
-generic editing (no insert/delete/reorder, no object-graph or cross-reference
-mutation, no re-encoding), one page per call, and the edited page loses its
-source byte span and reports no content-stream object numbers in `structure`.
+with new content `<= MAX_EDIT_CONTENT_BYTES` (48 KiB). The `.voldoc` descriptor
+blob is **shared by content id** — neither read nor rewritten; only its 32-byte
+content id (and the `DocumentExact` root id) is written into the new manifest
+(`src/field/edit.rs`: *"Read the manifest only: no descriptor blob, no document
+parse"*; witnessed by `descriptor_bytes_read == 0` and `strace`
+`descriptor_file_opens == 0`). *(Skeptic correction, `9bd766d`: earlier wording
+said "the `.voldoc` descriptor is copied verbatim", which wrongly implies a byte
+copy; the receipt proves the stronger id-shared, read-free property.)* This is a
+**procedural edit of a derived page projection, not a rewrite of the PDF**, and
+it makes no authorial-intent claim. There is no generic editing (no
+insert/delete/reorder, no object-graph or cross-reference mutation, no
+re-encoding), one page per call, and the edited page loses its source byte span
+and reports no content-stream object numbers in `structure`.
 
 **Honest losses.** The edit reads the whole hierarchical index (all leaves) to
 carry untouched bindings forward — **43,688 B read** against **8,776 B** written;

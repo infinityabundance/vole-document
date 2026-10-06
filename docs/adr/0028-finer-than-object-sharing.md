@@ -5,8 +5,8 @@
 - **Extends:** ADR-0021 (object-granularity sharing loses). **Relates to:** ADR-0020
   (store contract and accounting universes), ADR-0027 (cost accounting),
   `FINDINGS.md` §7 direction 1.
-- **Campaign:** `evidence/campaigns/2026-10-06-phase11-share-0f3d1d3/`
-  (branch `phase11`, commit `0f3d1d3`).
+- **Campaign:** `evidence/campaigns/2026-10-06-phase11-share-d9f818a/`
+  (branch `phase11`, commit `d9f818a`).
 
 ## Context
 
@@ -182,7 +182,7 @@ payload), which is the strongest test of fine-unit sharing, not the blind spot.
 
 ## References
 
-- `evidence/campaigns/2026-10-06-phase11-share-0f3d1d3/` (`receipt.json`,
+- `evidence/campaigns/2026-10-06-phase11-share-d9f818a/` (`receipt.json`,
   `results.json`, `SUMMARY.md`, `commands.txt`, `raw/` with `cohort.jsonl`,
   `encode.jsonl`, `lz.jsonl`, `share-cohort.json`, `share-strata.jsonl`,
   `cdc-frozen.json`, `cdc-sweep.json`, `cdc-strata.jsonl`)
