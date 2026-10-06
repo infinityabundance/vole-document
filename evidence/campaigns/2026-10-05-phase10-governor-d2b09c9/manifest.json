@@ -1,0 +1,15 @@
+{
+  "campaign": "2026-10-05-phase10-governor-d2b09c9",
+  "phase": "Phase 10.1 — encoder-only search governance (diagnostics + parametric space + governor) and its court",
+  "branch": "phase10",
+  "commit": "d2b09c94432c61de3ff256429fab8d46d38adcdc",
+  "feature": "dsfb-search (dependency-free, non-default)",
+  "claim": "On the frozen small tune/holdout cohort, DsfbGuided never exceeds FixedHeuristic (H1) and matches the Exhaustive grid minimum on every holdout workload with <= half the candidates (H2), while the parametric space yields NO byte benefit over the fixed heuristic (H3: fixed == exhaustive on every workload). Negative controls Stop(Raw) byte-exactly (H4). Zero decode authority: a governor-produced descriptor decodes byte-exactly in a default build without dsfb-search.",
+  "hypotheses": {"H1_never_worse":true,"H1_failures":[],"H2_approaches_exhaustive":true,"H2_holdout_hits":8,"H2_holdout_total":8,"H3_honest_failure":true,"H3_all_equal":true,"H3_median_benefit_permille":0,"H3_median_overhead_permille":0,"H4_negative_control_raw":true,"H4_failures":[]},
+  "dsfb_verdict": "dsfb 0.1.2 is real, MSRV-OK, present only transitively via entropyfs-store, and is Drift-Slew Fusion Bootstrap state estimation (an f64/rand observer) with no candidate/residual/directive API; dsfb-search does NOT depend on it (docs/adr/0022).",
+  "files": [
+    "manifest.json", "environment.json", "workloads.json", "results.json",
+    "hypotheses.json", "decode-proof.json", "court-table.txt", "report.md",
+    "commands.txt", "gates.txt"
+  ]
+}

@@ -1,0 +1,22 @@
+Phase 10.1 governor court — gate results
+Commit d2b09c9 (branch phase10). All gates run through compose.yaml; nothing
+ran on the host.
+
+PASS  cargo fmt --all --check
+PASS  cargo clippy --all-targets --all-features -- -D warnings
+PASS  cargo test --all-features --locked         (277 lib tests; integration suites incl. tests/governor.rs 8/8)
+PASS  cargo test --locked                        (default features rans,store; 263 lib tests)
+PASS  cargo test --no-default-features           (241 lib tests; governor cfg'd out)
+PASS  cargo test --features dsfb-search          (266 lib tests; tests/governor.rs 8/8; no deflate-replay)
+PASS  msrv cargo test --locked --all-features    (rustc 1.89.0 (29483883e 2025-08-04))
+PASS  policy sh -c 'cargo audit && cargo deny check'  (advisories ok, bans ok, licenses ok, sources ok)
+
+Toolchain identity:
+  dev   rustc 1.99.0 (b940084d7 2026-09-28) · cargo 1.99.0 (5f94df478 2026-08-27)
+  msrv  rustc 1.89.0 (29483883e 2025-08-04)  · cargo 1.89.0 (c24e10642 2025-06-23)
+  dev base image: rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+
+Note: the shared `cargo-target` named volume was reclaimed to free disk space
+between gate groups; the MSRV gate (new volume) and the governor-court tool
+re-run were executed from a cold target. The dev gates above ran on the warm
+target before the reclaim.
