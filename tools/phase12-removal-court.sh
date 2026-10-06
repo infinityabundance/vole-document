@@ -40,9 +40,10 @@ rm -rf "$CAMPAIGN" "$WORK"
 mkdir -p "$CAMPAIGN/raw" "$WORK"
 
 B=./target/debug/vole-document
-if [ ! -x "$B" ]; then
-  cargo build --quiet --locked --all-features
-fi
+# Build the all-features binary: the field verbs (field-ingest/observe/find/
+# materialize) only exist with the field stack compiled in. Cached after the
+# first run, so this is cheap and always correct.
+cargo build --quiet --locked --all-features
 GT="$FIXTURES/ground_truth.json"
 ASSERT="$WORK/assertions.tsv"
 : > "$ASSERT"
