@@ -1,7 +1,16 @@
 # Phase 12 — Universal multi-format document field: PDF + DOCX + EPUB
 
 Branch: `phase12`. Base: `main` @ `6c86938` (`v0.1.0-alpha.15`).
-Status: **IN PROGRESS**.
+Status: **IN PROGRESS** (12.15 skeptic review complete at `15b5729`).
+
+> **Post-review status note (2026-10-06, `15b5729`).** The Phase-12.15 adversarial
+> review ([`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md))
+> found that the **required ablations of §105–§107 (`A1b`, `A2`–`A10`, eager-vs-
+> progressive, raw-vs-decoded)** were **not run** — only A0/A1/V were measured — and
+> that the **§109 "PDF no regression" gate has no receipt**. Treat the ablation set
+> below as **not satisfied** and the PDF no-regression gate as **open**. The
+> primary hypothesis's "at least one clearly defined workload region" is supported
+> only for the small-document region of a **~0.8–61 KB self-authored corpus**.
 
 Phase 12 proves the persistent procedural field is **not a PDF trick**. PDF, DOCX
 and EPUB enter through different **native inverse compilers** and converge on one
@@ -136,6 +145,8 @@ plus per-format index kinds and extract profiles.
 - **12.16** release (gates + merge + tag + publish).
 
 ## Required ablations (§105)
+
+*(Not all run — see the post-review status note above and the review's F11.)*
 
 A0 direct tooling · A1 preprocessed SQLite+FTS (source-retaining) · A2 Phase-11
 field · A3 ZIP physical only · A4 + package graph · A5 + progressive semantic

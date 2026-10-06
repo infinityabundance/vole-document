@@ -4,6 +4,22 @@ Branch: `phase12`. This is a **cumulative** results document; each section names
 its commit under test and links its sealed receipt. Everything here was measured
 in the pinned Docker services; nothing ran on the host.
 
+> **Skeptic correction note (2026-10-06, `15b5729`).** An independent adversarial
+> review ([`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md))
+> re-checked every headline against the sealed receipts. Findings: the security
+> class tally (12.13) was wrong; two crossover / store sentences (12.11) were
+> over-generalised; the claim that A0/A1-unsupported surfaces are "excluded from
+> the lifetime frontier" is false (they are scheduled and the decliner is charged
+> 0 bytes); "FTS5/BM25 reported separately" has no receipt; the **required
+> ablation ladder `A1b`/`A2`–`A10`, §106 and §107 was not run** (only A0/A1/V were
+> measured); the **"PDF no regression" acceptance gate (§109/`N6`) has no receipt
+> at all**; ADR-0034's mandated post-`cache --clear`, OS-witness and CDC controls
+> are absent from 12.8; the 12.9 equivalence is a self-authored generator-defined
+> triplet; the 12.14 demo was run at `15b5729`, not `7ac2b09`, and has no sealed
+> receipt; and the default-feature build fails `cargo clippy -- -D warnings` on
+> pre-existing dead code in `src/field/document_format.rs`. Each is annotated
+> inline below; the numbers are not rewritten.
+
 ## Cross-document reuse (12.8)
 
 Subphase 12.8 asks for genuine, honestly scoped cross-document procedural state
@@ -57,6 +73,17 @@ byte cost for the first document and is scored as state/work, so **no
 compression claim** is made. This is the modest, real reuse the landed
 architecture supports; it is recorded as measured, not manufactured.
 
+> **Skeptic correction (2026-10-06, `15b5729`).** ADR-0034 requires the reuse
+> fraction to be receipted warm **and post-`cache --clear`**, cross-checked with an
+> **OS-level witness**, and compared against a **CDC baseline** (`N3` makes
+> "reuse ≤ strongest CDC" a no-go). The 12.8 receipt contains **none of the
+> three**: `retained_inverse_work_fraction = 0.339907` is a single *warm,
+> in-process* observation (`grep -ri 'cache --clear|cdc|witness'` over the court,
+> driver, library test and receipt returns nothing). Without the post-clear control
+> it cannot be distinguished from a process-memory cache, and `N3` is **not
+> evaluated**. The fraction is computed from executions/bytes (not source size),
+> as claimed; only the controls are missing.
+
 ## Cross-format equivalence (12.9)
 
 Subphase 12.9 asks whether one common observation vocabulary over three
@@ -98,6 +125,13 @@ is untouched: `materialize --exact` matches every source by length, SHA-256 and
 
 ### Honest gaps (recorded, not approximated)
 
+* **The triplet is self-authored and its ground truth is generator-defined.**
+  `report.pdf`/`.docx`/`.epub` and `ground_truth.json` are all emitted by the
+  same `tools/fixtures/doc-triplet-gen.py`, so 96/96 shows each adapter reads back
+  content the generator wrote — adapter consistency, not independence from a
+  third-party document. *(Skeptic note, `15b5729`.)* The shared `metadata`
+  selector is a shared *name* with per-format semantics (PDF `source_len`/`sha256`,
+  DOCX story, EPUB package summary), not a common observation.
 * **No cross-format document-title observation.** The common vocabulary has no
   title selector: PDF `metadata` returns the structural field descriptor
   (`source_len`/`source_sha256`), DOCX `metadata` returns the story structure,
@@ -159,6 +193,26 @@ and never summed with process reads; four persistent universes reported
 separately; cold + warm passes; every case answered and asserted (all comparable
 assertions passed; only pre-registered declines remained).
 
+> **Skeptic correction (2026-10-06, `15b5729`).** This court measured only **A0,
+> A1 and V**. The plan §138–145 / ADR-0035 **required** ablations `A1b` and
+> `A2`–`A10`, plus §106 (eager-vs-progressive) and §107
+> (raw-compressed-vs-decoded-persisted); **none was run** (`receipt.json`
+> contains `a0`/`a1`/`v` only). The headline therefore describes the Phase-12
+> field *as a whole* versus A0/A1 and cannot attribute the win to any named
+> mechanism. The **"PDF no regression" acceptance gate (§109 / `N6`) has no
+> receipt** (no Phase-11-vs-Phase-12 PDF comparison exists), so `N6` is not
+> evaluated. The `delta` documents are **~60 KB synthetic**, so "large-document
+> frontier" is scoped to this corpus. See
+> [`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md).
+>
+> **Skeptic note on baseline fairness.** A0 for DOCX/EPUB runs a **fresh `python3`
+> process per query** and A1's one-time build is also a `python3` process, so both
+> pay Python interpreter startup on the measured boundary (A0 ~1.6 MB read per
+> query; A1's one-time 1.8–2.7 MB). "VOLE beats A0 on all N" and "VOLE wins the
+> cold one-time comparison" are therefore partly a language-runtime artifact; the
+> A1 acceptance gate is the meaningful comparison, and there VOLE loses the large
+> documents.
+
 ### Crossover (warm pass)
 
 | document | metric | V wins vs A0 | V wins vs A1 | A1 leads from |
@@ -172,11 +226,19 @@ assertions passed; only pre-registered declines remained).
 | delta.pdf | bytes | never | N=1..100 | **N=1000** |
 | delta.pdf | wall / CPU | all N | all N | never |
 
-So the result is genuinely mixed: VOLE owns the whole small-document frontier and
+*(Skeptic correction, `15b5729`.)* The `alpha/bravo/charlie` row is an aggregate
+that is wrong for the **PDFs**: the receipt gives `alpha.pdf`/`bravo.pdf`/`charlie.pdf`
+wall/CPU vs A0 as **N≥10**, not "all N" (at `N=1`, `alpha.pdf` A0 wall `2.343 ms`
+< V `3.808 ms`; `raw/cumulative.jsonl`). Only the byte metric is "all N" for the
+small PDFs. Also, the `delta` documents are **~60 KB** synthetic, so "large" here
+means "large in this corpus", not real-world scale.
+
+So the result is genuinely mixed: VOLE owns the small-document frontier except
+for the small PDFs' wall/CPU at `N=1` (where A0 wins or ties narrowly), and it owns
 the cold one-time comparison, while the source-retaining SQLite baseline takes
-over the **large** documents' byte frontier from N=10–1000 and their wall/CPU
-frontier at N=1000. This is exactly the admissible "A1 wins simple lookups"
-region ADR-0035 requires to exist.
+over the **large** (60 KB synthetic) documents' byte frontier from N=10–1000 and
+their wall/CPU frontier at N=1000. This is exactly the admissible "A1 wins simple
+lookups" region ADR-0035 requires to exist.
 
 ### Cumulative cost at N=1 and N=1000 (warm)
 
@@ -194,7 +256,10 @@ One-time: VOLE `encode`+`field-ingest` 2–23 ms (read 19 KB–138 KB); A1
 extraction+SQLite 23–66 ms (read 1.8–2.7 MB, dominated by the Python stdlib
 extractor's interpreter startup, charged in full). Persistent bytes: on the small
 documents VOLE's store (7.7–25 KB) is smaller than A1's `.db` (77 KB); on `delta`
-VOLE's store (462–902 KB) is **larger** than A1's `.db` (221–823 KB).
+VOLE's store is **larger** than A1's `.db` for `delta.pdf` (462 KB vs 221 KB) and
+`delta.docx` (902 KB vs 823 KB) but **smaller** for `delta.epub` (599 KB vs
+819 KB). *(Skeptic correction, `15b5729`: the earlier "larger on `delta`" was
+false for `delta.epub`.)*
 
 ### All recorded losses (VOLE does not win these)
 
@@ -208,7 +273,8 @@ VOLE's store (462–902 KB) is **larger** than A1's `.db` (221–823 KB).
   (1142 / 1340 vs 1163 / 1350).
 * **VOLE's one-time read is 2.3×–22.6× the source** on every document
   (`alpha.pdf` 21.2×, `charlie.pdf` 22.6×), and its store exceeds A1's `.db` on
-  all three `delta` documents.
+  `delta.pdf` and `delta.docx` but is *smaller* on `delta.epub` (599,424 B vs
+  819,200 B; receipt per-document table). *(Skeptic correction, `15b5729`.)*
 * **VOLE declines DOCX exact resource bytes.** `observe --resource 0 --kind
   decoded` is unsupported for DOCX (typed capability error); A0/A1 answer the
   member bytes. (EPUB and PDF exact bytes are answered and asserted.)
@@ -218,11 +284,20 @@ VOLE's store (462–902 KB) is **larger** than A1's `.db` (221–823 KB).
 * **The `search` lane uses substring semantics.** FTS5 is built and `ANALYZE`d,
   but VOLE `find` is a lexical *substring* match, so A1 answered the same query
   with `LIKE` — a tokenizer would miss `XF13A` glued to adjacent glyphs by
-  Poppler's text reordering. Whole-token FTS5/BM25 remains a real A1 capability,
-  reported separately rather than compared on different semantics.
+  Poppler's text reordering. *(Skeptic correction, `15b5729`.)* The earlier
+  wording "Whole-token FTS5/BM25 remains a real A1 capability, reported
+  separately" is **withdrawn**: no FTS5/BM25 measurement exists in the receipt
+  (the only search query run is `text LIKE '%…%'`), so the FTS lane is **not
+  measured**, not separately reported.
 * A0/A1 cannot answer the VOLE-only surfaces (native provenance; PDF structure,
-  preview, object/decoded-stream bytes), so those are excluded from the lifetime
-  frontier and are not claimed as lifetime wins.
+  preview, object/decoded-stream bytes). *(Skeptic correction, `15b5729`.)* The
+  earlier claim that those surfaces "are excluded from the lifetime frontier" is
+  **false**: the schedule includes them for every document and a declining system
+  is charged **0 bytes** for the case (e.g. `alpha.docx` `exact-member`
+  A0 `1,629,325` / A1 `32,569` / V `0`, while `native-provenance` A0 `0` / A1 `0`
+  / V `16,861`). The cumulative comparison therefore sums over **different
+  answered subsets** and is not like-for-like on those two cases; the surfaces are
+  not claimed as lifetime wins, but they are not excluded either.
 
 ## LLM working set (12.12)
 
@@ -280,11 +355,14 @@ over B1: `true`; on **all** questions: `false`.
 ---
 
 Phase 12.11 and 12.12 are the phase's lifetime-cost evidence. The measured,
-scoped verdict: VOLE wins the small-document lifetime frontier and the cold
-one-time comparison, ties or loses PDF-page and simple-lookup surfaces, and
-**loses the large-document frontier to the source-retaining SQLite baseline** at
+scoped verdict: VOLE wins the small-document lifetime frontier except the small
+PDFs' wall/CPU at `N=1`, and the cold one-time comparison; it ties or loses
+PDF-page and simple-lookup surfaces; and it **loses the large (60 KB synthetic)
+document frontier to the source-retaining SQLite baseline** at
 N ≥ 10–1000 bytes and N = 1000 wall/CPU. Every loss is recorded above; a headline
-that never lost would not have been credible.
+that never lost would not have been credible. *(Skeptic: the required ablation
+ladder was not run and the PDF no-regression gate has no receipt — see the notes
+at the top of the 12.11 section.)*
 
 ## Security + fuzzing (12.13)
 
@@ -327,8 +405,15 @@ no `connect` and no foreign `execve`); no panic, no timeout, and no
 | class | count | meaning |
 |---|---:|---|
 | `reject` (typed) | 16 | a valid package whose identity/XML/DOCX/EPUB structure is broken; the derived model parse returns `InvalidPackageStructure`/`InvalidXmlStructure` **before** any semantics are guessed |
-| `opaque-preserve-and-decline` (typed) | 29 | a raw malformed/hostile ZIP; the universal ingest falls back to the byte-exact opaque floor and the unsupported observation declines `UnsupportedFeature` |
-| `accept` | 10 | a well-formed (if unusual) DOCX/EPUB the pipeline answers; scripted/remote/encrypted content is retained as inert data |
+| `opaque-preserve-and-decline` (typed) | 22 | a raw malformed/hostile ZIP; the universal ingest falls back to the byte-exact opaque floor and the unsupported observation declines `UnsupportedFeature` |
+| `accept` | 7 | a well-formed (if unusual) DOCX/EPUB the pipeline answers; scripted/remote/encrypted content is retained as inert data |
+
+*(Skeptic correction, `15b5729`.)* The earlier counts in this table were
+`opaque-preserve-and-decline` **29** and `accept` **10** (summing with `16` to 55
+for a 45-fixture corpus). The sealed receipt is authoritative:
+`outcomes.tsv` / `SUMMARY.md` tally **16 reject / 22 decline / 7 accept = 45**
+(`awk -F'\t' 'NR>1{print $4}' outcomes.tsv | sort | uniq -c`). The 315 assertions
+(45 × 7 invariants) and their PASS result are unchanged.
 
 The split is exactly the plan §DEC-9 contract: **cover/identity broken → typed
 reject; semantics/resource only → preserve exact bytes, decline typed.** Note the
@@ -374,6 +459,10 @@ needed beyond the committed hostile corpus itself.
 * The corpus is 45 hand-built fixtures from the research-I threat list, not a
   large real-world DOCX/EPUB corpus; it bounds the *named* threats, not every
   malformed package in the wild.
+* **No pre-registered decline threshold.** The `opaque-preserve-and-decline`
+  outcome (22/45 fixtures) is the intended §DEC-9 safety behaviour, but ADR-0035
+  `N4` ("ETL illusion") requires a pre-registered decline-rate threshold and none
+  exists, so `N4` is **not evaluated**. *(Skeptic note, `15b5729`.)*
 * The court measures the ingest/observe path plus the scanner/OpcModel/Docx/Epub
   builders; it does not drive the *full* field query planner over every native
   selector on every hostile package.
@@ -413,7 +502,18 @@ runtime sources, then queries and rematerializes in fresh processes.
 | 6 | `materialize --exact` for all three, checked by length, SHA-256 **and** `cmp` against the oracle copies. |
 | 7 | a pointer to the 12.11 receipt and where the source-retaining SQLite+FTS5 baseline genuinely wins. |
 
-### Observed on this tree (commit `7ac2b09`, `doc-baseline`)
+### Observed on this tree (commit `15b5729`, `doc-baseline`)
+
+*(Skeptic correction, `15b5729`.)* The earlier attribution to commit `7ac2b09` is
+impossible: `tools/phase12-demo.sh` and the `--spine-item` selector were both
+added in `15b5729` (`git ls-tree 7ac2b09` has no `tools/phase12-demo.sh`). The
+values below were re-verified live by the Phase-12.15 skeptic on `15b5729`
+(`evidence/campaigns/2026-10-06-phase12-skeptic-15b5729/raw/demo.txt`, exit `0`).
+This demo has **no sealed receipt of its own**; the numbers live only here. The
+`capabilities` step reads the sealed oracle copy after deletion (see caveats), so
+"fresh processes query the store with the source gone" applies to the query and
+materialization steps, not to `capabilities`. The final banner says "no step
+declined" because the declining PDF selectors are never invoked.
 
 Representative values from a clean run (all live, none recorded): the triplet
 `905 / 3458 / 2858` bytes; `find XF12A` matched on all three with

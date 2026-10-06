@@ -1,0 +1,220 @@
+ Container vole-document-doc-baseline-run-4d4d886193da Creating 
+ Container vole-document-doc-baseline-run-4d4d886193da Created 
+
+=== Phase 12.14 flagship demo — 2026-10-06T16:40:59Z ===
+  commit 15b5729 (branch phase12)
+  service doc-baseline (pinned, memory-capped); all work below runs in it
+
+--- 1. canonical triplet (deterministic, Python stdlib only) ---
+{"docx": {"length": 3458, "sha256": "18a55a0830da155f482a4b3790b3a1f2671474edfa7a5e48a59d8ddccb8a2fd9"}, "epub": {"length": 2858, "sha256": "88f8b9120c8914911abadf30e25ef890faba70bfae28c67bc2ba7dfa2bbc09be"}, "image_sha256": "823d5d6eeee43d3e74e9a1b636b902dccd533c668ce433adf689fd10af8e42ba", "outdir": "evidence/scratch/phase12-demo/oracle", "pdf": {"length": 905, "sha256": "fae3034c76c49e0f99af687e710147353b25c48bd6cd2acdb557ac9e174ebd07"}}
+  report.pdf: 905 bytes sha256=fae3034c76c49e0f99af687e710147353b25c48bd6cd2acdb557ac9e174ebd07
+  report.docx: 3458 bytes sha256=18a55a0830da155f482a4b3790b3a1f2671474edfa7a5e48a59d8ddccb8a2fd9
+  report.epub: 2858 bytes sha256=88f8b9120c8914911abadf30e25ef890faba70bfae28c67bc2ba7dfa2bbc09be
+
+--- 2. field-ingest all three through the one format-agnostic pipeline ---
+  pdf -> field 141a3f60585390ec...
+  docx -> field a6ef3f0f859fd689...
+  epub -> field 1ff8a509b9e8ebf5...
+
+--- 3. delete the runtime sources and ingest descriptors (source independence) ---
+  report.pdf + descriptor deleted; only the field store remains
+  report.docx + descriptor deleted; only the field store remains
+  report.epub + descriptor deleted; only the field store remains
+  (the oracle copies under evidence/scratch/phase12-demo/oracle are byte-identical sealed references for
+   format detection and cmp; they are never ingested and the store never
+   references them — the same design as the 12.10 removal court)
+
+--- 4. fresh processes query the store with the source gone ---
+
+capabilities (format detected from bytes):
+  {"format":"pdf","adapter":"pdf","selectors":["metadata","text","search-match"],"native_selectors":["document","object","stream","revision","page","byte-range","text-match"]}
+  {"format":"docx","adapter":"docx","selectors":["metadata","text","heading","block","table","cell","resource","link","search-match"],"native_selectors":["docx-story","docx-paragraph","docx-table","docx-cell","docx-find","package-part","relationship","member"]}
+  {"format":"epub","adapter":"epub","selectors":["metadata","text","heading","block","table","cell","resource","link","search-match"],"native_selectors":["epub-package","epub-manifest-item","epub-spine-item","epub-nav","epub-nav-node","epub-resource","epub-block","epub-cell","epub-link","epub-find","member"]}
+
+find the same marker XF12A across all three:
+  ok   pdf      [{"page":1,"line":"Alpha paragraph carries marker XF12A."}]  [format=pdf;common;]
+  ok   docx     [{"paragraph":1,"text":"Alpha paragraph carries marker XF12A."}]  [format=docx;common;docx;story=main;part=/word/document.xml;profile=v1-final-result-h1-f1-e1-c1-x0-t1-b1]
+  ok   epub     [{"spine":0,"block":1,"kind":"paragraph","text":"Alpha paragraph carries marker XF12A."}]  [format=epub;common;epub;search;profile=v1-linear-only-excluded-h0-s1]
+
+native-provenance heading / paragraph / Table·Cell(B7) on DOCX and EPUB:
+  docx  heading0  = Introduction  [format=docx;common;docx;story=main;part=/word/document.xml;heading=0;paragraph=0;profile=v1-final-result-h1-f1-e1-c1-x0-t1-b1]
+  docx  block1    = Alpha paragraph carries marker XF12A.
+  docx  Cell(B7)  = bravo-seven
+  ok   docx.heading0                      Introduction
+  ok   docx.block1                        Alpha paragraph carries marker XF12A.
+  ok   docx.cell_b7                       bravo-seven
+  epub  heading0  = Introduction  [format=epub;common;epub;spine=0;part=OEBPS/chapter1.xhtml;block=0;ordinal=0;profile=v1-linear-only-excluded-h0-s1]
+  epub  block1    = Alpha paragraph carries marker XF12A.
+  epub  Cell(B7)  = bravo-seven
+  ok   epub.heading0                      Introduction
+  ok   epub.block1                        Alpha paragraph carries marker XF12A.
+  ok   epub.cell_b7                       bravo-seven
+
+EPUB reading coordinate (reflowable EPUB has no intrinsic pages):
+  selector=epub-spine-item:0;profile=v1-linear-only-excluded-h0-s1 provenance=[epub;spine=0;part=OEBPS/chapter1.xhtml;profile=v1-linear-only-excluded-h0-s1;structure]
+  structure (truncated to 600 chars):
+    {
+      "spine": 0,
+      "part": "OEBPS/chapter1.xhtml",
+      "profile": "v1-linear-only-excluded-h0-s1",
+      "root": "html",
+      "body": true,
+      "scripted": false,
+      "xhtml_nodes": 41,
+      "blocks": [
+        {
+          "index": 0,
+          "kind": "heading",
+          "level": 1,
+          "id": null,
+          "epub_type": null,
+          "text": "Introduction"
+        },
+        {
+          "index": 1,
+          "kind": "paragraph",
+          "text": "Alpha paragraph carries marker XF12A."
+        },
+        {
+          "index": 2,
+          "kind": "heading",
+          "level": 2,
+          "id": null,
+          "epub_type": null,
+          "text": "Method"
+        },
+        {
+          "index": 3,
+          "kind": "paragraph",
+          "text": "Bravo paragraph carries marker XF12B."
+        },
+        {
+          "index": 4,
+          "kind": "heading",
+          "level": 3,
+          "id": null,
+          "epub_type": null,
+          "text": "Findings"
+        },
+        {
+          "index": 5,
+          "kind": "list",
+          "ordered": true,
+          "items": [
+            "First step",
+            "Second step",
+            "Third step"
+          ]
+        },
+        {
+          "index": 6,
+          "kind": "table",
+          "rows": 8,
+          "cols": 2
+        },
+        {
+          "index": 7,
+          "kind": "paragraph",
+          "text": "See external."
+        }
+      ],
+      "headings": [
+        {
+          "index": 0,
+          "kind": "heading",
+          "level": 1,
+          "id": null,
+          "epub_type": null,
+          "text": "Introduction"
+        },
+        {
+          "index": 2,
+          "kind": "heading",
+          "level": 2,
+          "id": null,
+          "epub_type": null,
+          "text": "Method"
+        },
+        {
+          "index": 4,
+          "kind": "heading",
+          "level": 3,
+          "id": null,
+          "epub_type": null,
+          "text": "Findings"
+        }
+      ],
+      "links": [
+        {
+          "index": 0,
+          "href": "https://example.com/phase12",
+          "text": "external",
+          "fragment": null,
+          "member": null,
+          "external": true,
+          "epub_type": null
+        }
+      ],
+      "resources": [
+        {
+          "index": 0,
+          "kind": "img",
+          "attr": "src",
+          "value": "images/image1.png",
+          "member": "OEBPS/images/image1.png",
+          "external": false
+        }
+      ],
+      "fragments": [],
+      "sections": []
+    }
+
+explain --analyze — one DOCX table-cell and one EPUB spine-item:
+  DOCX Cell(0:6:1) text
+    plan shape=deepen_then_observe index_reads=2 required_nodes=4
+    format=docx; adapter=docx; whole_source_materialized=false
+    member_decodes=2  xml_parses=2  seed_nodes_executed=0  seed_nodes_reused=2
+    four byte classes: descriptor=3939 manifest=306 index=3772 seed=86  (bytes_read=8103, sum)
+  EPUB spine-item 0 structure
+    plan shape=deepen_then_observe index_reads=2 required_nodes=4
+    format=epub; adapter=epub; whole_source_materialized=false
+    member_decodes=1  xml_parses=2  seed_nodes_executed=0  seed_nodes_reused=2
+    four byte classes: descriptor=3339 manifest=306 index=2499 seed=86  (bytes_read=6230, sum)
+  ok   docx.cell.whole_source_materialized false
+  ok   epub.spine.whole_source_materialized false
+
+--- 5. repeated query — retained work (nodes_reused + work fraction) ---
+  cold  (--no-cache): seed_nodes_executed=5  bytes_read=6454  units=6459
+  warm  (cache):      seed_nodes_executed=0  bytes_read=6230  nodes_reused=2
+  retained_inverse_work_fraction = 0.035454
+  ok   the repeat was served from persisted work (nodes_reused > 0)
+
+--- 6. materialize --exact — length + SHA-256 + cmp vs the oracle ---
+  pdf len=905 sha256=fae3034c76c4... cmp=equal
+  ok   pdf.exact.len                      905
+  ok   pdf.exact.sha256                   fae3034c76c49e0f99af687e710147353b25c48bd6cd2acdb557ac9e174ebd07
+  ok   pdf.exact.cmp                      equal
+  docx len=3458 sha256=18a55a0830da... cmp=equal
+  ok   docx.exact.len                     3458
+  ok   docx.exact.sha256                  18a55a0830da155f482a4b3790b3a1f2671474edfa7a5e48a59d8ddccb8a2fd9
+  ok   docx.exact.cmp                     equal
+  epub len=2858 sha256=88f8b9120c89... cmp=equal
+  ok   epub.exact.len                     2858
+  ok   epub.exact.sha256                  88f8b9120c8914911abadf30e25ef890faba70bfae28c67bc2ba7dfa2bbc09be
+  ok   epub.exact.cmp                     equal
+
+--- 7. where the DB baseline wins (12.11 lifetime court) ---
+  pointer : docs/phases/phase-12-results.md -> "## Lifetime workload (12.11)"
+  receipt : evidence/campaigns/2026-10-06-phase12-lifetime-3eaf576/SUMMARY.md
+  honest  : the source-retaining SQLite+FTS5 cache (A1) wins the *large*
+            document frontier — delta.docx bytes from N=10, delta.epub from
+            N=100, delta.pdf from N=1000, and wall/CPU at N=1000 for
+            delta.docx / delta.epub — because VOLE reads its full descriptor
+            (and warm derived cache) on every observation while A1 does a
+            covering-index point lookup. VOLE owns the small-document
+            frontier and the cold one-time comparison. Every loss is in the
+            receipt above; this demo makes no lifetime claim of its own.
+
+=== result ===
+  DEMO OK — every step completed; the three sources were byte-exactly
+  rematerialized after deletion, and no step declined.

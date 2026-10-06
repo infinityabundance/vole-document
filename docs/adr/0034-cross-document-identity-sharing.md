@@ -5,6 +5,18 @@ Extends ADR-0021 (object-granularity sharing), ADR-0028 (finer-than-object
 sharing), ADR-0025 (seed DAG identity). Cites plan §DEC-8, §34–§37, §91;
 research H §1–§7, J §2, J §7.
 
+> **Post-review amendment (Phase 12.15 skeptic, `15b5729`).** The landed 12.8
+> court (`evidence/campaigns/2026-10-06-phase12-share-e7ef693/`) reports the
+> `retained_inverse_work_fraction` this ADR defines, computed from node
+> executions + cold input bytes (not source size, as required), and correctly
+> separates `nodes_id_shared` from `nodes_reused`. However, the three controls
+> this decision **mandates** — a post-`cache --clear` receipt, an OS-level
+> witness, and a CDC-baseline comparison — are **absent**. The `0.339907`
+> fraction is therefore a single warm, in-process observation, and the `N3`
+> go/no-go test (ADR-0035) is **not evaluated**. See
+> [`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md)
+> (F8).
+
 ## Context
 
 Phase 9 and Phase 11.14 both measured that shareable units — coarse objects and

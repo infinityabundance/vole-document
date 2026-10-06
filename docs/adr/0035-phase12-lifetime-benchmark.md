@@ -5,6 +5,18 @@ Extends ADR-0027 (four accounting universes, lifetime-cost headline). Relates:
 ADR-0017 (lossless baselines), ADR-0021/0028 (sharing negatives). Cites plan
 §58–§65, §88, §91, §105–107, §117–124; research F §1–§7, G §1–§8, J §2, J §6.
 
+> **Post-review amendment (Phase 12.15 skeptic, `15b5729`).** The pre-registered
+> ablation ladder of this ADR (`A1b`, `A2`–`A10`, §106 eager-vs-progressive, §107
+> raw-vs-decoded) was **not measured**: the sealed receipt
+> (`evidence/campaigns/2026-10-06-phase12-lifetime-3eaf576/`) contains only A0,
+> A1 and V. Consequently **`N5` (package-index-only) cannot be evaluated**, and
+> the `N1`/`N3` go/no-go tests remain open. The failed gate `N6` (PDF no
+> regression) likewise has **no receipt**. The measured, admissible result is the
+> mixed one recorded in `docs/phases/phase-12-results.md` (VOLE wins the
+> small-document frontier and the cold one-time comparison; A1 wins the large
+> synthetic documents' byte frontier and wall/CPU at N=1000). See
+> [`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md).
+
 ## Context
 
 Plan §22 is explicit: success is **not** "we parsed three formats" but a

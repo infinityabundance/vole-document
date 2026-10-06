@@ -5,6 +5,16 @@ Extends ADR-0024 (field authority), ADR-0026 (observation algebra). Relates:
 ADR-0001 (exact bytes), ADR-0009 (PDF byte authority). Cites plan §DEC-1,
 §DEC-2, §DEC-5, §DEC-10, §109; research A §8, B §2, J §1, J §7.
 
+> **Post-review amendment (Phase 12.15 skeptic, `15b5729`).** The **"PDF no
+> regression"** clause below is a **requirement**, not a measured result: no
+> Phase-11-vs-Phase-12 PDF receipt exists, so the gate (§109 / ADR-0035 `N6`) is
+> **open**, not green. The shared API is a shared **selector enum** with
+> per-format semantics (as this ADR warns), demonstrated for PDF only on
+> `find`/`text`/`metadata`; `heading`/`block`/`table`/`cell`/`resource`/`link`
+> are typed declines for PDF. The cross-format equivalence court is a
+> **self-authored, generator-defined** triplet (research J §4 caveat applies).
+> See [`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md).
+
 ## Context
 
 The Phase-11 field is PDF-shaped and its authority model (ADR-0024) is layered.
