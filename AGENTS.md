@@ -34,6 +34,15 @@ versions, `Cargo.lock` SHA-256, git commit and dirty state, CPU architecture,
 external oracle versions, the exact command line, and any environment variables
 that affect semantics. GitHub Actions must invoke the same Docker paths.
 
+Every service in `compose.yaml` is hard-capped (`mem_limit`, `memswap_limit`
+equal to it, `pids_limit`, and `cpus` on long-running lanes). This is mandatory,
+not a convenience: the host's swap is **zram** (RAM-backed), so unbounded swap is
+not extra memory and a runaway build/ingest/fuzz can OOM the whole machine. A
+container that exceeds its cap is OOM-killed; the host is never at risk. Raising
+a cap is a deliberate act justified by a measured need and recorded in the
+receipt; never raise a cap to make a failing run pass, and never run a workload
+outside a capped service.
+
 ## Subagent protocol
 
 The orchestrator owns integration. Major phases begin with independent research
