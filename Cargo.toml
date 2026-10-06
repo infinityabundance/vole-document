@@ -3,13 +3,13 @@ name = "vole-document"
 version = "0.1.0-alpha.13"
 edition = "2024"
 rust-version = "1.89"
-description = "Byte-exact procedural document storage: deterministic reconstruction state, typed residuals, and entropy-coded channels that materialize the exact original document bytes."
+description = "Persistent procedural document runtime: byte-exact reconstruction plus a content-addressed procedural seed DAG, queryable observations with provenance, and selective late materialization."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/infinityabundance/vole-document"
 homepage = "https://github.com/infinityabundance/vole-document"
 readme = "README.md"
-keywords = ["compression", "rans", "document", "pdf", "archival"]
-categories = ["compression", "encoding"]
+keywords = ["document", "pdf", "procedural", "reconstruction", "queryable"]
+categories = ["encoding", "filesystem", "data-structures"]
 
 # The published crate must never bundle the fuzz crate, local research material,
 # or evidence campaign bytes. `fuzz/` is a separate cargo-fuzz package built only

@@ -1,11 +1,12 @@
 //! # VOLE-Document
 //!
-//! Byte-exact procedural document storage.
+//! A persistent procedural document runtime with byte-exact reconstruction.
 //!
-//! The governing invariant of the exact profile is:
+//! The governing invariants of the exact profile are:
 //!
 //! ```text
-//! materialize(descriptor) == original_bytes
+//! materialize(descriptor)  == original_bytes
+//! materialize(field_root)  == original_bytes
 //! ```
 //!
 //! Parsing, semantic equivalence, canonicalization, or a successful round trip
@@ -13,35 +14,37 @@
 //!
 //! ## Layered representation
 //!
-//! A persisted `.voldoc` descriptor is a bounded, deterministic reconstruction
-//! description:
-//!
 //! ```text
 //! source bytes X
 //!     -> deterministic format analysis (advisory; never destructive)
 //!     -> bounded reconstruction hypothesis
 //!     -> Document Reconstruction Algebra program + parameters + typed residuals
-//!     -> (later) typed entropy channels / rANS entropy-seed capsules
+//!     -> typed entropy channels / rANS entropy-seed capsules
 //!     -> canonical .voldoc descriptor
 //!     -> bounded deterministic materializer
 //!     -> X exactly
 //! ```
 //!
-//! rANS, when it eventually arrives, is the *entropy substrate beneath* the
-//! representation. It is not the procedural model, and an integer state is not
-//! a magic seed: a complete decoder-entry capsule carries model, state,
-//! renormalization payload, counts, and integrity.
+//! rANS is the *entropy substrate beneath* the representation. It is not the
+//! procedural model, and an integer state is not a magic seed: a complete
+//! decoder-entry capsule carries model, state, renormalization payload, counts,
+//! and integrity.
 //!
-//! ## Phase status
+//! ## Persistent procedural field (Phase 11)
 //!
-//! This crate currently implements the **exact container core** (paper Phase A
-//! / brief Phase 1): framing, typed errors, resource limits, integrity, the
-//! literal Document Reconstruction Algebra, the coverage certificate, RAW exact
-//! representation, the CLI, and decode-before-commit. No compression claim is
-//! made yet.
+//! From Phase 11 the persisted document is also a **queryable procedural field**
+//! (feature `field`, on by default; see the `field` module): a content-addressed,
+//! immutable procedural **seed DAG**, a bounded hierarchical observation index,
+//! a typed observation API with provenance and `EXPLAIN`/`EXPLAIN ANALYZE`, and
+//! selective late materialization. A narrow observation resolves its minimum
+//! dependency closure (and, when warm, never opens the descriptor); the exact
+//! original bytes always rematerialize, including after the source is deleted and
+//! across process restarts. The exactness path (`materialize`) never depends on
+//! the field, a cache, an index, or any search process.
 //!
-//! See `PROJECT_STATE.md` for the mechanism ledger and `SPEC.md` for the
-//! provisional wire format.
+//! See `PROJECT_STATE.md` for the mechanism ledger, `FINDINGS.md` for the
+//! authoritative measured results, `docs/adr/` for the decisions, and `SPEC.md`
+//! for the wire format.
 
 #![forbid(unsafe_code)]
 

@@ -1,50 +1,97 @@
 # VOLE-Document
 
-Byte-exact procedural document storage.
+A persistent procedural document runtime with byte-exact reconstruction.
 
-VOLE-Document persists a **bounded deterministic reconstruction description** of a
-document — reconstruction structure, parameters/state, typed residual channels,
-and (in the entropy phases) typed rANS channels — and materializes the exact
-original bytes on demand.
+VOLE-Document inverse-proceduralizes a document into a **bounded deterministic
+reconstruction description** — reconstruction structure, parameters/state, typed
+residual channels, and typed rANS channels — persists the recovered procedural
+state, and lets you **query it directly** (page text, structure, preview, streams,
+objects, revisions, exact byte ranges) with a typed observation API, provenance,
+and `EXPLAIN`/`EXPLAIN ANALYZE`. The exact original bytes are always recoverable.
 
 The governing invariant of the exact profile is uncompromising:
 
 ```text
-materialize(descriptor) == original_bytes
+descriptor:            materialize(descriptor) == original_bytes
+persistent field:      materialize(field_root)  == original_bytes
 ```
 
 Parsing successfully, producing "the same" text, the same object graph, the same
 pages, the same rendering, or a canonical re-save are **not** substitutes.
 
-> This project is deliberately *not* "a PDF optimizer that happens to use rANS".
-> rANS is the entropy substrate beneath the representation, never the procedural
-> model. See [`SPEC.md`](SPEC.md) and [`docs/`](docs/) for the architecture.
+> Compression is an implementation detail here, not the product. rANS is the
+> entropy substrate beneath the representation, never the procedural model. The
+> point is a document that remains a *queryable, reconstructible computational
+> field* rather than a re-opened file. See [`SPEC.md`](SPEC.md),
+> [`PROJECT_STATE.md`](PROJECT_STATE.md), and [`docs/`](docs/).
 
 > ### 📌 Findings
 >
-> **The current VOLE representation stack does not beat purpose-built baselines
-> on any measured axis.** The durable results are byte-exactness, an auditable
-> reconstruction representation, and a complete, receipted record of the
-> negatives. Read the authoritative consolidation: **[`FINDINGS.md`](FINDINGS.md)**
-> and **[ADR-0023](docs/adr/0023-consolidated-findings.md)**.
+> **Phase 11 changed the axis.** On whole-file size VOLE still loses to generic
+> compressors and is not a compressor (**0/27**, [ADR-0017](docs/adr/0017-generic-lossless-baselines.md)).
+> But the persistent procedural field now has **scoped, receipted measured wins**:
+> a *warm, cache-served* narrow observation reads **8.4–8.9 KB / ~99 µs** versus
+> the fair preprocessed SQLite baseline's **24,393 B / ~1 ms** and Poppler's
+> **136,128 B / ~8 ms**; lifetime wall beats raw PDF tooling on **5/5** documents;
+> and after deleting the source a new process still rematerializes the exact
+> original (length + SHA-256 + `cmp`). **Cold narrow observations still lose** on
+> bytes, cross-document sharing loses to CDC/`tar|xz`, and an earlier warm-byte
+> claim was **falsified by the independent skeptic** (the cache-served answer read
+> had been excluded from the byte count) — see
+> [`docs/reviews/phase-11-skeptic-review.md`](docs/reviews/phase-11-skeptic-review.md).
+> Read [`FINDINGS.md`](FINDINGS.md) and ADRs 0017–0028.
 
 ## Status
 
-Current release: **`0.1.0-alpha.12`** (Phase 10 — DSFB encoder-only governance +
-negative-results consolidation). The consolidated verdict (ADR-0023,
-[`FINDINGS.md`](FINDINGS.md)) supersedes every earlier "win" claim: **no measured
-axis beats a purpose-built baseline.** Exactness is unchanged
-(`materialize(descriptor) == original_bytes`) and is stated as the invariant, not
-as a competitive win; whole-file size remains a recorded loss against generic
-lossless tools, **0/27** (ADR-0017). Phase 7 measured a scoped random-access
-**decode-CPU** win (ADR-0018); Phase 8 measured a scoped random-access
-**bytes-read** win versus **non-seekable sequential** codecs only — it loses to
-seekable/blocked formats (ADR-0019); Phase 9 adds the cross-document
-content-addressed **store** and records a robust — but partly
-externalization-granularity-artifact — loss on the store axis (ADR-0020/0021);
-Phase 10.1 adds an optional, **encoder-only** search governor behind the
-non-default, dependency-free `dsfb-search` feature and records that the
-parametric search buys **no bytes** on its cohort (ADR-0022). Nothing else wins.
+Current release: **`0.1.0-alpha.13`** (Phase 11 — persistent procedural document
+field). Phase 11 turns the byte-exact representation into a **persistent,
+queryable procedural field**: inverse-proceduralize early (object/stream/page
+tree, including `/ObjStm`), persist the recovered state as a content-addressed
+**seed DAG** (filesystem or EntropyFS backend), navigate it with a bounded
+**hierarchical observation index**, and materialize as late as possible — a
+narrow observation resolves its minimum dependency closure and, when warm, never
+opens the descriptor at all.
+
+**Exactness is unchanged and remains the invariant, not a competitive win.**
+`materialize(descriptor) == original_bytes` and `materialize(field_root) ==
+original_bytes` hold byte-for-byte (length + SHA-256 + `cmp`), including after the
+source is deleted and across process restarts; the derived cache is disposable
+and off the authority path.
+
+**Phase 11's measured wins are scoped and receipted** (see
+[`docs/phases/phase-11-results.md`](docs/phases/phase-11-results.md)):
+
+- **Warm narrow observation (agent-interactive):** 0 descriptor bytes read,
+  8.4–8.9 KB total overhead, ~99 µs wall — versus the fair preprocessed-SQLite
+  baseline (**24,393 B / ~1 ms**) and Poppler page text (**136,128 B / ~8 ms**)
+  on the small/medium cases. This is an *overhead* + *wall* win; it requires a
+  warm derived cache and it is reported honestly as such.
+- **Lifetime wall vs raw PDF tooling:** win on 5/5 documents.
+- **Cross-process reuse:** a repeated observation in a new OS process executes
+  **0** seed nodes and reads **0** seed bytes.
+- **Partial descriptors:** a cold narrow observation reads its record closure
+  (~0.22–0.36 MB), not the whole ~17 MB descriptor (−98%).
+
+**Phase 11's recorded losses and corrections:** the **cold** narrow-observation
+byte court still loses to SQLite; lifetime vs the preprocessed DB crosses over on
+only 2/5 documents (absent for large/producer docs); whole-file size loses (0/27);
+finer-than-object sharing loses to `tar|xz` and strongest CDC
+([ADR-0028](docs/adr/0028-finer-than-object-sharing.md)); and the independent
+skeptic **falsified** the original warm-byte-vs-SQLite claim
+([review](docs/reviews/phase-11-skeptic-review.md)).
+
+The pre-Phase-11 consolidation still stands for the axes it covers: through
+Phase 10, the single-file representation stack did not beat purpose-built
+baselines on any measured axis ([ADR-0023](docs/adr/0023-consolidated-findings.md),
+[`FINDINGS.md`](FINDINGS.md)). Phase 11 does not overturn that; it adds a new axis
+— a persistent procedural field — on which scoped wins are now measured. Whole-file
+size remains a recorded loss against generic lossless tools (**0/27**, ADR-0017);
+Phase 7 measured a scoped random-access **decode-CPU** win (ADR-0018); Phase 8
+measured a scoped random-access **bytes-read** win versus **non-seekable
+sequential** codecs only (ADR-0019); Phase 9 added the cross-document store and
+recorded a robust loss (ADR-0020/0021); Phase 10.1 added an optional encoder-only
+governor that buys no bytes (ADR-0022). See the Phase-11 subsection below for the
+field results, and ADRs 0024–0028 for the Phase-11 architecture.
 
 Phase 9 (branch `phase9`, ADR-0020/0021) adds a cross-document
 **content-addressed object store** and then measures the one axis a single-file
@@ -699,6 +746,63 @@ Receipt:
 (`results.json`, `hypotheses.json`, `decode-proof.json`, `report.md`); driver
 `tools/governor-court.sh`; ADR-0022.
 
+### Persistent procedural document field (Phase 11) measured results
+
+Phase 11 stops treating the persisted document as a re-openable archive and makes
+it a **queryable procedural field** (ADRs [0024](docs/adr/0024-document-field-authority.md)–[0028](docs/adr/0028-finer-than-object-sharing.md)):
+
+- **Procedural seed DAG.** Each recovered computation is a canonical, versioned
+  node (`NodeId = BLAKE3("VOLE:PSEED:v1" ‖ state ‖ dep ids)`), stored one blob per
+  node in a content-addressed seed store, on a plain-filesystem backend or the
+  optional EntropyFS engine (`entropyfs-store`). The DAG is immutable and
+  cycle-free; the id *is* the fingerprint, so a changed dependency yields a new
+  node and reuse has no invalidation pass.
+- **Hierarchical observation index.** A bounded selector-keyed tree (fanout ≤ 256,
+  depth ≤ 3, node ≤ 8 KiB) navigated path-only; it accelerates and never defines
+  truth (a lying/oversized/out-of-closure node is rejected fail-closed).
+- **Progressive inverse compiler.** Stage A durable capture; Stage B cheap eager
+  inversion (physical spans, revisions, objects, streams, decoded streams, page
+  tree, `/ObjStm`-hosted page objects); Stage C demand-driven deepening. Real
+  producers recover their pages: Cairo 6, LibreOffice 61, pdfTeX 6, ReportLab 6.
+- **Observation engine.** Typed selectors (Document/Page/Object/Stream/Revision/
+  ByteRange/TextMatch) × representations (Metadata/Text/Structure/Operators/
+  Encoded/Decoded/Exact/Preview/FullDocument), each answer a `FieldAnswer` with a
+  typed `basis` (authored / directly-observed / deterministically-derived /
+  heuristic / inferred / unresolved) and `integrity_scope`, plus deterministic
+  planning and `EXPLAIN` / `EXPLAIN ANALYZE`.
+- **Selective late materialization, reuse, and source independence.** A narrow
+  observation reads its minimum closure; the derived cache is off-wire and
+  closure-keyed; the source PDF can be deleted and a new process still queries the
+  field and rematerializes the exact original. An immutable edit witness shows one
+  page-content override sharing 318/319 index entries and the descriptor (0 bytes
+  read) while both roots stay exact.
+
+**Measured, with the four accounting universes kept distinct** (source /
+archive+store / procedural field / derived cache; ADR-0027). Representative
+numbers (page-1 text; `evidence/campaigns/2026-10-06-phase11-desc-free-a8ad6f4/`):
+
+| lane | bytes read | wall | note |
+|---|---:|---:|---|
+| VOLE field, **warm** (cache-served) | **8.4–8.9 KB** overhead | **~99 µs** | 0 descriptor bytes |
+| VOLE field, **cold** (partial descriptor) | 0.08–0.36 MB | — | re-derives text from the page channel |
+| A1 preprocessed SQLite | 24,393 B | ~1 ms | one-time extraction charged |
+| A0 Poppler `pdftotext -f1 -l1` | 136,128 B | ~8 ms | — |
+
+**Honest correction (independent skeptic).** The original warm-byte claim omitted
+the cache-served answer read (measured in the derived-cache universe), so on large
+documents the warm *byte* court is a **loss**; the surviving win is the overhead +
+wall result and the small producer documents. The LLM token court now reports a
+**pinned** tokenizer (`bert-base-uncased`, asset SHA-256 verified) and finds V wins
+2 / ties 2 / loses 2 versus page-local extraction — a working-set measure, never a
+text-quality claim. Finer-than-object sharing wins versus per-file LZ and frozen
+CDC but **loses** versus `tar|xz` and strongest CDC (`unique_bytes` is a lower
+bound only).
+
+Receipts: `evidence/campaigns/2026-10-06-phase11-*` (plan, io, partial, desc-free,
+entropyfs, lifetime, share, llm-tokens, edit, skeptic); results write-up
+[`docs/phases/phase-11-results.md`](docs/phases/phase-11-results.md); review
+[`docs/reviews/phase-11-skeptic-review.md`](docs/reviews/phase-11-skeptic-review.md).
+
 ## Quick start (Docker only)
 
 All project commands run inside pinned containers. The host only invokes Docker.
@@ -763,6 +867,17 @@ vole-document verify      INPUT.voldoc
 vole-document inspect     INPUT.voldoc
 vole-document pdf-make-large DIR [OBJECTS]
 vole-document capabilities
+
+# Phase 11 — persistent procedural field (feature `field`, on by default)
+vole-document field-ingest  INPUT.voldoc --store DIR [--entropyfs]
+vole-document observe       --store DIR --field HEX (--page N | --object N | --stream N | --revision N | --byte-range A..B) --kind KIND
+vole-document find          --store DIR --field HEX --text PATTERN
+vole-document explain       --store DIR --field HEX ... [--analyze]
+vole-document preview       --store DIR --field HEX --page N [--json]
+vole-document materialize   --store DIR --field HEX --exact --output FILE
+vole-document cache         --store DIR [--clear]
+vole-document field-edit    --store DIR --field HEX --page N --content-bytes HEX
+vole-document share-account [--store DIR] INPUT.voldoc...
 ```
 
 `encode --force KIND` forces the complete-cost court to consider only one
@@ -821,8 +936,8 @@ Dual-licensed under either MIT or Apache-2.0, at your option. See
 
 **Third-party license note.** The `deflate-replay` feature (Phase 6) is
 **opt-in** and depends on `preflate-rs`, which depends on `cabac`, licensed
-**LGPL-3.0-or-later**. The default build (`default = ["rans"]`) is
-**permissive-only** and contains no LGPL code. Rust links statically by default,
+**LGPL-3.0-or-later**. The default build (`default = ["rans", "store", "field"]`)
+is **permissive-only** and contains no LGPL code. Rust links statically by default,
 so a binary built **with** `--features deflate-replay` (or `--all-features`)
 contains LGPL code and carries the corresponding obligations. See
 [ADR-0014](docs/adr/0014-lgpl-cabac-dependency.md).
