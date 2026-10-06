@@ -31,6 +31,8 @@ pub struct CostBreakdown {
     pub residuals: u64,
     /// Index/checkpoint records.
     pub index: u64,
+    /// Optional seek-directory record (payload + framing). Zero when absent.
+    pub directory: u64,
     /// Integrity record payload.
     pub integrity: u64,
     /// Trailer record payload.
@@ -50,6 +52,7 @@ impl CostBreakdown {
             + self.entropy_payload
             + self.residuals
             + self.index
+            + self.directory
             + self.integrity
             + self.trailer
     }
@@ -58,7 +61,7 @@ impl CostBreakdown {
     pub fn to_json(&self) -> String {
         let mut s = String::new();
         s.push('{');
-        let fields: [(&str, u64); 12] = [
+        let fields: [(&str, u64); 13] = [
             ("header", self.header),
             ("universe", self.universe),
             ("format", self.format),
@@ -69,6 +72,7 @@ impl CostBreakdown {
             ("entropy_payload", self.entropy_payload),
             ("residuals", self.residuals),
             ("index", self.index),
+            ("directory", self.directory),
             ("integrity", self.integrity),
             ("trailer", self.trailer),
         ];
@@ -115,6 +119,7 @@ mod tests {
             "entropy_payload",
             "residuals",
             "index",
+            "directory",
             "integrity",
             "trailer",
         ] {

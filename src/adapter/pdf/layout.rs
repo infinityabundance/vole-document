@@ -290,6 +290,7 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
             items: plan.items,
         }]),
         observation_index: None,
+        seek_directory: false,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };
@@ -398,6 +399,7 @@ pub fn propose_pdf_layout_rans(input: &[u8], limits: Limits) -> Result<Option<Ca
             declared_output_len: input.len() as u64,
         }]),
         observation_index: None,
+        seek_directory: false,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };

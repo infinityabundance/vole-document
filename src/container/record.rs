@@ -48,6 +48,14 @@ pub enum RecordTag {
     /// decoder that does not implement partial decode skips it and still fully
     /// materializes.
     ObservationIndex = 0x70,
+    /// An optional seek directory (Phase 8): a bounded map from record class to
+    /// on-disk locator, written as the first record at fixed offset 64.
+    ///
+    /// It is written with [`FLAG_OPTIONAL`]; a decoder that does not implement
+    /// seek-based partial I/O skips it (the `None`/unknown arm in
+    /// `Descriptor::parse`) and still fully materializes the source, because the
+    /// reconstruction program alone is complete.
+    Directory = 0x71,
     /// A reference to an external content-addressed object (Phase 9+).
     ExternalRef = 0x80,
     /// Whole-source integrity manifest.
@@ -69,6 +77,7 @@ impl RecordTag {
             0x50 => Some(RecordTag::Residual),
             0x60 => Some(RecordTag::Checkpoint),
             0x70 => Some(RecordTag::ObservationIndex),
+            0x71 => Some(RecordTag::Directory),
             0x80 => Some(RecordTag::ExternalRef),
             0xF0 => Some(RecordTag::Integrity),
             0xFF => Some(RecordTag::Trailer),
@@ -88,6 +97,7 @@ impl RecordTag {
             RecordTag::Residual => "RESIDUAL",
             RecordTag::Checkpoint => "CHECKPOINT",
             RecordTag::ObservationIndex => "OBSERVATION_INDEX",
+            RecordTag::Directory => "DIRECTORY",
             RecordTag::ExternalRef => "EXTERNAL_REF",
             RecordTag::Integrity => "INTEGRITY",
             RecordTag::Trailer => "TRAILER",

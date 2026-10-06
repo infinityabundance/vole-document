@@ -206,6 +206,7 @@ fn repeat_expansion_is_bounded() {
             Op::RepeatLast { count: 1 << 20 },
         ]),
         observation_index: None,
+        seek_directory: false,
         source_sha256: sha256(&vec![0u8; 1024]),
         source_len: 1024,
     };
@@ -232,6 +233,7 @@ fn court_rejects_inexact_candidate() {
         objects: vec![b"wrong bytes".to_vec()],
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
         observation_index: None,
+        seek_directory: false,
         source_sha256: sha256(b"wrong bytes"),
         source_len: b"wrong bytes".len() as u64,
     };

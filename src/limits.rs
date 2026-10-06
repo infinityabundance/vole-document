@@ -48,6 +48,13 @@ pub struct Limits {
     /// rejected at parse and declined by the index builder. It mirrors the
     /// object/graph scale so the table cannot dwarf the document it describes.
     pub max_index_selectors: u32,
+    /// Maximum accepted size of an optional `DIRECTORY` record payload.
+    ///
+    /// Bounds the seek directory (Phase 8) before allocation: a directory larger
+    /// than this is declined at decode rather than trusted. A directory is roughly
+    /// `13 * record_count` bytes, so this also caps the record count a directory
+    /// can describe.
+    pub max_directory_bytes: u32,
 }
 
 impl Limits {
@@ -67,6 +74,7 @@ impl Limits {
         max_entropy_model_bytes: 4096,
         max_pdf_spans: 1 << 26,
         max_index_selectors: 1 << 20,
+        max_directory_bytes: 1 << 20,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -85,6 +93,7 @@ impl Limits {
         max_entropy_model_bytes: 4096,
         max_pdf_spans: 1 << 16,
         max_index_selectors: 1 << 16,
+        max_directory_bytes: 1 << 18,
     };
 }
 

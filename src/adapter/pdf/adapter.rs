@@ -102,6 +102,7 @@ pub fn propose_pdf(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
         objects: vec![],
         program: Program::new(ops),
         observation_index: None,
+        seek_directory: false,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };
@@ -204,6 +205,7 @@ pub fn propose_pdf_channels(input: &[u8], limits: Limits) -> Result<Option<Candi
         objects: vec![],
         program,
         observation_index: None,
+        seek_directory: false,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };

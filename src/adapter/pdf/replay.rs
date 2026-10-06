@@ -152,6 +152,7 @@ pub fn propose_pdf_deflate_replay(input: &[u8], limits: Limits) -> Result<Option
         objects,
         program: Program::new(ops),
         observation_index: None,
+        seek_directory: false,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };
@@ -291,6 +292,7 @@ fn build_pdf_deflate_replay_rans(
         objects,
         program: Program::new(ops),
         observation_index: None,
+        seek_directory: false,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };

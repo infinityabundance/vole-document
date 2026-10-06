@@ -32,6 +32,15 @@ pub const FEATURE_DEFLATE_REPLAY: u32 = 1 << 0;
 /// alone is complete. Exactness never requires this bit.
 pub const FEATURE_OBSERVATION_INDEX: u32 = 1 << 0;
 
+/// Optional feature bit: the descriptor carries a seek `DIRECTORY` record and so
+/// advertises a seek-based partial-I/O lane.
+///
+/// Optional bits are ignorable: a decoder built without seek support still
+/// materializes the source exactly, because the `DIRECTORY` record is written
+/// with [`crate::container::record::FLAG_OPTIONAL`] and the reconstruction program
+/// alone is complete. Exactness never requires this bit.
+pub const FEATURE_SEEK_DIRECTORY: u32 = 1 << 1;
+
 /// Feature bits this build understands and supports.
 ///
 /// Without the `deflate-replay` cargo feature the replay bit is *not* supported,
