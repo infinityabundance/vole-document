@@ -4,6 +4,8 @@
 //! byte authority: a hypothesis is only admitted after it reproduces the exact
 //! source bytes and wins the complete-cost court.
 
+#[cfg(feature = "docx")]
+pub mod docx;
 pub mod opaque;
 #[cfg(feature = "package")]
 pub mod package;

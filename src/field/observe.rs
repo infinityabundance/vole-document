@@ -26,9 +26,15 @@
 use std::cell::Cell;
 use std::time::Instant;
 
+#[cfg(feature = "docx")]
+use crate::adapter::docx::wml::StoryModel;
+#[cfg(feature = "docx")]
+use crate::adapter::docx::{DocxExtractProfile, DocxModel, DocxPartRef, DocxStory, story_params};
 use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, ReuseStats, SourceServer};
+#[cfg(feature = "docx")]
+use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::{
@@ -80,6 +86,57 @@ pub enum Selector {
     },
     /// Every text line containing a pattern (case-sensitive).
     TextMatch(String),
+    /// A DOCX story, scoped to exactly one story and one extraction profile
+    /// (Phase 12.4). A story is never silently mixed with another.
+    #[cfg(feature = "docx")]
+    DocxStory {
+        /// The story to observe.
+        story: DocxStory,
+        /// The extraction profile identity.
+        profile: DocxExtractProfile,
+    },
+    /// A body-level paragraph of a DOCX story, by 0-based document-order index.
+    #[cfg(feature = "docx")]
+    DocxParagraph {
+        /// The owning story.
+        story: DocxStory,
+        /// The paragraph index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: DocxExtractProfile,
+    },
+    /// A top-level DOCX table, by 0-based index.
+    #[cfg(feature = "docx")]
+    DocxTable {
+        /// The owning story.
+        story: DocxStory,
+        /// The table index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: DocxExtractProfile,
+    },
+    /// A DOCX table cell, addressed by an A1-style reference (e.g. `B7`).
+    #[cfg(feature = "docx")]
+    DocxCell {
+        /// The owning story.
+        story: DocxStory,
+        /// The table index.
+        table: u32,
+        /// The cell reference (`B7`: column `B`, 1-based row `7`).
+        cell: String,
+        /// The extraction profile identity.
+        profile: DocxExtractProfile,
+    },
+    /// A story-scoped text search over paragraphs.
+    #[cfg(feature = "docx")]
+    DocxFind {
+        /// The owning story.
+        story: DocxStory,
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The extraction profile identity.
+        profile: DocxExtractProfile,
+    },
 }
 
 impl Selector {
@@ -96,6 +153,60 @@ impl Selector {
             Selector::Relationship(id) => format!("relationship:{id}"),
             Selector::ByteRange { offset, len } => format!("byte-range:{offset}:{len}"),
             Selector::TextMatch(p) => format!("text-match:{p}"),
+            #[cfg(feature = "docx")]
+            Selector::DocxStory { story, profile } => {
+                format!(
+                    "docx-story:{};profile={}",
+                    story.name(),
+                    profile.fingerprint()
+                )
+            }
+            #[cfg(feature = "docx")]
+            Selector::DocxParagraph {
+                story,
+                index,
+                profile,
+            } => format!(
+                "docx-paragraph:{}:{};profile={}",
+                story.name(),
+                index,
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "docx")]
+            Selector::DocxTable {
+                story,
+                index,
+                profile,
+            } => format!(
+                "docx-table:{}:{};profile={}",
+                story.name(),
+                index,
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "docx")]
+            Selector::DocxCell {
+                story,
+                table,
+                cell,
+                profile,
+            } => format!(
+                "docx-cell:{}:{}:{};profile={}",
+                story.name(),
+                table,
+                cell,
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "docx")]
+            Selector::DocxFind {
+                story,
+                pattern,
+                profile,
+            } => format!(
+                "docx-find:{}:{};profile={}",
+                story.name(),
+                pattern,
+                profile.fingerprint()
+            ),
         }
     }
 }
@@ -974,6 +1085,58 @@ struct Ctx<'a, S: SeedStore> {
     current_id: FieldId,
 }
 
+/// A resolved DOCX story view: the parsed story model plus the provenance it is
+/// bound to (backing part, dependency ids, and the exact compressed member span).
+#[cfg(feature = "docx")]
+struct DocxStoryView {
+    model: StoryModel,
+    part: DocxPartRef,
+    deps: Vec<NodeId>,
+    span: Option<(u64, u64)>,
+}
+
+#[cfg(feature = "docx")]
+fn opt_u8_json(v: Option<u8>) -> String {
+    match v {
+        Some(n) => n.to_string(),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "docx")]
+fn opt_str_json(v: Option<&str>) -> String {
+    match v {
+        Some(s) => format!("\"{}\"", json_escape(s)),
+        None => "null".to_string(),
+    }
+}
+
+/// Parse an A1-style cell reference (`B7`) into a 0-based grid column and a
+/// 0-based row index. Column letters are case-insensitive; row numbers are
+/// 1-based and must be non-zero.
+#[cfg(feature = "docx")]
+fn parse_cell_ref(s: &str) -> Option<(u32, u32)> {
+    let letters: String = s.chars().take_while(|c| c.is_ascii_alphabetic()).collect();
+    let digits: String = s.chars().skip(letters.len()).collect();
+    if letters.is_empty() || digits.is_empty() || digits.len() != s.len() - letters.len() {
+        return None;
+    }
+    if !digits.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    let mut col: u32 = 0;
+    for c in letters.chars() {
+        let v = c.to_ascii_uppercase() as u32 - 'A' as u32 + 1;
+        col = col.checked_mul(26)?.checked_add(v)?;
+    }
+    let col = col.checked_sub(1)?;
+    let row: u32 = digits.parse().ok()?;
+    if row == 0 {
+        return None;
+    }
+    Some((col, row - 1))
+}
+
 impl<S: SeedStore> Ctx<'_, S> {
     fn materialize(&mut self, node: &SeedNode) -> Result<Vec<u8>> {
         let depth = node.limits.max_depth;
@@ -1083,6 +1246,55 @@ impl<S: SeedStore> Ctx<'_, S> {
             (Selector::Page(n), R::Preview) => self.page_preview(req, *n),
             (Selector::Page(n), R::Structure) => self.page_structure(req, *n),
             (Selector::TextMatch(p), R::Text) => self.text_match(req, p),
+            #[cfg(feature = "docx")]
+            (Selector::DocxStory { story, profile }, R::Text) => {
+                self.docx_story_text(req, *story, profile)
+            }
+            #[cfg(feature = "docx")]
+            (Selector::DocxStory { story, profile }, R::Structure) => {
+                self.docx_story_structure(req, *story, profile)
+            }
+            #[cfg(feature = "docx")]
+            (Selector::DocxStory { story, profile }, R::Metadata) => {
+                self.docx_story_metadata(req, *story, profile)
+            }
+            #[cfg(feature = "docx")]
+            (
+                Selector::DocxParagraph {
+                    story,
+                    index,
+                    profile,
+                },
+                R::Text | R::Metadata,
+            ) => self.docx_paragraph(req, *story, *index, profile),
+            #[cfg(feature = "docx")]
+            (
+                Selector::DocxTable {
+                    story,
+                    index,
+                    profile,
+                },
+                R::Text | R::Metadata,
+            ) => self.docx_table(req, *story, *index, profile),
+            #[cfg(feature = "docx")]
+            (
+                Selector::DocxCell {
+                    story,
+                    table,
+                    cell,
+                    profile,
+                },
+                R::Text | R::Metadata,
+            ) => self.docx_cell(req, *story, *table, cell, profile),
+            #[cfg(feature = "docx")]
+            (
+                Selector::DocxFind {
+                    story,
+                    pattern,
+                    profile,
+                },
+                R::Text,
+            ) => self.docx_find(req, *story, pattern, profile),
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
                 req.selector.canonical(),
@@ -1099,6 +1311,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: Some((0, self.manifest.source_len)),
+            provenance: String::new(),
             dependency_ids: vec![self.manifest.root_node],
             integrity_scope: IntegrityScope::WholeSource,
             exact: true,
@@ -1128,6 +1341,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: Vec::new(),
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1152,6 +1366,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: Some((offset, end)),
+            provenance: String::new(),
             dependency_ids: Vec::new(),
             integrity_scope: IntegrityScope::Node,
             exact: true,
@@ -1174,6 +1389,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: Some((entry.out_off, end)),
+            provenance: String::new(),
             dependency_ids: vec![entry.node_id],
             integrity_scope: IntegrityScope::Node,
             exact: true,
@@ -1191,6 +1407,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: vec![id],
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1220,6 +1437,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids,
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1282,6 +1500,7 @@ impl<S: SeedStore> Ctx<'_, S> {
                     selector: req.selector.canonical(),
                     representation: req.representation.name().to_string(),
                     source_span: None,
+                    provenance: String::new(),
                     dependency_ids: Vec::new(),
                     integrity_scope: IntegrityScope::None,
                     exact: false,
@@ -1340,6 +1559,7 @@ impl<S: SeedStore> Ctx<'_, S> {
                     selector: req.selector.canonical(),
                     representation: req.representation.name().to_string(),
                     source_span: None,
+                    provenance: String::new(),
                     dependency_ids: Vec::new(),
                     integrity_scope: IntegrityScope::None,
                     exact: false,
@@ -1410,6 +1630,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: vec![id, decoded_id],
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1460,6 +1681,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: vec![text_id, ops.content_id(), pc],
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1477,6 +1699,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: vec![preview_id, pc],
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1526,6 +1749,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: vec![preview_id, pc],
             integrity_scope: IntegrityScope::None,
             exact: false,
@@ -1570,10 +1794,433 @@ impl<S: SeedStore> Ctx<'_, S> {
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
             source_span: None,
+            provenance: String::new(),
             dependency_ids: Vec::new(),
             integrity_scope: IntegrityScope::None,
             exact: false,
         })
+    }
+
+    // -- DOCX (Phase 12.4) --------------------------------------------------
+
+    /// Materialize and decode the DOCX discovery model (derived, `Q_gen`).
+    #[cfg(feature = "docx")]
+    fn docx_model(&mut self) -> Result<DocxModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_DOCX_MODEL, 0), "DOCX model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        DocxModel::decode(&bytes)
+    }
+
+    /// Resolve one story to its parsed [`StoryModel`], parsing **only** that
+    /// story's part (plus the shared styles part) and persisting the canonical
+    /// result in the derived cache. A story is never silently mixed with another.
+    #[cfg(feature = "docx")]
+    fn docx_story_view(
+        &mut self,
+        story: DocxStory,
+        profile: &DocxExtractProfile,
+    ) -> Result<DocxStoryView> {
+        if story.kind_index().is_none() {
+            return Err(Error::unsupported_feature(format!(
+                "DOCX story {} is declared but not part-backed; preserved exactly, not interpreted",
+                story.name()
+            )));
+        }
+        let model = self.docx_model()?;
+        let part = model.story_part(story).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "DOCX package has no part for story {}",
+                story.name()
+            ))
+        })?;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "DOCX story part decoded bytes",
+        )?;
+        let mut deps = vec![dec.node_id];
+        if let Some(styles) = &model.styles
+            && let Ok(e) = self.require_entry(
+                SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, styles.ordinal),
+                "DOCX styles decoded bytes",
+            )
+        {
+            deps.push(e.node_id);
+        }
+        let span = self
+            .lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal))?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)));
+        let mut node = SeedNode::new(
+            NodeKind::DocxStory,
+            self.limits.max_output_bytes,
+            story_params(story, &part.name, profile),
+            deps.clone(),
+            "docx:story",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let sm = StoryModel::decode(&bytes)?;
+        let mut ids = vec![id];
+        ids.extend(deps);
+        Ok(DocxStoryView {
+            model: sm,
+            part,
+            deps: ids,
+            span,
+        })
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_story_text(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let text = v.model.text();
+        let provenance = format!(
+            "docx;story={};part={};profile={}",
+            story.name(),
+            v.part.name,
+            profile.fingerprint()
+        );
+        Ok(self.docx_answer(req, AnswerValue::Text(text), provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_story_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let json = format!(
+            concat!(
+                "{{\"story\":\"{}\",\"part\":\"{}\",\"ordinal\":{},\"root\":\"{}\",",
+                "\"paragraphs\":{},\"tables\":{},\"hyperlinks\":{},\"bookmarks\":{},",
+                "\"resources\":{},\"sections\":{},\"profile\":\"{}\"}}"
+            ),
+            json_escape(&story.name()),
+            json_escape(&v.part.name),
+            v.part.ordinal,
+            json_escape(&v.model.root_local),
+            v.model.paragraphs().count(),
+            v.model.tables().count(),
+            v.model.hyperlinks.len(),
+            v.model.bookmarks.len(),
+            v.model.resources.len(),
+            v.model.section_count,
+            profile.fingerprint(),
+        );
+        let provenance = format!("docx;story={};part={}", story.name(), v.part.name);
+        Ok(self.docx_answer(req, AnswerValue::Json(json), provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_story_structure(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let paras = v
+            .model
+            .paragraphs()
+            .map(|p| {
+                format!(
+                    "{{\"index\":{},\"heading\":{},\"style\":{},\"text_len\":{}}}",
+                    p.index,
+                    opt_u8_json(p.heading_level),
+                    opt_str_json(p.style_id.as_deref()),
+                    p.text.len()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let tables = v
+            .model
+            .tables()
+            .map(|t| {
+                format!(
+                    "{{\"index\":{},\"rows\":{},\"cols_row0\":{}}}",
+                    t.index,
+                    t.rows.len(),
+                    t.rows.first().map_or(0, |r| r.cells.len())
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let json = format!(
+            concat!(
+                "{{\"story\":\"{}\",\"part\":\"{}\",\"blocks\":{},",
+                "\"paragraphs\":[{}],\"tables\":[{}],\"profile\":\"{}\"}}"
+            ),
+            json_escape(&story.name()),
+            json_escape(&v.part.name),
+            v.model.blocks.len(),
+            paras,
+            tables,
+            profile.fingerprint(),
+        );
+        Ok(self.docx_answer(
+            req,
+            AnswerValue::Json(json),
+            format!("docx;story={};part={}", story.name(), v.part.name),
+            v.span,
+            v.deps,
+        ))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_paragraph(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        index: u32,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let p = v
+            .model
+            .paragraphs()
+            .find(|p| p.index == index)
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "DOCX story {} has no body paragraph {index}",
+                    story.name()
+                ))
+            })?;
+        let text = p.text.clone();
+        let style = p.style_id.clone();
+        let heading = p.heading_level;
+        let run_count = p.runs.len();
+        let provenance = format!(
+            "docx;story={};part={};paragraph={};profile={}",
+            story.name(),
+            v.part.name,
+            index,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"story\":\"{}\",\"part\":\"{}\",\"paragraph\":{},",
+                    "\"style\":{},\"heading\":{},\"runs\":{},\"text_len\":{}}}"
+                ),
+                json_escape(&story.name()),
+                json_escape(&v.part.name),
+                index,
+                opt_str_json(style.as_deref()),
+                opt_u8_json(heading),
+                run_count,
+                text.len(),
+            )),
+            _ => {
+                return Err(Error::unsupported_feature(format!(
+                    "unsupported observation: selector {} with representation {}",
+                    req.selector.canonical(),
+                    req.representation.name()
+                )));
+            }
+        };
+        Ok(self.docx_answer(req, value, provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_table(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        index: u32,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let t = v.model.tables().find(|t| t.index == index).ok_or_else(|| {
+            Error::unsupported_feature(format!("DOCX story {} has no table {index}", story.name()))
+        })?;
+        let text = t.text();
+        let rows = t.rows.len();
+        let cells: Vec<usize> = t.rows.iter().map(|r| r.cells.len()).collect();
+        let provenance = format!(
+            "docx;story={};part={};table={};profile={}",
+            story.name(),
+            v.part.name,
+            index,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => {
+                let dims = cells
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"story\":\"{}\",\"part\":\"{}\",\"table\":{},",
+                        "\"rows\":{},\"cells_per_row\":[{}],\"profile\":\"{}\"}}"
+                    ),
+                    json_escape(&story.name()),
+                    json_escape(&v.part.name),
+                    index,
+                    rows,
+                    dims,
+                    profile.fingerprint(),
+                ))
+            }
+            _ => {
+                return Err(Error::unsupported_feature(format!(
+                    "unsupported observation: selector {} with representation {}",
+                    req.selector.canonical(),
+                    req.representation.name()
+                )));
+            }
+        };
+        Ok(self.docx_answer(req, value, provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_cell(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        table: u32,
+        cell: &str,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (col, row_idx) = parse_cell_ref(cell).ok_or_else(|| {
+            Error::usage(format!("cell reference {cell:?} is not A1-style (e.g. B7)"))
+        })?;
+        let v = self.docx_story_view(story, profile)?;
+        let t = v.model.tables().find(|t| t.index == table).ok_or_else(|| {
+            Error::unsupported_feature(format!("DOCX story {} has no table {table}", story.name()))
+        })?;
+        let r = t.rows.get(row_idx as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("DOCX table {table} has no row {}", row_idx + 1))
+        })?;
+        let found = r
+            .cells
+            .iter()
+            .find(|c| col >= c.grid_col && col < c.grid_col.saturating_add(c.grid_span))
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "DOCX table {table} row {} has no cell {cell}",
+                    row_idx + 1
+                ))
+            })?;
+        let text = found.text.clone();
+        let grid_col = found.grid_col;
+        let grid_span = found.grid_span;
+        let vmerge = found.vmerge_continue;
+        let provenance = format!(
+            "docx;story={};part={};table={};row={};cell={};profile={}",
+            story.name(),
+            v.part.name,
+            table,
+            row_idx + 1,
+            cell,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"story\":\"{}\",\"part\":\"{}\",\"table\":{},",
+                    "\"row\":{},\"cell\":\"{}\",\"grid_col\":{},\"grid_span\":{},",
+                    "\"vmerge_continue\":{},\"text_len\":{},\"profile\":\"{}\"}}"
+                ),
+                json_escape(&story.name()),
+                json_escape(&v.part.name),
+                table,
+                row_idx + 1,
+                json_escape(cell),
+                grid_col,
+                grid_span,
+                vmerge,
+                text.len(),
+                profile.fingerprint(),
+            )),
+            _ => {
+                return Err(Error::unsupported_feature(format!(
+                    "unsupported observation: selector {} with representation {}",
+                    req.selector.canonical(),
+                    req.representation.name()
+                )));
+            }
+        };
+        Ok(self.docx_answer(req, value, provenance, v.span, v.deps))
+    }
+
+    #[cfg(feature = "docx")]
+    fn docx_find(
+        &mut self,
+        req: &ObserveRequest,
+        story: DocxStory,
+        pattern: &str,
+        profile: &DocxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let v = self.docx_story_view(story, profile)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for p in v.model.paragraphs() {
+            if p.text.contains(pattern) {
+                estimated = estimated.saturating_add(p.text.len() as u64 + 48);
+                if estimated > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "DOCX find exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                items.push(format!(
+                    "{{\"paragraph\":{},\"text\":\"{}\"}}",
+                    p.index,
+                    json_escape(&p.text)
+                ));
+            }
+        }
+        let provenance = format!(
+            "docx;story={};part={};profile={}",
+            story.name(),
+            v.part.name,
+            profile.fingerprint()
+        );
+        Ok(self.docx_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            v.span,
+            v.deps,
+        ))
     }
 
     /// Resolve the `PdfStreamDecoded` node for `object`.

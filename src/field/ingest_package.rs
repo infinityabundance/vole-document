@@ -27,6 +27,8 @@
 use crate::adapter::package::zip::scan;
 use crate::container::Descriptor;
 use crate::error::{Error, Result};
+#[cfg(feature = "docx")]
+use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::{
@@ -68,6 +70,8 @@ pub struct PackageIngestReport {
     pub declined_decodes: u64,
     /// Whether a generic OPC model node was registered (feature `opc`).
     pub opc_model_nodes: u64,
+    /// Whether a DOCX discovery model node was registered (feature `docx`).
+    pub docx_model_nodes: u64,
 }
 
 fn charge_node(node_count: &mut u64) -> Result<()> {
@@ -134,6 +138,8 @@ pub fn ingest_package(
     let mut decoded_nodes: u64 = 0;
     let mut declined_decodes: u64 = 0;
     let opc_model_nodes: u64;
+    let docx_model_nodes: u64;
+    let opc_model_id: Option<NodeId>;
 
     for member in &physical.members {
         let ordinal = member.id.ordinal;
@@ -218,11 +224,49 @@ pub fn ingest_package(
                 node_id: model_id,
             },
         )?;
+        opc_model_id = Some(model_id);
         opc_model_nodes = 1;
     }
     #[cfg(not(feature = "opc"))]
     {
+        opc_model_id = None;
         opc_model_nodes = 0;
+    }
+
+    // The DOCX discovery model (Phase 12.4): a single derived node that resolves
+    // the main part by the `officeDocument` relationship (never a hardcoded path)
+    // and enumerates the story parts, computed on demand from the OPC model. It is
+    // created for any package under the feature; a non-DOCX package simply declines
+    // typed when the node is first materialized. Exactness is untouched.
+    #[cfg(feature = "docx")]
+    {
+        let model_id = opc_model_id
+            .ok_or_else(|| Error::internal_invariant("docx requires the OPC model node"))?;
+        let mut docx_model = SeedNode::new(
+            NodeKind::DocxModel,
+            limits.max_output_bytes,
+            Vec::new(),
+            vec![model_id],
+            "pkg:docx-model",
+        );
+        docx_model.limits.max_output_bytes = limits.max_output_bytes;
+        charge_node(&mut node_count)?;
+        let docx_id = store.seeds_mut().put_node(&docx_model.encode_canonical())?;
+        push_entry(
+            &mut entries,
+            IndexEntry {
+                key: SelectorKey::new(SEL_DOCX_MODEL, 0),
+                out_off: 0,
+                out_len: 0,
+                node_id: docx_id,
+            },
+        )?;
+        docx_model_nodes = 1;
+    }
+    #[cfg(not(feature = "docx"))]
+    {
+        let _ = opc_model_id;
+        docx_model_nodes = 0;
     }
 
     let (index_root, index_node_count) = if entries.is_empty() {
@@ -244,12 +288,13 @@ pub fn ingest_package(
         node_count,
         index_node_count,
         provenance: format!(
-            "field:package;members={};raw={};decoded={};declined={};opc={}",
+            "field:package;members={};raw={};decoded={};declined={};opc={};docx={}",
             physical.members.len(),
             raw_nodes,
             decoded_nodes,
             declined_decodes,
-            opc_model_nodes
+            opc_model_nodes,
+            docx_model_nodes
         ),
     };
     let field = store.put_field(&manifest)?;
@@ -266,5 +311,6 @@ pub fn ingest_package(
         decoded_nodes,
         declined_decodes,
         opc_model_nodes,
+        docx_model_nodes,
     })
 }

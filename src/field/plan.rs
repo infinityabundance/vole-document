@@ -182,6 +182,23 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["PageContent", "ContentOperators", "TextRuns"]),
             will_not_materialize: kinds(&["images", "xobjects", "whole-document"]),
         }),
+        #[cfg(feature = "docx")]
+        (Selector::DocxStory { .. }, R::Text | R::Structure | R::Metadata)
+        | (Selector::DocxParagraph { .. }, R::Text | R::Metadata)
+        | (Selector::DocxTable { .. }, R::Text | R::Metadata)
+        | (Selector::DocxCell { .. }, R::Text | R::Metadata)
+        | (Selector::DocxFind { .. }, R::Text) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 4,
+            will_materialize: kinds(&[
+                "DocxModel",
+                "DocxStory",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-stories", "whole-document"]),
+        }),
         _ => Err(Error::unsupported_feature(format!(
             "unsupported observation: selector {} with representation {}",
             req.selector.canonical(),

@@ -88,6 +88,13 @@ pub const SEL_PACKAGE_MEMBER_DECODED: u8 = 8;
 /// `Q_gen` derived state. It is computed on demand from the exact package source,
 /// never eagerly at ingest, and the exact bytes remain the 12.2 member raw spans.
 pub const SEL_OPC_MODEL: u8 = 9;
+/// Selector kind: the canonical DOCX discovery model (Phase 12.4).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// DOCX main-part/story discovery (main part via the `officeDocument`
+/// relationship, styles, headers/footers, notes, comments) as `Q_gen` derived
+/// state, computed on demand from the OPC model.
+pub const SEL_DOCX_MODEL: u8 = 10;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

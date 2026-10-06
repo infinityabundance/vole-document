@@ -141,6 +141,14 @@ package = ["dep:crc32fast"]
 # and the `miniz_oxide` member decode). Optional and **never** in `default`.
 # Every OPC node is `Q_gen`; exact bytes remain the 12.2 member raw spans.
 opc = ["package", "field", "dep:quick-xml"]
+# Phase 12.4: the WordprocessingML (WordprocessingML/`w:`) DOCX adapter built on the
+# generic OPC core. It adds a declared, versioned extraction profile, explicit story
+# scoping, and derived (`Q_gen`) WordprocessingML observations. It implies `opc`
+# (discovery by relationship, never a hardcoded `/word/document.xml`) and adds **no**
+# decoder behavior: a DOCX source's exact leaf is still its 12.2 member raw spans, so
+# enabling it never changes `.voldoc` bytes and exactness is untouched. Never in
+# `default`.
+docx = ["opc"]
 # Later phases (declared so the feature surface is deliberate, not accidental):
 # pdf = []
 

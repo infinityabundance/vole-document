@@ -67,6 +67,13 @@ pub enum NodeKind {
     /// part relationships) derived on demand from the exact package source.
     /// Derived, never exact (Phase 12.3).
     PackageOpcModel = 0x11,
+    /// The canonical DOCX discovery model (main part, styles part, stories)
+    /// derived on demand from the canonical OPC model. Derived, never exact
+    /// (Phase 12.4).
+    DocxModel = 0x12,
+    /// One WordprocessingML story parsed into its canonical [`crate::adapter::docx::wml::StoryModel`],
+    /// honoring a declared extraction profile. Derived, never exact (Phase 12.4).
+    DocxStory = 0x13,
 }
 
 impl NodeKind {
@@ -90,6 +97,8 @@ impl NodeKind {
             0x0F => NodeKind::PackageMemberRaw,
             0x10 => NodeKind::PackageMemberDecoded,
             0x11 => NodeKind::PackageOpcModel,
+            0x12 => NodeKind::DocxModel,
+            0x13 => NodeKind::DocxStory,
             _ => return None,
         })
     }
@@ -114,6 +123,8 @@ impl NodeKind {
             NodeKind::PackageMemberRaw => "PackageMemberRaw",
             NodeKind::PackageMemberDecoded => "PackageMemberDecoded",
             NodeKind::PackageOpcModel => "PackageOpcModel",
+            NodeKind::DocxModel => "DocxModel",
+            NodeKind::DocxStory => "DocxStory",
         }
     }
 

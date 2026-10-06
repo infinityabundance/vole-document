@@ -424,6 +424,87 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::DocxModel => {
+            #[cfg(feature = "docx")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("DocxModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let opc_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::docx::build_docx_model(&opc_bytes, limits)?
+            }
+            #[cfg(not(feature = "docx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "DOCX support is not compiled in (feature `docx`)",
+                ));
+            }
+        }
+        NodeKind::DocxStory => {
+            #[cfg(feature = "docx")]
+            {
+                let (story, part_name, profile) =
+                    crate::adapter::docx::read_story_params(&node.params)?;
+                let part_dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("DocxStory has no part dependency"))?;
+                let part_node = load_node(store, part_dep)?;
+                let part_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &part_node,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                let styles = match node.deps.get(1) {
+                    Some(styles_dep) => {
+                        let styles_node = load_node(store, styles_dep)?;
+                        let styles_bytes = materialize_inner(
+                            source,
+                            store,
+                            cache,
+                            &styles_node,
+                            limits,
+                            budget,
+                            depth - 1,
+                            reuse,
+                        )?;
+                        Some(crate::adapter::docx::parse_styles(&styles_bytes, limits)?)
+                    }
+                    None => None,
+                };
+                crate::adapter::docx::wml::parse_story(
+                    &part_bytes,
+                    &part_name,
+                    story,
+                    &profile,
+                    styles.as_ref(),
+                    limits,
+                )?
+                .encode()
+            }
+            #[cfg(not(feature = "docx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "DOCX support is not compiled in (feature `docx`)",
+                ));
+            }
+        }
         NodeKind::PdfStreamDecoded => {
             let dep = node
                 .deps
