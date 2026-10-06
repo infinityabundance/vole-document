@@ -1584,7 +1584,7 @@ fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats, field: &FieldId
             "\"integrity_scope\":\"{}\",",
             "\"source_span\":{},",
             "\"dependency_ids\":[{}],",
-            "{}",
+            "{},",
             "\"stats\":{{\"index_nodes_read\":{},\"seed_nodes_fetched\":{},\"seed_nodes_materialized\":{},\"seed_nodes_executed\":{},\"seed_nodes_reused\":{},\"cache_bytes_written\":{},\"bytes_read\":{},\"bytes_returned\":{},\"deepened\":{},\"wall_micros\":{}}}",
             "}}"
         ),

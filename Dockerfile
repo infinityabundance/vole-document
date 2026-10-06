@@ -179,3 +179,23 @@ RUN apt-get update \
       borgbackup=1.2.4-1 \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
+
+# ---------------------------------------------------------------------------
+# Phase-11.9 fair-baseline court. Derives from `baseline` (same pinned base
+# digest as `dev`/`baseline`, so rustc/cargo match the measurement binary) and
+# adds the *preprocessed* conventional baseline's tools: `sqlite3` (the one-time
+# per-page extraction into an indexed table) plus the raw PDF tooling the A0
+# lane needs (`poppler-utils` for `pdftotext`/`pdfinfo`, `qpdf` for
+# `--linearize`). One image therefore runs the whole `tools/field-court.sh`
+# end-to-end (VOLE CLI + strace + compressors + PDF oracles + sqlite), which
+# keeps every number on one base digest.
+# ---------------------------------------------------------------------------
+FROM baseline AS db-baseline
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      sqlite3 \
+      poppler-utils \
+      qpdf \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /work

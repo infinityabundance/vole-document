@@ -92,6 +92,26 @@ services:
       - cargo-target:/work/target
     command: ["sh", "-c", "gzip --version | head -1; zstd --version; xz --version | head -1; brotli --version; jq --version"]
 
+  # Phase-11.9 fair-baseline court. Same pinned base digest as `baseline`/`dev`
+  # (derived FROM baseline), plus sqlite3 + Poppler + qpdf so one image runs
+  # `tools/field-court.sh` end-to-end: the VOLE field CLI, the A0 raw PDF tooling
+  # lane, the A1 preprocessed-SQLite lane, and the generic compressors.
+  db-baseline:
+    build:
+      context: .
+      target: db-baseline
+    image: vole-document/db-baseline:1.99.0
+    network_mode: host
+    working_dir: /work
+    environment:
+      CARGO_TERM_COLOR: never
+      VOLE_BIN: ./target/debug/vole-document
+    volumes:
+      - .:/work
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/work/target
+    command: ["sh", "-c", "sqlite3 --version; pdftotext -v; qpdf --version | head -1"]
+
   policy:
     build:
       context: .
