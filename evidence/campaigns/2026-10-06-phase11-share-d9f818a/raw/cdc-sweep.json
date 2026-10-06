@@ -1,0 +1,72 @@
+[
+  {
+    "tool": "borg",
+    "borg_version": "1.2.4",
+    "chunker_params": "10,15,11,127",
+    "compression": "none",
+    "dir": "/tmp/tmp.Ae3B0artg2/cohort",
+    "borg_unique_bytes": 160668,
+    "borg_unique_bytes_run2": 160668,
+    "borg_deterministic": true,
+    "borg_total_size": 337877,
+    "borg_total_csize": 338189,
+    "borg_total_chunks": 106,
+    "borg_unique_chunks": 47
+  },
+  {
+    "tool": "borg",
+    "borg_version": "1.2.4",
+    "chunker_params": "8,16,10,4095",
+    "compression": "none",
+    "dir": "/tmp/tmp.Ae3B0artg2/cohort",
+    "borg_unique_bytes": 180460,
+    "borg_unique_bytes_run2": 180460,
+    "borg_deterministic": true,
+    "borg_total_size": 337877,
+    "borg_total_csize": 338630,
+    "borg_total_chunks": 253,
+    "borg_unique_chunks": 118
+  },
+  {
+    "tool": "borg",
+    "borg_version": "1.2.4",
+    "chunker_params": "9,16,11,4095",
+    "compression": "none",
+    "dir": "/tmp/tmp.Ae3B0artg2/cohort",
+    "borg_unique_bytes": 182738,
+    "borg_unique_bytes_run2": 182738,
+    "borg_deterministic": true,
+    "borg_total_size": 337877,
+    "borg_total_csize": 338264,
+    "borg_total_chunks": 131,
+    "borg_unique_chunks": 66
+  },
+  {
+    "tool": "borg",
+    "borg_version": "1.2.4",
+    "chunker_params": "11,16,13,4095",
+    "compression": "none",
+    "dir": "/tmp/tmp.Ae3B0artg2/cohort",
+    "borg_unique_bytes": 183335,
+    "borg_unique_bytes_run2": 183335,
+    "borg_deterministic": true,
+    "borg_total_size": 337877,
+    "borg_total_csize": 337967,
+    "borg_total_chunks": 32,
+    "borg_unique_chunks": 16
+  },
+  {
+    "tool": "borg",
+    "borg_version": "1.2.4",
+    "chunker_params": "19,23,21,4095",
+    "compression": "none",
+    "dir": "/tmp/tmp.Ae3B0artg2/cohort",
+    "borg_unique_bytes": 244397,
+    "borg_unique_bytes_run2": 244397,
+    "borg_deterministic": true,
+    "borg_total_size": 337877,
+    "borg_total_csize": 337901,
+    "borg_total_chunks": 10,
+    "borg_unique_chunks": 7
+  }
+]

@@ -1,0 +1,8 @@
+{"stratum":"near","file":"near/libreoffice.base.pdf","len":74371,"sha256":"a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529"}
+{"stratum":"near","file":"near/libreoffice.variant.pdf","len":74371,"sha256":"2a8bdd5e4b8402fe24b1fd63563bb81c8dbba53e153ba3a7815c425b109e5dd4"}
+{"stratum":"producer","file":"producer/cairo-vector.pdf","len":58424,"sha256":"7af4d29f1e0d4968c2fbf08946e2143654e21cd5a890eddedba89a012c5cf4e6"}
+{"stratum":"producer","file":"producer/libreoffice-export.pdf","len":74371,"sha256":"a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529"}
+{"stratum":"producer","file":"producer/pdftex-doc.pdf","len":23622,"sha256":"04eb3a7ba7a98ad9bd380abfb8cc4c8b8eb0d7bca60e2b39496b1c8cce671659"}
+{"stratum":"producer","file":"producer/reportlab-multipage.pdf","len":10906,"sha256":"2cc7feedb7b3253432a03b22de96e89d9d327f412a8941898e95efd3311d75b1"}
+{"stratum":"repeat","file":"repeat/reportlab.r1.pdf","len":10906,"sha256":"2cc7feedb7b3253432a03b22de96e89d9d327f412a8941898e95efd3311d75b1"}
+{"stratum":"repeat","file":"repeat/reportlab.r2.pdf","len":10906,"sha256":"2cc7feedb7b3253432a03b22de96e89d9d327f412a8941898e95efd3311d75b1"}

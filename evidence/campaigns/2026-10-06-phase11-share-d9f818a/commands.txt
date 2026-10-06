@@ -1,0 +1,17 @@
+# Phase 11.14 fine-unit share court — exact commands
+# Commit under test: d9f818a51e27a8d11d22416e6b00968e9325bff8 (branch phase11); dirty:  M FINDINGS.md; M docs/adr/README.md;?? docs/adr/0028-finer-than-object-sharing.md;?? evidence/campaigns/2026-10-06-phase11-share-d9f818a/;
+# All commands run inside the pinned baseline image; nothing on the host.
+
+docker compose run --rm --no-TTY baseline sh tools/field-share-court.sh evidence/campaigns/2026-10-06-phase11-share-d9f818a
+
+# Inside field-share-court.sh:
+#   cohort: cp $COHORT_SRC/{cairo-vector,libreoffice-export,pdftex-doc,reportlab-multipage}.pdf producer/
+#           repeat/reportlab.r{1,2}.pdf = two identical copies
+#           near/libreoffice.{base,variant}.pdf; variant = base with 8 bytes 'VOLENEAR' at offset len/2
+#   \./target/debug/vole-document encode SRC DESC.voldoc   (auto complete-cost winner)
+#   \./target/debug/vole-document verify DESC.voldoc ; \./target/debug/vole-document decode DESC.voldoc DEC ; cmp DEC SRC   (exact-profile triple)
+#   \./target/debug/vole-document share-account --store DIR DESC...   (cohort and per stratum)
+#   gzip -9 / zstd -19 --long=27 / xz -9e per file, each decompressed and cmp-ed
+#   tar -C cohort -cf - . | xz -9e -c   (single-stream cross-file baseline; round-trip checked)
+#   sh tools/chunk-dedup.sh COHORT OUT 19,23,21,4095 none   (frozen primary)
+#   sh tools/chunk-dedup.sh COHORT OUT PARAMS none        (sweep: 19,23,21,4095 10,15,11,127 11,16,13,4095 9,16,11,4095 8,16,10,4095)

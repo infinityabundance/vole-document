@@ -1,0 +1,1 @@
+{"tool":"borg","borg_version":"1.2.4","chunker_params":"19,23,21,4095","compression":"none","dir":"/tmp/tmp.Ae3B0artg2/cohort","borg_unique_bytes":244397,"borg_unique_bytes_run2":244397,"borg_deterministic":true,"borg_total_size":337877,"borg_total_csize":337901,"borg_total_chunks":10,"borg_unique_chunks":7}

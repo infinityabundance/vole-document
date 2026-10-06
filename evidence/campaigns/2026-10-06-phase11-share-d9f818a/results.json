@@ -1,0 +1,180 @@
+{
+  "cohort": {
+    "files": 8,
+    "source_bytes": 337877,
+    "strata": {
+      "producer": 4,
+      "repeat": 2,
+      "near": 2
+    }
+  },
+  "vole_fine_units": {
+    "total_bytes": 302433,
+    "unique_bytes": 208001,
+    "unit_count": 31,
+    "unique_count": 21,
+    "by_kind": [
+      {
+        "kind": "channel_header",
+        "total": 297,
+        "unique": 198
+      },
+      {
+        "kind": "channel_payload",
+        "total": 273909,
+        "unique": 181644
+      },
+      {
+        "kind": "model",
+        "total": 3947,
+        "unique": 1879
+      },
+      {
+        "kind": "object",
+        "total": 24280,
+        "unique": 24280
+      }
+    ],
+    "store_bytes_equal_unique": true
+  },
+  "descriptor_standalone_bytes_S": 310868,
+  "descriptor_graph_bytes": 4799,
+  "descriptor_nonunit_bytes": 8435,
+  "descriptor_nonunit_non_graph_bytes": 3636,
+  "vole_win_margin_vs_perfile_lz": 3300,
+  "perfile_lz": {
+    "gzip9_sum": 216296,
+    "zstd19_sum": 212703,
+    "xz9e_sum": 211532,
+    "perfile_min_lz_sum": 211301,
+    "tar_xz9e_single_stream": 92752
+  },
+  "cdc": {
+    "frozen_params": "19,23,21,4095",
+    "frozen_unique_raw": 244397,
+    "frozen_deterministic": true,
+    "strongest_params": "10,15,11,127",
+    "strongest_unique_raw": 160668
+  },
+  "verdict_lower_bound": {
+    "universe": "VOLE unique unit bytes (descriptor-derived, excludes root/program framing) vs source-derived per-file LZ and CDC",
+    "vs_perfile_min_lz": "WIN",
+    "vs_perfile_gzip9": "WIN",
+    "vs_tar_xz9e": "LOSS",
+    "vs_cdc_frozen": "WIN",
+    "vs_cdc_strongest": "LOSS",
+    "vs_strongest_generic": "LOSS"
+  },
+  "strata": [
+    {
+      "stratum": "producer",
+      "files": 4,
+      "source_bytes": 167323,
+      "descriptor_standalone_bytes": 142762,
+      "descriptor_graph_bytes": 4759,
+      "descriptor_nonunit_bytes": 6647,
+      "vole_unique_bytes": 136115,
+      "vole_total_bytes": 136115,
+      "by_kind": [
+        {
+          "kind": "channel_header",
+          "total": 165,
+          "unique": 165
+        },
+        {
+          "kind": "channel_payload",
+          "total": 109791,
+          "unique": 109791
+        },
+        {
+          "kind": "model",
+          "total": 1879,
+          "unique": 1879
+        },
+        {
+          "kind": "object",
+          "total": 24280,
+          "unique": 24280
+        }
+      ],
+      "perfile_min_lz_sum": 93089,
+      "cdc_frozen_unique": 168890,
+      "cdc_strongest_unique": 152177,
+      "verdict": {
+        "vs_perfile_lz": "LOSS",
+        "vs_cdc_frozen": "WIN",
+        "vs_cdc_strongest": "WIN"
+      }
+    },
+    {
+      "stratum": "repeat",
+      "files": 2,
+      "source_bytes": 21812,
+      "descriptor_standalone_bytes": 22406,
+      "descriptor_graph_bytes": 20,
+      "descriptor_nonunit_bytes": 894,
+      "vole_unique_bytes": 10756,
+      "vole_total_bytes": 21512,
+      "by_kind": [
+        {
+          "kind": "channel_header",
+          "total": 66,
+          "unique": 33
+        },
+        {
+          "kind": "channel_payload",
+          "total": 20412,
+          "unique": 10206
+        },
+        {
+          "kind": "model",
+          "total": 1034,
+          "unique": 517
+        }
+      ],
+      "perfile_min_lz_sum": 4248,
+      "cdc_frozen_unique": 12027,
+      "cdc_strongest_unique": 12198,
+      "verdict": {
+        "vs_perfile_lz": "LOSS",
+        "vs_cdc_frozen": "WIN",
+        "vs_cdc_strongest": "WIN"
+      }
+    },
+    {
+      "stratum": "near",
+      "files": 2,
+      "source_bytes": 148742,
+      "descriptor_standalone_bytes": 145700,
+      "descriptor_graph_bytes": 20,
+      "descriptor_nonunit_bytes": 894,
+      "vole_unique_bytes": 144289,
+      "vole_total_bytes": 144806,
+      "by_kind": [
+        {
+          "kind": "channel_header",
+          "total": 66,
+          "unique": 66
+        },
+        {
+          "kind": "channel_payload",
+          "total": 143706,
+          "unique": 143706
+        },
+        {
+          "kind": "model",
+          "total": 1034,
+          "unique": 517
+        }
+      ],
+      "perfile_min_lz_sum": 113964,
+      "cdc_frozen_unique": 149881,
+      "cdc_strongest_unique": 82757,
+      "verdict": {
+        "vs_perfile_lz": "LOSS",
+        "vs_cdc_frozen": "WIN",
+        "vs_cdc_strongest": "LOSS"
+      }
+    }
+  ]
+}

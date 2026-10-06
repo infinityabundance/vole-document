@@ -32,6 +32,7 @@ the written rationale that must survive chat history.
 | [0025](0025-procedural-seed-dag.md) | A VOLE-owned, content-addressed, immutable procedural seed DAG stored one blob per node | Accepted (Phase 11.0) |
 | [0026](0026-observation-query-provenance.md) | Typed observation algebra, provenance on every answer, EXPLAIN/EXPLAIN ANALYZE | Accepted (Phase 11.0) |
 | [0027](0027-cost-accounting.md) | Four accounting universes; multi-objective cost; lifetime-cost headline | Accepted (Phase 11.0) |
+| [0028](0028-finer-than-object-sharing.md) | Finer-than-object shareable units still lose to content-defined chunking (measured) | Accepted — recorded negative result (Phase 11.14) |
 
 ## Adding an ADR
 

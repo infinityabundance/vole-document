@@ -1,0 +1,8 @@
+{"stratum":"near","file":"near/libreoffice.base.pdf","source_len":74371,"source_sha256":"a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529","candidate":"BYTE_RANS","encoded_len":72850,"graph_bytes":10}
+{"stratum":"near","file":"near/libreoffice.variant.pdf","source_len":74371,"source_sha256":"2a8bdd5e4b8402fe24b1fd63563bb81c8dbba53e153ba3a7815c425b109e5dd4","candidate":"BYTE_RANS","encoded_len":72850,"graph_bytes":10}
+{"stratum":"producer","file":"producer/cairo-vector.pdf","source_len":58424,"source_sha256":"7af4d29f1e0d4968c2fbf08946e2143654e21cd5a890eddedba89a012c5cf4e6","candidate":"PDF_DEFLATE_REPLAY_RANS","encoded_len":34633,"graph_bytes":4729}
+{"stratum":"producer","file":"producer/libreoffice-export.pdf","source_len":74371,"source_sha256":"a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529","candidate":"BYTE_RANS","encoded_len":72850,"graph_bytes":10}
+{"stratum":"producer","file":"producer/pdftex-doc.pdf","source_len":23622,"source_sha256":"04eb3a7ba7a98ad9bd380abfb8cc4c8b8eb0d7bca60e2b39496b1c8cce671659","candidate":"RAW","encoded_len":24076,"graph_bytes":10}
+{"stratum":"producer","file":"producer/reportlab-multipage.pdf","source_len":10906,"source_sha256":"2cc7feedb7b3253432a03b22de96e89d9d327f412a8941898e95efd3311d75b1","candidate":"BYTE_RANS","encoded_len":11203,"graph_bytes":10}
+{"stratum":"repeat","file":"repeat/reportlab.r1.pdf","source_len":10906,"source_sha256":"2cc7feedb7b3253432a03b22de96e89d9d327f412a8941898e95efd3311d75b1","candidate":"BYTE_RANS","encoded_len":11203,"graph_bytes":10}
+{"stratum":"repeat","file":"repeat/reportlab.r2.pdf","source_len":10906,"source_sha256":"2cc7feedb7b3253432a03b22de96e89d9d327f412a8941898e95efd3311d75b1","candidate":"BYTE_RANS","encoded_len":11203,"graph_bytes":10}
