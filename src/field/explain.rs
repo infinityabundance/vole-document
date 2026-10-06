@@ -87,7 +87,7 @@ pub fn explain_analyze(
     let field = Field::open(store, id, limits)?;
     let planned = plan(&field, store, req)?;
     let json = plan_json(req, &planned);
-    let (answer, stats) = observe(store, id, req, limits)?;
+    let (answer, stats, _field) = observe(store, id, req, limits)?;
     let actual = ExplainActual {
         stats,
         answer_basis: answer.basis,

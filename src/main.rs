@@ -26,7 +26,8 @@ use vole_document::error::{Error, Result};
 #[cfg(feature = "field")]
 use vole_document::field::{
     Field, FieldId, FieldStore,
-    explain::{explain, explain_analyze},
+    cache::DerivedCache,
+    explain::explain,
     ingest as field_ingest,
     observe::{ObserveRequest, ObserveStats, Representation, Selector, observe},
     provenance::{AnswerValue, FieldAnswer},
@@ -86,7 +87,8 @@ const USAGE_FIELD: &str = "\
     vole-document find    --store DIR --field HEX --text PATTERN\n\
     vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze]\n\
     vole-document preview --store DIR --field HEX --page N [--json]\n\
-    vole-document materialize --store DIR --field HEX --exact --output FILE\n";
+    vole-document materialize --store DIR --field HEX --exact --output FILE\n\
+    vole-document cache  --store DIR [--clear]\n";
 #[cfg(not(feature = "field"))]
 const USAGE_FIELD: &str = "";
 
@@ -223,6 +225,8 @@ fn run(args: &[String]) -> Result<()> {
         "explain" => cmd_field_explain(args, limits),
         #[cfg(feature = "field")]
         "preview" => cmd_field_preview(args, limits),
+        #[cfg(feature = "field")]
+        "cache" => cmd_field_cache(args),
         other => Err(Error::usage(format!(
             "unknown subcommand {other:?}\n\n{}",
             usage()
@@ -1349,6 +1353,7 @@ struct FieldArgs {
     output: Option<PathBuf>,
     analyze: bool,
     json: bool,
+    no_cache: bool,
     positional: Vec<String>,
 }
 
@@ -1394,6 +1399,10 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                 i += 1;
             }
             "--exact" => i += 1,
+            "--no-cache" => {
+                out.no_cache = true;
+                i += 1;
+            }
             "--store" => {
                 out.store = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--store", inline,
@@ -1523,7 +1532,18 @@ fn field_representation(kind: &str) -> Result<Representation> {
 }
 
 #[cfg(feature = "field")]
-fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats) -> String {
+fn observe_request(
+    out: &FieldArgs,
+    selector: Selector,
+    representation: Representation,
+) -> ObserveRequest {
+    let mut req = ObserveRequest::new(selector, representation);
+    req.use_cache = !out.no_cache;
+    req
+}
+
+#[cfg(feature = "field")]
+fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats, field: &FieldId) -> String {
     let value = match &answer.value {
         AnswerValue::Bytes(b) => {
             let sha = integrity::sha256(b);
@@ -1556,6 +1576,7 @@ fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats) -> String {
     format!(
         concat!(
             "{{",
+            "\"field\":\"{}\",",
             "\"selector\":\"{}\",",
             "\"representation\":\"{}\",",
             "\"basis\":\"{}\",",
@@ -1564,9 +1585,10 @@ fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats) -> String {
             "\"source_span\":{},",
             "\"dependency_ids\":[{}],",
             "{}",
-            "\"stats\":{{\"index_nodes_read\":{},\"seed_nodes_fetched\":{},\"seed_nodes_materialized\":{},\"bytes_read\":{},\"bytes_returned\":{},\"deepened\":{},\"wall_micros\":{}}}",
+            "\"stats\":{{\"index_nodes_read\":{},\"seed_nodes_fetched\":{},\"seed_nodes_materialized\":{},\"seed_nodes_executed\":{},\"seed_nodes_reused\":{},\"cache_bytes_written\":{},\"bytes_read\":{},\"bytes_returned\":{},\"deepened\":{},\"wall_micros\":{}}}",
             "}}"
         ),
+        field.to_hex(),
         json_escape(&answer.selector),
         json_escape(&answer.representation),
         answer.basis.name(),
@@ -1578,6 +1600,9 @@ fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats) -> String {
         stats.index_nodes_read,
         stats.seed_nodes_fetched,
         stats.seed_nodes_materialized,
+        stats.seed_nodes_executed,
+        stats.seed_nodes_reused,
+        stats.cache_bytes_written,
         stats.bytes_read,
         stats.bytes_returned,
         stats.deepened,
@@ -1655,9 +1680,9 @@ fn cmd_field_observe(args: &[String], limits: Limits) -> Result<()> {
     let representation = field_representation(kind)?;
     let mut store = FieldStore::open(store_dir)?;
     let id = FieldId::from_hex(field_hex)?;
-    let req = ObserveRequest::new(selector, representation);
-    let (answer, stats) = observe(&mut store, &id, &req, limits)?;
-    println!("{}", field_answer_json(&answer, &stats));
+    let req = observe_request(&out, selector, representation);
+    let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
+    println!("{}", field_answer_json(&answer, &stats, &field));
     Ok(())
 }
 
@@ -1678,9 +1703,9 @@ fn cmd_field_find(args: &[String], limits: Limits) -> Result<()> {
         .ok_or_else(|| Error::usage("find requires --text PATTERN"))?;
     let mut store = FieldStore::open(store_dir)?;
     let id = FieldId::from_hex(field_hex)?;
-    let req = ObserveRequest::new(Selector::TextMatch(text), Representation::Text);
-    let (answer, stats) = observe(&mut store, &id, &req, limits)?;
-    println!("{}", field_answer_json(&answer, &stats));
+    let req = observe_request(&out, Selector::TextMatch(text), Representation::Text);
+    let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
+    println!("{}", field_answer_json(&answer, &stats, &field));
     Ok(())
 }
 
@@ -1703,16 +1728,62 @@ fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
     let representation = field_representation(kind)?;
     let mut store = FieldStore::open(store_dir)?;
     let id = FieldId::from_hex(field_hex)?;
-    let req = ObserveRequest::new(selector, representation);
+    let req = observe_request(&out, selector, representation);
     if out.analyze {
-        let (plan, actual) = explain_analyze(&mut store, &id, &req, limits)?;
-        println!("{{\"plan\":{},\"actual\":{}}}", plan.json, actual.to_json());
+        let planned_json = {
+            let field = Field::open(&store, &id, limits)?;
+            explain(&field, &store, &req)?.json
+        };
+        let (answer, stats, promoted) = observe(&mut store, &id, &req, limits)?;
+        println!(
+            "{{\"plan\":{},\"actual\":{}}}",
+            planned_json,
+            explain_actual_json(&stats, &answer, &promoted)
+        );
     } else {
         let field = Field::open(&store, &id, limits)?;
         let plan = explain(&field, &store, &req)?;
         println!("{}", plan.json);
     }
     Ok(())
+}
+
+/// The executed-observation evidence object for `explain --analyze`, including
+/// the promoted field id and the reuse counters (11.8).
+#[cfg(feature = "field")]
+fn explain_actual_json(stats: &ObserveStats, answer: &FieldAnswer, field: &FieldId) -> String {
+    format!(
+        concat!(
+            "{{",
+            "\"field\":\"{}\",",
+            "\"index_nodes_read\":{},",
+            "\"seed_nodes_fetched\":{},",
+            "\"seed_nodes_materialized\":{},",
+            "\"seed_nodes_executed\":{},",
+            "\"seed_nodes_reused\":{},",
+            "\"cache_bytes_written\":{},",
+            "\"bytes_read\":{},",
+            "\"bytes_returned\":{},",
+            "\"deepened\":{},",
+            "\"wall_micros\":{},",
+            "\"basis\":\"{}\",",
+            "\"exact\":{}",
+            "}}"
+        ),
+        field.to_hex(),
+        stats.index_nodes_read,
+        stats.seed_nodes_fetched,
+        stats.seed_nodes_materialized,
+        stats.seed_nodes_executed,
+        stats.seed_nodes_reused,
+        stats.cache_bytes_written,
+        stats.bytes_read,
+        stats.bytes_returned,
+        stats.deepened,
+        stats.wall_micros,
+        answer.basis.name(),
+        answer.exact,
+    )
 }
 
 #[cfg(feature = "field")]
@@ -1732,13 +1803,56 @@ fn cmd_field_preview(args: &[String], limits: Limits) -> Result<()> {
     let as_json = out.json;
     let mut store = FieldStore::open(store_dir)?;
     let id = FieldId::from_hex(field_hex)?;
-    let req = ObserveRequest::new(Selector::Page(page), Representation::Preview);
-    let (answer, stats) = observe(&mut store, &id, &req, limits)?;
+    let req = observe_request(&out, Selector::Page(page), Representation::Preview);
+    let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
     if !as_json && let AnswerValue::Bytes(bytes) = &answer.value {
         std::io::stdout().write_all(bytes).map_err(Error::from)?;
         return Ok(());
     }
-    println!("{}", field_answer_json(&answer, &stats));
+    println!("{}", field_answer_json(&answer, &stats, &field));
+    Ok(())
+}
+
+/// `cache --store DIR [--clear]`: report — and optionally reclaim — the
+/// disposable derived-cache universe (ADR-0027). Never touches the store or the
+/// descriptor.
+#[cfg(feature = "field")]
+fn cmd_field_cache(args: &[String]) -> Result<()> {
+    let mut store_dir: Option<PathBuf> = None;
+    let mut clear = false;
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        let (flag, inline) = match a.split_once('=') {
+            Some((f, v)) => (f, Some(v)),
+            None => (a, None),
+        };
+        match flag {
+            "--clear" => {
+                clear = true;
+                i += 1;
+            }
+            "--store" => {
+                store_dir = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--store", inline,
+                )?));
+            }
+            other => return Err(Error::usage(format!("unknown cache argument {other:?}"))),
+        }
+    }
+    let store_dir = store_dir.ok_or_else(|| Error::usage("cache requires --store DIR"))?;
+    let store = FieldStore::open(&store_dir)?;
+    let cache = DerivedCache::open(store.root().join("cache"))?;
+    if clear {
+        let reclaimed = cache.clear()?;
+        println!(
+            "{{\"cache_bytes\":{},\"reclaimed\":{}}}",
+            cache.total_bytes()?,
+            reclaimed
+        );
+    } else {
+        println!("{{\"cache_bytes\":{}}}", cache.total_bytes()?);
+    }
     Ok(())
 }
 

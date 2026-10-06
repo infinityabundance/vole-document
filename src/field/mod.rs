@@ -12,6 +12,7 @@
 //! one blob; the seed DAG and the hierarchical index are additional persisted
 //! state. A field never weakens `materialize(root) == original_bytes` (ADR-0024).
 
+pub mod cache;
 pub mod dag;
 pub mod derive;
 pub mod explain;
@@ -86,6 +87,14 @@ impl FieldStore {
     /// Mutable seed store access.
     pub fn seeds_mut(&mut self) -> &mut FsSeedStore {
         &mut self.seeds
+    }
+
+    /// Open the disposable derived observation cache (11.8) under this store.
+    ///
+    /// The cache is never normative: it can always be deleted and observations
+    /// remain correct by recomputation (ADR-0027).
+    pub fn cache(&self) -> Result<cache::DerivedCache> {
+        cache::DerivedCache::open(self.root.join("cache"))
     }
 
     fn descriptor_path(&self, id: &Id) -> PathBuf {

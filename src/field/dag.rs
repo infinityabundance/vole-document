@@ -148,6 +148,50 @@ fn serve_source_range(
     Ok(served.bytes)
 }
 
+/// A node-output cache keyed by [`NodeId`]. Because a node's id binds its full
+/// dependency closure, an unchanged closure hits and a changed dependency misses;
+/// there is no invalidation pass (ADR-0025).
+///
+/// Implementations are disposable: [`materialize_node_cached`] treats any `get`
+/// error as a miss and never trusts bytes it cannot validate, so a corrupt cache
+/// causes recomputation rather than wrong output.
+pub trait OutputCache {
+    /// Fetch a cached node output, or `None` on a miss. A `get` error is treated
+    /// as a miss by the caller (the cache is disposable, never authority).
+    fn get(&self, id: &NodeId) -> Result<Option<Vec<u8>>>;
+    /// Store a node output. Best-effort: a `put` error does not fail the
+    /// materialization.
+    fn put(&mut self, id: &NodeId, bytes: &[u8]) -> Result<()>;
+}
+
+/// A cache that stores nothing; used by the backward-compatible
+/// [`materialize_node`] wrapper and the `use_cache = false` cold court.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoCache;
+
+impl OutputCache for NoCache {
+    fn get(&self, _id: &NodeId) -> Result<Option<Vec<u8>>> {
+        Ok(None)
+    }
+
+    fn put(&mut self, _id: &NodeId, _bytes: &[u8]) -> Result<()> {
+        Ok(())
+    }
+}
+
+/// Execution accounting for one materialization (ADR-0027). Reuse is claimed by
+/// an *execution counter*, never by wall-clock: `nodes_reused > 0` and a smaller
+/// `nodes_executed` are the evidence that persisted work was served from disk.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ReuseStats {
+    /// Nodes actually evaluated (cache misses).
+    pub nodes_executed: u64,
+    /// Nodes served whole from the cache (their subtrees were not traversed).
+    pub nodes_reused: u64,
+    /// Output bytes written to the cache during this materialization.
+    pub cache_bytes_written: u64,
+}
+
 /// Materialize one node's output bytes, recursively resolving dependencies.
 pub fn materialize_node(
     parsed: &ParsedDescriptor,
@@ -157,10 +201,63 @@ pub fn materialize_node(
     budget: &mut EvalBudget,
     depth: u16,
 ) -> Result<Vec<u8>> {
+    let mut cache = NoCache;
+    let mut reuse = ReuseStats::default();
+    materialize_inner(
+        parsed, store, &mut cache, node, limits, budget, depth, &mut reuse,
+    )
+}
+
+/// Materialize one node's output, consulting `cache` at **every** node (including
+/// dependencies).
+///
+/// A hit returns the cached bytes *without recursing into the node's dependency
+/// closure* and increments [`ReuseStats::nodes_reused`]; a miss evaluates the node
+/// (recursing through the same cache) and stores the output. Exact `Q_ref` nodes
+/// are cached too, since their output is equally a pure function of their id.
+#[allow(clippy::too_many_arguments)]
+pub fn materialize_node_cached(
+    parsed: &ParsedDescriptor,
+    store: &dyn SeedStore,
+    cache: &mut dyn OutputCache,
+    node: &SeedNode,
+    limits: Limits,
+    budget: &mut EvalBudget,
+    depth: u16,
+    reuse: &mut ReuseStats,
+) -> Result<Vec<u8>> {
+    materialize_inner(parsed, store, cache, node, limits, budget, depth, reuse)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn materialize_inner(
+    parsed: &ParsedDescriptor,
+    store: &dyn SeedStore,
+    cache: &mut dyn OutputCache,
+    node: &SeedNode,
+    limits: Limits,
+    budget: &mut EvalBudget,
+    depth: u16,
+    reuse: &mut ReuseStats,
+) -> Result<Vec<u8>> {
     if depth == 0 {
         return Err(Error::resource_limit("seed DAG exceeded its depth bound"));
     }
+
+    let id = node.content_id();
+    // A hit is the whole subtree: return it without traversing dependencies. A
+    // cache error is a miss (the cache is disposable, never authority). Oversized
+    // cached bytes are likewise treated as a poisoned miss, not returned.
+    if let Ok(Some(bytes)) = cache.get(&id)
+        && bytes.len() as u64 <= node.limits.max_output_bytes
+    {
+        reuse.nodes_reused = reuse.nodes_reused.saturating_add(1);
+        budget.charge_bytes(bytes.len() as u64)?;
+        return Ok(bytes);
+    }
+
     budget.charge_node()?;
+    reuse.nodes_executed = reuse.nodes_executed.saturating_add(1);
 
     let out = match node.kind {
         NodeKind::DocumentExact => crate::materialize::materialize(parsed, limits)?,
@@ -179,7 +276,16 @@ pub fn materialize_node(
             let mut out = Vec::new();
             for dep in &node.deps {
                 let child = load_node(store, dep)?;
-                let bytes = materialize_node(parsed, store, &child, limits, budget, depth - 1)?;
+                let bytes = materialize_inner(
+                    parsed,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
                 budget.charge_bytes(bytes.len() as u64)?;
                 out.extend_from_slice(&bytes);
             }
@@ -192,7 +298,16 @@ pub fn materialize_node(
                 .first()
                 .ok_or_else(|| Error::usage("PdfStreamDecoded has no dependency"))?;
             let child = load_node(store, dep)?;
-            let encoded = materialize_node(parsed, store, &child, limits, budget, depth - 1)?;
+            let encoded = materialize_inner(
+                parsed,
+                store,
+                cache,
+                &child,
+                limits,
+                budget,
+                depth - 1,
+                reuse,
+            )?;
             derive::inflate_zlib(&encoded, node.logical_output_len, limits)?
         }
         NodeKind::ContentOperators => {
@@ -201,7 +316,16 @@ pub fn materialize_node(
                 .first()
                 .ok_or_else(|| Error::usage("ContentOperators has no dependency"))?;
             let child = load_node(store, dep)?;
-            let decoded = materialize_node(parsed, store, &child, limits, budget, depth - 1)?;
+            let decoded = materialize_inner(
+                parsed,
+                store,
+                cache,
+                &child,
+                limits,
+                budget,
+                depth - 1,
+                reuse,
+            )?;
             derive::content_operators(&decoded, limits)?
         }
         NodeKind::TextRuns => {
@@ -210,7 +334,16 @@ pub fn materialize_node(
                 .first()
                 .ok_or_else(|| Error::usage("TextRuns has no dependency"))?;
             let child = load_node(store, dep)?;
-            let ops = materialize_node(parsed, store, &child, limits, budget, depth - 1)?;
+            let ops = materialize_inner(
+                parsed,
+                store,
+                cache,
+                &child,
+                limits,
+                budget,
+                depth - 1,
+                reuse,
+            )?;
             derive::text_runs(&ops, limits)?
         }
         NodeKind::PagePreview => {
@@ -219,7 +352,16 @@ pub fn materialize_node(
                 .first()
                 .ok_or_else(|| Error::usage("PagePreview has no dependency"))?;
             let child = load_node(store, dep)?;
-            let content = materialize_node(parsed, store, &child, limits, budget, depth - 1)?;
+            let content = materialize_inner(
+                parsed,
+                store,
+                cache,
+                &child,
+                limits,
+                budget,
+                depth - 1,
+                reuse,
+            )?;
             let page = read_u32_params(&node.params)?;
             derive::page_preview(page, &content, limits)?
         }
@@ -234,6 +376,10 @@ pub fn materialize_node(
         )));
     }
     budget.charge_bytes(out.len() as u64)?;
+    // Best-effort persistence: a cache write failure never fails the observation.
+    if cache.put(&id, &out).is_ok() {
+        reuse.cache_bytes_written = reuse.cache_bytes_written.saturating_add(out.len() as u64);
+    }
     Ok(out)
 }
 

@@ -2,7 +2,8 @@
 //!
 //! An [`observe`] call resolves one typed selector/representation pair against a
 //! persisted field and returns a [`FieldAnswer`] with full provenance plus
-//! [`ObserveStats`] describing the work actually done. The engine is
+//! [`ObserveStats`] describing the work actually done, and the current/promoted
+//! [`FieldId`] so a caller can chain without re-deepening. The engine is
 //! deterministic and read-only with respect to archival authority: it never
 //! consults an agent, model, or search process, and it can never influence
 //! `materialize_exact` (ADR-0024, DEC-6).
@@ -24,7 +25,8 @@ use std::cell::Cell;
 use std::time::Instant;
 
 use crate::error::{Error, Result};
-use crate::field::dag::{self, EvalBudget};
+use crate::field::cache::DerivedCache;
+use crate::field::dag::{self, EvalBudget, ReuseStats};
 use crate::field::index::{
     FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PAGE, SEL_REVISION, SEL_STREAM, SelectorKey, lookup,
 };
@@ -145,15 +147,19 @@ pub struct ObserveRequest {
     pub representation: Representation,
     /// Output bounds.
     pub budget: ObserveBudget,
+    /// Whether the disposable derived cache (11.8) may be consulted and filled.
+    /// `false` forces a cold, recompute-everything court.
+    pub use_cache: bool,
 }
 
 impl ObserveRequest {
-    /// A request with the default budget.
+    /// A request with the default budget, caching enabled.
     pub fn new(selector: Selector, representation: Representation) -> Self {
         ObserveRequest {
             selector,
             representation,
             budget: ObserveBudget::default(),
+            use_cache: true,
         }
     }
 }
@@ -166,8 +172,17 @@ pub struct ObserveStats {
     pub index_nodes_read: u64,
     /// Seed nodes fetched from the seed store.
     pub seed_nodes_fetched: u64,
-    /// Seed nodes evaluated/materialized (including dependencies).
+    /// Seed nodes evaluated/materialized (including dependencies). With reuse
+    /// enabled this counts cache misses only, so it never exceeds
+    /// `seed_nodes_executed`.
     pub seed_nodes_materialized: u64,
+    /// Seed nodes actually executed during this observation (cache misses).
+    pub seed_nodes_executed: u64,
+    /// Seed nodes served whole from the persisted derived cache (their subtrees
+    /// were not traversed).
+    pub seed_nodes_reused: u64,
+    /// Output bytes written to the derived cache during this observation.
+    pub cache_bytes_written: u64,
     /// Seed-store bytes fetched.
     pub bytes_read: u64,
     /// Bytes returned to the caller.
@@ -236,12 +251,17 @@ impl SeedStore for CountingSeedStore {
 }
 
 /// Observe one selector/representation pair.
+///
+/// Returns the answer, its [`ObserveStats`], and the **current/promoted** field
+/// id: the promoted id when a Stage-C deepen happened during this call, else the
+/// input id. A caller can chain the returned id to observe again without
+/// re-deepening.
 pub fn observe(
     store: &mut FieldStore,
     id: &FieldId,
     req: &ObserveRequest,
     limits: Limits,
-) -> Result<(FieldAnswer, ObserveStats)> {
+) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let started = Instant::now();
     let field = Field::open(store, id, limits)?;
     let root = store.root().to_path_buf();
@@ -251,6 +271,7 @@ pub fn observe(
         max_nodes: req.budget.max_nodes,
         ..EvalBudget::default()
     };
+    let cache = DerivedCache::open(root.join("cache"))?;
     let mut ctx = Ctx {
         store,
         field,
@@ -259,6 +280,10 @@ pub fn observe(
         limits,
         budget,
         stats: ObserveStats::default(),
+        use_cache: req.use_cache,
+        cache,
+        reuse: ReuseStats::default(),
+        current_id: *id,
     };
 
     let answer = ctx.dispatch(req)?;
@@ -274,9 +299,12 @@ pub fn observe(
     stats.seed_nodes_fetched = ctx.seeds.gets();
     stats.bytes_read = ctx.seeds.bytes();
     stats.seed_nodes_materialized = ctx.budget.nodes;
+    stats.seed_nodes_executed = ctx.reuse.nodes_executed;
+    stats.seed_nodes_reused = ctx.reuse.nodes_reused;
+    stats.cache_bytes_written = ctx.reuse.cache_bytes_written;
     stats.bytes_returned = produced;
     stats.wall_micros = started.elapsed().as_micros().min(u128::from(u64::MAX)) as u64;
-    Ok((answer, stats))
+    Ok((answer, stats, ctx.current_id))
 }
 
 /// Observation execution context.
@@ -288,19 +316,39 @@ struct Ctx<'a> {
     limits: Limits,
     budget: EvalBudget,
     stats: ObserveStats,
+    use_cache: bool,
+    cache: DerivedCache,
+    reuse: ReuseStats,
+    current_id: FieldId,
 }
 
 impl Ctx<'_> {
     fn materialize(&mut self, node: &SeedNode) -> Result<Vec<u8>> {
         let depth = node.limits.max_depth;
-        dag::materialize_node(
-            self.field.parsed(),
-            &self.seeds,
-            node,
-            self.limits,
-            &mut self.budget,
-            depth,
-        )
+        if self.use_cache {
+            dag::materialize_node_cached(
+                self.field.parsed(),
+                &self.seeds,
+                &mut self.cache,
+                node,
+                self.limits,
+                &mut self.budget,
+                depth,
+                &mut self.reuse,
+            )
+        } else {
+            let mut cache = dag::NoCache;
+            dag::materialize_node_cached(
+                self.field.parsed(),
+                &self.seeds,
+                &mut cache,
+                node,
+                self.limits,
+                &mut self.budget,
+                depth,
+                &mut self.reuse,
+            )
+        }
     }
 
     fn load(&self, id: &NodeId) -> Result<SeedNode> {
@@ -503,16 +551,25 @@ impl Ctx<'_> {
     }
 
     /// Ensure the page's derived chain exists, deepening once if needed.
+    ///
+    /// Idempotent by content id: the three derived nodes have deterministic ids,
+    /// so if they are already present the promotion is skipped entirely and no
+    /// new field id is needed. This is what makes a repeated observation of the
+    /// same page cheap.
     fn ensure_page_derived(
         &mut self,
         page: u32,
         page_content: NodeId,
     ) -> Result<(SeedNode, SeedNode, SeedNode)> {
         let (ops, text, preview) = derived_nodes(page, page_content);
-        if !self.seeds.contains_node(&text.content_id())? {
+        let present = self.seeds.contains_node(&ops.content_id())?
+            && self.seeds.contains_node(&text.content_id())?
+            && self.seeds.contains_node(&preview.content_id())?;
+        if !present {
             let field_id = self.field.id();
-            ingest::deepen_page(self.store, &field_id, page, self.limits)?;
+            let promoted = ingest::deepen_page(self.store, &field_id, page, self.limits)?;
             self.stats.deepened = true;
+            self.current_id = promoted;
         }
         Ok((ops, text, preview))
     }
@@ -913,7 +970,9 @@ mod tests {
         representation: Representation,
     ) -> (FieldAnswer, ObserveStats) {
         let req = ObserveRequest::new(selector, representation);
-        observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap()
+        let (answer, stats, _field) =
+            observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap();
+        (answer, stats)
     }
 
     #[test]
@@ -1037,6 +1096,7 @@ mod tests {
                 max_output_bytes: 4,
                 max_nodes: 1 << 20,
             },
+            use_cache: true,
         };
         let err = observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap_err();
         assert_eq!(err.class(), crate::ErrorClass::ResourceLimit);
