@@ -1,0 +1,15 @@
+# Phase-12 FTS5 amendment court — exact commands
+# Commit under test: 22302f9c8ef94a9429fafcfd5970571ced70a0d2 (branch phase12); dirty: 
+# Service image: vole-document/doc-baseline:1.99.0 (id sha256:dc17f388a49349eb39f89e30705a554a3ceaeae277a22518fd307e526c7159af); base rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+# rustc 1.99.0 (b940084d7 2026-09-28), cargo 1.99.0 (5f94df478 2026-08-27), sqlite3 3.40.1; Cargo.lock sha256: 710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e
+# Run (UTC): 2026-10-06T19:06:58Z
+# All commands run inside the pinned, capped doc-baseline image; nothing on the host.
+
+docker compose run --rm --no-TTY -e HOST_IMAGE_ID=sha256:dc17f388a49349eb39f89e30705a554a3ceaeae277a22518fd307e526c7159af \
+    doc-baseline bash tools/phase12-fts-amendment.sh evidence/campaigns/2026-10-06-phase12-fts5-amendment-22302f9
+
+# Inside:
+#   python3 tools/fixtures/phase12-corpus-gen.py evidence/scratch/phase12-lifetime-corpus   (if absent)
+#   python3 tools/fixtures/phase12-baseline.py build --format FMT --source SRC --db DB
+#   sqlite3 DB "SELECT text FROM blocks WHERE doc_id=1 AND block_id IN (SELECT rowid FROM fts_tri WHERE fts_tri MATCH 'Q') LIMIT 1;"
+#   sqlite3 DB "SELECT text FROM blocks WHERE doc_id=1 AND text LIKE '%Q%' LIMIT 1;"
