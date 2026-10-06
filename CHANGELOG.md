@@ -2,6 +2,27 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.14] — docs/metadata
+
+Documentation and package-metadata release only. **No behaviour change; exactness is
+unchanged.** The normative profile is still `materialize(descriptor) == original_bytes`
+(length + SHA-256 + `cmp`), the wire is unchanged (`dra-8`, `FORMAT_MINOR` do not move),
+and no feature, decoder, or candidate semantics changed. The crate is republished so that
+crates.io and docs.rs reflect the metadata and docs already on `main`.
+
+### Changed
+
+- **README rewritten to the Phase-11 reality.** It now presents the project as a
+  *persistent procedural document runtime* and reports the scoped measured wins, the
+  recorded losses/ties, and the skeptic corrections rather than a headline-only claim.
+- **Crate description/keywords/categories updated** (`Cargo.toml`): description now names
+  the persistent procedural document runtime; keywords
+  `["document", "pdf", "procedural", "reconstruction", "queryable"]`; categories
+  `["encoding", "filesystem", "data-structures"]`.
+- **`lib.rs` crate doc updated** to match the Phase-11 surface (persistent procedural
+  document field, observations with provenance, selective late materialization) while
+  staying explicit that exactness remains the only normative profile.
+
 ## [0.1.0-alpha.13] — unreleased
 
 Phase 11 — **the persistent procedural document field**. A content-addressed,
