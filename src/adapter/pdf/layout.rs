@@ -31,7 +31,7 @@
 //! candidate.
 
 use crate::SOURCE_FORMAT_PDF;
-use crate::container::{Descriptor, UNIVERSE};
+use crate::container::{Descriptor, ObjectSource, UNIVERSE};
 use crate::dra::op::PackItem;
 use crate::dra::{Op, Program};
 use crate::encode::candidates::{Candidate, CandidateKind};
@@ -284,7 +284,7 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
         format_basis,
         models: vec![],
         channels: vec![],
-        objects: vec![plan.data],
+        objects: vec![ObjectSource::Inline(plan.data)],
         program: Program::new(vec![Op::PackSegments {
             data_object: 0,
             items: plan.items,

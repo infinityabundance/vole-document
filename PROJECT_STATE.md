@@ -7,11 +7,13 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.10` (Phase 8 — seek-based partial I/O).
-Exactness is unchanged; whole-file compression is a recorded loss against
+**Current release:** `0.1.0-alpha.11` (Phase 9 — cross-document content-addressed
+store). Exactness is unchanged; whole-file compression is a recorded loss against
 generic lossless tools (ADR-0017). Phase 7 measured a scoped random-access
-decode-CPU win (ADR-0018); Phase 8 adds the seek reader and measures a scoped
-random-access bytes-read win **versus non-seekable sequential codecs** (ADR-0019).
+decode-CPU win (ADR-0018); Phase 8 measured a scoped random-access bytes-read win
+**versus non-seekable sequential codecs** (ADR-0019); Phase 9 adds the store and
+records a robust but partly externalization-granularity-artifact loss on the store
+axis (ADR-0020/0021).
 
 Phase 8 (branch `phase8`, ADR-0019) adds an optional seek `DIRECTORY` record and
 a `Read + Seek` reader. On the same 33.8 MB corpus a seeked `view` reads a
@@ -22,6 +24,38 @@ format reads **2.6–30× less** for the same late query (bgzip ~24 KB; blocked 
 15–180 KB), and it loses at offset 0 and early queries. Whole-file size is
 3.01× xz (and 0.46× BGZF); the offset-independent floor remains an honest
 caveat (`docs/evidence/phase8-skeptic-review.md`).
+
+Phase 9 (branch `phase9`, ADR-0020) adds a cross-document **content-addressed
+store**. Two digests are kept distinct: SHA-256 stays the whole-source *archival*
+identity, while `Id = BLAKE3-256(object bytes)` is the relational store namespace.
+A store-backed descriptor form (`EXTERNAL_REF`, tag `0x80`, mandatory
+`FEATURE_EXTERNAL_OBJECTS`) makes the object table inline-or-external; conversion
+both ways (`externalize`/`hydrate`) must materialize identical bytes, and closure
+/GC correctness is enforced. `EmbeddedStore` (a raw content-addressed directory)
+is the reference backend; `EntropyFsStore` (the embeddable EntropyFS engine,
+non-default feature `entropyfs-store`) is a verified optional adapter whose
+`list`/`remove` decline because the engine exposes no per-blob delete. Three
+accounting universes are kept permanently distinct (standalone / unique-reachable
+/ amortized, with the amortized rule fractional by reference count and
+`Σ amortized == unique reachable`). Phase 9.3 then **measured** the axis (campaign
+`2026-10-05-phase9-store-fdb2845`, ADR-0021): over 37 locally generated files
+(5,579,469 B, 10 deliberate-sharing strata) the unique-reachable universe
+`U = 3,369,900 B` **loses** to per-file min LZ (`1,304,307 B`) and to the strongest
+pinned content-defined-chunk dedup (borg 1.2.4, `771,383 B` raw deterministic /
+210,835–210,840 B compressed non-deterministic). The negative is **robust** — a
+forced `--force pdf-deflate-replay` run gives `U = 2,360,054 B` and a per-stratum
+oracle ~`2,537,730 B`, both still losses — but its size is **partly an artifact of
+externalization granularity / candidate selection**: the auto winner emits 0–1
+objects per file. Under the auto candidate the only win is byte-identical opaque
+repeats (`repeat-bin`, `U = 133,048 B`); forcing `PDF_DEFLATE_REPLAY` (one object
+per deflate stream) flips `shared-payload` to `U = 264,139 B`, a win over *raw*
+CDC (`285,257 B`) that still loses to LZ (`34,591 B`) and compressed CDC
+(`28,195 B`). `shared-bin`, `one-changed`, `incremental`, `reexport`, `repeat-pdf`
+and the pre-registered `shifted` control all lose to CDC, because the auto
+winner's bulk lives in entropy channels / `GRAPH` bytes that `externalize` does
+not share; no current candidate emits more than one object per file. Cross-document
+sharing is reported as store *amortization*, never "compression"
+(`docs/evidence/phase9-skeptic-review.md`).
 
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED`).
@@ -71,7 +105,10 @@ caveat (`docs/evidence/phase8-skeptic-review.md`).
 | Generic-compressor baseline ladder (gzip/zstd/xz/brotli vs VOLE) | 7.0c | RECORDED (measurement; the honest comparison) | campaign `2026-10-05-phase7-baselines-7b9f662`; new opt-in `baseline` image (`debian`→`dev` pinned base `rust:1.99.0-slim-bookworm@sha256:452176c0…`, adds gzip/zstd/xz/brotli/jq) and driver `tools/baselines.sh` compare complete files over 27 corpus files (phase7 23 + producers 4) against `gzip -9`, `zstd -19 --long=27`, `xz -9e`, `brotli -q 11` (each round-trip verified lossless) and the **best VOLE lane** (minimum over auto/raw/rle/byte-rans and every forced structural kind). Result: **VOLE beats gzip/zstd/xz/brotli on 0 files**; the best generic is smaller on every file, +460,320 B in total (phase7 +410,355; producers +49,965). On `cairo-vector.pdf` the best VOLE 34,574 B is 2.07× brotli's 16,670 B; on `flate.pdf` 36,102 B is 1.91× xz's 18,884 B. Prior "wins" were relative to the weak order-0 `BYTE_RANS` lane and do not survive a generic baseline. All 27 auto winners `verify` + `cmp` byte-exact; **no wire/candidate change**. Report `docs/evidence/phase7-corpus-report.md`; full table `baseline-table.md` |
 | Nested PDF content proceduralization | 7 | PROPOSED | the clearest embodiment of the thesis |
 | PDF grammar/templates | 8 | PROPOSED | must pay definition cost |
-| EntropyFS store-backed form | 9 | PROPOSED | optional substrate; `engine::Engine` |
+| EntropyFS store-backed form (`EntropyFsStore` adapter) | 9.2 | IMPLEMENTED (optional; not measured) | non-default feature `entropyfs-store`; a thin `ObjectStore` adapter over `entropyfs 0.7.17` `engine::Engine` (`default-features = false`) — `put → put_blob`, `get → get_blob` (whole-blob BLAKE3 gate), `get_range → read_blob_range` + a strict `offset+len <= stored_len` check, `contains`. `BlobId` is BLAKE3-256, identical to our `Id`; an `EmbeddedStore`-externalized descriptor materializes byte-exactly through it (`tests/entropyfs.rs`). `list`/`remove` decline with `UnsupportedFeature` (no per-blob delete), so mark-and-sweep GC cannot reclaim through it. Viable but **heavy** (non-optional `dsfb` + a ~40-crate tree), never required for the standalone form (ADR-0020) |
+| `ObjectStore` + `EmbeddedStore` + store-backed descriptor form | 9.1 | ADOPTED | `Id = BLAKE3-256` (archival identity stays SHA-256); `EXTERNAL_REF` (`0x80`, 40 B) + mandatory `FEATURE_EXTERNAL_OBJECTS`; `externalize`/`hydrate`; `gc` mark-and-sweep; `EmbeddedStore` (raw content-addressed directory, atomic write-then-rename `put`, strict `get_range`, per-object `remove`); `tests/store.rs`. Universe sufficed `+external-objects-v1` |
+| Three accounting universes (standalone / unique-reachable / amortized) | 9.1/9.2 | ADOPTED | `src/store/account.rs`; `store account` CLI. `S = Σ|serialize(d_i)|`, `U = Σ|serialize(e_i)| + Σ len(o)`, `A = Σ(|serialize(e_i)| + Σ len(o)/refcount(o))` with the amortized split fractional by reference count and integerized so `Σ A_i == U` exactly. `S` is the only whole-file-comparable universe (ADR-0020) |
+| Cross-document store court (three universes vs per-file LZ and generic CDC) | 9.3 | RECORDED (store axis: loss) | campaign `2026-10-05-phase9-store-fdb2845` (ADR-0021, `docs/evidence/phase9-store-report.md`, `docs/evidence/phase9-skeptic-review.md`); 37 locally generated files, 5,579,469 B, 10 strata; 37/37 standalone + store-backed roots `cmp`-byte-exact, closure `dangling = 0`. `S = 3,762,694`; `U = A = 3,369,900`; unique object bytes `786,501`. Per-file min LZ `1,304,307`; strongest CDC (borg 1.2.4, chunker `10,15,11,127`, `--compression none`) deterministic `771,383`, with `--compression zstd,19` **non-deterministic** 210,835–210,840. **`U` loses to all three.** The negative is robust (forced `--force pdf-deflate-replay` `U = 2,360,054`; per-stratum oracle ~`2,537,730`) but partly an externalization-granularity/candidate-selection artifact: the auto winner emits 0–1 objects per file. Auto-candidate only win: `repeat-bin` (4 byte-identical opaque binaries, `U = 133,048` vs LZ 524,308 / CDC 140,640 / CDC-zstd 133,865). Forcing `PDF_DEFLATE_REPLAY` (one object per deflate stream — a current-set candidate) flips `shared-payload` to `264,139` (win over raw CDC 285,257; loss to LZ 34,591 / zstd 28,195); no current candidate emits >1 object/file. `shifted` loses to CDC exactly as pre-registered. `tools/store-cohort.sh`, `tools/store-court.sh`, `tools/chunk-dedup.sh` |
 | DSFB encoder-only search governance | 10 | PROPOSED | **zero** decode authority |
 | Partial materialization (checkpoints beyond v1) | 11+ | PROPOSED | v1 random-access `view` measured in 7.3 (ADR-0018); the **seek/mmap descriptor reader landed in Phase 8** (ADR-0019), leaving checkpoint bytes as future work |
 | Coverage-guided fuzzing (`cargo-fuzz`/libFuzzer) | 7.1 | IMPLEMENTED | pinned dated nightly + `cargo-fuzz 0.13.2`; ten targets in `fuzz/fuzz_targets/`; bounded campaign `2026-10-05-phase7-fuzz-ca6a92b` (9/10 targets zero-crash; `deflate_replay` reported two upstream `preflate-rs` findings — F1 mitigated via the library's fail-closed `catch_unwind` boundary + regression test, F2 unbounded allocation now **contained on the decode path by process isolation**, ADR-0016); deterministic property/soak courts retained (`tests/property.rs`, `tools/soak-fuzz.sh`) |

@@ -56,6 +56,7 @@ pub mod error;
 pub mod integrity;
 pub mod limits;
 pub mod materialize;
+pub mod store;
 
 pub use error::{Error, ErrorClass, Result};
 pub use limits::Limits;

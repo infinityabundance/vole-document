@@ -1,0 +1,85 @@
+# Phase 9.3 gates — branch phase9, all green
+
+Commit: d03e213 (docs) / fdb2845 (court code). Run in the pinned Docker services.
+
+cargo fmt --all --check
+    OK
+
+cargo clippy --all-targets --all-features -- -D warnings
+    OK (Finished, no warnings)
+
+cargo test --all-features --locked
+    OK — all test binaries pass, 0 failed / 0 ignored in the aggregate
+    (387 total per CONFORMANCE.md; no Rust code changed in Phase 9.3)
+
+cargo test --locked
+    OK — all test binaries pass, 0 failed
+
+cargo test --no-default-features
+    OK — 240 library unit tests + integration binaries pass, 0 failed / 1 ignored
+
+msrv: cargo test --locked --all-features   (rust:1.89-slim-bookworm)
+    OK — all test binaries pass, 0 failed
+
+policy: cargo audit && cargo deny check    (rust:1.99.0-slim-bookworm)
+    advisories ok, bans ok, licenses ok, sources ok
+    (only the pre-existing duplicate-`syn` warning; no errors)
+
+Reproduce:
+    docker compose run --rm --no-TTY dev      cargo fmt --all --check
+    docker compose run --rm --no-TTY dev      cargo clippy --all-targets --all-features -- -D warnings
+    docker compose run --rm --no-TTY dev      cargo test --all-features --locked
+    docker compose run --rm --no-TTY dev      cargo test --locked
+    docker compose run --rm --no-TTY dev      cargo test --no-default-features
+    docker compose run --rm --no-TTY msrv     cargo test --locked --all-features
+    docker compose run --rm --no-TTY policy   sh -c 'cargo audit && cargo deny check'
+
+
+# Phase 9.4 review + release gates — branch phase9, all green
+
+Commit: 04c73de (release) on top of bd9930a (skeptic review) and 810b013
+(claim corrections). Working tree clean. Docs + version only: no Rust code or
+semantics changed in this stage.
+
+Receipt:
+  base images (local ids): dev sha256:652fbf80bd6631f9a80df84589bc1227e374a576d5267c343b87471b911415c8
+                           msrv sha256:3909ab57b3ad836783dc357cb4bc8b3cb11222070be06692c709ec9199e46102
+  rustc: dev 1.99.0 (b940084d7 2026-09-28) | msrv 1.89.0 (29483883e 2025-08-04)
+  cargo: dev 1.99.0 (5f94df478 2026-08-27) | msrv 1.89.0 (c24e10642 2025-06-23)
+  Cargo.lock sha256: 40476500a2d9eff5441041ca36627623e4170a55e3a611ba014304fa7f829f91
+  arch: x86_64 | git: 04c73de, clean
+
+cargo fmt --all --check
+    OK
+
+cargo clippy --all-targets --all-features -- -D warnings
+    OK (Finished, no warnings; built vole-document v0.1.0-alpha.11)
+
+cargo test --all-features --locked
+    OK — all test binaries pass, 0 failed (incl. tests/store.rs 9/9)
+
+cargo test --locked
+    OK — 262 library unit tests + integration binaries pass, 0 failed / 1 ignored
+
+cargo test --no-default-features
+    OK — 240 library unit tests + integration binaries pass, 0 failed / 1 ignored
+
+cargo build --features entropyfs-store
+    OK (Finished `dev` profile, v0.1.0-alpha.11)
+
+msrv: cargo test --locked --all-features   (rust:1.89-slim-bookworm, RUSTUP_TOOLCHAIN=1.89.0)
+    OK — 273 library unit tests + integration binaries pass, 0 failed / 1 ignored
+
+policy: cargo audit && cargo deny check    (rust:1.99.0-slim-bookworm)
+    advisories ok, bans ok, licenses ok, sources ok
+    (only the pre-existing duplicate-`syn` warning; no errors)
+
+Reproduce:
+    docker compose run --rm --no-TTY dev      cargo fmt --all --check
+    docker compose run --rm --no-TTY dev      cargo clippy --all-targets --all-features -- -D warnings
+    docker compose run --rm --no-TTY dev      cargo test --all-features --locked
+    docker compose run --rm --no-TTY dev      cargo test --locked
+    docker compose run --rm --no-TTY dev      cargo test --no-default-features
+    docker compose run --rm --no-TTY dev      cargo build --features entropyfs-store
+    docker compose run --rm --no-TTY msrv     cargo test --locked --all-features
+    docker compose run --rm --no-TTY policy   sh -c 'cargo audit && cargo deny check'

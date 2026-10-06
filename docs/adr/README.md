@@ -24,6 +24,8 @@ the written rationale that must survive chat history.
 | [0017](0017-generic-lossless-baselines.md) | Generic lossless compressors are the whole-file comparator; VOLE's whole-file lanes lose to them (0/27) | Accepted — recorded methodology and negative result (Phase 7.0c) |
 | [0018](0018-partial-materialization.md) | Partial materialization is a scoped random-access query-cost win on decode CPU, with no I/O win in v1 | Accepted — scoped positive result (Phase 7.3) |
 | [0019](0019-seek-based-io.md) | Seek-based partial I/O makes a late observation view a measured bytes-read win | Accepted — scoped positive result, with recorded early/small-descriptor losses (Phase 8.3) |
+| [0020](0020-content-addressed-store.md) | A content-addressed object store; three accounting universes | Accepted (design; cohort measurement Phase 9.3) |
+| [0021](0021-cross-document-sharing-result.md) | Cross-document sharing does not beat generic chunk dedup (measured) | Accepted — recorded negative result (Phase 9.3) |
 
 ## Adding an ADR
 

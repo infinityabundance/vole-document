@@ -22,13 +22,36 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 
 ## Status
 
-Current release: **`0.1.0-alpha.10`** (Phase 8). Exactness is unchanged
+Current release: **`0.1.0-alpha.11`** (Phase 9). Exactness is unchanged
 (`materialize(descriptor) == original_bytes`); whole-file compression remains a
 recorded loss against generic lossless tools (ADR-0017). Phase 7 measured a
-scoped random-access **decode-CPU** win (ADR-0018); Phase 8 adds the seek reader
-and measures a scoped random-access **bytes-read** win versus **non-seekable
-sequential** codecs only (ADR-0019) — a seekable/blocked format reads 2.6–30× less
-for the same late query.
+scoped random-access **decode-CPU** win (ADR-0018); Phase 8 measured a scoped
+random-access **bytes-read** win versus **non-seekable sequential** codecs only
+(ADR-0019); Phase 9 adds the cross-document content-addressed **store** and
+records a robust — but partly externalization-granularity-artifact — loss on the
+store axis (ADR-0020/0021).
+
+Phase 9 (branch `phase9`, ADR-0020/0021) adds a cross-document
+**content-addressed object store** and then measures the one axis a single-file
+compressor structurally cannot serve. The store is exact (a store-backed
+descriptor materializes the same bytes as its standalone form) and its three
+accounting universes are kept permanently distinct. The **measured result is a
+recorded negative**: over 37 locally generated files (5,579,469 B, 10
+deliberate-sharing strata) the unique-reachable universe `U = 3,369,900 B` loses
+to per-file min LZ (`1,304,307 B`) and to the strongest pinned
+content-defined-chunk dedup (borg 1.2.4: deterministic `771,383 B` raw;
+compressed non-deterministic, 210,835–210,840 B). The negative is **robust** —
+forcing the finest candidate in the current set (`--force pdf-deflate-replay`)
+still gives `U = 2,360,054 B`, and a per-stratum oracle ~`2,537,730 B` — but its
+size is **partly an artifact of externalization granularity/candidate selection**:
+the auto winner emits only 0–1 objects per file. Under the auto candidate only
+byte-identical opaque repeats win (`repeat-bin`, `U = 133,048 B`); forcing
+`PDF_DEFLATE_REPLAY` (one object per deflate stream) flips the `shared-payload`
+fixture to `264,139 B`, a win over **raw** CDC (`285,257 B`) that still loses to
+LZ (`34,591 B`) and compressed CDC (`28,195 B`). No current candidate emits more
+than one object per file (ADR-0021, `docs/evidence/phase9-store-report.md`,
+`docs/evidence/phase9-skeptic-review.md`). Cross-document sharing is store
+*amortization*, never "compression".
 
 | Area | State | Evidence |
 |---|---|---|
@@ -78,7 +101,10 @@ for the same late query.
 | Seek `DIRECTORY` + `Read + Seek` reader (`view`) | **Measured — scoped bytes-read win vs non-seekable sequential codecs** | campaign `2026-10-05-phase8-seek-08de2a9`; 18/18 queries byte-exact; seeked `view` reads a constant ~0.44–0.46 MB (GRAPH + OBSERVATION_INDEX + DIRECTORY floor), 12–21× fewer bytes than sequential gzip/zstd/xz prefixes for late queries; loses at offset 0 and early (ADR-0019) |
 | Seekable/blocked random-access baseline (bgzip / blocked xz / pixz) | **Recorded — the honest random-access comparison (falsifies “general random-access win”)** | amendment to campaign `2026-10-05-phase8-seek-08de2a9` (`seekable-report.md`); late query VOLE 460,713 B vs bgzip 23,808 B (~19×), xz-64KiB 15,344 B (~30×), xz-1MiB 179,892 B (~2.6×), xz-4MiB 708,612 B (VOLE wins), pixz 2,810,832 B (VOLE wins); BGZF whole-file 7,995,600 B < 17,566,832 B; `docs/evidence/phase8-skeptic-review.md` |
 | PDF structural adapters (Phases 7–8) | Planned | — |
-| EntropyFS store-backed form (Phase 9) | Planned | — |
+| Content-addressed object store (`ObjectStore`/`EmbeddedStore`, `EXTERNAL_REF`) | **Implemented** | `src/store/`, `tests/store.rs`; ADR-0020; `Id = BLAKE3-256`, mandatory `FEATURE_EXTERNAL_OBJECTS`, `externalize`/`hydrate`, `gc` |
+| Three accounting universes (standalone / unique-reachable / amortized) | **Measured** | campaign `2026-10-05-phase9-store-fdb2845`; `store account`; `Σ amortized == unique reachable` by construction |
+| Cross-document store court (universes vs per-file LZ + generic CDC) | **Recorded — store axis is a loss** | campaign `2026-10-05-phase9-store-fdb2845` (ADR-0021); `U = 3,369,900 B` loses to per-file min LZ (`1,304,307 B`) and to CDC borg 1.2.4 (`771,383 B` raw deterministic / 210,835–210,840 B compressed, non-deterministic); the negative is robust (forced `--force pdf-deflate-replay` `U = 2,360,054 B`; per-stratum oracle ~`2,537,730 B`) but partly an externalization-granularity artifact; under the auto candidate only `repeat-bin` wins (`133,048 B`), while forcing `PDF_DEFLATE_REPLAY` flips `shared-payload` to `264,139 B` (win over raw CDC, loss to LZ/zstd); no current candidate emits >1 object/file; 37/37 byte-exact; `docs/evidence/phase9-skeptic-review.md` |
+| EntropyFS store backend (`EntropyFsStore`, optional adapter) | **Implemented (optional, not the measured backend)** | non-default `entropyfs-store` feature; `list`/`remove` decline (no per-blob delete); ADR-0008/0020 |
 | DSFB search governance (Phase 10) | Planned | — |
 | Partial materialization checkpoints (beyond v1) | Planned | v1 random-access `view` measured in 7.3 (ADR-0018); the **seek reader landed in Phase 8** (ADR-0019), leaving checkpoint bytes as future work |
 

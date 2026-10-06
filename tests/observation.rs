@@ -36,7 +36,7 @@ fn pdf_observation_descriptor(source: &[u8]) -> (ParsedDescriptor, PdfPhysical) 
     assert_eq!(cand.kind, CandidateKind::PdfPhysical);
     let mut d = cand.descriptor;
 
-    let object_lens: Vec<u64> = d.objects.iter().map(|o| o.len() as u64).collect();
+    let object_lens: Vec<u64> = d.objects.iter().map(|o| o.len()).collect();
     let channel_lens: Vec<u64> = d.channels.iter().map(|c| c.decoded_length).collect();
     let per_op = d
         .program

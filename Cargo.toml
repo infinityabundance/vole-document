@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.10"
+version = "0.1.0-alpha.11"
 edition = "2024"
 rust-version = "1.89"
 description = "Byte-exact procedural document storage: deterministic reconstruction state, typed residuals, and entropy-coded channels that materialize the exact original document bytes."
@@ -39,6 +39,20 @@ ryg-rans-rs = { version = "=0.5.1", optional = true, default-features = false, f
 # closed rather than reinterpreting the bytes. MSRV floor is dictated here.
 preflate-rs = { version = "=0.7.6", optional = true, default-features = false }
 
+# Content-addressed object store identity (Phase 9). Optional and gated by the
+# default `store` feature: the store namespace is `Id = BLAKE3-256(object bytes)`.
+# Exactness is never delegated to this dependency; it is the relational object
+# identity only (the archival identity remains SHA-256). Pinned exactly.
+blake3 = { version = "=1.8.7", optional = true }
+
+# EntropyFS embeddable engine (Phase 9.2). Optional and heavy: even with
+# `default-features = false` it pulls a ~40-crate tree (clap/serde/rustix/rand)
+# and a **non-optional** `dsfb` dependency. It is never in the default build and
+# is never required for the standalone form; the embedded reference store stays
+# the measured backend. The engine's `BlobId` is BLAKE3-256 of the blob bytes,
+# identical to our `Id`.
+entropyfs = { version = "=0.7.17", optional = true, default-features = false }
+
 [dev-dependencies]
 # Test-only zlib stream generator for the exact-replay courts. Never a runtime
 # dependency of the library. The `zlib-rs` backend is used deliberately: it is a
@@ -50,14 +64,22 @@ flate2 = { version = "=1.1.4", default-features = false, features = ["zlib-rs"] 
 # The default build is permissive-only: `preflate-rs` transitively pulls the
 # LGPL-3.0-or-later `cabac` crate (ADR-0014), so the replay stack is opt-in.
 # Enable it with `--features deflate-replay` (or `--all-features`).
-default = ["rans"]
+default = ["rans", "store"]
 # Phase 2: scalar order-0 / typed byte rANS channels.
 rans = ["dep:ryg-rans-rs"]
+# Phase 9: content-addressed object store (`Id` = BLAKE3-256). Off makes the
+# `EXTERNAL_REF` mandatory feature bit unsupported, so a store-backed descriptor
+# fails closed at header validation instead of being partially materialized.
+store = ["dep:blake3"]
 # Phase 6: exact DEFLATE bitstream replay via preflate-rs (LGPL dependency).
 deflate-replay = ["dep:preflate-rs"]
+# Phase 9.2: the optional `EntropyFsStore` adapter over the embeddable EntropyFS
+# engine. Heavy (pulls a non-optional `dsfb` and a ~40-crate tree), so it is
+# **never** in `default`; enabling it implies `store` (the `ObjectStore` trait and
+# `Id`). The engine is not required to materialize a store-backed descriptor.
+entropyfs-store = ["dep:entropyfs", "store"]
 # Later phases (declared so the feature surface is deliberate, not accidental):
 # pdf = []
-# entropyfs-store = ["dep:entropyfs"]
 # dsfb-search = ["dep:dsfb"]
 
 [profile.release]

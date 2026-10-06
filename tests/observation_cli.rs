@@ -106,7 +106,7 @@ fn indexed_physical_descriptor(source: &[u8]) -> (Descriptor, PdfPhysical) {
         .expect("a validated PDF must propose PDF_PHYSICAL")
         .descriptor;
 
-    let object_lens: Vec<u64> = d.objects.iter().map(|o| o.len() as u64).collect();
+    let object_lens: Vec<u64> = d.objects.iter().map(|o| o.len()).collect();
     let channel_lens: Vec<u64> = d.channels.iter().map(|c| c.decoded_length).collect();
     let per_op = d
         .program

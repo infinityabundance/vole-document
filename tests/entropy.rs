@@ -179,13 +179,13 @@ fn high_entropy_selects_raw() {
     // Gate 3: the only expansion permitted is the fixed RAW framing, never a
     // hidden model or payload cost.
     let overhead = report.encoded_len - report.source_len;
-    // Fixed RAW framing overhead for the Phase-8 universe (DRA v8 plus the
-    // `+observation-index-v1+seek-directory-v1` suffixes; this descriptor
-    // carries no index or directory record, so the only change is the longer
-    // universe string).
+    // Fixed RAW framing overhead for the Phase-9 universe (DRA v8 plus the
+    // `+observation-index-v1+seek-directory-v1+external-objects-v1` suffixes;
+    // this descriptor carries no index or directory record and no external
+    // objects, so the only change is the longer universe string).
     assert!(
-        overhead <= 434,
-        "RAW expansion was {overhead} bytes; expected <= 434 fixed framing"
+        overhead <= 454,
+        "RAW expansion was {overhead} bytes; expected <= 454 fixed framing"
     );
     assert_eq!(bytes.len() as u64, report.encoded_len);
 }

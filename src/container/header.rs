@@ -24,6 +24,16 @@ pub const FORMAT_MINOR: u16 = 1;
 /// op and so requires a decoder built with exact-DEFLATE-replay support.
 pub const FEATURE_DEFLATE_REPLAY: u32 = 1 << 0;
 
+/// Mandatory feature bit: the descriptor carries at least one `EXTERNAL_REF`
+/// object and so requires a decoder built with a content-addressed object store.
+///
+/// This is **mandatory, not optional**: an external reference is load-bearing,
+/// so a decoder that ignores it cannot reconstruct the source (unlike
+/// `OBSERVATION_INDEX`/`DIRECTORY`, which are advisory). A build without the
+/// `store` cargo feature therefore rejects a store-backed descriptor with
+/// [`crate::ErrorClass::UnsupportedFeature`] rather than reinterpreting it.
+pub const FEATURE_EXTERNAL_OBJECTS: u32 = 1 << 1;
+
 /// Optional feature bit: the descriptor carries an `OBSERVATION_INDEX` record
 /// and so advertises a partial-decode lane.
 ///
@@ -43,13 +53,20 @@ pub const FEATURE_SEEK_DIRECTORY: u32 = 1 << 1;
 
 /// Feature bits this build understands and supports.
 ///
-/// Without the `deflate-replay` cargo feature the replay bit is *not* supported,
-/// so a descriptor that declares it fails closed at header validation with
+/// The `deflate-replay` cargo feature adds [`FEATURE_DEFLATE_REPLAY`]; the
+/// `store` cargo feature adds [`FEATURE_EXTERNAL_OBJECTS`]. A descriptor that
+/// declares an unsupported mandatory bit fails closed at header validation with
 /// [`crate::ErrorClass::UnsupportedFeature`] rather than being reinterpreted.
-#[cfg(feature = "deflate-replay")]
+#[cfg(all(feature = "deflate-replay", feature = "store"))]
+pub const SUPPORTED_MANDATORY_FEATURES: u32 = FEATURE_DEFLATE_REPLAY | FEATURE_EXTERNAL_OBJECTS;
+/// Feature bits this build understands and supports (no object-store support).
+#[cfg(all(feature = "deflate-replay", not(feature = "store")))]
 pub const SUPPORTED_MANDATORY_FEATURES: u32 = FEATURE_DEFLATE_REPLAY;
 /// Feature bits this build understands and supports (no replay support).
-#[cfg(not(feature = "deflate-replay"))]
+#[cfg(all(not(feature = "deflate-replay"), feature = "store"))]
+pub const SUPPORTED_MANDATORY_FEATURES: u32 = FEATURE_EXTERNAL_OBJECTS;
+/// Feature bits this build understands and supports (bare exact core).
+#[cfg(all(not(feature = "deflate-replay"), not(feature = "store")))]
 pub const SUPPORTED_MANDATORY_FEATURES: u32 = 0;
 
 /// The parsed, validated fixed header.

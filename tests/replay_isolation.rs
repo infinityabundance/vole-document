@@ -22,7 +22,7 @@ use std::process::Command;
 use vole_document::SOURCE_FORMAT_PDF;
 use vole_document::adapter::pdf::samples::sample_pdfs;
 use vole_document::codec::deflate::{replay_bounded, try_replay};
-use vole_document::container::{Descriptor, UNIVERSE};
+use vole_document::container::{Descriptor, ObjectSource, UNIVERSE};
 use vole_document::dra::{Op, Program};
 use vole_document::encode;
 use vole_document::encode::candidates::CandidateKind;
@@ -139,7 +139,10 @@ fn hostile_f2_descriptor_fails_closed_under_small_memory_cap() {
         format_basis: "pdf-deflate-replay;test=f2;phase=7.1b".to_string(),
         models: vec![],
         channels: vec![],
-        objects: vec![plaintext.to_vec(), corrections.to_vec()],
+        objects: vec![
+            ObjectSource::Inline(plaintext.to_vec()),
+            ObjectSource::Inline(corrections.to_vec()),
+        ],
         program: Program::new(vec![Op::DeflateReplay {
             replay_codec: vole_document::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
             source_kind: vole_document::dra::op::DEFLATE_SOURCE_OBJECT,

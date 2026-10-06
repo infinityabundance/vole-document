@@ -32,7 +32,7 @@ use crate::container::observation::{
     DEP_CHANNEL, DEP_NONE, DEP_OBJECT, ObservationIndex, ObservationSelector, OpEntry,
     SECTION_OP_TABLE, SECTION_PDF_SELECTORS, SELECTOR_OBJECT, SELECTOR_REVISION, SELECTOR_STREAM,
 };
-use crate::container::{Descriptor, UNIVERSE};
+use crate::container::{Descriptor, ObjectSource, UNIVERSE};
 use crate::dra::op::{DEFLATE_SOURCE_CHANNEL, DEFLATE_SOURCE_OBJECT};
 use crate::dra::{Op, Program};
 use crate::encode::candidates::{Candidate, CandidateKind};
@@ -149,7 +149,7 @@ pub fn propose_pdf_deflate_replay(input: &[u8], limits: Limits) -> Result<Option
         format_basis,
         models: vec![],
         channels: vec![],
-        objects,
+        objects: objects.into_iter().map(ObjectSource::Inline).collect(),
         program: Program::new(ops),
         observation_index: None,
         seek_directory: false,
@@ -289,7 +289,7 @@ fn build_pdf_deflate_replay_rans(
         format_basis,
         models,
         channels,
-        objects,
+        objects: objects.into_iter().map(ObjectSource::Inline).collect(),
         program: Program::new(ops),
         observation_index: None,
         seek_directory: false,
@@ -349,7 +349,7 @@ fn build_observation_index(
     descriptor: &Descriptor,
     limits: Limits,
 ) -> Result<Option<ObservationIndex>> {
-    let object_lens: Vec<u64> = descriptor.objects.iter().map(|o| o.len() as u64).collect();
+    let object_lens: Vec<u64> = descriptor.objects.iter().map(|o| o.len()).collect();
     let channel_lens: Vec<u64> = descriptor
         .channels
         .iter()

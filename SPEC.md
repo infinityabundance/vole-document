@@ -53,7 +53,7 @@ document defers to that source of truth.
 | `0x50` | `RESIDUAL` | reserved (later) |
 | `0x60` | `CHECKPOINT` | reserved (later) |
 | `0x70` | `OBSERVATION_INDEX` | optional, advisory op/selector/digest map (Phase 7.3) |
-| `0x80` | `EXTERNAL_REF` | reserved (Phase 9+) |
+| `0x80` | `EXTERNAL_REF` | mandatory-when-present: `id:[u8;32]`, `len:u64` of an object held by an `ObjectStore` (Phase 9) |
 | `0xF0` | `INTEGRITY` | `sha256:[u8;32]`, `source_len:u64` |
 | `0xFF` | `TRAILER` | `record_count:u32`, `payload_bytes:u64`, `magic:[u8;8]` |
 
@@ -64,6 +64,12 @@ Requirements enforced by `Descriptor::parse`:
 
 - exactly one `UNIVERSE`, `FORMAT`, `GRAPH`, `INTEGRITY`, `TRAILER`;
 - at most one `OBSERVATION_INDEX`;
+- every object-table entry appears in order: an `OBJECT`/`EXTERNAL_REF` is an
+  entry, and its **position** is its `object_id` (there is no explicit id on the
+  wire). Exactly one of `OBJECT`/`EXTERNAL_REF` is written per entry;
+- a descriptor with at least one `EXTERNAL_REF` declares the mandatory
+  `FEATURE_EXTERNAL_OBJECTS` bit; a decoder without `store` support fails closed
+  at header validation;
 - `SHA-256(universe)[..16] == header.universe_id`;
 - `FORMAT.source_format == header.source_format`;
 - `INTEGRITY.source_len == header.declared_source_len`;
@@ -101,6 +107,67 @@ the record is present. Validation re-derives each `out_len` via `analyze_ops`,
 checks each dependency id is in range, and requires every selector and digest
 range to lie within `[0, total)`. Sections are independent and unknown
 `section_flags` bits or an unknown `version` fail closed.
+
+### `EXTERNAL_REF` (`0x80`, mandatory-when-present, Phase 9)
+
+The descriptor's object table is a single ordered sequence. Each entry is either
+an inline `OBJECT` (`0x10`) record or an `EXTERNAL_REF` (`0x80`) record that names
+an object held by an external content-addressed store. The entry's **position** in
+the table is its `object_id`, exactly as for `OBJECT`; there is no explicit id on
+the wire, so the DRA's `u32_object_id` indexes the table unchanged.
+
+```text
+EXTERNAL_REF (0x80) := id:[u8;32] | len:u64LE        # exactly 40 bytes
+```
+
+`id` is `BLAKE3-256` of the object's **raw** (uncompressed) bytes; `len` is the
+exact byte length. This is the store namespace, **not** the archival identity: the
+whole reconstructed source is still identified by the `INTEGRITY` SHA-256, and an
+`id` never appears in `INTEGRITY`.
+
+* **Parsing never needs the store.** `len` supplies the object length for the
+  coverage certificate without resolving anything; a descriptor can be parsed
+  with no I/O and no `blake3`.
+* **The bit is mandatory, not optional.** A descriptor with at least one
+  `EXTERNAL_REF` sets `FEATURE_EXTERNAL_OBJECTS` (`1 << 1`) in the header. Because
+  an external reference is load-bearing, a decoder built without the `store`
+  feature fails closed with `UnsupportedFeature` at header validation rather than
+  materializing a partial document.
+* **Resolution.** `materialize` resolves each reference through an
+  `ObjectStore`, which MUST re-hash the returned bytes and reject with
+  `IntegrityMismatch` unless `BLAKE3(bytes) == id` and the length matches `len`.
+  The `INTEGRITY` SHA-256 of the whole source remains the archival backstop. The
+  DRA is unchanged: it still consumes a plain vector of object bytes.
+* **Two forms, one materialization.** Standalone (all `OBJECT`) and store-backed
+  (all `EXTERNAL_REF`) descriptors of the same source materialize identical
+  bytes; conversion is provided by `externalize` (inline → external) and
+  `hydrate` (external → inline). Unlike `OBJECT`, the cost of an `EXTERNAL_REF` is
+  charged to `CostBreakdown::external_refs` (40 B payload; framing to
+  `record_framing`).
+
+The in-memory model mirrors this one ordered table:
+
+```rust
+enum ObjectSource {
+    Inline(Vec<u8>),
+    External { id: Id, len: u64 },
+}
+```
+
+`ObjectSource::len()` returns the length available to the coverage certificate
+without resolving (`len` for `External`); `Id` is a newtype over the 32 raw
+`BLAKE3-256` bytes with lower-case hex rendering.
+
+### Mandatory feature bits
+
+| Bit | Name | Meaning |
+|---|---|---|
+| `1 << 0` | `FEATURE_DEFLATE_REPLAY` | the program contains a `DEFLATE_REPLAY` op |
+| `1 << 1` | `FEATURE_EXTERNAL_OBJECTS` | the object table contains at least one `EXTERNAL_REF` |
+
+Unknown mandatory bits fail closed at header validation with
+`UnsupportedFeature`; the bits this build supports depend on its cargo features
+(`deflate-replay`, `store`).
 
 ## Graph (reconstruction program)
 
@@ -251,16 +318,23 @@ class of bugs at the representation boundary.
 
 ## Universe declaration
 
-The Phase-7 universe string is:
+The Phase-9 universe string is:
 
 ```text
-vole-document;universe;phase7;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1
+vole-document;universe;phase9;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1+seek-directory-v1+external-objects-v1
 ```
 
 The header's `universe_id` is the first 16 bytes of `SHA-256` over this string.
 Any change to an opcode, coder, limit semantic, adapter meaning, or hash semantic
 (including adding an optional record meaning) requires a new universe string.
-This supersedes the Phase-6 string
+Phase 9 re-bases the prefix to `phase9` and appends `+external-objects-v1` for the
+store-backed object form (`EXTERNAL_REF`); `dra-8` is unchanged and `FORMAT_MINOR`
+does not move (the mandatory feature bit carries fail-closed compatibility).
+This supersedes the Phase-8 string
+(`vole-document;universe;phase8;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1+seek-directory-v1`),
+which superseded the Phase-7 string
+(`vole-document;universe;phase7;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1`),
+which superseded the Phase-6 string
 (`vole-document;universe;phase6;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental`),
 which superseded the Phase-5.8 string
 (`vole-document;universe;phase5-8;exact-bytes;dra-6;opaque+entropy+pdf+channels+offsets+packed+packed-channels`),
@@ -438,12 +512,19 @@ section is **PROVISIONAL**.
 
 ## Feature policy
 
-- `default = ["rans"]`: the native scalar entropy decoder (`ryg-rans-rs`
-  `=0.5.1`, **safe manual** API only) is present by default. The default build is
-  **permissive-only** and pulls no copyleft dependency.
+- `default = ["rans", "store"]`: the native scalar entropy decoder
+  (`ryg-rans-rs` `=0.5.1`, **safe manual** API only) and the content-addressed
+  object store (`Id = BLAKE3-256`, `blake3` `=1.8.7`) are present by default. The
+  default build is **permissive-only** and pulls no copyleft dependency.
 - The exact DEFLATE replay engine (`preflate-rs` `=0.7.6`) is **opt-in** via
   `--features deflate-replay` (or `--all-features`); it transitively pulls the
   `cabac` crate, licensed LGPL-3.0-or-later (ADR-0014).
+- The optional `EntropyFsStore` adapter is **opt-in and never default** via
+  `--features entropyfs-store` (which implies `store`). It pulls the embeddable
+  EntropyFS engine (`entropyfs` `=0.7.17`, `default-features = false`) and hence a
+  non-optional `dsfb` and a large dependency tree. It is a backend choice only:
+  the standalone form and the reference `EmbeddedStore` do not need it (ADR-0008,
+  ADR-0020).
 - Built with `--no-default-features`, the exact RAW/RLE floor still compiles and
   materializes channel-free descriptors byte-for-byte.
 - A descriptor that declares `MODEL`/`ENTROPY_CHANNEL` records but is decoded
@@ -452,6 +533,9 @@ section is **PROVISIONAL**.
   `DEFLATE_REPLAY` declares the mandatory `FEATURE_DEFLATE_REPLAY` bit, and decoding
   it without the `deflate-replay` feature returns `UnsupportedFeature`. Neither is
   ever silently reinterpreted or partially materialized.
+- A store-backed descriptor (any `EXTERNAL_REF`) declares the mandatory
+  `FEATURE_EXTERNAL_OBJECTS` bit; decoding it without the `store` feature returns
+  `UnsupportedFeature` (exit 6) at header validation, never a partial document.
 - The `deflate-replay` feature transitively pulls the `cabac` crate, licensed
   LGPL-3.0-or-later; see ADR-0014. Build with
   `--no-default-features --features rans` for an artifact without it.
