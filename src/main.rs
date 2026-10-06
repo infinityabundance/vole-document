@@ -23,6 +23,17 @@ use vole_document::container::header::{FEATURE_SEEK_DIRECTORY, HEADER_LEN, Heade
 use vole_document::dra::Op;
 use vole_document::encode::candidates::CandidateKind;
 use vole_document::error::{Error, Result};
+#[cfg(feature = "field")]
+use vole_document::field::{
+    Field, FieldId, FieldStore,
+    cache::DerivedCache,
+    edit as field_edit,
+    explain::explain,
+    ingest as field_ingest,
+    observe::{ObserveRequest, ObserveStats, Representation, Selector, observe},
+    provenance::{AnswerValue, FieldAnswer},
+    share,
+};
 use vole_document::limits::Limits;
 #[cfg(feature = "rans")]
 use vole_document::materialize::observation::{ObservationReport, ObservationSelector};
@@ -68,6 +79,34 @@ const USAGE_STORE: &str = "\
 #[cfg(not(feature = "store"))]
 const USAGE_STORE: &str = "";
 
+/// The field observation verbs are advertised only when the field is built in.
+#[cfg(feature = "field")]
+const USAGE_FIELD: &str = "\
+    vole-document field-ingest INPUT.voldoc --store DIR [--entropyfs]
+    vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs]
+    vole-document observe --store DIR --field HEX [--entropyfs] (--page N | --object N | --stream N |
+        --revision N | --byte-range A..B) --kind metadata|text|structure|operators|
+        encoded|decoded|exact|preview|full
+    vole-document find    --store DIR --field HEX --text PATTERN [--entropyfs]
+    vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs]
+    vole-document preview --store DIR --field HEX --page N [--json] [--entropyfs]
+    vole-document materialize --store DIR --field HEX --exact --output FILE [--entropyfs]
+    vole-document cache  --store DIR [--clear] [--entropyfs]
+    vole-document field-store-stats --store DIR [--entropyfs]
+    (--entropyfs needs a build with the entropyfs-store feature)
+";
+#[cfg(not(feature = "field"))]
+const USAGE_FIELD: &str = "";
+
+/// The fine-unit sharing verbs are advertised only when the field is built in.
+#[cfg(feature = "field")]
+const USAGE_SHARE: &str = "\
+    vole-document share report INPUT.voldoc...\n\
+    vole-document share-account --store DIR INPUT.voldoc...\n\
+    vole-document share externalize --store DIR INPUT.voldoc OUTPUT.voldoc\n";
+#[cfg(not(feature = "field"))]
+const USAGE_SHARE: &str = "";
+
 const USAGE_TAIL: &str = "\
     vole-document capabilities
 
@@ -87,7 +126,9 @@ EXIT CODES:
 /// The full usage text, with the replay-gated command line included only when
 /// the feature is present.
 fn usage() -> String {
-    format!("{USAGE_HEAD}{USAGE_VIEW}{USAGE_DEFLATE_STATS}{USAGE_STORE}{USAGE_TAIL}")
+    format!(
+        "{USAGE_HEAD}{USAGE_VIEW}{USAGE_DEFLATE_STATS}{USAGE_STORE}{USAGE_FIELD}{USAGE_SHARE}{USAGE_TAIL}"
+    )
 }
 
 fn main() -> ExitCode {
@@ -141,7 +182,16 @@ fn run(args: &[String]) -> Result<()> {
         }
         "capabilities" => cmd_capabilities(),
         "encode" => cmd_encode_args(args, limits),
-        "decode" | "materialize" => cmd_decode_args(args, limits),
+        "decode" | "materialize" => {
+            #[cfg(feature = "field")]
+            if args
+                .iter()
+                .any(|a| a.as_str() == "--field" || a.starts_with("--field="))
+            {
+                return cmd_field_materialize(args, limits);
+            }
+            cmd_decode_args(args, limits)
+        }
         "verify" => {
             let input = arg(args, 2, "INPUT.voldoc")?;
             cmd_verify(&input, limits)
@@ -182,6 +232,26 @@ fn run(args: &[String]) -> Result<()> {
             }
             cmd_deflate_stats(&inputs, limits)
         }
+        #[cfg(feature = "field")]
+        "field-ingest" => cmd_field_ingest(args, limits),
+        #[cfg(feature = "field")]
+        "field-edit" => cmd_field_edit(args, limits),
+        #[cfg(feature = "field")]
+        "observe" => cmd_field_observe(args, limits),
+        #[cfg(feature = "field")]
+        "find" => cmd_field_find(args, limits),
+        #[cfg(feature = "field")]
+        "explain" => cmd_field_explain(args, limits),
+        #[cfg(feature = "field")]
+        "preview" => cmd_field_preview(args, limits),
+        #[cfg(feature = "field")]
+        "cache" => cmd_field_cache(args),
+        #[cfg(feature = "field")]
+        "field-store-stats" => cmd_field_store_stats(args),
+        #[cfg(feature = "field")]
+        "share" => cmd_share_args(args, limits),
+        #[cfg(feature = "field")]
+        "share-account" => cmd_share_account(args, limits),
         other => Err(Error::usage(format!(
             "unknown subcommand {other:?}\n\n{}",
             usage()
@@ -1290,6 +1360,944 @@ fn report_json(r: &encode::EncodeReport) -> String {
         r.graph_ops,
         r.cost.to_json(),
     )
+}
+
+/// Parsed arguments for the Phase-11 field observation verbs.
+#[cfg(feature = "field")]
+#[derive(Default)]
+struct FieldArgs {
+    store: Option<PathBuf>,
+    field: Option<String>,
+    page: Option<u32>,
+    object: Option<u32>,
+    stream: Option<u32>,
+    revision: Option<u32>,
+    byte_range: Option<(u64, u64)>,
+    kind: Option<String>,
+    text: Option<String>,
+    output: Option<PathBuf>,
+    content: Option<PathBuf>,
+    analyze: bool,
+    json: bool,
+    no_cache: bool,
+    entropyfs: bool,
+    positional: Vec<String>,
+}
+
+#[cfg(feature = "field")]
+fn field_arg_value(
+    args: &[String],
+    i: &mut usize,
+    flag: &str,
+    inline: Option<&str>,
+) -> Result<String> {
+    match inline {
+        Some(v) => {
+            *i += 1;
+            Ok(v.to_string())
+        }
+        None => {
+            let v = args
+                .get(*i + 1)
+                .ok_or_else(|| Error::usage(format!("{flag} requires a value")))?;
+            *i += 2;
+            Ok(v.clone())
+        }
+    }
+}
+
+#[cfg(feature = "field")]
+fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
+    let mut out = FieldArgs::default();
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        let (flag, inline) = match a.split_once('=') {
+            Some((f, v)) => (f, Some(v)),
+            None => (a, None),
+        };
+        match flag {
+            "--analyze" => {
+                out.analyze = true;
+                i += 1;
+            }
+            "--json" => {
+                out.json = true;
+                i += 1;
+            }
+            "--exact" => i += 1,
+            "--no-cache" => {
+                out.no_cache = true;
+                i += 1;
+            }
+            "--entropyfs" => {
+                out.entropyfs = true;
+                i += 1;
+            }
+            "--store" => {
+                out.store = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--store", inline,
+                )?));
+            }
+            "--field" => out.field = Some(field_arg_value(args, &mut i, "--field", inline)?),
+            "--page" => {
+                out.page = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--page", inline)?,
+                    "--page",
+                )?);
+            }
+            "--object" => {
+                out.object = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--object", inline)?,
+                    "--object",
+                )?);
+            }
+            "--stream" => {
+                out.stream = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--stream", inline)?,
+                    "--stream",
+                )?);
+            }
+            "--revision" => {
+                out.revision = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--revision", inline)?,
+                    "--revision",
+                )?);
+            }
+            "--byte-range" => {
+                out.byte_range = Some(parse_field_range(&field_arg_value(
+                    args,
+                    &mut i,
+                    "--byte-range",
+                    inline,
+                )?)?);
+            }
+            "--kind" => out.kind = Some(field_arg_value(args, &mut i, "--kind", inline)?),
+            "--text" => out.text = Some(field_arg_value(args, &mut i, "--text", inline)?),
+            "--output" => {
+                out.output = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--output", inline,
+                )?));
+            }
+            "--content" => {
+                out.content = Some(PathBuf::from(field_arg_value(
+                    args,
+                    &mut i,
+                    "--content",
+                    inline,
+                )?));
+            }
+            other if !other.starts_with("--") => {
+                out.positional.push(other.to_string());
+                i += 1;
+            }
+            other => return Err(Error::usage(format!("unknown field argument {other:?}"))),
+        }
+    }
+    Ok(out)
+}
+
+#[cfg(feature = "field")]
+fn parse_field_u32(value: &str, flag: &str) -> Result<u32> {
+    value
+        .parse()
+        .map_err(|_| Error::usage(format!("{flag} value {value:?} is not a u32")))
+}
+
+#[cfg(feature = "field")]
+fn parse_field_range(value: &str) -> Result<(u64, u64)> {
+    let (a, b) = value
+        .split_once("..")
+        .ok_or_else(|| Error::usage("--byte-range must be A..B (e.g. 0..128)"))?;
+    let start: u64 = a
+        .parse()
+        .map_err(|_| Error::usage(format!("--byte-range start {a:?} is not a u64")))?;
+    let end: u64 = b
+        .parse()
+        .map_err(|_| Error::usage(format!("--byte-range end {b:?} is not a u64")))?;
+    if end < start {
+        return Err(Error::usage("--byte-range end precedes its start"));
+    }
+    Ok((start, end - start))
+}
+
+#[cfg(feature = "field")]
+fn field_selector(out: &FieldArgs) -> Result<Selector> {
+    let mut chosen: Vec<Selector> = Vec::new();
+    if let Some(n) = out.page {
+        chosen.push(Selector::Page(n));
+    }
+    if let Some(n) = out.object {
+        chosen.push(Selector::Object(n));
+    }
+    if let Some(n) = out.stream {
+        chosen.push(Selector::Stream(n));
+    }
+    if let Some(n) = out.revision {
+        chosen.push(Selector::Revision(n));
+    }
+    if let Some((offset, len)) = out.byte_range {
+        chosen.push(Selector::ByteRange { offset, len });
+    }
+    if let Some(text) = &out.text {
+        chosen.push(Selector::TextMatch(text.clone()));
+    }
+    match chosen.len() {
+        0 => Err(Error::usage("exactly one selector flag is required")),
+        1 => chosen
+            .into_iter()
+            .next()
+            .ok_or_else(|| Error::usage("no selector")),
+        _ => Err(Error::usage(
+            "exactly one selector flag is required; more than one was given",
+        )),
+    }
+}
+
+#[cfg(feature = "field")]
+fn field_representation(kind: &str) -> Result<Representation> {
+    Ok(match kind {
+        "metadata" => Representation::Metadata,
+        "text" => Representation::Text,
+        "structure" => Representation::Structure,
+        "operators" => Representation::Operators,
+        "encoded" => Representation::EncodedBytes,
+        "decoded" => Representation::DecodedBytes,
+        "exact" => Representation::ExactBytes,
+        "preview" => Representation::Preview,
+        "full" => Representation::FullDocument,
+        other => return Err(Error::usage(format!("unknown --kind {other:?}"))),
+    })
+}
+
+#[cfg(feature = "field")]
+fn observe_request(
+    out: &FieldArgs,
+    selector: Selector,
+    representation: Representation,
+) -> ObserveRequest {
+    let mut req = ObserveRequest::new(selector, representation);
+    req.use_cache = !out.no_cache;
+    req
+}
+
+#[cfg(feature = "field")]
+fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats, field: &FieldId) -> String {
+    let value = match &answer.value {
+        AnswerValue::Bytes(b) => {
+            let sha = integrity::sha256(b);
+            let hex_part = if b.len() <= 8192 {
+                format!(",\"value_hex\":\"{}\"", integrity::to_hex(b))
+            } else {
+                String::new()
+            };
+            format!(
+                "\"bytes_len\":{},\"bytes_sha256\":\"{}\"{}",
+                b.len(),
+                integrity::to_hex(&sha),
+                hex_part
+            )
+        }
+        AnswerValue::Text(t) => format!("\"text\":\"{}\"", json_escape(t)),
+        AnswerValue::Json(j) => format!("\"value\":{j}"),
+        AnswerValue::None => "\"value\":null".to_string(),
+    };
+    let span = match answer.source_span {
+        Some((a, b)) => format!("[{a},{b}]"),
+        None => "null".to_string(),
+    };
+    let deps = answer
+        .dependency_ids
+        .iter()
+        .map(|d| format!("\"{}\"", d.to_hex()))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        concat!(
+            "{{",
+            "\"field\":\"{}\",",
+            "\"selector\":\"{}\",",
+            "\"representation\":\"{}\",",
+            "\"basis\":\"{}\",",
+            "\"exact\":{},",
+            "\"integrity_scope\":\"{}\",",
+            "\"source_span\":{},",
+            "\"dependency_ids\":[{}],",
+            "{},",
+            "\"stats\":{{\"index_nodes_read\":{},\"seed_nodes_fetched\":{},\"seed_nodes_materialized\":{},\"seed_nodes_executed\":{},\"seed_nodes_reused\":{},\"cache_bytes_written\":{},\"descriptor_bytes_read\":{},\"descriptor_read_mode\":\"{}\",\"manifest_bytes_read\":{},\"index_bytes_read\":{},\"seed_bytes_read\":{},\"bytes_read\":{},\"bytes_returned\":{},\"deepened\":{},\"wall_micros\":{}}}",
+            "}}"
+        ),
+        field.to_hex(),
+        json_escape(&answer.selector),
+        json_escape(&answer.representation),
+        answer.basis.name(),
+        answer.exact,
+        answer.integrity_scope.name(),
+        span,
+        deps,
+        value,
+        stats.index_nodes_read,
+        stats.seed_nodes_fetched,
+        stats.seed_nodes_materialized,
+        stats.seed_nodes_executed,
+        stats.seed_nodes_reused,
+        stats.cache_bytes_written,
+        stats.descriptor_bytes_read,
+        stats.descriptor_read_mode.name(),
+        stats.manifest_bytes_read,
+        stats.index_bytes_read,
+        stats.seed_bytes_read,
+        stats.bytes_read,
+        stats.bytes_returned,
+        stats.deepened,
+        stats.wall_micros,
+    )
+}
+
+/// Open the field store selected by `--entropyfs` (or the filesystem default).
+///
+/// The engine-backed backend requires a build with the `entropyfs-store`
+/// feature; asking for it without that feature is a typed `UnsupportedFeature`,
+/// never a silent fallback to the filesystem backend.
+#[cfg(feature = "field")]
+fn open_field_store(store_dir: &Path, entropyfs: bool) -> Result<FieldStore> {
+    #[cfg(feature = "entropyfs-store")]
+    if entropyfs {
+        return FieldStore::open_entropyfs(store_dir);
+    }
+    if entropyfs {
+        return Err(Error::unsupported_feature(
+            "--entropyfs requires a build with the entropyfs-store feature",
+        ));
+    }
+    FieldStore::open(store_dir)
+}
+
+/// `field-store-stats --store DIR [--entropyfs]`: report advisory engine
+/// accounting (blob count and bytes) for an EntropyFS-backed field store, so a
+/// court can witness that the seed DAG is many individual engine blobs.
+#[cfg(feature = "field")]
+fn cmd_field_store_stats(args: &[String]) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("field-store-stats requires --store DIR"))?;
+    let store = open_field_store(store_dir, out.entropyfs)?;
+    #[cfg(feature = "entropyfs-store")]
+    {
+        match store.engine_stats()? {
+            Some(s) => println!(
+                "{{\"backend\":\"entropyfs\",\"blob_count\":{},\"logical_bytes\":{},\"physical_used_bytes\":{}}}",
+                s.blob_count, s.logical_bytes, s.physical_used_bytes
+            ),
+            None => println!("{{\"backend\":\"fs\"}}"),
+        }
+    }
+    #[cfg(not(feature = "entropyfs-store"))]
+    {
+        let _ = store;
+        println!("{{\"backend\":\"fs\"}}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let input = out
+        .positional
+        .first()
+        .ok_or_else(|| Error::usage("field-ingest requires INPUT.voldoc"))?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("field-ingest requires --store DIR"))?;
+    let bytes = fs::read(input)?;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let r = field_ingest::ingest_pdf(&mut store, &bytes, limits)?;
+    store.sync()?;
+    let index_root = match r.index_root {
+        Some(id) => format!("\"{}\"", id.to_hex()),
+        None => "null".to_string(),
+    };
+    println!(
+        concat!(
+            "{{",
+            "\"field\":\"{}\",",
+            "\"root_node\":\"{}\",",
+            "\"index_root\":{},",
+            "\"node_count\":{},",
+            "\"index_node_count\":{},",
+            "\"source_len\":{},",
+            "\"object_nodes\":{},",
+            "\"stream_nodes\":{},",
+            "\"decoded_stream_nodes\":{},",
+            "\"page_nodes\":{},",
+            "\"revision_nodes\":{},",
+            "\"declined_streams\":{}",
+            "}}"
+        ),
+        r.field.to_hex(),
+        r.root_node.to_hex(),
+        index_root,
+        r.node_count,
+        r.index_node_count,
+        r.source_len,
+        r.object_nodes,
+        r.stream_nodes,
+        r.decoded_stream_nodes,
+        r.page_nodes,
+        r.revision_nodes,
+        r.declined_streams,
+    );
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_edit(args: &[String], _limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("field-edit requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("field-edit requires --field HEX"))?;
+    let page = out
+        .page
+        .ok_or_else(|| Error::usage("field-edit requires --page N"))?;
+    let content_path = out
+        .content
+        .as_deref()
+        .ok_or_else(|| Error::usage("field-edit requires --content FILE"))?;
+    let content = fs::read(content_path)?;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let r = field_edit::replace_page_content(&mut store, &id, page, &content)?;
+    store.sync()?;
+    println!(
+        concat!(
+            "{{",
+            "\"field\":\"{}\",",
+            "\"previous\":\"{}\",",
+            "\"page\":{},",
+            "\"page_content\":\"{}\",",
+            "\"content_literal\":\"{}\",",
+            "\"index_root\":\"{}\",",
+            "\"index_entries\":{},",
+            "\"index_entries_reused\":{},",
+            "\"index_entries_replaced\":{},",
+            "\"seed_nodes_new\":{},",
+            "\"seed_nodes_reused\":{},",
+            "\"index_nodes_reused\":{},",
+            "\"index_nodes_new\":{},",
+            "\"bytes_newly_persisted\":{},",
+            "\"descriptor_bytes_read\":{},",
+            "\"manifest_bytes_read\":{},",
+            "\"index_bytes_read\":{},",
+            "\"seed_bytes_read\":{}",
+            "}}"
+        ),
+        r.field.to_hex(),
+        r.previous.to_hex(),
+        r.page,
+        r.page_content.to_hex(),
+        r.content_literal.to_hex(),
+        r.index_root.to_hex(),
+        r.index_entries,
+        r.index_entries_reused,
+        r.index_entries_replaced,
+        r.seed_nodes_new,
+        r.seed_nodes_reused,
+        r.index_nodes_reused,
+        r.index_nodes_new,
+        r.bytes_newly_persisted,
+        r.descriptor_bytes_read,
+        r.manifest_bytes_read,
+        r.index_bytes_read,
+        r.seed_bytes_read,
+    );
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_observe(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("observe requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("observe requires --field HEX"))?;
+    let selector = field_selector(&out)?;
+    let kind = out
+        .kind
+        .as_deref()
+        .ok_or_else(|| Error::usage("observe requires --kind KIND"))?;
+    let representation = field_representation(kind)?;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let req = observe_request(&out, selector, representation);
+    let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
+    store.sync()?;
+    println!("{}", field_answer_json(&answer, &stats, &field));
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_find(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("find requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("find requires --field HEX"))?;
+    let text = out
+        .text
+        .clone()
+        .ok_or_else(|| Error::usage("find requires --text PATTERN"))?;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let req = observe_request(&out, Selector::TextMatch(text), Representation::Text);
+    let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
+    store.sync()?;
+    println!("{}", field_answer_json(&answer, &stats, &field));
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("explain requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("explain requires --field HEX"))?;
+    let selector = field_selector(&out)?;
+    let kind = out
+        .kind
+        .as_deref()
+        .ok_or_else(|| Error::usage("explain requires --kind KIND"))?;
+    let representation = field_representation(kind)?;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let req = observe_request(&out, selector, representation);
+    if out.analyze {
+        let planned_json = {
+            let manifest = store.get_field(&id)?;
+            explain(&manifest, &store, &req)?.json
+        };
+        let (answer, stats, promoted) = observe(&mut store, &id, &req, limits)?;
+        println!(
+            "{{\"plan\":{},\"actual\":{}}}",
+            planned_json,
+            explain_actual_json(&stats, &answer, &promoted)
+        );
+    } else {
+        let manifest = store.get_field(&id)?;
+        let plan = explain(&manifest, &store, &req)?;
+        println!("{}", plan.json);
+    }
+    store.sync()?;
+    Ok(())
+}
+
+/// The executed-observation evidence object for `explain --analyze`, including
+/// the promoted field id, the per-class physical byte counts (review fix #1),
+/// and the reuse counters (11.8).
+#[cfg(feature = "field")]
+fn explain_actual_json(stats: &ObserveStats, answer: &FieldAnswer, field: &FieldId) -> String {
+    format!(
+        concat!(
+            "{{",
+            "\"field\":\"{}\",",
+            "\"index_nodes_read\":{},",
+            "\"seed_nodes_fetched\":{},",
+            "\"seed_nodes_materialized\":{},",
+            "\"seed_nodes_executed\":{},",
+            "\"seed_nodes_reused\":{},",
+            "\"cache_bytes_written\":{},",
+            "\"descriptor_bytes_read\":{},",
+            "\"descriptor_read_mode\":\"{}\",",
+            "\"manifest_bytes_read\":{},",
+            "\"index_bytes_read\":{},",
+            "\"seed_bytes_read\":{},",
+            "\"bytes_read\":{},",
+            "\"bytes_returned\":{},",
+            "\"deepened\":{},",
+            "\"wall_micros\":{},",
+            "\"basis\":\"{}\",",
+            "\"exact\":{}",
+            "}}"
+        ),
+        field.to_hex(),
+        stats.index_nodes_read,
+        stats.seed_nodes_fetched,
+        stats.seed_nodes_materialized,
+        stats.seed_nodes_executed,
+        stats.seed_nodes_reused,
+        stats.cache_bytes_written,
+        stats.descriptor_bytes_read,
+        stats.descriptor_read_mode.name(),
+        stats.manifest_bytes_read,
+        stats.index_bytes_read,
+        stats.seed_bytes_read,
+        stats.bytes_read,
+        stats.bytes_returned,
+        stats.deepened,
+        stats.wall_micros,
+        answer.basis.name(),
+        answer.exact,
+    )
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_preview(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("preview requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("preview requires --field HEX"))?;
+    let page = out
+        .page
+        .ok_or_else(|| Error::usage("preview requires --page N"))?;
+    let as_json = out.json;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let req = observe_request(&out, Selector::Page(page), Representation::Preview);
+    let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
+    store.sync()?;
+    if !as_json && let AnswerValue::Bytes(bytes) = &answer.value {
+        std::io::stdout().write_all(bytes).map_err(Error::from)?;
+        return Ok(());
+    }
+    println!("{}", field_answer_json(&answer, &stats, &field));
+    Ok(())
+}
+
+/// `share-account --store DIR INPUT.voldoc...`: store every inline fine unit of
+/// the cohort in `<DIR>/share` and print the [`share::ShareReport`] as JSON
+/// (Phase 11.14).
+///
+/// The store is populated so the fine-unit sharing rests on **stored bytes**, not
+/// a paper calculation: because the store is content-addressed, `store_bytes`
+/// (distinct stored blobs) must equal `unique_bytes`, an independent check on the
+/// in-memory report. The descriptor still carries every unit inline; `unique_bytes`
+/// excludes all record/root framing and is a lower bound on any store form.
+/// Deterministic for a fixed input set (content addressing + sorted `by_kind`).
+#[cfg(feature = "field")]
+fn cmd_share_account(args: &[String], limits: Limits) -> Result<()> {
+    let mut store_dir: Option<PathBuf> = None;
+    let mut inputs: Vec<PathBuf> = Vec::new();
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        let (flag, inline) = match a.split_once('=') {
+            Some((f, v)) => (f, Some(v)),
+            None => (a, None),
+        };
+        match flag {
+            "--store" => {
+                store_dir = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--store", inline,
+                )?));
+            }
+            other if other.starts_with("--") => {
+                return Err(Error::usage(format!(
+                    "unknown share-account argument {other:?}"
+                )));
+            }
+            other => {
+                inputs.push(PathBuf::from(other));
+                i += 1;
+            }
+        }
+    }
+    let store_dir = store_dir.ok_or_else(|| Error::usage("share-account requires --store DIR"))?;
+    if inputs.is_empty() {
+        return Err(Error::usage(
+            "share-account requires at least one INPUT.voldoc",
+        ));
+    }
+    let mut descriptors = Vec::with_capacity(inputs.len());
+    for path in &inputs {
+        let bytes = fs::read(path)?;
+        descriptors.push(Descriptor::parse(&bytes, limits)?.descriptor);
+    }
+    // Store every inline fine unit so the accounting rests on stored bytes.
+    let mut units_offered: u64 = 0;
+    for d in &descriptors {
+        units_offered += share::store_units(&store_dir, d)?;
+    }
+    let report = share::cohort_report(&descriptors)?;
+    let store_bytes = share::share_store(&store_dir)?.stats()?.stored_bytes;
+    let kinds: Vec<String> = report
+        .by_kind
+        .iter()
+        .map(|(k, t, u)| {
+            format!(
+                "{{\"kind\":\"{}\",\"total\":{t},\"unique\":{u}}}",
+                json_escape(k)
+            )
+        })
+        .collect();
+    println!(
+        concat!(
+            "{{",
+            "\"ok\":true,",
+            "\"files\":{},",
+            "\"units_offered\":{},",
+            "\"store_bytes\":{},",
+            "\"total_bytes\":{},",
+            "\"unique_bytes\":{},",
+            "\"unit_count\":{},",
+            "\"unique_count\":{},",
+            "\"by_kind\":[{}]",
+            "}}"
+        ),
+        inputs.len(),
+        units_offered,
+        store_bytes,
+        report.total_bytes,
+        report.unique_bytes,
+        report.unit_count,
+        report.unique_count,
+        kinds.join(",")
+    );
+    Ok(())
+}
+
+/// `share report INPUT.voldoc...`: measure fine-unit sharing over a cohort of
+/// descriptors (Phase 11.14). Read-only; no store is touched.
+#[cfg(feature = "field")]
+fn cmd_share_args(args: &[String], limits: Limits) -> Result<()> {
+    match args.get(2).map(String::as_str) {
+        Some("report") => {
+            let inputs: Vec<PathBuf> = args
+                .get(3..)
+                .unwrap_or(&[])
+                .iter()
+                .map(PathBuf::from)
+                .collect();
+            if inputs.is_empty() {
+                return Err(Error::usage(
+                    "share report requires at least one INPUT.voldoc",
+                ));
+            }
+            cmd_share_report(&inputs, limits)
+        }
+        Some("externalize") => {
+            let mut store_dir: Option<PathBuf> = None;
+            let mut positional: Vec<&str> = Vec::new();
+            let mut i = 3;
+            while i < args.len() {
+                let a = args[i].as_str();
+                let (flag, inline) = match a.split_once('=') {
+                    Some((f, v)) => (f, Some(v)),
+                    None => (a, None),
+                };
+                match flag {
+                    "--store" => {
+                        store_dir = Some(PathBuf::from(field_arg_value(
+                            args, &mut i, "--store", inline,
+                        )?));
+                    }
+                    other => positional.push(other),
+                }
+            }
+            let store_dir =
+                store_dir.ok_or_else(|| Error::usage("share externalize requires --store DIR"))?;
+            let input = positional
+                .first()
+                .map(PathBuf::from)
+                .ok_or_else(|| Error::usage("share externalize requires INPUT.voldoc"))?;
+            let output = positional
+                .get(1)
+                .map(PathBuf::from)
+                .ok_or_else(|| Error::usage("share externalize requires OUTPUT.voldoc"))?;
+            if positional.len() > 2 {
+                return Err(Error::usage(format!(
+                    "unexpected extra argument {:?}",
+                    positional[2]
+                )));
+            }
+            cmd_share_externalize(&store_dir, &input, &output, limits)
+        }
+        other => Err(Error::usage(format!(
+            "unknown share subcommand {:?}",
+            other.unwrap_or("")
+        ))),
+    }
+}
+
+/// Print fine-unit sharing for each descriptor and for the cohort as a whole.
+#[cfg(feature = "field")]
+fn cmd_share_report(inputs: &[PathBuf], limits: Limits) -> Result<()> {
+    let mut descriptors = Vec::with_capacity(inputs.len());
+    for path in inputs {
+        let bytes = fs::read(path)?;
+        descriptors.push(Descriptor::parse(&bytes, limits)?.descriptor);
+    }
+    let report = share::cohort_report(&descriptors)?;
+    let per_file: Vec<String> = inputs
+        .iter()
+        .zip(&descriptors)
+        .map(|(path, d)| {
+            let r = share::cohort_report(std::slice::from_ref(d))?;
+            Ok(format!(
+                concat!(
+                    "{{",
+                    "\"file\":\"{}\",",
+                    "\"total_bytes\":{},",
+                    "\"unique_bytes\":{},",
+                    "\"unit_count\":{},",
+                    "\"unique_count\":{}",
+                    "}}"
+                ),
+                json_escape(&path.display().to_string()),
+                r.total_bytes,
+                r.unique_bytes,
+                r.unit_count,
+                r.unique_count
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    println!(
+        "{{\"ok\":true,\"files\":{},\"report\":{},\"per_file\":[{}]}}",
+        inputs.len(),
+        report.to_json(),
+        per_file.join(",")
+    );
+    Ok(())
+}
+
+/// Externalize the object table into `<DIR>/share` (wire-real) and store every
+/// fine unit there (measured), writing the store-backed descriptor to `OUTPUT`.
+#[cfg(feature = "field")]
+fn cmd_share_externalize(
+    store_dir: &Path,
+    input: &Path,
+    output: &Path,
+    limits: Limits,
+) -> Result<()> {
+    let encoded = fs::read(input)?;
+    let mut descriptor = Descriptor::parse(&encoded, limits)?.descriptor;
+    let offered = share::store_units(store_dir, &descriptor)?;
+    let objects = share::externalize_objects(store_dir, &mut descriptor)?;
+    let (bytes, _cost) = descriptor.serialize()?;
+    write_atomic(output, &bytes)?;
+    let report = share::cohort_report(std::slice::from_ref(&descriptor))?;
+    let share_bytes = share::share_store(store_dir)?.stats()?.stored_bytes;
+    println!(
+        concat!(
+            "{{",
+            "\"ok\":true,",
+            "\"output\":\"{}\",",
+            "\"objects\":{},",
+            "\"units_offered\":{},",
+            "\"root_bytes\":{},",
+            "\"share_store_bytes\":{},",
+            "\"report\":{}",
+            "}}"
+        ),
+        json_escape(&output.display().to_string()),
+        objects,
+        offered,
+        bytes.len(),
+        share_bytes,
+        report.to_json()
+    );
+    Ok(())
+}
+
+/// `cache --store DIR [--clear]`: report — and optionally reclaim — the
+/// disposable derived-cache universe (ADR-0027). Never touches the store or the
+/// descriptor.
+#[cfg(feature = "field")]
+fn cmd_field_cache(args: &[String]) -> Result<()> {
+    let mut store_dir: Option<PathBuf> = None;
+    let mut clear = false;
+    let mut entropyfs = false;
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        let (flag, inline) = match a.split_once('=') {
+            Some((f, v)) => (f, Some(v)),
+            None => (a, None),
+        };
+        match flag {
+            "--clear" => {
+                clear = true;
+                i += 1;
+            }
+            "--entropyfs" => {
+                entropyfs = true;
+                i += 1;
+            }
+            "--store" => {
+                store_dir = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--store", inline,
+                )?));
+            }
+            other => return Err(Error::usage(format!("unknown cache argument {other:?}"))),
+        }
+    }
+    let store_dir = store_dir.ok_or_else(|| Error::usage("cache requires --store DIR"))?;
+    let store = open_field_store(&store_dir, entropyfs)?;
+    let cache = DerivedCache::open(store.root().join("cache"))?;
+    if clear {
+        let reclaimed = cache.clear()?;
+        println!(
+            "{{\"cache_bytes\":{},\"reclaimed\":{}}}",
+            cache.total_bytes()?,
+            reclaimed
+        );
+    } else {
+        println!("{{\"cache_bytes\":{}}}", cache.total_bytes()?);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_materialize(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("materialize requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("materialize requires --field HEX"))?;
+    let output = out
+        .output
+        .as_deref()
+        .ok_or_else(|| Error::usage("materialize requires --output FILE"))?;
+    let store = open_field_store(store_dir, out.entropyfs)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let field = Field::open(&store, &id, limits)?;
+    let bytes = field.materialize_exact(limits)?;
+    write_atomic(output, &bytes)?;
+    println!(
+        "{{\"source_len\":{},\"sha256\":\"{}\"}}",
+        bytes.len(),
+        integrity::to_hex(&integrity::sha256(&bytes))
+    );
+    Ok(())
 }
 
 /// Write `bytes` to `path` atomically: temp sibling, fsync, rename, fsync dir.

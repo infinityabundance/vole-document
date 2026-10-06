@@ -1,0 +1,220 @@
+{
+  "campaign": "phase11-share-court",
+  "phase": "Phase 11.14 — finer-than-object shareable units (share-account + measured court)",
+  "environment": {
+    "git": {
+      "commit": "d9f818a51e27a8d11d22416e6b00968e9325bff8",
+      "commit_short": "d9f818a",
+      "dirty": " M FINDINGS.md; M docs/adr/README.md;?? docs/adr/0028-finer-than-object-sharing.md;?? evidence/campaigns/2026-10-06-phase11-share-d9f818a/;"
+    },
+    "arch": "x86_64",
+    "cargo_lock_sha256": "25fc018b20d57fe22b704fd528cfa9f3dc64969ed7aa0345fb0cd294e913eea2",
+    "toolchain": {
+      "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+      "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)"
+    },
+    "images": {
+      "base_stable_digest": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+      "service_image": "vole-document/baseline:1.99.0"
+    },
+    "oracles": {
+      "borg": "1.2.4",
+      "gzip": "gzip 1.12",
+      "zstd": "*** Zstandard CLI (64-bit) v1.5.4, by Yann Collet ***",
+      "xz": "xz (XZ Utils) 5.4.1",
+      "jq": "jq-1.6"
+    },
+    "env_affecting_semantics": {
+      "LC_ALL": "C",
+      "VOLE_BIN": "./target/debug/vole-document"
+    }
+  },
+  "accounting_universes": {
+    "source": "original document bytes (archival reality)",
+    "descriptor": "exact standalone .voldoc bytes (S); the fine-unit figures derive from these",
+    "vole_fine_units": "unique descriptor unit bytes (object/channel_payload/channel_header/model); EXCLUDES root framing and program/GRAPH bytes => lower bound, not an achieved store",
+    "perfile_lz": "sum of independent whole-source lossless compressor outputs",
+    "cdc": "content-defined-chunk store over whole sources (borg, raw)"
+  },
+  "invoker": "tools/field-share-court.sh",
+  "results": {
+    "cohort": {
+      "files": 8,
+      "source_bytes": 337877,
+      "strata": {
+        "producer": 4,
+        "repeat": 2,
+        "near": 2
+      }
+    },
+    "vole_fine_units": {
+      "total_bytes": 302433,
+      "unique_bytes": 208001,
+      "unit_count": 31,
+      "unique_count": 21,
+      "by_kind": [
+        {
+          "kind": "channel_header",
+          "total": 297,
+          "unique": 198
+        },
+        {
+          "kind": "channel_payload",
+          "total": 273909,
+          "unique": 181644
+        },
+        {
+          "kind": "model",
+          "total": 3947,
+          "unique": 1879
+        },
+        {
+          "kind": "object",
+          "total": 24280,
+          "unique": 24280
+        }
+      ],
+      "store_bytes_equal_unique": true
+    },
+    "descriptor_standalone_bytes_S": 310868,
+    "descriptor_graph_bytes": 4799,
+    "descriptor_nonunit_bytes": 8435,
+    "descriptor_nonunit_non_graph_bytes": 3636,
+    "vole_win_margin_vs_perfile_lz": 3300,
+    "perfile_lz": {
+      "gzip9_sum": 216296,
+      "zstd19_sum": 212703,
+      "xz9e_sum": 211532,
+      "perfile_min_lz_sum": 211301,
+      "tar_xz9e_single_stream": 92752
+    },
+    "cdc": {
+      "frozen_params": "19,23,21,4095",
+      "frozen_unique_raw": 244397,
+      "frozen_deterministic": true,
+      "strongest_params": "10,15,11,127",
+      "strongest_unique_raw": 160668
+    },
+    "verdict_lower_bound": {
+      "universe": "VOLE unique unit bytes (descriptor-derived, excludes root/program framing) vs source-derived per-file LZ and CDC",
+      "vs_perfile_min_lz": "WIN",
+      "vs_perfile_gzip9": "WIN",
+      "vs_tar_xz9e": "LOSS",
+      "vs_cdc_frozen": "WIN",
+      "vs_cdc_strongest": "LOSS",
+      "vs_strongest_generic": "LOSS"
+    },
+    "strata": [
+      {
+        "stratum": "producer",
+        "files": 4,
+        "source_bytes": 167323,
+        "descriptor_standalone_bytes": 142762,
+        "descriptor_graph_bytes": 4759,
+        "descriptor_nonunit_bytes": 6647,
+        "vole_unique_bytes": 136115,
+        "vole_total_bytes": 136115,
+        "by_kind": [
+          {
+            "kind": "channel_header",
+            "total": 165,
+            "unique": 165
+          },
+          {
+            "kind": "channel_payload",
+            "total": 109791,
+            "unique": 109791
+          },
+          {
+            "kind": "model",
+            "total": 1879,
+            "unique": 1879
+          },
+          {
+            "kind": "object",
+            "total": 24280,
+            "unique": 24280
+          }
+        ],
+        "perfile_min_lz_sum": 93089,
+        "cdc_frozen_unique": 168890,
+        "cdc_strongest_unique": 152177,
+        "verdict": {
+          "vs_perfile_lz": "LOSS",
+          "vs_cdc_frozen": "WIN",
+          "vs_cdc_strongest": "WIN"
+        }
+      },
+      {
+        "stratum": "repeat",
+        "files": 2,
+        "source_bytes": 21812,
+        "descriptor_standalone_bytes": 22406,
+        "descriptor_graph_bytes": 20,
+        "descriptor_nonunit_bytes": 894,
+        "vole_unique_bytes": 10756,
+        "vole_total_bytes": 21512,
+        "by_kind": [
+          {
+            "kind": "channel_header",
+            "total": 66,
+            "unique": 33
+          },
+          {
+            "kind": "channel_payload",
+            "total": 20412,
+            "unique": 10206
+          },
+          {
+            "kind": "model",
+            "total": 1034,
+            "unique": 517
+          }
+        ],
+        "perfile_min_lz_sum": 4248,
+        "cdc_frozen_unique": 12027,
+        "cdc_strongest_unique": 12198,
+        "verdict": {
+          "vs_perfile_lz": "LOSS",
+          "vs_cdc_frozen": "WIN",
+          "vs_cdc_strongest": "WIN"
+        }
+      },
+      {
+        "stratum": "near",
+        "files": 2,
+        "source_bytes": 148742,
+        "descriptor_standalone_bytes": 145700,
+        "descriptor_graph_bytes": 20,
+        "descriptor_nonunit_bytes": 894,
+        "vole_unique_bytes": 144289,
+        "vole_total_bytes": 144806,
+        "by_kind": [
+          {
+            "kind": "channel_header",
+            "total": 66,
+            "unique": 66
+          },
+          {
+            "kind": "channel_payload",
+            "total": 143706,
+            "unique": 143706
+          },
+          {
+            "kind": "model",
+            "total": 1034,
+            "unique": 517
+          }
+        ],
+        "perfile_min_lz_sum": 113964,
+        "cdc_frozen_unique": 149881,
+        "cdc_strongest_unique": 82757,
+        "verdict": {
+          "vs_perfile_lz": "LOSS",
+          "vs_cdc_frozen": "WIN",
+          "vs_cdc_strongest": "LOSS"
+        }
+      }
+    ]
+  }
+}

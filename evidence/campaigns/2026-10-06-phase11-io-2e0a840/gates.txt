@@ -1,0 +1,72 @@
+# Phase 11 review-fix gate record — 2026-10-06
+
+Commit under test: 2e0a840 (branch phase11), working tree dirty (see
+raw/environment.json for the exact `git status --porcelain` snapshot).
+
+All commands run inside the pinned Docker services from the repo root; nothing
+on the host. Images: `vole-document/dev:1.99.0`, `vole-document/msrv:1.89.0`,
+`vole-document/db-baseline:1.99.0` (see raw/environment.json for digests).
+
+## Gate command (as required)
+
+    docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features --locked && cargo test --no-default-features'
+
+Result: fmt clean; clippy clean (`-D warnings`); `cargo test --no-default-features`
+green; `cargo test --all-features --locked` has **one** failure that is NOT from
+this subphase.
+
+### Per-step results
+
+* `cargo fmt --all -- --check` → clean.
+* `cargo clippy --all-targets --all-features -- -D warnings` → clean.
+* `cargo test --all-features --locked` → 352 passed; 1 failed; 1 ignored (lib).
+  - The failure is `field::share::tests::repeated_objects_are_counted_twice_and_unique_once`
+    in `src/field/share.rs`, which is **untracked, uncommitted Phase-11.14
+    work-in-progress that predates this subphase** and is unrelated to the I/O
+    accounting changes. Its assertion assumes an `EntropyModel::uniform(8)` unit
+    is 1 byte, while `cohort_report` charges its real canonical encoding
+    (`total_bytes` 567 vs the test's expected 49). This is preserved unchanged,
+    not fixed (it is not this subphase's to fix), and is reported here rather
+    than hidden.
+* `cargo test --no-default-features` → all targets green (lib 245 passed, plus
+  integration targets; 0 failures).
+* `docker compose run --rm --no-TTY msrv sh -c 'cargo build --locked'` → green
+  (rustc 1.89.0).
+
+## New tests added by this subphase (all pass)
+
+* `store::io::tests::{handles_share_and_delta_sums_correctly,
+  independent_counters_do_not_leak, delta_is_non_negative_and_additive}` —
+  I/O counter arithmetic and attribution.
+* `field::observe::tests::observation_byte_classes_sum_and_are_all_charged` —
+  descriptor/manifest/index/seed bytes are each charged and `bytes_read` is their
+  exact sum.
+* `field::observe::tests::explain_analyze_opens_the_descriptor_once` — the
+  descriptor is read exactly once across plan + evaluation.
+* `field::observe::tests::decoded_stream_resolves_without_enumerating_the_store`
+  — a seed-store wrapper that panics on `list_nodes` and bounds `get_node` proves
+  `Stream(n)+DecodedBytes` resolves through the index.
+* `field::observe::tests::page_structure_procedural_closure_excludes_image_seed_node`
+  (renamed from `page_structure_does_not_read_image_bytes`) — the seed closure is
+  bounded AND the honest total includes `descriptor_bytes_read`.
+* `field::explain::tests::actual_json_has_exactly_the_fourteen_keys` (updated
+  from the nine-key test for the new byte-class keys).
+
+## Court
+
+    docker compose run --rm --no-TTY db-baseline sh -c 'sh tools/field-court.sh evidence/campaigns/2026-10-06-phase11-io-2e0a840'
+
+Ran to completion: `large-50` (50 pages), `large-400` (400 pages), `producer`
+(libreoffice-export.pdf, 61 pages). Wrote receipt.json, SUMMARY.md, commands.txt,
+raw/. Headline honest numbers (cold observation, page 1):
+
+| case | descriptor blob read | seed working set | total `bytes_read` |
+|---|---:|---:|---:|
+| large-50  | 17,156,412 B | 449 B | 17,165,347 B |
+| large-400 | 17,283,279 B | 449 B | 17,292,721 B |
+| producer  |    72,850 B | 449 B |    81,827 B |
+
+The seed working set is bounded (449 B) independently of page count/document
+size; the honest total is dominated by the descriptor blob. `observe` and
+`explain --analyze` stats agree exactly (cross-check `matches_explain_analyze=true`),
+confirming the single-open change.

@@ -1,0 +1,78 @@
+{
+  "question": "what is on page 1",
+  "tokenizer": {
+    "name": "bert-base-uncased",
+    "implementation": "huggingface/tokenizers (Python bindings)",
+    "implementation_version": "0.20.3",
+    "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+    "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+    "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+    "asset_verified": true,
+    "add_special_tokens": false,
+    "config": {
+      "tokenizer_json_version": "1.0",
+      "model": "WordPiece",
+      "unk_token": "[UNK]",
+      "continuing_subword_prefix": "##",
+      "max_input_chars_per_word": 100,
+      "normalizer": {
+        "type": "BertNormalizer",
+        "clean_text": true,
+        "handle_chinese_chars": true,
+        "strip_accents": null,
+        "lowercase": true
+      },
+      "pre_tokenizer": {
+        "type": "BertPreTokenizer"
+      },
+      "post_processor": "TemplateProcessing",
+      "decoder": "WordPiece",
+      "vocab_size": 30522
+    }
+  },
+  "tokens_measured": true,
+  "tokens_reason": null,
+  "baselines": {
+    "B0_whole_document": {
+      "oracle": "pdftotext (poppler)",
+      "bytes": 122315,
+      "sha256": "1f486526d231549cd6ba5ac695ae2e14b9502416e0405c73332bf34bbe906e2a",
+      "tokens": 27783,
+      "text_valid_utf8": true
+    },
+    "B1_page_local": {
+      "oracle": "pdftotext -f/-l (poppler)",
+      "bytes": 1933,
+      "sha256": "4a9c890146465e07d72f2ec520967d7a0a76494f41668361360a77402e459ea7",
+      "tokens": 420,
+      "text_valid_utf8": true
+    },
+    "V_vole_page_text": {
+      "repr": "observe --page --kind text",
+      "bytes": 62,
+      "tokens": 22,
+      "text_valid_utf8": true,
+      "bytes_returned_matches_payload": true,
+      "stats": "{\"index_nodes_read\":1,\"seed_nodes_fetched\":4,\"seed_nodes_materialized\":5,\"seed_nodes_executed\":5,\"seed_nodes_reused\":0,\"cache_bytes_written\":49508,\"descriptor_bytes_read\":72908,\"descriptor_read_mode\":\"partial\",\"manifest_bytes_read\":246,\"index_bytes_read\":8282,\"seed_bytes_read\":449,\"bytes_read\":81885,\"bytes_returned\":62,\"deepened\":true,\"wall_micros\":953}"
+    }
+  },
+  "context_waste_ratio": 1972.8225806451612,
+  "ratios": {
+    "B0_over_V": 1972.8225806451612,
+    "B1_over_V": 31.177419354838708,
+    "B0_over_B1": 63.277289187791
+  },
+  "token_context_waste_ratio": 1262.8636363636363,
+  "token_ratios": {
+    "B0_over_V": 1262.8636363636363,
+    "B1_over_V": 19.09090909090909,
+    "B0_over_B1": 66.15
+  },
+  "answer_relevant_tokens": 420,
+  "tokens": {
+    "B0": 27783,
+    "B1": 420,
+    "V": 22
+  },
+  "honest_losses": []
+}

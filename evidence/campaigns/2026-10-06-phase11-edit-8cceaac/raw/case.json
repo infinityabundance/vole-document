@@ -1,0 +1,105 @@
+{
+  "source": {
+    "path": "evidence/corpus/phase7-producers/libreoffice-export.pdf",
+    "len": 74371,
+    "sha256": "a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529",
+    "pages": 61
+  },
+  "encode": {
+    "candidate": "BYTE_RANS",
+    "encoded_len": 72850,
+    "wall_ms": 490
+  },
+  "ingest": {
+    "field": "85c4415e41f397c8be8ccdeb7cf7ffd5a2ea51269b7a02649188fb6fe2b77544",
+    "wall_ms": 8,
+    "report": {
+      "field": "85c4415e41f397c8be8ccdeb7cf7ffd5a2ea51269b7a02649188fb6fe2b77544",
+      "root_node": "fac00dfb503a893d29a04b5bca9b2c1dfdd6989d37cf9c45d73d6c0c91cbde0a",
+      "index_root": "607d729ed1b732b35401a5654c658f4a4cc8dab2ff4bd6d30b67acf2462ae10d",
+      "node_count": 320,
+      "index_node_count": 4,
+      "source_len": 74371,
+      "object_nodes": 131,
+      "stream_nodes": 63,
+      "decoded_stream_nodes": 63,
+      "page_nodes": 61,
+      "revision_nodes": 1,
+      "declined_streams": 0
+    }
+  },
+  "edit": {
+    "field": "4591fa4fdef1183e688870e74c9646219d0d84176494e4dd98d096ea7f5df672",
+    "previous": "85c4415e41f397c8be8ccdeb7cf7ffd5a2ea51269b7a02649188fb6fe2b77544",
+    "page": 1,
+    "page_content": "c0be6cf01baae205e392e66966a9ae49619be8f07f025cb551a1858bf05ab5a6",
+    "content_literal": "59c1b8af1c088380a2d7c633314975f9b3ccbd1736cc68517f4c44d303d59757",
+    "index_root": "3007ffd4fd579155c9048489f897428b32570c259a378c393d29cb9ebaf21fd7",
+    "index_entries": 319,
+    "index_entries_reused": 318,
+    "index_entries_replaced": 1,
+    "seed_nodes_new": 2,
+    "seed_nodes_reused": 0,
+    "index_nodes_reused": 2,
+    "index_nodes_new": 2,
+    "bytes_newly_persisted": 8776,
+    "descriptor_bytes_read": 0,
+    "manifest_bytes_read": 246,
+    "index_bytes_read": 43688,
+    "seed_bytes_read": 0,
+    "descriptor_file_opens": 0,
+    "manifest_file_opens": 2,
+    "index_file_opens": 10,
+    "edit_content_len": 54,
+    "marker": "VOLE EDIT WITNESS PAGE"
+  },
+  "exactness": {
+    "r0_before": {
+      "len": 74371,
+      "sha256": "a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529",
+      "cmp_vs_source": "equal"
+    },
+    "r0_after_edit": {
+      "len": 74371,
+      "sha256": "a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529",
+      "cmp_vs_source": "equal"
+    },
+    "r1": {
+      "len": 74371,
+      "sha256": "a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529",
+      "cmp_vs_source": "equal"
+    }
+  },
+  "observations": {
+    "edit_page": {
+      "page": 1,
+      "r0_text": "\u0005\u0006\n\u0005\u001f\n#\n\u0005$\n\u0005%\n#\n\u0005'\n\u0005(\n#\n#\n\u0006\n#\n \n$\n#\n&\n'\n#\n)\n#\n#\n\u001f\n \n#\n%\n&\n#\n(\n",
+      "r0_text_after_edit": "\u0005\u0006\n\u0005\u001f\n#\n\u0005$\n\u0005%\n#\n\u0005'\n\u0005(\n#\n#\n\u0006\n#\n \n$\n#\n&\n'\n#\n)\n#\n#\n\u001f\n \n#\n%\n&\n#\n(\n",
+      "r1_text": "VOLE EDIT WITNESS PAGE\n",
+      "r1_text_contains_marker": true,
+      "r0_structure": {
+        "page": 1,
+        "text_bytes": 62,
+        "draw_ops": 0,
+        "path_ops": 1,
+        "content_streams": [
+          5
+        ]
+      },
+      "r1_structure": {
+        "page": 1,
+        "text_bytes": 23,
+        "draw_ops": 0,
+        "path_ops": 0,
+        "content_streams": []
+      },
+      "r0_after_matches_before": true
+    },
+    "unchanged_page": {
+      "page": 2,
+      "r0_text": ")\n#\n\u0006\n\u001f\n#\n$\n%\n#\n'\n(\n#\n#\n\u0006\n#\n \n$\n#\n&\n'\n#\n)\n#\n#\n\u001f\n \n#\n%\n&\n",
+      "r1_text": ")\n#\n\u0006\n\u001f\n#\n$\n%\n#\n'\n(\n#\n#\n\u0006\n#\n \n$\n#\n&\n'\n#\n)\n#\n#\n\u001f\n \n#\n%\n&\n",
+      "identical": true
+    }
+  }
+}

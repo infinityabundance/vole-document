@@ -1,0 +1,8 @@
+{"stratum":"near","file":"near/libreoffice.base.pdf","source_len":74371,"gzip9":58248,"zstd19":57431,"xz9e":56984,"min_lz":56984}
+{"stratum":"near","file":"near/libreoffice.variant.pdf","source_len":74371,"gzip9":58251,"zstd19":57431,"xz9e":56980,"min_lz":56980}
+{"stratum":"producer","file":"producer/cairo-vector.pdf","source_len":58424,"gzip9":17382,"zstd19":16836,"xz9e":16852,"min_lz":16836}
+{"stratum":"producer","file":"producer/libreoffice-export.pdf","source_len":74371,"gzip9":58250,"zstd19":57431,"xz9e":56984,"min_lz":56984}
+{"stratum":"producer","file":"producer/pdftex-doc.pdf","source_len":23622,"gzip9":17324,"zstd19":17145,"xz9e":17360,"min_lz":17145}
+{"stratum":"producer","file":"producer/reportlab-multipage.pdf","source_len":10906,"gzip9":2285,"zstd19":2143,"xz9e":2124,"min_lz":2124}
+{"stratum":"repeat","file":"repeat/reportlab.r1.pdf","source_len":10906,"gzip9":2278,"zstd19":2143,"xz9e":2124,"min_lz":2124}
+{"stratum":"repeat","file":"repeat/reportlab.r2.pdf","source_len":10906,"gzip9":2278,"zstd19":2143,"xz9e":2124,"min_lz":2124}

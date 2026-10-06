@@ -1,0 +1,60 @@
+# Phase 11 priority #3 gate record — 2026-10-06
+#
+# Commit under test: 0f809cc (branch phase11), working tree dirty (uncommitted
+# subphase changes; see receipt.json for the exact `git status --porcelain`).
+#
+# All commands run inside the pinned Docker services from the repo root; nothing
+# on the host. Image: vole-document/dev:1.99.0
+# (base rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e).
+
+## Gate command (as required)
+
+    docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features --locked && cargo test --no-default-features'
+
+Result: fmt clean; clippy clean (`-D warnings`); `cargo test --all-features --locked`
+green; `cargo test --no-default-features` green.
+
+### Per-step results
+
+* `cargo fmt --all` → clean.
+* `cargo clippy --all-targets --all-features --locked -- -D warnings` → clean.
+  `--all-features` enables `entropyfs-store`, so all new code (the `SeedStore`
+  impl, the pluggable `FieldStore` backend, the engine-backed tests) is compiled
+  and linted here.
+* `cargo test --all-features --locked` → lib **359 passed, 0 failed, 1 ignored**;
+  every integration target green.
+* `cargo test --no-default-features --locked` → all targets green.
+
+## New tests added (all pass)
+
+* `store::entropyfs::seed_tests::put_get_range_roundtrip_through_the_engine` —
+  put/get/range/idempotence through the engine; an out-of-bounds range is a strict
+  `IntegrityMismatch`.
+* `store::entropyfs::seed_tests::node_ids_are_engine_blob_ids` — the engine's
+  `BlobId` equals the `NodeId`, and one node is exactly one engine blob.
+* `store::entropyfs::seed_tests::list_nodes_declines_with_a_typed_error` —
+  `UnsupportedFeature`.
+* `field::entropyfs_field_tests::ingest_observe_and_exact_materialize_through_the_engine`
+  — Stage-A ingest, a narrow observation, and exact materialization on an
+  EntropyFS-backed field store.
+* `field::entropyfs_field_tests::cross_process_reopen_reads_what_a_previous_handle_wrote`
+  — a first handle writes (with the durability barrier), drops, and a second handle
+  reads the manifest, descriptor, and root seed node.
+* `field::entropyfs_field_tests::list_nodes_declines_so_gc_cannot_sweep` — the
+  engine has no enumeration, so a seed mark-and-sweep cannot sweep; closure by
+  explicit id still resolves.
+
+## Court
+
+    docker compose run --rm --no-TTY dev sh -c 'cargo build --locked --all-features'
+    docker compose run --rm --no-TTY dev sh -c 'sh tools/field-entropyfs-court.sh evidence/campaigns/2026-10-06-phase11-entropyfs-0f809cc'
+
+Ran to completion. Ingested a real two-page PDF into an EntropyFS-backed field
+store, queried page 1 in a new process (`deepened=true`), cleared the cache in a
+new process, re-queried the promoted field in a new process (`deepened=false`),
+and `materialize --exact`ed in a new process with the working source removed:
+**length, SHA-256, and `cmp` all equal the source** (`byte_exact=true`).
+
+Headline numbers: 12 seed nodes → 15 engine blobs after ingest (individual blobs,
+not one); a 3-node page deepen added exactly 4 blobs (3 nodes + 1 manifest);
+engine logical/physical bytes 2570 / 40799.

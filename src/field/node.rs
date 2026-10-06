@@ -1,0 +1,456 @@
+//! Canonical procedural seed nodes (Phase 11, ADR-0025).
+//!
+//! A [`SeedNode`] describes one **computation**, not one storage slot: a bounded,
+//! versioned materializer over zero or more dependencies, producing a declared
+//! output kind and logical length. Nodes are canonically encoded (little-endian,
+//! length-prefixed, no serde) so that the same computation always hashes to the
+//! same [`NodeId`] regardless of platform or insertion order.
+//!
+//! The node's `content_id` is **not** stored inside the node: it is
+//! `NodeId::of_node(canonical_bytes)`, which is what makes the graph
+//! content-addressed and immutable. Changing a dependency's bytes yields a
+//! different dependency id, hence a different node id; there is no mutation.
+
+use crate::error::{Error, Result};
+use crate::limits::Limits;
+use crate::store::NodeId;
+
+/// Canonical header byte for the node encoding.
+pub const NODE_MAGIC: u8 = 0xB1;
+/// Recommended maximum canonical node size (framing discipline).
+pub const MAX_NODE_BYTES: usize = 64 * 1024;
+/// Maximum dependency fanout of a single node.
+pub const MAX_NODE_DEPS: usize = 256;
+/// The materializer semantics version for v1.
+pub const MATERIALIZER_VERSION: u16 = 1;
+
+/// What a node computes. The numeric values are part of the canonical encoding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum NodeKind {
+    /// The whole exact source, materialized from the descriptor blob.
+    DocumentExact = 0x01,
+    /// An exact byte span of the source.
+    SourceSlice = 0x02,
+    /// An exact physical revision span.
+    PdfRevision = 0x03,
+    /// An exact indirect-object byte span (`n g obj … endobj`).
+    PdfObject = 0x04,
+    /// The exact encoded bytes of a stream object's data.
+    PdfStreamEncoded = 0x05,
+    /// The decoded (inflated) bytes of a lone `/FlateDecode` stream.
+    PdfStreamDecoded = 0x06,
+    /// A decoded content stream's operator token span.
+    ContentOperators = 0x07,
+    /// A deterministic text-run projection of content operators.
+    TextRuns = 0x08,
+    /// A page's concatenated decoded content stream.
+    PageContent = 0x09,
+    /// A deterministic structured page preview.
+    PagePreview = 0x0A,
+    /// A physical byte span of one resource object referenced by a page.
+    ResourceRef = 0x0B,
+    /// Concatenation of dependency outputs (exact).
+    Concat = 0x0C,
+    /// A raw exact literal held in the seed store.
+    Literal = 0x0D,
+}
+
+impl NodeKind {
+    /// Map a raw kind byte.
+    pub const fn from_u8(b: u8) -> Option<NodeKind> {
+        Some(match b {
+            0x01 => NodeKind::DocumentExact,
+            0x02 => NodeKind::SourceSlice,
+            0x03 => NodeKind::PdfRevision,
+            0x04 => NodeKind::PdfObject,
+            0x05 => NodeKind::PdfStreamEncoded,
+            0x06 => NodeKind::PdfStreamDecoded,
+            0x07 => NodeKind::ContentOperators,
+            0x08 => NodeKind::TextRuns,
+            0x09 => NodeKind::PageContent,
+            0x0A => NodeKind::PagePreview,
+            0x0B => NodeKind::ResourceRef,
+            0x0C => NodeKind::Concat,
+            0x0D => NodeKind::Literal,
+            _ => return None,
+        })
+    }
+
+    /// Stable short name.
+    pub const fn name(self) -> &'static str {
+        match self {
+            NodeKind::DocumentExact => "DocumentExact",
+            NodeKind::SourceSlice => "SourceSlice",
+            NodeKind::PdfRevision => "PdfRevision",
+            NodeKind::PdfObject => "PdfObject",
+            NodeKind::PdfStreamEncoded => "PdfStreamEncoded",
+            NodeKind::PdfStreamDecoded => "PdfStreamDecoded",
+            NodeKind::ContentOperators => "ContentOperators",
+            NodeKind::TextRuns => "TextRuns",
+            NodeKind::PageContent => "PageContent",
+            NodeKind::PagePreview => "PagePreview",
+            NodeKind::ResourceRef => "ResourceRef",
+            NodeKind::Concat => "Concat",
+            NodeKind::Literal => "Literal",
+        }
+    }
+
+    /// Whether the output bytes are an exact, byte-identical observation of the
+    /// source (`true`) or a deterministic derived projection (`false`).
+    ///
+    /// This is the `Q_ref` / `Q_gen` boundary (ADR-0026).
+    pub const fn is_exact(self) -> bool {
+        matches!(
+            self,
+            NodeKind::DocumentExact
+                | NodeKind::SourceSlice
+                | NodeKind::PdfRevision
+                | NodeKind::PdfObject
+                | NodeKind::PdfStreamEncoded
+                | NodeKind::ResourceRef
+                | NodeKind::Concat
+                | NodeKind::Literal
+        )
+    }
+}
+
+/// A bounded resource envelope declared by a node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NodeLimits {
+    /// Maximum materialized output length this node may produce.
+    pub max_output_bytes: u64,
+    /// Maximum dependency depth permitted below this node.
+    pub max_depth: u16,
+    /// Maximum dependency fanout permitted.
+    pub max_fanout: u16,
+}
+
+impl NodeLimits {
+    /// Conservative defaults used by the PDF inverse compiler.
+    pub const DEFAULT: NodeLimits = NodeLimits {
+        max_output_bytes: 1 << 31,
+        max_depth: 64,
+        max_fanout: MAX_NODE_DEPS as u16,
+    };
+}
+
+/// One canonical procedural seed node.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SeedNode {
+    /// Computation kind.
+    pub kind: NodeKind,
+    /// Materializer registry id (the kind value for v1).
+    pub materializer_id: u16,
+    /// Materializer semantics version.
+    pub materializer_version: u16,
+    /// Declared logical output length (a bound, checked on materialization).
+    pub logical_output_len: u64,
+    /// Kind-specific canonical parameters.
+    pub params: Vec<u8>,
+    /// Canonical dependency ids actually read (the dynamic read set).
+    pub deps: Vec<NodeId>,
+    /// Short provenance/basis string (adapter-supplied, advisory).
+    pub provenance: String,
+    /// Resource envelope.
+    pub limits: NodeLimits,
+}
+
+impl SeedNode {
+    /// Construct a node with the current materializer version.
+    pub fn new(
+        kind: NodeKind,
+        logical_output_len: u64,
+        params: Vec<u8>,
+        deps: Vec<NodeId>,
+        provenance: impl Into<String>,
+    ) -> Self {
+        SeedNode {
+            kind,
+            materializer_id: kind as u16,
+            materializer_version: MATERIALIZER_VERSION,
+            logical_output_len,
+            params,
+            deps,
+            provenance: provenance.into(),
+            limits: NodeLimits::DEFAULT,
+        }
+    }
+
+    /// Canonically encode this node. The encoding never includes the node id.
+    pub fn encode_canonical(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(64 + self.params.len());
+        out.push(NODE_MAGIC);
+        out.push(crate::store::SEED_FORMAT_VERSION);
+        out.push(self.kind as u8);
+        out.push(0); // reserved
+        out.extend_from_slice(&self.materializer_id.to_le_bytes());
+        out.extend_from_slice(&self.materializer_version.to_le_bytes());
+        out.extend_from_slice(&self.logical_output_len.to_le_bytes());
+        out.extend_from_slice(&(self.deps.len() as u32).to_le_bytes());
+        out.extend_from_slice(&(self.params.len() as u32).to_le_bytes());
+        out.extend_from_slice(&self.limits.max_output_bytes.to_le_bytes());
+        out.extend_from_slice(&self.limits.max_depth.to_le_bytes());
+        out.extend_from_slice(&self.limits.max_fanout.to_le_bytes());
+        for dep in &self.deps {
+            out.extend_from_slice(dep.as_bytes());
+        }
+        out.extend_from_slice(&self.params);
+        let prov = self.provenance.as_bytes();
+        out.extend_from_slice(&(prov.len() as u32).to_le_bytes());
+        out.extend_from_slice(prov);
+        out
+    }
+
+    /// Parse a canonical node, enforcing structural bounds.
+    pub fn decode_canonical(bytes: &[u8]) -> Result<SeedNode> {
+        let mut r = Reader::new(bytes);
+        if r.u8()? != NODE_MAGIC {
+            return Err(Error::unsupported_version("seed node: bad magic"));
+        }
+        let version = r.u8()?;
+        if version != crate::store::SEED_FORMAT_VERSION {
+            return Err(Error::unsupported_version(format!(
+                "seed node format version {version} is not supported"
+            )));
+        }
+        let kind_byte = r.u8()?;
+        let kind = NodeKind::from_u8(kind_byte)
+            .ok_or_else(|| Error::unsupported_version(format!("unknown node kind {kind_byte}")))?;
+        let _reserved = r.u8()?;
+        let materializer_id = r.u16()?;
+        let materializer_version = r.u16()?;
+        let logical_output_len = r.u64()?;
+        let dep_count = r.u32()? as usize;
+        let param_len = r.u32()? as usize;
+        let max_output_bytes = r.u64()?;
+        let max_depth = r.u16()?;
+        let max_fanout = r.u16()?;
+        if dep_count > MAX_NODE_DEPS {
+            return Err(Error::resource_limit(format!(
+                "seed node declares {dep_count} deps (max {MAX_NODE_DEPS})"
+            )));
+        }
+        let mut deps = Vec::with_capacity(dep_count);
+        for _ in 0..dep_count {
+            let mut b = [0u8; 32];
+            b.copy_from_slice(r.bytes(32)?);
+            deps.push(NodeId::from_bytes(b));
+        }
+        let params = r.bytes(param_len)?.to_vec();
+        let prov_len = r.u32()? as usize;
+        let prov = r.bytes(prov_len)?;
+        let provenance = core::str::from_utf8(prov)
+            .map_err(|_| Error::usage("seed node provenance is not UTF-8"))?
+            .to_string();
+        if !r.at_end() {
+            return Err(Error::usage("seed node has trailing bytes"));
+        }
+        if materializer_id != kind as u16 {
+            return Err(Error::unsupported_version(
+                "seed node materializer id does not match its kind",
+            ));
+        }
+        Ok(SeedNode {
+            kind,
+            materializer_id,
+            materializer_version,
+            logical_output_len,
+            params,
+            deps,
+            provenance,
+            limits: NodeLimits {
+                max_output_bytes,
+                max_depth,
+                max_fanout,
+            },
+        })
+    }
+
+    /// The content id of this node's canonical encoding.
+    pub fn content_id(&self) -> NodeId {
+        NodeId::of_node(&self.encode_canonical())
+    }
+
+    /// Validate the declared envelope against the global [`Limits`].
+    pub fn check_limits(&self, limits: &Limits) -> Result<()> {
+        if self.logical_output_len > self.limits.max_output_bytes {
+            return Err(Error::resource_limit(format!(
+                "seed node declares output {} > its own cap {}",
+                self.logical_output_len, self.limits.max_output_bytes
+            )));
+        }
+        let _ = limits;
+        Ok(())
+    }
+}
+
+/// A tiny bounds-checked little-endian reader.
+struct Reader<'a> {
+    b: &'a [u8],
+    at: usize,
+}
+
+impl<'a> Reader<'a> {
+    fn new(b: &'a [u8]) -> Self {
+        Reader { b, at: 0 }
+    }
+    fn bytes(&mut self, n: usize) -> Result<&'a [u8]> {
+        let end = self
+            .at
+            .checked_add(n)
+            .ok_or_else(|| Error::usage("seed node read overflow"))?;
+        if end > self.b.len() {
+            return Err(Error::usage("truncated seed node"));
+        }
+        let s = &self.b[self.at..end];
+        self.at = end;
+        Ok(s)
+    }
+    fn u8(&mut self) -> Result<u8> {
+        Ok(self.bytes(1)?[0])
+    }
+    fn u16(&mut self) -> Result<u16> {
+        let b = self.bytes(2)?;
+        Ok(u16::from_le_bytes([b[0], b[1]]))
+    }
+    fn u32(&mut self) -> Result<u32> {
+        let b = self.bytes(4)?;
+        Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    }
+    fn u64(&mut self) -> Result<u64> {
+        let b = self.bytes(8)?;
+        let mut a = [0u8; 8];
+        a.copy_from_slice(b);
+        Ok(u64::from_le_bytes(a))
+    }
+    fn at_end(&self) -> bool {
+        self.at == self.b.len()
+    }
+}
+
+/// Encode an `[offset, len]` parameter block.
+pub fn span_params(offset: u64, len: u64) -> Vec<u8> {
+    let mut p = Vec::with_capacity(16);
+    p.extend_from_slice(&offset.to_le_bytes());
+    p.extend_from_slice(&len.to_le_bytes());
+    p
+}
+
+/// Decode an `[offset, len]` parameter block.
+pub fn read_span_params(params: &[u8]) -> Result<(u64, u64)> {
+    if params.len() != 16 {
+        return Err(Error::usage("span params must be 16 bytes"));
+    }
+    let mut a = [0u8; 8];
+    a.copy_from_slice(&params[0..8]);
+    let offset = u64::from_le_bytes(a);
+    a.copy_from_slice(&params[8..16]);
+    let len = u64::from_le_bytes(a);
+    Ok((offset, len))
+}
+
+/// Encode a `(u32, u16, ...)` object-identity parameter block: `object`,
+/// `generation`, then a trailing kind-specific `u64`.
+pub fn object_params(object: u32, generation: u16, extra: u64) -> Vec<u8> {
+    let mut p = Vec::with_capacity(16);
+    p.extend_from_slice(&object.to_le_bytes());
+    p.extend_from_slice(&generation.to_le_bytes());
+    p.extend_from_slice(&0u16.to_le_bytes());
+    p.extend_from_slice(&extra.to_le_bytes());
+    p
+}
+
+/// Decode an object-identity parameter block.
+pub fn read_object_params(params: &[u8]) -> Result<(u32, u16, u64)> {
+    if params.len() != 16 {
+        return Err(Error::usage("object params must be 16 bytes"));
+    }
+    let object = u32::from_le_bytes([params[0], params[1], params[2], params[3]]);
+    let generation = u16::from_le_bytes([params[4], params[5]]);
+    let mut a = [0u8; 8];
+    a.copy_from_slice(&params[8..16]);
+    let extra = u64::from_le_bytes(a);
+    Ok((object, generation, extra))
+}
+
+/// Encode a single `u32` parameter.
+pub fn u32_params(v: u32) -> Vec<u8> {
+    v.to_le_bytes().to_vec()
+}
+
+/// Decode a single `u32` parameter.
+pub fn read_u32_params(params: &[u8]) -> Result<u32> {
+    if params.len() != 4 {
+        return Err(Error::usage("u32 params must be 4 bytes"));
+    }
+    Ok(u32::from_le_bytes([
+        params[0], params[1], params[2], params[3],
+    ]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_roundtrip_is_stable() {
+        let n = SeedNode::new(
+            NodeKind::PdfStreamDecoded,
+            4096,
+            span_params(100, 200),
+            vec![NodeId::from_bytes([7u8; 32])],
+            "pdf:stream-decoded",
+        );
+        let enc = n.encode_canonical();
+        let back = SeedNode::decode_canonical(&enc).unwrap();
+        assert_eq!(n, back);
+        assert_eq!(back.content_id(), n.content_id());
+        assert_eq!(n.encode_canonical(), enc);
+    }
+
+    #[test]
+    fn dependency_change_changes_id() {
+        let a = SeedNode::new(
+            NodeKind::Concat,
+            10,
+            vec![],
+            vec![NodeId::from_bytes([1u8; 32])],
+            "t",
+        );
+        let b = SeedNode::new(
+            NodeKind::Concat,
+            10,
+            vec![],
+            vec![NodeId::from_bytes([2u8; 32])],
+            "t",
+        );
+        assert_ne!(a.content_id(), b.content_id());
+    }
+
+    #[test]
+    fn unknown_kind_and_version_fail_closed() {
+        let mut n = SeedNode::new(NodeKind::Literal, 1, vec![9], vec![], "t").encode_canonical();
+        n[0] = 0x00;
+        assert!(SeedNode::decode_canonical(&n).is_err());
+        let mut n2 = SeedNode::new(NodeKind::Literal, 1, vec![9], vec![], "t").encode_canonical();
+        n2[1] = 0x7F;
+        assert!(SeedNode::decode_canonical(&n2).is_err());
+    }
+
+    #[test]
+    fn trailing_bytes_are_rejected() {
+        let mut enc = SeedNode::new(NodeKind::Literal, 1, vec![], vec![], "t").encode_canonical();
+        enc.push(0);
+        assert!(SeedNode::decode_canonical(&enc).is_err());
+    }
+
+    #[test]
+    fn param_helpers_roundtrip() {
+        let (o, l) = read_span_params(&span_params(5, 9)).unwrap();
+        assert_eq!((o, l), (5, 9));
+        let (ob, g, e) = read_object_params(&object_params(42, 3, 77)).unwrap();
+        assert_eq!((ob, g, e), (42, 3, 77));
+        assert_eq!(read_u32_params(&u32_params(1234)).unwrap(), 1234);
+    }
+}

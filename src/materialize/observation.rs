@@ -218,11 +218,27 @@ pub(crate) fn select_ops(
     limits: Limits,
 ) -> Result<OpWindow> {
     let per_op = program.analyze_ops(object_lens, channel_lens, limits)?;
+    select_ops_from_lengths(program, &per_op, a, b)
+}
 
+/// Select the minimal op set serving output range `[a, b)` from an explicit
+/// per-op output-length vector (program order).
+///
+/// This is the length-agnostic core of [`select_ops`], factored so a partial
+/// reader that learns per-op lengths from a validated observation-index op table
+/// can select a window with **exactly** the same linear-skipping vs. bounded-
+/// prefix rule as the in-memory path. The caller is responsible for the lengths
+/// being the authoritative ones (the program's own `analyze_ops` view).
+pub(crate) fn select_ops_from_lengths(
+    program: &Program,
+    per_op: &[u64],
+    a: u64,
+    b: u64,
+) -> Result<OpWindow> {
     let mut starts: Vec<u64> = Vec::with_capacity(per_op.len());
     let mut ends: Vec<u64> = Vec::with_capacity(per_op.len());
     let mut acc: u64 = 0;
-    for &len in &per_op {
+    for &len in per_op {
         starts.push(acc);
         acc = acc
             .checked_add(len)

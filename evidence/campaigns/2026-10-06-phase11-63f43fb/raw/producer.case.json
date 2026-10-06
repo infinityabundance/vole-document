@@ -1,0 +1,317 @@
+{
+  "name": "producer",
+  "kind": "producer",
+  "source": {
+    "path": "/tmp/tmp.uLvzfSbaP4/producer.pdf",
+    "len": 74371,
+    "sha256": "a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529",
+    "pages": 61
+  },
+  "encode": {
+    "candidate": "BYTE_RANS",
+    "encoded_len": 72850,
+    "wall_ms": 489
+  },
+  "ingest": {
+    "field": "d746c4b86ce2b14d85e8e63a2d2d14dd9a1df9ba0ea83361954997d0ec799dc6",
+    "root_node": "fac00dfb503a893d29a04b5bca9b2c1dfdd6989d37cf9c45d73d6c0c91cbde0a",
+    "index_root": "1fa983d63bba6801a443b1221b7d5295bdd321594e9c4964c50f14c988989f1a",
+    "node_count": 320,
+    "index_node_count": 3,
+    "source_len": 74371,
+    "object_nodes": 131,
+    "stream_nodes": 63,
+    "decoded_stream_nodes": 63,
+    "page_nodes": 61,
+    "revision_nodes": 1,
+    "declined_streams": 0,
+    "wall_ms": 7
+  },
+  "store_universe_bytes": {
+    "descriptor": 72910,
+    "seed": 61590,
+    "index": 14648,
+    "manifest": 537,
+    "derived_cache_initial": 40,
+    "derived_cache_after_cold": 50104,
+    "total": 149865
+  },
+  "observe_new_process": {
+    "primary_page": 1,
+    "text_cold": {
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 4,
+      "seed_nodes_materialized": 5,
+      "seed_nodes_executed": 5,
+      "seed_nodes_reused": 0,
+      "cache_bytes_written": 49508,
+      "bytes_read": 357,
+      "bytes_returned": 62,
+      "deepened": true,
+      "wall_micros": 1933,
+      "basis": "heuristic",
+      "exact": false,
+      "wall_ms": 4,
+      "process_read_pread_bytes": 169126,
+      "process_read_pread_calls": 33,
+      "process_file_mmap_bytes": 3997379
+    },
+    "structure": {
+      "field": "ed8be4e60f4ac92c85449b1cdd84d6d967c3b4132530c9a210a598fbb800b4be",
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 2,
+      "seed_nodes_materialized": 0,
+      "seed_nodes_executed": 0,
+      "seed_nodes_reused": 1,
+      "cache_bytes_written": 0,
+      "bytes_read": 186,
+      "bytes_returned": 74,
+      "deepened": false,
+      "wall_micros": 174,
+      "basis": "deterministically-derived",
+      "exact": false,
+      "wall_ms": 1
+    },
+    "preview": {
+      "field": "ed8be4e60f4ac92c85449b1cdd84d6d967c3b4132530c9a210a598fbb800b4be",
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 0,
+      "seed_nodes_materialized": 0,
+      "seed_nodes_executed": 0,
+      "seed_nodes_reused": 1,
+      "cache_bytes_written": 0,
+      "bytes_read": 0,
+      "bytes_returned": 124,
+      "deepened": false,
+      "wall_micros": 173,
+      "basis": "heuristic",
+      "exact": false,
+      "wall_ms": 1
+    },
+    "text_warm_reuse": {
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 0,
+      "seed_nodes_materialized": 0,
+      "seed_nodes_executed": 0,
+      "seed_nodes_reused": 1,
+      "cache_bytes_written": 0,
+      "bytes_read": 0,
+      "bytes_returned": 62,
+      "deepened": false,
+      "wall_micros": 211,
+      "basis": "heuristic",
+      "exact": false,
+      "wall_ms": 0
+    }
+  },
+  "observe_json": {
+    "parses_standalone": true,
+    "matches_explain_analyze": true,
+    "observe_stats_normalized": {
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 0,
+      "seed_nodes_materialized": 0,
+      "seed_nodes_executed": 0,
+      "seed_nodes_reused": 1,
+      "cache_bytes_written": 0,
+      "bytes_read": 0,
+      "bytes_returned": 62,
+      "deepened": false,
+      "basis": "heuristic",
+      "exact": false
+    },
+    "explain_actual_normalized": {
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 0,
+      "seed_nodes_materialized": 0,
+      "seed_nodes_executed": 0,
+      "seed_nodes_reused": 1,
+      "cache_bytes_written": 0,
+      "bytes_read": 0,
+      "bytes_returned": 62,
+      "deepened": false,
+      "basis": "heuristic",
+      "exact": false
+    }
+  },
+  "scrub": [
+    {
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 0,
+      "seed_nodes_materialized": 0,
+      "seed_nodes_executed": 0,
+      "seed_nodes_reused": 1,
+      "cache_bytes_written": 0,
+      "bytes_read": 0,
+      "bytes_returned": 62,
+      "deepened": false,
+      "wall_micros": 203,
+      "basis": "heuristic",
+      "exact": false,
+      "page": 1
+    },
+    {
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 4,
+      "seed_nodes_materialized": 5,
+      "seed_nodes_executed": 5,
+      "seed_nodes_reused": 0,
+      "cache_bytes_written": 49558,
+      "bytes_read": 357,
+      "bytes_returned": 56,
+      "deepened": true,
+      "wall_micros": 1096,
+      "basis": "heuristic",
+      "exact": false,
+      "page": 2
+    },
+    {
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 4,
+      "seed_nodes_materialized": 5,
+      "seed_nodes_executed": 5,
+      "seed_nodes_reused": 0,
+      "cache_bytes_written": 49591,
+      "bytes_read": 357,
+      "bytes_returned": 56,
+      "deepened": true,
+      "wall_micros": 1078,
+      "basis": "heuristic",
+      "exact": false,
+      "page": 3
+    },
+    {
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 4,
+      "seed_nodes_materialized": 5,
+      "seed_nodes_executed": 5,
+      "seed_nodes_reused": 0,
+      "cache_bytes_written": 51158,
+      "bytes_read": 357,
+      "bytes_returned": 56,
+      "deepened": true,
+      "wall_micros": 1087,
+      "basis": "heuristic",
+      "exact": false,
+      "page": 10
+    },
+    {
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 4,
+      "seed_nodes_materialized": 5,
+      "seed_nodes_executed": 5,
+      "seed_nodes_reused": 0,
+      "cache_bytes_written": 51152,
+      "bytes_read": 357,
+      "bytes_returned": 56,
+      "deepened": true,
+      "wall_micros": 1198,
+      "basis": "heuristic",
+      "exact": false,
+      "page": 30
+    },
+    {
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 4,
+      "seed_nodes_materialized": 5,
+      "seed_nodes_executed": 5,
+      "seed_nodes_reused": 0,
+      "cache_bytes_written": 53040,
+      "bytes_read": 357,
+      "bytes_returned": 56,
+      "deepened": true,
+      "wall_micros": 1109,
+      "basis": "heuristic",
+      "exact": false,
+      "page": 60
+    },
+    {
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 0,
+      "seed_nodes_materialized": 0,
+      "seed_nodes_executed": 0,
+      "seed_nodes_reused": 1,
+      "cache_bytes_written": 0,
+      "bytes_read": 0,
+      "bytes_returned": 62,
+      "deepened": false,
+      "wall_micros": 209,
+      "basis": "heuristic",
+      "exact": false,
+      "page": 1
+    }
+  ],
+  "source_removal": {
+    "source_removed": true,
+    "query_after_removal": {
+      "field": "ed8be4e60f4ac92c85449b1cdd84d6d967c3b4132530c9a210a598fbb800b4be",
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 0,
+      "seed_nodes_materialized": 0,
+      "seed_nodes_executed": 0,
+      "seed_nodes_reused": 1,
+      "cache_bytes_written": 0,
+      "bytes_read": 0,
+      "bytes_returned": 62,
+      "deepened": false,
+      "wall_micros": 165,
+      "basis": "heuristic",
+      "exact": false
+    },
+    "materialized": {
+      "len": 74371,
+      "sha256": "a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529",
+      "cmp_equal": true,
+      "wall_ms": 1,
+      "exact": true
+    }
+  },
+  "cache_disposable": {
+    "cleared_reclaimed_bytes": 305123,
+    "preview_sha_unchanged": true,
+    "text_after_clear": {
+      "field": "ed8be4e60f4ac92c85449b1cdd84d6d967c3b4132530c9a210a598fbb800b4be",
+      "index_nodes_read": 1,
+      "seed_nodes_fetched": 2,
+      "seed_nodes_materialized": 2,
+      "seed_nodes_executed": 2,
+      "seed_nodes_reused": 1,
+      "cache_bytes_written": 28528,
+      "bytes_read": 189,
+      "bytes_returned": 62,
+      "deepened": false,
+      "wall_micros": 343,
+      "basis": "heuristic",
+      "exact": false
+    }
+  },
+  "llm_working_set": {
+    "question": "what is on page 1",
+    "baselines": {
+      "B0_whole_document": {
+        "oracle": "pdftotext (poppler)",
+        "bytes": 122315,
+        "sha256": "1f486526d231549cd6ba5ac695ae2e14b9502416e0405c73332bf34bbe906e2a"
+      },
+      "B1_page_local": {
+        "oracle": "pdftotext -f/-l (poppler)",
+        "bytes": 1933,
+        "sha256": "4a9c890146465e07d72f2ec520967d7a0a76494f41668361360a77402e459ea7"
+      },
+      "V_vole_page_text": {
+        "repr": "observe --page --kind text",
+        "bytes": 62,
+        "stats": "{\"index_nodes_read\":1,\"seed_nodes_fetched\":0,\"seed_nodes_materialized\":0,\"seed_nodes_executed\":0,\"seed_nodes_reused\":1,\"cache_bytes_written\":0,\"bytes_read\":0,\"bytes_returned\":62,\"deepened\":false,\"wall_micros\":293}"
+      }
+    },
+    "context_waste_ratio": 1972.8225806451612,
+    "ratios": {
+      "B0_over_V": 1972.8225806451612,
+      "B1_over_V": 31.177419354838708,
+      "B0_over_B1": 63.277289187791
+    },
+    "tokens": null,
+    "tokens_reason": "no pinned offline tokenizer (no vendored BPE/model with a recorded SHA-256); UTF-8 bytes reported only, token counts not claimed",
+    "honest_losses": []
+  }
+}

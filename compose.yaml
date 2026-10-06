@@ -10,8 +10,30 @@ name: vole-document
 #
 # The cargo registry and target directory are named volumes so builds are fast
 # and identical across repeated gate runs; neither is part of the repository.
+#
+# ---------------------------------------------------------------------------
+# RESOURCE / OOM CONTAINMENT (mandatory)
+# ---------------------------------------------------------------------------
+# Every service is hard-capped. This is not optional: the host's swap is
+# **zram** (RAM-backed), so "swap" is not extra memory — an unbounded process
+# can drive the whole machine into OOM. Each service therefore pins:
+#
+#   mem_limit     hard RSS cap; exceeding it OOM-kills the *container*, never
+#                 the host.
+#   memswap_limit equal to mem_limit, so the container cannot swap at all and
+#                 cannot evade the cap. (memswap_limit must be >= mem_limit;
+#                 setting them equal is the only way to disable swap.)
+#   pids_limit    fork/thread bomb bound (a hostile input or a runaway build
+#                 cannot exhaust the host's PID space).
+#   cpus          optional CPU cap on the long-running/saturation-prone lanes.
+#
+# Raising a cap is a deliberate act: it must be justified by a measured need,
+# recorded in the receipt, and never removed to make a failing run "pass".
+# Prefer fixing the workload's memory behaviour over raising the ceiling.
 
 services:
+  # Rust 1.99.0 reference build + test gate. Heaviest lane (`--all-features`
+  # compiles the ~68-crate `entropyfs` tree), so it keeps the largest cap.
   dev:
     build:
       context: .
@@ -21,6 +43,9 @@ services:
     # pre-existing bridge/host networks have working DNS + egress.
     network_mode: host
     working_dir: /work
+    mem_limit: 8g
+    memswap_limit: 8g
+    pids_limit: 4096
     environment:
       CARGO_TERM_COLOR: never
     volumes:
@@ -29,6 +54,7 @@ services:
       - cargo-target:/work/target
     command: ["cargo", "test", "--all-features", "--locked"]
 
+  # MSRV 1.89.0 gate.
   msrv:
     build:
       context: .
@@ -36,6 +62,9 @@ services:
     image: vole-document/msrv:1.89.0
     network_mode: host
     working_dir: /work
+    mem_limit: 6g
+    memswap_limit: 6g
+    pids_limit: 4096
     environment:
       CARGO_TERM_COLOR: never
       RUSTUP_TOOLCHAIN: "1.89.0"
@@ -45,6 +74,7 @@ services:
       - cargo-target-msrv:/work/target
     command: ["cargo", "build", "--locked"]
 
+  # Small oracle-only lane (qpdf, Poppler, MuPDF, Ghostscript). No compiler.
   tools:
     build:
       context: .
@@ -52,6 +82,9 @@ services:
     image: vole-document/tools:bookworm
     network_mode: host
     working_dir: /work
+    mem_limit: 2g
+    memswap_limit: 2g
+    pids_limit: 1024
     volumes:
       - .:/work
     command: ["sh", "-c", "qpdf --version; pdfinfo -v; mutool -v; gs --version"]
@@ -59,7 +92,8 @@ services:
   # Generator-family PDF corpus (Phase 7.0b). A separate, opt-in image carrying
   # real authoring generators (ReportLab, Cairo, LibreOffice, pdfTeX) plus qpdf
   # for --deterministic-id post-normalization. It is intentionally NOT part of
-  # the fast `tools` gate; nothing else builds it.
+  # the fast `tools` gate; nothing else builds it. LibreOffice is memory-hungry,
+  # hence the larger cap.
   producers:
     build:
       context: .
@@ -67,6 +101,9 @@ services:
     image: vole-document/producers:bookworm
     network_mode: host
     working_dir: /work
+    mem_limit: 8g
+    memswap_limit: 8g
+    pids_limit: 4096
     volumes:
       - .:/work
     command: ["sh", "-c", "python3 -c 'import reportlab; print(reportlab.Version)'; soffice --version | head -1; pdflatex --version | head -1; qpdf --version"]
@@ -75,7 +112,8 @@ services:
   # toolchain (same base digest) plus gzip/zstd/xz/brotli/jq, so tools/baselines.sh
   # can invoke the real VOLE CLI and compare it against generic compressors on the
   # same complete files. Shares the dev cargo volumes so the built binary is
-  # visible; it is opt-in and never part of a fast gate.
+  # visible; it is opt-in and never part of a fast gate. Compressors at high
+  # levels are memory-hungry, so this lane matches the largest cap and is CPU-capped.
   baseline:
     build:
       context: .
@@ -83,6 +121,10 @@ services:
     image: vole-document/baseline:1.99.0
     network_mode: host
     working_dir: /work
+    mem_limit: 8g
+    memswap_limit: 8g
+    pids_limit: 4096
+    cpus: 8
     environment:
       CARGO_TERM_COLOR: never
       VOLE_BIN: ./target/debug/vole-document
@@ -92,6 +134,56 @@ services:
       - cargo-target:/work/target
     command: ["sh", "-c", "gzip --version | head -1; zstd --version; xz --version | head -1; brotli --version; jq --version"]
 
+  # Phase-11.9 fair-baseline court. Same pinned base digest as `baseline`/`dev`
+  # (derived FROM baseline), plus sqlite3 + Poppler + qpdf so one image runs
+  # `tools/field-court.sh` end-to-end: the VOLE field CLI, the A0 raw PDF tooling
+  # lane, the A1 preprocessed-SQLite lane, and the generic compressors.
+  db-baseline:
+    build:
+      context: .
+      target: db-baseline
+    image: vole-document/db-baseline:1.99.0
+    network_mode: host
+    working_dir: /work
+    mem_limit: 6g
+    memswap_limit: 6g
+    pids_limit: 4096
+    cpus: 8
+    environment:
+      CARGO_TERM_COLOR: never
+      VOLE_BIN: ./target/debug/vole-document
+    volumes:
+      - .:/work
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/work/target
+    command: ["sh", "-c", "sqlite3 --version; pdftotext -v; qpdf --version | head -1"]
+
+  # Phase-11.13 LLM working-set *token* court (opt-in; never part of a fast
+  # gate). Same pinned base digest as `dev`/`baseline`, plus Poppler (`pdftotext`
+  # for B0/B1), `jq`, and a pinned HuggingFace `tokenizers` runtime. Runs
+  # `tools/llm-token-court.sh`; the vendored tokenizer asset is on disk, so the
+  # court is offline-deterministic. Capped like the other measurement lanes.
+  llm-workingset:
+    build:
+      context: .
+      target: llm-workingset
+    image: vole-document/llm-workingset:1.99.0
+    network_mode: host
+    working_dir: /work
+    mem_limit: 4g
+    memswap_limit: 4g
+    pids_limit: 2048
+    cpus: 4
+    environment:
+      CARGO_TERM_COLOR: never
+      VOLE_BIN: ./target/debug/vole-document
+    volumes:
+      - .:/work
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/work/target
+    command: ["sh", "-c", "python3 -c 'import tokenizers; print(tokenizers.__version__)'"]
+
+  # Dependency-policy gate (cargo-audit + cargo-deny).
   policy:
     build:
       context: .
@@ -99,6 +191,9 @@ services:
     image: vole-document/policy:1.99.0
     network_mode: host
     working_dir: /work
+    mem_limit: 4g
+    memswap_limit: 4g
+    pids_limit: 2048
     volumes:
       - .:/work
       - cargo-registry:/usr/local/cargo/registry
@@ -107,6 +202,8 @@ services:
   # Coverage-guided fuzzing (Phase 7). A pinned dated nightly + cargo-fuzz.
   # No default command: tools/fuzz.sh drives `cargo fuzz run` explicitly.
   # The /work/fuzz/target volume keeps fuzz builds fast and out of the repo.
+  # Fuzzing is the classic runaway-memory lane, so it is tightly capped and
+  # CPU-limited; a finding is a crash/resource kill *inside* this container.
   fuzz:
     build:
       context: .
@@ -114,6 +211,10 @@ services:
     image: vole-document/fuzz:nightly-2026-10-04
     network_mode: host
     working_dir: /work
+    mem_limit: 4g
+    memswap_limit: 4g
+    pids_limit: 2048
+    cpus: 4
     environment:
       CARGO_TERM_COLOR: never
       RUSTUP_TOOLCHAIN: "nightly-2026-10-04"

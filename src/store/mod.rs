@@ -30,6 +30,9 @@ use std::collections::BTreeSet;
 use crate::container::{Descriptor, ObjectSource};
 use crate::error::{Error, Result};
 
+mod io;
+pub use io::{IoCounters, IoSnapshot};
+
 #[cfg(feature = "store")]
 mod embedded;
 #[cfg(feature = "store")]
@@ -44,6 +47,19 @@ pub use account::{AccountReport, RootAccount, account};
 mod entropyfs;
 #[cfg(feature = "entropyfs-store")]
 pub use entropyfs::EntropyFsStore;
+// The engine-error mapper and the engine-backed seed methods are used only by the
+// field backend; gating the re-export on both features avoids an unused import in
+// an `entropyfs-store`-without-`field` build.
+#[cfg(all(feature = "entropyfs-store", feature = "field"))]
+pub(crate) use entropyfs::map_engine_error;
+
+#[cfg(feature = "field")]
+mod seed;
+#[cfg(feature = "field")]
+pub use seed::{
+    FsSeedStore, NodeId, SEED_FORMAT_VERSION, SEED_NODE_DOMAIN, SeedStore, SeedStoreStats,
+    closure as seed_closure,
+};
 
 /// Size accounting reported by a backend.
 ///

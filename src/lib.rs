@@ -53,6 +53,8 @@ pub mod dra;
 pub mod encode;
 pub mod entropy;
 pub mod error;
+#[cfg(feature = "field")]
+pub mod field;
 pub mod integrity;
 pub mod limits;
 pub mod materialize;

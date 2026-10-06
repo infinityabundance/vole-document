@@ -1,0 +1,27 @@
+{
+  "git": {
+    "commit": "8cceaaced3f3ceb29cf51bbc47cac48d11d91289",
+    "commit_short": "8cceaac",
+    "dirty": ""
+  },
+  "arch": "x86_64",
+  "cargo_lock_sha256": "25fc018b20d57fe22b704fd528cfa9f3dc64969ed7aa0345fb0cd294e913eea2",
+  "toolchain": {
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)"
+  },
+  "images": {
+    "base_stable_digest": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "image_ref": "vole-document/db-baseline:1.99.0",
+    "db_baseline_image_id": "sha256:41418aa8a7aadd376fa434b82af2c12f09a624dda81b1c3e3b6aa3a4bb738f1d"
+  },
+  "oracles": {
+    "jq": "jq-1.6",
+    "strace": "version 6.1",
+    "pdfinfo": "22.12.0"
+  },
+  "env_affecting_semantics": {
+    "LC_ALL": "C",
+    "VOLE_BIN": "./target/debug/vole-document"
+  }
+}

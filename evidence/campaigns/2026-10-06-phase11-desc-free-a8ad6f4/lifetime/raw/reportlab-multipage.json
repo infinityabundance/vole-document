@@ -1,0 +1,538 @@
+{
+  "name": "reportlab-multipage",
+  "kind": "producer",
+  "source": {
+    "path": "/work/evidence/corpus/phase7-producers/reportlab-multipage.pdf",
+    "len": 10906,
+    "sha256": "2cc7feedb7b3253432a03b22de96e89d9d327f412a8941898e95efd3311d75b1",
+    "pages": 6,
+    "text_lane_pages": 6
+  },
+  "selector_discovery": {
+    "object": 1,
+    "stream": 10,
+    "multisurface_available": true,
+    "method": "bounded scan of selector numbers (object 1..64, stream 1..300) until a valid observation resolves; setup, not charged"
+  },
+  "vole": {
+    "encode": {
+      "candidate": "BYTE_RANS",
+      "encoded_len": 11203,
+      "wall_ms": 53,
+      "cpu_ms": 20,
+      "read_bytes": 533106
+    },
+    "ingest": {
+      "field": "d534383d05ba5ae7a455a2e4c51f4e3afd0626c9e2567fee99d97bd66b11677b",
+      "root_node": "a54dcb9f0d186b0487e58569dac5438275b6cd4feb8b5af5cb816e9c2c4e7e6d",
+      "index_root": "c5d1f6a0157e1b50aca6aed49cc3ec18ed2d4fe8f76dfbf0af1e34d5355fd262",
+      "node_count": 37,
+      "index_node_count": 1,
+      "source_len": 10906,
+      "object_nodes": 17,
+      "stream_nodes": 6,
+      "decoded_stream_nodes": 6,
+      "page_nodes": 6,
+      "revision_nodes": 1,
+      "declined_streams": 0,
+      "wall_ms": 1,
+      "cpu_ms": 0,
+      "read_bytes": 32014
+    },
+    "one_time": {
+      "wall_ms": 54,
+      "cpu_ms": 20,
+      "read_bytes": 565120
+    },
+    "store_universe_bytes": {
+      "descriptor": 11290,
+      "seed": 11774,
+      "index": 2168,
+      "manifest": 1859,
+      "derived_cache": 589373,
+      "total": 616604
+    },
+    "lanes": {
+      "multisurface.pass1": [
+        {
+          "lane": "multisurface.pass1",
+          "n": 1,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 54.713,
+          "cumulative_bytes_read": 567350,
+          "cumulative_bytes_returned": 11804,
+          "cumulative_cpu_ms": 20,
+          "peak_rss_kb": 3216,
+          "marginal_wall_ms": 0.713,
+          "marginal_bytes_read": 2230,
+          "marginal_bytes_returned": 11804
+        },
+        {
+          "lane": "multisurface.pass1",
+          "n": 10,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 60.93,
+          "cumulative_bytes_read": 594108,
+          "cumulative_bytes_returned": 82386,
+          "cumulative_cpu_ms": 20,
+          "peak_rss_kb": 3512,
+          "marginal_wall_ms": 0.691,
+          "marginal_bytes_read": 4312,
+          "marginal_bytes_returned": 17375
+        },
+        {
+          "lane": "multisurface.pass1",
+          "n": 100,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 119.823,
+          "cumulative_bytes_read": 847286,
+          "cumulative_bytes_returned": 823860,
+          "cumulative_cpu_ms": 60,
+          "peak_rss_kb": 3540,
+          "marginal_wall_ms": 0.635,
+          "marginal_bytes_read": 4312,
+          "marginal_bytes_returned": 17375
+        },
+        {
+          "lane": "multisurface.pass1",
+          "n": 1000,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 702.217,
+          "cumulative_bytes_read": 3357026,
+          "cumulative_bytes_returned": 8238600,
+          "cumulative_cpu_ms": 450,
+          "peak_rss_kb": 3628,
+          "marginal_wall_ms": 0.607,
+          "marginal_bytes_read": 4312,
+          "marginal_bytes_returned": 17375
+        }
+      ],
+      "multisurface.pass2": [
+        {
+          "lane": "multisurface.pass2",
+          "n": 1,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 54.66,
+          "cumulative_bytes_read": 567350,
+          "cumulative_bytes_returned": 11804,
+          "cumulative_cpu_ms": 20,
+          "peak_rss_kb": 3216,
+          "marginal_wall_ms": 0.66,
+          "marginal_bytes_read": 2230,
+          "marginal_bytes_returned": 11804
+        },
+        {
+          "lane": "multisurface.pass2",
+          "n": 10,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 60.565,
+          "cumulative_bytes_read": 593006,
+          "cumulative_bytes_returned": 82386,
+          "cumulative_cpu_ms": 20,
+          "peak_rss_kb": 3512,
+          "marginal_wall_ms": 0.593,
+          "marginal_bytes_read": 4312,
+          "marginal_bytes_returned": 17375
+        },
+        {
+          "lane": "multisurface.pass2",
+          "n": 100,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 118.029,
+          "cumulative_bytes_read": 843980,
+          "cumulative_bytes_returned": 823860,
+          "cumulative_cpu_ms": 60,
+          "peak_rss_kb": 3540,
+          "marginal_wall_ms": 0.624,
+          "marginal_bytes_read": 4312,
+          "marginal_bytes_returned": 17375
+        },
+        {
+          "lane": "multisurface.pass2",
+          "n": 1000,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 731.534,
+          "cumulative_bytes_read": 3353720,
+          "cumulative_bytes_returned": 8238600,
+          "cumulative_cpu_ms": 450,
+          "peak_rss_kb": 3628,
+          "marginal_wall_ms": 0.696,
+          "marginal_bytes_read": 4312,
+          "marginal_bytes_returned": 17375
+        }
+      ],
+      "text.pass1": [
+        {
+          "lane": "text.pass1",
+          "n": 1,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 55.162,
+          "cumulative_bytes_read": 568184,
+          "cumulative_bytes_returned": 11804,
+          "cumulative_cpu_ms": 20,
+          "peak_rss_kb": 3264,
+          "marginal_wall_ms": 1.162,
+          "marginal_bytes_read": 3064,
+          "marginal_bytes_returned": 11804
+        },
+        {
+          "lane": "text.pass1",
+          "n": 10,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 64.118,
+          "cumulative_bytes_read": 646804,
+          "cumulative_bytes_returned": 118040,
+          "cumulative_cpu_ms": 20,
+          "peak_rss_kb": 3488,
+          "marginal_wall_ms": 0.741,
+          "marginal_bytes_read": 2230,
+          "marginal_bytes_returned": 11804
+        },
+        {
+          "lane": "text.pass1",
+          "n": 100,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 125.29,
+          "cumulative_bytes_read": 847504,
+          "cumulative_bytes_returned": 1180400,
+          "cumulative_cpu_ms": 60,
+          "peak_rss_kb": 3476,
+          "marginal_wall_ms": 0.655,
+          "marginal_bytes_read": 2230,
+          "marginal_bytes_returned": 11804
+        },
+        {
+          "lane": "text.pass1",
+          "n": 1000,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 751.578,
+          "cumulative_bytes_read": 2854504,
+          "cumulative_bytes_returned": 11804000,
+          "cumulative_cpu_ms": 460,
+          "peak_rss_kb": 3500,
+          "marginal_wall_ms": 0.726,
+          "marginal_bytes_read": 2230,
+          "marginal_bytes_returned": 11804
+        }
+      ],
+      "text.pass2": [
+        {
+          "lane": "text.pass2",
+          "n": 1,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 54.651,
+          "cumulative_bytes_read": 567350,
+          "cumulative_bytes_returned": 11804,
+          "cumulative_cpu_ms": 20,
+          "peak_rss_kb": 3264,
+          "marginal_wall_ms": 0.651,
+          "marginal_bytes_read": 2230,
+          "marginal_bytes_returned": 11804
+        },
+        {
+          "lane": "text.pass2",
+          "n": 10,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 60.809,
+          "cumulative_bytes_read": 587420,
+          "cumulative_bytes_returned": 118040,
+          "cumulative_cpu_ms": 20,
+          "peak_rss_kb": 3488,
+          "marginal_wall_ms": 0.658,
+          "marginal_bytes_read": 2230,
+          "marginal_bytes_returned": 11804
+        },
+        {
+          "lane": "text.pass2",
+          "n": 100,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 121.1,
+          "cumulative_bytes_read": 788120,
+          "cumulative_bytes_returned": 1180400,
+          "cumulative_cpu_ms": 60,
+          "peak_rss_kb": 3476,
+          "marginal_wall_ms": 0.705,
+          "marginal_bytes_read": 2230,
+          "marginal_bytes_returned": 11804
+        },
+        {
+          "lane": "text.pass2",
+          "n": 1000,
+          "one_time_wall_ms": 54,
+          "cumulative_wall_ms": 734.546,
+          "cumulative_bytes_read": 2795120,
+          "cumulative_bytes_returned": 11804000,
+          "cumulative_cpu_ms": 460,
+          "peak_rss_kb": 3500,
+          "marginal_wall_ms": 0.711,
+          "marginal_bytes_read": 2230,
+          "marginal_bytes_returned": 11804
+        }
+      ]
+    },
+    "strace_crosscheck": {
+      "cold_process_read_pread_bytes": 21448,
+      "warm_process_read_pread_bytes": 21448,
+      "note": "process read/pread total includes library reads; the instrumented stats.bytes_read does not"
+    }
+  },
+  "a0": {
+    "tool": "pdftotext -f P -l P (Poppler)",
+    "one_time": {
+      "wall_ms": 0,
+      "cpu_ms": 0,
+      "read_bytes": 0
+    },
+    "lanes": {
+      "text.pass1": [
+        {
+          "lane": "text.pass1",
+          "n": 1,
+          "one_time_wall_ms": 0,
+          "cumulative_wall_ms": 4.955,
+          "cumulative_bytes_read": 34589,
+          "cumulative_bytes_returned": 11807,
+          "cumulative_cpu_ms": 0,
+          "peak_rss_kb": 9256,
+          "marginal_wall_ms": 4.955,
+          "marginal_bytes_read": 34589,
+          "marginal_bytes_returned": 11807
+        },
+        {
+          "lane": "text.pass1",
+          "n": 10,
+          "one_time_wall_ms": 0,
+          "cumulative_wall_ms": 42.417,
+          "cumulative_bytes_read": 351266,
+          "cumulative_bytes_returned": 118070,
+          "cumulative_cpu_ms": 30,
+          "peak_rss_kb": 9404,
+          "marginal_wall_ms": 4.004,
+          "marginal_bytes_read": 35357,
+          "marginal_bytes_returned": 11807
+        },
+        {
+          "lane": "text.pass1",
+          "n": 100,
+          "one_time_wall_ms": 0,
+          "cumulative_wall_ms": 432.41,
+          "cumulative_bytes_read": 3521876,
+          "cumulative_bytes_returned": 1180700,
+          "cumulative_cpu_ms": 360,
+          "peak_rss_kb": 9440,
+          "marginal_wall_ms": 3.98,
+          "marginal_bytes_read": 35357,
+          "marginal_bytes_returned": 11807
+        },
+        {
+          "lane": "text.pass1",
+          "n": 1000,
+          "one_time_wall_ms": 0,
+          "cumulative_wall_ms": 3886.873,
+          "cumulative_bytes_read": 35227976,
+          "cumulative_bytes_returned": 11807000,
+          "cumulative_cpu_ms": 3680,
+          "peak_rss_kb": 9484,
+          "marginal_wall_ms": 3.994,
+          "marginal_bytes_read": 35357,
+          "marginal_bytes_returned": 11807
+        }
+      ],
+      "text.pass2": [
+        {
+          "lane": "text.pass2",
+          "n": 1,
+          "one_time_wall_ms": 0,
+          "cumulative_wall_ms": 4.014,
+          "cumulative_bytes_read": 34589,
+          "cumulative_bytes_returned": 11807,
+          "cumulative_cpu_ms": 0,
+          "peak_rss_kb": 9256,
+          "marginal_wall_ms": 4.014,
+          "marginal_bytes_read": 34589,
+          "marginal_bytes_returned": 11807
+        },
+        {
+          "lane": "text.pass2",
+          "n": 10,
+          "one_time_wall_ms": 0,
+          "cumulative_wall_ms": 38.622,
+          "cumulative_bytes_read": 351266,
+          "cumulative_bytes_returned": 118070,
+          "cumulative_cpu_ms": 30,
+          "peak_rss_kb": 9404,
+          "marginal_wall_ms": 3.803,
+          "marginal_bytes_read": 35357,
+          "marginal_bytes_returned": 11807
+        },
+        {
+          "lane": "text.pass2",
+          "n": 100,
+          "one_time_wall_ms": 0,
+          "cumulative_wall_ms": 394.525,
+          "cumulative_bytes_read": 3521876,
+          "cumulative_bytes_returned": 1180700,
+          "cumulative_cpu_ms": 360,
+          "peak_rss_kb": 9440,
+          "marginal_wall_ms": 4.036,
+          "marginal_bytes_read": 35357,
+          "marginal_bytes_returned": 11807
+        },
+        {
+          "lane": "text.pass2",
+          "n": 1000,
+          "one_time_wall_ms": 0,
+          "cumulative_wall_ms": 3962.342,
+          "cumulative_bytes_read": 35227976,
+          "cumulative_bytes_returned": 11807000,
+          "cumulative_cpu_ms": 3680,
+          "peak_rss_kb": 9484,
+          "marginal_wall_ms": 3.644,
+          "marginal_bytes_read": 35357,
+          "marginal_bytes_returned": 11807
+        }
+      ]
+    }
+  },
+  "a1": {
+    "tool": "sqlite3 preprocessed page-text table",
+    "preprocessing": {
+      "pages_extracted": 6,
+      "wall_ms": 25,
+      "cpu_ms": 10,
+      "db_bytes": 86016,
+      "read_bytes": 211374
+    },
+    "one_time": {
+      "wall_ms": 25,
+      "cpu_ms": 10,
+      "read_bytes": 211374
+    },
+    "lanes": {
+      "text.pass1": [
+        {
+          "lane": "text.pass1",
+          "n": 1,
+          "one_time_wall_ms": 25,
+          "cumulative_wall_ms": 26.068,
+          "cumulative_bytes_read": 243959,
+          "cumulative_bytes_returned": 11808,
+          "cumulative_cpu_ms": 10,
+          "peak_rss_kb": 2628,
+          "marginal_wall_ms": 1.068,
+          "marginal_bytes_read": 32585,
+          "marginal_bytes_returned": 11808
+        },
+        {
+          "lane": "text.pass1",
+          "n": 10,
+          "one_time_wall_ms": 25,
+          "cumulative_wall_ms": 33.341,
+          "cumulative_bytes_read": 537224,
+          "cumulative_bytes_returned": 118080,
+          "cumulative_cpu_ms": 10,
+          "peak_rss_kb": 2748,
+          "marginal_wall_ms": 0.839,
+          "marginal_bytes_read": 32585,
+          "marginal_bytes_returned": 11808
+        },
+        {
+          "lane": "text.pass1",
+          "n": 100,
+          "one_time_wall_ms": 25,
+          "cumulative_wall_ms": 105.528,
+          "cumulative_bytes_read": 3469874,
+          "cumulative_bytes_returned": 1180800,
+          "cumulative_cpu_ms": 60,
+          "peak_rss_kb": 2756,
+          "marginal_wall_ms": 0.834,
+          "marginal_bytes_read": 32585,
+          "marginal_bytes_returned": 11808
+        },
+        {
+          "lane": "text.pass1",
+          "n": 1000,
+          "one_time_wall_ms": 25,
+          "cumulative_wall_ms": 832.189,
+          "cumulative_bytes_read": 32796374,
+          "cumulative_bytes_returned": 11808000,
+          "cumulative_cpu_ms": 590,
+          "peak_rss_kb": 2776,
+          "marginal_wall_ms": 0.819,
+          "marginal_bytes_read": 32585,
+          "marginal_bytes_returned": 11808
+        }
+      ],
+      "text.pass2": [
+        {
+          "lane": "text.pass2",
+          "n": 1,
+          "one_time_wall_ms": 25,
+          "cumulative_wall_ms": 25.824,
+          "cumulative_bytes_read": 243959,
+          "cumulative_bytes_returned": 11808,
+          "cumulative_cpu_ms": 10,
+          "peak_rss_kb": 2628,
+          "marginal_wall_ms": 0.824,
+          "marginal_bytes_read": 32585,
+          "marginal_bytes_returned": 11808
+        },
+        {
+          "lane": "text.pass2",
+          "n": 10,
+          "one_time_wall_ms": 25,
+          "cumulative_wall_ms": 32.984,
+          "cumulative_bytes_read": 537224,
+          "cumulative_bytes_returned": 118080,
+          "cumulative_cpu_ms": 10,
+          "peak_rss_kb": 2748,
+          "marginal_wall_ms": 0.804,
+          "marginal_bytes_read": 32585,
+          "marginal_bytes_returned": 11808
+        },
+        {
+          "lane": "text.pass2",
+          "n": 100,
+          "one_time_wall_ms": 25,
+          "cumulative_wall_ms": 104.146,
+          "cumulative_bytes_read": 3469874,
+          "cumulative_bytes_returned": 1180800,
+          "cumulative_cpu_ms": 60,
+          "peak_rss_kb": 2756,
+          "marginal_wall_ms": 0.77,
+          "marginal_bytes_read": 32585,
+          "marginal_bytes_returned": 11808
+        },
+        {
+          "lane": "text.pass2",
+          "n": 1000,
+          "one_time_wall_ms": 25,
+          "cumulative_wall_ms": 843.122,
+          "cumulative_bytes_read": 32796374,
+          "cumulative_bytes_returned": 11808000,
+          "cumulative_cpu_ms": 590,
+          "peak_rss_kb": 2776,
+          "marginal_wall_ms": 0.811,
+          "marginal_bytes_read": 32585,
+          "marginal_bytes_returned": 11808
+        }
+      ]
+    }
+  },
+  "generic": {
+    "source_bytes": 10906,
+    "voldoc_bytes": 11203,
+    "source": {
+      "gzip9": 2285,
+      "zstd19": 2143,
+      "xz9e": 2124
+    },
+    "voldoc": {
+      "gzip9": 11008,
+      "zstd19": 10844,
+      "xz9e": 10612
+    },
+    "roundtrip_verified": true,
+    "note": "generic compressors on the complete file; a VOLE size win over xz is not claimed (ADR-0017)"
+  }
+}

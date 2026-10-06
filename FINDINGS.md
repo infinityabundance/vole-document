@@ -273,6 +273,21 @@ Each of these is a concrete, falsifiable next step — and each carries an expli
    limited to whole DRA objects. *Prior: loses* — generic CDC already operates at
    sub-object granularity, so this must beat a rolling-hash chunker, not just the
    current store.
+   **Measured (2026-10-06, Phase 11.14; ADR-0028).** Implemented and measured
+   (`share-account` + `tools/field-share-court.sh`;
+   [`receipt`](evidence/campaigns/2026-10-06-phase11-share-d9f818a/)). Over 4 real
+   producer documents + a byte-identical repeat + a few-bytes-changed
+   near-duplicate (8 files, 337,877 B), the fine-unit unique **lower bound**
+   (208,001 B) **loses to** the strongest content-defined chunking (borg
+   `10,15,11,127` raw, 160,668 B, −22.7 %) and to a single-stream `tar | xz -9e`
+   (92,752 B). Its only win is a marginal whole-cohort edge over per-file min LZ
+   (211,301 B, 1.6 %) that is **smaller than the 8,435 B of root/program framing
+   the metric excludes**, and it does not hold per stratum (LOSS to LZ on
+   producer/repeat/near; the near change destroys the one order-0 channel
+   payload: 143,706 B unique of 143,706 B total vs CDC 82,757 B for the pair).
+   **The prior is confirmed: finer-than-object units still lose to CDC**, and the
+   negative is now recorded for both object granularity (ADR-0021) and fine-unit
+   granularity (ADR-0028).
 2. **A structural model stronger than LZ.** A representation that removes
    structure *without* paying a per-site plan (e.g. canonical/parametric layout,
    nested content proceduralization) could in principle beat LZ77 on

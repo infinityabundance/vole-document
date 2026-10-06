@@ -1,0 +1,24 @@
+{
+  "pdfinfo": {
+    "pages": 400,
+    "max_rss_kb": 7680
+  },
+  "pdftotext_page_local": {
+    "page": 1,
+    "text_bytes": 91,
+    "wall_ms": 9,
+    "read_pread_calls": 467,
+    "read_pread_bytes": 136128,
+    "file_mmap_bytes": 31922563
+  },
+  "pdftotext_whole_document": {
+    "text_bytes": 35868,
+    "max_rss_kb": 9172
+  },
+  "qpdf_linearize": {
+    "file_bytes": 33676367,
+    "E_end_of_first_page": 84937,
+    "L_file_len": 33676367,
+    "first_page_prefix_fraction": 0.002522
+  }
+}

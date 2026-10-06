@@ -1,0 +1,25 @@
+# Phase 11 field court — exact commands
+# Commit under test: 63f43fb4bcde9b041f9fea727a56e0927b57b52a (branch phase11); dirty:  M tools/field-court.sh; M tools/field-llm-workingset.sh;?? evidence/campaigns/2026-10-06-phase11-63f43fb/;
+# All commands run inside the pinned db-baseline image; nothing on the host.
+
+docker compose run --rm --no-TTY dev         cargo build --all-features --locked
+docker compose build db-baseline
+docker compose run --rm --no-TTY db-baseline sh tools/field-court.sh evidence/campaigns/2026-10-06-phase11-63f43fb [PRODUCER_PDF]
+
+# Per case (inside field-court.sh):
+#   $BIN pdf-make-large DIR {50,400}
+#   $BIN encode SRC DIR/<name>.voldoc
+#   $BIN field-ingest DIR/<name>.voldoc --store DIR/store
+#   $BIN explain --store STORE --field F --page 1 --kind text|structure|preview --analyze
+#   $BIN observe --store STORE --field F --page 1 --kind text|structure
+#   $BIN preview --store STORE --field F --page 1
+#   $BIN materialize --store STORE --field F --exact --output out.pdf
+#   $BIN cache --store STORE [--clear]
+#   strace -f -e trace=read,pread64,mmap -o LOG $BIN explain --analyze ...
+# Baselines:
+#   pdfinfo SRC
+#   strace -f -e trace=read,pread64,mmap -o LOG pdftotext -f 1 -l 1 SRC out.txt
+#   qpdf --linearize SRC lin.pdf   (first-page prefix fraction = /E / /L)
+#   sh tools/field-baseline-db.sh OUT.json SRC 1
+#   sh tools/field-llm-workingset.sh OUT.json SRC 1 STORE FIELD
+#   gzip -9 / zstd -19 --long=27 / xz -9e on SRC and on the .voldoc (round-trip verified)

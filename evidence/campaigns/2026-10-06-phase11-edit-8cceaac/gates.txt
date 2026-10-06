@@ -1,0 +1,24 @@
+# Phase 11.12 — gates (all run in the pinned Docker services; nothing on the host)
+
+Commit under test: 8cceaaced3f3ceb29cf51bbc47cac48d11d91289 (branch phase11)
+
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all -- --check'                       -> OK (FMT_CLEAN)
+docker compose run --rm --no-TTY dev sh -c 'cargo clippy --all-targets --all-features -- -D warnings'
+                                                                                               -> OK (no warnings)
+docker compose run --rm --no-TTY dev sh -c 'cargo test --all-features --locked'                -> OK (exit 0; 29 test-result groups, 0 failed)
+docker compose run --rm --no-TTY dev sh -c 'cargo test --no-default-features'                  -> OK (exit 0; 29 test-result groups, 0 failed)
+docker compose run --rm --no-TTY db-baseline sh tools/field-edit-court.sh <OUTDIR>             -> OK (all_witness_checks_pass = true)
+
+New tests (tests/field_edit.rs, 4 total, all pass under --all-features):
+  edit_shares_unaffected_state_and_both_roots_stay_exact
+  edit_shares_unchanged_index_leaves
+  edit_is_content_addressed_and_idempotent
+  edit_boundaries_fail_closed
+
+No Cargo.toml or Cargo.lock change; Cargo.lock SHA-256 is unchanged at
+25fc018b20d57fe22b704fd528cfa9f3dc64969ed7aa0345fb0cd294e913eea2.
+
+NOTE: `cargo test --no-default-features` rebuilds `target/debug/vole-document`
+*without* the `field` feature. `tools/field-edit-court.sh` checks `--help` for
+the `field-edit` verb and rebuilds the all-features binary before running, so the
+gate order cannot silently corrupt a court run.

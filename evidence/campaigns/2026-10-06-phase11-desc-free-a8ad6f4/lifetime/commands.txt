@@ -1,0 +1,20 @@
+# Phase 11 lifetime-cost court — exact commands
+# Commit under test: a8ad6f49b9df02610f1b5e799af5f250e58c51e8 (branch phase11); dirty:  M src/field/dag.rs; M src/field/mod.rs; M src/field/observe.rs; M tests/field_partial.rs;?? evidence/campaigns/2026-10-06-phase11-desc-free-a8ad6f4/;
+# All commands run inside the pinned db-baseline image; nothing on the host.
+
+docker compose run --rm --no-TTY dev         cargo build --all-features --locked
+docker compose build db-baseline
+docker compose run --rm --no-TTY db-baseline bash tools/field-lifetime-court.sh evidence/campaigns/2026-10-06-phase11-desc-free-a8ad6f4/lifetime
+
+# Per document (inside field-lifetime-court.sh):
+#   $BIN encode SRC D.voldoc ; $BIN field-ingest D.voldoc --store STORE   (one-time, /usr/bin/time -v)
+#   $BIN observe --store STORE --field F --page P --kind text|structure|preview   (fresh process each)
+#   $BIN observe --store STORE --field F --object O --kind exact
+#   $BIN observe --store STORE --field F --stream S --kind decoded
+#   pdftotext -f P -l P SRC -                        (A0, fresh process each)
+#   pdftotext -f P -l P SRC p.txt ...; sqlite3 PAGES.db (CREATE/INSERT/INDEX)   (A1 one-time)
+#   sqlite3 PAGES.db 'SELECT text FROM pages WHERE page=P;'   (A1 query)
+#   strace -f -e trace=read,pread64   (bytes read; per-page once for A0/A1, encode+ingest once for VOLE)
+#   /usr/bin/time -v                  (cumulative CPU + peak RSS over an aggregate batch of N queries)
+#   gzip -9 / zstd -19 --long=27 / xz -9e on SRC and on the .voldoc (round-trip verified)
+# N set: 1 10 100 1000 ; passes: 2

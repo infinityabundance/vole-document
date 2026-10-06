@@ -1,0 +1,52 @@
+{
+  "campaign": "phase11-skeptic-review",
+  "phase": "Phase 11.13 — independent adversarial skeptic review",
+  "environment": {
+    "git": {
+      "commit": "9bd766d1c6b3db50f4e71c71c8c7e5488cc263fc",
+      "commit_short": "9bd766d",
+      "branch": "phase11",
+      "dirty_at_review_start": ""
+    },
+    "arch": "x86_64",
+    "cargo_lock_sha256": "25fc018b20d57fe22b704fd528cfa9f3dc64969ed7aa0345fb0cd294e913eea2",
+    "toolchain": {
+      "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+      "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)"
+    },
+    "images": {
+      "base_stable_digest": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+      "dev_service": "vole-document/dev:1.99.0"
+    },
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    }
+  },
+  "gate": {
+    "command": "cargo fmt --all --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features --locked && cargo test --no-default-features",
+    "exit": 0,
+    "test_result_ok_groups": 58,
+    "log": "raw/gate.txt"
+  },
+  "verdicts": [
+    {"id": "F1", "claim": "warm descriptor-free 8.4-8.9KB total beats SQLite 24,393B", "verdict": "falsified_as_like_for_like_byte_comparison", "detail": "warm process also reads the cached answer payload (65,913B on large-400; 527,275B on large), excluded from bytes_read; process read >= 74.9KB on large-400 > A1 24,393B; holds only as overhead-only + wall win"},
+    {"id": "F2", "claim": "bounded working set 357B cold", "verdict": "overstated_stale", "detail": "current seed class is 449B; honest total cold is 232,515-363,647B (descriptor closure + index), not O(1)"},
+    {"id": "F3", "claim": "cross-process reuse: 0 nodes executed", "verdict": "confirmed_scoped", "detail": "real OS process; reuse served by the persisted derived cache; cache clear re-executes"},
+    {"id": "F4", "claim": "ADR-0028/FINDINGS cite share-0f3d1d3 receipt", "verdict": "not_backed_by_present_receipt", "detail": "directory absent; commit 0f3d1d3 unreachable; sealed receipt is share-d9f818a"},
+    {"id": "F5", "claim": "descriptor copied verbatim in the edit", "verdict": "overstated_wording", "detail": "descriptor shared by content id; 0 bytes read, 0 blobs opened"},
+    {"id": "F6", "claim": "measurement boundary and receipt hygiene", "verdict": "noted", "detail": "instrumented-vs-process bytes compared for a win; duplicated SUMMARY section; stale header commit; dirty-tree court receipt"},
+    {"id": "F7", "claim": "finer units lose to CDC; unique_bytes is a lower bound", "verdict": "confirmed"},
+    {"id": "F8", "claim": "immutable edit witness sharing is genuine", "verdict": "confirmed_scoped"},
+    {"id": "C1", "claim": "exactness after source removal (len+SHA+cmp, new process)", "verdict": "confirmed"},
+    {"id": "C2", "claim": "pinned offline tokenizer; smaller V is working-set only", "verdict": "confirmed"}
+  ],
+  "corrections": {
+    "docs/phases/phase-11-results.md": ["wins bullets (449B seed scope, cache-dependent reuse)", "descriptor-free verdict (overhead-only; loss vs A1 on large)", "honest losses list", "edit descriptor wording", "header cumulative/skeptic note"],
+    "FINDINGS.md": ["section 7 receipt pointer 0f3d1d3 -> d9f818a"],
+    "docs/adr/0028-finer-than-object-sharing.md": ["campaign path + commit"],
+    "docs/adr/0027-cost-accounting.md": ["cache-payload read correction; no cross-definition byte win"],
+    "docs/adr/0025-procedural-seed-dag.md": ["reuse is cache-served across a process boundary"]
+  },
+  "review_document": "docs/reviews/phase-11-skeptic-review.md",
+  "not_verified": ["large-400 warm process read is inferred from bytes_returned + instrumented overhead, not sealed by a court-time warm strace"]
+}
