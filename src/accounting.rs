@@ -21,6 +21,11 @@ pub struct CostBreakdown {
     pub record_framing: u64,
     /// Object record payloads (raw byte objects).
     pub objects: u64,
+    /// `EXTERNAL_REF` record payloads (Phase 9): 40 bytes per external object.
+    ///
+    /// The record framing is charged to [`CostBreakdown::record_framing`], as for
+    /// `OBJECT` records.
+    pub external_refs: u64,
     /// Reconstruction-graph record payload.
     pub graph: u64,
     /// Entropy model records (0 in the exact core).
@@ -47,6 +52,7 @@ impl CostBreakdown {
             + self.format
             + self.record_framing
             + self.objects
+            + self.external_refs
             + self.graph
             + self.models
             + self.entropy_payload
@@ -61,12 +67,13 @@ impl CostBreakdown {
     pub fn to_json(&self) -> String {
         let mut s = String::new();
         s.push('{');
-        let fields: [(&str, u64); 13] = [
+        let fields: [(&str, u64); 14] = [
             ("header", self.header),
             ("universe", self.universe),
             ("format", self.format),
             ("record_framing", self.record_framing),
             ("objects", self.objects),
+            ("external_refs", self.external_refs),
             ("graph", self.graph),
             ("models", self.models),
             ("entropy_payload", self.entropy_payload),
@@ -114,6 +121,7 @@ mod tests {
             "format",
             "record_framing",
             "objects",
+            "external_refs",
             "graph",
             "models",
             "entropy_payload",

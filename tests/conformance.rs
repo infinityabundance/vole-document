@@ -3,7 +3,7 @@
 
 use vole_document::adapter::opaque::FORMAT_BASIS;
 use vole_document::container::record::RECORD_OVERHEAD;
-use vole_document::container::{Descriptor, UNIVERSE, universe_id_from_str};
+use vole_document::container::{Descriptor, ObjectSource, UNIVERSE, universe_id_from_str};
 use vole_document::dra::{Authority, Op, Program};
 use vole_document::encode::candidates::CandidateKind;
 use vole_document::integrity::sha256;
@@ -18,7 +18,7 @@ fn raw_descriptor(source: &[u8]) -> Descriptor {
         format_basis: FORMAT_BASIS.to_string(),
         models: vec![],
         channels: vec![],
-        objects: vec![source.to_vec()],
+        objects: vec![ObjectSource::Inline(source.to_vec())],
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
         observation_index: None,
         seek_directory: false,
@@ -91,7 +91,7 @@ fn coverage_authority_literal_then_generated() {
         format_basis: FORMAT_BASIS.to_string(),
         models: vec![],
         channels: vec![],
-        objects: vec![b"abc".to_vec()],
+        objects: vec![ObjectSource::Inline(b"abc".to_vec())],
         program: Program::new(vec![
             Op::EmitObject { object_id: 0 },
             Op::RepeatLast { count: 2 },
@@ -104,10 +104,20 @@ fn coverage_authority_literal_then_generated() {
     let (bytes, _) = d.serialize().unwrap();
     let parsed = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap();
 
+    let inline_objects: Vec<Vec<u8>> = parsed
+        .descriptor
+        .objects
+        .iter()
+        .map(|o| {
+            o.as_inline()
+                .expect("this descriptor is fully inline")
+                .to_vec()
+        })
+        .collect();
     let (len, cov) = parsed
         .descriptor
         .program
-        .analyze_objects(&parsed.descriptor.objects, Limits::DEFAULT)
+        .analyze_objects(&inline_objects, Limits::DEFAULT)
         .unwrap();
     assert_eq!(len, source.len() as u64);
     cov.validate(len).unwrap();

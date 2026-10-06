@@ -2,11 +2,16 @@
 //! panics, hangs, unbounded allocation, or silent reinterpretation.
 
 use vole_document::container::record::write_record;
-use vole_document::container::{Descriptor, HEADER_LEN, Header, Record, RecordReader};
+use vole_document::container::{
+    Descriptor, HEADER_LEN, Header, ObjectSource, Record, RecordReader,
+};
 use vole_document::error::ErrorClass;
 use vole_document::limits::Limits;
 use vole_document::materialize;
 use vole_document::{Error, encode};
+
+#[cfg(not(feature = "store"))]
+use vole_document::store::Id;
 
 use vole_document::SOURCE_FORMAT_OPAQUE;
 use vole_document::container::UNIVERSE;
@@ -200,7 +205,7 @@ fn repeat_expansion_is_bounded() {
         format_basis: "opaque;test".to_string(),
         models: vec![],
         channels: vec![],
-        objects: vec![vec![0u8; 1024]],
+        objects: vec![ObjectSource::Inline(vec![0u8; 1024])],
         program: Program::new(vec![
             Op::EmitObject { object_id: 0 },
             Op::RepeatLast { count: 1 << 20 },
@@ -230,7 +235,7 @@ fn court_rejects_inexact_candidate() {
         format_basis: "opaque;test".to_string(),
         models: vec![],
         channels: vec![],
-        objects: vec![b"wrong bytes".to_vec()],
+        objects: vec![ObjectSource::Inline(b"wrong bytes".to_vec())],
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
         observation_index: None,
         seek_directory: false,
@@ -243,4 +248,33 @@ fn court_rejects_inexact_candidate() {
     }];
     let e: Error = vole_document::encode::court::run(input, cands, Limits::DEFAULT).unwrap_err();
     assert_eq!(e.class(), ErrorClass::ReconstructionMismatch);
+}
+
+/// A store-backed descriptor (an `EXTERNAL_REF` object, hence the
+/// `FEATURE_EXTERNAL_OBJECTS` mandatory bit) must fail closed in a build without
+/// the `store` feature: never reinterpreted, never partially materialized.
+#[cfg(not(feature = "store"))]
+#[test]
+fn store_backed_descriptor_fails_closed_without_store() {
+    let object = b"external object bytes";
+    let d = Descriptor {
+        universe: UNIVERSE.to_string(),
+        source_format: SOURCE_FORMAT_OPAQUE,
+        format_basis: "opaque;test".to_string(),
+        models: vec![],
+        channels: vec![],
+        objects: vec![ObjectSource::External {
+            id: Id::from_bytes([0x5A; 32]),
+            len: object.len() as u64,
+        }],
+        program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
+        observation_index: None,
+        seek_directory: false,
+        source_sha256: sha256(object),
+        source_len: object.len() as u64,
+    };
+    // Serialization itself is store-free (the id is carried verbatim).
+    let (bytes, _) = d.serialize().unwrap();
+    let err = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap_err();
+    assert_eq!(err.class(), ErrorClass::UnsupportedFeature);
 }

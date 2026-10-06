@@ -19,7 +19,7 @@
 use vole_document::ErrorClass;
 use vole_document::adapter::pdf::propose_pdf_layout;
 use vole_document::adapter::pdf::samples::sample_pdfs;
-use vole_document::container::Descriptor;
+use vole_document::container::{Descriptor, ObjectSource};
 use vole_document::dra::Op;
 use vole_document::dra::op::PackItem;
 use vole_document::encode;
@@ -271,7 +271,9 @@ fn layout_bad_offset_falls_back() {
     );
 
     // The wrong 10-digit field survives verbatim in the packed data object.
-    let data = &cand.descriptor.objects[0];
+    let data = cand.descriptor.objects[0]
+        .as_inline()
+        .expect("the layout object is inline");
     assert!(
         data.windows(wrong.len()).any(|w| w == wrong.as_bytes()),
         "the wrong offset must be stored literally"
@@ -381,7 +383,10 @@ fn layout_hostile() {
         .descriptor
         .objects
         .iter_mut()
-        .find(|obj| !obj.is_empty())
+        .find_map(|obj| match obj {
+            ObjectSource::Inline(bytes) if !bytes.is_empty() => Some(bytes),
+            _ => None,
+        })
         .expect("the layout program carries a packed data object");
     victim[0] ^= 0xFF;
     let (reserialized, _) = parsed.descriptor.serialize().unwrap();

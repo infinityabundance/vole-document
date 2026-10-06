@@ -19,6 +19,10 @@ use crate::entropy::model::EntropyModel;
 use crate::error::{Error, Result};
 use crate::integrity::sha256;
 use crate::limits::Limits;
+use crate::store::Id;
+
+/// Payload length of an `EXTERNAL_REF` record: `[u8; 32 id][u64 LE len]`.
+pub const EXTERNAL_REF_PAYLOAD_LEN: usize = 40;
 
 /// The current reconstruction universe declaration.
 ///
@@ -26,12 +30,14 @@ use crate::limits::Limits;
 /// new universe string. The `universe_id` in the header is the first 16 bytes
 /// of SHA-256 over this string.
 ///
-/// Phase 7 adds an optional `OBSERVATION_INDEX` record (partial-decode view);
-/// Phase 8 adds an optional `DIRECTORY` record (seek-based partial I/O), so the
-/// suffix `+seek-directory-v1` is appended. The DRA graph stays at `dra-8`, the
+/// Phase 7 adds an optional `OBSERVATION_INDEX` record; Phase 8 adds an optional
+/// `DIRECTORY` record; Phase 9 adds the store-backed object form (`EXTERNAL_REF`
+/// records, mandatory [`crate::container::header::FEATURE_EXTERNAL_OBJECTS`]) and
+/// appends `+external-objects-v1`. The DRA graph stays at `dra-8`, the
 /// `FORMAT_MINOR` does not move, and the exactness semantics are unchanged: a
-/// decoder that ignores the directory still fully materializes.
-pub const UNIVERSE: &str = "vole-document;universe;phase8;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1+seek-directory-v1";
+/// decoder that ignores the optional records still fully materializes, while one
+/// without the `store` feature fails closed on a store-backed descriptor.
+pub const UNIVERSE: &str = "vole-document;universe;phase9;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1+seek-directory-v1+external-objects-v1";
 
 /// First 16 bytes of SHA-256 over a universe declaration string.
 pub fn universe_id_from_str(universe: &str) -> [u8; 16] {
@@ -39,6 +45,43 @@ pub fn universe_id_from_str(universe: &str) -> [u8; 16] {
     let mut id = [0u8; 16];
     id.copy_from_slice(&full[0..16]);
     id
+}
+
+/// Source of one object-table entry.
+///
+/// A descriptor's object table is a single ordered sequence; each entry is
+/// either inline bytes or a reference to a content-addressed store object, in
+/// object-table order, so the DRA's `object_id` continues to index it unchanged.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ObjectSource {
+    /// Bytes carried in an `OBJECT` (0x10) record.
+    Inline(Vec<u8>),
+    /// Bytes held by an [`crate::store::ObjectStore`] under `id`; `len` is the
+    /// exact byte length.
+    External { id: Id, len: u64 },
+}
+
+impl ObjectSource {
+    /// Length available to the coverage certificate WITHOUT resolving.
+    pub fn len(&self) -> u64 {
+        match self {
+            ObjectSource::Inline(b) => b.len() as u64,
+            ObjectSource::External { len, .. } => *len,
+        }
+    }
+
+    /// Whether this entry contributes zero bytes.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// The inline bytes, if this entry is not an external reference.
+    pub fn as_inline(&self) -> Option<&[u8]> {
+        match self {
+            ObjectSource::Inline(b) => Some(b),
+            ObjectSource::External { .. } => None,
+        }
+    }
 }
 
 /// The in-memory model of a `.voldoc` descriptor.
@@ -55,7 +98,7 @@ pub struct Descriptor {
     /// Typed entropy channels referenced by the program.
     pub channels: Vec<EntropyChannelDescriptor>,
     /// Raw byte objects referenced by the program.
-    pub objects: Vec<Vec<u8>>,
+    pub objects: Vec<ObjectSource>,
     /// The reconstruction program.
     pub program: Program,
     /// Optional advisory observation index (Phase 7.3).
@@ -131,6 +174,13 @@ impl Descriptor {
             if matches!(op, crate::dra::Op::DeflateReplay { .. }) {
                 bits |= crate::container::header::FEATURE_DEFLATE_REPLAY;
             }
+        }
+        if self
+            .objects
+            .iter()
+            .any(|o| matches!(o, ObjectSource::External { .. }))
+        {
+            bits |= crate::container::header::FEATURE_EXTERNAL_OBJECTS;
         }
         bits
     }
@@ -208,10 +258,22 @@ impl Descriptor {
             pending.push(PendingRecord::new(RecordTag::EntropyChannel, 0, encoded));
         }
 
-        // OBJECTS
+        // OBJECTS: each entry is either an inline OBJECT record or an
+        // EXTERNAL_REF record, in object-table order (position is the id).
         for obj in &self.objects {
-            cost.objects += obj.len() as u64;
-            pending.push(PendingRecord::new(RecordTag::Object, 0, obj.clone()));
+            match obj {
+                ObjectSource::Inline(bytes) => {
+                    cost.objects += bytes.len() as u64;
+                    pending.push(PendingRecord::new(RecordTag::Object, 0, bytes.clone()));
+                }
+                ObjectSource::External { id, len } => {
+                    let mut payload = Vec::with_capacity(EXTERNAL_REF_PAYLOAD_LEN);
+                    payload.extend_from_slice(id.as_bytes());
+                    payload.extend_from_slice(&len.to_le_bytes());
+                    cost.external_refs += payload.len() as u64;
+                    pending.push(PendingRecord::new(RecordTag::ExternalRef, 0, payload));
+                }
+            }
         }
 
         // GRAPH
@@ -380,7 +442,7 @@ impl Descriptor {
         let mut format: Option<(u8, String)> = None;
         let mut models: Vec<EntropyModel> = Vec::new();
         let mut channels: Vec<EntropyChannelDescriptor> = Vec::new();
-        let mut objects: Vec<Vec<u8>> = Vec::new();
+        let mut objects: Vec<ObjectSource> = Vec::new();
         let mut program: Option<Program> = None;
         let mut observation_index: Option<ObservationIndex> = None;
         let mut source_sha256: Option<[u8; 32]> = None;
@@ -455,7 +517,34 @@ impl Descriptor {
                         return Err(Error::resource_limit("object count limit exceeded"));
                     }
                     cost.objects += rec.payload.len() as u64;
-                    objects.push(rec.payload);
+                    objects.push(ObjectSource::Inline(rec.payload));
+                }
+                Some(RecordTag::ExternalRef) => {
+                    if objects.len() as u32 >= limits.max_object_count {
+                        return Err(Error::resource_limit("object count limit exceeded"));
+                    }
+                    if rec.payload.len() != EXTERNAL_REF_PAYLOAD_LEN {
+                        return Err(Error::invalid_container(
+                            "EXTERNAL_REF payload must be 40 bytes",
+                        ));
+                    }
+                    let mut id = [0u8; 32];
+                    id.copy_from_slice(&rec.payload[0..32]);
+                    let len = u64::from_le_bytes([
+                        rec.payload[32],
+                        rec.payload[33],
+                        rec.payload[34],
+                        rec.payload[35],
+                        rec.payload[36],
+                        rec.payload[37],
+                        rec.payload[38],
+                        rec.payload[39],
+                    ]);
+                    cost.external_refs += rec.payload.len() as u64;
+                    objects.push(ObjectSource::External {
+                        id: Id::from_bytes(id),
+                        len,
+                    });
                 }
                 Some(RecordTag::Model) => {
                     if models.len() as u32 >= limits.max_model_count {
@@ -562,9 +651,7 @@ impl Descriptor {
                     saw_trailer = true;
                 }
                 // Phase 2+ mandatory records have no meaning in this universe.
-                Some(RecordTag::Residual)
-                | Some(RecordTag::Checkpoint)
-                | Some(RecordTag::ExternalRef) => {
+                Some(RecordTag::Residual) | Some(RecordTag::Checkpoint) => {
                     if rec.is_optional() {
                         // Explicitly optional and unknown to this universe: skip.
                     } else {
@@ -633,7 +720,7 @@ impl Descriptor {
 
         // Coverage certificate: every source byte has exactly one authority and
         // the program's predicted length equals the declared length.
-        let object_lens: Vec<u64> = objects.iter().map(|o| o.len() as u64).collect();
+        let object_lens: Vec<u64> = objects.iter().map(|o| o.len()).collect();
         let channel_lens: Vec<u64> = channels.iter().map(|c| c.decoded_length).collect();
         let (predicted, coverage) = program.analyze(&object_lens, &channel_lens, limits)?;
         if predicted != source_len {
@@ -697,7 +784,7 @@ mod tests {
             format_basis: "opaque:test".to_string(),
             models: vec![],
             channels: vec![],
-            objects: vec![source.to_vec()],
+            objects: vec![ObjectSource::Inline(source.to_vec())],
             program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
             observation_index: None,
             seek_directory: false,
@@ -838,7 +925,7 @@ mod tests {
     /// consistent observation index over its five output bytes.
     fn indexed_descriptor() -> Descriptor {
         let mut d = sample(b"");
-        d.objects = vec![b"abc".to_vec()];
+        d.objects = vec![ObjectSource::Inline(b"abc".to_vec())];
         d.program = Program::new(vec![
             Op::EmitObject { object_id: 0 },
             Op::Inline {

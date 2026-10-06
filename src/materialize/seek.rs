@@ -170,6 +170,11 @@ pub fn materialize_observation_seeked<R: Read + Seek>(
     let object_entries = class_entries(&dir, RecordTag::Object)?;
     let channel_entries = class_entries(&dir, RecordTag::EntropyChannel)?;
     let model_entries = class_entries(&dir, RecordTag::Model)?;
+    if !class_entries(&dir, RecordTag::ExternalRef)?.is_empty() {
+        return Err(Error::unsupported_feature(
+            "seek-based partial read cannot resolve external objects",
+        ));
+    }
     if !channel_entries.is_empty() && dir.section_flags & SECTION_CHANNEL_LENGTHS == 0 {
         return Err(Error::unsupported_feature(
             "seek directory omits the channel-lengths section",

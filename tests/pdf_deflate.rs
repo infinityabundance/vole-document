@@ -24,7 +24,7 @@ use vole_document::ErrorClass;
 use vole_document::SOURCE_FORMAT_PDF;
 use vole_document::adapter::pdf::samples::{is_negative_control, sample_pdfs};
 use vole_document::adapter::pdf::{propose_pdf_deflate_replay, propose_pdf_deflate_replay_rans};
-use vole_document::container::{Descriptor, UNIVERSE};
+use vole_document::container::{Descriptor, ObjectSource, UNIVERSE};
 use vole_document::dra::{Op, Program};
 use vole_document::encode;
 use vole_document::encode::candidates::{Candidate, CandidateKind};
@@ -326,7 +326,10 @@ fn hostile_corrections_fail_closed() {
             format_basis: format!("pdf-deflate-replay;test=hostile;case={case}"),
             models: vec![],
             channels: vec![],
-            objects: vec![plaintext.clone(), garbage],
+            objects: vec![
+                ObjectSource::Inline(plaintext.clone()),
+                ObjectSource::Inline(garbage),
+            ],
             program: Program::new(vec![Op::DeflateReplay {
                 replay_codec: vole_document::dra::op::REPLAY_DEFLATE_PREFLATE_0_7_6,
                 source_kind: 0, // DEFLATE_SOURCE_OBJECT

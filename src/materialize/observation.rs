@@ -383,20 +383,36 @@ pub fn materialize_observation(
         .as_ref()
         .ok_or_else(|| Error::unsupported_feature("descriptor has no observation index"))?;
 
+    // The in-memory observation lane takes no resolver; a descriptor carrying
+    // external object references is declined rather than partially served.
+    if d.objects
+        .iter()
+        .any(|o| matches!(o, crate::container::ObjectSource::External { .. }))
+    {
+        return Err(Error::unsupported_feature(
+            "partial observation cannot resolve external objects (no resolver supplied)",
+        ));
+    }
+    let objects: Vec<Vec<u8>> = d
+        .objects
+        .iter()
+        .map(|o| o.as_inline().unwrap_or(&[]).to_vec())
+        .collect();
+
     // 2. Resolve the selector to an output range `[a, b)`.
     let (a, b) = resolve_selector(index, selector, d.source_len)?;
 
     // 3. Per-op lengths and cumulative offsets. The program is authoritative; the
     //    index's op table was already cross-checked against it at parse time.
-    let object_lens: Vec<u64> = d.objects.iter().map(|o| o.len() as u64).collect();
+    let object_lens: Vec<u64> = objects.iter().map(|o| o.len() as u64).collect();
     let channel_lens: Vec<u64> = d.channels.iter().map(|c| c.decoded_length).collect();
 
     // 4. Selection and lazy evaluation, shared verbatim with the seek reader.
     let window = select_ops(&d.program, &object_lens, &channel_lens, a, b, limits)?;
     let (objects_used, channels_used) =
-        selection_references(&window.ops, d.objects.len(), d.channels.len());
+        selection_references(&window.ops, objects.len(), d.channels.len());
     let served = serve_selection(
-        &d.objects,
+        &objects,
         &d.channels,
         &d.models,
         window,
@@ -416,7 +432,7 @@ pub fn materialize_observation(
         ops_evaluated: served.ops_evaluated,
         ops_total: served.ops_total,
         objects_fetched: served.objects_fetched,
-        objects_total: d.objects.len(),
+        objects_total: objects.len(),
         channels_decoded: served.channels_decoded,
         channels_total: d.channels.len(),
         entropy_bytes_decoded: served.entropy_bytes_decoded,

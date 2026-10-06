@@ -7,10 +7,11 @@
 pub mod observation;
 pub mod seek;
 
-use crate::container::{Descriptor, ParsedDescriptor};
+use crate::container::{Descriptor, ObjectSource, ParsedDescriptor};
 use crate::error::{Error, Result};
 use crate::integrity::{sha256, to_hex};
 use crate::limits::Limits;
+use crate::store::{NullResolver, ObjectResolver};
 
 /// Decode every entropy channel in table order, each against the model it
 /// references. Each channel's model must already have been cross-validated by
@@ -53,16 +54,48 @@ fn decode_channels(d: &Descriptor, _limits: Limits) -> Result<Vec<Vec<u8>>> {
     }
 }
 
-/// Materialize the exact source bytes for a parsed descriptor.
+/// Resolve every object once, verifying referenced ids and lengths, then hand
+/// the DRA the same plain object vector the standalone path uses.
+fn resolve_objects<R: ObjectResolver + ?Sized>(
+    d: &Descriptor,
+    resolver: &R,
+) -> Result<Vec<Vec<u8>>> {
+    let mut out: Vec<Vec<u8>> = Vec::with_capacity(d.objects.len());
+    for (i, src) in d.objects.iter().enumerate() {
+        match src {
+            ObjectSource::Inline(bytes) => out.push(bytes.clone()),
+            ObjectSource::External { id, len } => {
+                let bytes = resolver.get(id, *len)?;
+                if bytes.len() as u64 != *len {
+                    return Err(Error::integrity_mismatch(format!(
+                        "external object {i} ({id}) has {} bytes, EXTERNAL_REF declared {len}",
+                        bytes.len()
+                    )));
+                }
+                out.push(bytes);
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Materialize the exact source bytes for a parsed descriptor, resolving any
+/// external object references through `resolver`.
 ///
 /// Enforces, in order: program bounds (via `eval`), reconstructed length, and
-/// whole-source SHA-256.
-pub fn materialize(parsed: &ParsedDescriptor, limits: Limits) -> Result<Vec<u8>> {
+/// whole-source SHA-256. The DRA is unchanged: it consumes the same plain
+/// object vector the standalone path uses.
+pub fn materialize_with<R: ObjectResolver>(
+    parsed: &ParsedDescriptor,
+    resolver: &R,
+    limits: Limits,
+) -> Result<Vec<u8>> {
     let d = &parsed.descriptor;
 
     let channels = decode_channels(d, limits)?;
+    let objects = resolve_objects(d, resolver)?;
 
-    let out = d.program.eval(&d.objects, &channels, limits)?;
+    let out = d.program.eval(&objects, &channels, limits)?;
     if out.len() as u64 != d.source_len {
         return Err(Error::reconstruction_mismatch(format!(
             "materialized {} bytes but {} were declared",
@@ -81,11 +114,30 @@ pub fn materialize(parsed: &ParsedDescriptor, limits: Limits) -> Result<Vec<u8>>
     Ok(out)
 }
 
-/// Parse and materialize in one step.
-pub fn decode_to_bytes(bytes: &[u8], limits: Limits) -> Result<(Vec<u8>, ParsedDescriptor)> {
+/// Materialize the exact source bytes for a parsed descriptor.
+///
+/// Standalone entry point: no resolver. Succeeds iff there are no external
+/// references; a descriptor with an [`ObjectSource::External`] object errors
+/// [`crate::ErrorClass::MissingExternalObject`].
+pub fn materialize(parsed: &ParsedDescriptor, limits: Limits) -> Result<Vec<u8>> {
+    materialize_with(parsed, &NullResolver, limits)
+}
+
+/// Parse and materialize in one step, resolving external objects through
+/// `resolver`.
+pub fn decode_to_bytes_with<R: ObjectResolver>(
+    bytes: &[u8],
+    resolver: &R,
+    limits: Limits,
+) -> Result<(Vec<u8>, ParsedDescriptor)> {
     let parsed = Descriptor::parse(bytes, limits)?;
-    let out = materialize(&parsed, limits)?;
+    let out = materialize_with(&parsed, resolver, limits)?;
     Ok((out, parsed))
+}
+
+/// Parse and materialize in one step (no resolver).
+pub fn decode_to_bytes(bytes: &[u8], limits: Limits) -> Result<(Vec<u8>, ParsedDescriptor)> {
+    decode_to_bytes_with(bytes, &NullResolver, limits)
 }
 
 /// The result of a deep verification.
@@ -125,7 +177,7 @@ mod tests {
             format_basis: "opaque:test".to_string(),
             models: vec![],
             channels: vec![],
-            objects: vec![source.to_vec()],
+            objects: vec![crate::container::ObjectSource::Inline(source.to_vec())],
             program: crate::dra::Program::new(vec![Op::EmitObject { object_id: 0 }]),
             observation_index: None,
             seek_directory: false,

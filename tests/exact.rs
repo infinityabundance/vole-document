@@ -135,9 +135,9 @@ fn encoded_overhead_is_bounded_for_incompressible_data() {
     let data = rng.bytes(1 << 20);
     let (bytes, _) = encode::encode(&data, Limits::DEFAULT).unwrap();
     let overhead = bytes.len() - data.len();
-    // Fixed framing overhead for the Phase-8 RAW descriptor (DRA v8 universe
-    // plus the `+observation-index-v1+seek-directory-v1` suffixes; this
-    // descriptor carries no directory record, so the only change is the longer
-    // universe string).
-    assert_eq!(overhead, 434, "unexpected fixed overhead");
+    // Fixed framing overhead for the Phase-9 RAW descriptor (DRA v8 universe
+    // plus the `+observation-index-v1+seek-directory-v1+external-objects-v1`
+    // suffixes; this descriptor carries no directory record, so the only change
+    // is the longer universe string).
+    assert_eq!(overhead, 454, "unexpected fixed overhead");
 }

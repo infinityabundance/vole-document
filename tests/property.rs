@@ -16,7 +16,7 @@
 //! it without changing the code. Results derived from untrusted input are never
 //! unwrapped: a malformed input must yield a typed `Err`, never a panic.
 
-use vole_document::container::{Descriptor, UNIVERSE};
+use vole_document::container::{Descriptor, ObjectSource, UNIVERSE};
 use vole_document::dra::{Op, Program};
 use vole_document::entropy::{
     CODER_ORDER0_BYTE_RANS, CODER_VERSION_1, EntropyChannelDescriptor, EntropyModel,
@@ -279,7 +279,7 @@ fn literal_descriptor(source: &[u8]) -> Descriptor {
         format_basis: "opaque;property".to_string(),
         models: vec![],
         channels: vec![],
-        objects: vec![source.to_vec()],
+        objects: vec![ObjectSource::Inline(source.to_vec())],
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
         observation_index: None,
         seek_directory: false,
