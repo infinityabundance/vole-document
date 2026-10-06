@@ -21,6 +21,7 @@ pub mod ingest;
 pub mod manifest;
 pub mod node;
 pub mod observe;
+pub mod partial;
 pub mod plan;
 pub mod provenance;
 pub mod share;
@@ -109,7 +110,7 @@ impl FieldStore {
         cache::DerivedCache::open(self.root.join("cache"))
     }
 
-    fn descriptor_path(&self, id: &Id) -> PathBuf {
+    pub(crate) fn descriptor_path(&self, id: &Id) -> PathBuf {
         self.root.join("descriptor").join(id.to_hex())
     }
 

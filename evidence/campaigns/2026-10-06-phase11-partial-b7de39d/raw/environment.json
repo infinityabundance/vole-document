@@ -1,0 +1,32 @@
+{
+  "git": {
+    "commit": "b7de39d276e1aabbb859c0b5b9209a8bc6e2c9a7",
+    "commit_short": "b7de39d",
+    "dirty": " M src/adapter/pdf/replay.rs; M src/container/observation.rs; M src/field/dag.rs; M src/field/explain.rs; M src/field/ingest.rs; M src/field/mod.rs; M src/field/observe.rs; M src/field/plan.rs; M src/main.rs; M src/materialize/observation.rs; M tools/field-court.sh;?? evidence/campaigns/2026-10-06-phase11-partial-b7de39d/;?? src/field/partial.rs;?? tests/field_partial.rs;"
+  },
+  "arch": "x86_64",
+  "cargo_lock_sha256": "25fc018b20d57fe22b704fd528cfa9f3dc64969ed7aa0345fb0cd294e913eea2",
+  "toolchain": {
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)"
+  },
+  "images": {
+    "base_stable_digest": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "base_tools_digest": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+    "db_baseline_image_id": "unrecorded"
+  },
+  "oracles": {
+    "sqlite3": "3.40.1",
+    "poppler_pdftotext": "22.12.0",
+    "qpdf": "11.3.0",
+    "strace": "6.1",
+    "jq": "jq-1.6",
+    "gzip": "1.12",
+    "zstd": "1.5.4",
+    "xz": "5.4.1"
+  },
+  "env_affecting_semantics": {
+    "LC_ALL": "C",
+    "VOLE_BIN": "./target/debug/vole-document"
+  }
+}

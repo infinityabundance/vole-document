@@ -10,9 +10,9 @@
 //! * plan   — `selector`, `representation`, `shape`, `index_reads`,
 //!   `required_nodes`, `will_materialize`, `will_not_materialize`.
 //! * actual — `index_nodes_read`, `seed_nodes_fetched`, `seed_nodes_materialized`,
-//!   `descriptor_bytes_read`, `manifest_bytes_read`, `index_bytes_read`,
-//!   `seed_bytes_read`, `bytes_read`, `bytes_returned`, `deepened`, `wall_micros`,
-//!   `basis`, `exact`.
+//!   `descriptor_bytes_read`, `descriptor_read_mode`, `manifest_bytes_read`,
+//!   `index_bytes_read`, `seed_bytes_read`, `bytes_read`, `bytes_returned`,
+//!   `deepened`, `wall_micros`, `basis`, `exact`.
 //!
 //! `bytes_read` is the **sum** of the four `*_bytes_read` classes: total physical
 //! bytes this observation made the OS fetch, including the descriptor blob. It is
@@ -20,10 +20,11 @@
 //! review (ADR-0027 accounting).
 
 use crate::error::Result;
-use crate::field::observe::{ObserveRequest, ObserveStats, observe_with_field};
+use crate::field::manifest::FieldRoot;
+use crate::field::observe::{ObserveRequest, ObserveStats, OpenedField, observe_opened};
 use crate::field::plan::{ObservePlan, plan};
 use crate::field::provenance::{Basis, json_escape};
-use crate::field::{Field, FieldId, FieldStore};
+use crate::field::{FieldId, FieldStore};
 use crate::limits::Limits;
 
 /// The intended plan plus its canonical JSON rendering.
@@ -57,6 +58,7 @@ impl ExplainActual {
                 "\"seed_nodes_fetched\":{},",
                 "\"seed_nodes_materialized\":{},",
                 "\"descriptor_bytes_read\":{},",
+                "\"descriptor_read_mode\":\"{}\",",
                 "\"manifest_bytes_read\":{},",
                 "\"index_bytes_read\":{},",
                 "\"seed_bytes_read\":{},",
@@ -72,6 +74,7 @@ impl ExplainActual {
             s.seed_nodes_fetched,
             s.seed_nodes_materialized,
             s.descriptor_bytes_read,
+            s.descriptor_read_mode.name(),
             s.manifest_bytes_read,
             s.index_bytes_read,
             s.seed_bytes_read,
@@ -86,8 +89,12 @@ impl ExplainActual {
 }
 
 /// Explain an observation without executing it. Pure.
-pub fn explain(field: &Field, store: &FieldStore, req: &ObserveRequest) -> Result<ExplainPlan> {
-    let plan = plan(field, store, req)?;
+pub fn explain(
+    manifest: &FieldRoot,
+    store: &FieldStore,
+    req: &ObserveRequest,
+) -> Result<ExplainPlan> {
+    let plan = plan(manifest, store, req)?;
     let json = plan_json(req, &plan);
     Ok(ExplainPlan { plan, json })
 }
@@ -105,10 +112,10 @@ pub fn explain_analyze(
     limits: Limits,
 ) -> Result<(ExplainPlan, ExplainActual)> {
     let started = std::time::Instant::now();
-    let field = Field::open(store, id, limits)?;
-    let planned = plan(&field, store, req)?;
+    let opened = OpenedField::open(store, id, req, limits)?;
+    let planned = plan(opened.manifest(), store, req)?;
     let json = plan_json(req, &planned);
-    let (answer, mut stats, _field) = observe_with_field(store, &field, req, limits)?;
+    let (answer, mut stats, _) = observe_opened(store, &opened, req, limits)?;
     stats.wall_micros = started.elapsed().as_micros().min(u128::from(u64::MAX)) as u64;
     let actual = ExplainActual {
         stats,
@@ -161,7 +168,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn actual_json_has_exactly_the_fourteen_keys() {
+    fn actual_json_has_exactly_the_fifteen_keys() {
         let actual = ExplainActual {
             stats: ObserveStats::default(),
             answer_basis: Basis::DirectlyObserved,
@@ -169,7 +176,7 @@ mod tests {
         };
         assert_eq!(
             actual.to_json(),
-            "{\"index_nodes_read\":0,\"seed_nodes_fetched\":0,\"seed_nodes_materialized\":0,\"descriptor_bytes_read\":0,\"manifest_bytes_read\":0,\"index_bytes_read\":0,\"seed_bytes_read\":0,\"bytes_read\":0,\"bytes_returned\":0,\"deepened\":false,\"wall_micros\":0,\"basis\":\"directly-observed\",\"exact\":true}"
+            "{\"index_nodes_read\":0,\"seed_nodes_fetched\":0,\"seed_nodes_materialized\":0,\"descriptor_bytes_read\":0,\"descriptor_read_mode\":\"full\",\"manifest_bytes_read\":0,\"index_bytes_read\":0,\"seed_bytes_read\":0,\"bytes_read\":0,\"bytes_returned\":0,\"deepened\":false,\"wall_micros\":0,\"basis\":\"directly-observed\",\"exact\":true}"
         );
     }
 

@@ -1598,7 +1598,7 @@ fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats, field: &FieldId
             "\"source_span\":{},",
             "\"dependency_ids\":[{}],",
             "{},",
-            "\"stats\":{{\"index_nodes_read\":{},\"seed_nodes_fetched\":{},\"seed_nodes_materialized\":{},\"seed_nodes_executed\":{},\"seed_nodes_reused\":{},\"cache_bytes_written\":{},\"descriptor_bytes_read\":{},\"manifest_bytes_read\":{},\"index_bytes_read\":{},\"seed_bytes_read\":{},\"bytes_read\":{},\"bytes_returned\":{},\"deepened\":{},\"wall_micros\":{}}}",
+            "\"stats\":{{\"index_nodes_read\":{},\"seed_nodes_fetched\":{},\"seed_nodes_materialized\":{},\"seed_nodes_executed\":{},\"seed_nodes_reused\":{},\"cache_bytes_written\":{},\"descriptor_bytes_read\":{},\"descriptor_read_mode\":\"{}\",\"manifest_bytes_read\":{},\"index_bytes_read\":{},\"seed_bytes_read\":{},\"bytes_read\":{},\"bytes_returned\":{},\"deepened\":{},\"wall_micros\":{}}}",
             "}}"
         ),
         field.to_hex(),
@@ -1617,6 +1617,7 @@ fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats, field: &FieldId
         stats.seed_nodes_reused,
         stats.cache_bytes_written,
         stats.descriptor_bytes_read,
+        stats.descriptor_read_mode.name(),
         stats.manifest_bytes_read,
         stats.index_bytes_read,
         stats.seed_bytes_read,
@@ -1748,8 +1749,8 @@ fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
     let req = observe_request(&out, selector, representation);
     if out.analyze {
         let planned_json = {
-            let field = Field::open(&store, &id, limits)?;
-            explain(&field, &store, &req)?.json
+            let manifest = store.get_field(&id)?;
+            explain(&manifest, &store, &req)?.json
         };
         let (answer, stats, promoted) = observe(&mut store, &id, &req, limits)?;
         println!(
@@ -1758,8 +1759,8 @@ fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
             explain_actual_json(&stats, &answer, &promoted)
         );
     } else {
-        let field = Field::open(&store, &id, limits)?;
-        let plan = explain(&field, &store, &req)?;
+        let manifest = store.get_field(&id)?;
+        let plan = explain(&manifest, &store, &req)?;
         println!("{}", plan.json);
     }
     Ok(())
@@ -1781,6 +1782,7 @@ fn explain_actual_json(stats: &ObserveStats, answer: &FieldAnswer, field: &Field
             "\"seed_nodes_reused\":{},",
             "\"cache_bytes_written\":{},",
             "\"descriptor_bytes_read\":{},",
+            "\"descriptor_read_mode\":\"{}\",",
             "\"manifest_bytes_read\":{},",
             "\"index_bytes_read\":{},",
             "\"seed_bytes_read\":{},",
@@ -1800,6 +1802,7 @@ fn explain_actual_json(stats: &ObserveStats, answer: &FieldAnswer, field: &Field
         stats.seed_nodes_reused,
         stats.cache_bytes_written,
         stats.descriptor_bytes_read,
+        stats.descriptor_read_mode.name(),
         stats.manifest_bytes_read,
         stats.index_bytes_read,
         stats.seed_bytes_read,

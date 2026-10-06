@@ -36,6 +36,34 @@ use crate::dra::Program;
 use crate::error::{Error, Result};
 use crate::limits::Limits;
 
+/// The primary dependency an op reads from, for the advisory op table.
+///
+/// "Primary" is the one dependency the index labels; secondary dependencies
+/// (for example a replay's corrections object) are not represented. This is
+/// advisory metadata only and is re-checked against the op at parse time.
+pub fn primary_dependency(op: &crate::dra::Op) -> (u8, u32) {
+    use crate::dra::op::{DEFLATE_SOURCE_CHANNEL, Op};
+    match op {
+        Op::EmitObject { object_id } => (DEP_OBJECT, *object_id),
+        Op::DecodeChannel { channel_id } => (DEP_CHANNEL, *channel_id),
+        Op::InterleaveChannels { kinds_channel, .. } => (DEP_CHANNEL, *kinds_channel),
+        Op::PackSegments { data_object, .. } => (DEP_OBJECT, *data_object),
+        Op::PackedChannels { data_channel, .. } => (DEP_CHANNEL, *data_channel),
+        Op::DeflateReplay {
+            source_kind,
+            source_id,
+            ..
+        } => match *source_kind {
+            DEFLATE_SOURCE_CHANNEL => (DEP_CHANNEL, *source_id),
+            _ => (DEP_OBJECT, *source_id),
+        },
+        Op::Inline { .. }
+        | Op::MarkOffset { .. }
+        | Op::EmitOffset { .. }
+        | Op::RepeatLast { .. } => (DEP_NONE, 0),
+    }
+}
+
 /// Wire version of the observation-index payload.
 pub const OBSERVATION_INDEX_VERSION: u8 = 1;
 

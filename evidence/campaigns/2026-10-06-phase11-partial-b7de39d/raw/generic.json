@@ -1,0 +1,16 @@
+{
+  "source_bytes": 33673730,
+  "voldoc_bytes": 17283279,
+  "source": {
+    "gzip9": 9871676,
+    "zstd19": 6292493,
+    "xz9e": 5691168
+  },
+  "voldoc": {
+    "gzip9": 17069569,
+    "zstd19": 17044900,
+    "xz9e": 17126300
+  },
+  "roundtrip_verified": true,
+  "note": "generic compressors on the complete file; a VOLE size win over xz is not claimed"
+}

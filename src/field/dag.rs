@@ -20,6 +20,30 @@ use crate::store::{NodeId, SeedStore};
 use super::derive;
 use super::node::{NodeKind, SeedNode, read_object_params, read_span_params, read_u32_params};
 
+/// Supplies exact source byte ranges to a seed-DAG materialization.
+///
+/// The full implementation is a parsed descriptor
+/// ([`impl SourceServer for ParsedDescriptor`]); a partial loader that reads only
+/// the records a query needs is the other. Every materializer that resolves an
+/// exact `Q_ref` node goes through this one method, so the DAG logic cannot
+/// diverge between the complete and partial sources.
+pub trait SourceServer {
+    /// Bytes of the source range `[offset, offset + len)`.
+    fn serve_range(&self, offset: u64, len: u64, limits: Limits) -> Result<Vec<u8>>;
+    /// The whole reconstructed source (only a `DocumentExact` node needs this).
+    fn serve_document(&self, limits: Limits) -> Result<Vec<u8>>;
+}
+
+impl SourceServer for ParsedDescriptor {
+    fn serve_range(&self, offset: u64, len: u64, limits: Limits) -> Result<Vec<u8>> {
+        serve_source_range(self, offset, len, limits)
+    }
+
+    fn serve_document(&self, limits: Limits) -> Result<Vec<u8>> {
+        crate::materialize::materialize(self, limits)
+    }
+}
+
 /// Hard cap on the number of nodes one materialization may evaluate.
 pub const MAX_EVAL_NODES: u64 = 1 << 20;
 /// Hard cap on total intermediate+output bytes one materialization may produce.
@@ -208,6 +232,25 @@ pub fn materialize_node(
     )
 }
 
+/// Materialize one node's output bytes against an explicit [`SourceServer`].
+///
+/// This is the partial-reader entry point: the caller supplies a source that can
+/// serve ranges without being handed a fully parsed descriptor.
+pub fn materialize_node_with(
+    source: &dyn SourceServer,
+    store: &dyn SeedStore,
+    node: &SeedNode,
+    limits: Limits,
+    budget: &mut EvalBudget,
+    depth: u16,
+) -> Result<Vec<u8>> {
+    let mut cache = NoCache;
+    let mut reuse = ReuseStats::default();
+    materialize_inner(
+        source, store, &mut cache, node, limits, budget, depth, &mut reuse,
+    )
+}
+
 /// Materialize one node's output, consulting `cache` at **every** node (including
 /// dependencies).
 ///
@@ -229,9 +272,24 @@ pub fn materialize_node_cached(
     materialize_inner(parsed, store, cache, node, limits, budget, depth, reuse)
 }
 
+/// The [`SourceServer`] counterpart of [`materialize_node_cached`].
+#[allow(clippy::too_many_arguments)]
+pub fn materialize_node_cached_with(
+    source: &dyn SourceServer,
+    store: &dyn SeedStore,
+    cache: &mut dyn OutputCache,
+    node: &SeedNode,
+    limits: Limits,
+    budget: &mut EvalBudget,
+    depth: u16,
+    reuse: &mut ReuseStats,
+) -> Result<Vec<u8>> {
+    materialize_inner(source, store, cache, node, limits, budget, depth, reuse)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn materialize_inner(
-    parsed: &ParsedDescriptor,
+    source: &dyn SourceServer,
     store: &dyn SeedStore,
     cache: &mut dyn OutputCache,
     node: &SeedNode,
@@ -260,24 +318,24 @@ fn materialize_inner(
     reuse.nodes_executed = reuse.nodes_executed.saturating_add(1);
 
     let out = match node.kind {
-        NodeKind::DocumentExact => crate::materialize::materialize(parsed, limits)?,
+        NodeKind::DocumentExact => source.serve_document(limits)?,
         NodeKind::SourceSlice | NodeKind::ResourceRef => {
             let (offset, len) = read_span_params(&node.params)?;
-            serve_source_range(parsed, offset, len, limits)?
+            source.serve_range(offset, len, limits)?
         }
         NodeKind::PdfRevision | NodeKind::PdfObject | NodeKind::PdfStreamEncoded => {
             let (_number, _generation, extra) = read_object_params(&node.params)?;
             // `extra` packs `offset` in the high 32 bits and `len` in the low 32.
             let offset = extra >> 32;
             let len = extra & 0xFFFF_FFFF;
-            serve_source_range(parsed, offset, len, limits)?
+            source.serve_range(offset, len, limits)?
         }
         NodeKind::Concat | NodeKind::PageContent => {
             let mut out = Vec::new();
             for dep in &node.deps {
                 let child = load_node(store, dep)?;
                 let bytes = materialize_inner(
-                    parsed,
+                    source,
                     store,
                     cache,
                     &child,
@@ -299,7 +357,7 @@ fn materialize_inner(
                 .ok_or_else(|| Error::usage("PdfStreamDecoded has no dependency"))?;
             let child = load_node(store, dep)?;
             let encoded = materialize_inner(
-                parsed,
+                source,
                 store,
                 cache,
                 &child,
@@ -317,7 +375,7 @@ fn materialize_inner(
                 .ok_or_else(|| Error::usage("ContentOperators has no dependency"))?;
             let child = load_node(store, dep)?;
             let decoded = materialize_inner(
-                parsed,
+                source,
                 store,
                 cache,
                 &child,
@@ -335,7 +393,7 @@ fn materialize_inner(
                 .ok_or_else(|| Error::usage("TextRuns has no dependency"))?;
             let child = load_node(store, dep)?;
             let ops = materialize_inner(
-                parsed,
+                source,
                 store,
                 cache,
                 &child,
@@ -353,7 +411,7 @@ fn materialize_inner(
                 .ok_or_else(|| Error::usage("PagePreview has no dependency"))?;
             let child = load_node(store, dep)?;
             let content = materialize_inner(
-                parsed,
+                source,
                 store,
                 cache,
                 &child,

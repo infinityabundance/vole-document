@@ -1,0 +1,21 @@
+{
+  "tool": "sqlite3",
+  "sqlite_version": "3.40.1",
+  "oracle": "pdftotext (poppler)",
+  "source_pdf": "/tmp/tmp.tw7jEKA01Q/large-400.source.pdf",
+  "source_bytes": 33673730,
+  "source_sha256": "8024b1641f3144b0435811e3193c7a32519daaba5102e0f378c569e38e562f0b",
+  "pages_extracted": 400,
+  "preprocessing": {
+    "wall_ms": 1633,
+    "db_bytes": 53248
+  },
+  "query": {
+    "page": 1,
+    "wall_ms": 1,
+    "read_pread_calls": 17,
+    "read_pread_bytes": 24393,
+    "text_len": 91,
+    "text_sha256": "2d5a924da1ef65df5affef3bb7d1ab1851216a33c8b592c2d35183139d5709c9"
+  }
+}

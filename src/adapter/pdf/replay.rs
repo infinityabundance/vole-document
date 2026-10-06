@@ -29,8 +29,8 @@ use std::collections::{HashMap, HashSet};
 use crate::SOURCE_FORMAT_PDF;
 #[cfg(feature = "rans")]
 use crate::container::observation::{
-    DEP_CHANNEL, DEP_NONE, DEP_OBJECT, ObservationIndex, ObservationSelector, OpEntry,
-    SECTION_OP_TABLE, SECTION_PDF_SELECTORS, SELECTOR_OBJECT, SELECTOR_REVISION, SELECTOR_STREAM,
+    ObservationIndex, ObservationSelector, OpEntry, SECTION_OP_TABLE, SECTION_PDF_SELECTORS,
+    SELECTOR_OBJECT, SELECTOR_REVISION, SELECTOR_STREAM,
 };
 use crate::container::{Descriptor, ObjectSource, UNIVERSE};
 use crate::dra::op::{DEFLATE_SOURCE_CHANNEL, DEFLATE_SOURCE_OBJECT};
@@ -471,30 +471,11 @@ fn build_observation_index(
 /// The primary dependency of an op: the object or channel its output is read
 /// from, or [`DEP_NONE`] for literal/bookkeeping ops.
 ///
-/// "Primary" is the one dependency the index labels; secondary dependencies
-/// (for example a replay's corrections object) are not represented. This is
-/// advisory metadata only and is re-checked against the op at parse time.
+/// Re-exported from the container's observation module so the index builder and
+/// every other construction site agree on the label.
 #[cfg(feature = "rans")]
 fn primary_dependency(op: &Op) -> (u8, u32) {
-    match op {
-        Op::EmitObject { object_id } => (DEP_OBJECT, *object_id),
-        Op::DecodeChannel { channel_id } => (DEP_CHANNEL, *channel_id),
-        Op::InterleaveChannels { kinds_channel, .. } => (DEP_CHANNEL, *kinds_channel),
-        Op::PackSegments { data_object, .. } => (DEP_OBJECT, *data_object),
-        Op::PackedChannels { data_channel, .. } => (DEP_CHANNEL, *data_channel),
-        Op::DeflateReplay {
-            source_kind,
-            source_id,
-            ..
-        } => match *source_kind {
-            DEFLATE_SOURCE_CHANNEL => (DEP_CHANNEL, *source_id),
-            _ => (DEP_OBJECT, *source_id),
-        },
-        Op::Inline { .. }
-        | Op::MarkOffset { .. }
-        | Op::EmitOffset { .. }
-        | Op::RepeatLast { .. } => (DEP_NONE, 0),
-    }
+    crate::container::observation::primary_dependency(op)
 }
 
 /// Append `bytes` to `objects`, returning the index of an existing equal object

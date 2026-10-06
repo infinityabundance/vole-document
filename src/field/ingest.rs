@@ -32,6 +32,8 @@ use crate::adapter::pdf::cos::FilterClass;
 use crate::adapter::pdf::lexer::lex;
 use crate::adapter::pdf::physical::{PdfPhysical, scan};
 use crate::adapter::pdf::span::{Span, SpanKind};
+use crate::container::observation::{ObservationIndex, OpEntry, SECTION_OP_TABLE};
+use crate::container::{Descriptor, ParsedDescriptor};
 use crate::error::{Error, Result};
 use crate::field::dag;
 use crate::field::index::{
@@ -101,7 +103,11 @@ pub fn ingest_pdf(
     limits: Limits,
 ) -> Result<IngestReport> {
     // Stage A: the exact descriptor blob, the DocumentExact root, and a manifest.
-    let base_id = store.ingest(descriptor_bytes, limits)?;
+    // The stored blob gains a minimal advisory observation-index op table when it
+    // lacks one, so a later narrow observation can use the seek-based partial
+    // lane. Exactness is unchanged; only the ignorable record is added.
+    let observable = with_observation_index(descriptor_bytes, limits)?;
+    let base_id = store.ingest(&observable, limits)?;
     let (manifest, source) = {
         let field = Field::open(store, &base_id, limits)?;
         (field.manifest().clone(), field.materialize_exact(limits)?)
@@ -159,6 +165,54 @@ pub fn ingest_pdf(
         revision_nodes: acc.revision_nodes,
         declined_streams: acc.declined_streams,
     })
+}
+
+/// Add a minimal observation-index op table to a descriptor blob that lacks one,
+/// so the seek-based partial lane is available to narrow observations.
+///
+/// This never changes the reconstruction program, objects, channels, or declared
+/// source: it adds only the ignorable `OBSERVATION_INDEX` record whose op table is
+/// derived from [`Program::analyze_ops`] and re-validated by
+/// [`Descriptor::parse`] when the enriched blob is stored. When the descriptor
+/// already carries an index, or an op length does not fit the index's `u32`
+/// field, the input is returned unchanged (the observation then uses the full
+/// descriptor path).
+fn with_observation_index(bytes: &[u8], limits: Limits) -> Result<Vec<u8>> {
+    let parsed: ParsedDescriptor = Descriptor::parse(bytes, limits)?;
+    if parsed.descriptor.observation_index.is_some() {
+        return Ok(bytes.to_vec());
+    }
+    let d = parsed.descriptor;
+    let object_lens: Vec<u64> = d.objects.iter().map(|o| o.len()).collect();
+    let channel_lens: Vec<u64> = d.channels.iter().map(|c| c.decoded_length).collect();
+    let per_op = match d.program.analyze_ops(&object_lens, &channel_lens, limits) {
+        Ok(v) => v,
+        Err(_) => return Ok(bytes.to_vec()),
+    };
+    let mut ops: Vec<OpEntry> = Vec::with_capacity(per_op.len());
+    for (i, len) in per_op.iter().enumerate() {
+        let Ok(out_len) = u32::try_from(*len) else {
+            return Ok(bytes.to_vec());
+        };
+        let (dep_kind, dep_id) =
+            crate::container::observation::primary_dependency(&d.program.ops[i]);
+        ops.push(OpEntry {
+            out_len,
+            dep_kind,
+            dep_id,
+        });
+    }
+    let mut enriched = d;
+    enriched.observation_index = Some(ObservationIndex {
+        section_flags: SECTION_OP_TABLE,
+        ops,
+        selectors: Vec::new(),
+        digests: Vec::new(),
+    });
+    match enriched.serialize() {
+        Ok((out, _cost)) => Ok(out),
+        Err(_) => Ok(bytes.to_vec()),
+    }
 }
 
 /// Stage C: add decoded-stream operators/text for one page, returning a new

@@ -11,8 +11,9 @@
 //! selector/representation pair, and an unsupported pair is a typed error.
 
 use crate::error::{Error, Result};
+use crate::field::FieldStore;
 use crate::field::index::{FsIndexStore, IndexEntry, SEL_PAGE, SelectorKey, lookup};
-use crate::field::{Field, FieldStore};
+use crate::field::manifest::FieldRoot;
 use crate::store::{NodeId, SeedStore};
 
 use super::observe::{ObserveRequest, Representation, Selector, derived_nodes};
@@ -66,7 +67,7 @@ pub struct ObservePlan {
 }
 
 /// Plan an observation. Pure: no materialization and no writes.
-pub fn plan(field: &Field, store: &FieldStore, req: &ObserveRequest) -> Result<ObservePlan> {
+pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> Result<ObservePlan> {
     use Representation as R;
     match (&req.selector, req.representation) {
         (Selector::Document, R::FullDocument | R::ExactBytes) => Ok(ObservePlan {
@@ -107,9 +108,9 @@ pub fn plan(field: &Field, store: &FieldStore, req: &ObserveRequest) -> Result<O
             will_materialize: kinds(&["PdfStreamDecoded", "ContentOperators"]),
             will_not_materialize: kinds(&["images", "whole-document"]),
         }),
-        (Selector::Page(n), R::Text) => page_plan(field, store, *n, PageRepr::Text),
-        (Selector::Page(n), R::Preview) => page_plan(field, store, *n, PageRepr::Preview),
-        (Selector::Page(n), R::Structure) => page_plan(field, store, *n, PageRepr::Structure),
+        (Selector::Page(n), R::Text) => page_plan(manifest, store, *n, PageRepr::Text),
+        (Selector::Page(n), R::Preview) => page_plan(manifest, store, *n, PageRepr::Preview),
+        (Selector::Page(n), R::Structure) => page_plan(manifest, store, *n, PageRepr::Structure),
         (Selector::TextMatch(_), R::Text) => Ok(ObservePlan {
             shape: PlanShape::DeepenThenObserve,
             index_reads: 1,
@@ -146,17 +147,26 @@ fn index_plan(kind: &str) -> ObservePlan {
     }
 }
 
-fn index_entries(field: &Field, store: &FieldStore, key: SelectorKey) -> Result<Vec<IndexEntry>> {
-    if !field.manifest().has_index() {
+fn index_entries(
+    manifest: &FieldRoot,
+    store: &FieldStore,
+    key: SelectorKey,
+) -> Result<Vec<IndexEntry>> {
+    if !manifest.has_index() {
         return Ok(Vec::new());
     }
     let istore = FsIndexStore::open(store.root())?;
-    let root = NodeId::from_bytes(field.manifest().index_root);
+    let root = NodeId::from_bytes(manifest.index_root);
     lookup(&istore, &root, &key)
 }
 
-fn page_plan(field: &Field, store: &FieldStore, page: u32, repr: PageRepr) -> Result<ObservePlan> {
-    let entry = index_entries(field, store, SelectorKey::new(SEL_PAGE, page))?
+fn page_plan(
+    manifest: &FieldRoot,
+    store: &FieldStore,
+    page: u32,
+    repr: PageRepr,
+) -> Result<ObservePlan> {
+    let entry = index_entries(manifest, store, SelectorKey::new(SEL_PAGE, page))?
         .into_iter()
         .next()
         .ok_or_else(|| {

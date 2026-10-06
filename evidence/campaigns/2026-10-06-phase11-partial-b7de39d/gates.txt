@@ -1,0 +1,83 @@
+# Phase 11.12 review-fix #2 gate record — 2026-10-06
+
+Commit under test: b7de39d (branch phase11), working tree dirty (see
+raw/environment.json for the exact `git status --porcelain` snapshot).
+
+All commands run inside the pinned Docker services from the repo root; nothing
+on the host. Images: `vole-document/dev:1.99.0`, `vole-document/msrv:1.89.0`,
+`vole-document/db-baseline:1.99.0` (see raw/environment.json for digests).
+
+## Gate command (as required)
+
+    docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features --locked && cargo test --no-default-features'
+
+Result: **fully green.**
+
+* `cargo fmt --all` → clean (no diffs emitted).
+* `cargo clippy --all-targets --all-features -- -D warnings` → clean.
+* `cargo test --all-features --locked` → all targets green: lib 353 passed /
+  0 failed / 1 ignored; every integration target 0 failed (incl. the new
+  `field_partial` 5 passed).
+* `cargo test --no-default-features` → all targets green: lib 245 passed /
+  0 failed / 1 ignored; every integration target 0 failed.
+* `docker compose run --rm --no-TTY msrv cargo build --locked` → green
+  (rustc 1.89.0).
+
+## New tests added by this subphase (all pass)
+
+`tests/field_partial.rs` (5 tests):
+
+* `partial_path_is_byte_identical_to_the_full_path` — for a byte range, an
+  object, an encoded stream, a revision, and a page's text/structure/preview,
+  the seek-based partial answer equals the full-parse answer byte-for-byte
+  (`observe_with_field` vs `observe` on the same field).
+* `narrow_read_is_a_small_fraction_of_a_large_descriptor` — on a ~2 MiB
+  descriptor dominated by 128 OBJECT records, a 64-byte range reads
+  `< 5%` of the blob.
+* `corrupt_needed_record_errors_and_unneeded_record_is_ignored` — a flipped
+  payload byte in a *needed* object is a typed `InvalidContainer`; a flipped
+  byte in an *unneeded* object does not break the narrow observation
+  (documented trade-off).
+* `descriptor_without_an_index_falls_back_to_the_full_path` — a descriptor
+  stored without an observation index still observes correctly and reports
+  `descriptor_read_mode == "full"`.
+* `archival_materialize_remains_exact_after_partial_use` — `materialize_exact`
+  is byte-identical before and after partial use.
+
+Updated (deliberately) frozen-key tests:
+
+* `field::explain::tests::actual_json_has_exactly_the_fifteen_keys` (renamed
+  from `..._fourteen_keys`) — EXPLAIN ANALYZE now carries
+  `descriptor_read_mode`.
+* `field::observe::tests::explain_json_keys_and_unsupported_pair` — the
+  `ObserveStats` JSON key set now includes `descriptor_read_mode`.
+
+## Court
+
+    docker compose run --rm --no-TTY db-baseline sh -c 'sh tools/field-court.sh evidence/campaigns/2026-10-06-phase11-partial-b7de39d'
+
+Ran to completion: `large-50` (50 pages), `large-400` (400 pages), `producer`
+(libreoffice-export.pdf, 61 pages). Wrote receipt.json, SUMMARY.md, commands.txt,
+raw/. Headline honest numbers (cold page-1 text observation):
+
+| case | descriptor blob B | descriptor_bytes_read (after) | mode | prior full-blob read (before) | reduction |
+|---|---:|---:|---|---:|---:|
+| large-50  | 17,162,079 |   354,712 | partial | 17,156,412 | 97.9% |
+| large-400 | 17,326,746 |   223,073 | partial | 17,283,279 | 98.7% |
+| producer  |     72,937 |    72,908 | partial |     72,850 |  0.0% |
+
+`observe` and `explain --analyze` stats agree exactly
+(`matches_explain_analyze=true`), and `materialize_exact` is byte-identical
+(`exact=true`, SHA-256 and `cmp` equal) after source removal and cache clearing.
+
+## Honest caveats
+
+* The partial lane requires an observation index; a descriptor without one falls
+  back to the full blob, labelled `full` in `descriptor_read_mode`.
+* A page observation reads its referenced channel(s) plus the CRC-checked
+  GRAPH/INDEX records, so it is closure-bounded but not tiny; the producer
+  document is small enough that its closure is nearly the whole blob.
+* The partial read verifies each `record`'s CRC32C but does not re-hash the whole
+  blob against its content id (that would read the whole file). A corrupted
+  *unneeded* record is therefore not detected by a narrow observation.
+* `TextMatch` still walks pages; the closure bound is per-page.

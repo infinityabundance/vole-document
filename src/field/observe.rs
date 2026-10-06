@@ -28,16 +28,18 @@ use std::time::Instant;
 
 use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
-use crate::field::dag::{self, EvalBudget, ReuseStats};
+use crate::field::dag::{self, EvalBudget, ReuseStats, SourceServer};
 use crate::field::index::{
     FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PAGE, SEL_REVISION, SEL_STREAM, SEL_STREAM_DECODED,
     SelectorKey, lookup,
 };
 use crate::field::ingest;
+use crate::field::manifest::FieldRoot;
 use crate::field::node::{NodeKind, SeedNode, read_u32_params, span_params, u32_params};
+use crate::field::partial::{PartialDescriptor, PartialLoad};
 use crate::field::{Field, FieldId, FieldStore};
 use crate::limits::Limits;
-use crate::store::{FsSeedStore, NodeId, SeedStore};
+use crate::store::{FsSeedStore, Id, IoSnapshot, NodeId, SeedStore};
 
 use super::provenance::{AnswerValue, Basis, FieldAnswer, IntegrityScope, json_escape};
 
@@ -167,6 +169,26 @@ impl ObserveRequest {
     }
 }
 
+/// Which descriptor read path an observation took.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DescriptorReadMode {
+    /// The whole `.voldoc` blob was read and parsed (the archival/full path).
+    #[default]
+    Full,
+    /// A seek-based partial read served only the record closure the query needs.
+    Partial,
+}
+
+impl DescriptorReadMode {
+    /// Stable lower-case name (used in EXPLAIN ANALYZE JSON).
+    pub const fn name(self) -> &'static str {
+        match self {
+            DescriptorReadMode::Full => "full",
+            DescriptorReadMode::Partial => "partial",
+        }
+    }
+}
+
 /// Statistics of one observation — the evidence surface (ADR-0027).
 ///
 /// Peak RSS and CPU time are deliberately **not** claimed here: `std` exposes no
@@ -191,10 +213,14 @@ pub struct ObserveStats {
     pub seed_nodes_reused: u64,
     /// Output bytes written to the derived cache during this observation.
     pub cache_bytes_written: u64,
-    /// Descriptor-blob bytes physically fetched to open this observation's field.
-    /// A narrow observation still needs descriptor state, so this is normally the
-    /// whole `.voldoc` blob; it is **not** hidden behind `bytes_read` (fix #1/#2).
+    /// Descriptor bytes physically fetched to open this observation's field.
+    /// For the full path this is the whole `.voldoc` blob; for the seek-based
+    /// partial path it is only the record closure the query needed (see
+    /// [`Self::descriptor_read_mode`]). It is **not** hidden behind `bytes_read`.
     pub descriptor_bytes_read: u64,
+    /// Which descriptor read path produced [`Self::descriptor_bytes_read`]:
+    /// `full` for the whole-blob parse, `partial` for a seek-based closure read.
+    pub descriptor_read_mode: DescriptorReadMode,
     /// Field-manifest bytes physically fetched.
     pub manifest_bytes_read: u64,
     /// Hierarchical-index-node bytes physically fetched.
@@ -277,8 +303,20 @@ pub fn observe(
     limits: Limits,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let started = Instant::now();
-    let field = Field::open(store, id, limits)?;
-    observe_inner(store, &field, req, limits, started)
+    let opened = OpenedField::open(store, id, req, limits)?;
+    observe_view(store, opened.view(), req, limits, started)
+}
+
+/// Observe against an already-opened [`OpenedField`], for callers that open once
+/// and both plan and evaluate (e.g. EXPLAIN ANALYZE).
+pub(crate) fn observe_opened(
+    store: &mut FieldStore,
+    opened: &OpenedField,
+    req: &ObserveRequest,
+    limits: Limits,
+) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
+    let started = Instant::now();
+    observe_view(store, opened.view(), req, limits, started)
 }
 
 /// Observe against an **already-open** field, opening nothing extra.
@@ -295,7 +333,157 @@ pub fn observe_with_field(
     limits: Limits,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let started = Instant::now();
-    observe_inner(store, field, req, limits, started)
+    observe_view(store, FieldView::from_field(field), req, limits, started)
+}
+
+/// A descriptor opened for one observation: the full parse, or a seek-based
+/// partial loader when the request is narrow and the descriptor carries an op
+/// table. Both expose a [`FieldView`] over the same evaluation core.
+pub(crate) enum OpenedField {
+    /// The whole `.voldoc` blob was read and parsed.
+    Full(Box<Field>),
+    /// Only the record closure the observation needs will be read.
+    Partial(Box<PartialField>),
+}
+
+impl OpenedField {
+    /// Open the cheapest descriptor path admissible for `req`.
+    pub(crate) fn open(
+        store: &FieldStore,
+        id: &FieldId,
+        req: &ObserveRequest,
+        limits: Limits,
+    ) -> Result<OpenedField> {
+        if partial_eligible(req)
+            && let Some(pf) = PartialField::try_open(store, id, limits)?
+        {
+            return Ok(OpenedField::Partial(Box::new(pf)));
+        }
+        Ok(OpenedField::Full(Box::new(Field::open(store, id, limits)?)))
+    }
+
+    /// A view over this opened field for the evaluation core.
+    pub(crate) fn view(&self) -> FieldView<'_> {
+        match self {
+            OpenedField::Full(f) => FieldView::from_field(f),
+            OpenedField::Partial(p) => p.view(),
+        }
+    }
+
+    /// The field manifest.
+    pub(crate) fn manifest(&self) -> &FieldRoot {
+        match self {
+            OpenedField::Full(f) => f.manifest(),
+            OpenedField::Partial(p) => &p.manifest,
+        }
+    }
+}
+
+/// The metadata and source server one observation needs, independent of whether
+/// the descriptor was fully parsed or partially loaded.
+pub(crate) struct FieldView<'a> {
+    pub manifest: &'a FieldRoot,
+    pub id: FieldId,
+    pub open_io: IoSnapshot,
+    pub source: &'a dyn SourceServer,
+    /// The partial loader, when this view came from one, so the evaluation can
+    /// charge the bytes its record reads fetched.
+    pub loader: Option<&'a PartialDescriptor>,
+    pub object_count: usize,
+    pub graph_ops: usize,
+    pub read_mode: DescriptorReadMode,
+}
+
+impl<'a> FieldView<'a> {
+    pub(crate) fn from_field(field: &'a Field) -> FieldView<'a> {
+        let parsed = field.parsed();
+        FieldView {
+            manifest: field.manifest(),
+            id: field.id(),
+            open_io: field.open_io(),
+            source: parsed,
+            loader: None,
+            object_count: parsed.descriptor.objects.len(),
+            graph_ops: parsed.descriptor.program.ops.len(),
+            read_mode: DescriptorReadMode::Full,
+        }
+    }
+}
+
+/// A field opened through the seek-based partial descriptor loader.
+pub(crate) struct PartialField {
+    pub(crate) manifest: FieldRoot,
+    pub(crate) id: FieldId,
+    pub(crate) open_io: IoSnapshot,
+    loader: PartialDescriptor,
+}
+
+impl PartialField {
+    /// Try to open `id` lazily. `Ok(None)` means the descriptor is ineligible
+    /// (no op table, external objects, or a framing fault) and the caller must
+    /// fall back to the full path.
+    pub(crate) fn try_open(
+        store: &FieldStore,
+        id: &FieldId,
+        limits: Limits,
+    ) -> Result<Option<PartialField>> {
+        let io_before = store.io().snapshot();
+        let manifest = store.get_field(id)?;
+        let descriptor_id = Id::from_bytes(manifest.descriptor_id);
+        let path = store.descriptor_path(&descriptor_id);
+        let loader = match PartialDescriptor::open(&path, limits)? {
+            PartialLoad::Ready(l) => l,
+            PartialLoad::Ineligible { bytes_read } => {
+                // Charge the bytes the inspection did fetch before declining, so
+                // the honest fallback is not under-counted.
+                store.io().add_descriptor(bytes_read);
+                return Ok(None);
+            }
+        };
+        if loader.source_len() != manifest.source_len
+            || loader.source_sha256() != manifest.source_sha256
+        {
+            return Err(Error::integrity_mismatch(
+                "partial descriptor does not match its field manifest's declared source",
+            ));
+        }
+        // The loader's physical bytes are charged to the descriptor class after
+        // the observation completes (once, so the read *count* stays one), so the
+        // open snapshot carries only the manifest read here.
+        let open_io = io_before.delta(&store.io().snapshot());
+        Ok(Some(PartialField {
+            id: manifest.content_id(),
+            manifest,
+            open_io,
+            loader: *loader,
+        }))
+    }
+
+    pub(crate) fn view(&self) -> FieldView<'_> {
+        FieldView {
+            manifest: &self.manifest,
+            id: self.id,
+            open_io: self.open_io,
+            source: &self.loader,
+            loader: Some(&self.loader),
+            object_count: self.loader.object_count(),
+            graph_ops: self.loader.graph_ops(),
+            read_mode: DescriptorReadMode::Partial,
+        }
+    }
+}
+
+/// Whether a request is served by the seek-based partial lane when available.
+fn partial_eligible(req: &ObserveRequest) -> bool {
+    use Representation as R;
+    matches!(
+        (&req.selector, req.representation),
+        (Selector::ByteRange { .. }, R::ExactBytes)
+            | (Selector::Object(_), R::ExactBytes | R::EncodedBytes)
+            | (Selector::Revision(_), R::ExactBytes)
+            | (Selector::Stream(_), R::EncodedBytes)
+            | (Selector::Page(_), R::Text | R::Preview | R::Structure)
+    )
 }
 
 /// Build the seed and index sub-stores, sharing the field store's I/O counters.
@@ -307,22 +495,22 @@ fn open_sub_stores(store: &FieldStore) -> Result<(CountingSeedStore<FsSeedStore>
     Ok((seeds, istore))
 }
 
-fn observe_inner<'a>(
+fn observe_view<'a>(
     store: &'a mut FieldStore,
-    field: &'a Field,
+    view: FieldView<'a>,
     req: &ObserveRequest,
     limits: Limits,
     started: Instant,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let (seeds, istore) = open_sub_stores(store)?;
-    observe_with_stores(store, field, req, limits, started, seeds, istore)
+    observe_with_stores(store, view, req, limits, started, seeds, istore)
 }
 
 /// The evaluation core. Takes explicit sub-stores so a test can supply a seed
 /// store wrapper that forbids enumeration.
 fn observe_with_stores<'a, S: SeedStore>(
     store: &'a mut FieldStore,
-    field: &'a Field,
+    view: FieldView<'a>,
     req: &ObserveRequest,
     limits: Limits,
     started: Instant,
@@ -331,16 +519,23 @@ fn observe_with_stores<'a, S: SeedStore>(
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     // Snapshot after the field is open: only the reads this observation performs
     // during evaluation are counted as deltas; the field-open bytes come from
-    // `field.open_io()` below so they cannot be dropped on the floor.
+    // `view.open_io` below so they cannot be dropped on the floor.
     let io_base = store.io().snapshot();
     let budget = EvalBudget {
         max_nodes: req.budget.max_nodes,
         ..EvalBudget::default()
     };
     let cache = DerivedCache::open(store.root().join("cache"))?;
+    let field_id = view.id;
     let mut ctx = Ctx {
         store,
-        field,
+        manifest: view.manifest,
+        source: view.source,
+        loader: view.loader,
+        open_io: view.open_io,
+        object_count: view.object_count,
+        graph_ops: view.graph_ops,
+        read_mode: view.read_mode,
         seeds,
         istore,
         limits,
@@ -349,7 +544,7 @@ fn observe_with_stores<'a, S: SeedStore>(
         use_cache: req.use_cache,
         cache,
         reuse: ReuseStats::default(),
-        current_id: field.id(),
+        current_id: field_id,
     };
 
     let answer = ctx.dispatch(req)?;
@@ -362,11 +557,18 @@ fn observe_with_stores<'a, S: SeedStore>(
     }
 
     let mut stats = ctx.stats;
+    // A partial loader reads its records lazily, so its physical bytes accrue
+    // during dispatch; charge them once (one descriptor read *count*) before
+    // closing the interval.
+    if let Some(loader) = ctx.loader {
+        ctx.store.io().add_descriptor(loader.bytes_read());
+    }
     // Every physical byte fetched by this observation: the field-open bytes plus
     // any additional reads (e.g. a Stage-C promotion) performed during dispatch.
-    let open = ctx.field.open_io();
+    let open = ctx.open_io;
     let extra = io_base.delta(&ctx.store.io().snapshot());
     stats.descriptor_bytes_read = open.descriptor_bytes.saturating_add(extra.descriptor_bytes);
+    stats.descriptor_read_mode = ctx.read_mode;
     stats.manifest_bytes_read = open.manifest_bytes.saturating_add(extra.manifest_bytes);
     stats.index_bytes_read = extra.index_bytes;
     stats.seed_bytes_read = extra.seed_bytes;
@@ -388,7 +590,13 @@ fn observe_with_stores<'a, S: SeedStore>(
 /// Observation execution context.
 struct Ctx<'a, S: SeedStore> {
     store: &'a mut FieldStore,
-    field: &'a Field,
+    manifest: &'a FieldRoot,
+    source: &'a dyn SourceServer,
+    loader: Option<&'a PartialDescriptor>,
+    open_io: IoSnapshot,
+    object_count: usize,
+    graph_ops: usize,
+    read_mode: DescriptorReadMode,
     seeds: CountingSeedStore<S>,
     istore: FsIndexStore,
     limits: Limits,
@@ -404,8 +612,8 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn materialize(&mut self, node: &SeedNode) -> Result<Vec<u8>> {
         let depth = node.limits.max_depth;
         if self.use_cache {
-            dag::materialize_node_cached(
-                self.field.parsed(),
+            dag::materialize_node_cached_with(
+                self.source,
                 &self.seeds,
                 &mut self.cache,
                 node,
@@ -416,8 +624,8 @@ impl<S: SeedStore> Ctx<'_, S> {
             )
         } else {
             let mut cache = dag::NoCache;
-            dag::materialize_node_cached(
-                self.field.parsed(),
+            dag::materialize_node_cached_with(
+                self.source,
                 &self.seeds,
                 &mut cache,
                 node,
@@ -434,10 +642,10 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 
     fn lookup(&mut self, key: SelectorKey) -> Result<Vec<IndexEntry>> {
-        if !self.field.manifest().has_index() {
+        if !self.manifest.has_index() {
             return Ok(Vec::new());
         }
-        let root = NodeId::from_bytes(self.field.manifest().index_root);
+        let root = NodeId::from_bytes(self.manifest.index_root);
         let entries = lookup(&self.istore, &root, &key)?;
         self.stats.index_nodes_read += entries.len() as u64;
         Ok(entries)
@@ -485,21 +693,20 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 
     fn document_full(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
-        let bytes = self.field.materialize_exact(self.limits)?;
+        let bytes = self.source.serve_document(self.limits)?;
         Ok(FieldAnswer {
             value: AnswerValue::Bytes(bytes),
             basis: Basis::DirectlyObserved,
             selector: req.selector.canonical(),
             representation: req.representation.name().to_string(),
-            source_span: Some((0, self.field.manifest().source_len)),
-            dependency_ids: vec![self.field.manifest().root_node],
+            source_span: Some((0, self.manifest.source_len)),
+            dependency_ids: vec![self.manifest.root_node],
             integrity_scope: IntegrityScope::WholeSource,
             exact: true,
         })
     }
 
     fn document_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
-        let d = &self.field.parsed().descriptor;
         let json = format!(
             concat!(
                 "{{",
@@ -510,11 +717,11 @@ impl<S: SeedStore> Ctx<'_, S> {
                 "\"node_count\":{}",
                 "}}"
             ),
-            d.source_len,
-            crate::integrity::to_hex(&d.source_sha256),
-            d.objects.len(),
-            d.program.ops.len(),
-            self.field.manifest().node_count,
+            self.manifest.source_len,
+            crate::integrity::to_hex(&self.manifest.source_sha256),
+            self.object_count,
+            self.graph_ops,
+            self.manifest.node_count,
         );
         Ok(FieldAnswer {
             value: AnswerValue::Json(json),
@@ -641,8 +848,7 @@ impl<S: SeedStore> Ctx<'_, S> {
         if !present {
             // Promote against the manifest we already hold, so the descriptor
             // blob is not re-read just to learn the current manifest (fix #2).
-            let promoted =
-                ingest::deepen_page_with_manifest(self.store, self.field.manifest(), page)?;
+            let promoted = ingest::deepen_page_with_manifest(self.store, self.manifest, page)?;
             self.stats.deepened = true;
             self.current_id = promoted;
         }
@@ -1143,8 +1349,8 @@ mod tests {
         let req = ObserveRequest::new(Selector::Page(1), Representation::Text);
         let field = Field::open(&fx.store, &fx.field, Limits::DEFAULT).unwrap();
         let before = fx.store.seeds().list_nodes().unwrap().len();
-        let a = plan::plan(&field, &fx.store, &req).unwrap();
-        let b = plan::plan(&field, &fx.store, &req).unwrap();
+        let a = plan::plan(field.manifest(), &fx.store, &req).unwrap();
+        let b = plan::plan(field.manifest(), &fx.store, &req).unwrap();
         assert_eq!(a, b);
         let after = fx.store.seeds().list_nodes().unwrap().len();
         assert_eq!(before, after, "plan must not add seed nodes");
@@ -1170,6 +1376,7 @@ mod tests {
             "bytes_returned",
             "deepened",
             "descriptor_bytes_read",
+            "descriptor_read_mode",
             "exact",
             "index_bytes_read",
             "index_nodes_read",
@@ -1187,7 +1394,7 @@ mod tests {
         let err = observe(&mut fx.store, &fx.field, &bad, Limits::DEFAULT).unwrap_err();
         assert_eq!(err.class(), crate::ErrorClass::UnsupportedFeature);
         let field = Field::open(&fx.store, &fx.field, Limits::DEFAULT).unwrap();
-        let perr = plan::plan(&field, &fx.store, &bad).unwrap_err();
+        let perr = plan::plan(field.manifest(), &fx.store, &bad).unwrap_err();
         assert_eq!(perr.class(), crate::ErrorClass::UnsupportedFeature);
     }
 
@@ -1392,7 +1599,7 @@ mod tests {
         let req = ObserveRequest::new(Selector::Stream(4), Representation::DecodedBytes);
         let (answer, stats, _) = observe_with_stores(
             &mut fx.store,
-            &field,
+            FieldView::from_field(&field),
             &req,
             Limits::DEFAULT,
             Instant::now(),

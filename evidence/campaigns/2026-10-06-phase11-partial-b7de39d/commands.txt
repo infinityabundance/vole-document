@@ -1,0 +1,25 @@
+# Phase 11 field court — exact commands
+# Commit under test: b7de39d276e1aabbb859c0b5b9209a8bc6e2c9a7 (branch phase11); dirty:  M src/adapter/pdf/replay.rs; M src/container/observation.rs; M src/field/dag.rs; M src/field/explain.rs; M src/field/ingest.rs; M src/field/mod.rs; M src/field/observe.rs; M src/field/plan.rs; M src/main.rs; M src/materialize/observation.rs; M tools/field-court.sh;?? evidence/campaigns/2026-10-06-phase11-partial-b7de39d/;?? src/field/partial.rs;?? tests/field_partial.rs;
+# All commands run inside the pinned db-baseline image; nothing on the host.
+
+docker compose run --rm --no-TTY dev         cargo build --all-features --locked
+docker compose build db-baseline
+docker compose run --rm --no-TTY db-baseline sh tools/field-court.sh evidence/campaigns/2026-10-06-phase11-partial-b7de39d [PRODUCER_PDF]
+
+# Per case (inside field-court.sh):
+#   $BIN pdf-make-large DIR {50,400}
+#   $BIN encode SRC DIR/<name>.voldoc
+#   $BIN field-ingest DIR/<name>.voldoc --store DIR/store
+#   $BIN explain --store STORE --field F --page 1 --kind text|structure|preview --analyze
+#   $BIN observe --store STORE --field F --page 1 --kind text|structure
+#   $BIN preview --store STORE --field F --page 1
+#   $BIN materialize --store STORE --field F --exact --output out.pdf
+#   $BIN cache --store STORE [--clear]
+#   strace -f -e trace=read,pread64,mmap -o LOG $BIN explain --analyze ...
+# Baselines:
+#   pdfinfo SRC
+#   strace -f -e trace=read,pread64,mmap -o LOG pdftotext -f 1 -l 1 SRC out.txt
+#   qpdf --linearize SRC lin.pdf   (first-page prefix fraction = /E / /L)
+#   sh tools/field-baseline-db.sh OUT.json SRC 1
+#   sh tools/field-llm-workingset.sh OUT.json SRC 1 STORE FIELD
+#   gzip -9 / zstd -19 --long=27 / xz -9e on SRC and on the .voldoc (round-trip verified)
