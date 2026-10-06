@@ -1,8 +1,8 @@
 # Phase 12 — Universal multi-format document field: PDF + DOCX + EPUB
 
 Branch: `phase12`. Base: `main` @ `6c86938` (`v0.1.0-alpha.15`).
-Status: **IN PROGRESS** (12.15 skeptic review complete at `15b5729`; 12.16
-close-out receipts sealed).
+Status: **COMPLETE** (12.0–12.16; 12.15 skeptic review complete at `15b5729`;
+12.16 close-out receipts sealed; released as `v0.1.0-alpha.16`).
 
 > **Post-review status note (2026-10-06, `15b5729`).** The Phase-12.15 adversarial
 > review ([`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md))
