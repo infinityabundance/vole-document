@@ -156,7 +156,12 @@ a1_sql() { # fmt id arg dir
     expand-table) echo "SELECT text FROM blocks WHERE doc_id=1 AND kind='table' ORDER BY block_id LIMIT 1;" ;;
     resource) echo "SELECT path||' '||member_bytes FROM resources WHERE doc_id=1 AND resource_id=1;" ;;
     metadata) echo "SELECT group_concat(key||'='||value,';') FROM metadata WHERE doc_id=1;" ;;
-    search) echo "SELECT text FROM blocks WHERE doc_id=1 AND text LIKE '%${arg#search:}%' LIMIT 1;" ;;
+    # Real FTS5 (Phase 12.11 FTS5 amendment): the `fts_tri` external-content table
+    # uses the `trigram` tokenizer, so `MATCH` answers the same *substring* queries
+    # as `LIKE` (a whole-token unicode61 index would miss a marker embedded in a
+    # larger token). `a1_like_sql` preserves the pre-amendment LIKE query for the
+    # FTS5-vs-LIKE comparison receipt.
+    search) echo "SELECT text FROM blocks WHERE doc_id=1 AND block_id IN (SELECT rowid FROM fts_tri WHERE fts_tri MATCH '${arg#search:}') LIMIT 1;" ;;
     full-source) echo "SELECT writefile('$d/ans.bin', payload) FROM source_blob WHERE doc_id=1;" ;;
     exact-member)
       if [ "$fmt" = pdf ]; then echo "SELECT writefile('$d/ans.bin', substr(payload,1,64)) FROM source_blob WHERE doc_id=1;";
@@ -165,6 +170,14 @@ a1_sql() { # fmt id arg dir
   esac
 }
 export -f vole_argv a0_py_case a1_sql
+a1_like_sql() { # fmt id arg dir — the pre-amendment LIKE search, kept for comparison
+  local fmt=$1 id=$2 arg=$3 d=$4
+  case "$id" in
+    search) echo "SELECT text FROM blocks WHERE doc_id=1 AND text LIKE '%${arg#search:}%' LIMIT 1;" ;;
+    *) a1_sql "$fmt" "$id" "$arg" "$d" ;;
+  esac
+}
+export -f a1_like_sql
 
 run_v() { # id arg  (env D SRC FMT STORE FIELD VOLE_BIN VOLE_FLAGS)
   local id=$1 arg=$2 argv rc=0

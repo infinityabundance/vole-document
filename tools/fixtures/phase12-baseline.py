@@ -364,6 +364,13 @@ CREATE INDEX idx_res_doc ON resources(doc_id);
 CREATE VIRTUAL TABLE fts USING fts5(
   text, content='blocks', content_rowid='block_id',
   tokenize='unicode61 remove_diacritics 2');
+-- A real FTS5 substring index (Phase 12.11 FTS5 amendment): the `trigram`
+-- tokenizer indexes every 3-character sequence, so `MATCH` answers the same
+-- substring queries as `LIKE` (a whole-token unicode61 index does not: a marker
+-- embedded in a larger token, e.g. `theXF13A`, is missed). The A1 search lane
+-- queries `fts_tri`; `fts` is retained for the token-vs-substring comparison.
+CREATE VIRTUAL TABLE fts_tri USING fts5(
+  text, content='blocks', content_rowid='block_id', tokenize='trigram');
 """
 
 
@@ -411,6 +418,7 @@ def build(fmt, source, db_path):
                      r["member_sha256"], r.get("offset"), r.get("raw_length"),
                      1 if r["decoded"] else 0))
     cur.execute("INSERT INTO fts(rowid,text) SELECT block_id,text FROM blocks")
+    cur.execute("INSERT INTO fts_tri(rowid,text) SELECT block_id,text FROM blocks")
     cur.execute("ANALYZE")
     con.commit()
     con.close()

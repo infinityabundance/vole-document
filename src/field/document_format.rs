@@ -33,10 +33,13 @@ pub const CONTAINER_NS: &[u8] = b"urn:oasis:names:tc:opendocument:xmlns:containe
 /// The default (and only normative) package-document media type.
 pub const OPF_MEDIA_TYPE: &[u8] = b"application/oebps-package+xml";
 /// The OPC content-types part.
+#[cfg(feature = "package")]
 const CONTENT_TYPES_MEMBER: &[u8] = b"[Content_Types].xml";
 /// The OPC package-relationships part.
+#[cfg(feature = "package")]
 const PACKAGE_RELS_MEMBER: &[u8] = b"_rels/.rels";
 /// The `officeDocument` relationship type fragment (transitional and strict).
+#[cfg(feature = "package")]
 const OFFICE_DOCUMENT_FRAGMENT: &[u8] = b"officeDocument";
 
 /// A detected document format (the class of the field's source bytes).
@@ -192,6 +195,7 @@ fn member_decoded(
 }
 
 /// Byte-substring search (no allocation, case-sensitive).
+#[cfg(feature = "package")]
 fn contains(haystack: &[u8], needle: &[u8]) -> bool {
     !needle.is_empty()
         && needle.len() <= haystack.len()

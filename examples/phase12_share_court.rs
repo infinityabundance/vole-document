@@ -45,7 +45,7 @@ use vole_document::field::observe::{
 };
 use vole_document::field::provenance::AnswerValue;
 use vole_document::field::resource::{is_shareable_resource, resource_blob_node};
-use vole_document::field::{Field, FieldStore};
+use vole_document::field::{Field, FieldId, FieldStore};
 use vole_document::limits::Limits;
 use vole_document::store::NodeId;
 
@@ -56,7 +56,7 @@ const DOCX_RESOURCE_ORDINAL_NAME: &str = "word/media/image1.png";
 
 fn main() {
     let out = std::env::args().nth(1).unwrap_or_else(|| usage_and_exit());
-    let seed = std::env::args()
+    let mode = std::env::args()
         .nth(2)
         .unwrap_or_else(|| "random".to_string());
     let out = PathBuf::from(out);
@@ -66,11 +66,21 @@ fn main() {
         .nth(3)
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("evidence/scratch/phase12-share"));
+    let limits = Limits::DEFAULT;
+
+    // `witness` is a *separate OS process* (a second `cargo run`) that reopens the
+    // store the `random` mode persisted and re-measures reuse after clearing the
+    // derived cache — the ADR-0034 fresh-process / post-`cache --clear` control.
+    if mode == "witness" {
+        let field_hex = std::env::args().nth(4).unwrap_or_else(|| usage_and_exit());
+        witness(&out, &scratch, &field_hex, limits);
+    }
+    let seed = mode;
+
     let raw = out.join("raw");
     fs::create_dir_all(&raw).expect("create raw dir");
     fs::remove_dir_all(&scratch).ok();
     fs::create_dir_all(&scratch).expect("create scratch dir");
-    let limits = Limits::DEFAULT;
 
     let seed = seed_u64(&seed);
     // The control resource differs from the shared one but has the same length, so
@@ -126,6 +136,55 @@ fn main() {
     let cold_work = InverseWork::new(cold.seed_nodes_executed, cold.bytes_read);
     let warm_work = InverseWork::new(warm.seed_nodes_executed, warm.bytes_read);
     let fraction = retained_inverse_work_fraction(cold_work, warm_work);
+
+    // ----- post-`cache --clear` control (in-process) -------------------------
+    // Remove the derived cache directory and repeat the warm observation. Any
+    // reuse that survives must come from the persisted seed store, not the cache.
+    let cache_dir = store.root().join("cache");
+    fs::remove_dir_all(&cache_dir).ok();
+    fs::create_dir_all(&cache_dir).expect("recreate cache dir");
+    let (_pc_answer, post_clear) = observe_answer(&mut store, &epub.field, &selector, true, limits);
+    let post_clear_work = InverseWork::new(post_clear.seed_nodes_executed, post_clear.bytes_read);
+    let post_clear_fraction = retained_inverse_work_fraction(cold_work, post_clear_work);
+    fs::write(
+        raw.join("post_clear.json"),
+        format!(
+            concat!(
+                "{{\n",
+                "  \"node_executions\": {},\n",
+                "  \"input_bytes\": {},\n",
+                "  \"nodes_reused\": {},\n",
+                "  \"work_units\": {},\n",
+                "  \"retained_inverse_work_fraction\": {:.6}\n",
+                "}}\n"
+            ),
+            post_clear_work.node_executions,
+            post_clear_work.input_bytes,
+            post_clear.seed_nodes_reused,
+            post_clear_work.units(),
+            post_clear_fraction,
+        ),
+    )
+    .unwrap();
+
+    // ----- witness inputs for the fresh-process control ----------------------
+    fs::write(
+        raw.join("witness.json"),
+        format!(
+            concat!(
+                "{{\"scratch\":\"{}\",\"store_shared\":\"{}\",",
+                "\"docx_field\":\"{}\",\"epub_field\":\"{}\",",
+                "\"shared_blob_id\":\"{}\",\"epub_resource\":\"{}\"}}\n"
+            ),
+            scratch.display(),
+            scratch.join("store_shared").display(),
+            docx.field.to_hex(),
+            epub.field.to_hex(),
+            shared_blob.to_hex(),
+            EPUB_RESOURCE,
+        ),
+    )
+    .unwrap();
 
     // ----- exactness (length + SHA-256 + byte identity) for every root --------
     let exact_inputs: [(&str, &FieldStore, vole_document::field::FieldId, &[u8]); 3] = [
@@ -242,10 +301,80 @@ fn main() {
     println!("{metrics}");
 }
 
+fn witness(out: &std::path::Path, scratch: &std::path::Path, field_hex: &str, limits: Limits) -> ! {
+    use std::io::Read as _;
+    let raw = out.join("raw");
+    let store_path = scratch.join("store_shared");
+    let mut store = FieldStore::open(&store_path).expect("open the persisted store_shared");
+    let id = FieldId::from_hex(field_hex).expect("EPUB_FIELD must be 64 hex characters");
+    let selector = Selector::EpubResource(EPUB_RESOURCE.to_string());
+
+    // Cold measurement (cache bypassed) in this fresh process.
+    let cold = observe_stats(&mut store, &id, &selector, false, limits);
+
+    // post-`cache --clear`: delete the derived cache directory, then take the
+    // warm observation. The reuse measured here can only come from the persisted
+    // seed store on disk, because this is a new OS process and the cache was just
+    // removed. (`free`-cache is not required: a fresh process is the witness.)
+    let cache_dir = store.root().join("cache");
+    fs::remove_dir_all(&cache_dir).ok();
+    fs::create_dir_all(&cache_dir).expect("recreate cache dir");
+    let (warm_answer, warm) = observe_answer(&mut store, &id, &selector, true, limits);
+
+    let shared = fs::read(out.join("raw/shared.resource.bin")).expect("shared.resource.bin");
+    let warm_bytes_exact = matches!(&warm_answer.value, AnswerValue::Bytes(b) if *b == shared);
+
+    // Fresh-process exactness witness for the sharing EPUB root.
+    let field = Field::open(&store, &id, limits).unwrap();
+    let got = field.materialize_exact(limits).unwrap();
+    let mut src = Vec::new();
+    fs::File::open(out.join("raw/epub_shared.epub"))
+        .expect("epub_shared.epub")
+        .read_to_end(&mut src)
+        .unwrap();
+    let exact = got.len() == src.len()
+        && vole_document::integrity::sha256(&got) == vole_document::integrity::sha256(&src)
+        && got == src;
+
+    let cold_work = InverseWork::new(cold.seed_nodes_executed, cold.bytes_read);
+    let warm_work = InverseWork::new(warm.seed_nodes_executed, warm.bytes_read);
+    let fraction = retained_inverse_work_fraction(cold_work, warm_work);
+    let json = format!(
+        concat!(
+            "{{\n",
+            "  \"mode\": \"witness\",\n",
+            "  \"fresh_process\": true,\n",
+            "  \"cache_cleared_before_warm\": true,\n",
+            "  \"cold\": {{\"node_executions\": {}, \"input_bytes\": {}, \"nodes_reused\": {}, \"work_units\": {}}},\n",
+            "  \"warm_post_clear\": {{\"node_executions\": {}, \"input_bytes\": {}, \"nodes_reused\": {}, \"nodes_id_shared\": {}, \"work_units\": {}}},\n",
+            "  \"retained_inverse_work_fraction_post_clear\": {:.6},\n",
+            "  \"warm_bytes_exact\": {},\n",
+            "  \"materialize_exact\": {}\n",
+            "}}\n"
+        ),
+        cold_work.node_executions,
+        cold_work.input_bytes,
+        cold.seed_nodes_reused,
+        cold_work.units(),
+        warm_work.node_executions,
+        warm_work.input_bytes,
+        warm.seed_nodes_reused,
+        warm.nodes_id_shared,
+        warm_work.units(),
+        fraction,
+        warm_bytes_exact,
+        exact,
+    );
+    fs::write(raw.join("witness.measure.json"), &json).unwrap();
+    print!("{json}");
+    std::process::exit(0);
+}
+
 fn usage_and_exit() -> ! {
     eprintln!(
-        "usage: phase12_share_court OUTDIR [SEED [SCRATCH]]\n\
-         (run inside the pinned `dev` container: cargo run --all-features --example phase12_share_court -- OUTDIR SEED SCRATCH)"
+        "usage: phase12_share_court OUTDIR [SEED|witness [SCRATCH [EPUB_FIELD]]]\n\
+         (run inside the pinned `doc-baseline` container: cargo run --all-features --example phase12_share_court -- OUTDIR random SCRATCH;\n\
+          a second fresh process: cargo run --all-features --example phase12_share_court -- OUTDIR witness SCRATCH EPUB_FIELD)"
     );
     std::process::exit(2);
 }
