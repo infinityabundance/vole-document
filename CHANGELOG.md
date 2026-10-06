@@ -2,6 +2,24 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.15] — docs/status tables
+
+Documentation-only release. **No behaviour change; exactness is unchanged.** The
+normative profile is still `materialize(descriptor) == original_bytes` (length +
+SHA-256 + `cmp`), the wire is unchanged (`dra-8`, `FORMAT_MINOR` do not move),
+and no feature, decoder, or candidate semantics changed. The crate is
+republished so that crates.io and docs.rs reflect the corrected status tables
+already on `main`.
+
+### Changed
+
+- **Render-visible status tables corrected** (`README.md`, `PROJECT_STATE.md`):
+  removed a stale "Planned" row, reclassified partial-materialization checkpoints
+  as **SUPERSEDED** by the Phase-11 observation engine, marked nested-content
+  proceduralization **PARTLY DELIVERED** (observation), added the Phase-11 rows,
+  and fixed a stale "(Phases 7+)" note. These are accounting corrections to the
+  ledger; no mechanism, representation, or measurement changed.
+
 ## [0.1.0-alpha.14] — docs/metadata
 
 Documentation and package-metadata release only. **No behaviour change; exactness is
