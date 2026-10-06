@@ -1,0 +1,31 @@
+# Phase 11 lifetime-cost court — gates (branch phase11, commit 5a7edd3)
+
+## dev: cargo build --all-features --locked
+ Container vole-document-dev-run-1b8398da7afe Creating
+ Container vole-document-dev-run-1b8398da7afe Created
+    Finished `dev` profile [optimized + debuginfo] target(s) in 0.02s
+# -> OK
+
+## Court run (pinned db-baseline service)
+docker compose run --rm --no-TTY --user 1000:1000 \
+  -e HOST_UID=1000 -e HOST_GID=1000 \
+  -e HOST_IMAGE_ID=sha256:41418aa8a7aadd376fa434b82af2c12f09a624dda81b1c3e3b6aa3a4bb738f1d \
+  -e LIFETIME_NS="1 10 100 1000" -e LIFETIME_PASSES=2 \
+  db-baseline bash tools/field-lifetime-court.sh \
+  evidence/campaigns/2026-10-06-phase11-lifetime-5a7edd3
+# -> OK; receipt.json, SUMMARY.md, commands.txt, raw/ written.
+
+## Images (all measurements on one pinned base digest)
+db-baseline image id : sha256:41418aa8a7aadd376fa434b82af2c12f09a624dda81b1c3e3b6aa3a4bb738f1d
+BASE_STABLE         : rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+BASE_TOOLS          : debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+rustc               : 1.99.0 (b940084d7 2026-09-28)
+cargo               : 1.99.0 (5f94df478 2026-08-27)
+
+## Resource caps
+db-baseline: mem_limit 6g, memswap_limit 6g, pids_limit 4096, cpus 8 (compose.yaml).
+No new service, no cap raised; the court ran inside the existing capped service.
+
+## Source changes
+None. No src/, tests/, fuzz/, or Cargo.* file changed by this subphase; only
+tools/field-lifetime-court.sh was added and the receipt written.

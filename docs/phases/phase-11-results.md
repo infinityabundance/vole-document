@@ -147,3 +147,112 @@ cargo `1.99.0 (5f94df478 2026-08-27)`, `Cargo.lock` SHA-256
   the mmap figure is lazy and is reported separately. VOLE's cold path is not
   page-local in total process I/O because it reloads the descriptor.
 * No pinned offline tokenizer was available, so no token counts are claimed.
+
+## Lifetime cost (Phase 11.12 priority #7 — 1/10/100/1,000-query court)
+
+Sealed receipt:
+`evidence/campaigns/2026-10-06-phase11-lifetime-5a7edd3/`
+(`receipt.json`, `SUMMARY.md`, `commands.txt`, `gates.txt`, `raw/`). Built by the
+new `tools/field-lifetime-court.sh` (bash; needs `${EPOCHREALTIME}` for fork-free
+microsecond wall timing), run in the pinned `db-baseline` service
+(`sha256:41418aa8…`, base `rust:1.99.0-slim-bookworm@sha256:452176…`). No
+`src/`, `tests/`, `fuzz/`, or `Cargo.*` file changed.
+
+Corpus: the four `evidence/corpus/phase7-producers/*.pdf` real documents plus one
+`pdf-make-large` document (`large`, 33,571,029 B / 50 pages). N ∈ {1, 10, 100,
+1000}; each of the two passes answers the whole schedule in a **fresh process per
+query** (process startup charged). The pre-registered page-text lane is the only
+surface all three systems can answer, so it is the comparable lane; VOLE answers
+an additional 5-surface set (text, structure, preview, object bytes, decoded
+stream) that the baselines cannot.
+
+Accounting (ADR-0027, four universes kept separate):
+
+* one-time — VOLE = `encode` + `field-ingest`; A1 = per-page `pdftotext` into an
+  indexed SQLite table; A0 = none. All charged in full.
+* `total_wall_ms` = one-time + the sum of per-query process wall.
+* `total_bytes_read` — VOLE = the instrumented `ObserveStats.bytes_read`
+  (descriptor+manifest+index+seed); A0/A1 = process `read`/`pread64` total under
+  `strace` (includes library reads). These are different measurements and are
+  never summed together.
+* CPU/peak RSS = an aggregate batch of the first N queries under `/usr/bin/time
+  -v` (a single sub-millisecond query is below its 10 ms resolution).
+
+### Crossover (warm pass) — for which N VOLE's cumulative cost first drops below each baseline
+
+| document | src B | pages | one-time VOLE ms | one-time A1 ms | <A0 wall | <A1 wall | <A0 bytes | <A1 bytes | <A1 cpu |
+|---|---:|---:|---:|---:|---|---|---|---|---|
+| cairo-vector | 58,424 | 6 | 142 | 27 | 100 | **never** | 100 | 100 | 1000 |
+| libreoffice-export | 74,371 | 61 | 501 | 177 | 1000 | **never** | 1000 | 100 | 1000 |
+| pdftex-doc | 23,622 | 6 | 95 | 26 | 100 | 1000 | 100 | 100 | 1000 |
+| reportlab-multipage | 10,906 | 6 | 55 | 24 | 100 | 1000 | 100 | 100 | 1 |
+| large | 33,571,029 | 50 | 5,254 | 624 | 1000 | **never** | 1000 | **never** | **never** |
+
+Cumulative wall at N=1000 (VOLE / A0 / A1 ms): cairo 826 / 4,371 / 789;
+libreoffice 1,124 / 2,836 / 952; pdftex 702 / 4,103 / 824; reportlab 732 / 4,039 /
+834; large 7,816 / 12,678 / 1,468.
+
+**Verdict (stated plainly).**
+
+* VOLE **crosses A0 raw tooling on wall on every document** (N=100 for the small
+  documents, N=1000 for the 61-page `libreoffice-export` and the 33.5 MB `large`
+  document). A0 re-parses the PDF on every query, so VOLE's one-time ingest
+  amortises within the tested range.
+* VOLE **crosses the preprocessed SQLite baseline (A1) on wall only on the two
+  smallest documents (pdftex-doc, reportlab-multipage) at N=1000, and loses on
+  cairo-vector, libreoffice-export, and large.** On `cairo-vector` VOLE is 826 ms
+  vs A1 789 ms at N=1000 (a 4.7% loss); on `large` A1's per-query ~1.5 ms beats
+  VOLE's ~2.6 ms because every fresh VOLE process re-reads its descriptor
+  closure. **This is a recorded presence-or-absence: the A1 wall crossover does
+  not exist for 3 of 5 documents.**
+* VOLE **crosses A1 on bytes-read on the four small documents (N=100) but never
+  on `large`** (438 MB vs 60 MB at N=1000): a narrow indexed SQLite lookup reads
+  a few KB, while a VOLE observation re-reads its descriptor/index closure.
+* On CPU, VOLE crosses A0 on every document; it crosses A1 on the four small
+  documents at N=1000 but never on `large`. (CPU resolution is 10 ms.)
+
+### VOLE ingest amortisation
+
+One-time VOLE cost as a fraction of its cumulative wall at N=1000: **7.5%**
+(reportlab), 13.5% (pdftex), 17.2% (cairo), **44.6%** (libreoffice, 61 pages),
+**67.2%** (large) — i.e. on the large document the one-time `encode`+`ingest`
+(5,254 ms) is still two-thirds of the lifetime cost at a thousand queries. The
+marginal VOLE text observation is ~0.6 ms (small documents) to ~2.6 ms (large).
+
+### VOLE multi-surface lane (VOLE alone)
+
+Cumulative at N=1000 (cumulative wall ms / cumulative bytes read / marginal ms):
+cairo 820 / 17.7 MB / 0.68; libreoffice 1,179 / 29.5 MB / 0.87; pdftex 738 /
+9.0 MB / 0.64; reportlab 739 / 5.9 MB / 0.69; **large 13,671 / 3.87 GB /
+36.6**. The large-document multi-surface lane is dominated by preview (~527 KB
+per call) and decoded-stream (~82 KB per call) observations.
+
+### All recorded losses
+
+* **A1 wall not crossed** on cairo-vector, libreoffice-export, and large (above).
+* **A1 bytes-read not crossed** on large; **A1 CPU not crossed** on large.
+* **One-time read is 12×–57× the source**: VOLE `encode`+`ingest` reads 4,059,405,565
+  B for the 33,571,029 B `large` source (encode alone 236 MB, ~7× the source);
+  30.99× (cairo), 57.38× (libreoffice), 39.56× (pdftex), 51.82× (reportlab).
+* **Persistent bytes**: VOLE store is 616 KB–59.4 MB vs A1's 20 KB–184 KB and the
+  source (10.9 KB–33.6 MB). The derived cache (universe 4) dominates the store
+  (e.g. 42.2 MB of the 59.4 MB `large` store).
+* **Not a compressor** (ADR-0017): xz on the source is far smaller than the
+  `.voldoc` (e.g. `large`: 5,684,044 B vs 17,156,412 B; `reportlab`: 2,124 B vs
+  11,203 B). All compressor round-trips were verified.
+
+### Honest gaps
+
+* CPU/peak RSS are aggregate batch measurements; a single query is below
+  `/usr/bin/time`'s 10 ms CPU resolution, and the wrapping shell's small constant
+  CPU is included for every system.
+* VOLE and A0/A1 `bytes_read` use **different definitions** (instrumented
+  procedural/descriptor classes vs process `read`/`pread64` totals). A VOLE
+  process-level `strace` cross-check is recorded in `raw/`, but the two scalars
+  are not the same measurement.
+* Only page text is a like-for-like surface; VOLE's structure/preview/object/
+  decoded lanes have no conventional equivalent and are reported for VOLE alone.
+* Selector discovery is a bounded scan (object 1..64, stream 1..300) run as
+  query setup; it is not charged to any lifetime cost.
+* The generated document is the unmodified `pdf-make-large` output (fixed ~32 MiB
+  source, 50 pages); the generator has no size flag.
