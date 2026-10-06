@@ -100,6 +100,7 @@ const USAGE_FIELD: &str = "";
 #[cfg(feature = "field")]
 const USAGE_SHARE: &str = "\
     vole-document share report INPUT.voldoc...\n\
+    vole-document share-account --store DIR INPUT.voldoc...\n\
     vole-document share externalize --store DIR INPUT.voldoc OUTPUT.voldoc\n";
 #[cfg(not(feature = "field"))]
 const USAGE_SHARE: &str = "";
@@ -245,6 +246,8 @@ fn run(args: &[String]) -> Result<()> {
         "field-store-stats" => cmd_field_store_stats(args),
         #[cfg(feature = "field")]
         "share" => cmd_share_args(args, limits),
+        #[cfg(feature = "field")]
+        "share-account" => cmd_share_account(args, limits),
         other => Err(Error::usage(format!(
             "unknown subcommand {other:?}\n\n{}",
             usage()
@@ -1902,6 +1905,98 @@ fn cmd_field_preview(args: &[String], limits: Limits) -> Result<()> {
         return Ok(());
     }
     println!("{}", field_answer_json(&answer, &stats, &field));
+    Ok(())
+}
+
+/// `share-account --store DIR INPUT.voldoc...`: store every inline fine unit of
+/// the cohort in `<DIR>/share` and print the [`share::ShareReport`] as JSON
+/// (Phase 11.14).
+///
+/// The store is populated so the fine-unit sharing rests on **stored bytes**, not
+/// a paper calculation: because the store is content-addressed, `store_bytes`
+/// (distinct stored blobs) must equal `unique_bytes`, an independent check on the
+/// in-memory report. The descriptor still carries every unit inline; `unique_bytes`
+/// excludes all record/root framing and is a lower bound on any store form.
+/// Deterministic for a fixed input set (content addressing + sorted `by_kind`).
+#[cfg(feature = "field")]
+fn cmd_share_account(args: &[String], limits: Limits) -> Result<()> {
+    let mut store_dir: Option<PathBuf> = None;
+    let mut inputs: Vec<PathBuf> = Vec::new();
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        let (flag, inline) = match a.split_once('=') {
+            Some((f, v)) => (f, Some(v)),
+            None => (a, None),
+        };
+        match flag {
+            "--store" => {
+                store_dir = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--store", inline,
+                )?));
+            }
+            other if other.starts_with("--") => {
+                return Err(Error::usage(format!(
+                    "unknown share-account argument {other:?}"
+                )));
+            }
+            other => {
+                inputs.push(PathBuf::from(other));
+                i += 1;
+            }
+        }
+    }
+    let store_dir = store_dir.ok_or_else(|| Error::usage("share-account requires --store DIR"))?;
+    if inputs.is_empty() {
+        return Err(Error::usage(
+            "share-account requires at least one INPUT.voldoc",
+        ));
+    }
+    let mut descriptors = Vec::with_capacity(inputs.len());
+    for path in &inputs {
+        let bytes = fs::read(path)?;
+        descriptors.push(Descriptor::parse(&bytes, limits)?.descriptor);
+    }
+    // Store every inline fine unit so the accounting rests on stored bytes.
+    let mut units_offered: u64 = 0;
+    for d in &descriptors {
+        units_offered += share::store_units(&store_dir, d)?;
+    }
+    let report = share::cohort_report(&descriptors)?;
+    let store_bytes = share::share_store(&store_dir)?.stats()?.stored_bytes;
+    let kinds: Vec<String> = report
+        .by_kind
+        .iter()
+        .map(|(k, t, u)| {
+            format!(
+                "{{\"kind\":\"{}\",\"total\":{t},\"unique\":{u}}}",
+                json_escape(k)
+            )
+        })
+        .collect();
+    println!(
+        concat!(
+            "{{",
+            "\"ok\":true,",
+            "\"files\":{},",
+            "\"units_offered\":{},",
+            "\"store_bytes\":{},",
+            "\"total_bytes\":{},",
+            "\"unique_bytes\":{},",
+            "\"unit_count\":{},",
+            "\"unique_count\":{},",
+            "\"by_kind\":[{}]",
+            "}}"
+        ),
+        inputs.len(),
+        units_offered,
+        store_bytes,
+        report.total_bytes,
+        report.unique_bytes,
+        report.unit_count,
+        report.unique_count,
+        kinds.join(",")
+    );
     Ok(())
 }
 

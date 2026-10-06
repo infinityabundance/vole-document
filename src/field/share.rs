@@ -398,6 +398,41 @@ mod tests {
     }
 
     #[test]
+    fn store_units_persists_every_unique_unit_exactly_once() {
+        // Two descriptors that share one object and one channel payload: the
+        // `share-account` invariant is that the physical store holds exactly the
+        // report's unique units, so `store_bytes == unique_bytes` and the store's
+        // object count equals the report's unique count.
+        let root = std::env::temp_dir().join(format!(
+            "vole-share-store-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let shared_payload = vec![9u8; 32];
+        let a = descriptor(
+            vec![ObjectSource::Inline(b"shared-object".to_vec())],
+            vec![channel(shared_payload.clone(), 1, 32)],
+        );
+        let b = descriptor(
+            vec![ObjectSource::Inline(b"shared-object".to_vec())],
+            vec![channel(shared_payload, 1, 32)],
+        );
+        let offered = store_units(&root, &a).unwrap() + store_units(&root, &b).unwrap();
+        assert_eq!(
+            offered, 8,
+            "2 descriptors x (model + header + payload + object)"
+        );
+        let report = cohort_report(&[a, b]).unwrap();
+        let stats = share_store(&root).unwrap().stats().unwrap();
+        assert_eq!(stats.stored_bytes, report.unique_bytes);
+        assert_eq!(stats.object_count, report.unique_count);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
     fn externalize_objects_resolves_and_stays_exact() {
         let root = std::env::temp_dir().join(format!(
             "vole-share-{}-{}",
