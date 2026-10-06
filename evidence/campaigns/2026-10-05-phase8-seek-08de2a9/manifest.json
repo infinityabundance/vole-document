@@ -24,7 +24,8 @@
     "report.md": "27cf535289d72776ac946d32ced9cd0e0776d0f5c9dd72c129f119799bd837d3",
     "queries.jsonl": "0a31f7a380e37d7912421dc58afac1b4ce643ce7b122b5792c8b788a49bc3739",
     "query-table.md": "250af13f2852a3e0c3b2be12963e3030f19715e8bdc040c337eac734e8f1f2ad",
-    "large-baselines.json": "75da6ca00e2b9a43c523eab2521e1e0dd14cdc8957861e73910c428ba68b1f7a"
+    "large-baselines.json": "75da6ca00e2b9a43c523eab2521e1e0dd14cdc8957861e73910c428ba68b1f7a",
+    "gates.txt": "6afe750213687081b46876e5ea733c56e5f48aa43ea51a1da5a66c497ff05062"
   },
   "tooling": {
     "driver": "tools/seek-court.sh",
