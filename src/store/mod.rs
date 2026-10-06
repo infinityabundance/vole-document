@@ -30,6 +30,9 @@ use std::collections::BTreeSet;
 use crate::container::{Descriptor, ObjectSource};
 use crate::error::{Error, Result};
 
+mod io;
+pub use io::{IoCounters, IoSnapshot};
+
 #[cfg(feature = "store")]
 mod embedded;
 #[cfg(feature = "store")]

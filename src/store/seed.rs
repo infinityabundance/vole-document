@@ -33,6 +33,8 @@ use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
 
+use super::IoCounters;
+
 /// Domain-separation prefix for a procedural seed node's content id.
 pub const SEED_NODE_DOMAIN: &[u8] = b"VOLE:PSEED:v1";
 
@@ -123,6 +125,7 @@ pub trait SeedStore {
 /// [`SeedStore::get_node_range`].
 pub struct FsSeedStore {
     root: PathBuf,
+    io: IoCounters,
 }
 
 impl std::fmt::Debug for FsSeedStore {
@@ -134,11 +137,19 @@ impl std::fmt::Debug for FsSeedStore {
 }
 
 impl FsSeedStore {
-    /// Open (creating if needed) a seed store rooted at `root`.
+    /// Open (creating if needed) a seed store rooted at `root`, with a fresh,
+    /// private I/O counter set.
     pub fn open(root: impl AsRef<Path>) -> Result<Self> {
+        Self::open_with_io(root, IoCounters::new())
+    }
+
+    /// Open a seed store that accounts every read against `io`. A caller that
+    /// also holds a [`crate::field::FieldStore`] shares its counter handle here,
+    /// so a seed read made through either handle is attributed to one universe.
+    pub fn open_with_io(root: impl AsRef<Path>, io: IoCounters) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
         fs::create_dir_all(root.join("seed"))?;
-        Ok(FsSeedStore { root })
+        Ok(FsSeedStore { root, io })
     }
 
     /// The seed-store root directory.
@@ -193,6 +204,7 @@ impl SeedStore for FsSeedStore {
                 "seed node {id} content hashes to {actual}"
             )));
         }
+        self.io.add_seed(bytes.len() as u64);
         Ok(bytes)
     }
 
@@ -215,6 +227,7 @@ impl SeedStore for FsSeedStore {
         f.seek(SeekFrom::Start(offset))?;
         let mut out = vec![0u8; usize::try_from(len).unwrap_or(usize::MAX)];
         f.read_exact(&mut out)?;
+        self.io.add_seed(out.len() as u64);
         Ok(out)
     }
 

@@ -31,6 +31,7 @@ use vole_document::field::{
     ingest as field_ingest,
     observe::{ObserveRequest, ObserveStats, Representation, Selector, observe},
     provenance::{AnswerValue, FieldAnswer},
+    share,
 };
 use vole_document::limits::Limits;
 #[cfg(feature = "rans")]
@@ -92,6 +93,14 @@ const USAGE_FIELD: &str = "\
 #[cfg(not(feature = "field"))]
 const USAGE_FIELD: &str = "";
 
+/// The fine-unit sharing verbs are advertised only when the field is built in.
+#[cfg(feature = "field")]
+const USAGE_SHARE: &str = "\
+    vole-document share report INPUT.voldoc...\n\
+    vole-document share externalize --store DIR INPUT.voldoc OUTPUT.voldoc\n";
+#[cfg(not(feature = "field"))]
+const USAGE_SHARE: &str = "";
+
 const USAGE_TAIL: &str = "\
     vole-document capabilities
 
@@ -111,7 +120,9 @@ EXIT CODES:
 /// The full usage text, with the replay-gated command line included only when
 /// the feature is present.
 fn usage() -> String {
-    format!("{USAGE_HEAD}{USAGE_VIEW}{USAGE_DEFLATE_STATS}{USAGE_STORE}{USAGE_FIELD}{USAGE_TAIL}")
+    format!(
+        "{USAGE_HEAD}{USAGE_VIEW}{USAGE_DEFLATE_STATS}{USAGE_STORE}{USAGE_FIELD}{USAGE_SHARE}{USAGE_TAIL}"
+    )
 }
 
 fn main() -> ExitCode {
@@ -227,6 +238,8 @@ fn run(args: &[String]) -> Result<()> {
         "preview" => cmd_field_preview(args, limits),
         #[cfg(feature = "field")]
         "cache" => cmd_field_cache(args),
+        #[cfg(feature = "field")]
+        "share" => cmd_share_args(args, limits),
         other => Err(Error::usage(format!(
             "unknown subcommand {other:?}\n\n{}",
             usage()
@@ -1585,7 +1598,7 @@ fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats, field: &FieldId
             "\"source_span\":{},",
             "\"dependency_ids\":[{}],",
             "{},",
-            "\"stats\":{{\"index_nodes_read\":{},\"seed_nodes_fetched\":{},\"seed_nodes_materialized\":{},\"seed_nodes_executed\":{},\"seed_nodes_reused\":{},\"cache_bytes_written\":{},\"bytes_read\":{},\"bytes_returned\":{},\"deepened\":{},\"wall_micros\":{}}}",
+            "\"stats\":{{\"index_nodes_read\":{},\"seed_nodes_fetched\":{},\"seed_nodes_materialized\":{},\"seed_nodes_executed\":{},\"seed_nodes_reused\":{},\"cache_bytes_written\":{},\"descriptor_bytes_read\":{},\"manifest_bytes_read\":{},\"index_bytes_read\":{},\"seed_bytes_read\":{},\"bytes_read\":{},\"bytes_returned\":{},\"deepened\":{},\"wall_micros\":{}}}",
             "}}"
         ),
         field.to_hex(),
@@ -1603,6 +1616,10 @@ fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats, field: &FieldId
         stats.seed_nodes_executed,
         stats.seed_nodes_reused,
         stats.cache_bytes_written,
+        stats.descriptor_bytes_read,
+        stats.manifest_bytes_read,
+        stats.index_bytes_read,
+        stats.seed_bytes_read,
         stats.bytes_read,
         stats.bytes_returned,
         stats.deepened,
@@ -1749,7 +1766,8 @@ fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
 }
 
 /// The executed-observation evidence object for `explain --analyze`, including
-/// the promoted field id and the reuse counters (11.8).
+/// the promoted field id, the per-class physical byte counts (review fix #1),
+/// and the reuse counters (11.8).
 #[cfg(feature = "field")]
 fn explain_actual_json(stats: &ObserveStats, answer: &FieldAnswer, field: &FieldId) -> String {
     format!(
@@ -1762,6 +1780,10 @@ fn explain_actual_json(stats: &ObserveStats, answer: &FieldAnswer, field: &Field
             "\"seed_nodes_executed\":{},",
             "\"seed_nodes_reused\":{},",
             "\"cache_bytes_written\":{},",
+            "\"descriptor_bytes_read\":{},",
+            "\"manifest_bytes_read\":{},",
+            "\"index_bytes_read\":{},",
+            "\"seed_bytes_read\":{},",
             "\"bytes_read\":{},",
             "\"bytes_returned\":{},",
             "\"deepened\":{},",
@@ -1777,6 +1799,10 @@ fn explain_actual_json(stats: &ObserveStats, answer: &FieldAnswer, field: &Field
         stats.seed_nodes_executed,
         stats.seed_nodes_reused,
         stats.cache_bytes_written,
+        stats.descriptor_bytes_read,
+        stats.manifest_bytes_read,
+        stats.index_bytes_read,
+        stats.seed_bytes_read,
         stats.bytes_read,
         stats.bytes_returned,
         stats.deepened,
@@ -1810,6 +1836,149 @@ fn cmd_field_preview(args: &[String], limits: Limits) -> Result<()> {
         return Ok(());
     }
     println!("{}", field_answer_json(&answer, &stats, &field));
+    Ok(())
+}
+
+/// `share report INPUT.voldoc...`: measure fine-unit sharing over a cohort of
+/// descriptors (Phase 11.14). Read-only; no store is touched.
+#[cfg(feature = "field")]
+fn cmd_share_args(args: &[String], limits: Limits) -> Result<()> {
+    match args.get(2).map(String::as_str) {
+        Some("report") => {
+            let inputs: Vec<PathBuf> = args
+                .get(3..)
+                .unwrap_or(&[])
+                .iter()
+                .map(PathBuf::from)
+                .collect();
+            if inputs.is_empty() {
+                return Err(Error::usage(
+                    "share report requires at least one INPUT.voldoc",
+                ));
+            }
+            cmd_share_report(&inputs, limits)
+        }
+        Some("externalize") => {
+            let mut store_dir: Option<PathBuf> = None;
+            let mut positional: Vec<&str> = Vec::new();
+            let mut i = 3;
+            while i < args.len() {
+                let a = args[i].as_str();
+                let (flag, inline) = match a.split_once('=') {
+                    Some((f, v)) => (f, Some(v)),
+                    None => (a, None),
+                };
+                match flag {
+                    "--store" => {
+                        store_dir = Some(PathBuf::from(field_arg_value(
+                            args, &mut i, "--store", inline,
+                        )?));
+                    }
+                    other => positional.push(other),
+                }
+            }
+            let store_dir =
+                store_dir.ok_or_else(|| Error::usage("share externalize requires --store DIR"))?;
+            let input = positional
+                .first()
+                .map(PathBuf::from)
+                .ok_or_else(|| Error::usage("share externalize requires INPUT.voldoc"))?;
+            let output = positional
+                .get(1)
+                .map(PathBuf::from)
+                .ok_or_else(|| Error::usage("share externalize requires OUTPUT.voldoc"))?;
+            if positional.len() > 2 {
+                return Err(Error::usage(format!(
+                    "unexpected extra argument {:?}",
+                    positional[2]
+                )));
+            }
+            cmd_share_externalize(&store_dir, &input, &output, limits)
+        }
+        other => Err(Error::usage(format!(
+            "unknown share subcommand {:?}",
+            other.unwrap_or("")
+        ))),
+    }
+}
+
+/// Print fine-unit sharing for each descriptor and for the cohort as a whole.
+#[cfg(feature = "field")]
+fn cmd_share_report(inputs: &[PathBuf], limits: Limits) -> Result<()> {
+    let mut descriptors = Vec::with_capacity(inputs.len());
+    for path in inputs {
+        let bytes = fs::read(path)?;
+        descriptors.push(Descriptor::parse(&bytes, limits)?.descriptor);
+    }
+    let report = share::cohort_report(&descriptors)?;
+    let per_file: Vec<String> = inputs
+        .iter()
+        .zip(&descriptors)
+        .map(|(path, d)| {
+            let r = share::cohort_report(std::slice::from_ref(d))?;
+            Ok(format!(
+                concat!(
+                    "{{",
+                    "\"file\":\"{}\",",
+                    "\"total_bytes\":{},",
+                    "\"unique_bytes\":{},",
+                    "\"unit_count\":{},",
+                    "\"unique_count\":{}",
+                    "}}"
+                ),
+                json_escape(&path.display().to_string()),
+                r.total_bytes,
+                r.unique_bytes,
+                r.unit_count,
+                r.unique_count
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    println!(
+        "{{\"ok\":true,\"files\":{},\"report\":{},\"per_file\":[{}]}}",
+        inputs.len(),
+        report.to_json(),
+        per_file.join(",")
+    );
+    Ok(())
+}
+
+/// Externalize the object table into `<DIR>/share` (wire-real) and store every
+/// fine unit there (measured), writing the store-backed descriptor to `OUTPUT`.
+#[cfg(feature = "field")]
+fn cmd_share_externalize(
+    store_dir: &Path,
+    input: &Path,
+    output: &Path,
+    limits: Limits,
+) -> Result<()> {
+    let encoded = fs::read(input)?;
+    let mut descriptor = Descriptor::parse(&encoded, limits)?.descriptor;
+    let offered = share::store_units(store_dir, &descriptor)?;
+    let objects = share::externalize_objects(store_dir, &mut descriptor)?;
+    let (bytes, _cost) = descriptor.serialize()?;
+    write_atomic(output, &bytes)?;
+    let report = share::cohort_report(std::slice::from_ref(&descriptor))?;
+    let share_bytes = share::share_store(store_dir)?.stats()?.stored_bytes;
+    println!(
+        concat!(
+            "{{",
+            "\"ok\":true,",
+            "\"output\":\"{}\",",
+            "\"objects\":{},",
+            "\"units_offered\":{},",
+            "\"root_bytes\":{},",
+            "\"share_store_bytes\":{},",
+            "\"report\":{}",
+            "}}"
+        ),
+        json_escape(&output.display().to_string()),
+        objects,
+        offered,
+        bytes.len(),
+        share_bytes,
+        report.to_json()
+    );
     Ok(())
 }
 

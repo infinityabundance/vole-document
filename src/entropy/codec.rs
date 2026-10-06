@@ -48,9 +48,22 @@ impl EntropyChannelDescriptor {
     /// `[model_id u32][symbol_count u64][decoded_length u64]`
     /// `[initial_state u32][payload_len u32][payload]`.
     pub fn encode(&self) -> Result<Vec<u8>> {
+        let mut out = self.header_bytes()?;
+        out.extend_from_slice(&self.payload);
+        Ok(out)
+    }
+
+    /// The fixed [`WIRE_HEADER_LEN`]-byte header alone, in the exact layout
+    /// [`encode`](Self::encode) uses, without the renormalization payload.
+    ///
+    /// The final `payload_len` field still reflects the payload length, so the
+    /// header is a complete description of everything except the payload bytes.
+    /// This is the "channel header" shareable unit (Phase 11.14): two channels
+    /// whose only difference is their payload share one header.
+    pub fn header_bytes(&self) -> Result<Vec<u8>> {
         let payload_len = u32::try_from(self.payload.len())
             .map_err(|_| Error::resource_limit("entropy channel payload exceeds 4 GiB"))?;
-        let mut out = Vec::with_capacity(WIRE_HEADER_LEN + self.payload.len());
+        let mut out = Vec::with_capacity(WIRE_HEADER_LEN);
         out.push(self.coder);
         out.extend_from_slice(&self.coder_version.to_le_bytes());
         out.push(self.scale_bits);
@@ -60,7 +73,6 @@ impl EntropyChannelDescriptor {
         out.extend_from_slice(&self.decoded_length.to_le_bytes());
         out.extend_from_slice(&self.initial_state.to_le_bytes());
         out.extend_from_slice(&payload_len.to_le_bytes());
-        out.extend_from_slice(&self.payload);
         Ok(out)
     }
 
@@ -172,6 +184,28 @@ mod tests {
         let d = descriptor();
         let bytes = d.encode().unwrap();
         assert_eq!(bytes.len(), 33 + d.payload.len());
+    }
+
+    #[test]
+    fn header_bytes_is_the_encode_prefix() {
+        let d = descriptor();
+        let header = d.header_bytes().unwrap();
+        assert_eq!(header.len(), WIRE_HEADER_LEN);
+        let full = d.encode().unwrap();
+        assert_eq!(&full[..WIRE_HEADER_LEN], &header[..]);
+    }
+
+    #[test]
+    fn header_bytes_depends_on_payload_length_not_bytes() {
+        // Two channels with equal-length but different payloads share a header.
+        let mut a = descriptor();
+        let mut b = descriptor();
+        b.payload[0] ^= 0xff;
+        assert_ne!(a.payload, b.payload);
+        assert_eq!(a.header_bytes().unwrap(), b.header_bytes().unwrap());
+        // A different payload length changes the header's `payload_len` field.
+        a.payload.push(0);
+        assert_ne!(a.header_bytes().unwrap(), b.header_bytes().unwrap());
     }
 
     #[test]

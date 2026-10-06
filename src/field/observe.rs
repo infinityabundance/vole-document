@@ -13,8 +13,10 @@
 //! A narrow observation materializes only the dependency closure it needs. In
 //! particular, `Page(n) + Structure` reads the page's decoded content streams and
 //! its preview node — it never reads image/XObject bytes and never reconstructs
-//! the whole document. The instrumented [`ObserveStats::bytes_read`] makes this
-//! auditable.
+//! the whole document. The split byte classes in [`ObserveStats`] make this
+//! auditable: the **seed** closure is reported separately as `seed_bytes_read`,
+//! and the descriptor bytes a narrow observation necessarily reads to open the
+//! field are charged honestly in `descriptor_bytes_read` rather than hidden.
 //!
 //! ## No guessing
 //!
@@ -28,7 +30,8 @@ use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, ReuseStats};
 use crate::field::index::{
-    FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PAGE, SEL_REVISION, SEL_STREAM, SelectorKey, lookup,
+    FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PAGE, SEL_REVISION, SEL_STREAM, SEL_STREAM_DECODED,
+    SelectorKey, lookup,
 };
 use crate::field::ingest;
 use crate::field::node::{NodeKind, SeedNode, read_u32_params, span_params, u32_params};
@@ -165,6 +168,11 @@ impl ObserveRequest {
 }
 
 /// Statistics of one observation — the evidence surface (ADR-0027).
+///
+/// Peak RSS and CPU time are deliberately **not** claimed here: `std` exposes no
+/// portable CPU-time API, and peak RSS is a Linux-only `/proc` read that the court
+/// already measures externally (the court reads `Maximum resident set size` from
+/// `/usr/bin/time -v`). Claiming either in-process would add a platform-specific, easily-misread field for no gain.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ObserveStats {
     /// Index entries consulted during the observation (the reference descent is
@@ -183,7 +191,20 @@ pub struct ObserveStats {
     pub seed_nodes_reused: u64,
     /// Output bytes written to the derived cache during this observation.
     pub cache_bytes_written: u64,
-    /// Seed-store bytes fetched.
+    /// Descriptor-blob bytes physically fetched to open this observation's field.
+    /// A narrow observation still needs descriptor state, so this is normally the
+    /// whole `.voldoc` blob; it is **not** hidden behind `bytes_read` (fix #1/#2).
+    pub descriptor_bytes_read: u64,
+    /// Field-manifest bytes physically fetched.
+    pub manifest_bytes_read: u64,
+    /// Hierarchical-index-node bytes physically fetched.
+    pub index_bytes_read: u64,
+    /// Seed-node bytes physically fetched (`get_node` + `get_node_range`).
+    pub seed_bytes_read: u64,
+    /// Total **physical** bytes fetched by this observation:
+    /// `descriptor_bytes_read + manifest_bytes_read + index_bytes_read +
+    /// seed_bytes_read`. Unrelated to `bytes_returned` (the output size): a
+    /// narrow observation can return fewer bytes than it reads.
     pub bytes_read: u64,
     /// Bytes returned to the caller.
     pub bytes_returned: u64,
@@ -193,20 +214,20 @@ pub struct ObserveStats {
     pub wall_micros: u64,
 }
 
-/// A seed store wrapper that counts `get_node` calls and bytes read. Read-only
-/// for accounting; `put_node` delegates unchanged.
-struct CountingSeedStore {
-    inner: FsSeedStore,
+/// A seed-store wrapper that counts node *fetches*. All physical bytes are
+/// accounted by the underlying store's [`crate::store::IoCounters`]; this wrapper
+/// only exposes the fetch count for `seed_nodes_fetched`. Generic over the seed
+/// substrate so a test can substitute a store that forbids enumeration.
+struct CountingSeedStore<S: SeedStore> {
+    inner: S,
     gets: Cell<u64>,
-    bytes: Cell<u64>,
 }
 
-impl CountingSeedStore {
-    fn new(inner: FsSeedStore) -> Self {
+impl<S: SeedStore> CountingSeedStore<S> {
+    fn new(inner: S) -> Self {
         CountingSeedStore {
             inner,
             gets: Cell::new(0),
-            bytes: Cell::new(0),
         }
     }
 
@@ -214,31 +235,24 @@ impl CountingSeedStore {
         self.gets.get()
     }
 
-    fn bytes(&self) -> u64 {
-        self.bytes.get()
-    }
-
-    fn note(&self, len: usize) {
+    fn note(&self) {
         self.gets.set(self.gets.get() + 1);
-        self.bytes.set(self.bytes.get() + len as u64);
     }
 }
 
-impl SeedStore for CountingSeedStore {
+impl<S: SeedStore> SeedStore for CountingSeedStore<S> {
     fn put_node(&mut self, canonical: &[u8]) -> Result<NodeId> {
         self.inner.put_node(canonical)
     }
 
     fn get_node(&self, id: &NodeId) -> Result<Vec<u8>> {
-        let bytes = self.inner.get_node(id)?;
-        self.note(bytes.len());
-        Ok(bytes)
+        self.note();
+        self.inner.get_node(id)
     }
 
     fn get_node_range(&self, id: &NodeId, offset: u64, len: u64) -> Result<Vec<u8>> {
-        let bytes = self.inner.get_node_range(id, offset, len)?;
-        self.note(bytes.len());
-        Ok(bytes)
+        self.note();
+        self.inner.get_node_range(id, offset, len)
     }
 
     fn contains_node(&self, id: &NodeId) -> Result<bool> {
@@ -264,14 +278,66 @@ pub fn observe(
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let started = Instant::now();
     let field = Field::open(store, id, limits)?;
-    let root = store.root().to_path_buf();
-    let seeds = CountingSeedStore::new(FsSeedStore::open(&root)?);
-    let istore = FsIndexStore::open(&root)?;
+    observe_inner(store, &field, req, limits, started)
+}
+
+/// Observe against an **already-open** field, opening nothing extra.
+///
+/// This is the single-open entry point (review fix #2): [`crate::field::explain::explain_analyze`]
+/// opens the field once, plans against it, and then evaluates the observation
+/// here, so the descriptor blob is read exactly once per analysis instead of
+/// twice. Physical bytes are attributed from the store's I/O counters, so the
+/// bytes read to open `field` are still reported honestly.
+pub fn observe_with_field(
+    store: &mut FieldStore,
+    field: &Field,
+    req: &ObserveRequest,
+    limits: Limits,
+) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
+    let started = Instant::now();
+    observe_inner(store, field, req, limits, started)
+}
+
+/// Build the seed and index sub-stores, sharing the field store's I/O counters.
+fn open_sub_stores(store: &FieldStore) -> Result<(CountingSeedStore<FsSeedStore>, FsIndexStore)> {
+    let root = store.root();
+    let io = store.io();
+    let seeds = CountingSeedStore::new(FsSeedStore::open_with_io(root, io.handle())?);
+    let istore = FsIndexStore::open_with_io(root, io.handle())?;
+    Ok((seeds, istore))
+}
+
+fn observe_inner<'a>(
+    store: &'a mut FieldStore,
+    field: &'a Field,
+    req: &ObserveRequest,
+    limits: Limits,
+    started: Instant,
+) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
+    let (seeds, istore) = open_sub_stores(store)?;
+    observe_with_stores(store, field, req, limits, started, seeds, istore)
+}
+
+/// The evaluation core. Takes explicit sub-stores so a test can supply a seed
+/// store wrapper that forbids enumeration.
+fn observe_with_stores<'a, S: SeedStore>(
+    store: &'a mut FieldStore,
+    field: &'a Field,
+    req: &ObserveRequest,
+    limits: Limits,
+    started: Instant,
+    seeds: CountingSeedStore<S>,
+    istore: FsIndexStore,
+) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
+    // Snapshot after the field is open: only the reads this observation performs
+    // during evaluation are counted as deltas; the field-open bytes come from
+    // `field.open_io()` below so they cannot be dropped on the floor.
+    let io_base = store.io().snapshot();
     let budget = EvalBudget {
         max_nodes: req.budget.max_nodes,
         ..EvalBudget::default()
     };
-    let cache = DerivedCache::open(root.join("cache"))?;
+    let cache = DerivedCache::open(store.root().join("cache"))?;
     let mut ctx = Ctx {
         store,
         field,
@@ -283,7 +349,7 @@ pub fn observe(
         use_cache: req.use_cache,
         cache,
         reuse: ReuseStats::default(),
-        current_id: *id,
+        current_id: field.id(),
     };
 
     let answer = ctx.dispatch(req)?;
@@ -296,8 +362,20 @@ pub fn observe(
     }
 
     let mut stats = ctx.stats;
+    // Every physical byte fetched by this observation: the field-open bytes plus
+    // any additional reads (e.g. a Stage-C promotion) performed during dispatch.
+    let open = ctx.field.open_io();
+    let extra = io_base.delta(&ctx.store.io().snapshot());
+    stats.descriptor_bytes_read = open.descriptor_bytes.saturating_add(extra.descriptor_bytes);
+    stats.manifest_bytes_read = open.manifest_bytes.saturating_add(extra.manifest_bytes);
+    stats.index_bytes_read = extra.index_bytes;
+    stats.seed_bytes_read = extra.seed_bytes;
+    stats.bytes_read = stats
+        .descriptor_bytes_read
+        .saturating_add(stats.manifest_bytes_read)
+        .saturating_add(stats.index_bytes_read)
+        .saturating_add(stats.seed_bytes_read);
     stats.seed_nodes_fetched = ctx.seeds.gets();
-    stats.bytes_read = ctx.seeds.bytes();
     stats.seed_nodes_materialized = ctx.budget.nodes;
     stats.seed_nodes_executed = ctx.reuse.nodes_executed;
     stats.seed_nodes_reused = ctx.reuse.nodes_reused;
@@ -308,10 +386,10 @@ pub fn observe(
 }
 
 /// Observation execution context.
-struct Ctx<'a> {
+struct Ctx<'a, S: SeedStore> {
     store: &'a mut FieldStore,
-    field: Field,
-    seeds: CountingSeedStore,
+    field: &'a Field,
+    seeds: CountingSeedStore<S>,
     istore: FsIndexStore,
     limits: Limits,
     budget: EvalBudget,
@@ -322,7 +400,7 @@ struct Ctx<'a> {
     current_id: FieldId,
 }
 
-impl Ctx<'_> {
+impl<S: SeedStore> Ctx<'_, S> {
     fn materialize(&mut self, node: &SeedNode) -> Result<Vec<u8>> {
         let depth = node.limits.max_depth;
         if self.use_cache {
@@ -498,10 +576,7 @@ impl Ctx<'_> {
 
     fn stream_decoded(&mut self, req: &ObserveRequest, object: u32) -> Result<FieldAnswer> {
         let entry = self.require_entry(SelectorKey::new(SEL_STREAM, object), "stream")?;
-        let node = match self.find_decoded_node(object, &entry.node_id)? {
-            Some(node) => node,
-            None => self.deepen_stream(object, &entry.node_id)?,
-        };
+        let node = self.decoded_node(object, &entry.node_id)?;
         let id = node.content_id();
         let bytes = self.materialize(&node)?;
         Ok(FieldAnswer {
@@ -518,10 +593,7 @@ impl Ctx<'_> {
 
     fn stream_operators(&mut self, req: &ObserveRequest, object: u32) -> Result<FieldAnswer> {
         let entry = self.require_entry(SelectorKey::new(SEL_STREAM, object), "stream")?;
-        let decoded = match self.find_decoded_node(object, &entry.node_id)? {
-            Some(node) => node,
-            None => self.deepen_stream(object, &entry.node_id)?,
-        };
+        let decoded = self.decoded_node(object, &entry.node_id)?;
         let decoded_id = decoded.content_id();
         let node = SeedNode::new(
             NodeKind::ContentOperators,
@@ -553,9 +625,10 @@ impl Ctx<'_> {
     /// Ensure the page's derived chain exists, deepening once if needed.
     ///
     /// Idempotent by content id: the three derived nodes have deterministic ids,
-    /// so if they are already present the promotion is skipped entirely and no
-    /// new field id is needed. This is what makes a repeated observation of the
-    /// same page cheap.
+    /// so this **computes** them and does an O(1) `contains_node` check per id —
+    /// it never enumerates the seed store. If they are already present the
+    /// promotion is skipped entirely and no new field id is needed, which is what
+    /// makes a repeated observation of the same page cheap.
     fn ensure_page_derived(
         &mut self,
         page: u32,
@@ -566,8 +639,10 @@ impl Ctx<'_> {
             && self.seeds.contains_node(&text.content_id())?
             && self.seeds.contains_node(&preview.content_id())?;
         if !present {
-            let field_id = self.field.id();
-            let promoted = ingest::deepen_page(self.store, &field_id, page, self.limits)?;
+            // Promote against the manifest we already hold, so the descriptor
+            // blob is not re-read just to learn the current manifest (fix #2).
+            let promoted =
+                ingest::deepen_page_with_manifest(self.store, self.field.manifest(), page)?;
             self.stats.deepened = true;
             self.current_id = promoted;
         }
@@ -693,19 +768,20 @@ impl Ctx<'_> {
         })
     }
 
-    /// Find an existing `PdfStreamDecoded` seed node for `object`, if present.
-    fn find_decoded_node(&self, object: u32, encoded_id: &NodeId) -> Result<Option<SeedNode>> {
-        for (id, _len) in self.seeds.list_nodes()? {
-            let bytes = self.seeds.get_node(&id)?;
-            let node = SeedNode::decode_canonical(&bytes)?;
-            if node.kind == NodeKind::PdfStreamDecoded
-                && node.deps.first() == Some(encoded_id)
-                && read_u32_params(&node.params).ok() == Some(object)
-            {
-                return Ok(Some(node));
-            }
+    /// Resolve the `PdfStreamDecoded` node for `object`.
+    ///
+    /// A decoded node is a deterministic function of its encoded node, the
+    /// materializer, and the decoded length, so it is registered under
+    /// [`SEL_STREAM_DECODED`] at ingest and found here in `O(depth)` index reads.
+    /// Only when that entry is absent (ingest declined the eager decode) do we
+    /// fall back to [`Ctx::deepen_stream`], which recomputes just this one node.
+    /// Either path never enumerates the seed store (fix #3).
+    fn decoded_node(&mut self, object: u32, encoded_id: &NodeId) -> Result<SeedNode> {
+        let entries = self.lookup(SelectorKey::new(SEL_STREAM_DECODED, object))?;
+        if let Some(entry) = entries.into_iter().next() {
+            return self.load(&entry.node_id);
         }
-        Ok(None)
+        self.deepen_stream(object, encoded_id)
     }
 
     /// Persist a decoded-stream node for `object` if it is recoverable, then
@@ -1014,8 +1090,13 @@ mod tests {
         assert!(!answer.exact);
     }
 
+    /// The *procedural/seed closure* of a page-structure observation excludes the
+    /// image seed node. This is a statement about **seed reads only**: the
+    /// descriptor blob is charged separately in `descriptor_bytes_read`, and
+    /// `bytes_read` is the sum of all four classes, so this must never be read as
+    /// "the OS avoided reading the whole document" (review fix #1/#2).
     #[test]
-    fn page_structure_does_not_read_image_bytes() {
+    fn page_structure_procedural_closure_excludes_image_seed_node() {
         let mut fx = Fixture::new("structure", true);
         let (answer, stats) = observe_req(&mut fx, Selector::Page(1), Representation::Structure);
         match &answer.value {
@@ -1027,12 +1108,32 @@ mod tests {
         }
         assert_eq!(answer.basis, Basis::DeterministicallyDerived);
         assert!(!answer.exact);
-        // The 64 KiB image payload is never fetched: the observation reads only
-        // the preview, the page-content node, and the decoded content stream.
+        // Seed closure: the 64 KiB image payload's seed node is never fetched.
         assert!(
-            stats.bytes_read < 16 * 1024,
+            stats.seed_bytes_read < 16 * 1024,
             "structure observation read {} seed bytes (expected < 16384)",
-            stats.bytes_read
+            stats.seed_bytes_read
+        );
+        // The honest total *does* include the descriptor blob, which a narrow
+        // observation necessarily read to open the field.
+        assert!(
+            stats.descriptor_bytes_read > 0,
+            "the descriptor read must be accounted, not hidden"
+        );
+        assert!(
+            stats.bytes_read >= stats.descriptor_bytes_read,
+            "bytes_read {} must include descriptor_bytes_read {}",
+            stats.bytes_read,
+            stats.descriptor_bytes_read
+        );
+        assert_eq!(
+            stats.bytes_read,
+            stats
+                .descriptor_bytes_read
+                .saturating_add(stats.manifest_bytes_read)
+                .saturating_add(stats.index_bytes_read)
+                .saturating_add(stats.seed_bytes_read),
+            "bytes_read must be the exact sum of the four physical classes"
         );
     }
 
@@ -1068,8 +1169,12 @@ mod tests {
             "bytes_read",
             "bytes_returned",
             "deepened",
+            "descriptor_bytes_read",
             "exact",
+            "index_bytes_read",
             "index_nodes_read",
+            "manifest_bytes_read",
+            "seed_bytes_read",
             "seed_nodes_fetched",
             "seed_nodes_materialized",
             "wall_micros",
@@ -1147,6 +1252,170 @@ mod tests {
         assert_eq!(decoded.basis, Basis::DeterministicallyDerived);
         let (ops, _) = observe_req(&mut fx, Selector::Stream(4), Representation::Operators);
         assert!(matches!(ops.value, AnswerValue::Bytes(ref b) if !b.is_empty()));
+    }
+
+    /// Every physical byte class is charged, and `bytes_read` is their exact sum.
+    #[test]
+    fn observation_byte_classes_sum_and_are_all_charged() {
+        let mut fx = Fixture::new("io-sum", false);
+        let (_, stats) = observe_req(&mut fx, Selector::Page(1), Representation::Structure);
+        assert!(
+            stats.descriptor_bytes_read > 0,
+            "descriptor bytes: {stats:?}"
+        );
+        assert!(stats.manifest_bytes_read > 0, "manifest bytes: {stats:?}");
+        assert!(stats.index_bytes_read > 0, "index bytes: {stats:?}");
+        assert!(stats.seed_bytes_read > 0, "seed bytes: {stats:?}");
+        assert_eq!(
+            stats.bytes_read,
+            stats
+                .descriptor_bytes_read
+                .saturating_add(stats.manifest_bytes_read)
+                .saturating_add(stats.index_bytes_read)
+                .saturating_add(stats.seed_bytes_read),
+            "bytes_read must equal the class sum: {stats:?}"
+        );
+    }
+
+    /// `explain_analyze` must open the descriptor exactly once: the plan and the
+    /// evaluation share one `Field`, and a Stage-C promotion no longer re-reads it
+    /// (review fix #2).
+    #[test]
+    fn explain_analyze_opens_the_descriptor_once() {
+        use crate::field::explain;
+        let mut fx = Fixture::new("opens-once", false);
+
+        // A metadata observation does no promotion; one open.
+        let req = ObserveRequest::new(Selector::Document, Representation::Metadata);
+        let before = fx.store.io().descriptor_reads();
+        let (_, actual) =
+            explain::explain_analyze(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap();
+        assert_eq!(
+            fx.store.io().descriptor_reads() - before,
+            1,
+            "explain_analyze must open the descriptor exactly once"
+        );
+        assert!(
+            actual.stats.descriptor_bytes_read > 0,
+            "the single open must still be accounted: {:?}",
+            actual.stats
+        );
+
+        // A cold page observation *does* promote (Stage C); even then the
+        // descriptor is read once, because promotion reuses the open manifest.
+        let page = ObserveRequest::new(Selector::Page(1), Representation::Text);
+        let before = fx.store.io().descriptor_reads();
+        let (_, page_actual) =
+            explain::explain_analyze(&mut fx.store, &fx.field, &page, Limits::DEFAULT).unwrap();
+        assert_eq!(
+            fx.store.io().descriptor_reads() - before,
+            1,
+            "a cold promotion must not re-open the field for its manifest"
+        );
+        assert!(page_actual.stats.deepened, "the cold page must promote");
+        assert!(page_actual.stats.descriptor_bytes_read > 0);
+    }
+
+    /// A seed store that forbids enumeration and bounds fetches. Putting it on the
+    /// observation path proves a `Stream(n)+DecodedBytes` resolves through the
+    /// hierarchical index, never by scanning the store (review fix #3).
+    struct BoundedSeedStore {
+        inner: FsSeedStore,
+        fetches: Cell<u64>,
+        limit: u64,
+    }
+
+    impl SeedStore for BoundedSeedStore {
+        fn put_node(&mut self, canonical: &[u8]) -> Result<NodeId> {
+            self.inner.put_node(canonical)
+        }
+
+        fn get_node(&self, id: &NodeId) -> Result<Vec<u8>> {
+            let n = self.fetches.get() + 1;
+            assert!(
+                n <= self.limit,
+                "get_node #{n} exceeds the {}-fetch bound: the store was enumerated",
+                self.limit
+            );
+            self.fetches.set(n);
+            self.inner.get_node(id)
+        }
+
+        fn get_node_range(&self, id: &NodeId, offset: u64, len: u64) -> Result<Vec<u8>> {
+            let n = self.fetches.get() + 1;
+            assert!(
+                n <= self.limit,
+                "get_node_range #{n} exceeds the {}-fetch bound: the store was enumerated",
+                self.limit
+            );
+            self.fetches.set(n);
+            self.inner.get_node_range(id, offset, len)
+        }
+
+        fn contains_node(&self, id: &NodeId) -> Result<bool> {
+            self.inner.contains_node(id)
+        }
+
+        fn list_nodes(&self) -> Result<Vec<(NodeId, u64)>> {
+            panic!("an observation must never enumerate the seed store")
+        }
+    }
+
+    #[test]
+    fn decoded_stream_resolves_without_enumerating_the_store() {
+        let mut fx = Fixture::new("no-scan", true);
+        // Many unrelated decoy nodes: a whole-store scan would fetch them all.
+        for i in 0..256u32 {
+            let decoy = SeedNode::new(
+                NodeKind::PdfObject,
+                1,
+                u32_params(10_000 + i),
+                Vec::new(),
+                "decoy",
+            );
+            fx.store
+                .seeds_mut()
+                .put_node(&decoy.encode_canonical())
+                .unwrap();
+        }
+        let total = fx.store.seeds().list_nodes().unwrap().len() as u64;
+        assert!(total > 200, "expected many seed nodes, got {total}");
+
+        let field = Field::open(&fx.store, &fx.field, Limits::DEFAULT).unwrap();
+        let io = fx.store.io().handle();
+        let seeds = CountingSeedStore::new(BoundedSeedStore {
+            inner: FsSeedStore::open_with_io(fx.store.root(), io.handle()).unwrap(),
+            fetches: Cell::new(0),
+            limit: 8,
+        });
+        let istore = FsIndexStore::open_with_io(fx.store.root(), io.handle()).unwrap();
+        let req = ObserveRequest::new(Selector::Stream(4), Representation::DecodedBytes);
+        let (answer, stats, _) = observe_with_stores(
+            &mut fx.store,
+            &field,
+            &req,
+            Limits::DEFAULT,
+            Instant::now(),
+            seeds,
+            istore,
+        )
+        .unwrap();
+        match &answer.value {
+            AnswerValue::Bytes(b) => {
+                assert_eq!(b, b"BT /F1 12 Tf 72 720 Td (Hello) Tj ET\n")
+            }
+            other => panic!("expected bytes, got {other:?}"),
+        }
+        assert!(
+            stats.seed_nodes_fetched <= 8,
+            "fetched {} seed nodes for one decoded stream",
+            stats.seed_nodes_fetched
+        );
+        assert!(
+            stats.seed_nodes_fetched < total,
+            "must not enumerate the {total}-node store; fetched {}",
+            stats.seed_nodes_fetched
+        );
     }
 
     /// Extract top-level object keys from a flat JSON object (test helper).

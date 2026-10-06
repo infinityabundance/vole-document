@@ -10,10 +10,17 @@
 //! * plan   — `selector`, `representation`, `shape`, `index_reads`,
 //!   `required_nodes`, `will_materialize`, `will_not_materialize`.
 //! * actual — `index_nodes_read`, `seed_nodes_fetched`, `seed_nodes_materialized`,
-//!   `bytes_read`, `bytes_returned`, `deepened`, `wall_micros`, `basis`, `exact`.
+//!   `descriptor_bytes_read`, `manifest_bytes_read`, `index_bytes_read`,
+//!   `seed_bytes_read`, `bytes_read`, `bytes_returned`, `deepened`, `wall_micros`,
+//!   `basis`, `exact`.
+//!
+//! `bytes_read` is the **sum** of the four `*_bytes_read` classes: total physical
+//! bytes this observation made the OS fetch, including the descriptor blob. It is
+//! deliberately not the seed-store-only number it was before Phase 11.9's
+//! review (ADR-0027 accounting).
 
 use crate::error::Result;
-use crate::field::observe::{ObserveRequest, ObserveStats, observe};
+use crate::field::observe::{ObserveRequest, ObserveStats, observe_with_field};
 use crate::field::plan::{ObservePlan, plan};
 use crate::field::provenance::{Basis, json_escape};
 use crate::field::{Field, FieldId, FieldStore};
@@ -49,6 +56,10 @@ impl ExplainActual {
                 "\"index_nodes_read\":{},",
                 "\"seed_nodes_fetched\":{},",
                 "\"seed_nodes_materialized\":{},",
+                "\"descriptor_bytes_read\":{},",
+                "\"manifest_bytes_read\":{},",
+                "\"index_bytes_read\":{},",
+                "\"seed_bytes_read\":{},",
                 "\"bytes_read\":{},",
                 "\"bytes_returned\":{},",
                 "\"deepened\":{},",
@@ -60,6 +71,10 @@ impl ExplainActual {
             s.index_nodes_read,
             s.seed_nodes_fetched,
             s.seed_nodes_materialized,
+            s.descriptor_bytes_read,
+            s.manifest_bytes_read,
+            s.index_bytes_read,
+            s.seed_bytes_read,
             s.bytes_read,
             s.bytes_returned,
             s.deepened,
@@ -78,16 +93,23 @@ pub fn explain(field: &Field, store: &FieldStore, req: &ObserveRequest) -> Resul
 }
 
 /// Execute an observation and report both the intended plan and actual work.
+///
+/// The field is opened **once** here and reused for both the plan and the
+/// evaluation (`observe_with_field`), so a cold `explain --analyze` reads the
+/// descriptor blob exactly once (review fix #2). The reported `wall_micros`
+/// covers the whole analysis: open + plan + evaluation.
 pub fn explain_analyze(
     store: &mut FieldStore,
     id: &FieldId,
     req: &ObserveRequest,
     limits: Limits,
 ) -> Result<(ExplainPlan, ExplainActual)> {
+    let started = std::time::Instant::now();
     let field = Field::open(store, id, limits)?;
     let planned = plan(&field, store, req)?;
     let json = plan_json(req, &planned);
-    let (answer, stats, _field) = observe(store, id, req, limits)?;
+    let (answer, mut stats, _field) = observe_with_field(store, &field, req, limits)?;
+    stats.wall_micros = started.elapsed().as_micros().min(u128::from(u64::MAX)) as u64;
     let actual = ExplainActual {
         stats,
         answer_basis: answer.basis,
@@ -139,7 +161,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn actual_json_has_exactly_the_nine_keys() {
+    fn actual_json_has_exactly_the_fourteen_keys() {
         let actual = ExplainActual {
             stats: ObserveStats::default(),
             answer_basis: Basis::DirectlyObserved,
@@ -147,7 +169,7 @@ mod tests {
         };
         assert_eq!(
             actual.to_json(),
-            "{\"index_nodes_read\":0,\"seed_nodes_fetched\":0,\"seed_nodes_materialized\":0,\"bytes_read\":0,\"bytes_returned\":0,\"deepened\":false,\"wall_micros\":0,\"basis\":\"directly-observed\",\"exact\":true}"
+            "{\"index_nodes_read\":0,\"seed_nodes_fetched\":0,\"seed_nodes_materialized\":0,\"descriptor_bytes_read\":0,\"manifest_bytes_read\":0,\"index_bytes_read\":0,\"seed_bytes_read\":0,\"bytes_read\":0,\"bytes_returned\":0,\"deepened\":false,\"wall_micros\":0,\"basis\":\"directly-observed\",\"exact\":true}"
         );
     }
 

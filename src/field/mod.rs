@@ -23,6 +23,7 @@ pub mod node;
 pub mod observe;
 pub mod plan;
 pub mod provenance;
+pub mod share;
 
 pub use manifest::{FieldId, FieldRoot};
 
@@ -32,7 +33,7 @@ use std::path::{Path, PathBuf};
 use crate::container::ParsedDescriptor;
 use crate::error::{Error, Result};
 use crate::limits::Limits;
-use crate::store::{FsSeedStore, Id, NodeId, SeedStore};
+use crate::store::{FsSeedStore, Id, IoCounters, IoSnapshot, NodeId, SeedStore};
 
 use self::node::{NodeKind, SeedNode};
 
@@ -52,6 +53,7 @@ pub const FIELD_UNIVERSE: &str = "vole-document;universe;phase11;exact-bytes;dra
 pub struct FieldStore {
     root: PathBuf,
     seeds: FsSeedStore,
+    io: IoCounters,
 }
 
 impl std::fmt::Debug for FieldStore {
@@ -70,8 +72,18 @@ impl FieldStore {
         fs::create_dir_all(root.join("field"))?;
         fs::create_dir_all(root.join("index"))?;
         fs::create_dir_all(root.join("cache"))?;
-        let seeds = FsSeedStore::open(&root)?;
-        Ok(FieldStore { root, seeds })
+        let io = IoCounters::new();
+        let seeds = FsSeedStore::open_with_io(&root, io.handle())?;
+        Ok(FieldStore { root, seeds, io })
+    }
+
+    /// The physical-I/O counters shared by this store and its seed substrate.
+    ///
+    /// Every descriptor/manifest/index/seed read made through any handle derived
+    /// from this store is attributed here; an observation snapshots it before and
+    /// after to report its own physical bytes (review fix #1).
+    pub fn io(&self) -> &IoCounters {
+        &self.io
     }
 
     /// The store root directory.
@@ -135,6 +147,7 @@ impl FieldStore {
                 "descriptor blob {id} hashes to {actual}"
             )));
         }
+        self.io.add_descriptor(bytes.len() as u64);
         Ok(bytes)
     }
 
@@ -164,6 +177,7 @@ impl FieldStore {
                 "field {id} manifest content id mismatch"
             )));
         }
+        self.io.add_manifest(bytes.len() as u64);
         Ok(manifest)
     }
 
@@ -242,6 +256,10 @@ pub struct Field {
     manifest: FieldRoot,
     parsed: ParsedDescriptor,
     descriptor_bytes: Vec<u8>,
+    /// The physical bytes this `open` fetched to load the manifest and the
+    /// descriptor blob. An observation attributes exactly these to its own
+    /// `descriptor_bytes_read`/`manifest_bytes_read` (review fix #1/#2).
+    open_io: IoSnapshot,
 }
 
 impl std::fmt::Debug for Field {
@@ -256,8 +274,10 @@ impl std::fmt::Debug for Field {
 impl Field {
     /// Open a field by id, loading and verifying its descriptor.
     pub fn open(store: &FieldStore, id: &FieldId, limits: Limits) -> Result<Field> {
+        let io_before = store.io().snapshot();
         let manifest = store.get_field(id)?;
         let descriptor_bytes = store.get_descriptor(&Id::from_bytes(manifest.descriptor_id))?;
+        let open_io = io_before.delta(&store.io().snapshot());
         let mut parsed = crate::container::Descriptor::parse(&descriptor_bytes, limits)?;
         parsed.universe_id = manifest.universe_id;
         // The manifest must agree with the descriptor it binds.
@@ -273,7 +293,13 @@ impl Field {
             manifest,
             parsed,
             descriptor_bytes,
+            open_io,
         })
+    }
+
+    /// The physical bytes fetched to open this field (manifest + descriptor).
+    pub(crate) fn open_io(&self) -> IoSnapshot {
+        self.open_io
     }
 
     /// The field manifest.

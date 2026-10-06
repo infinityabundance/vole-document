@@ -37,7 +37,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
-use crate::store::NodeId;
+use crate::store::{IoCounters, NodeId};
 
 /// Reserved HIER_INDEX record tag (`RecordTag::HierIndex`), reused as the node
 /// magic so an index node is self-identifying off the wire.
@@ -61,6 +61,14 @@ pub const SEL_STREAM: u8 = 3;
 pub const SEL_REVISION: u8 = 4;
 /// Selector kind: a named resource.
 pub const SEL_RESOURCE: u8 = 5;
+/// Selector kind: a **decoded** stream, keyed by its owning object number.
+///
+/// A `PdfStreamDecoded` node is a deterministic function of its encoded node,
+/// the materializer, and the decoded length, so it gets its own index entry
+/// (Phase 11.9 review fix #3). This lets a `Stream(n) + DecodedBytes`/`Operators`
+/// observation resolve in `O(depth)` index reads instead of enumerating the
+/// whole seed store.
+pub const SEL_STREAM_DECODED: u8 = 6;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;
@@ -102,8 +110,8 @@ const MAX_INTERNAL_CHILDREN: usize = {
 /// canonical index order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SelectorKey {
-    /// [`SEL_PAGE`], [`SEL_OBJECT`], [`SEL_STREAM`], [`SEL_REVISION`], or
-    /// [`SEL_RESOURCE`].
+    /// [`SEL_PAGE`], [`SEL_OBJECT`], [`SEL_STREAM`], [`SEL_STREAM_DECODED`],
+    /// [`SEL_REVISION`], or [`SEL_RESOURCE`].
     pub kind: u8,
     /// The page/object/stream/revision/resource number.
     pub number: u32,
@@ -151,6 +159,7 @@ pub struct IndexEntry {
 /// hash-verified by [`FsIndexStore::get`].
 pub struct FsIndexStore {
     root: PathBuf,
+    io: IoCounters,
 }
 
 impl std::fmt::Debug for FsIndexStore {
@@ -163,11 +172,16 @@ impl std::fmt::Debug for FsIndexStore {
 
 impl FsIndexStore {
     /// Open (creating if needed) an index store rooted at `root`, using
-    /// `root/index`.
+    /// `root/index`, with a fresh, private I/O counter set.
     pub fn open(root: impl AsRef<Path>) -> Result<Self> {
+        Self::open_with_io(root, IoCounters::new())
+    }
+
+    /// Open an index store that accounts every node read against `io`.
+    pub fn open_with_io(root: impl AsRef<Path>, io: IoCounters) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
         fs::create_dir_all(root.join("index"))?;
-        Ok(FsIndexStore { root })
+        Ok(FsIndexStore { root, io })
     }
 
     /// Store one canonical node, returning its content id. Idempotent and atomic.
@@ -207,6 +221,7 @@ impl FsIndexStore {
                 "index node {id} content hashes to {actual}"
             )));
         }
+        self.io.add_index(bytes.len() as u64);
         Ok(bytes)
     }
 

@@ -35,9 +35,10 @@ use crate::adapter::pdf::span::{Span, SpanKind};
 use crate::error::{Error, Result};
 use crate::field::dag;
 use crate::field::index::{
-    FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PAGE, SEL_REVISION, SEL_STREAM, SelectorKey, build,
-    lookup, validate,
+    FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PAGE, SEL_REVISION, SEL_STREAM, SEL_STREAM_DECODED,
+    SelectorKey, build, lookup, validate,
 };
+use crate::field::manifest::FieldRoot;
 use crate::field::node::{MAX_NODE_DEPS, NodeKind, SeedNode, object_params, u32_params};
 use crate::field::{Field, FieldId, FieldStore};
 use crate::limits::Limits;
@@ -170,24 +171,36 @@ pub fn deepen_page(
     limits: Limits,
 ) -> Result<FieldId> {
     let manifest = Field::open(store, field, limits)?.manifest().clone();
+    deepen_page_with_manifest(store, &manifest, page)
+}
+
+/// Stage C against an already-loaded manifest, so an observation that already
+/// holds the parsed field does not re-read the descriptor blob just to promote a
+/// page (review fix #2: no hidden double descriptor load).
+pub fn deepen_page_with_manifest(
+    store: &mut FieldStore,
+    manifest: &FieldRoot,
+    page: u32,
+) -> Result<FieldId> {
+    let field = manifest.content_id();
     if !manifest.has_index() {
-        return Ok(*field);
+        return Ok(field);
     }
     // Already promoted for this page: idempotent no-op.
     if manifest.provenance == format!("field:deepen;page={page}") {
-        return Ok(*field);
+        return Ok(field);
     }
 
     let istore = FsIndexStore::open(store.root())?;
     let root = NodeId::from_bytes(manifest.index_root);
     let found = lookup(&istore, &root, &SelectorKey::new(SEL_PAGE, page))?;
     let Some(entry) = found.first() else {
-        return Ok(*field);
+        return Ok(field);
     };
     let page_content_id = entry.node_id;
     let page_content = dag::load_node(store.seeds(), &page_content_id)?;
     if page_content.kind != NodeKind::PageContent {
-        return Ok(*field);
+        return Ok(field);
     }
 
     // Add only nodes: the page's SEL_PAGE entry keeps its exact semantics.
@@ -398,6 +411,16 @@ fn run_stage_b(
                 acc.total_decoded += decoded_len;
                 acc.decoded_by_object
                     .insert(number, (decoded_id, decoded_len));
+                // Register the decoded node so a later `Stream(n) + DecodedBytes`
+                // observation resolves in O(depth) index reads, not by scanning
+                // the seed store (review fix #3). The span is the encoded
+                // stream's exact source span the node is derived from.
+                acc.add_entry(IndexEntry {
+                    key: SelectorKey::new(SEL_STREAM_DECODED, number),
+                    out_off: offset,
+                    out_len: len,
+                    node_id: decoded_id,
+                })?;
             }
             _ => acc.declined_streams += 1,
         }
