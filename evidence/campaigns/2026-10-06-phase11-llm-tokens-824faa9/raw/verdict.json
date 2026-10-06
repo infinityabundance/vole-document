@@ -1,0 +1,116 @@
+{
+  "per_case": [
+    {
+      "name": "large-50",
+      "kind": "generated",
+      "B0_bytes": 4485,
+      "B1_bytes": 91,
+      "V_bytes": 527275,
+      "B0_tokens": 2722,
+      "B1_tokens": 54,
+      "V_tokens": 340182,
+      "token_ratio_B0_over_V": 0.00800159914398763,
+      "token_ratio_B1_over_V": 0.00015873855759563997,
+      "verdict_vs_B1_tokens": "loss",
+      "verdict_vs_B0_tokens": "loss",
+      "losses": [
+        "V_page_text_larger_than_B1_page_local",
+        "V_page_text_larger_than_B0_whole_document",
+        "V_tokens_exceed_B1_page_local",
+        "V_tokens_exceed_B0_whole_document"
+      ]
+    },
+    {
+      "name": "large-400",
+      "kind": "generated",
+      "B0_bytes": 35868,
+      "B1_bytes": 91,
+      "V_bytes": 65913,
+      "B0_tokens": 22142,
+      "B1_tokens": 54,
+      "V_tokens": 41433,
+      "token_ratio_B0_over_V": 0.5344049429198948,
+      "token_ratio_B1_over_V": 0.0013033089566287742,
+      "verdict_vs_B1_tokens": "loss",
+      "verdict_vs_B0_tokens": "loss",
+      "losses": [
+        "V_page_text_larger_than_B1_page_local",
+        "V_page_text_larger_than_B0_whole_document",
+        "V_tokens_exceed_B1_page_local",
+        "V_tokens_exceed_B0_whole_document"
+      ]
+    },
+    {
+      "name": "libreoffice-export",
+      "kind": "producer",
+      "B0_bytes": 122315,
+      "B1_bytes": 1933,
+      "V_bytes": 62,
+      "B0_tokens": 27783,
+      "B1_tokens": 420,
+      "V_tokens": 22,
+      "token_ratio_B0_over_V": 1262.8636363636363,
+      "token_ratio_B1_over_V": 19.09090909090909,
+      "verdict_vs_B1_tokens": "win",
+      "verdict_vs_B0_tokens": "win",
+      "losses": []
+    },
+    {
+      "name": "cairo-vector",
+      "kind": "producer",
+      "B0_bytes": 71634,
+      "B1_bytes": 11939,
+      "V_bytes": 11936,
+      "B0_tokens": 15450,
+      "B1_tokens": 2575,
+      "V_tokens": 2575,
+      "token_ratio_B0_over_V": 6,
+      "token_ratio_B1_over_V": 1,
+      "verdict_vs_B1_tokens": "tie",
+      "verdict_vs_B0_tokens": "win",
+      "losses": []
+    },
+    {
+      "name": "pdftex-doc",
+      "kind": "producer",
+      "B0_bytes": 58824,
+      "B1_bytes": 9804,
+      "V_bytes": 622,
+      "B0_tokens": 12744,
+      "B1_tokens": 2124,
+      "V_tokens": 256,
+      "token_ratio_B0_over_V": 49.78125,
+      "token_ratio_B1_over_V": 8.296875,
+      "verdict_vs_B1_tokens": "win",
+      "verdict_vs_B0_tokens": "win",
+      "losses": []
+    },
+    {
+      "name": "reportlab-multipage",
+      "kind": "producer",
+      "B0_bytes": 70842,
+      "B1_bytes": 11807,
+      "V_bytes": 11804,
+      "B0_tokens": 15396,
+      "B1_tokens": 2566,
+      "V_tokens": 2566,
+      "token_ratio_B0_over_V": 6,
+      "token_ratio_B1_over_V": 1,
+      "verdict_vs_B1_tokens": "tie",
+      "verdict_vs_B0_tokens": "win",
+      "losses": []
+    }
+  ],
+  "vs_B1": {
+    "win": 2,
+    "tie": 2,
+    "loss": 2
+  },
+  "vs_B0": {
+    "win": 4,
+    "tie": 0,
+    "loss": 2
+  },
+  "any_token_reduction": true,
+  "all_token_reduction": false
+}

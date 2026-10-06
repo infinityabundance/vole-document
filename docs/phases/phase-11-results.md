@@ -114,7 +114,7 @@ For that receipt `tokens: null`, `tokens_reason`: *"no pinned offline tokenizer
 (no vendored BPE/model with a recorded SHA-256); UTF-8 bytes reported only, token
 counts not claimed."* No "tokens saved" was claimed. This is **superseded** by the
 pinned tokenizer court below — see *LLM token working set (pinned tokenizer)*
-(receipt `2026-10-06-phase11-llm-tokens-735f3d3`).
+(receipt `2026-10-06-phase11-llm-tokens-824faa9`).
 
 ## Gates
 
@@ -154,9 +154,9 @@ cargo `1.99.0 (5f94df478 2026-08-27)`, `Cargo.lock` SHA-256
 
 ## LLM token working set (pinned tokenizer) — Phase 11.13
 
-Sealed receipt: `evidence/campaigns/2026-10-06-phase11-llm-tokens-735f3d3/`
+Sealed receipt: `evidence/campaigns/2026-10-06-phase11-llm-tokens-824faa9/`
 (`receipt.json`, `SUMMARY.md`, `commands.txt`, `gates.txt`, `raw/`). Commit under
-test `735f3d3`.
+test `824faa9`.
 
 The §11.10 court above reported UTF-8 bytes only because no pinned offline
 tokenizer existed. Phase 11.13 closes that gap:
@@ -222,7 +222,7 @@ tokenizer.
 ```sh
 docker compose build llm-workingset
 docker compose run --rm --no-TTY -e HOST_IMAGE_ID=<id> llm-workingset \
-    sh tools/llm-token-court.sh evidence/campaigns/2026-10-06-phase11-llm-tokens-735f3d3
+    sh tools/llm-token-court.sh evidence/campaigns/2026-10-06-phase11-llm-tokens-824faa9
 ```
 
 ## Lifetime cost (Phase 11.12 priority #7 — 1/10/100/1,000-query court)
