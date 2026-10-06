@@ -382,3 +382,63 @@ needed beyond the committed hostile corpus itself.
   `tools/fuzz.sh`.
 * The one `deflate_replay` OOM is a known upstream limitation carried forward,
   not resolved here.
+
+## Flagship demo (12.14)
+
+Subphase 12.14 asks for one honest, reproducible end-to-end command — not a set
+of separate courts. `tools/phase12-demo.sh` runs entirely inside the pinned
+`doc-baseline` service and prints the real CLI output at every step; where a step
+declines it says so, and a mismatch fails the run.
+
+**Exact command (from the host):**
+
+```sh
+docker compose run --rm --no-TTY doc-baseline sh tools/phase12-demo.sh
+```
+
+The script is self-contained: it `cargo build --locked --all-features`, generates
+the canonical triplet with the stdlib generator, ingests all three, deletes the
+runtime sources, then queries and rematerializes in fresh processes.
+
+### What it demonstrates
+
+| step | demonstration |
+|---|---|
+| 1 | `tools/fixtures/doc-triplet-gen.py` emits `report.pdf`/`.docx`/`.epub` + `ground_truth.json` (deterministic; the PDF is byte-identical to the 12.9/12.11 `alpha`). |
+| 2 | all three ingest through the one format-agnostic `field-ingest` into one store. |
+| 3 | the runtime sources and descriptors are **deleted**; only the store remains (sealed oracle copies are kept for `capabilities`/`cmp`, never ingested — the 12.10 design). |
+| 4 | fresh processes: `capabilities` per root; one `find XF12A` with distinct native provenance on all three; DOCX/EPUB heading, paragraph and `Table·Cell(B7)`; `observe --spine-item 0 --kind structure` on EPUB. |
+| 4e | `explain --analyze` for a DOCX table-cell and an EPUB spine-item: `whole_source_materialized: no`, `member_decodes`, `xml_parses`, `seed_nodes_reused`, and the four ADR-0027 byte classes (`descriptor`/`manifest`/`index`/`seed`). |
+| 5 | a repeated query shows retained work: `nodes_reused > 0` and a `retained_inverse_work_fraction` computed from the cold/warm receipted integers (mirroring `examples/phase12_share_court.rs`). |
+| 6 | `materialize --exact` for all three, checked by length, SHA-256 **and** `cmp` against the oracle copies. |
+| 7 | a pointer to the 12.11 receipt and where the source-retaining SQLite+FTS5 baseline genuinely wins. |
+
+### Observed on this tree (commit `7ac2b09`, `doc-baseline`)
+
+Representative values from a clean run (all live, none recorded): the triplet
+`905 / 3458 / 2858` bytes; `find XF12A` matched on all three with
+`format=pdf;common;`, `format=docx;common;docx;…` and
+`format=epub;common;epub;…` provenance; `Cell(B7) = bravo-seven` on both DOCX
+and EPUB; the DOCX cell `explain --analyze` reported
+the four byte classes `descriptor=3939 manifest=306 index=3772 seed=86`, `2` member
+decodes, `2` XML parses, `2` reused nodes, and
+`whole_source_materialized=false`; the EPUB spine-item reported
+`descriptor=3339 manifest=306 index=2499 seed=86`, `1` member decode, `2` XML
+parses. `materialize --exact` returned `cmp=equal` for all three. The demo exits
+`0`.
+
+### Honest caveats
+
+* `capabilities ROOT` reads a file path, so after the runtime source is deleted
+  it runs on the **sealed oracle copy**, which is byte-identical to the deleted
+  source (its SHA-256 is the one the generator recorded). The *queries and the
+  materialization* run against the store alone; the oracle is never fed to the
+  pipeline and the store never references it.
+* The measured `retained_inverse_work_fraction` on the single-item EPUB spine
+  query is small (`0.035454` here) because a one-chapter package leaves little
+  derived work to reuse; the number is receipted, never asserted upward.
+* The demo makes **no** lifetime claim of its own; step 7 only points at the
+  12.11 receipt, including the region where the DB baseline wins.
+* PDF has no heading/table/cell/spine coordinate, so the demo does not run those
+  selectors on PDF (that typed decline is the 12.9 court's evidence); the demo
+  shows the PDF capabilities list and the common `find`/`text`/`metadata` lane.

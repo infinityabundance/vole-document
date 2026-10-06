@@ -88,7 +88,8 @@ const USAGE_FIELD: &str = "\
     vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs]
     vole-document observe --store DIR --field HEX [--entropyfs] (--page N | --object N | --stream N |
         --revision N | --byte-range A..B | --metadata | --doc-text | --heading N |
-        --block N | --table N | --cell T:R:C | --resource N | --link N | --text PATTERN) --kind metadata|text|structure|operators|
+        --block N | --table N | --cell T:R:C | --resource N | --link N |
+        --spine-item N | --text PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|full
     vole-document find    --store DIR --field HEX --text PATTERN [--entropyfs]
         (format-agnostic lexical search: the common SearchMatch selector)
@@ -1427,6 +1428,10 @@ struct FieldArgs {
     cell: Option<(u32, u32, u32)>,
     resource: Option<u32>,
     link: Option<u32>,
+    /// The EPUB reading-order coordinate (`--spine-item N`); reflowable EPUB has
+    /// no intrinsic pages, so this is the native reading coordinate (plan DEC-5).
+    #[cfg(feature = "epub")]
+    spine_item: Option<u32>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     analyze: bool,
@@ -1569,6 +1574,13 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                     "--link",
                 )?);
             }
+            #[cfg(feature = "epub")]
+            "--spine-item" => {
+                out.spine_item = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--spine-item", inline)?,
+                    "--spine-item",
+                )?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -1675,6 +1687,13 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
     }
     if let Some(n) = out.link {
         chosen.push(Selector::Link(n));
+    }
+    #[cfg(feature = "epub")]
+    if let Some(n) = out.spine_item {
+        chosen.push(Selector::EpubSpineItem {
+            index: n,
+            profile: vole_document::adapter::epub::EpubExtractProfile::DEFAULT,
+        });
     }
     match chosen.len() {
         0 => Err(Error::usage("exactly one selector flag is required")),
