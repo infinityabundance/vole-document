@@ -344,27 +344,35 @@ unchanged in both phases.
   `docs/evidence/phase7-partial-report.md`; review
   `docs/evidence/phase7c-skeptic-review.md`; ADR-0018.
 - Campaign `2026-10-05-phase8-seek-08de2a9` (verdict SCOPED POSITIVE on bytes
-  read; ADR-0019) — the **seek-based partial-I/O court**, closing ADR-0018's
-  explicit no-I/O-win caveat. On the same 33,789,340 B (32.22 MiB), 800-stream
-  deterministic PDF as Phase 7.3, the seekable descriptor is **17,566,832 B**
-  (the new DIRECTORY adds 27,390 B; index + directory = 174,101 B over the
-  non-seek base). All 18 pre-registered queries are byte-exact. The seeked `view`
-  reads a **constant 439,679–461,367 B** regardless of offset — exactly header 64
-  + DIRECTORY 27,390 + GRAPH 265,462 + OBSERVATION_INDEX 146,711 + INTEGRITY 52
-  at `a = 0`, plus one referenced channel + model where a channel is needed —
-  which is ≤ 2.6 % of the descriptor for every query (H1 18/18). In the late
-  region (≥ 50 % in, H2 8/8) that is **4.7 %–~21× fewer bytes than gzip's
-  compressed prefix** (9,764,864 B vs 460,713 B at 31 MiB) and ~12–13× fewer than
-  zstd/xz. A `strace -P` descriptor-file cross-check equals the instrumented
-  count + exactly 64 B (the header peek), so there is no hidden whole-file read.
-  CPU drops to ~0.00 s and peak RSS from Phase 7's ~38 MB to **~3.8 MB**. It
-  **loses on bytes at `a = 0`** versus gzip (327,680 B) and xz (73,728 B) and at
-  early queries (≤ ~1.7 MiB) versus xz's tiny compressed prefix; the floor is
-  constant in the offset and would dominate a descriptor below ~9 MB. Whole-file
-  size is still **3.01×** xz. One locally generated corpus; **no population
-  claim**. Receipt under `evidence/campaigns/2026-10-05-phase8-seek-08de2a9/`;
-  report `docs/evidence/phase8-seek-report.md`; drivers `tools/seek-court.sh`,
-  `tools/seek-table.jq`.
+  read **versus non-seekable sequential codecs**; ADR-0019) — the **seek-based
+  partial-I/O court**, closing ADR-0018's explicit no-I/O-win caveat. On the same
+  33,789,340 B (32.22 MiB), 800-stream deterministic PDF as Phase 7.3, the
+  seekable descriptor is **17,566,832 B** (the new DIRECTORY adds 27,390 B; index
+  + directory = 174,101 B over the non-seek base). All 18 pre-registered queries
+  are byte-exact. The seeked `view` reads a **constant 439,679–461,367 B**
+  regardless of offset — exactly header 64 + DIRECTORY 27,390 + GRAPH 265,462 +
+  OBSERVATION_INDEX 146,711 + INTEGRITY 52 at `a = 0`, plus one referenced channel
+  + model where a channel is needed — which is ≤ 2.6 % of the descriptor for
+  every query (H1 18/18). In the late region (≥ 50 % in, H2 8/8) that is
+  **4.7 %–~21× fewer bytes than gzip's compressed prefix** (9,764,864 B vs
+  460,713 B at 31 MiB) and ~12–13× fewer than zstd/xz. A `strace -P`
+  descriptor-file cross-check equals the instrumented count + exactly 64 B (the
+  header peek), so there is no hidden whole-file read. CPU drops to ~0.00 s and
+  peak RSS from Phase 7's ~38 MB to **~3.8 MB**. **Amendment (Phase 8.4): this is
+  not a general random-access-I/O win** — against seekable/blocked formats the
+  same late query reads **more**: bgzip (BGZF) 23,808 B (~19×), xz
+  --block-size=64KiB 15,344 B (~30×), xz 1MiB 179,892 B (~2.6×) all read less
+  than VOLE's 460,713 B (only xz 4MiB 708,612 B and pixz 2,810,832 B read more),
+  and BGZF's whole file (7,995,600 B) is smaller than the seekable descriptor.
+  It also **loses on bytes at `a = 0`** versus gzip (327,680 B) and xz (73,728 B)
+  and at early queries (≤ ~1.7 MiB) versus xz's tiny compressed prefix; the
+  floor is constant in the offset and would dominate a descriptor below ~9 MB.
+  Whole-file size is still **3.01×** xz. One locally generated corpus; **no
+  population claim**. Receipt under `evidence/campaigns/2026-10-05-phase8-seek-08de2a9/`
+  (`report.md`, `query-table.md`, `seekable.jsonl`, `seekable-table.md`,
+  `seekable-report.md`); reports `docs/evidence/phase8-seek-report.md`,
+  `docs/evidence/phase8-skeptic-review.md`; drivers `tools/seek-court.sh`,
+  `tools/seekable-baselines.sh`.
 
 ### Notes
 
@@ -374,8 +382,11 @@ unchanged in both phases.
   pivot is deliberate: Phase 7 measures **random-access decode cost** and Phase 8
   the **random-access I/O cost** (bytes read), each against sequential
   decompression to the same offset. Both axes are separate receipts and separate
-  verdicts and are never conflated; the Phase-8 bytes-read win is scoped to one
-  large locally generated PDF and loses at the start of the file and versus xz's
+  verdicts and are never conflated. The Phase-8 bytes-read win is scoped to one
+  large locally generated PDF and **only to non-seekable sequential codecs**: a
+  purpose-built seekable/blocked format (BGZF ~24 KB; blocked xz 15–180 KB) reads
+  **2.6–30× less** for the same late query, so it is not a general
+  random-access-I/O win; it also loses at the start of the file and versus xz's
   early prefix.
 - The wire format remains **PROVISIONAL** and is not frozen v1. `OBSERVATION_INDEX`
   (`observation_index_v1`) is optional and **advisory**: it is re-derived and

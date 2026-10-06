@@ -13,11 +13,14 @@ loss against generic lossless tools (ADR-0017); the pivoted result is a scoped
 random-access decode-CPU win with an explicit no-I/O-win v1 caveat (ADR-0018).
 
 Phase 8 (branch `phase8`, ADR-0019) adds an optional seek `DIRECTORY` record and
-a `Read + Seek` reader. On the same 33.8 MB corpus a seeked `view` now reads a
-constant **~0.44–0.46 MB** regardless of offset — a scoped **bytes-read win**
-over gzip/zstd/xz compressed prefixes for mid/late queries (recorded losses at
-the start of the file and versus xz's early prefix); whole-file size and the
-offset-independent floor remain honest caveats.
+a `Read + Seek` reader. On the same 33.8 MB corpus a seeked `view` reads a
+constant **~0.44–0.46 MB** regardless of offset — a scoped **bytes-read win
+versus non-seekable sequential** gzip/zstd/xz prefixes for mid/late queries.
+It is **not** a general random-access-I/O win: a purpose-built seekable/blocked
+format reads **2.6–30× less** for the same late query (bgzip ~24 KB; blocked xz
+15–180 KB), and it loses at offset 0 and early queries. Whole-file size is
+3.01× xz (and 0.46× BGZF); the offset-independent floor remains an honest
+caveat (`docs/evidence/phase8-skeptic-review.md`).
 
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED`).
@@ -77,6 +80,7 @@ offset-independent floor remain honest caveats.
 | Query-cost court vs generic compressors (`tools/partial-court.sh`) | 7.3 | RECORDED (measurement) | times the indexed VOLE `view` against sequential gzip -9 / zstd -19 / xz -9e at the same output range; each baseline decoder is timed directly by `/usr/bin/time -v` via a FIFO-fed consumer that closes at the target offset, `pv -b -n` counts the compressed bytes read, and every VOLE slice is `cmp`'d against the source. Result: **scoped positive on decode work**: at 31 MiB VOLE touches ~1.4 % of gzip's inflated bytes and is ~1.4 % of gzip's bytes at every late query; **no I/O win** (VOLE reads its whole 17.5 MB `.voldoc` vs gzip's ~9.8 MB prefix) and zstd's raw decoder is faster on wall time everywhere (ADR-0018) |
 | Seek `DIRECTORY` record + `Read + Seek` reader | 8.1–8.2 | ADOPTED | optional `seek_directory_v1` record (`RecordTag::Directory = 0x71`) written as the first record at fixed offset 64 with `FLAG_OPTIONAL` (no header field, no `FORMAT_MINOR` bump; new ignorable `FEATURE_SEEK_DIRECTORY` optional bit), carrying LOCATORS (offset + payload_len per record), CLASS_INDEX (O(1) k-th record of a class), and CHANNEL_LENGTHS. `materialize_observation_seeked` reads only the header, DIRECTORY, GRAPH, OBSERVATION_INDEX, INTEGRITY, and the referenced OBJECT/ENTROPY_CHANNEL/MODEL records. The directory is **advisory, never authority**: every locator is cross-checked against the record framing, the class index against a linear scan, and the observation index is re-derived over directory-derived lengths — a lying directory is rejected; a missing/oversized/unknown one declines with `UnsupportedFeature` and never silently reads the whole file. A partial read is an **observation**: `integrity_verified == false`; `materialize`/`decode`/`verify` remain the archival authority. `cmd_view` peeks only the 64-byte header before choosing the seek path. Non-seek serialization is unchanged except the `+seek-directory-v1` universe suffix (+18 B on this corpus). Tests: `src/container/directory.rs` (roundtrip/geometry/framing), `src/materialize/seek.rs` (seeked slice == full slice, tamper rejections, no-directory decline) |
 | Seek bytes-read court (`tools/seek-court.sh`) | 8.3 | ADOPTED (scoped) | campaign `2026-10-05-phase8-seek-08de2a9`; seekable descriptor 17,566,832 B (DIRECTORY +27,390 B; index + directory = 174,101 B over the non-seek base). 18/18 pre-registered queries byte-exact; the seeked `view` reads a constant **439,679–461,367 B** (floor = header 64 + DIRECTORY 27,390 + GRAPH 265,462 + OBSERVATION_INDEX 146,711 + INTEGRITY 52), ≤ 2.6 % of the descriptor for every query (H1 18/18) and 4.7 %–~21× fewer bytes than gzip's compressed prefix in the late region (H2 8/8); a `strace -P` descriptor-file cross-check equals the instrumented count + exactly 64 B (the header peek). CPU ~0.00 s and peak RSS ~3.8 MB (vs Phase 7's ~38 MB). **Loses on bytes at a=0 vs gzip and early (≤ ~1.7 MiB) vs xz**; whole-file size still 3.01× xz. One locally generated corpus; no population claim (ADR-0019) |
+| Seekable/blocked random-access baseline (`tools/seekable-baselines.sh`) | 8.4 | RECORDED (amendment; **falsifies the “general random-access win” framing**) | campaign `2026-10-05-phase8-seek-08de2a9` amendment (`seekable.jsonl`/`seekable-report.md`); adds tabix(bgzip 1.16) + pixz 1.0.7 to the `baseline` image. Compared to `bgzip -l 9` (BGZF), `xz --block-size=64KiB|1MiB|4MiB`, and `pixz` (16 MiB blocks) on the same 6 byte-ranges (all slices `cmp`-exact; xz/pixz covering blocks decoded **in isolation**). Late query (`a=32,505,856`): VOLE 460,713 B vs bgzip **23,808 B** (~19×), xz-64KiB **15,344 B** (~30×), xz-1MiB **179,892 B** (~2.6×), xz-4MiB 708,612 B (0.65×, VOLE wins), pixz 2,810,832 B (0.16×, VOLE wins). BGZF is also smaller whole-file (7,995,600 B < 17,566,832 B). **VOLE reads 2.6–30× more than BGZF/compact-block xz; not a general random-access-I/O win.** `docs/evidence/phase8-skeptic-review.md` |
 | Cross-document proceduralization | 12+ | PROPOSED | — |
 | Non-PDF adapters (DOCX/ODT/EPUB/…) | later | PROPOSED | adapters over the same core |
 

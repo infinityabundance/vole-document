@@ -1,8 +1,11 @@
-# ADR-0019: Seek-based partial I/O makes a late observation view a measured bytes-read win
+# ADR-0019: Seek-based partial I/O reduces bytes read versus non-seekable sequential prefixes
 
-- **Status:** Accepted — scoped positive on bytes read (Phase 8.3), on one
-  large locally generated PDF; the early/small-descriptor losses are recorded
-- **Date:** 2026-10-05
+- **Status:** Accepted — scoped positive on bytes read **versus non-seekable
+  sequential codecs** (Phase 8.3), on one large locally generated PDF; an
+  amendment (Phase 8.4) shows a purpose-built **seekable/blocked** format reads
+  2.6–30× **less** for the same late query, so this is **not** a general
+  random-access-I/O win. The early/small-descriptor losses are recorded.
+- **Date:** 2026-10-05 (amended 2026-10-06)
 
 ## Context
 
@@ -66,16 +69,42 @@ records a query needs. The design was frozen in
   from Phase 7's ~38 MB to **~3.8 MB**. The `strace` cross-check, attributed to
   the descriptor file alone, equals the instrumented count + exactly 64 B (the
   CLI header peek) for every query — no hidden whole-file read.
+- **The honest random-access baseline (Phase 8.4 amendment, receipt
+  `seekable.jsonl`/`seekable-report.md` in the same campaign).** The win above is
+  only against **non-seekable sequential** codecs. Measured against
+  **seekable/blocked** formats for the same late query
+  (`--byte-range=32505856:256`; VOLE 460,713 B): **bgzip (BGZF) 23,808 B**
+  (~19× fewer), **xz --block-size=64KiB 15,344 B** (~30× fewer) and
+  **1 MiB 179,892 B** (~2.6× fewer) all read **less**; only blocked xz with
+  **4 MiB** blocks (708,612 B) and **pixz** (2,810,832 B, whose default 16 MiB
+  blocks make a byte-range seek expensive) read more. Whole-file size compounds
+  this: BGZF is 7,995,600 B, *smaller than* the 17,566,832 B seekable descriptor.
+  `zstd --seekable` does not exist in zstd 1.5.4. **So this is not a general
+  random-access-I/O win**; the claim is scoped to non-seekable sequential
+  prefixes, and the losses are recorded.
+- **The read is a floor, not a small read.** `view` touches the header and the
+  DIRECTORY, GRAPH, OBSERVATION_INDEX, INTEGRITY record *classes* plus the one
+  referenced object/channel/model — but the constant floor is dominated by
+  GRAPH + OBSERVATION_INDEX + DIRECTORY (~439 KB), so a **256-byte** request
+  still incurs ~440 KB (~1,700× the requested bytes), and a descriptor with no
+  referenced channel still pays it.
 - **Where it loses (recorded, not hidden).** At `a = 0` the constant floor
   (439,679 B) exceeds what **gzip** reads first (327,680 B) and what **xz** reads
   (73,728 B); at early queries (≤ ~1.7 MiB) it loses to **xz**'s tiny compressed
-  prefix (253,952–368,640 B). The floor is constant in the offset and does not
+  prefix (253,952–368,640 B); and versus seekable/blocked formats it loses for
+  the whole late region (above). The floor is constant in the offset and does not
   shrink with output size, so it would dominate a descriptor smaller than
   ~9 MB: this is a large-document mechanism, not a small-file one.
   `max_directory_bytes` (1 MiB) bounds the directory's growth on record-heavy
   descriptors. The sequential decoders' compressed-prefix figures are measured
   at a pipe and include a bounded read-ahead (an upper bound). OS page cache
   changes wall time, not `read()` byte counts.
+- **Validator caveat (stated honestly).** A **referenced** channel's
+  `decoded_length` is cross-checked against its record and a disagreement is
+  `InvalidContainer`; an **unreferenced** `CHANNEL_LENGTHS` entry is not
+  validated. This is benign: `analyze_ops` derives each op's output length from
+  the channels that op references, so an unused length can never change a served
+  byte. It is a gap in the checks, not in the bytes.
 - **Whole-file size is a separate, unchanged axis.** The best VOLE lane is
   **3.01×** xz on this corpus; the directory buys query capability, not size
   (ADR-0017 stands).
@@ -93,7 +122,12 @@ records a query needs. The design was frozen in
   `src/container/descriptor.rs` (two-pass `serialize`, directory parse arm),
   `src/materialize/seek.rs` (`materialize_observation_seeked`, `CountingReader`)
 - `src/main.rs` (`view`), `tools/seek-court.sh`, `tools/seek-table.jq`
+- Seekable/blocked baseline (Phase 8.4 amendment): `tools/seekable-baselines.sh`,
+  `tools/bgzf-seek-probe.pl`, `tools/xz-seek-probe.pl`,
+  `tools/xz-block-reframe.pl`, `tools/seekable-table.jq`
 - Receipt `evidence/campaigns/2026-10-05-phase8-seek-08de2a9/`
-- `docs/evidence/phase8-seek-report.md`
+  (`seekable.jsonl`, `seekable-report.md`, `seekable-environment.json`)
+- `docs/evidence/phase8-seek-report.md`,
+  `docs/evidence/phase8-skeptic-review.md`
 - ADR-0018: partial materialization (the decode-CPU precursor);
   ADR-0017: generic lossless compressors are the whole-file comparator

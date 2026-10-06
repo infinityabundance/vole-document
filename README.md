@@ -73,10 +73,12 @@ v1 caveat (ADR-0018).
 | Process-isolated DEFLATE replay (`__replay-worker`) | **Implemented** | `replay_bounded` runs `preflate` in a child under `RLIMIT_AS` + a wall-clock timeout; knobs `VOLE_REPLAY_WORKER`/`VOLE_REPLAY_MEM_MB`/`VOLE_REPLAY_TIMEOUT_MS`; a library embedder without a worker keeps the in-process residual |
 | Partial materialization (`OBSERVATION_INDEX` + `view`) | **Measured — scoped positive (decode CPU, no I/O win)** | campaign `2026-10-05-phase7-partial-a5764c9`; 18/18 queries byte-exact; mid/late queries touch ~0.41–0.43 MB (`descriptor_bytes_traversed` alone; its `entropy_bytes_decoded` breakdown is a subset already counted there and must not be added) vs gzip inflating `a+len` (late region 1.4–2.3 %, ~2–5× faster than gzip, ~4–13× than xz); **v1 reads the whole descriptor, so on-disk I/O is not reduced** and it loses in the early region (≤ ~8–16 MiB) (ADR-0018) |
 | Deterministic large corpus generator (`pdf-make-large`) | **Tooling** | encode-time subcommand; classic-xref PDF of `OBJECTS` (default 800) distinct zlib `FlateDecode` streams, ≥32 MiB, correct by construction; bytes gitignored |
+| Seek `DIRECTORY` + `Read + Seek` reader (`view`) | **Measured — scoped bytes-read win vs non-seekable sequential codecs** | campaign `2026-10-05-phase8-seek-08de2a9`; 18/18 queries byte-exact; seeked `view` reads a constant ~0.44–0.46 MB (GRAPH + OBSERVATION_INDEX + DIRECTORY floor), 12–21× fewer bytes than sequential gzip/zstd/xz prefixes for late queries; loses at offset 0 and early (ADR-0019) |
+| Seekable/blocked random-access baseline (bgzip / blocked xz / pixz) | **Recorded — the honest random-access comparison (falsifies “general random-access win”)** | amendment to campaign `2026-10-05-phase8-seek-08de2a9` (`seekable-report.md`); late query VOLE 460,713 B vs bgzip 23,808 B (~19×), xz-64KiB 15,344 B (~30×), xz-1MiB 179,892 B (~2.6×), xz-4MiB 708,612 B (VOLE wins), pixz 2,810,832 B (VOLE wins); BGZF whole-file 7,995,600 B < 17,566,832 B; `docs/evidence/phase8-skeptic-review.md` |
 | PDF structural adapters (Phases 7–8) | Planned | — |
 | EntropyFS store-backed form (Phase 9) | Planned | — |
 | DSFB search governance (Phase 10) | Planned | — |
-| Partial materialization checkpoints / seek reader (Phase 11+) | Planned | v1 `view` measured in 7.3; a seek/mmap reader is the prerequisite for an I/O win |
+| Partial materialization checkpoints (beyond v1) | Planned | v1 random-access `view` measured in 7.3 (ADR-0018); the **seek reader landed in Phase 8** (ADR-0019), leaving checkpoint bytes as future work |
 
 "Implemented" means the mechanism exists and is tested. "Measured" means there is
 a sealed campaign under `evidence/`. The Phase-1 core establishes exactness,
@@ -565,34 +567,54 @@ drivers `tools/partial-court.sh`, `tools/partial-table.jq`; ADR-0018.
 Phase 8 supplies the mmap/seek reader ADR-0018 required. A descriptor may carry
 an optional seek `DIRECTORY` record (first record, fixed offset 64,
 `FLAG_OPTIONAL`, cross-checked and never trusted); the `view` CLI peeks only the
-64-byte header and serves from a `Read + Seek` reader that fetches **only the
-records the query needs** (header, directory, GRAPH, OBSERVATION_INDEX,
+64-byte header and serves from a `Read + Seek` reader that fetches those record
+*classes* the query needs (header, DIRECTORY, GRAPH, OBSERVATION_INDEX,
 INTEGRITY, and the one referenced object/channel/model) — it never `fs::read`s
-the whole descriptor. A partial read is an *observation* (`integrity_verified ==
-false`); `materialize`/`decode`/`verify` remain the archival authority.
+the whole descriptor. This is a **floor**, not a small read: a 256-byte request
+still incurs ~440 KB (~1,700×). A partial read is an *observation*
+(`integrity_verified == false`); `materialize`/`decode`/`verify` remain the
+archival authority.
 
-**Result: a scoped bytes-read win, byte-exact on all 18 pre-registered
-queries.** On the same 33,789,340 B (32.22 MiB) corpus the seekable descriptor is
-17,566,832 B (DIRECTORY 27,390 B). The seeked `view` reads a **constant
-439,679–461,367 B** regardless of offset (floor = header 64 + DIRECTORY 27,390 +
-GRAPH 265,462 + OBSERVATION_INDEX 146,711 + INTEGRITY 52), ≤ 2.6 % of the
-descriptor for every query. In the late region (≥ 50 % in, 8/8 queries) that is
-**4.7 %–~21× fewer bytes than gzip's compressed prefix** (9,764,864 B vs
-460,713 B at 31 MiB) and ~12–13× fewer than zstd/xz; a `strace -P`
-descriptor-file cross-check equals the instrumented count + exactly 64 B (the
-header peek). CPU drops to ~0.00 s and peak RSS from ~38 MB to **~3.8 MB**.
+**Result: a scoped bytes-read win versus non-seekable sequential codecs,
+byte-exact on all 18 pre-registered queries.** On the same 33,789,340 B
+(32.22 MiB) corpus the seekable descriptor is 17,566,832 B (DIRECTORY 27,390 B).
+The seeked `view` reads a **constant 439,679–461,367 B** regardless of offset
+(floor = header 64 + DIRECTORY 27,390 + GRAPH 265,462 + OBSERVATION_INDEX
+146,711 + INTEGRITY 52), ≤ 2.6 % of the descriptor for every query. In the late
+region (≥ 50 % in, 8/8 queries) that is **4.7 %–~21× fewer bytes than gzip's
+compressed prefix** (9,764,864 B vs 460,713 B at 31 MiB) and ~12–13× fewer than
+zstd/xz; a `strace -P` descriptor-file cross-check equals the instrumented count
++ exactly 64 B (the header peek). CPU drops to ~0.00 s and peak RSS from ~38 MB
+to **~3.8 MB**.
+
+**Not a general random-access-I/O win (Phase 8.4 amendment).** Against
+**seekable/blocked** formats, for the same late query: bgzip (BGZF) reads
+**23,808 B** (~19× fewer than VOLE's 460,713 B), `xz --block-size=64KiB`
+**15,344 B** (~30× fewer) and `1MiB` **179,892 B** (~2.6× fewer) — and BGZF's
+whole file (7,995,600 B) is even smaller than the seekable descriptor. VOLE only
+wins where the block size is large (`xz --block-size=4MiB` 708,612 B; pixz
+2,810,832 B, 16 MiB blocks). See `docs/evidence/phase8-skeptic-review.md`.
 
 **Where it loses (recorded).** At `a = 0` the constant floor exceeds gzip's first
 bytes (327,680 B) and xz's (73,728 B); at early queries (≤ ~1.7 MiB) it loses to
-xz's tiny compressed prefix. The floor is constant in the offset, so it would
+xz's tiny compressed prefix; and versus compact-block seekable formats it loses
+across the late region. The floor is constant in the offset, so it would
 dominate a descriptor smaller than ~9 MB — a large-document mechanism. Whole-file
-size is still **3.01×** xz. One locally generated corpus; **no population claim**.
+size is still **3.01×** xz (and 0.46× BGZF). One locally generated corpus;
+**no population claim**.
+
+**Validator caveat.** A *referenced* channel's `decoded_length` is cross-checked
+against its record; an *unreferenced* `CHANNEL_LENGTHS` entry is not — benign,
+since `analyze_ops` never uses an unused length, so no wrong bytes are served.
 
 Receipt:
 [`evidence/campaigns/2026-10-05-phase8-seek-08de2a9/`](evidence/campaigns/2026-10-05-phase8-seek-08de2a9/)
-(`query-table.md`, `report.md`); report
-[`docs/evidence/phase8-seek-report.md`](docs/evidence/phase8-seek-report.md);
-drivers `tools/seek-court.sh`, `tools/seek-table.jq`; ADR-0019.
+(`query-table.md`, `report.md`, `seekable.jsonl`, `seekable-table.md`,
+`seekable-report.md`); reports
+[`docs/evidence/phase8-seek-report.md`](docs/evidence/phase8-seek-report.md),
+[`docs/evidence/phase8-skeptic-review.md`](docs/evidence/phase8-skeptic-review.md);
+drivers `tools/seek-court.sh`, `tools/seek-table.jq`,
+`tools/seekable-baselines.sh`; ADR-0019.
 
 ## Quick start (Docker only)
 
@@ -633,6 +655,14 @@ docker compose run --rm --no-TTY dev ./target/debug/vole-document encode \
 docker compose run --rm --no-TTY baseline \
   sh tools/seek-court.sh /tmp/queries.jsonl evidence/corpus/phase8-large/large.pdf \
   /tmp/large.seek.voldoc /tmp/large.pdf.gz /tmp/large.pdf.zst /tmp/large.pdf.xz
+
+# Seekable/blocked random-access baseline court (Phase 8.4; opt-in baseline image)
+# adds tabix(bgzip)+pixz to the baseline stage, then builds bgzip/xz-blocked/pixz
+# and measures the honest random-access cost (covering block(s) + index).
+docker compose run --rm --no-TTY baseline \
+  sh tools/seekable-baselines.sh /tmp/seekable.jsonl evidence/corpus/phase8-large/large.pdf \
+  /tmp/large.seek.voldoc /tmp/seekable
+jq -rs -f tools/seekable-table.jq /tmp/seekable.jsonl > /tmp/seekable-table.md
 
 # Phase 1 exact court (writes an evidence receipt)
 docker compose run --rm --no-TTY dev sh tools/phase1-court.sh
