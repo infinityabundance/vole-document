@@ -155,6 +155,11 @@ WORKDIR /work
 # `xz --block-size=…` streams. These are what a purpose-built random-access
 # format actually costs to seek; the non-blocked gzip/zstd/xz prefixes are the
 # *sequential* baseline and are separately labelled as such.
+# Phase 9.3 adds `borgbackup` (pinned `1.2.4-1`): a fixed-parameter buzhash
+# content-defined-chunk dedup store, the honest cross-document baseline for the
+# content-addressed object store. `tools/chunk-dedup.sh` runs it with frozen
+# `--chunker-params 19,23,21,4095 --compression none` and reports the unique
+# stored bytes (dedup isolated from chunk compression).
 # ---------------------------------------------------------------------------
 FROM dev AS baseline
 ENV DEBIAN_FRONTEND=noninteractive
@@ -171,5 +176,6 @@ RUN apt-get update \
       strace \
       tabix \
       pixz \
+      borgbackup=1.2.4-1 \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
