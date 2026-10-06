@@ -45,6 +45,7 @@ use crate::limits::Limits;
 use crate::store::{EntropyFsStore, map_engine_error};
 use crate::store::{FsSeedStore, Id, IoCounters, IoSnapshot, NodeId, SeedStore};
 
+#[cfg(feature = "entropyfs-store")]
 use self::manifest::FIELD_ROOT_DOMAIN;
 use self::node::{NodeKind, SeedNode};
 
