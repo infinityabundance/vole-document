@@ -146,6 +146,9 @@ WORKDIR /work
 # part of any fast gate; only the opt-in `baseline` service builds it.
 # `tools/baselines.sh` runs the compressors and the VOLE lanes over complete
 # files; `tools/partial-court.sh` runs the random-access query head-to-head.
+# Phase 8 adds `strace` so `tools/seek-court.sh` can cross-check the seek
+# reader's instrumented `bytes_read` against the actual descriptor-file read
+# syscalls (never the loader's or a pipe's read-ahead).
 # ---------------------------------------------------------------------------
 FROM dev AS baseline
 ENV DEBIAN_FRONTEND=noninteractive
@@ -159,5 +162,6 @@ RUN apt-get update \
       coreutils \
       pv \
       time \
+      strace \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
