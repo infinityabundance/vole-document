@@ -149,6 +149,12 @@ WORKDIR /work
 # Phase 8 adds `strace` so `tools/seek-court.sh` can cross-check the seek
 # reader's instrumented `bytes_read` against the actual descriptor-file read
 # syscalls (never the loader's or a pipe's read-ahead).
+# Phase 8.4 adds the honest **seekable/blocked** random-access baselines: `bgzip`
+# (from the `tabix` package, BGZF block-gzip + `.gzi` index) and `pixz` (an
+# indexed, parallel xz with `-x start:size` random access), plus the equivalent
+# `xz --block-size=…` streams. These are what a purpose-built random-access
+# format actually costs to seek; the non-blocked gzip/zstd/xz prefixes are the
+# *sequential* baseline and are separately labelled as such.
 # ---------------------------------------------------------------------------
 FROM dev AS baseline
 ENV DEBIAN_FRONTEND=noninteractive
@@ -163,5 +169,7 @@ RUN apt-get update \
       pv \
       time \
       strace \
+      tabix \
+      pixz \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
