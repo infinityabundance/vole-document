@@ -93,6 +93,20 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
         }),
         (Selector::Object(_), R::ExactBytes | R::EncodedBytes) => Ok(index_plan("PdfObject")),
         (Selector::Revision(_), R::ExactBytes) => Ok(index_plan("PdfRevision")),
+        (Selector::Member(_), R::EncodedBytes) => Ok(ObservePlan {
+            shape: PlanShape::IndexLookup,
+            index_reads: 1,
+            required_nodes: 1,
+            will_materialize: kinds(&["PackageMemberRaw"]),
+            will_not_materialize: kinds(&["other-members", "whole-document"]),
+        }),
+        (Selector::Member(_), R::DecodedBytes) => Ok(ObservePlan {
+            shape: PlanShape::NodeMaterialize,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["PackageMemberDecoded", "PackageMemberRaw"]),
+            will_not_materialize: kinds(&["other-members", "whole-document"]),
+        }),
         (Selector::Stream(_), R::EncodedBytes) => Ok(index_plan("PdfStreamEncoded")),
         (Selector::Stream(_), R::DecodedBytes) => Ok(ObservePlan {
             shape: PlanShape::NodeMaterialize,

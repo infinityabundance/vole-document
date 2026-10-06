@@ -69,6 +69,18 @@ pub const SEL_RESOURCE: u8 = 5;
 /// observation resolve in `O(depth)` index reads instead of enumerating the
 /// whole seed store.
 pub const SEL_STREAM_DECODED: u8 = 6;
+/// Selector kind: a package (ZIP/OCF/OPC) member's exact raw compressed/stored
+/// span, keyed by the member's central-directory **ordinal** (Phase 12.2).
+///
+/// The key number is the physical ordinal ([`crate::adapter::package::PhysicalMemberId`]'s
+/// `ordinal`), never the member name: duplicate names therefore stay distinct.
+pub const SEL_PACKAGE_MEMBER_RAW: u8 = 7;
+/// Selector kind: a package member's decoded bytes, keyed by the same ordinal.
+///
+/// A `PackageMemberDecoded` node is a deterministic function of its raw node and
+/// method, so it gets its own entry (mirroring `SEL_STREAM_DECODED`); a
+/// `Member(n) + DecodedBytes` observation resolves in `O(depth)` index reads.
+pub const SEL_PACKAGE_MEMBER_DECODED: u8 = 8;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;
@@ -111,9 +123,11 @@ const MAX_INTERNAL_CHILDREN: usize = {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SelectorKey {
     /// [`SEL_PAGE`], [`SEL_OBJECT`], [`SEL_STREAM`], [`SEL_STREAM_DECODED`],
-    /// [`SEL_REVISION`], or [`SEL_RESOURCE`].
+    /// [`SEL_REVISION`], [`SEL_RESOURCE`], [`SEL_PACKAGE_MEMBER_RAW`], or
+    /// [`SEL_PACKAGE_MEMBER_DECODED`].
     pub kind: u8,
-    /// The page/object/stream/revision/resource number.
+    /// The page/object/stream/revision/resource number, or a package member's
+    /// central-directory ordinal.
     pub number: u32,
     /// The generation (`0` where the kind has none).
     pub generation: u16,

@@ -54,6 +54,15 @@ pub enum NodeKind {
     Concat = 0x0C,
     /// A raw exact literal held in the seed store.
     Literal = 0x0D,
+    /// The whole exact package (ZIP/OCF/OPC) source, materialized through the
+    /// descriptor (`serve_document`). Exact (Phase 12.2).
+    PackageRoot = 0x0E,
+    /// One package member's exact raw compressed/stored span (a `SourceSlice`
+    /// with package provenance). Exact (Phase 12.2).
+    PackageMemberRaw = 0x0F,
+    /// One package member's decoded bytes: raw-DEFLATE inflate (method 8) or the
+    /// stored identity (method 0). Derived, never exact (Phase 12.2).
+    PackageMemberDecoded = 0x10,
 }
 
 impl NodeKind {
@@ -73,6 +82,9 @@ impl NodeKind {
             0x0B => NodeKind::ResourceRef,
             0x0C => NodeKind::Concat,
             0x0D => NodeKind::Literal,
+            0x0E => NodeKind::PackageRoot,
+            0x0F => NodeKind::PackageMemberRaw,
+            0x10 => NodeKind::PackageMemberDecoded,
             _ => return None,
         })
     }
@@ -93,6 +105,9 @@ impl NodeKind {
             NodeKind::ResourceRef => "ResourceRef",
             NodeKind::Concat => "Concat",
             NodeKind::Literal => "Literal",
+            NodeKind::PackageRoot => "PackageRoot",
+            NodeKind::PackageMemberRaw => "PackageMemberRaw",
+            NodeKind::PackageMemberDecoded => "PackageMemberDecoded",
         }
     }
 
@@ -111,6 +126,10 @@ impl NodeKind {
                 | NodeKind::ResourceRef
                 | NodeKind::Concat
                 | NodeKind::Literal
+                // Package physical leaves are exact source spans; a decoded
+                // member (`PackageMemberDecoded`) is derived and is **not** exact.
+                | NodeKind::PackageRoot
+                | NodeKind::PackageMemberRaw
         )
     }
 }

@@ -30,8 +30,8 @@ use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, ReuseStats, SourceServer};
 use crate::field::index::{
-    FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PAGE, SEL_REVISION, SEL_STREAM, SEL_STREAM_DECODED,
-    SelectorKey, lookup,
+    FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PACKAGE_MEMBER_DECODED, SEL_PACKAGE_MEMBER_RAW,
+    SEL_PAGE, SEL_REVISION, SEL_STREAM, SEL_STREAM_DECODED, SelectorKey, lookup,
 };
 use crate::field::ingest;
 use crate::field::manifest::FieldRoot;
@@ -59,6 +59,9 @@ pub enum Selector {
     Stream(u32),
     /// A physical revision, by 0-based index.
     Revision(u32),
+    /// A package (ZIP/OCF/OPC) member, by central-directory ordinal. The ordinal is
+    /// the physical identity; duplicate names stay distinct (Phase 12.2).
+    Member(u32),
     /// A half-open exact source byte range.
     ByteRange {
         /// Start offset.
@@ -79,6 +82,7 @@ impl Selector {
             Selector::Object(n) => format!("object:{n}"),
             Selector::Stream(n) => format!("stream:{n}"),
             Selector::Revision(n) => format!("revision:{n}"),
+            Selector::Member(n) => format!("member:{n}"),
             Selector::ByteRange { offset, len } => format!("byte-range:{offset}:{len}"),
             Selector::TextMatch(p) => format!("text-match:{p}"),
         }
@@ -774,6 +778,7 @@ fn partial_eligible(req: &ObserveRequest) -> bool {
             | (Selector::Object(_), R::ExactBytes | R::EncodedBytes)
             | (Selector::Revision(_), R::ExactBytes)
             | (Selector::Stream(_), R::EncodedBytes)
+            | (Selector::Member(_), R::EncodedBytes | R::DecodedBytes)
             | (Selector::Page(_), R::Text | R::Preview | R::Structure)
     )
 }
@@ -1046,6 +1051,12 @@ impl<S: SeedStore> Ctx<'_, S> {
             (Selector::Revision(n), R::ExactBytes) => {
                 self.indexed_exact(req, SelectorKey::new(SEL_REVISION, *n), "revision")
             }
+            (Selector::Member(n), R::EncodedBytes) => self.indexed_exact(
+                req,
+                SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, *n),
+                "package member",
+            ),
+            (Selector::Member(n), R::DecodedBytes) => self.member_decoded(req, *n),
             (Selector::Stream(n), R::EncodedBytes) => {
                 self.indexed_exact(req, SelectorKey::new(SEL_STREAM, *n), "stream")
             }
@@ -1164,6 +1175,35 @@ impl<S: SeedStore> Ctx<'_, S> {
             representation: req.representation.name().to_string(),
             source_span: None,
             dependency_ids: vec![id],
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        })
+    }
+
+    /// A package member's decoded bytes (Phase 12.2).
+    ///
+    /// Resolved through the index to the `PackageMemberDecoded` node, which is a
+    /// deterministic function of its raw node, so the observation never enumerates
+    /// the seed store. The answer is `DeterministicallyDerived`, never exact: it is
+    /// not a byte-identical observation of the source.
+    fn member_decoded(&mut self, req: &ObserveRequest, ordinal: u32) -> Result<FieldAnswer> {
+        let entry = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, ordinal),
+            "decoded package member",
+        )?;
+        let node = self.load(&entry.node_id)?;
+        let id = node.content_id();
+        let raw_deps = node.deps.clone();
+        let bytes = self.materialize(&node)?;
+        let mut dependency_ids = vec![id];
+        dependency_ids.extend(raw_deps);
+        Ok(FieldAnswer {
+            value: AnswerValue::Bytes(bytes),
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: None,
+            dependency_ids,
             integrity_scope: IntegrityScope::None,
             exact: false,
         })

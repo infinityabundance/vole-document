@@ -350,6 +350,50 @@ fn materialize_inner(
             out
         }
         NodeKind::Literal => node.params.clone(),
+        NodeKind::PackageRoot => source.serve_document(limits)?,
+        NodeKind::PackageMemberRaw => {
+            let (offset, len) = read_span_params(&node.params)?;
+            source.serve_range(offset, len, limits)?
+        }
+        NodeKind::PackageMemberDecoded => {
+            let (_ordinal, method, _extra) = read_object_params(&node.params)?;
+            let dep = node
+                .deps
+                .first()
+                .ok_or_else(|| Error::usage("PackageMemberDecoded has no dependency"))?;
+            let child = load_node(store, dep)?;
+            let encoded = materialize_inner(
+                source,
+                store,
+                cache,
+                &child,
+                limits,
+                budget,
+                depth - 1,
+                reuse,
+            )?;
+            match method {
+                // Stored (method 0): the raw span *is* the decoded bytes.
+                0 => {
+                    if encoded.len() as u64 != node.logical_output_len {
+                        return Err(Error::reconstruction_mismatch(format!(
+                            "stored member is {} bytes but the node declared {}",
+                            encoded.len(),
+                            node.logical_output_len
+                        )));
+                    }
+                    encoded
+                }
+                // Deflate (method 8): ZIP stores bare DEFLATE, not zlib-wrapped.
+                8 => derive::inflate_raw_deflate(&encoded, node.logical_output_len, limits)?,
+                // Any other method is a typed decline; the exact bytes are untouched.
+                other => {
+                    return Err(Error::unsupported_feature(format!(
+                        "zip member compression method {other} has no decoded representation"
+                    )));
+                }
+            }
+        }
         NodeKind::PdfStreamDecoded => {
             let dep = node
                 .deps

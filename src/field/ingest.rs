@@ -177,7 +177,7 @@ pub fn ingest_pdf(
 /// already carries an index, or an op length does not fit the index's `u32`
 /// field, the input is returned unchanged (the observation then uses the full
 /// descriptor path).
-fn with_observation_index(bytes: &[u8], limits: Limits) -> Result<Vec<u8>> {
+pub(crate) fn with_observation_index(bytes: &[u8], limits: Limits) -> Result<Vec<u8>> {
     let parsed: ParsedDescriptor = Descriptor::parse(bytes, limits)?;
     if parsed.descriptor.observation_index.is_some() {
         return Ok(bytes.to_vec());
