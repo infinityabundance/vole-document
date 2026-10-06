@@ -1,0 +1,34 @@
+{
+  "generator": "vole-document pdf-make-large (built into the CLI; encode-time corpus tooling, no library/runtime dependency)",
+  "license": "locally-generated",
+  "note": "No third-party document bytes. large.pdf is assembled in memory by the pinned toolchain from our own deterministic input; the .pdf bytes are gitignored and regenerable from the command below.",
+  "reproducibility": "Regenerated under Phase 8 with identical arguments; SHA-256 and length match the Phase-7 corpus (byte_reproducible=true), so the two campaigns are directly comparable.",
+  "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-large evidence/corpus/phase8-large 800",
+  "objects_argument": 800,
+  "streams": 800,
+  "indirect_objects": 1603,
+  "per_stream_plaintext_bytes_approx": 41970,
+  "stream_encoding": "level-0 DEFLATE (stored blocks) inside a real zlib (RFC 1950) wrapper; every stream carries distinct per-stream LCG content, so no plaintext is shared between streams",
+  "target_bytes": 33554432,
+  "tools": {
+    "qpdf": "11.3.0",
+    "ghostscript": "10.00.0"
+  },
+  "checks": {
+    "qpdf_check": "rc=0: 'No syntax or stream encoding errors found'",
+    "ghostscript_render": "rc=0 (first page rendered to nullpage)",
+    "deflate_stats": "flate_streams=800 replayed=800 declined=0"
+  },
+  "files": [
+    {
+      "name": "large.pdf",
+      "sha256": "983915aef64bfce2beed5bc000822a2aceb9a8c3beb0ca760de0a95ad12c205a",
+      "bytes": 33789340,
+      "producer": "vole-document pdf-make-large",
+      "producer_version": "0.1.0-alpha.9",
+      "license": "locally-generated",
+      "flate_streams": 800,
+      "byte_reproducible": true
+    }
+  ]
+}

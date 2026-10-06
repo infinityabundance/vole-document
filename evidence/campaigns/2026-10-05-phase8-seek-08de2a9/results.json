@@ -1,0 +1,69 @@
+{
+  "campaign": "2026-10-05-phase8-seek-08de2a9",
+  "phase": "Phase 8.3 — seek-based partial I/O: does a seeked view become a bytes-read win?",
+  "descriptor_bytes": 17566832,
+  "source_bytes": 33789340,
+  "whole_file": {
+    "note": "Complete-cost axis is unchanged from Phase 7 and remains a loss; the seek directory is a query-capability cost, not a size win.",
+    "source": 33789340,
+    "gzip9": 9999924,
+    "zstd19": 6184771,
+    "xz9e": 5841896,
+    "brotli11": 6101311,
+    "best_vole_lane": "PDF_DEFLATE_REPLAY_RANS",
+    "best_vole_non_seek": 17392731,
+    "indexed_seek_descriptor": 17566832,
+    "index_cost_bytes": 146711,
+    "directory_cost_bytes": 27390,
+    "indexed_plus_directory_over_non_seek": 174101,
+    "seek_ratio_vs_xz": 3.007,
+    "non_seek_rebase_vs_phase7_bytes": 18,
+    "non_seek_rebase_note": "PDF_DEFLATE_REPLAY_RANS and BYTE_RANS are +18 B versus Phase 7 solely because the UNIVERSE string gained the +seek-directory-v1 suffix; seek_directory == false is otherwise byte-identical to the Phase-7 serialization."
+  },
+  "query_court": {
+    "driver": "tools/seek-court.sh",
+    "queries": 18,
+    "correct_all": true,
+    "bytes_read_min": 439679,
+    "bytes_read_max": 461367,
+    "constant_floor_bytes": 439679,
+    "floor_decomposition": {
+      "header": 64,
+      "directory_record": 27390,
+      "graph_record": 265462,
+      "observation_index_record": 146711,
+      "integrity_record": 52,
+      "total": 439679
+    },
+    "thresholds": {
+      "H1_late_ge_8MiB_bytes_read_le_5pct_descriptor": true,
+      "H1_all_18_queries_bytes_read_le_5pct_descriptor": true,
+      "H2_late_ge_50pct_bytes_read_lt_gzip_prefix": true,
+      "H2_late_query_count": 8,
+      "H2_slice_fraction_at_31MiB": 0.0472
+    },
+    "beats": {
+      "vole_lt_gzip_queries": 17,
+      "vole_lt_zstd_queries": 18,
+      "vole_lt_xz_queries": 14
+    },
+    "strace_cross_check": {
+      "relation": "strace_bytes_read == instrumented bytes_read + 64 for every query",
+      "delta_explanation": "The CLI reads the fixed 64-byte header to discover the seek feature before handing the handle to the seek reader; the CountingReader wraps the reader and does not count that peek. No other process read touches the descriptor."
+    },
+    "losing_queries": [
+      {"query": "byte-0", "a": 0, "vole_bytes_read": 439679, "gzip_prefix": 327680, "xz_prefix": 73728, "zstd_prefix": 724992, "loses_to": ["gzip", "xz"], "reason": "constant floor > gzip's read-ahead at the very start"},
+      {"query": "byte-1048576", "a": 1048576, "vole_bytes_read": 460861, "gzip_prefix": 589824, "xz_prefix": 253952, "loses_to": ["xz"], "reason": "xz's compressed prefix is small and its read-ahead minimal"},
+      {"query": "stream-85", "a": 1694369, "vole_bytes_read": 460398, "gzip_prefix": 589824, "xz_prefix": 368640, "loses_to": ["xz"], "reason": "same constant floor"},
+      {"query": "object-84", "a": 1694184, "vole_bytes_read": 439679, "gzip_prefix": 589824, "xz_prefix": 360448, "loses_to": ["xz"], "reason": "same constant floor"}
+    ],
+    "rss_min_kb": 3604,
+    "rss_max_kb": 3968,
+    "notes": [
+      "bytes_read is the instrumented CountingReader total (primary); strace -P attributes reads to the descriptor file only (cross-check).",
+      "The constant floor is dominated by GRAPH (265,462 B) + OBSERVATION_INDEX (146,711 B) + DIRECTORY (27,390 B); it does not shrink with output size, so it loses to a small-prefix comparator and would dominate a descriptor smaller than ~9 MB.",
+      "OS page cache changes wall time, not read() byte counts; the sequential baselines' compressed-prefix column is measured at a pipe and therefore includes a bounded read-ahead (an upper bound on the true seek cost for those decoders)."
+    ]
+  },
+  "verdict": "BYTES-READ WIN for mid/late queries on this large locally-generated PDF: the seeked view reads a constant 439,679-461,367 B (GRAPH+INDEX+DIRECTORY floor plus one referenced channel) regardless of offset, versus gzip's 2.7-9.8 MB compressed prefix (6-21x fewer bytes) and zstd/xz's 1.5-6.2 MB; it also drops CPU to ~0.00 s and peak RSS from ~38 MB (Phase 7) to ~3.8 MB. It LOSES on bytes at a=0 versus gzip (327,680 B) and at early queries (<= ~1.7 MB) versus xz (253,952-368,640 B) because of the constant ~0.44 MB floor. No population claim: one locally generated 33.8 MB PDF."
+}

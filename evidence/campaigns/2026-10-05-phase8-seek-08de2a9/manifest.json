@@ -1,0 +1,44 @@
+{
+  "campaign": "2026-10-05-phase8-seek-08de2a9",
+  "amends": null,
+  "amends_note": "Phase 7.3 (ADR-0018) claimed a scoped decode-CPU win with an explicit NO-bytes-read-win caveat. This campaign supplies and measures the missing seek reader; it does not restate the whole-file axis (still a loss).",
+  "phase": "Phase 8.3 — seek-based partial I/O: bytes-read court for a seeked view",
+  "claim": "On a 33,789,340 B (32.22 MiB) deterministic 800-stream PDF whose seekable descriptor is 17,566,832 B, the seeked `view` (which now reads only the 64-byte header, the DIRECTORY, GRAPH, OBSERVATION_INDEX, INTEGRITY, and the one referenced object/channel/model — never the whole file) serves all 18 pre-registered queries byte-exactly and reads a constant 439,679-461,367 B regardless of offset. That is <= 2.6% of the descriptor for every query and, in the late region (>= 50% in, 8/8 queries), 4.7%-21x fewer bytes than gzip's compressed prefix (9,764,864 B at 31 MiB) and ~12-13x fewer than zstd/xz. It also drops peak RSS from ~38 MB to ~3.8 MB and CPU to ~0.00 s. It LOSES on bytes at a=0 versus gzip (327,680 B) and at early queries (<= ~1.7 MiB) versus xz (253,952-368,640 B), because of the constant GRAPH+INDEX+DIRECTORY floor, and would dominate a descriptor smaller than ~9 MB. Whole-file size remains a ~3.01x loss to xz. Single locally generated corpus; no population claim.",
+  "git_commit": "08de2a9",
+  "git_dirty_tracked": "0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "baseline_image": "vole-document/baseline:1.99.0@sha256:93def4f221f4a58a1e34c563fe8275480d2f89b9eb7121c735c56f1189cc841b",
+  "dev_image": "vole-document/dev:1.99.0@sha256:652fbf80bd6631f9a80df84589bc1227e374a576d5267c343b87471b911415c8",
+  "arch": "x86_64",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "83f144dbdeea5afaa7469c318c690d2aab7f4924da5aa0825c3aac54c528bf96",
+  "binary_sha256": "26e6481a1b2c3c194affa4c7dfcfbc97451c90de8cd276af4250eb1bf0094f86",
+  "features": "deflate-replay,rans (cargo build --locked --all-features)",
+  "oracles": {"qpdf": "11.3.0", "ghostscript": "10.00.0", "gzip": "1.12", "zstd": "1.5.4", "xz": "5.4.1", "brotli": "1.0.9", "pv": "1.6.20", "jq": "1.6", "strace": "6.1"},
+  "command": "dev: pdf-make-large 800; tools: qpdf --check + gs; dev: deflate-stats; dev: encode --force pdf-deflate-replay-rans-indexed; baseline: gzip/zstd/xz; baseline: tools/baselines.sh; baseline: tools/seek-court.sh queries.jsonl ...; baseline: jq -rs -f tools/seek-table.jq",
+  "artifacts": {
+    "environment.json": "32ee8f0d9cd0b8bb764545ddca387554d29ad6019313ace8a029a92c2c41cbe6",
+    "corpus.json": "0abc4d8d5b01404d840f7dd457e6588395208a96a784e545ac429272197efd19",
+    "results.json": "5551c8be60add7745255ed2498b14120f1e2222c05421ef38b35adbdc0b1e83c",
+    "report.md": "27cf535289d72776ac946d32ced9cd0e0776d0f5c9dd72c129f119799bd837d3",
+    "queries.jsonl": "0a31f7a380e37d7912421dc58afac1b4ce643ce7b122b5792c8b788a49bc3739",
+    "query-table.md": "250af13f2852a3e0c3b2be12963e3030f19715e8bdc040c337eac734e8f1f2ad",
+    "large-baselines.json": "75da6ca00e2b9a43c523eab2521e1e0dd14cdc8957861e73910c428ba68b1f7a"
+  },
+  "tooling": {
+    "driver": "tools/seek-court.sh",
+    "driver_sha256": "9e75d7f936ae194f33e3654c67eae9e1e4db5ae50a3e2a49a2002585f6b4dd6e",
+    "table": "tools/seek-table.jq",
+    "table_sha256": "155e84e5df8d39cb5cfadbb7f0ea0da6fc714cd35aab167998ee1c4f5559f8f6",
+    "corpus_generator": "vole-document pdf-make-large (src/main.rs)",
+    "cli_change": "src/main.rs cmd_view peeks the 64-byte header and hands the handle to the seek reader; a descriptor with no seek feature keeps the Phase-7 in-memory path"
+  },
+  "corpus_ledger": {
+    "source": "evidence/corpus/phase8-large/large.pdf",
+    "source_sha256": "983915aef64bfce2beed5bc000822a2aceb9a8c3beb0ca760de0a95ad12c205a",
+    "provenance": "evidence/corpus/phase8-large/provenance.json",
+    "bytes_committed": false
+  },
+  "verdict": "BYTES-READ WIN (scoped): constant ~0.44-0.46 MB read for mid/late queries versus 2.7-9.8 MB gzip prefixes; loses at a=0 (gzip) and early (xz); whole-file size still a loss"
+}
