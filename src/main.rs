@@ -23,6 +23,14 @@ use vole_document::container::header::{FEATURE_SEEK_DIRECTORY, HEADER_LEN, Heade
 use vole_document::dra::Op;
 use vole_document::encode::candidates::CandidateKind;
 use vole_document::error::{Error, Result};
+#[cfg(feature = "field")]
+use vole_document::field::{
+    Field, FieldId, FieldStore,
+    explain::{explain, explain_analyze},
+    ingest as field_ingest,
+    observe::{ObserveRequest, ObserveStats, Representation, Selector, observe},
+    provenance::{AnswerValue, FieldAnswer},
+};
 use vole_document::limits::Limits;
 #[cfg(feature = "rans")]
 use vole_document::materialize::observation::{ObservationReport, ObservationSelector};
@@ -68,6 +76,20 @@ const USAGE_STORE: &str = "\
 #[cfg(not(feature = "store"))]
 const USAGE_STORE: &str = "";
 
+/// The field observation verbs are advertised only when the field is built in.
+#[cfg(feature = "field")]
+const USAGE_FIELD: &str = "\
+    vole-document field-ingest INPUT.voldoc --store DIR\n\
+    vole-document observe --store DIR --field HEX (--page N | --object N | --stream N |\n\
+        --revision N | --byte-range A..B) --kind metadata|text|structure|operators|\n\
+        encoded|decoded|exact|preview|full\n\
+    vole-document find    --store DIR --field HEX --text PATTERN\n\
+    vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze]\n\
+    vole-document preview --store DIR --field HEX --page N [--json]\n\
+    vole-document materialize --store DIR --field HEX --exact --output FILE\n";
+#[cfg(not(feature = "field"))]
+const USAGE_FIELD: &str = "";
+
 const USAGE_TAIL: &str = "\
     vole-document capabilities
 
@@ -87,7 +109,7 @@ EXIT CODES:
 /// The full usage text, with the replay-gated command line included only when
 /// the feature is present.
 fn usage() -> String {
-    format!("{USAGE_HEAD}{USAGE_VIEW}{USAGE_DEFLATE_STATS}{USAGE_STORE}{USAGE_TAIL}")
+    format!("{USAGE_HEAD}{USAGE_VIEW}{USAGE_DEFLATE_STATS}{USAGE_STORE}{USAGE_FIELD}{USAGE_TAIL}")
 }
 
 fn main() -> ExitCode {
@@ -141,7 +163,16 @@ fn run(args: &[String]) -> Result<()> {
         }
         "capabilities" => cmd_capabilities(),
         "encode" => cmd_encode_args(args, limits),
-        "decode" | "materialize" => cmd_decode_args(args, limits),
+        "decode" | "materialize" => {
+            #[cfg(feature = "field")]
+            if args
+                .iter()
+                .any(|a| a.as_str() == "--field" || a.starts_with("--field="))
+            {
+                return cmd_field_materialize(args, limits);
+            }
+            cmd_decode_args(args, limits)
+        }
         "verify" => {
             let input = arg(args, 2, "INPUT.voldoc")?;
             cmd_verify(&input, limits)
@@ -182,6 +213,16 @@ fn run(args: &[String]) -> Result<()> {
             }
             cmd_deflate_stats(&inputs, limits)
         }
+        #[cfg(feature = "field")]
+        "field-ingest" => cmd_field_ingest(args, limits),
+        #[cfg(feature = "field")]
+        "observe" => cmd_field_observe(args, limits),
+        #[cfg(feature = "field")]
+        "find" => cmd_field_find(args, limits),
+        #[cfg(feature = "field")]
+        "explain" => cmd_field_explain(args, limits),
+        #[cfg(feature = "field")]
+        "preview" => cmd_field_preview(args, limits),
         other => Err(Error::usage(format!(
             "unknown subcommand {other:?}\n\n{}",
             usage()
@@ -1290,6 +1331,443 @@ fn report_json(r: &encode::EncodeReport) -> String {
         r.graph_ops,
         r.cost.to_json(),
     )
+}
+
+/// Parsed arguments for the Phase-11 field observation verbs.
+#[cfg(feature = "field")]
+#[derive(Default)]
+struct FieldArgs {
+    store: Option<PathBuf>,
+    field: Option<String>,
+    page: Option<u32>,
+    object: Option<u32>,
+    stream: Option<u32>,
+    revision: Option<u32>,
+    byte_range: Option<(u64, u64)>,
+    kind: Option<String>,
+    text: Option<String>,
+    output: Option<PathBuf>,
+    analyze: bool,
+    json: bool,
+    positional: Vec<String>,
+}
+
+#[cfg(feature = "field")]
+fn field_arg_value(
+    args: &[String],
+    i: &mut usize,
+    flag: &str,
+    inline: Option<&str>,
+) -> Result<String> {
+    match inline {
+        Some(v) => {
+            *i += 1;
+            Ok(v.to_string())
+        }
+        None => {
+            let v = args
+                .get(*i + 1)
+                .ok_or_else(|| Error::usage(format!("{flag} requires a value")))?;
+            *i += 2;
+            Ok(v.clone())
+        }
+    }
+}
+
+#[cfg(feature = "field")]
+fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
+    let mut out = FieldArgs::default();
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        let (flag, inline) = match a.split_once('=') {
+            Some((f, v)) => (f, Some(v)),
+            None => (a, None),
+        };
+        match flag {
+            "--analyze" => {
+                out.analyze = true;
+                i += 1;
+            }
+            "--json" => {
+                out.json = true;
+                i += 1;
+            }
+            "--exact" => i += 1,
+            "--store" => {
+                out.store = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--store", inline,
+                )?));
+            }
+            "--field" => out.field = Some(field_arg_value(args, &mut i, "--field", inline)?),
+            "--page" => {
+                out.page = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--page", inline)?,
+                    "--page",
+                )?);
+            }
+            "--object" => {
+                out.object = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--object", inline)?,
+                    "--object",
+                )?);
+            }
+            "--stream" => {
+                out.stream = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--stream", inline)?,
+                    "--stream",
+                )?);
+            }
+            "--revision" => {
+                out.revision = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--revision", inline)?,
+                    "--revision",
+                )?);
+            }
+            "--byte-range" => {
+                out.byte_range = Some(parse_field_range(&field_arg_value(
+                    args,
+                    &mut i,
+                    "--byte-range",
+                    inline,
+                )?)?);
+            }
+            "--kind" => out.kind = Some(field_arg_value(args, &mut i, "--kind", inline)?),
+            "--text" => out.text = Some(field_arg_value(args, &mut i, "--text", inline)?),
+            "--output" => {
+                out.output = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--output", inline,
+                )?));
+            }
+            other if !other.starts_with("--") => {
+                out.positional.push(other.to_string());
+                i += 1;
+            }
+            other => return Err(Error::usage(format!("unknown field argument {other:?}"))),
+        }
+    }
+    Ok(out)
+}
+
+#[cfg(feature = "field")]
+fn parse_field_u32(value: &str, flag: &str) -> Result<u32> {
+    value
+        .parse()
+        .map_err(|_| Error::usage(format!("{flag} value {value:?} is not a u32")))
+}
+
+#[cfg(feature = "field")]
+fn parse_field_range(value: &str) -> Result<(u64, u64)> {
+    let (a, b) = value
+        .split_once("..")
+        .ok_or_else(|| Error::usage("--byte-range must be A..B (e.g. 0..128)"))?;
+    let start: u64 = a
+        .parse()
+        .map_err(|_| Error::usage(format!("--byte-range start {a:?} is not a u64")))?;
+    let end: u64 = b
+        .parse()
+        .map_err(|_| Error::usage(format!("--byte-range end {b:?} is not a u64")))?;
+    if end < start {
+        return Err(Error::usage("--byte-range end precedes its start"));
+    }
+    Ok((start, end - start))
+}
+
+#[cfg(feature = "field")]
+fn field_selector(out: &FieldArgs) -> Result<Selector> {
+    let mut chosen: Vec<Selector> = Vec::new();
+    if let Some(n) = out.page {
+        chosen.push(Selector::Page(n));
+    }
+    if let Some(n) = out.object {
+        chosen.push(Selector::Object(n));
+    }
+    if let Some(n) = out.stream {
+        chosen.push(Selector::Stream(n));
+    }
+    if let Some(n) = out.revision {
+        chosen.push(Selector::Revision(n));
+    }
+    if let Some((offset, len)) = out.byte_range {
+        chosen.push(Selector::ByteRange { offset, len });
+    }
+    if let Some(text) = &out.text {
+        chosen.push(Selector::TextMatch(text.clone()));
+    }
+    match chosen.len() {
+        0 => Err(Error::usage("exactly one selector flag is required")),
+        1 => chosen
+            .into_iter()
+            .next()
+            .ok_or_else(|| Error::usage("no selector")),
+        _ => Err(Error::usage(
+            "exactly one selector flag is required; more than one was given",
+        )),
+    }
+}
+
+#[cfg(feature = "field")]
+fn field_representation(kind: &str) -> Result<Representation> {
+    Ok(match kind {
+        "metadata" => Representation::Metadata,
+        "text" => Representation::Text,
+        "structure" => Representation::Structure,
+        "operators" => Representation::Operators,
+        "encoded" => Representation::EncodedBytes,
+        "decoded" => Representation::DecodedBytes,
+        "exact" => Representation::ExactBytes,
+        "preview" => Representation::Preview,
+        "full" => Representation::FullDocument,
+        other => return Err(Error::usage(format!("unknown --kind {other:?}"))),
+    })
+}
+
+#[cfg(feature = "field")]
+fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats) -> String {
+    let value = match &answer.value {
+        AnswerValue::Bytes(b) => {
+            let sha = integrity::sha256(b);
+            let hex_part = if b.len() <= 8192 {
+                format!(",\"value_hex\":\"{}\"", integrity::to_hex(b))
+            } else {
+                String::new()
+            };
+            format!(
+                "\"bytes_len\":{},\"bytes_sha256\":\"{}\"{}",
+                b.len(),
+                integrity::to_hex(&sha),
+                hex_part
+            )
+        }
+        AnswerValue::Text(t) => format!("\"text\":\"{}\"", json_escape(t)),
+        AnswerValue::Json(j) => format!("\"value\":{j}"),
+        AnswerValue::None => "\"value\":null".to_string(),
+    };
+    let span = match answer.source_span {
+        Some((a, b)) => format!("[{a},{b}]"),
+        None => "null".to_string(),
+    };
+    let deps = answer
+        .dependency_ids
+        .iter()
+        .map(|d| format!("\"{}\"", d.to_hex()))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        concat!(
+            "{{",
+            "\"selector\":\"{}\",",
+            "\"representation\":\"{}\",",
+            "\"basis\":\"{}\",",
+            "\"exact\":{},",
+            "\"integrity_scope\":\"{}\",",
+            "\"source_span\":{},",
+            "\"dependency_ids\":[{}],",
+            "{}",
+            "\"stats\":{{\"index_nodes_read\":{},\"seed_nodes_fetched\":{},\"seed_nodes_materialized\":{},\"bytes_read\":{},\"bytes_returned\":{},\"deepened\":{},\"wall_micros\":{}}}",
+            "}}"
+        ),
+        json_escape(&answer.selector),
+        json_escape(&answer.representation),
+        answer.basis.name(),
+        answer.exact,
+        answer.integrity_scope.name(),
+        span,
+        deps,
+        value,
+        stats.index_nodes_read,
+        stats.seed_nodes_fetched,
+        stats.seed_nodes_materialized,
+        stats.bytes_read,
+        stats.bytes_returned,
+        stats.deepened,
+        stats.wall_micros,
+    )
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let input = out
+        .positional
+        .first()
+        .ok_or_else(|| Error::usage("field-ingest requires INPUT.voldoc"))?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("field-ingest requires --store DIR"))?;
+    let bytes = fs::read(input)?;
+    let mut store = FieldStore::open(store_dir)?;
+    let r = field_ingest::ingest_pdf(&mut store, &bytes, limits)?;
+    let index_root = match r.index_root {
+        Some(id) => format!("\"{}\"", id.to_hex()),
+        None => "null".to_string(),
+    };
+    println!(
+        concat!(
+            "{{",
+            "\"field\":\"{}\",",
+            "\"root_node\":\"{}\",",
+            "\"index_root\":{},",
+            "\"node_count\":{},",
+            "\"index_node_count\":{},",
+            "\"source_len\":{},",
+            "\"object_nodes\":{},",
+            "\"stream_nodes\":{},",
+            "\"decoded_stream_nodes\":{},",
+            "\"page_nodes\":{},",
+            "\"revision_nodes\":{},",
+            "\"declined_streams\":{}",
+            "}}"
+        ),
+        r.field.to_hex(),
+        r.root_node.to_hex(),
+        index_root,
+        r.node_count,
+        r.index_node_count,
+        r.source_len,
+        r.object_nodes,
+        r.stream_nodes,
+        r.decoded_stream_nodes,
+        r.page_nodes,
+        r.revision_nodes,
+        r.declined_streams,
+    );
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_observe(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("observe requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("observe requires --field HEX"))?;
+    let selector = field_selector(&out)?;
+    let kind = out
+        .kind
+        .as_deref()
+        .ok_or_else(|| Error::usage("observe requires --kind KIND"))?;
+    let representation = field_representation(kind)?;
+    let mut store = FieldStore::open(store_dir)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let req = ObserveRequest::new(selector, representation);
+    let (answer, stats) = observe(&mut store, &id, &req, limits)?;
+    println!("{}", field_answer_json(&answer, &stats));
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_find(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("find requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("find requires --field HEX"))?;
+    let text = out
+        .text
+        .clone()
+        .ok_or_else(|| Error::usage("find requires --text PATTERN"))?;
+    let mut store = FieldStore::open(store_dir)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let req = ObserveRequest::new(Selector::TextMatch(text), Representation::Text);
+    let (answer, stats) = observe(&mut store, &id, &req, limits)?;
+    println!("{}", field_answer_json(&answer, &stats));
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("explain requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("explain requires --field HEX"))?;
+    let selector = field_selector(&out)?;
+    let kind = out
+        .kind
+        .as_deref()
+        .ok_or_else(|| Error::usage("explain requires --kind KIND"))?;
+    let representation = field_representation(kind)?;
+    let mut store = FieldStore::open(store_dir)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let req = ObserveRequest::new(selector, representation);
+    if out.analyze {
+        let (plan, actual) = explain_analyze(&mut store, &id, &req, limits)?;
+        println!("{{\"plan\":{},\"actual\":{}}}", plan.json, actual.to_json());
+    } else {
+        let field = Field::open(&store, &id, limits)?;
+        let plan = explain(&field, &store, &req)?;
+        println!("{}", plan.json);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_preview(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("preview requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("preview requires --field HEX"))?;
+    let page = out
+        .page
+        .ok_or_else(|| Error::usage("preview requires --page N"))?;
+    let as_json = out.json;
+    let mut store = FieldStore::open(store_dir)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let req = ObserveRequest::new(Selector::Page(page), Representation::Preview);
+    let (answer, stats) = observe(&mut store, &id, &req, limits)?;
+    if !as_json && let AnswerValue::Bytes(bytes) = &answer.value {
+        std::io::stdout().write_all(bytes).map_err(Error::from)?;
+        return Ok(());
+    }
+    println!("{}", field_answer_json(&answer, &stats));
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_materialize(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("materialize requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("materialize requires --field HEX"))?;
+    let output = out
+        .output
+        .as_deref()
+        .ok_or_else(|| Error::usage("materialize requires --output FILE"))?;
+    let store = FieldStore::open(store_dir)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let field = Field::open(&store, &id, limits)?;
+    let bytes = field.materialize_exact(limits)?;
+    write_atomic(output, &bytes)?;
+    println!(
+        "{{\"source_len\":{},\"sha256\":\"{}\"}}",
+        bytes.len(),
+        integrity::to_hex(&integrity::sha256(&bytes))
+    );
+    Ok(())
 }
 
 /// Write `bytes` to `path` atomically: temp sibling, fsync, rename, fsync dir.

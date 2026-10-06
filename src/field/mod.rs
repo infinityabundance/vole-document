@@ -14,10 +14,14 @@
 
 pub mod dag;
 pub mod derive;
+pub mod explain;
 pub mod index;
 pub mod ingest;
 pub mod manifest;
 pub mod node;
+pub mod observe;
+pub mod plan;
+pub mod provenance;
 
 pub use manifest::{FieldId, FieldRoot};
 
