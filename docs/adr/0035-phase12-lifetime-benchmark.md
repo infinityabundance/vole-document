@@ -6,20 +6,20 @@ ADR-0017 (lossless baselines), ADR-0021/0028 (sharing negatives). Cites plan
 §58–§65, §88, §91, §105–107, §117–124; research F §1–§7, G §1–§8, J §2, J §6.
 
 > **Post-review amendment (Phase 12.15 skeptic, `15b5729`; updated by 12.11b,
-> `862715c`).** The pre-registered ablation ladder of this ADR (`A1b`, `A2`–`A10`,
+> `06db12a`).** The pre-registered ablation ladder of this ADR (`A1b`, `A2`–`A10`,
 > §106 eager-vs-progressive, §107 raw-vs-decoded) was **not measured** in the first
 > sealed receipt (`evidence/campaigns/2026-10-06-phase12-lifetime-3eaf576/`, A0/A1/V
 > only). It **has now been run** in
-> [`evidence/campaigns/2026-10-06-phase12-lifetime-ablations-862715c/`](../../evidence/campaigns/2026-10-06-phase12-lifetime-ablations-862715c/):
-> `A1b`, `A2`, `A3`, `A4`/`A5`, `A6`, `A9`, `A11` are measured lanes; **`A5`, `A7`,
-> `A8` are not separable** in the landed architecture (single feature gates — no
-> eager arm, no native-only dispatch path, no non-indexed build) and **`A10` cannot
-> manifest in a per-document lifetime court** (measured ingest-side instead); each is
-> recorded with its reason, never fabricated. §106 is not separable (progressive
-> inversion is the only mode); §107 is proxied by the `A4` (`--no-cache`) vs `A6`
-> (cache) lanes. Attribution: the **native package graph** (A3→A4) enables the
-> semantic surfaces and **persistent reuse** (A4→A6) trades per-query bytes for CPU.
-> The failed gate `N6` (PDF no regression) still has **no receipt**. See
+> [`evidence/campaigns/2026-10-06-phase12-lifetime-ablations-06db12a/`](../../evidence/campaigns/2026-10-06-phase12-lifetime-ablations-06db12a/):
+> `A1b`, `A2`, `A3`, `A4`, `A5`, `A6`, `A9`, `A11` are measured lanes; **`A7`, `A8`
+> are not separable** in the landed architecture (no native-only dispatch path, no
+> non-indexed build) and **`A10` cannot manifest in a per-document lifetime court**
+> (measured ingest-side instead); §106 is not separable (progressive inversion is
+> the only mode) and §107 is proxied by the `A5` (`--no-cache`) vs `A6` (cache)
+> lanes. Each is recorded with its reason, never fabricated. Attribution: the
+> **content adapters** (A4→A5), not the OPC graph, enable the semantic surfaces;
+> **persistent reuse** (A5→A6) trades per-query bytes for CPU. The failed gate `N6`
+> (PDF no regression) still has **no receipt**. See
 > [`docs/phases/phase-12-results.md`](../phases/phase-12-results.md) and
 > [`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md).
 

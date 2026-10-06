@@ -20,11 +20,11 @@ in the pinned Docker services; nothing ran on the host.
 > pre-existing dead code in `src/field/document_format.rs`. Each is annotated
 > inline below; the numbers are not rewritten.
 >
-> **Phase 12.11b update (`862715c`).** The skeptic's **F11** (the required ablation
+> **Phase 12.11b update (`06db12a`).** The skeptic's **F11** (the required ablation
 > ladder was not measured) is now closed: the ladder `A1b`, `A2`–`A11` was run in
-> `evidence/campaigns/2026-10-06-phase12-lifetime-ablations-862715c/` and attributes
-> the win to the **native package graph** (A3 → A4) and **persistent semantic reuse**
-> (A4 → A6). `A5`, `A7`, `A8` are recorded **not separable**; `A10` is measured
+> `evidence/campaigns/2026-10-06-phase12-lifetime-ablations-06db12a/` and attributes
+> the win to the **content adapters** (A4 → A5) and **persistent semantic reuse**
+> (A5 → A6). `A7`, `A8` are recorded **not separable**; `A10` is measured
 > ingest-side. See [Ablation ladder (12.11b)](#ablation-ladder-1211b). `N6` (PDF no
 > regression) remains open.
 
@@ -213,11 +213,11 @@ assertions passed; only pre-registered declines remained).
 > synthetic**, so "large-document frontier" is scoped to this corpus. See
 > [`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md).
 >
-> **Phase 12.11b update (`862715c`).** The required ladder (`A1b`, `A2`–`A11`) was
-> run in `evidence/campaigns/2026-10-06-phase12-lifetime-ablations-862715c/` and
-> attributes the win: the **native package graph** (A3 → A4) enables the semantic
-> surfaces and **persistent semantic reuse** (A4 → A6) trades bytes for CPU;
-> A5/A7/A8 are recorded **not separable** and A10 is measured ingest-side. See
+> **Phase 12.11b update (`06db12a`).** The required ladder (`A1b`, `A2`–`A11`) was
+> run in `evidence/campaigns/2026-10-06-phase12-lifetime-ablations-06db12a/` and
+> attributes the win: the **content adapters** (A4 → A5) enable the semantic
+> surfaces and **persistent semantic reuse** (A5 → A6) trades bytes for CPU; A7/A8
+> are recorded **not separable** and A10 is measured ingest-side. See
 > [Ablation ladder (12.11b)](#ablation-ladder-1211b). `N6` (PDF no regression) is
 > still open.
 >
@@ -317,11 +317,11 @@ false for `delta.epub`.)*
 
 ## Ablation ladder (12.11b)
 
-**Receipt:** `evidence/campaigns/2026-10-06-phase12-lifetime-ablations-862715c/`
+**Receipt:** `evidence/campaigns/2026-10-06-phase12-lifetime-ablations-06db12a/`
 (`receipt.json`, `SUMMARY.md`, `commands.txt`, `gates.txt`, `raw/` incl. the wide
-`case_bytes.tsv`, `cumulative.jsonl` — 864 rows — `assertions.tsv`,
-`a10_shared_ingest.json`). Commit under test `862715c` (dirty `""`); 9 lanes ×
-12 documents × N∈{1,10,100,1000} × 2 passes; **0 assertion failures**.
+`case_bytes.tsv`, `cumulative.jsonl` — 960 rows — `assertions.tsv`,
+`a10_shared_ingest.json`, `gate.txt`). Commit under test `06db12a` (dirty `""`);
+10 lanes × 12 documents × N∈{1,10,100,1000} × 2 passes; **0 assertion failures**.
 Court: `tools/phase12-lifetime-court.sh`. The rung table is pre-registered in the
 committed schedule (`tools/fixtures/phase12-lifetime-schedule.json` `.ladder`,
 emitted by `tools/fixtures/phase12-schedule.py`), so the ladder cannot be chosen
@@ -338,48 +338,54 @@ a separate measured lane with its own switch — a **feature-set build** or a
 | A1b | `a1b` = A1 + `result_cache` materialized views | measured | A1 + cached popular results (A1's own SQL is the single source of truth) |
 | A2 | `a2` = build `rans,store,field` | measured | Phase-11 field, PDF only |
 | A3 | `a3` = build `...,package` | measured | ZIP physical members only (no OPC/OCF graph) |
-| A4 | `a4` = build `...,package,opc,docx,epub` + `--no-cache` | measured | native package graph + progressive semantic inversion, no persistent reuse |
-| A5 | same as A4 | **not separable** | progressive inversion is the only implemented mode (model nodes are registered at ingest and parsed on first materialization); there is no eager arm, so A5 ≡ A4 |
-| A6 | `a6` = same build, DerivedCache on | measured | A4/A5 + persistent semantic reuse |
+| A4 | `a4` = build `...,package,opc` | measured | OPC package graph (content types, part/relationship resolution); no `docx`/`epub` content |
+| A5 | `a5` = build `...,package,opc,docx,epub` + `--no-cache` | measured | + progressive semantic inversion (the `docx`/`epub` content adapters), no persistent reuse |
+| A6 | `a6` = same build, DerivedCache on | measured | A5 + persistent semantic reuse |
 | A7 | n/a | **not separable** | the common vocabulary *is* the dispatch (`Ctx::common_dispatch`); there is no native-only CLI path, so removing it is capability-only (definitional, `N2`) |
 | A8 | n/a | **not separable** | the hierarchical index is built unconditionally at ingest and every narrow observation resolves through it (`indexed_exact`); there is no non-indexed build |
 | A9 | `a9` = all-features + `--entropyfs` | measured | EntropyFS fine-grained range access |
 | A10 | shared-store ingest proxy | **not separable (per-document court)** | one store per document by construction; measured as the shared-store ingest delta |
 | A11 | `a11` = all-features | measured | full Phase-12 system (≡ the prior `V` lane) |
 
-§106 (eager-vs-progressive): **not separable** — progressive is the only mode (same
-reason as A5). §107 (raw-compressed-vs-decoded-persisted): **proxied by A4 vs A6** —
-A4 (`--no-cache`) recomputes from the compressed raw spans; A6 persists the decoded
-model/member outputs in the disposable cache.
+§106 (eager-vs-progressive): **not separable** — progressive inversion is the only
+implemented mode (model nodes are registered at ingest and parsed on first
+materialization). §107 (raw-compressed-vs-decoded-persisted): **proxied by A5 vs
+A6** — A5 (`--no-cache`) recomputes from the compressed raw spans; A6 persists the
+decoded model/member outputs in the disposable cache.
 
 ### Mechanism attribution (which capability moves which metric)
 
 Headline, from `receipt.json` `cumulative` (N=1000 warm) and the answered-set delta
 (`SUMMARY.md` "Mechanism attribution"):
 
-* **The native package graph (A3 → A4) is the dominant mechanism.** It moves the
-  answered set for DOCX/EPUB from **1/12 to 11–12/12** cases (the semantic
-  block/heading/table/cell/metadata/resource/search surfaces), at ~10–20× the warm
-  per-query bytes (`delta.docx` 5.8 MB → 66 MB; `alpha.docx` 0.87 MB → 13 MB).
-  Without it every pre-registered semantic surface declines.
-* **Persistent semantic reuse (A4 → A6) trades bytes for CPU**, exactly as the
-  ADR-0035 boundary predicts. `delta.docx` warm N=1000: CPU **4420 ms → 1500 ms**,
-  wall **4226 ms → 1319 ms**, but process reads **66 MB → 330 MB** (a cache hit
+* **The content adapters (A4 → A5), not the package graph, are the dominant
+  mechanism.** A4 (OPC graph only) answers the same single `full-source` case as
+  A3; adding the `docx`/`epub` semantic inversion (A5) moves the DOCX/EPUB answered
+  set from **1/12 to 11–12/12** cases (block/heading/table/cell/metadata/resource/
+  search), at ~10–20× the warm per-query bytes (`delta.docx` 5.8 MB → 66 MB;
+  `alpha.docx` 0.87 MB → 13 MB). Without it every pre-registered semantic surface
+  declines.
+* **Persistent semantic reuse (A5 → A6) trades bytes for CPU**, exactly as the
+  ADR-0035 boundary predicts. `delta.docx` warm N=1000: CPU **4590 ms → 1480 ms**,
+  wall **4396 ms → 1303 ms**, but process reads **66 MB → 330 MB** (a cache hit
   re-reads the cached decoded payload). Small docs barely move (bytes ≈ +5%,
-  CPU ≈ −13%).
-* **ZIP physical only (A2 → A3) does not move the frozen schedule's answered set.**
-  A3's store grows (it adds member raw/decoded nodes) but the pre-registered
-  workload is entirely *common semantic* surfaces, so A3 answers only `full-source`
-  (as does A2). The ZIP layer's value is visible only through the native `member`
-  selector, which the frozen schedule does not exercise — recorded, not hidden.
+  CPU ≈ −14%).
+* **The ZIP layer and the OPC graph (A2 → A3 → A4) do not move the frozen
+  schedule's answered set.** A3's store grows (member raw/decoded nodes) and A4
+  adds the OPC graph, but the workload is entirely *common semantic* surfaces, so
+  A2/A3/A4 all answer only `full-source` (e.g. `delta.docx` read 5.84 MB → 5.78 MB →
+  5.78 MB). Their value is visible only through native selectors (`member`,
+  `package-part`, `relationship`), which the frozen schedule does not exercise —
+  recorded, not hidden.
 * **EntropyFS (A9) is a loss on this frontier.** `delta.docx` warm N=1000: reads
-  **694 MB** vs A11's **331 MB**, CPU **2130 ms** vs **1570 ms**; the backend
+  **694 MB** vs A11's **331 MB**, CPU **2190 ms** vs **1560 ms**; the backend
   disables the narrow cache short-circuit by design, so it pays full work per query.
-* **A11 ≈ A6** (the all-features build adds only dynamic-loader reads): because A7/A8
-  are not separable, the "full system" is, on this workload, the cache-on graph lane.
+* **A11 ≈ A6** (the all-features build adds only dynamic-loader reads): because
+  A7/A8 are not separable, the "full system" is, on this workload, the cache-on
+  content lane.
 * **A1 → A1b** moves bytes *up* (the materialized `result_cache` is re-read) while
   moving CPU down for the cached answers; its one-time population is amortized at
-  N=1000 (`alpha.docx` A1 `1,822,632 B / 1230 ms`; A1b `3,655,572 B / 2190 ms`).
+  N=1000 (`alpha.docx` A1 `29,304,533 B / 1280 ms`; A1b `37,283,329 B / 2300 ms`).
 
 ### Crossover with the ladder (warm pass)
 
@@ -391,28 +397,34 @@ materialized cache does not beat A1 on bytes). See `SUMMARY.md` "Crossover".
 
 ### `N5` (package-index-only)
 
-The ladder's A3 rung is the closest honest measurement of `N5` ("reproducible by
-`unzip -p` + `substr` at the same boundary"): a ZIP-index-only representation
-**cannot answer any of the pre-registered semantic surfaces** (it declines 11/12
-DOCX and 11/12 EPUB cases). So the small-document win is **not** reproducible by a
-package index alone; the package *graph* (A4) is what answers. This is evidence
-against `N5`, though the court does not itself run `unzip -p`+`substr` (that
-mechanical check remains the negative control's job).
+The ladder's A3 (ZIP physical) and A4 (OPC graph) rungs are the closest honest
+measurement of `N5` ("reproducible by `unzip -p` + `substr` at the same
+boundary"): neither a ZIP index nor the OPC package graph **can answer any of the
+pre-registered semantic surfaces** (they decline 11/12 DOCX and 11/12 EPUB cases).
+So the small-document win is **not** reproducible by a package index alone; the
+*content adapters* (A5) are what answer. This is evidence against `N5`, though the
+court does not itself run `unzip -p`+`substr` (that mechanical check remains the
+negative control's job).
 
 ### Honest gaps (12.11b)
 
-* **A5, A7, A8 are not separable** in the landed architecture (single feature
-  gates); recorded as `not separable` with the reason, never fabricated.
+* **A7 and A8 are not separable** in the landed architecture (the common dispatch
+  and the ingest-built index are not behind switches); recorded as `not separable`
+  with the reason, never fabricated. **§106** is not separable (progressive
+  inversion is the only mode).
 * **A10 cannot be measured as a per-query lifetime effect** in a per-document
   court; the ingest-side proxy (all 12 documents into one shared store:
   `shared_resource_ids=7`, `shared_resource_bytes=7224`, `nodes_id_shared=47`) is
   a representation fact, not a frontier metric. The `N3` reuse-work court remains
   the 12.8 share receipt.
-* **A3 is invisible on the frozen schedule** (above): the schedule exercises only
-  common semantic surfaces, so the ZIP-physical rung's capability is not scored.
+* **A3 and A4 are invisible on the frozen schedule**: it exercises only common
+  semantic surfaces, so the ZIP-physical and OPC-graph rungs' capabilities are
+  not scored (they change persistent bytes, not the answered set).
 * The per-query byte boundary includes each process's dynamic-loader reads, so a
-  larger binary (A9/A11, all-features) pays more per spawn; A2/A3 share the `a46`
-  binary with A4/A6, but cross-binary byte comparisons carry this confound.
+  larger binary (A9/A11, all-features) pays more per spawn. A3/A4/A5/A6 share
+  binaries pairwise (`a3`=`package`; `a4`=`package,opc`; `a5`/`a6`
+  =`package,opc,docx,epub`), so the A3↔A4↔A5↔A6 comparisons cross binaries and
+  carry this confound.
 * Corpus is the same self-authored **~0.8–61 KB** set as 12.11; "large" means
   "large in this corpus".
 

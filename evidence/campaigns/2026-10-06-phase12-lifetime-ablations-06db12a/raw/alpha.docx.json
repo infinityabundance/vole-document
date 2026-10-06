@@ -1,0 +1,472 @@
+{
+  "name": "alpha.docx",
+  "format": "docx",
+  "source": {
+    "path": "evidence/scratch/phase12-lifetime-corpus/alpha.docx",
+    "len": 3458,
+    "sha256": "18a55a0830da155f482a4b3790b3a1f2671474edfa7a5e48a59d8ddccb8a2fd9"
+  },
+  "schedule": {
+    "cases": 12,
+    "ns": [
+      1,
+      10,
+      100,
+      1000
+    ],
+    "passes": 2
+  },
+  "a0": {
+    "one_time": {
+      "wall_ms": 0,
+      "cpu_ms": 0,
+      "process_read_bytes": 0
+    }
+  },
+  "a1": {
+    "preprocessing": {
+      "wall_ms": 23,
+      "cpu_ms": 10,
+      "process_read_bytes": 1822632
+    },
+    "db_bytes": 77824,
+    "wal_bytes": 0,
+    "shm_bytes": 0,
+    "persistent_bytes": 77824,
+    "retained_source_bytes": 3458,
+    "extraction_metrics": {
+      "db_bytes": 77824,
+      "decompressed_bytes": 3539,
+      "external_invocations": 0,
+      "member_decodes": 3,
+      "source_reparses": 1,
+      "xml_bytes_parsed": 2507
+    }
+  },
+  "a1b": {
+    "preprocessing": {
+      "wall_ms": 317,
+      "cpu_ms": 290,
+      "process_read_bytes": 3661524
+    },
+    "db_bytes": 98304,
+    "persistent_bytes": 98304,
+    "retained_source_bytes": 3458
+  },
+  "lanes": {
+    "a2": {
+      "lane": "a2",
+      "rung": "A2 Phase-11 field (PDF only; no package feature)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-a2",
+      "flags": "",
+      "one_time": {
+        "wall_ms": 2,
+        "cpu_ms": 0,
+        "process_read_bytes": 23541
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "opaque",
+        "field": "9cd2de261ad3a377ec89cbf63916f9f43ff6ae8d2d4bb8f9e108901d67d39178",
+        "root_node": "d01ae619d6ed6da5087077e502275e4fc718af3ebc74d04e826012effaa7822c",
+        "index_root": null,
+        "node_count": 1,
+        "index_node_count": 0,
+        "source_len": 3458,
+        "object_nodes": 0,
+        "stream_nodes": 0,
+        "decoded_stream_nodes": 0,
+        "page_nodes": 0,
+        "revision_nodes": 0,
+        "declined_streams": 0,
+        "resource_blob_nodes": 0,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 0
+      },
+      "store_universe_bytes": {
+        "descriptor": 3999,
+        "seed": 240,
+        "index": 40,
+        "manifest": 555,
+        "derived_cache": 40,
+        "total": 5014
+      },
+      "answered_cases": 1,
+      "declined_cases": 11,
+      "failed_cases": 0
+    },
+    "a3": {
+      "lane": "a3",
+      "rung": "A3 ZIP physical only (package, no opc/docx/epub)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-a3",
+      "flags": "",
+      "one_time": {
+        "wall_ms": 2,
+        "cpu_ms": 0,
+        "process_read_bytes": 20150
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "docx",
+        "field": "1e4abf1480b60bae9494aefbfaae1815748e6f31b1755960dfaad2daf5875ae9",
+        "root_node": "51efe2cc7a3305cf2aca110958eac3e9e648805d961958b9a4b2ef81e2f95261",
+        "index_root": "679cfa6b35855dc1a7671508706e60ae46ad986b67b224ca4598a4ca94068864",
+        "node_count": 15,
+        "index_node_count": 1,
+        "source_len": 3458,
+        "member_count": 7,
+        "raw_nodes": 7,
+        "decoded_nodes": 7,
+        "declined_decodes": 0,
+        "opc_model_nodes": 0,
+        "docx_model_nodes": 0,
+        "epub_model_nodes": 0,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2360,
+        "index_bytes_written": 778
+      },
+      "store_universe_bytes": {
+        "descriptor": 3999,
+        "seed": 4640,
+        "index": 958,
+        "manifest": 366,
+        "derived_cache": 40,
+        "total": 10143
+      },
+      "answered_cases": 1,
+      "declined_cases": 11,
+      "failed_cases": 0
+    },
+    "a4": {
+      "lane": "a4",
+      "rung": "A4 + native package graph (opc; no docx/epub content semantics)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-a4g",
+      "flags": "",
+      "one_time": {
+        "wall_ms": 2,
+        "cpu_ms": 0,
+        "process_read_bytes": 20213
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "docx",
+        "field": "3f231cb1b5580221076c5bab7be7c75507d88c114ee56cca0660b4e07f3c477d",
+        "root_node": "51efe2cc7a3305cf2aca110958eac3e9e648805d961958b9a4b2ef81e2f95261",
+        "index_root": "257ec7861c0549246bf56504317103c500904022363d3586192ecd6f0e57217c",
+        "node_count": 16,
+        "index_node_count": 1,
+        "source_len": 3458,
+        "member_count": 7,
+        "raw_nodes": 7,
+        "decoded_nodes": 7,
+        "declined_decodes": 0,
+        "opc_model_nodes": 1,
+        "docx_model_nodes": 0,
+        "epub_model_nodes": 0,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2445,
+        "index_bytes_written": 833
+      },
+      "store_universe_bytes": {
+        "descriptor": 3999,
+        "seed": 4865,
+        "index": 1013,
+        "manifest": 366,
+        "derived_cache": 40,
+        "total": 10423
+      },
+      "answered_cases": 1,
+      "declined_cases": 11,
+      "failed_cases": 0
+    },
+    "a5": {
+      "lane": "a5",
+      "rung": "A5 + progressive semantic inversion (docx/epub content, no persistent reuse)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-a46",
+      "flags": "--no-cache",
+      "one_time": {
+        "wall_ms": 2,
+        "cpu_ms": 0,
+        "process_read_bytes": 20323
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "docx",
+        "field": "a6ef3f0f859fd6891b02485db0bdae388995a76bbef7349bc38219ca32643522",
+        "root_node": "51efe2cc7a3305cf2aca110958eac3e9e648805d961958b9a4b2ef81e2f95261",
+        "index_root": "625fd0058207228e5165df6cb251dfaec990996fdab6796c8e8eec85230c6e04",
+        "node_count": 18,
+        "index_node_count": 1,
+        "source_len": 3458,
+        "member_count": 7,
+        "raw_nodes": 7,
+        "decoded_nodes": 7,
+        "declined_decodes": 0,
+        "opc_model_nodes": 1,
+        "docx_model_nodes": 1,
+        "epub_model_nodes": 1,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2617,
+        "index_bytes_written": 943
+      },
+      "store_universe_bytes": {
+        "descriptor": 3999,
+        "seed": 5317,
+        "index": 1123,
+        "manifest": 366,
+        "derived_cache": 40,
+        "total": 10985
+      },
+      "answered_cases": 11,
+      "declined_cases": 1,
+      "failed_cases": 0
+    },
+    "a6": {
+      "lane": "a6",
+      "rung": "A6 + persistent semantic reuse (DerivedCache on)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-a46",
+      "flags": "",
+      "one_time": {
+        "wall_ms": 2,
+        "cpu_ms": 0,
+        "process_read_bytes": 20323
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "docx",
+        "field": "a6ef3f0f859fd6891b02485db0bdae388995a76bbef7349bc38219ca32643522",
+        "root_node": "51efe2cc7a3305cf2aca110958eac3e9e648805d961958b9a4b2ef81e2f95261",
+        "index_root": "625fd0058207228e5165df6cb251dfaec990996fdab6796c8e8eec85230c6e04",
+        "node_count": 18,
+        "index_node_count": 1,
+        "source_len": 3458,
+        "member_count": 7,
+        "raw_nodes": 7,
+        "decoded_nodes": 7,
+        "declined_decodes": 0,
+        "opc_model_nodes": 1,
+        "docx_model_nodes": 1,
+        "epub_model_nodes": 1,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2617,
+        "index_bytes_written": 943
+      },
+      "store_universe_bytes": {
+        "descriptor": 3999,
+        "seed": 5317,
+        "index": 1123,
+        "manifest": 366,
+        "derived_cache": 10420,
+        "total": 21365
+      },
+      "answered_cases": 11,
+      "declined_cases": 1,
+      "failed_cases": 0
+    },
+    "a9": {
+      "lane": "a9",
+      "rung": "A9 + EntropyFS fine-grained range access (entropyfs-store backend)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-full",
+      "flags": "--entropyfs",
+      "one_time": {
+        "wall_ms": 3,
+        "cpu_ms": 0,
+        "process_read_bytes": 84408
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 2,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "docx",
+        "field": "a6ef3f0f859fd6891b02485db0bdae388995a76bbef7349bc38219ca32643522",
+        "root_node": "51efe2cc7a3305cf2aca110958eac3e9e648805d961958b9a4b2ef81e2f95261",
+        "index_root": "625fd0058207228e5165df6cb251dfaec990996fdab6796c8e8eec85230c6e04",
+        "node_count": 18,
+        "index_node_count": 1,
+        "source_len": 3458,
+        "member_count": 7,
+        "raw_nodes": 7,
+        "decoded_nodes": 7,
+        "declined_decodes": 0,
+        "opc_model_nodes": 1,
+        "docx_model_nodes": 1,
+        "epub_model_nodes": 1,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2617,
+        "index_bytes_written": 943
+      },
+      "store_universe_bytes": {
+        "descriptor": 0,
+        "seed": 0,
+        "index": 1123,
+        "manifest": 0,
+        "derived_cache": 10420,
+        "total": 74455
+      },
+      "answered_cases": 11,
+      "declined_cases": 1,
+      "failed_cases": 0
+    },
+    "a11": {
+      "lane": "a11",
+      "rung": "A11 full Phase-12 system (filesystem backend, DerivedCache on)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-full",
+      "flags": "",
+      "one_time": {
+        "wall_ms": 2,
+        "cpu_ms": 0,
+        "process_read_bytes": 23085
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "docx",
+        "field": "a6ef3f0f859fd6891b02485db0bdae388995a76bbef7349bc38219ca32643522",
+        "root_node": "51efe2cc7a3305cf2aca110958eac3e9e648805d961958b9a4b2ef81e2f95261",
+        "index_root": "625fd0058207228e5165df6cb251dfaec990996fdab6796c8e8eec85230c6e04",
+        "node_count": 18,
+        "index_node_count": 1,
+        "source_len": 3458,
+        "member_count": 7,
+        "raw_nodes": 7,
+        "decoded_nodes": 7,
+        "declined_decodes": 0,
+        "opc_model_nodes": 1,
+        "docx_model_nodes": 1,
+        "epub_model_nodes": 1,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2617,
+        "index_bytes_written": 943
+      },
+      "store_universe_bytes": {
+        "descriptor": 3999,
+        "seed": 5317,
+        "index": 1123,
+        "manifest": 366,
+        "derived_cache": 10420,
+        "total": 21365
+      },
+      "answered_cases": 11,
+      "declined_cases": 1,
+      "failed_cases": 0
+    }
+  },
+  "vole": {
+    "lane": "a11",
+    "rung": "A11 full Phase-12 system (filesystem backend, DerivedCache on)",
+    "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-full",
+    "flags": "",
+    "one_time": {
+      "wall_ms": 2,
+      "cpu_ms": 0,
+      "process_read_bytes": 23085
+    },
+    "encode": {
+      "wall_ms": 1,
+      "cpu_ms": 0
+    },
+    "ingest": {
+      "wall_ms": 1,
+      "cpu_ms": 0
+    },
+    "ingest_report": {
+      "format": "docx",
+      "field": "a6ef3f0f859fd6891b02485db0bdae388995a76bbef7349bc38219ca32643522",
+      "root_node": "51efe2cc7a3305cf2aca110958eac3e9e648805d961958b9a4b2ef81e2f95261",
+      "index_root": "625fd0058207228e5165df6cb251dfaec990996fdab6796c8e8eec85230c6e04",
+      "node_count": 18,
+      "index_node_count": 1,
+      "source_len": 3458,
+      "member_count": 7,
+      "raw_nodes": 7,
+      "decoded_nodes": 7,
+      "declined_decodes": 0,
+      "opc_model_nodes": 1,
+      "docx_model_nodes": 1,
+      "epub_model_nodes": 1,
+      "resource_blob_nodes": 1,
+      "shared_resource_ids": 0,
+      "shared_resource_bytes": 0,
+      "nodes_id_shared": 0,
+      "seed_bytes_written": 2617,
+      "index_bytes_written": 943
+    },
+    "store_universe_bytes": {
+      "descriptor": 3999,
+      "seed": 5317,
+      "index": 1123,
+      "manifest": 366,
+      "derived_cache": 10420,
+      "total": 21365
+    },
+    "answered_cases": 11,
+    "declined_cases": 1,
+    "failed_cases": 0
+  }
+}

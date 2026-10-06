@@ -1,0 +1,1472 @@
+ Container vole-document-dev-run-b8ad1fbf2f51 Creating 
+ Container vole-document-dev-run-b8ad1fbf2f51 Created 
+    Finished `dev` profile [optimized + debuginfo] target(s) in 0.03s
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.03s
+     Running unittests src/lib.rs (target/debug/deps/vole_document-f5228c721764563a)
+
+running 410 tests
+test accounting::tests::total_sums_all_fields ... ok
+test accounting::tests::json_has_all_fields ... ok
+test adapter::docx::tests::profile_roundtrips_and_fingerprints ... ok
+test adapter::docx::tests::model_roundtrip ... ok
+test adapter::docx::tests::story_params_roundtrip ... ok
+test adapter::docx::tests::textbox_is_declared_but_not_part_backed ... ok
+test adapter::docx::wml::tests::doctype_declines ... ok
+test adapter::docx::wml::tests::note_filter_selects_one_note ... ok
+test adapter::docx::wml::tests::paragraphs_and_runs ... ok
+test adapter::docx::wml::tests::table_grid_and_vmerge ... ok
+test adapter::docx::wml::tests::wrong_root_declines ... ok
+test adapter::docx::wml::tests::tracked_changes_final_vs_original ... ok
+test adapter::epub::content::tests::doctype_is_declined ... ok
+test adapter::epub::content::tests::deep_nesting_declines_not_panics ... ok
+test adapter::epub::content::tests::params_roundtrip ... ok
+test adapter::epub::tests::absolute_href_detection ... ok
+test adapter::epub::content::tests::model_roundtrips ... ok
+test adapter::epub::tests::profile_roundtrips_and_fingerprints_differ ... ok
+test adapter::epub::content::tests::parses_blocks_links_resources ... ok
+test adapter::epub::tests::resolve_member_path_clamps_and_rejects_traversal ... ok
+test adapter::package::opc::tests::absolute_uri_detection ... ok
+test adapter::package::opc::tests::absolute_uri_target_is_external_even_without_target_mode ... ok
+test adapter::package::opc::tests::content_types_precedence_and_extension_matching ... ok
+test adapter::package::opc::tests::depth_is_bounded ... ok
+test adapter::package::opc::tests::cycles_are_bounded_not_infinite ... ok
+test adapter::package::opc::tests::doctype_is_refused ... ok
+test adapter::package::opc::tests::duplicate_or_case_equivalent_parts_decline ... ok
+test adapter::package::opc::tests::external_targets_are_inert ... ok
+test adapter::package::opc::tests::malformed_xml_is_typed ... ok
+test adapter::package::opc::tests::missing_content_types_declines ... ok
+test adapter::package::opc::tests::missing_ambiguous_and_cyclic_discovery_fail_closed ... ok
+test adapter::package::opc::tests::part_name_grammar ... ok
+test adapter::package::opc::tests::model_roundtrips_and_discovers ... ok
+test adapter::package::opc::tests::target_resolution_is_rfc3986_and_clamped ... ok
+test adapter::package::opc::tests::traversal_member_name_declines ... ok
+test adapter::package::opc::tests::utf16_and_nul_are_refused ... ok
+test adapter::package::zip::tests::classify_name_detects_hazards ... ok
+test adapter::package::zip::tests::crc_matches_known_vector ... ok
+test adapter::package::zip::tests::require_safe_name_is_typed ... ok
+test adapter::package::zip::tests::empty_input_is_typed_error ... ok
+test adapter::package::zip::tests::span_end_saturates ... ok
+test adapter::pdf::adapter::tests::detect_rejects_non_pdf_and_truncated ... ok
+test adapter::pdf::adapter::tests::detect_accepts_canonical_pdf ... ok
+test adapter::pdf::adapter::tests::propose_declines_non_pdf ... ok
+test adapter::pdf::adapter::tests::pdf_candidate_round_trips_exactly ... ok
+test adapter::pdf::adapter::tests::propose_declines_when_span_count_exceeds_graph_ops ... ok
+test adapter::pdf::adapter::tests::propose_returns_pdf_candidate ... ok
+test adapter::pdf::channels::tests::declines_when_too_many_tokens ... ok
+test adapter::pdf::channels::tests::kind_map_is_a_bijection_onto_0_to_12 ... ok
+test adapter::pdf::channels::tests::join_rejects_malformed_plan ... ok
+test adapter::pdf::cos::tests::absent_key_returns_none ... ok
+test adapter::pdf::cos::tests::body_as_u64_accepts_single_integer_with_padding ... ok
+test adapter::pdf::cos::tests::body_as_u64_rejects_multi_token_body ... ok
+test adapter::pdf::cos::tests::body_as_u64_rejects_non_integer ... ok
+test adapter::pdf::cos::tests::dict_filter_absent_without_key ... ok
+test adapter::pdf::adapter::tests::court_prefers_raw_for_small_pdf ... ok
+test adapter::pdf::cos::tests::dict_filter_ignores_string_spelling_and_non_name_value ... ok
+test adapter::pdf::cos::tests::dict_filter_reads_bare_and_single_element_array ... ok
+test adapter::pdf::cos::tests::dict_filter_rejects_chain_other_filter_and_empty_array ... ok
+test adapter::pdf::cos::tests::dict_int_or_ref_reads_direct_and_reference ... ok
+test adapter::pdf::cos::tests::dict_int_or_ref_rejects_non_integer_and_absent ... ok
+test adapter::pdf::cos::tests::dict_name_value_absent_key_and_non_name_value_return_none ... ok
+test adapter::pdf::cos::tests::dict_name_value_inside_string_is_not_a_key ... ok
+test adapter::pdf::cos::tests::dict_name_value_reads_xref_and_objstm_types ... ok
+test adapter::pdf::cos::tests::direct_length_is_read ... ok
+test adapter::pdf::cos::tests::indirect_length_is_read ... ok
+test adapter::pdf::cos::tests::length_name_inside_string_is_not_a_key ... ok
+test adapter::pdf::cos::tests::non_integer_value_returns_none_but_key_is_present ... ok
+test adapter::pdf::large::tests::adler32_matches_known_vector ... ok
+test adapter::pdf::layout::tests::layout_falls_back_on_bad_offset ... ok
+test adapter::pdf::adapter::tests::pdf_channels_none_for_non_pdf ... ok
+test adapter::pdf::channels::tests::random_roundtrip ... ok
+test adapter::pdf::large::tests::stored_zlib_round_trips_through_flate2 ... ok
+test adapter::pdf::channels::tests::deterministic ... ok
+test adapter::pdf::channels::tests::split_then_join_is_identity ... ok
+test adapter::pdf::lexer::tests::arrays_and_braces ... ok
+test adapter::pdf::lexer::tests::comment_stops_before_cr ... ok
+test adapter::pdf::channels::tests::payload_partition ... ok
+test adapter::pdf::lexer::tests::comment_to_eof_is_issue ... ok
+test adapter::pdf::lexer::tests::comment_to_eol_excludes_eol ... ok
+test adapter::pdf::lexer::tests::cover_invariant_holds_for_a_battery ... ok
+test adapter::pdf::lexer::tests::dict_delimiters ... ok
+test adapter::pdf::lexer::tests::empty_input ... ok
+test adapter::pdf::lexer::tests::endobj_inside_literal_string_stays_one_span ... ok
+test adapter::pdf::lexer::tests::endstream_at_eof_terminates_payload ... ok
+test adapter::pdf::lexer::tests::endstream_like_run_without_right_terminator_is_not_a_keyword ... ok
+test adapter::pdf::lexer::tests::hex_string_basic ... ok
+test adapter::pdf::lexer::tests::literal_string_with_escape ... ok
+test adapter::pdf::lexer::tests::cover_invariant_holds_for_random_bytes ... ok
+test adapter::pdf::lexer::tests::literal_string_with_line_continuation ... ok
+test adapter::pdf::lexer::tests::literal_string_with_nested_parens ... ok
+test adapter::pdf::lexer::tests::lone_closers_are_regular_tokens ... ok
+test adapter::pdf::lexer::tests::name_and_empty_name ... ok
+test adapter::pdf::lexer::tests::numbers_and_reference_are_regular_tokens ... ok
+test adapter::pdf::lexer::tests::paren_inside_hex_string_is_not_special ... ok
+test adapter::pdf::lexer::tests::percent_inside_literal_string_is_not_a_comment ... ok
+test adapter::pdf::lexer::tests::single_whitespace ... ok
+test adapter::pdf::lexer::tests::span_at_over_lexed_input ... ok
+test adapter::pdf::lexer::tests::span_limit_triggers_resource_limit ... ok
+test adapter::pdf::lexer::tests::stream_payload_followed_by_eol_then_endstream_still_works ... ok
+test adapter::pdf::lexer::tests::stream_payload_without_trailing_eol_is_one_opaque_span ... ok
+test adapter::pdf::lexer::tests::unterminated_hex_string_is_issue ... ok
+test adapter::pdf::lexer::tests::whitespace_run_coalesces ... ok
+test adapter::pdf::physical::tests::canonical_pdf_is_fully_classified ... ok
+test adapter::pdf::lexer::tests::unterminated_literal_string_is_issue ... ok
+test adapter::pdf::physical::tests::classic_xref_revision_records_startxref_and_no_prev ... ok
+test adapter::pdf::physical::tests::correct_length_beats_endstream_bytes_in_payload ... ok
+test adapter::pdf::physical::tests::direct_length_yields_exact_span ... ok
+test adapter::pdf::physical::tests::crlf_and_lf_after_stream_are_both_handled ... ok
+test adapter::pdf::physical::tests::endobj_inside_literal_string_does_not_split_object ... ok
+test adapter::pdf::physical::tests::incremental_classic_trailer_prev_resolves_to_first_xref ... ok
+test adapter::pdf::physical::tests::indirect_length_is_resolved_forward_reference ... ok
+test adapter::pdf::physical::tests::length_including_trailing_eol_is_accepted ... ok
+test adapter::pdf::physical::tests::lone_cr_after_stream_falls_back ... ok
+test adapter::pdf::physical::tests::malformed_object_without_endobj_is_conservative ... ok
+test adapter::pdf::physical::tests::missing_header_leaves_cover_total ... ok
+test adapter::pdf::physical::tests::missing_length_uses_keyword_fallback ... ok
+test adapter::pdf::layout::tests::layout_v2_predicts_many_entries ... ok
+test adapter::pdf::large::tests::large_pdf_is_a_well_formed_classic_pdf ... ok
+test adapter::pdf::layout::tests::layout_rans_declines_on_non_pdf ... ok
+test adapter::pdf::layout::tests::layout_v2_declines ... ok
+test adapter::pdf::physical::tests::object_roles_are_classified_from_leading_dict ... ok
+test adapter::pdf::physical::tests::stream_data_with_keyword_spellings_stays_opaque ... ok
+test adapter::pdf::adapter::tests::pdf_channels_deterministic ... ok
+test adapter::pdf::physical::tests::stream_filter_classification_reads_flate_and_absent ... ok
+test adapter::pdf::physical::tests::two_revisions_have_correct_boundaries ... ok
+test adapter::pdf::physical::tests::tiny_span_limit_is_resource_limit ... ok
+test adapter::pdf::physical::tests::xref_stream_anchor_prev_reference_is_resolved ... ok
+test adapter::pdf::physical::tests::two_objects_with_xref_trailer_and_startxref ... ok
+test adapter::pdf::physical::tests::wrong_length_past_endstream_falls_back ... ok
+test adapter::pdf::samples::tests::regenerate_flate_fixtures ... ignored, regenerates committed fixture blobs; run manually inside Docker
+test adapter::pdf::physical::tests::random_bytes_never_panic_and_keep_cover ... ok
+test adapter::pdf::physical::tests::random_inputs_keep_streams_and_revisions_consistent ... ok
+test adapter::pdf::layout::tests::layout_v2_exact ... ok
+test adapter::pdf::span::tests::contiguous_set_validates_and_totals ... ok
+test adapter::pdf::adapter::tests::pdf_channels_exact ... ok
+test adapter::pdf::span::tests::empty_set_validates_zero ... ok
+test adapter::pdf::span::tests::gap_is_coverage_violation ... ok
+test adapter::pdf::span::tests::short_cover_is_coverage_violation ... ok
+test adapter::pdf::span::tests::overlap_is_coverage_violation ... ok
+test adapter::pdf::span::tests::span_at_finds_the_right_span ... ok
+test codec::deflate::tests::replay_declines_non_zlib_and_short ... ok
+test adapter::pdf::span::tests::zero_length_span_is_invalid_structure ... ok
+test adapter::pdf::samples::tests::corpus_names_are_exactly_as_specified ... ok
+test adapter::pdf::layout::tests::layout_is_exact_on_corpus ... ok
+test adapter::pdf::layout::tests::layout_v2_deterministic ... ok
+test codec::deflate::tests::worker_framing_round_trips ... ok
+test adapter::pdf::samples::tests::negative_controls_are_rejected_but_still_exact ... ok
+test codec::deflate::tests::tiny_plaintext_limit_declines_instead_of_truncating ... ok
+test codec::deflate::tests::hostile_corrections_never_panic ... ok
+test codec::deflate::tests::zlib_header_shape_is_checked ... ok
+test container::descriptor::tests::channel_scale_mismatch_rejected ... ok
+test container::descriptor::tests::channel_with_missing_model_rejected ... ok
+test container::descriptor::tests::corrupted_directory_payload_is_rejected ... ok
+test container::descriptor::tests::declared_length_mismatch_rejected ... ok
+test adapter::epub::content::tests::node_bound_declines ... ok
+test adapter::pdf::samples::tests::corpus_is_deterministic ... ok
+test container::descriptor::tests::directory_is_the_first_record_and_is_optional ... ok
+test container::descriptor::tests::inconsistent_observation_index_is_rejected_on_parse ... ok
+test container::descriptor::tests::non_seekable_descriptor_has_no_directory_cost ... ok
+test container::descriptor::tests::model_and_channel_roundtrip ... ok
+test container::descriptor::tests::observation_index_roundtrip_and_charge ... ok
+test container::descriptor::tests::plain_descriptor_declares_no_mandatory_features ... ok
+test container::descriptor::tests::lying_directory_is_rejected_on_parse ... ok
+test container::descriptor::tests::replay_op_declares_mandatory_feature ... ok
+test container::descriptor::tests::seek_directory_without_index_is_rejected ... ok
+test container::descriptor::tests::seek_directory_roundtrips_materializes_and_charges ... ok
+test container::descriptor::tests::serialize_parse_roundtrip ... ok
+test container::directory::tests::over_limit_size_is_declined_before_allocation ... ok
+test container::descriptor::tests::trailing_bytes_after_trailer_rejected ... ok
+test container::directory::tests::encoded_length_is_the_documented_sum ... ok
+test container::directory::tests::structural_validation_accepts_a_contiguous_directory ... ok
+test container::directory::tests::structural_validation_rejects_bad_geometry ... ok
+test container::directory::tests::trailing_bytes_are_rejected ... ok
+test container::directory::tests::truncated_section_is_rejected ... ok
+test container::directory::tests::unknown_version_and_flags_fail_closed ... ok
+test container::directory::tests::roundtrip ... ok
+test container::directory::tests::validate_cross_checks_the_record_framing ... ok
+test container::header::tests::detects_corruption_via_crc ... ok
+test container::header::tests::rejects_bad_magic ... ok
+test container::header::tests::rejects_future_major_version ... ok
+test container::header::tests::rejects_truncated ... ok
+test container::header::tests::rejects_unknown_mandatory_feature ... ok
+test container::header::tests::roundtrip ... ok
+test container::observation::tests::all_sections_roundtrip ... ok
+test container::observation::tests::op_table_roundtrips ... ok
+test adapter::pdf::samples::tests::stream_without_eol_before_endstream_scans_and_replays ... ok
+test container::observation::tests::trailing_bytes_are_rejected ... ok
+test container::observation::tests::truncated_section_is_rejected ... ok
+test container::observation::tests::unknown_version_and_flags_fail_closed ... ok
+test container::observation::tests::validate_accepts_a_correct_index ... ok
+test container::observation::tests::validate_rejects_wrong_op_len_dep_and_selector ... ok
+test container::record::tests::detects_payload_corruption ... ok
+test container::record::tests::enforces_record_length_limit ... ok
+test container::record::tests::detects_truncation ... ok
+test container::record::tests::rejects_nonzero_reserved ... ok
+test container::record::tests::write_read_roundtrip ... ok
+test dra::op::tests::op_roundtrips ... ok
+test dra::op::tests::rejects_truncated_operand ... ok
+test dra::op::tests::rejects_unknown_opcode ... ok
+test dra::op::tests::rejects_unknown_replay_codec_as_unsupported_feature ... ok
+test dra::program::tests::analyze_ops_lengths_match_total_and_spans ... ok
+test dra::program::tests::analyze_predicts_pack_length ... ok
+test dra::program::tests::analyze_predicts_width_bytes ... ok
+test dra::program::tests::coverage_gap_is_rejected ... ok
+test dra::program::tests::decode_channel_and_repeat ... ok
+test adapter::pdf::layout::tests::layout_rans_deterministic ... ok
+test dra::program::tests::deflate_replay_hostile_corrections_is_typed_error ... ok
+test dra::program::tests::deflate_replay_missing_object_errors ... ok
+test dra::program::tests::dra_version_is_eight ... ok
+test dra::program::tests::emit_unmarked_slot_errors ... ok
+test dra::program::tests::emit_width_too_small_errors ... ok
+test dra::program::tests::emit_zero_pads ... ok
+test dra::program::tests::enforces_output_limit ... ok
+test dra::program::tests::inline_and_repeat ... ok
+test dra::program::tests::interleave_lengths_must_be_4x_tokens ... ok
+test dra::program::tests::interleave_predicts_from_channel_lens ... ok
+test dra::program::tests::interleave_rejects_bad_channel_index ... ok
+test dra::program::tests::interleave_rejects_unconsumed_payload ... ok
+test dra::program::tests::interleave_roundtrip ... ok
+test dra::program::tests::literal_concat_and_coverage ... ok
+test dra::program::tests::mark_slot_bound_covers_every_u8_slot ... ok
+test dra::program::tests::pack_rejects_emit_before_mark ... ok
+test dra::program::tests::mark_emit_roundtrip ... ok
+test dra::program::tests::pack_rejects_bad_slot_width ... ok
+test dra::program::tests::packed_channels_declared_len_mismatch_errors ... ok
+test dra::program::tests::packed_channels_missing_channel_errors ... ok
+test dra::program::tests::pack_roundtrip ... ok
+test dra::program::tests::pack_rejects_unconsumed_data ... ok
+test dra::program::tests::packed_channels_rejects_unconsumed_data ... ok
+test dra::program::tests::packed_channels_roundtrip ... ok
+test dra::program::tests::pack_varint_long_len ... ok
+test dra::program::tests::packed_channels_truncated_plan_errors ... ok
+test dra::program::tests::program_roundtrips_via_bytes ... ok
+test dra::program::tests::rejects_consecutive_repeats ... ok
+test dra::program::tests::rejects_missing_channel ... ok
+test dra::program::tests::deflate_replay_declared_len_mismatch_errors ... ok
+test dra::program::tests::rejects_leading_repeat ... ok
+test dra::program::tests::rejects_missing_object ... ok
+test adapter::pdf::samples::tests::valid_pdfs_detect_scan_and_propose ... ok
+test dra::program::tests::replay_declared_len_above_profile_limit_is_rejected ... ok
+test dra::program::tests::replay_profile_limit_arithmetic ... ok
+test encode::candidates::tests::byte_rans_declines_empty ... ok
+test dra::program::tests::deflate_replay_roundtrip_is_byte_exact ... ok
+test encode::candidates::tests::model_cost_is_charged ... ok
+test encode::candidates::tests::rle_declines_when_graph_too_big ... ok
+test encode::court::tests::empty_input_is_exact ... ok
+test encode::candidates::tests::single_byte_is_rle ... ok
+test encode::candidates::tests::rle_wins_on_long_runs ... ok
+test encode::court::tests::raw_candidate_wins_and_is_exact ... ok
+test codec::deflate::tests::replay_plan_round_trips_byte_exactly ... ok
+test encode::governor::tests::govern_is_deterministic_and_integer_only ... ok
+test encode::tests::deterministic_output ... ok
+test encode::candidates::tests::rle_wins_on_zeros ... ok
+test entropy::codec::tests::empty_payload_roundtrips ... ok
+test encode::tests::encode_with_force_raw_is_exact ... ok
+test encode::tests::encode_with_unproposed_kind_errors ... ok
+test entropy::codec::tests::enforces_symbol_count_limit ... ok
+test encode::tests::encode_with_none_matches_encode ... ok
+test entropy::codec::tests::enforces_decoded_length_limit ... ok
+test entropy::codec::tests::header_bytes_depends_on_payload_length_not_bytes ... ok
+test entropy::codec::tests::header_bytes_is_the_encode_prefix ... ok
+test entropy::codec::tests::rejects_bad_scale_bits ... ok
+test entropy::codec::tests::rejects_multilane ... ok
+test entropy::codec::tests::rejects_trailing_bytes ... ok
+test entropy::codec::tests::enforces_payload_limit ... ok
+test entropy::codec::tests::rejects_truncated_header ... ok
+test entropy::codec::tests::rejects_unknown_coder ... ok
+test entropy::codec::tests::rejects_truncated_payload ... ok
+test entropy::codec::tests::rejects_unknown_version ... ok
+test entropy::codec::tests::wire_length_is_header_plus_payload ... ok
+test entropy::model::tests::all_zero_is_uniform ... ok
+test entropy::model::tests::decode_accepts_legacy_v1_dense ... ok
+test entropy::model::tests::alphabet_too_big_errors ... ok
+test entropy::codec::tests::roundtrip ... ok
+test entropy::model::tests::decode_rejects_bad_version ... ok
+test encode::tests::encode_decode_identity ... ok
+test entropy::model::tests::decode_rejects_trailing ... ok
+test entropy::model::tests::dense_form_chosen_for_full_alphabet ... ok
+test entropy::model::tests::decode_rejects_bad_sum ... ok
+test entropy::model::tests::determinism ... ok
+test entropy::model::tests::encode_is_deterministic ... ok
+test entropy::model::tests::from_counts_sums_exactly ... ok
+test entropy::model::tests::uniform_sums_to_target ... ok
+test entropy::model::tests::present_symbols_get_at_least_one ... ok
+test entropy::model::tests::sparse_decode_rejects_unsorted_or_duplicate_symbols ... ok
+test entropy::model::tests::sparse_form_chosen_for_low_alphabet ... ok
+test entropy::model::tests::roundtrip_encode_decode ... ok
+test entropy::model::tests::zero_symbols_get_zero ... ok
+test entropy::rans::tests::inconsistent_lengths_are_rejected ... ok
+test entropy::rans::tests::missing_payload_is_rejected ... ok
+test entropy::rans::tests::limits_reject_oversized_fields ... ok
+test entropy::rans::tests::roundtrip_empty ... ok
+test entropy::rans::tests::roundtrip_all_256_values ... ok
+test entropy::rans::tests::roundtrip_heavily_skewed ... ok
+test entropy::rans::tests::roundtrip_single_repeated_byte ... ok
+test error::tests::display_includes_class ... ok
+test entropy::rans::tests::truncated_payload_is_rejected ... ok
+test entropy::rans::tests::roundtrip_uniform_random ... ok
+test entropy::rans::tests::corrupted_state_and_payload_never_panic ... ok
+test field::cache::tests::poisoned_bytes_fail_closed_never_wrong ... ok
+test error::tests::exit_codes_are_distinct_and_stable ... ok
+test field::capabilities::tests::opaque_and_unknown_selectors_are_unsupported ... ok
+test field::capabilities::tests::pdf_supports_text_and_search_but_not_tables ... ok
+test field::cache::tests::poisoned_sidecar_fail_closed_and_missing_sidecar_is_a_miss ... ok
+test field::dag::tests::literal_roundtrips ... ok
+test field::derive::tests::hex_and_escapes_decode ... ok
+test field::dag::tests::source_slice_matches_exact_bytes ... ok
+test field::derive::tests::preview_is_deterministic ... ok
+test field::document_format::tests::names_and_provenance_roundtrip ... ok
+test field::derive::tests::text_runs_extract_tj_strings ... ok
+test field::cache::tests::put_get_roundtrip_and_accounting ... ok
+test field::document_format::tests::plain_bytes_are_opaque ... ok
+test field::document_format::tests::a_corpus_pdf_is_detected ... ok
+test field::explain::tests::string_array_escapes ... ok
+test encode::tests::encode_with_force_byte_rans_is_exact ... ok
+test field::explain::tests::actual_json_has_exactly_the_documented_keys ... ok
+test field::index::tests::caps_are_enforced ... ok
+test field::entropyfs_field_tests::list_nodes_declines_so_gc_cannot_sweep ... ok
+test field::entropyfs_field_tests::ingest_observe_and_exact_materialize_through_the_engine ... ok
+test field::index::tests::build_is_deterministic_under_shuffle ... ok
+test encode::candidates::tests::byte_rans_exact_on_all_byte_values ... ok
+test field::entropyfs_field_tests::cross_process_reopen_reads_what_a_previous_handle_wrote ... ok
+test field::index::tests::corrupt_node_is_rejected ... ok
+test field::index::tests::duplicate_id_with_differing_bytes_is_rejected ... ok
+test field::index::tests::framing_faults_are_rejected ... ok
+test field::index::tests::duplicate_entries_are_deduplicated ... ok
+test field::index::tests::empty_index_roundtrips ... ok
+test field::index::tests::missing_key_is_empty_not_error ... ok
+test field::index::tests::one_page_build_and_lookup ... ok
+test field::ingest::tests::decoded_stream_matches_inflated_bytes ... ok
+test field::ingest::tests::deepen_is_idempotent_and_old_field_stays_exact ... ok
+test field::ingest::tests::deepened_page_yields_nonempty_text_runs ... ok
+test encode::candidates::tests::byte_rans_is_deterministic ... ok
+test field::ingest::tests::hostile_input_never_panics ... ok
+test field::ingest::tests::every_exact_node_matches_its_declared_span ... ok
+test adapter::pdf::layout::tests::layout_rans_exact ... ok
+test field::ingest::tests::exactness_is_preserved_after_ingest ... ok
+test field::ingest::tests::ingest_recovers_streams_and_index ... ok
+test field::index::tests::missing_child_node_is_missing_external_object ... ok
+test field::index::tests::lookup_reads_bounded_nodes_regardless_of_entry_count ... ok
+test field::ingest::tests::malformed_objstm_is_skipped_without_panic ... ok
+test field::ingest::tests::nested_type_dict_does_not_shadow_page ... ok
+test field::manifest::tests::bad_magic_and_version_fail_closed ... ok
+test field::ingest::tests::objstm_page_tree_is_recovered_and_deepened ... ok
+test field::manifest::tests::manifest_roundtrips_and_ids ... ok
+test field::node::tests::canonical_roundtrip_is_stable ... ok
+test field::manifest::tests::truncation_and_trailing_fail_closed ... ok
+test field::ingest::tests::unfiltered_content_stream_recovers_page ... ok
+test field::ingest::tests::object_and_stream_selectors_resolve ... ok
+test field::ingest::tests::physical_object_shadows_objstm_object ... ok
+test field::node::tests::param_helpers_roundtrip ... ok
+test field::node::tests::dependency_change_changes_id ... ok
+test field::node::tests::trailing_bytes_are_rejected ... ok
+test field::node::tests::unknown_kind_and_version_fail_closed ... ok
+test field::observe::tests::budget_yields_resource_limit_not_truncation ... ok
+test field::observe::tests::document_full_document_is_exact ... ok
+test field::observe::tests::byte_range_returns_exact_bytes ... ok
+test field::observe::tests::explain_json_keys_and_unsupported_pair ... ok
+test field::observe::tests::decoded_and_operators_streams_resolve ... ok
+test field::observe::tests::explain_analyze_opens_the_descriptor_once ... ok
+test field::observe::tests::find_returns_matching_line ... ok
+test field::observe::tests::observation_byte_classes_sum_and_are_all_charged ... ok
+test field::observe::tests::page_text_is_heuristic_and_nonempty ... ok
+test field::opc::tests::rels_owner_member_recognition ... ok
+test field::plan::tests::shape_names_are_lower_snake_case ... ok
+test field::provenance::tests::json_escape_is_deterministic_and_safe ... ok
+test field::provenance::tests::only_authored_and_observed_are_exact ... ok
+test field::resource::tests::identical_bytes_produce_one_content_id ... ok
+test field::observe::tests::plan_is_pure_and_deterministic ... ok
+test field::share::tests::external_objects_contribute_id_and_length_without_a_store ... ok
+test field::resource::tests::oversized_units_do_not_share ... ok
+test field::resource::tests::signatures_are_recognized_and_bounded ... ok
+test field::observe::tests::preview_is_deterministic ... ok
+test field::share::tests::identical_headers_share_when_only_payload_differs ... ok
+test field::share::tests::identical_channel_payloads_share_the_payload_not_the_header ... ok
+test field::share::tests::repeated_objects_are_counted_twice_and_unique_once ... ok
+test field::share::tests::object_ids_and_source_sha_are_distinct_namespaces ... ok
+test field::share::tests::report_is_deterministic_and_order_independent ... ok
+test field::share::tests::externalize_objects_resolves_and_stays_exact ... ok
+test integrity::tests::crc32c_standard_vector ... ok
+test integrity::tests::hex_roundtrip_shape ... ok
+test integrity::tests::sha256_standard_vectors ... ok
+test integrity::tests::streaming_matches_oneshot ... ok
+test field::tests::field_id_is_stable_and_reopenable ... ok
+test materialize::tests::detects_digest_mismatch ... ok
+test field::tests::ingest_then_materialize_is_exact ... ok
+test materialize::tests::exact_roundtrip ... ok
+test field::share::tests::store_units_persists_every_unique_unit_exactly_once ... ok
+test store::entropyfs::seed_tests::list_nodes_declines_with_a_typed_error ... ok
+test store::entropyfs::seed_tests::node_ids_are_engine_blob_ids ... ok
+test field::observe::tests::page_structure_procedural_closure_excludes_image_seed_node ... ok
+test store::entropyfs::tests::blob_id_matches_id ... ok
+test store::io::tests::delta_is_non_negative_and_additive ... ok
+test store::io::tests::independent_counters_do_not_leak ... ok
+test store::io::tests::handles_share_and_delta_sums_correctly ... ok
+test store::seed::tests::node_ids_are_domain_separated_from_object_ids ... ok
+test store::entropyfs::seed_tests::put_get_range_roundtrip_through_the_engine ... ok
+test store::seed::tests::put_get_roundtrip_and_idempotence ... ok
+test store::seed::tests::range_reads_are_strict ... ok
+test encode::candidates::tests::raw_wins_on_incompressible ... ok
+test encode::candidates::tests::byte_rans_wins_on_text ... ok
+test field::index::tests::multi_level_build_finds_every_entry ... ok
+test field::observe::tests::decoded_stream_resolves_without_enumerating_the_store ... ok
+test field::index::tests::deep_tree_reaches_depth_two ... ok
+test adapter::pdf::adapter::tests::report_court_winner_per_sample ... ok
+test adapter::pdf::samples::tests::every_sample_is_byte_exact_through_the_court ... ok
+test adapter::pdf::layout::tests::layout_measurements_report ... ok
+test encode::governor::tests::config_default_matches_propose_all ... ok
+test encode::governor::tests::every_config_is_wire_legal ... ok
+
+test result: ok. 409 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.67s
+
+     Running unittests src/main.rs (target/debug/deps/vole_document-719f8e193414131e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/conformance.rs (target/debug/deps/conformance-134b9991fd5eb5de)
+
+running 7 tests
+test inline_literal_program_is_exact ... ok
+test coverage_authority_literal_then_generated ... ok
+test parse_serialize_model_roundtrip ... ok
+test fixed_overhead_formula_holds ... ok
+test header_universe_id_matches_declaration ... ok
+test verify_report_is_accurate ... ok
+test canonical_reencoding_is_byte_stable ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cross_document_reuse.rs (target/debug/deps/cross_document_reuse-e36a407213ac951c)
+
+running 3 tests
+test different_resource_bytes_never_share ... ok
+test shared_decoded_state_is_reused_across_documents ... ok
+test cross_document_shared_resource_is_one_content_addressed_blob ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/deflate_stats.rs (target/debug/deps/deflate_stats-1f3e9b0464cdaa05)
+
+running 3 tests
+test non_pdf_yields_is_pdf_false ... ok
+test pdf_without_flate_reports_zero_streams ... ok
+test flate_sample_stats_are_self_consistent ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/docx_adapter.rs (target/debug/deps/docx_adapter-98dfc30a30cdafb4)
+
+running 10 tests
+test missing_relationship_declines_and_keeps_exactness ... ok
+test ambiguous_relationship_declines ... ok
+test wrong_root_element_declines ... ok
+test malformed_document_declines_and_keeps_exactness ... ok
+test progressive_inversion_reuses_persisted_state_after_restart ... ok
+test main_part_discovered_by_relationship_not_path ... ok
+test exact_materialization_and_find ... ok
+test story_scoping_does_not_mix_header_and_body ... ok
+test tracked_changes_profiles_differ_as_specified ... ok
+test text_headings_table_and_cell_b7 ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/entropy.rs (target/debug/deps/entropy-f4971b9268121b30)
+
+running 11 tests
+test model_cost_is_not_hidden ... ok
+test tiny_inputs_select_raw ... ok
+test skewed_bytes_select_rans ... ok
+test long_runs_select_rle ... ok
+test random_64k_selects_raw ... ok
+test low_entropy_text_wins_and_is_exact ... ok
+test winner_is_stable_across_limits ... ok
+test random_wrapped_looking_control ... ok
+test high_entropy_selects_raw ... ok
+test every_admitted_descriptor_is_byte_exact ... ok
+test encoding_is_deterministic ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/entropyfs.rs (target/debug/deps/entropyfs-6e9a6c1580fed525)
+
+running 3 tests
+test identical_objects_dedup_to_one_entropyfs_blob ... ok
+test create_then_open_round_trips_a_blob ... ok
+test embedded_externalized_descriptor_materializes_through_entropyfs ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/epub_adapter.rs (target/debug/deps/epub_adapter-b01da796dea3de4b)
+
+running 11 tests
+test no_intrinsic_pages_for_reflowable ... ok
+test exact_materialization_is_byte_identical ... ok
+test malformed_container_declines_and_keeps_exactness ... ok
+test mimetype_conformance_is_recorded_but_not_an_exactness_gate ... ok
+test external_reference_is_inert ... ok
+test answers_are_derived_and_never_exact ... ok
+test progressive_inversion_reuses_persisted_state_after_restart ... ok
+test container_rootfile_and_package_resolved ... ok
+test nav_document_and_nodes ... ok
+test spine_item_is_the_reading_coordinate ... ok
+test manifest_item_and_resource_bytes ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/epub_content.rs (target/debug/deps/epub_content-6510d4a6c2b9040a)
+
+running 14 tests
+test ingest_does_not_parse_content_documents ... ok
+test block_observation_is_scoped ... ok
+test undeclared_entity_does_not_panic_or_expand ... ok
+test non_linear_item_is_excluded_by_default ... ok
+test spine_item_text_returns_known_content ... ok
+test preview_is_structured_and_not_a_page_render ... ok
+test structure_exposes_headings_lists_and_tables ... ok
+test exact_materialization_is_byte_identical ... ok
+test progressive_inversion_reuses_content_after_restart ... ok
+test links_and_resources_are_classified ... ok
+test table_cell_observation_returns_known_value ... ok
+test find_is_scoped_to_the_spine_item ... ok
+test one_item_query_does_not_parse_the_whole_publication ... ok
+test hostile_content_declines_typed_and_keeps_exactness ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/exact.rs (target/debug/deps/exact-ed6d761a8a49f25d)
+
+running 11 tests
+test empty ... ok
+test all_byte_values ... ok
+test ones ... ok
+test random_small ... ok
+test tiny_boundary_sizes ... ok
+test zeros ... ok
+test single_byte_values ... ok
+test encoded_overhead_is_bounded_for_incompressible_data ... ok
+test sequential_cycle ... ok
+test text_like ... ok
+test random_large_incompressible ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+     Running tests/field_authority.rs (target/debug/deps/field_authority-f2a5127942a8606a)
+
+running 2 tests
+test field_is_not_required_to_materialize ... ok
+test decode_path_never_references_the_field_or_search ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/field_edit.rs (target/debug/deps/field_edit-cb91e613a39be2b9)
+
+running 4 tests
+test edit_boundaries_fail_closed ... ok
+test edit_is_content_addressed_and_idempotent ... ok
+test edit_shares_unaffected_state_and_both_roots_stay_exact ... ok
+test edit_shares_unchanged_index_leaves ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/field_observe.rs (target/debug/deps/field_observe-b69a14d65dfe8f94)
+
+running 2 tests
+test cli_materialize_exact_is_byte_identical ... ok
+test cli_field_ingest_then_observe_page_text ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/field_partial.rs (target/debug/deps/field_partial-7dec1702f223c857)
+
+running 8 tests
+test descriptor_without_an_index_falls_back_to_the_full_path ... ok
+test archival_materialize_remains_exact_after_partial_use ... ok
+test warm_page_text_observation_charges_zero_descriptor_bytes ... ok
+test partial_path_is_byte_identical_to_the_full_path ... ok
+test cache_miss_returns_correct_bytes_and_charges_only_its_closure ... ok
+test cache_hit_short_circuit_is_byte_identical_to_the_normal_path ... ok
+test corrupt_needed_record_errors_and_unneeded_record_is_ignored ... ok
+test narrow_read_is_a_small_fraction_of_a_large_descriptor ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/field_reuse.rs (target/debug/deps/field_reuse-30ea2b445a585c9f)
+
+running 6 tests
+test fresh_store_without_cache_still_materializes_exactly ... ok
+test warm_and_cold_observations_are_byte_identical ... ok
+test poisoned_cache_never_returns_wrong_bytes ... ok
+test cross_process_reuse_is_proven_by_execution_counters ... ok
+test reuse_survives_a_full_bake ... ok
+test cache_is_disposable_and_accounted_separately ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fuzz_regressions.rs (target/debug/deps/fuzz_regressions-e3921176b2148b0b)
+
+running 2 tests
+test replay_unbounded_alloc_fixture_fails_closed_at_the_analysis_boundary ... ok
+test replay_raw_isolates_preflate_shift_overflow_panic ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/goldens.rs (target/debug/deps/goldens-9f30e0c94225bdd1)
+
+running 7 tests
+test golden_capsule ... ok
+test golden_model_bytes ... ok
+test model_decode_never_panics ... ok
+test single_byte_flip_in_capsule_is_detected ... ok
+test golden_descriptor ... ok
+test truncated_capsule_payload_is_error ... ok
+test reference_oracle_matches_decode_channel ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/governor.rs (target/debug/deps/governor-8b0e9eaba7f8208b)
+
+running 8 tests
+test decode_path_never_references_the_governor ... ok
+test h4_negative_controls_stop_raw_byte_exactly ... ok
+test by_role_partition_is_used ... ok
+test knobs_are_honored_and_wire_legal ... ok
+test governed_descriptor_decodes_without_governance ... ok
+test h1_guided_is_never_worse_than_fixed ... ok
+test guided_is_deterministic ... ok
+test h2_or_h3_holds ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.69s
+
+     Running tests/malformed.rs (target/debug/deps/malformed-f3e3880c27042452)
+
+running 12 tests
+test empty_input_is_invalid_container ... ok
+test future_major_version_is_unsupported_not_misparsed ... ok
+test unknown_mandatory_feature_bit_fails_closed ... ok
+test wrong_exactness_profile_is_unsupported ... ok
+test repeat_expansion_is_bounded ... ok
+test court_rejects_inexact_candidate ... ok
+test unknown_mandatory_record_fails_closed ... ok
+test bad_magic_is_rejected ... ok
+test duplicate_universe_record_is_rejected ... ok
+test unknown_optional_record_is_skipped ... ok
+test short_truncations_are_rejected ... ok
+test every_single_byte_flip_is_detected ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/observation.rs (target/debug/deps/observation-a235f4ea28461ead)
+
+running 9 tests
+test only_referenced_channels_are_decoded ... ok
+test empty_source_requests_are_typed_errors ... ok
+test missing_index_is_declined ... ok
+test out_of_range_and_absent_selectors_are_typed_errors ... ok
+test tiny_and_oversized_requests_do_not_panic ... ok
+test pdf_encoded_stream_matches_physical_scan ... ok
+test mid_file_range_is_exact_and_skips_ops ... ok
+test whole_range_equals_full_materialization ... ok
+test pdf_indirect_object_matches_physical_scan ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/observation_cli.rs (target/debug/deps/observation_cli-af7fd7adbd3b6d7a)
+
+running 8 tests
+test indexed_candidate_declines_without_flate_streams ... ok
+test view_serves_bigtext_physical_slices ... ok
+test view_declines_unindexed_descriptor ... ok
+test view_serves_mid_byte_range_from_indexed_candidate ... ok
+test view_stats_only_prints_json_without_bytes ... ok
+test view_whole_range_equals_full_materialization ... ok
+test view_serves_pdf_selectors_from_indexed_candidate ... ok
+test indexed_candidate_is_exact_charged_and_deterministic ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/observation_disk.rs (target/debug/deps/observation_disk-159d5e072257f4f8)
+
+running 1 test
+test indexed_descriptor_survives_a_disk_round_trip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/observation_seek.rs (target/debug/deps/observation_seek-72424079d26d4132)
+
+running 3 tests
+test seeked_view_matches_full_on_flate_pdf ... ok
+test a_descriptor_without_a_directory_is_declined ... ok
+test late_query_on_large_pdf_reads_a_small_fraction ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/opc_core.rs (target/debug/deps/opc_core-4a8e992b5e4e6ebc)
+
+running 8 tests
+test doctype_and_entities_are_refused ... ok
+test malformed_opc_declines_typed_and_keeps_exactness ... ok
+test duplicate_relationship_ids_decline ... ok
+test plan_and_explain_are_honest_for_native_selectors ... ok
+test opc_parts_relationships_and_exactness ... ok
+test relationship_resolution_and_external_inertness ... ok
+test non_utf8_and_deep_xml_decline ... ok
+test ambiguous_identity_and_traversal_clamp ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/package_field.rs (target/debug/deps/package_field-3e30641259926813)
+
+running 9 tests
+test child_observe_member_decoded ... ok
+test non_zip_input_is_a_typed_rejection ... ok
+test member_plan_and_explain_are_honest ... ok
+test hostile_members_decline_typed_without_panic ... ok
+test package_field_is_exact_and_members_resolve ... ok
+test duplicate_names_are_distinct_by_ordinal ... ok
+test tiny_member_query_does_not_decode_all_members ... ok
+test package_field_through_entropyfs_engine ... ok
+test member_decode_persists_and_survives_cache_clear_in_a_new_process ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pdf.rs (target/debug/deps/pdf-ccd78ef581396b3f)
+
+running 8 tests
+test non_pdf_falls_back ... ok
+test string_and_stream_traps_do_not_split_objects ... ok
+test incremental_has_two_revisions ... ok
+test detection_is_validated_not_extension_based ... ok
+test coverage_is_total_for_every_pdf ... ok
+test every_pdf_materializes_exactly_via_physical_candidate ... ok
+test court_still_prefers_raw_on_phase3 ... ok
+test random_bytes_never_panic ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/pdf_channels.rs (target/debug/deps/pdf_channels-2a206a08ed634fa8)
+
+running 7 tests
+test channels_rejected_on_small_pdf ... ok
+test limits_bound_channels ... ok
+test forced_channels_are_exact_and_fully_charged ... ok
+test corrupt_channel_is_rejected ... ok
+test court_winner_is_exact_and_smallest ... ok
+test large_text_channels_compete ... ok
+test channels_deterministic ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/pdf_deflate.rs (target/debug/deps/pdf_deflate-1644a65f9a8f4ca5)
+
+running 9 tests
+test hostile_corrections_fail_closed ... ok
+test declines_non_pdf ... ok
+test declines_without_flate_streams ... ok
+test shared_plaintext_is_deduplicated ... ok
+test rans_plaintext_beats_raw_plaintext ... ok
+test flate_sample_replay_is_byte_exact ... ok
+test replay_is_deterministic ... ok
+test auto_court_is_exact_and_deflate_sample_runs ... ok
+test directed_roundtrip_over_samples ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/pdf_layout.rs (target/debug/deps/pdf_layout-e66a375ad90d07a3)
+
+running 7 tests
+test layout_bad_offset_falls_back ... ok
+test layout_predicts_entries ... ok
+test layout_hostile ... ok
+test layout_not_selected_on_corpus ... ok
+test forced_layout_is_exact ... ok
+test layout_declines ... ok
+test layout_deterministic ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/phase12_courts.rs (target/debug/deps/phase12_courts-6fb06342f6279b8c)
+
+running 4 tests
+test pdf_declines_the_structural_vocabulary_typed ... ok
+test source_removal_and_restart_is_byte_exact ... ok
+test triplet_common_observations_match_ground_truth ... ok
+test source_removal_and_restart_child_process_is_byte_exact ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/phase12_lifetime.rs (target/debug/deps/phase12_lifetime-48e846a27229d89b)
+
+running 7 tests
+test baseline_engine_is_a_source_retaining_sqlite_fts5_cache ... ok
+test court_scripts_are_present ... ok
+test corpus_generator_reuses_129_and_defines_a_large_variant ... ok
+test schedule_emitter_freezes_the_order ... ok
+test court_runs_the_ablation_ladder ... ok
+test schedule_pre_registers_the_ablation_ladder ... ok
+test schedule_is_pre_registered_and_complete ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/phase12_security.rs (target/debug/deps/phase12_security-cccf55bf2db5c49e)
+
+running 15 tests
+test xml_nul_and_non_utf8_are_refused ... ok
+test malformed_xml_is_typed ... ok
+test xml_depth_bomb_is_refused_typed ... ok
+test xml_doctype_is_refused ... ok
+test xhtml_doctype_is_refused ... ok
+test xml_utf16_bom_is_refused ... ok
+test scripted_xhtml_is_parsed_as_inert_data ... ok
+test external_relationship_is_inert_and_traversal_target_is_rejected ... ok
+test scripted_epub_fixture_declines_semantics_but_preserves_bytes ... ok
+test name_hazards_are_rejected_and_never_become_paths ... ok
+test structural_zip_faults_are_rejected_typed ... ok
+test zip_scan_is_cover_exact_and_typed ... ok
+test package_identity_and_xml_faults_are_typed ... ok
+test every_parser_surface_is_typed ... ok
+test hostile_bytes_materialize_exactly_through_the_opaque_floor ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/property.rs (target/debug/deps/property-2469b0d0e9c22ef6)
+
+running 6 tests
+test oversized_claims_are_bounded ... ok
+test limits_never_change_reconstructed_bytes ... ok
+test random_bytes_never_panic ... ok
+test mutated_valid_descriptors_are_safe ... ok
+test parse_serialize_stability ... ok
+test roundtrip_property ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+
+     Running tests/replay_isolation.rs (target/debug/deps/replay_isolation-1481d2e11aae2e0a)
+
+running 4 tests
+test replay_bounded_falls_back_in_process_without_worker ... ok
+test hostile_f2_descriptor_fails_closed_under_small_memory_cap ... ok
+test configured_but_broken_worker_does_not_silently_fall_back ... ok
+test cli_decode_with_isolated_worker_is_byte_exact ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/share_account.rs (target/debug/deps/share_account-4eca93d58b68b057)
+
+running 2 tests
+test share_account_usage_errors_fail_closed ... ok
+test share_account_stores_units_and_is_deterministic ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/store.rs (target/debug/deps/store-31d735f923ee5d75)
+
+running 9 tests
+test store_ops_and_integrity_gate ... ok
+test gc_reports_dangling_reference ... ok
+test identical_objects_dedup_to_one_entry ... ok
+test externalize_hydrate_roundtrips_bytes ... ok
+test account_three_universes_and_amortized_rule ... ok
+test gc_sweeps_unreachable_and_keeps_reachable ... ok
+test externalize_materializes_exactly_on_large_pdf ... ok
+test externalize_is_deterministic ... ok
+test externalize_materializes_exactly_on_flate_pdf ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/universal_api.rs (target/debug/deps/universal_api-cf6a822a7068cd4a)
+
+running 12 tests
+test capabilities_list_the_right_sets ... ok
+test format_detection_is_byte_based ... ok
+test capabilities_cli_detects_a_raw_document_from_bytes ... ok
+test explain_reports_format_and_xml_accounting ... ok
+test pdf_exactness_and_native_behavior_are_unchanged ... ok
+test unsupported_common_pair_is_a_typed_capability_error ... ok
+test common_heading_block_resource_and_link ... ok
+test common_table_and_cell_work_on_docx_and_epub ... ok
+test recorded_format_matches_detection ... ok
+test common_text_and_metadata_are_available ... ok
+test native_selectors_still_work_per_format ... ok
+test common_find_works_on_all_three_formats ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/zip_physical.rs (target/debug/deps/zip_physical-84ad5a1bfcc0f3b0)
+
+running 18 tests
+test bad_eocd_signature_is_typed_error ... ok
+test bad_central_offset_is_typed_error ... ok
+test huge_declared_size_is_a_resource_limit ... ok
+test golden_stored_and_deflated ... ok
+test member_count_limit_is_enforced ... ok
+test impossible_offset_is_rejected ... ok
+test duplicate_names_are_distinct_physical_identities ... ok
+test data_descriptor_with_and_without_signature ... ok
+test non_ascii_name_bytes_are_preserved_verbatim ... ok
+test overlapping_spans_are_rejected ... ok
+test prefix_archive_comment_entry_comment_and_trailing ... ok
+test stored_crc_corruption_is_detected ... ok
+test scanning_is_deterministic ... ok
+test traversal_name_scans_but_is_declined_at_the_boundary ... ok
+test truncated_archive_is_typed_error ... ok
+test zip64_eocd_locator_and_member_extra ... ok
+test zip64_sentinel_without_locator_is_rejected ... ok
+test random_bytes_never_panic_and_keep_the_cover ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests vole_document
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.01s
+     Running unittests src/lib.rs (target/debug/deps/vole_document-8f4acc3ab4e990dd)
+
+running 246 tests
+test accounting::tests::json_has_all_fields ... ok
+test accounting::tests::total_sums_all_fields ... ok
+test adapter::pdf::adapter::tests::detect_accepts_canonical_pdf ... ok
+test adapter::pdf::adapter::tests::detect_rejects_non_pdf_and_truncated ... ok
+test adapter::pdf::adapter::tests::propose_declines_non_pdf ... ok
+test adapter::pdf::adapter::tests::propose_declines_when_span_count_exceeds_graph_ops ... ok
+test adapter::pdf::adapter::tests::pdf_candidate_round_trips_exactly ... ok
+test adapter::pdf::adapter::tests::propose_returns_pdf_candidate ... ok
+test adapter::pdf::channels::tests::declines_when_too_many_tokens ... ok
+test adapter::pdf::channels::tests::join_rejects_malformed_plan ... ok
+test adapter::pdf::adapter::tests::court_prefers_raw_for_small_pdf ... ok
+test adapter::pdf::channels::tests::kind_map_is_a_bijection_onto_0_to_12 ... ok
+test adapter::pdf::cos::tests::absent_key_returns_none ... ok
+test adapter::pdf::cos::tests::body_as_u64_rejects_multi_token_body ... ok
+test adapter::pdf::cos::tests::body_as_u64_accepts_single_integer_with_padding ... ok
+test adapter::pdf::cos::tests::body_as_u64_rejects_non_integer ... ok
+test adapter::pdf::cos::tests::dict_filter_absent_without_key ... ok
+test adapter::pdf::cos::tests::dict_filter_ignores_string_spelling_and_non_name_value ... ok
+test adapter::pdf::cos::tests::dict_filter_reads_bare_and_single_element_array ... ok
+test adapter::pdf::cos::tests::dict_filter_rejects_chain_other_filter_and_empty_array ... ok
+test adapter::pdf::cos::tests::dict_int_or_ref_reads_direct_and_reference ... ok
+test adapter::pdf::cos::tests::dict_int_or_ref_rejects_non_integer_and_absent ... ok
+test adapter::pdf::cos::tests::dict_name_value_absent_key_and_non_name_value_return_none ... ok
+test adapter::pdf::cos::tests::dict_name_value_inside_string_is_not_a_key ... ok
+test adapter::pdf::cos::tests::dict_name_value_reads_xref_and_objstm_types ... ok
+test adapter::pdf::cos::tests::direct_length_is_read ... ok
+test adapter::pdf::cos::tests::indirect_length_is_read ... ok
+test adapter::pdf::cos::tests::length_name_inside_string_is_not_a_key ... ok
+test adapter::pdf::cos::tests::non_integer_value_returns_none_but_key_is_present ... ok
+test adapter::pdf::large::tests::adler32_matches_known_vector ... ok
+test adapter::pdf::layout::tests::layout_falls_back_on_bad_offset ... ok
+test adapter::pdf::lexer::tests::comment_stops_before_cr ... ok
+test adapter::pdf::lexer::tests::arrays_and_braces ... ok
+test adapter::pdf::lexer::tests::comment_to_eof_is_issue ... ok
+test adapter::pdf::lexer::tests::comment_to_eol_excludes_eol ... ok
+test adapter::pdf::lexer::tests::cover_invariant_holds_for_a_battery ... ok
+test adapter::pdf::lexer::tests::empty_input ... ok
+test adapter::pdf::lexer::tests::endobj_inside_literal_string_stays_one_span ... ok
+test adapter::pdf::lexer::tests::dict_delimiters ... ok
+test adapter::pdf::lexer::tests::endstream_at_eof_terminates_payload ... ok
+test adapter::pdf::large::tests::stored_zlib_round_trips_through_flate2 ... ok
+test adapter::pdf::lexer::tests::endstream_like_run_without_right_terminator_is_not_a_keyword ... ok
+test adapter::pdf::channels::tests::split_then_join_is_identity ... ok
+test adapter::pdf::lexer::tests::hex_string_basic ... ok
+test adapter::pdf::channels::tests::payload_partition ... ok
+test adapter::pdf::channels::tests::deterministic ... ok
+test adapter::pdf::lexer::tests::literal_string_with_nested_parens ... ok
+test adapter::pdf::lexer::tests::literal_string_with_escape ... ok
+test adapter::pdf::lexer::tests::literal_string_with_line_continuation ... ok
+test adapter::pdf::lexer::tests::lone_closers_are_regular_tokens ... ok
+test adapter::pdf::lexer::tests::name_and_empty_name ... ok
+test adapter::pdf::lexer::tests::numbers_and_reference_are_regular_tokens ... ok
+test adapter::pdf::lexer::tests::cover_invariant_holds_for_random_bytes ... ok
+test adapter::pdf::lexer::tests::paren_inside_hex_string_is_not_special ... ok
+test adapter::pdf::lexer::tests::percent_inside_literal_string_is_not_a_comment ... ok
+test adapter::pdf::lexer::tests::single_whitespace ... ok
+test adapter::pdf::lexer::tests::span_at_over_lexed_input ... ok
+test adapter::pdf::lexer::tests::span_limit_triggers_resource_limit ... ok
+test adapter::pdf::lexer::tests::stream_payload_followed_by_eol_then_endstream_still_works ... ok
+test adapter::pdf::lexer::tests::stream_payload_without_trailing_eol_is_one_opaque_span ... ok
+test adapter::pdf::lexer::tests::unterminated_hex_string_is_issue ... ok
+test adapter::pdf::lexer::tests::unterminated_literal_string_is_issue ... ok
+test adapter::pdf::lexer::tests::whitespace_run_coalesces ... ok
+test adapter::pdf::physical::tests::canonical_pdf_is_fully_classified ... ok
+test adapter::pdf::physical::tests::classic_xref_revision_records_startxref_and_no_prev ... ok
+test adapter::pdf::physical::tests::correct_length_beats_endstream_bytes_in_payload ... ok
+test adapter::pdf::physical::tests::crlf_and_lf_after_stream_are_both_handled ... ok
+test adapter::pdf::physical::tests::direct_length_yields_exact_span ... ok
+test adapter::pdf::physical::tests::endobj_inside_literal_string_does_not_split_object ... ok
+test adapter::pdf::physical::tests::incremental_classic_trailer_prev_resolves_to_first_xref ... ok
+test adapter::pdf::physical::tests::indirect_length_is_resolved_forward_reference ... ok
+test adapter::pdf::physical::tests::length_including_trailing_eol_is_accepted ... ok
+test adapter::pdf::physical::tests::lone_cr_after_stream_falls_back ... ok
+test adapter::pdf::physical::tests::malformed_object_without_endobj_is_conservative ... ok
+test adapter::pdf::physical::tests::missing_header_leaves_cover_total ... ok
+test adapter::pdf::physical::tests::missing_length_uses_keyword_fallback ... ok
+test adapter::pdf::physical::tests::object_roles_are_classified_from_leading_dict ... ok
+test adapter::pdf::physical::tests::stream_data_with_keyword_spellings_stays_opaque ... ok
+test adapter::pdf::physical::tests::stream_filter_classification_reads_flate_and_absent ... ok
+test adapter::pdf::physical::tests::tiny_span_limit_is_resource_limit ... ok
+test adapter::pdf::physical::tests::two_objects_with_xref_trailer_and_startxref ... ok
+test adapter::pdf::physical::tests::two_revisions_have_correct_boundaries ... ok
+test adapter::pdf::physical::tests::wrong_length_past_endstream_falls_back ... ok
+test adapter::pdf::physical::tests::xref_stream_anchor_prev_reference_is_resolved ... ok
+test adapter::pdf::samples::tests::regenerate_flate_fixtures ... ignored, regenerates committed fixture blobs; run manually inside Docker
+test adapter::pdf::span::tests::contiguous_set_validates_and_totals ... ok
+test adapter::pdf::physical::tests::random_bytes_never_panic_and_keep_cover ... ok
+test adapter::pdf::span::tests::empty_set_validates_zero ... ok
+test adapter::pdf::physical::tests::random_inputs_keep_streams_and_revisions_consistent ... ok
+test adapter::pdf::span::tests::short_cover_is_coverage_violation ... ok
+test adapter::pdf::span::tests::gap_is_coverage_violation ... ok
+test adapter::pdf::span::tests::overlap_is_coverage_violation ... ok
+test adapter::pdf::span::tests::span_at_finds_the_right_span ... ok
+test adapter::pdf::span::tests::zero_length_span_is_invalid_structure ... ok
+test container::descriptor::tests::channel_with_missing_model_rejected ... ok
+test container::descriptor::tests::channel_scale_mismatch_rejected ... ok
+test container::descriptor::tests::declared_length_mismatch_rejected ... ok
+test container::descriptor::tests::corrupted_directory_payload_is_rejected ... ok
+test container::descriptor::tests::directory_is_the_first_record_and_is_optional ... ok
+test container::descriptor::tests::inconsistent_observation_index_is_rejected_on_parse ... ok
+test container::descriptor::tests::model_and_channel_roundtrip ... ok
+test container::descriptor::tests::non_seekable_descriptor_has_no_directory_cost ... ok
+test container::descriptor::tests::lying_directory_is_rejected_on_parse ... ok
+test container::descriptor::tests::plain_descriptor_declares_no_mandatory_features ... ok
+test container::descriptor::tests::observation_index_roundtrip_and_charge ... ok
+test container::descriptor::tests::replay_descriptor_fails_closed_without_feature ... ok
+test container::descriptor::tests::seek_directory_roundtrips_materializes_and_charges ... ok
+test container::descriptor::tests::seek_directory_without_index_is_rejected ... ok
+test adapter::pdf::channels::tests::random_roundtrip ... ok
+test adapter::pdf::samples::tests::corpus_names_are_exactly_as_specified ... ok
+test container::descriptor::tests::trailing_bytes_after_trailer_rejected ... ok
+test container::directory::tests::encoded_length_is_the_documented_sum ... ok
+test container::directory::tests::over_limit_size_is_declined_before_allocation ... ok
+test container::directory::tests::roundtrip ... ok
+test container::directory::tests::structural_validation_accepts_a_contiguous_directory ... ok
+test container::descriptor::tests::serialize_parse_roundtrip ... ok
+test container::directory::tests::structural_validation_rejects_bad_geometry ... ok
+test container::directory::tests::trailing_bytes_are_rejected ... ok
+test container::directory::tests::validate_cross_checks_the_record_framing ... ok
+test container::directory::tests::truncated_section_is_rejected ... ok
+test container::directory::tests::unknown_version_and_flags_fail_closed ... ok
+test adapter::pdf::samples::tests::negative_controls_are_rejected_but_still_exact ... ok
+test container::header::tests::detects_corruption_via_crc ... ok
+test container::header::tests::rejects_bad_magic ... ok
+test container::header::tests::rejects_future_major_version ... ok
+test container::header::tests::rejects_truncated ... ok
+test container::header::tests::rejects_unknown_mandatory_feature ... ok
+test container::header::tests::roundtrip ... ok
+test container::observation::tests::all_sections_roundtrip ... ok
+test container::observation::tests::trailing_bytes_are_rejected ... ok
+test container::observation::tests::op_table_roundtrips ... ok
+test container::observation::tests::truncated_section_is_rejected ... ok
+test container::observation::tests::unknown_version_and_flags_fail_closed ... ok
+test adapter::pdf::layout::tests::layout_v2_predicts_many_entries ... ok
+test container::observation::tests::validate_accepts_a_correct_index ... ok
+test container::observation::tests::validate_rejects_wrong_op_len_dep_and_selector ... ok
+test container::record::tests::detects_payload_corruption ... ok
+test container::record::tests::detects_truncation ... ok
+test container::record::tests::rejects_nonzero_reserved ... ok
+test container::record::tests::write_read_roundtrip ... ok
+test container::record::tests::enforces_record_length_limit ... ok
+test dra::op::tests::rejects_truncated_operand ... ok
+test dra::op::tests::op_roundtrips ... ok
+test dra::op::tests::rejects_unknown_opcode ... ok
+test dra::op::tests::rejects_unknown_replay_codec_as_unsupported_feature ... ok
+test dra::program::tests::analyze_ops_lengths_match_total_and_spans ... ok
+test dra::program::tests::analyze_predicts_pack_length ... ok
+test dra::program::tests::analyze_predicts_width_bytes ... ok
+test dra::program::tests::coverage_gap_is_rejected ... ok
+test dra::program::tests::decode_channel_and_repeat ... ok
+test dra::program::tests::dra_version_is_eight ... ok
+test dra::program::tests::deflate_replay_missing_object_errors ... ok
+test adapter::pdf::samples::tests::corpus_is_deterministic ... ok
+test dra::program::tests::emit_unmarked_slot_errors ... ok
+test dra::program::tests::emit_width_too_small_errors ... ok
+test dra::program::tests::emit_zero_pads ... ok
+test dra::program::tests::interleave_lengths_must_be_4x_tokens ... ok
+test dra::program::tests::enforces_output_limit ... ok
+test dra::program::tests::inline_and_repeat ... ok
+test dra::program::tests::interleave_predicts_from_channel_lens ... ok
+test dra::program::tests::interleave_rejects_bad_channel_index ... ok
+test dra::program::tests::interleave_rejects_unconsumed_payload ... ok
+test dra::program::tests::interleave_roundtrip ... ok
+test dra::program::tests::literal_concat_and_coverage ... ok
+test adapter::pdf::large::tests::large_pdf_is_a_well_formed_classic_pdf ... ok
+test dra::program::tests::mark_emit_roundtrip ... ok
+test adapter::pdf::layout::tests::layout_v2_declines ... ok
+test dra::program::tests::mark_slot_bound_covers_every_u8_slot ... ok
+test dra::program::tests::pack_rejects_bad_slot_width ... ok
+test dra::program::tests::pack_rejects_emit_before_mark ... ok
+test dra::program::tests::pack_rejects_unconsumed_data ... ok
+test dra::program::tests::pack_varint_long_len ... ok
+test dra::program::tests::pack_roundtrip ... ok
+test dra::program::tests::packed_channels_declared_len_mismatch_errors ... ok
+test dra::program::tests::packed_channels_missing_channel_errors ... ok
+test dra::program::tests::packed_channels_rejects_unconsumed_data ... ok
+test dra::program::tests::packed_channels_roundtrip ... ok
+test dra::program::tests::packed_channels_truncated_plan_errors ... ok
+test dra::program::tests::program_roundtrips_via_bytes ... ok
+test dra::program::tests::rejects_leading_repeat ... ok
+test dra::program::tests::rejects_consecutive_repeats ... ok
+test dra::program::tests::replay_declared_len_above_profile_limit_is_rejected ... ok
+test dra::program::tests::rejects_missing_object ... ok
+test dra::program::tests::rejects_missing_channel ... ok
+test dra::program::tests::replay_profile_limit_arithmetic ... ok
+test encode::candidates::tests::rle_declines_when_graph_too_big ... ok
+test adapter::pdf::layout::tests::layout_v2_exact ... ok
+test encode::candidates::tests::single_byte_is_rle ... ok
+test encode::court::tests::empty_input_is_exact ... ok
+test encode::court::tests::raw_candidate_wins_and_is_exact ... ok
+test encode::tests::deterministic_output ... ok
+test encode::candidates::tests::rle_wins_on_long_runs ... ok
+test entropy::codec::tests::empty_payload_roundtrips ... ok
+test encode::tests::encode_with_unproposed_kind_errors ... ok
+test entropy::codec::tests::enforces_decoded_length_limit ... ok
+test entropy::codec::tests::enforces_payload_limit ... ok
+test entropy::codec::tests::enforces_symbol_count_limit ... ok
+test entropy::codec::tests::header_bytes_is_the_encode_prefix ... ok
+test entropy::codec::tests::header_bytes_depends_on_payload_length_not_bytes ... ok
+test entropy::codec::tests::rejects_truncated_header ... ok
+test encode::tests::encode_with_force_raw_is_exact ... ok
+test entropy::codec::tests::rejects_bad_scale_bits ... ok
+test entropy::codec::tests::rejects_truncated_payload ... ok
+test entropy::codec::tests::rejects_trailing_bytes ... ok
+test entropy::codec::tests::rejects_unknown_coder ... ok
+test entropy::codec::tests::rejects_unknown_version ... ok
+test entropy::codec::tests::rejects_multilane ... ok
+test entropy::codec::tests::wire_length_is_header_plus_payload ... ok
+test entropy::codec::tests::roundtrip ... ok
+test entropy::model::tests::all_zero_is_uniform ... ok
+test entropy::model::tests::alphabet_too_big_errors ... ok
+test entropy::model::tests::decode_accepts_legacy_v1_dense ... ok
+test entropy::model::tests::decode_rejects_bad_sum ... ok
+test entropy::model::tests::decode_rejects_bad_version ... ok
+test entropy::model::tests::dense_form_chosen_for_full_alphabet ... ok
+test entropy::model::tests::determinism ... ok
+test entropy::model::tests::decode_rejects_trailing ... ok
+test entropy::model::tests::encode_is_deterministic ... ok
+test entropy::model::tests::from_counts_sums_exactly ... ok
+test entropy::model::tests::sparse_form_chosen_for_low_alphabet ... ok
+test encode::tests::encode_with_none_matches_encode ... ok
+test adapter::pdf::layout::tests::layout_v2_deterministic ... ok
+test adapter::pdf::layout::tests::layout_is_exact_on_corpus ... ok
+test encode::candidates::tests::rle_wins_on_zeros ... ok
+test entropy::model::tests::present_symbols_get_at_least_one ... ok
+test entropy::model::tests::roundtrip_encode_decode ... ok
+test entropy::model::tests::sparse_decode_rejects_unsorted_or_duplicate_symbols ... ok
+test entropy::model::tests::uniform_sums_to_target ... ok
+test error::tests::display_includes_class ... ok
+test error::tests::exit_codes_are_distinct_and_stable ... ok
+test integrity::tests::crc32c_standard_vector ... ok
+test integrity::tests::hex_roundtrip_shape ... ok
+test integrity::tests::sha256_standard_vectors ... ok
+test integrity::tests::streaming_matches_oneshot ... ok
+test entropy::model::tests::zero_symbols_get_zero ... ok
+test materialize::tests::exact_roundtrip ... ok
+test materialize::tests::detects_digest_mismatch ... ok
+test store::io::tests::delta_is_non_negative_and_additive ... ok
+test store::io::tests::handles_share_and_delta_sums_correctly ... ok
+test store::io::tests::independent_counters_do_not_leak ... ok
+test adapter::pdf::samples::tests::valid_pdfs_detect_scan_and_propose ... ok
+test encode::tests::encode_decode_identity ... ok
+test encode::candidates::tests::byte_rans_is_deterministic ... ok
+test encode::candidates::tests::raw_wins_on_incompressible ... ok
+test adapter::pdf::layout::tests::layout_measurements_report ... ok
+test adapter::pdf::samples::tests::every_sample_is_byte_exact_through_the_court ... ok
+
+test result: ok. 245 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/main.rs (target/debug/deps/vole_document-7f589ef223a39b97)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/conformance.rs (target/debug/deps/conformance-e81a548e733bb806)
+
+running 7 tests
+test coverage_authority_literal_then_generated ... ok
+test fixed_overhead_formula_holds ... ok
+test header_universe_id_matches_declaration ... ok
+test canonical_reencoding_is_byte_stable ... ok
+test inline_literal_program_is_exact ... ok
+test parse_serialize_model_roundtrip ... ok
+test verify_report_is_accurate ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cross_document_reuse.rs (target/debug/deps/cross_document_reuse-a50b40c0100c8637)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/deflate_stats.rs (target/debug/deps/deflate_stats-ff93f6e402c1efb3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/docx_adapter.rs (target/debug/deps/docx_adapter-c51210ecc00bcd71)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/entropy.rs (target/debug/deps/entropy-2eeadf1a68b57a05)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/entropyfs.rs (target/debug/deps/entropyfs-393a1dc8b4941a32)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/epub_adapter.rs (target/debug/deps/epub_adapter-768c8d4da9d1f9ff)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/epub_content.rs (target/debug/deps/epub_content-63308fb22faee25d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/exact.rs (target/debug/deps/exact-4a95265de381c425)
+
+running 11 tests
+test empty ... ok
+test all_byte_values ... ok
+test ones ... ok
+test random_small ... ok
+test tiny_boundary_sizes ... ok
+test zeros ... ok
+test single_byte_values ... ok
+test encoded_overhead_is_bounded_for_incompressible_data ... ok
+test sequential_cycle ... ok
+test text_like ... ok
+test random_large_incompressible ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/field_authority.rs (target/debug/deps/field_authority-66f833798734d134)
+
+running 2 tests
+test field_is_not_required_to_materialize ... ok
+test decode_path_never_references_the_field_or_search ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/field_edit.rs (target/debug/deps/field_edit-999306f2a4720758)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/field_observe.rs (target/debug/deps/field_observe-0465085b7d93bcb2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/field_partial.rs (target/debug/deps/field_partial-506ae08947bf6739)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/field_reuse.rs (target/debug/deps/field_reuse-f50919e0c7ba6a4f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fuzz_regressions.rs (target/debug/deps/fuzz_regressions-016b7312dcd1f2fa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/goldens.rs (target/debug/deps/goldens-a64746d8c778362b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/governor.rs (target/debug/deps/governor-812eb8b94da791fd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/malformed.rs (target/debug/deps/malformed-b55c127ac64847da)
+
+running 13 tests
+test court_rejects_inexact_candidate ... ok
+test empty_input_is_invalid_container ... ok
+test bad_magic_is_rejected ... ok
+test duplicate_universe_record_is_rejected ... ok
+test future_major_version_is_unsupported_not_misparsed ... ok
+test repeat_expansion_is_bounded ... ok
+test store_backed_descriptor_fails_closed_without_store ... ok
+test unknown_mandatory_feature_bit_fails_closed ... ok
+test unknown_mandatory_record_fails_closed ... ok
+test wrong_exactness_profile_is_unsupported ... ok
+test unknown_optional_record_is_skipped ... ok
+test short_truncations_are_rejected ... ok
+test every_single_byte_flip_is_detected ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/observation.rs (target/debug/deps/observation-ea0ca8c4dfb2bf76)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/observation_cli.rs (target/debug/deps/observation_cli-d412b8e52f7fb813)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/observation_disk.rs (target/debug/deps/observation_disk-088d88d456abc372)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/observation_seek.rs (target/debug/deps/observation_seek-b13c7a96dbdbc761)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/opc_core.rs (target/debug/deps/opc_core-78b4df40c872e1b8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/package_field.rs (target/debug/deps/package_field-2531e9338ef6da8d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pdf.rs (target/debug/deps/pdf-2bddeb4626808fe3)
+
+running 8 tests
+test coverage_is_total_for_every_pdf ... ok
+test detection_is_validated_not_extension_based ... ok
+test incremental_has_two_revisions ... ok
+test non_pdf_falls_back ... ok
+test string_and_stream_traps_do_not_split_objects ... ok
+test court_still_prefers_raw_on_phase3 ... ok
+test every_pdf_materializes_exactly_via_physical_candidate ... ok
+test random_bytes_never_panic ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/pdf_channels.rs (target/debug/deps/pdf_channels-cecfab20a60117ff)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pdf_deflate.rs (target/debug/deps/pdf_deflate-cb1fcac106d281da)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pdf_layout.rs (target/debug/deps/pdf_layout-ffbad5173b093cee)
+
+running 7 tests
+test layout_bad_offset_falls_back ... ok
+test layout_hostile ... ok
+test layout_predicts_entries ... ok
+test layout_not_selected_on_corpus ... ok
+test forced_layout_is_exact ... ok
+test layout_declines ... ok
+test layout_deterministic ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/phase12_courts.rs (target/debug/deps/phase12_courts-6bb04194e1f6f635)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/phase12_lifetime.rs (target/debug/deps/phase12_lifetime-6efc470645b529a3)
+
+running 7 tests
+test baseline_engine_is_a_source_retaining_sqlite_fts5_cache ... ok
+test court_scripts_are_present ... ok
+test corpus_generator_reuses_129_and_defines_a_large_variant ... ok
+test schedule_emitter_freezes_the_order ... ok
+test court_runs_the_ablation_ladder ... ok
+test schedule_is_pre_registered_and_complete ... ok
+test schedule_pre_registers_the_ablation_ladder ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/phase12_security.rs (target/debug/deps/phase12_security-024c2c55b12955f4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/property.rs (target/debug/deps/property-60d879ad12db2e8b)
+
+running 6 tests
+test oversized_claims_are_bounded ... ok
+test limits_never_change_reconstructed_bytes ... ok
+test random_bytes_never_panic ... ok
+test mutated_valid_descriptors_are_safe ... ok
+test parse_serialize_stability ... ok
+test roundtrip_property ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+     Running tests/replay_isolation.rs (target/debug/deps/replay_isolation-9f181f963ebcb5c2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/share_account.rs (target/debug/deps/share_account-cb19028b1a2e0e33)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/store.rs (target/debug/deps/store-1e97c442c37b6db6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/universal_api.rs (target/debug/deps/universal_api-fb74caa9bdb318da)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/zip_physical.rs (target/debug/deps/zip_physical-fc05b0d7a6c4bd4e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vole_document
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

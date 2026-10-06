@@ -1,0 +1,52 @@
+{
+  "lane": "a9",
+  "rung": "A9 + EntropyFS fine-grained range access (entropyfs-store backend)",
+  "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-full",
+  "flags": "--entropyfs",
+  "one_time": {
+    "wall_ms": 3,
+    "cpu_ms": 0,
+    "process_read_bytes": 84080
+  },
+  "encode": {
+    "wall_ms": 1,
+    "cpu_ms": 0
+  },
+  "ingest": {
+    "wall_ms": 2,
+    "cpu_ms": 0
+  },
+  "ingest_report": {
+    "format": "docx",
+    "field": "564d6e59603129fef828264e58cf44d66f80bf6162b30ec9e0951dc80bde76c5",
+    "root_node": "e3d942dc4b1794e49e2880ed1f336c68141693436de192512b95d73518ae3768",
+    "index_root": "2892868b6db2e0c0eedc1a79d7320ab8ecabbd9fd8852331dec4e4c1c05524ac",
+    "node_count": 18,
+    "index_node_count": 1,
+    "source_len": 3282,
+    "member_count": 7,
+    "raw_nodes": 7,
+    "decoded_nodes": 7,
+    "declined_decodes": 0,
+    "opc_model_nodes": 1,
+    "docx_model_nodes": 1,
+    "epub_model_nodes": 1,
+    "resource_blob_nodes": 1,
+    "shared_resource_ids": 0,
+    "shared_resource_bytes": 0,
+    "nodes_id_shared": 0,
+    "seed_bytes_written": 2617,
+    "index_bytes_written": 943
+  },
+  "store_universe_bytes": {
+    "descriptor": 0,
+    "seed": 0,
+    "index": 1123,
+    "manifest": 0,
+    "derived_cache": 8493,
+    "total": 72353
+  },
+  "answered_cases": 11,
+  "declined_cases": 1,
+  "failed_cases": 0
+}

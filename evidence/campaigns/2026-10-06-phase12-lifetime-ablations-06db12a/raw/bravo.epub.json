@@ -1,0 +1,472 @@
+{
+  "name": "bravo.epub",
+  "format": "epub",
+  "source": {
+    "path": "evidence/scratch/phase12-lifetime-corpus/bravo.epub",
+    "len": 3012,
+    "sha256": "aa38ebba1ac58837d6e63c3609eff379bf9dc28b2e79b72e7d773dc84912c8f5"
+  },
+  "schedule": {
+    "cases": 12,
+    "ns": [
+      1,
+      10,
+      100,
+      1000
+    ],
+    "passes": 2
+  },
+  "a0": {
+    "one_time": {
+      "wall_ms": 0,
+      "cpu_ms": 0,
+      "process_read_bytes": 0
+    }
+  },
+  "a1": {
+    "preprocessing": {
+      "wall_ms": 23,
+      "cpu_ms": 10,
+      "process_read_bytes": 1821751
+    },
+    "db_bytes": 77824,
+    "wal_bytes": 0,
+    "shm_bytes": 0,
+    "persistent_bytes": 77824,
+    "retained_source_bytes": 3012,
+    "extraction_metrics": {
+      "db_bytes": 77824,
+      "decompressed_bytes": 3396,
+      "external_invocations": 0,
+      "member_decodes": 4,
+      "source_reparses": 1,
+      "xml_bytes_parsed": 2364
+    }
+  },
+  "a1b": {
+    "preprocessing": {
+      "wall_ms": 314,
+      "cpu_ms": 290,
+      "process_read_bytes": 3648122
+    },
+    "db_bytes": 94208,
+    "persistent_bytes": 94208,
+    "retained_source_bytes": 3012
+  },
+  "lanes": {
+    "a2": {
+      "lane": "a2",
+      "rung": "A2 Phase-11 field (PDF only; no package feature)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-a2",
+      "flags": "",
+      "one_time": {
+        "wall_ms": 1,
+        "cpu_ms": 0,
+        "process_read_bytes": 22203
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 0,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "opaque",
+        "field": "999abe5ce939552e7c57cdf75cda56b2884e4fd58c1b052ec8dd4d060c0e5167",
+        "root_node": "6ed8537e350ee057755d50233f29827c3df66a00588a1b87a109bf92f52cedc3",
+        "index_root": null,
+        "node_count": 1,
+        "index_node_count": 0,
+        "source_len": 3012,
+        "object_nodes": 0,
+        "stream_nodes": 0,
+        "decoded_stream_nodes": 0,
+        "page_nodes": 0,
+        "revision_nodes": 0,
+        "declined_streams": 0,
+        "resource_blob_nodes": 0,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 0
+      },
+      "store_universe_bytes": {
+        "descriptor": 3553,
+        "seed": 240,
+        "index": 40,
+        "manifest": 555,
+        "derived_cache": 40,
+        "total": 4568
+      },
+      "answered_cases": 1,
+      "declined_cases": 11,
+      "failed_cases": 0
+    },
+    "a3": {
+      "lane": "a3",
+      "rung": "A3 ZIP physical only (package, no opc/docx/epub)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-a3",
+      "flags": "",
+      "one_time": {
+        "wall_ms": 2,
+        "cpu_ms": 0,
+        "process_read_bytes": 19148
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "epub",
+        "field": "d03cebf7beb2e5d6b3172c87e5f52242bad2051d6db66d17c70b0ef38fdcfd79",
+        "root_node": "ca4fa092cbdec575e4d38e4f9cbdbb3aae2cfdc5d24f4450fcc8aacf41b26253",
+        "index_root": "5a1d66fbe801cb8fcc7817ced8fa8c5a1655bc0695f93cf114ac6c48060ffdcb",
+        "node_count": 13,
+        "index_node_count": 1,
+        "source_len": 3012,
+        "member_count": 6,
+        "raw_nodes": 6,
+        "decoded_nodes": 6,
+        "declined_decodes": 0,
+        "opc_model_nodes": 0,
+        "docx_model_nodes": 0,
+        "epub_model_nodes": 0,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2184,
+        "index_bytes_written": 668
+      },
+      "store_universe_bytes": {
+        "descriptor": 3553,
+        "seed": 4184,
+        "index": 848,
+        "manifest": 366,
+        "derived_cache": 40,
+        "total": 9131
+      },
+      "answered_cases": 1,
+      "declined_cases": 11,
+      "failed_cases": 0
+    },
+    "a4": {
+      "lane": "a4",
+      "rung": "A4 + native package graph (opc; no docx/epub content semantics)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-a4g",
+      "flags": "",
+      "one_time": {
+        "wall_ms": 2,
+        "cpu_ms": 0,
+        "process_read_bytes": 19211
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "epub",
+        "field": "1e8f59f72e20bdd978240eeb187622836129f06770d5c9498c0bf78a7b686b6b",
+        "root_node": "ca4fa092cbdec575e4d38e4f9cbdbb3aae2cfdc5d24f4450fcc8aacf41b26253",
+        "index_root": "da82e93e0c4ec14b474dce486c0fdb99832ae56da3e60bf41534ebf1fd8adbb9",
+        "node_count": 14,
+        "index_node_count": 1,
+        "source_len": 3012,
+        "member_count": 6,
+        "raw_nodes": 6,
+        "decoded_nodes": 6,
+        "declined_decodes": 0,
+        "opc_model_nodes": 1,
+        "docx_model_nodes": 0,
+        "epub_model_nodes": 0,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2269,
+        "index_bytes_written": 723
+      },
+      "store_universe_bytes": {
+        "descriptor": 3553,
+        "seed": 4409,
+        "index": 903,
+        "manifest": 366,
+        "derived_cache": 40,
+        "total": 9411
+      },
+      "answered_cases": 1,
+      "declined_cases": 11,
+      "failed_cases": 0
+    },
+    "a5": {
+      "lane": "a5",
+      "rung": "A5 + progressive semantic inversion (docx/epub content, no persistent reuse)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-a46",
+      "flags": "--no-cache",
+      "one_time": {
+        "wall_ms": 2,
+        "cpu_ms": 0,
+        "process_read_bytes": 19321
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "epub",
+        "field": "93e862222567ec54cca3c38bf730a9a0a96306b89917ed1e7b1ede7cbe2c1e23",
+        "root_node": "ca4fa092cbdec575e4d38e4f9cbdbb3aae2cfdc5d24f4450fcc8aacf41b26253",
+        "index_root": "8f9bb4380ab1cba1c5c4f0a949faaede944f78b4ad5242f3ad43a66462d9f6b5",
+        "node_count": 16,
+        "index_node_count": 1,
+        "source_len": 3012,
+        "member_count": 6,
+        "raw_nodes": 6,
+        "decoded_nodes": 6,
+        "declined_decodes": 0,
+        "opc_model_nodes": 1,
+        "docx_model_nodes": 1,
+        "epub_model_nodes": 1,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2441,
+        "index_bytes_written": 833
+      },
+      "store_universe_bytes": {
+        "descriptor": 3553,
+        "seed": 4861,
+        "index": 1013,
+        "manifest": 366,
+        "derived_cache": 40,
+        "total": 9973
+      },
+      "answered_cases": 12,
+      "declined_cases": 0,
+      "failed_cases": 0
+    },
+    "a6": {
+      "lane": "a6",
+      "rung": "A6 + persistent semantic reuse (DerivedCache on)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-a46",
+      "flags": "",
+      "one_time": {
+        "wall_ms": 2,
+        "cpu_ms": 0,
+        "process_read_bytes": 19321
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "epub",
+        "field": "93e862222567ec54cca3c38bf730a9a0a96306b89917ed1e7b1ede7cbe2c1e23",
+        "root_node": "ca4fa092cbdec575e4d38e4f9cbdbb3aae2cfdc5d24f4450fcc8aacf41b26253",
+        "index_root": "8f9bb4380ab1cba1c5c4f0a949faaede944f78b4ad5242f3ad43a66462d9f6b5",
+        "node_count": 16,
+        "index_node_count": 1,
+        "source_len": 3012,
+        "member_count": 6,
+        "raw_nodes": 6,
+        "decoded_nodes": 6,
+        "declined_decodes": 0,
+        "opc_model_nodes": 1,
+        "docx_model_nodes": 1,
+        "epub_model_nodes": 1,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2441,
+        "index_bytes_written": 833
+      },
+      "store_universe_bytes": {
+        "descriptor": 3553,
+        "seed": 4861,
+        "index": 1013,
+        "manifest": 366,
+        "derived_cache": 9730,
+        "total": 19663
+      },
+      "answered_cases": 12,
+      "declined_cases": 0,
+      "failed_cases": 0
+    },
+    "a9": {
+      "lane": "a9",
+      "rung": "A9 + EntropyFS fine-grained range access (entropyfs-store backend)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-full",
+      "flags": "--entropyfs",
+      "one_time": {
+        "wall_ms": 3,
+        "cpu_ms": 0,
+        "process_read_bytes": 78190
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 2,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "epub",
+        "field": "93e862222567ec54cca3c38bf730a9a0a96306b89917ed1e7b1ede7cbe2c1e23",
+        "root_node": "ca4fa092cbdec575e4d38e4f9cbdbb3aae2cfdc5d24f4450fcc8aacf41b26253",
+        "index_root": "8f9bb4380ab1cba1c5c4f0a949faaede944f78b4ad5242f3ad43a66462d9f6b5",
+        "node_count": 16,
+        "index_node_count": 1,
+        "source_len": 3012,
+        "member_count": 6,
+        "raw_nodes": 6,
+        "decoded_nodes": 6,
+        "declined_decodes": 0,
+        "opc_model_nodes": 1,
+        "docx_model_nodes": 1,
+        "epub_model_nodes": 1,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2441,
+        "index_bytes_written": 833
+      },
+      "store_universe_bytes": {
+        "descriptor": 0,
+        "seed": 0,
+        "index": 1013,
+        "manifest": 0,
+        "derived_cache": 9730,
+        "total": 68320
+      },
+      "answered_cases": 12,
+      "declined_cases": 0,
+      "failed_cases": 0
+    },
+    "a11": {
+      "lane": "a11",
+      "rung": "A11 full Phase-12 system (filesystem backend, DerivedCache on)",
+      "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-full",
+      "flags": "",
+      "one_time": {
+        "wall_ms": 2,
+        "cpu_ms": 0,
+        "process_read_bytes": 22083
+      },
+      "encode": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest": {
+        "wall_ms": 1,
+        "cpu_ms": 0
+      },
+      "ingest_report": {
+        "format": "epub",
+        "field": "93e862222567ec54cca3c38bf730a9a0a96306b89917ed1e7b1ede7cbe2c1e23",
+        "root_node": "ca4fa092cbdec575e4d38e4f9cbdbb3aae2cfdc5d24f4450fcc8aacf41b26253",
+        "index_root": "8f9bb4380ab1cba1c5c4f0a949faaede944f78b4ad5242f3ad43a66462d9f6b5",
+        "node_count": 16,
+        "index_node_count": 1,
+        "source_len": 3012,
+        "member_count": 6,
+        "raw_nodes": 6,
+        "decoded_nodes": 6,
+        "declined_decodes": 0,
+        "opc_model_nodes": 1,
+        "docx_model_nodes": 1,
+        "epub_model_nodes": 1,
+        "resource_blob_nodes": 1,
+        "shared_resource_ids": 0,
+        "shared_resource_bytes": 0,
+        "nodes_id_shared": 0,
+        "seed_bytes_written": 2441,
+        "index_bytes_written": 833
+      },
+      "store_universe_bytes": {
+        "descriptor": 3553,
+        "seed": 4861,
+        "index": 1013,
+        "manifest": 366,
+        "derived_cache": 9730,
+        "total": 19663
+      },
+      "answered_cases": 12,
+      "declined_cases": 0,
+      "failed_cases": 0
+    }
+  },
+  "vole": {
+    "lane": "a11",
+    "rung": "A11 full Phase-12 system (filesystem backend, DerivedCache on)",
+    "bin": "/tmp/tmp.WTgqOzd90t/bin/vole-full",
+    "flags": "",
+    "one_time": {
+      "wall_ms": 2,
+      "cpu_ms": 0,
+      "process_read_bytes": 22083
+    },
+    "encode": {
+      "wall_ms": 1,
+      "cpu_ms": 0
+    },
+    "ingest": {
+      "wall_ms": 1,
+      "cpu_ms": 0
+    },
+    "ingest_report": {
+      "format": "epub",
+      "field": "93e862222567ec54cca3c38bf730a9a0a96306b89917ed1e7b1ede7cbe2c1e23",
+      "root_node": "ca4fa092cbdec575e4d38e4f9cbdbb3aae2cfdc5d24f4450fcc8aacf41b26253",
+      "index_root": "8f9bb4380ab1cba1c5c4f0a949faaede944f78b4ad5242f3ad43a66462d9f6b5",
+      "node_count": 16,
+      "index_node_count": 1,
+      "source_len": 3012,
+      "member_count": 6,
+      "raw_nodes": 6,
+      "decoded_nodes": 6,
+      "declined_decodes": 0,
+      "opc_model_nodes": 1,
+      "docx_model_nodes": 1,
+      "epub_model_nodes": 1,
+      "resource_blob_nodes": 1,
+      "shared_resource_ids": 0,
+      "shared_resource_bytes": 0,
+      "nodes_id_shared": 0,
+      "seed_bytes_written": 2441,
+      "index_bytes_written": 833
+    },
+    "store_universe_bytes": {
+      "descriptor": 3553,
+      "seed": 4861,
+      "index": 1013,
+      "manifest": 366,
+      "derived_cache": 9730,
+      "total": 19663
+    },
+    "answered_cases": 12,
+    "declined_cases": 0,
+    "failed_cases": 0
+  }
+}
