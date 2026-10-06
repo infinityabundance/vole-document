@@ -108,11 +108,13 @@ process.
   text-run projection*, not Poppler reading-order extraction — the byte
   comparison is not a text-quality claim in either direction.
 
-## Tokens
+## Tokens (as of `63f43fb`: not claimed)
 
-`tokens: null`, `tokens_reason`: *"no pinned offline tokenizer (no vendored
-BPE/model with a recorded SHA-256); UTF-8 bytes reported only, token counts not
-claimed."* No tokenizer was installed, and no "tokens saved" is claimed.
+For that receipt `tokens: null`, `tokens_reason`: *"no pinned offline tokenizer
+(no vendored BPE/model with a recorded SHA-256); UTF-8 bytes reported only, token
+counts not claimed."* No "tokens saved" was claimed. This is **superseded** by the
+pinned tokenizer court below — see *LLM token working set (pinned tokenizer)*
+(receipt `2026-10-06-phase11-llm-tokens-735f3d3`).
 
 ## Gates
 
@@ -146,7 +148,82 @@ cargo `1.99.0 (5f94df478 2026-08-27)`, `Cargo.lock` SHA-256
 * Poppler's page-local path is measured on `read`/`pread64` **and** on `mmap`;
   the mmap figure is lazy and is reported separately. VOLE's cold path is not
   page-local in total process I/O because it reloads the descriptor.
-* No pinned offline tokenizer was available, so no token counts are claimed.
+* No pinned offline tokenizer was available in `63f43fb`, so no token counts
+  were claimed there. A pinned, offline tokenizer now exists and the 11.13 token
+  court below reports counts (a mixed win/tie/loss, recorded honestly).
+
+## LLM token working set (pinned tokenizer) — Phase 11.13
+
+Sealed receipt: `evidence/campaigns/2026-10-06-phase11-llm-tokens-735f3d3/`
+(`receipt.json`, `SUMMARY.md`, `commands.txt`, `gates.txt`, `raw/`). Commit under
+test `735f3d3`.
+
+The §11.10 court above reported UTF-8 bytes only because no pinned offline
+tokenizer existed. Phase 11.13 closes that gap:
+
+* **Tokenizer (pinned, offline).** `bert-base-uncased` (WordPiece, vocab 30522),
+  loaded by the hash-pinned HuggingFace `tokenizers==0.20.3` runtime from the
+  vendored asset `tools/tokenizers/bert-base-uncased.tokenizer.json`
+  (466,062 B, Apache-2.0, HF revision `86b5e093…`). The asset SHA-256
+  `ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98` is verified
+  **at court time**; the full tokenizer config (model, normalizer, pre-tokenizer,
+  post-processor, decoder, vocab size) is read back from the asset and printed
+  next to every count. The court never touches the network. `add_special_tokens`
+  is `false`, so the tokenizer's `[CLS]`/`[SEP]` (+2 per candidate) is excluded.
+* **New pinned image/service.** `Dockerfile` stage `llm-workingset` (`FROM dev`,
+  same base digest `rust:1.99.0-slim-bookworm@sha256:452176…`) adds Poppler, `jq`,
+  `python3`, and the hash-verified `tokenizers` cp311 wheel; `compose.yaml`
+  service `llm-workingset` is capped (`mem_limit`/`memswap_limit` 4g, `cpus` 4).
+  Local image `sha256:28aee8f6…`.
+* **Tools.** `tools/field-llm-workingset.sh` now reports bytes **and** tokens for
+  B0/B1/V, the token-space ratios, and `answer_relevant_tokens` (= B1 tokens);
+  `tools/llm-tokenize.py` is the small loader; `tools/llm-token-court.sh` reruns
+  the court over generated and real producer documents and writes the receipt.
+
+**No `src/`, `tests/`, `fuzz/`, `Cargo.toml`, or `Cargo.lock` change** — the
+pinned tokenizer lives in the opt-in image, so the default/MSRV/all-features
+Rust graph is byte-identical (`Cargo.lock` SHA-256 still `25fc018b…`).
+
+### Measured (tokens under `bert-base-uncased`)
+
+| case | kind | B0 bytes | B1 bytes | V bytes | B0 tokens | B1 tokens | V tokens | V vs B1 (tokens) |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| large-50 | generated | 4,485 | 91 | 527,275 | 2,722 | 54 | 340,182 | **loss** |
+| large-400 | generated | 35,868 | 91 | 65,913 | 22,142 | 54 | 41,433 | **loss** |
+| libreoffice-export | producer | 122,315 | 1,933 | 62 | 27,783 | 420 | 22 | **win** (19.1×) |
+| cairo-vector | producer | 71,634 | 11,939 | 11,936 | 15,450 | 2,575 | 2,575 | tie |
+| pdftex-doc | producer | 58,824 | 9,804 | 622 | 12,744 | 2,124 | 256 | **win** (8.3×) |
+| reportlab-multipage | producer | 70,842 | 11,807 | 11,804 | 15,396 | 2,566 | 2,566 | tie |
+
+**Verdict (tokens).** Against the page-local Poppler extract B1: **2 win / 2 tie /
+2 loss**. Against the whole-document extract B0: **4 win / 0 tie / 2 loss**. So
+VOLE *does* reduce the token working set on the real producer documents
+(libreoffice, pdfTeX), ties on two vector-heavy producers, and is far larger on
+the two generated (overlapping-text) documents, where its heuristic text-run
+projection inflates the page answer. Any-reduction: `true`; on all tested
+observations: `false`.
+
+**Honest caveats.** Token counts are tokenizer-specific: these are
+`bert-base-uncased` (WordPiece, vocab 30522) numbers and are **not** a claim
+about any other model's tokenizer. B0/B1 are Poppler reading-order extracts; V is
+VOLE's bounded heuristic text-run projection (`basis=heuristic`), never Poppler
+reading order. A smaller V in bytes *or* tokens is a **working-set** measurement,
+never a text-quality claim, and no "tokens saved" is claimed without naming this
+tokenizer.
+
+### Gates
+
+* `docker compose build llm-workingset` — OK (image `sha256:28aee8f6…`).
+* `cargo fmt --all && cargo clippy --all-targets --all-features -- -D warnings &&
+  cargo test --all-features --locked && cargo test --no-default-features` — OK.
+* No `src/`, `tests/`, `fuzz/`, or `Cargo.*` change; `Cargo.lock` SHA-256
+  unchanged.
+
+```sh
+docker compose build llm-workingset
+docker compose run --rm --no-TTY -e HOST_IMAGE_ID=<id> llm-workingset \
+    sh tools/llm-token-court.sh evidence/campaigns/2026-10-06-phase11-llm-tokens-735f3d3
+```
 
 ## Lifetime cost (Phase 11.12 priority #7 — 1/10/100/1,000-query court)
 

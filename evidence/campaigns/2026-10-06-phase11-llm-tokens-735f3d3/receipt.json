@@ -1,0 +1,781 @@
+{
+  "campaign": "phase11-llm-tokens",
+  "phase": "Phase 11.13 — LLM working-set token court with a pinned tokenizer",
+  "environment": {
+    "git": {
+      "commit": "735f3d3fec165473429db1dadcb5b961db029694",
+      "commit_short": "735f3d3",
+      "dirty": ""
+    },
+    "arch": "x86_64",
+    "cargo_lock_sha256": "25fc018b20d57fe22b704fd528cfa9f3dc64969ed7aa0345fb0cd294e913eea2",
+    "toolchain": {
+      "rustc": "1.99.0 (b940084d7 2026-09-28)",
+      "cargo": "1.99.0 (5f94df478 2026-08-27)",
+      "python": "3.11.2"
+    },
+    "images": {
+      "base_stable_digest": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+      "base_tools_digest": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+      "image_ref": "vole-document/llm-workingset:1.99.0",
+      "llm_workingset_image_id": "sha256:28aee8f6fe427b6b68659cb20ab08be4b2ef7fc629a66d5ad9a784196b6597bd"
+    },
+    "oracles": {
+      "poppler_pdftotext": "22.12.0",
+      "jq": "jq-1.6"
+    },
+    "env_affecting_semantics": {
+      "LC_ALL": "C",
+      "VOLE_BIN": "./target/debug/vole-document",
+      "PRIMARY_PAGE": "1"
+    },
+    "tokenizer": {
+      "name": "bert-base-uncased",
+      "implementation": "huggingface/tokenizers (Python bindings)",
+      "implementation_version": "0.20.3",
+      "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+      "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+      "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+      "asset_verified": true,
+      "add_special_tokens": false,
+      "config": {
+        "tokenizer_json_version": "1.0",
+        "model": "WordPiece",
+        "unk_token": "[UNK]",
+        "continuing_subword_prefix": "##",
+        "max_input_chars_per_word": 100,
+        "normalizer": {
+          "type": "BertNormalizer",
+          "clean_text": true,
+          "handle_chinese_chars": true,
+          "strip_accents": null,
+          "lowercase": true
+        },
+        "pre_tokenizer": {
+          "type": "BertPreTokenizer"
+        },
+        "post_processor": "TemplateProcessing",
+        "decoder": "WordPiece",
+        "vocab_size": 30522
+      }
+    }
+  },
+  "tokenizer": {
+    "name": "bert-base-uncased",
+    "implementation": "huggingface/tokenizers (Python bindings)",
+    "implementation_version": "0.20.3",
+    "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+    "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+    "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+    "asset_verified": true,
+    "add_special_tokens": false,
+    "config": {
+      "tokenizer_json_version": "1.0",
+      "model": "WordPiece",
+      "unk_token": "[UNK]",
+      "continuing_subword_prefix": "##",
+      "max_input_chars_per_word": 100,
+      "normalizer": {
+        "type": "BertNormalizer",
+        "clean_text": true,
+        "handle_chinese_chars": true,
+        "strip_accents": null,
+        "lowercase": true
+      },
+      "pre_tokenizer": {
+        "type": "BertPreTokenizer"
+      },
+      "post_processor": "TemplateProcessing",
+      "decoder": "WordPiece",
+      "vocab_size": 30522
+    }
+  },
+  "cases": [
+    {
+      "name": "large-50",
+      "kind": "generated",
+      "source": {
+        "path": "/tmp/tmp.8Ds2ZMGdc2/gen50/large.pdf",
+        "len": 33571029,
+        "sha256": "74ac785ab0bd7fe2e032e8f7499e60a2b2ec51bc3aa0971319d653b265815bf9",
+        "pages": 50
+      },
+      "encode": {
+        "candidate": "PDF_DEFLATE_REPLAY_RANS",
+        "encoded_len": 17156412,
+        "wall_ms": 4334
+      },
+      "field": "3812b70f719598f26a6923673a96ff830a0648e950a0223616493e2f92f5055b",
+      "ingest_wall_ms": 820,
+      "llm": {
+        "question": "what is on page 1",
+        "tokenizer": {
+          "name": "bert-base-uncased",
+          "implementation": "huggingface/tokenizers (Python bindings)",
+          "implementation_version": "0.20.3",
+          "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+          "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_verified": true,
+          "add_special_tokens": false,
+          "config": {
+            "tokenizer_json_version": "1.0",
+            "model": "WordPiece",
+            "unk_token": "[UNK]",
+            "continuing_subword_prefix": "##",
+            "max_input_chars_per_word": 100,
+            "normalizer": {
+              "type": "BertNormalizer",
+              "clean_text": true,
+              "handle_chinese_chars": true,
+              "strip_accents": null,
+              "lowercase": true
+            },
+            "pre_tokenizer": {
+              "type": "BertPreTokenizer"
+            },
+            "post_processor": "TemplateProcessing",
+            "decoder": "WordPiece",
+            "vocab_size": 30522
+          }
+        },
+        "baselines": {
+          "B0_whole_document": {
+            "oracle": "pdftotext (poppler)",
+            "bytes": 4485,
+            "sha256": "c62ae260be8ec9a9d0ac8d9f73200c29147f416d166ce0e597f012cf23df2c8f",
+            "tokens": 2722,
+            "text_valid_utf8": true
+          },
+          "B1_page_local": {
+            "oracle": "pdftotext -f/-l (poppler)",
+            "bytes": 91,
+            "sha256": "bd2af578e2e1eac00c0f399ba650ebc959bba2b713194b8316c45cfa5869ea38",
+            "tokens": 54,
+            "text_valid_utf8": true
+          },
+          "V_vole_page_text": {
+            "repr": "observe --page --kind text",
+            "bytes": 527275,
+            "tokens": 340182,
+            "text_valid_utf8": true,
+            "bytes_returned_matches_payload": true,
+            "stats": "{\"index_nodes_read\":1,\"seed_nodes_fetched\":4,\"seed_nodes_materialized\":5,\"seed_nodes_executed\":5,\"seed_nodes_reused\":0,\"cache_bytes_written\":3691164,\"descriptor_bytes_read\":354712,\"descriptor_read_mode\":\"partial\",\"manifest_bytes_read\":246,\"index_bytes_read\":8240,\"seed_bytes_read\":449,\"bytes_read\":363647,\"bytes_returned\":527275,\"deepened\":true,\"wall_micros\":11432}"
+          }
+        },
+        "context_waste_ratio": 0.008505997818974919,
+        "ratios": {
+          "B0_over_V": 0.008505997818974919,
+          "B1_over_V": 0.000172585462993694,
+          "B0_over_B1": 49.285714285714285
+        },
+        "token_context_waste_ratio": 0.00800159914398763,
+        "token_ratios": {
+          "B0_over_V": 0.00800159914398763,
+          "B1_over_V": 0.00015873855759563997,
+          "B0_over_B1": 50.407407407407405
+        },
+        "answer_relevant_tokens": 54,
+        "tokens": {
+          "B0": 2722,
+          "B1": 54,
+          "V": 340182
+        },
+        "honest_losses": [
+          "V_page_text_larger_than_B1_page_local",
+          "V_page_text_larger_than_B0_whole_document",
+          "V_tokens_exceed_B1_page_local",
+          "V_tokens_exceed_B0_whole_document"
+        ]
+      }
+    },
+    {
+      "name": "large-400",
+      "kind": "generated",
+      "source": {
+        "path": "/tmp/tmp.8Ds2ZMGdc2/gen400/large.pdf",
+        "len": 33673730,
+        "sha256": "8024b1641f3144b0435811e3193c7a32519daaba5102e0f378c569e38e562f0b",
+        "pages": 400
+      },
+      "encode": {
+        "candidate": "PDF_DEFLATE_REPLAY_RANS",
+        "encoded_len": 17283279,
+        "wall_ms": 6050
+      },
+      "field": "e9263ae133fefb5fa74595ac9c9567b1b613707cc90be50cb2538d3107dcadf9",
+      "ingest_wall_ms": 2571,
+      "llm": {
+        "question": "what is on page 1",
+        "tokenizer": {
+          "name": "bert-base-uncased",
+          "implementation": "huggingface/tokenizers (Python bindings)",
+          "implementation_version": "0.20.3",
+          "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+          "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_verified": true,
+          "add_special_tokens": false,
+          "config": {
+            "tokenizer_json_version": "1.0",
+            "model": "WordPiece",
+            "unk_token": "[UNK]",
+            "continuing_subword_prefix": "##",
+            "max_input_chars_per_word": 100,
+            "normalizer": {
+              "type": "BertNormalizer",
+              "clean_text": true,
+              "handle_chinese_chars": true,
+              "strip_accents": null,
+              "lowercase": true
+            },
+            "pre_tokenizer": {
+              "type": "BertPreTokenizer"
+            },
+            "post_processor": "TemplateProcessing",
+            "decoder": "WordPiece",
+            "vocab_size": 30522
+          }
+        },
+        "baselines": {
+          "B0_whole_document": {
+            "oracle": "pdftotext (poppler)",
+            "bytes": 35868,
+            "sha256": "2cc2de6d14bf4e1e1a4e67f79f63cbdec2008db5b63caa1816ab46ba559145f0",
+            "tokens": 22142,
+            "text_valid_utf8": true
+          },
+          "B1_page_local": {
+            "oracle": "pdftotext -f/-l (poppler)",
+            "bytes": 91,
+            "sha256": "bd2af578e2e1eac00c0f399ba650ebc959bba2b713194b8316c45cfa5869ea38",
+            "tokens": 54,
+            "text_valid_utf8": true
+          },
+          "V_vole_page_text": {
+            "repr": "observe --page --kind text",
+            "bytes": 65913,
+            "tokens": 41433,
+            "text_valid_utf8": true,
+            "bytes_returned_matches_payload": true,
+            "stats": "{\"index_nodes_read\":1,\"seed_nodes_fetched\":4,\"seed_nodes_materialized\":5,\"seed_nodes_executed\":5,\"seed_nodes_reused\":0,\"cache_bytes_written\":461585,\"descriptor_bytes_read\":223073,\"descriptor_read_mode\":\"partial\",\"manifest_bytes_read\":249,\"index_bytes_read\":8744,\"seed_bytes_read\":449,\"bytes_read\":232515,\"bytes_returned\":65913,\"deepened\":true,\"wall_micros\":4742}"
+          }
+        },
+        "context_waste_ratio": 0.5441718629101998,
+        "ratios": {
+          "B0_over_V": 0.5441718629101998,
+          "B1_over_V": 0.0013806077708494531,
+          "B0_over_B1": 394.15384615384613
+        },
+        "token_context_waste_ratio": 0.5344049429198948,
+        "token_ratios": {
+          "B0_over_V": 0.5344049429198948,
+          "B1_over_V": 0.0013033089566287742,
+          "B0_over_B1": 410.037037037037
+        },
+        "answer_relevant_tokens": 54,
+        "tokens": {
+          "B0": 22142,
+          "B1": 54,
+          "V": 41433
+        },
+        "honest_losses": [
+          "V_page_text_larger_than_B1_page_local",
+          "V_page_text_larger_than_B0_whole_document",
+          "V_tokens_exceed_B1_page_local",
+          "V_tokens_exceed_B0_whole_document"
+        ]
+      }
+    },
+    {
+      "name": "libreoffice-export",
+      "kind": "producer",
+      "source": {
+        "path": "evidence/corpus/phase7-producers/libreoffice-export.pdf",
+        "len": 74371,
+        "sha256": "a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529",
+        "pages": 61
+      },
+      "encode": {
+        "candidate": "BYTE_RANS",
+        "encoded_len": 72850,
+        "wall_ms": 490
+      },
+      "field": "85c4415e41f397c8be8ccdeb7cf7ffd5a2ea51269b7a02649188fb6fe2b77544",
+      "ingest_wall_ms": 9,
+      "llm": {
+        "question": "what is on page 1",
+        "tokenizer": {
+          "name": "bert-base-uncased",
+          "implementation": "huggingface/tokenizers (Python bindings)",
+          "implementation_version": "0.20.3",
+          "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+          "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_verified": true,
+          "add_special_tokens": false,
+          "config": {
+            "tokenizer_json_version": "1.0",
+            "model": "WordPiece",
+            "unk_token": "[UNK]",
+            "continuing_subword_prefix": "##",
+            "max_input_chars_per_word": 100,
+            "normalizer": {
+              "type": "BertNormalizer",
+              "clean_text": true,
+              "handle_chinese_chars": true,
+              "strip_accents": null,
+              "lowercase": true
+            },
+            "pre_tokenizer": {
+              "type": "BertPreTokenizer"
+            },
+            "post_processor": "TemplateProcessing",
+            "decoder": "WordPiece",
+            "vocab_size": 30522
+          }
+        },
+        "baselines": {
+          "B0_whole_document": {
+            "oracle": "pdftotext (poppler)",
+            "bytes": 122315,
+            "sha256": "1f486526d231549cd6ba5ac695ae2e14b9502416e0405c73332bf34bbe906e2a",
+            "tokens": 27783,
+            "text_valid_utf8": true
+          },
+          "B1_page_local": {
+            "oracle": "pdftotext -f/-l (poppler)",
+            "bytes": 1933,
+            "sha256": "4a9c890146465e07d72f2ec520967d7a0a76494f41668361360a77402e459ea7",
+            "tokens": 420,
+            "text_valid_utf8": true
+          },
+          "V_vole_page_text": {
+            "repr": "observe --page --kind text",
+            "bytes": 62,
+            "tokens": 22,
+            "text_valid_utf8": true,
+            "bytes_returned_matches_payload": true,
+            "stats": "{\"index_nodes_read\":1,\"seed_nodes_fetched\":4,\"seed_nodes_materialized\":5,\"seed_nodes_executed\":5,\"seed_nodes_reused\":0,\"cache_bytes_written\":49508,\"descriptor_bytes_read\":72908,\"descriptor_read_mode\":\"partial\",\"manifest_bytes_read\":246,\"index_bytes_read\":8282,\"seed_bytes_read\":449,\"bytes_read\":81885,\"bytes_returned\":62,\"deepened\":true,\"wall_micros\":969}"
+          }
+        },
+        "context_waste_ratio": 1972.8225806451612,
+        "ratios": {
+          "B0_over_V": 1972.8225806451612,
+          "B1_over_V": 31.177419354838708,
+          "B0_over_B1": 63.277289187791
+        },
+        "token_context_waste_ratio": 1262.8636363636363,
+        "token_ratios": {
+          "B0_over_V": 1262.8636363636363,
+          "B1_over_V": 19.09090909090909,
+          "B0_over_B1": 66.15
+        },
+        "answer_relevant_tokens": 420,
+        "tokens": {
+          "B0": 27783,
+          "B1": 420,
+          "V": 22
+        },
+        "honest_losses": []
+      }
+    },
+    {
+      "name": "cairo-vector",
+      "kind": "producer",
+      "source": {
+        "path": "evidence/corpus/phase7-producers/cairo-vector.pdf",
+        "len": 58424,
+        "sha256": "7af4d29f1e0d4968c2fbf08946e2143654e21cd5a890eddedba89a012c5cf4e6",
+        "pages": 6
+      },
+      "encode": {
+        "candidate": "PDF_DEFLATE_REPLAY_RANS",
+        "encoded_len": 34633,
+        "wall_ms": 106
+      },
+      "field": "8d6fb43379e178339ed244e3d4301e93ebbd33bc89a25d6f861c7133336e5fef",
+      "ingest_wall_ms": 37,
+      "llm": {
+        "question": "what is on page 1",
+        "tokenizer": {
+          "name": "bert-base-uncased",
+          "implementation": "huggingface/tokenizers (Python bindings)",
+          "implementation_version": "0.20.3",
+          "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+          "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_verified": true,
+          "add_special_tokens": false,
+          "config": {
+            "tokenizer_json_version": "1.0",
+            "model": "WordPiece",
+            "unk_token": "[UNK]",
+            "continuing_subword_prefix": "##",
+            "max_input_chars_per_word": 100,
+            "normalizer": {
+              "type": "BertNormalizer",
+              "clean_text": true,
+              "handle_chinese_chars": true,
+              "strip_accents": null,
+              "lowercase": true
+            },
+            "pre_tokenizer": {
+              "type": "BertPreTokenizer"
+            },
+            "post_processor": "TemplateProcessing",
+            "decoder": "WordPiece",
+            "vocab_size": 30522
+          }
+        },
+        "baselines": {
+          "B0_whole_document": {
+            "oracle": "pdftotext (poppler)",
+            "bytes": 71634,
+            "sha256": "aec79b304220247e50123082cedd1753d357ac4cfaf8c81dfaaa8a276e4b2856",
+            "tokens": 15450,
+            "text_valid_utf8": true
+          },
+          "B1_page_local": {
+            "oracle": "pdftotext -f/-l (poppler)",
+            "bytes": 11939,
+            "sha256": "34d17647298d853cd0368610539e9480bfd358072849a34837a96d1c6b8fa285",
+            "tokens": 2575,
+            "text_valid_utf8": true
+          },
+          "V_vole_page_text": {
+            "repr": "observe --page --kind text",
+            "bytes": 11936,
+            "tokens": 2575,
+            "text_valid_utf8": true,
+            "bytes_returned_matches_payload": true,
+            "stats": "{\"index_nodes_read\":1,\"seed_nodes_fetched\":4,\"seed_nodes_materialized\":5,\"seed_nodes_executed\":5,\"seed_nodes_reused\":0,\"cache_bytes_written\":174678,\"descriptor_bytes_read\":25463,\"descriptor_read_mode\":\"partial\",\"manifest_bytes_read\":242,\"index_bytes_read\":2648,\"seed_bytes_read\":449,\"bytes_read\":28802,\"bytes_returned\":11936,\"deepened\":true,\"wall_micros\":3121}"
+          }
+        },
+        "context_waste_ratio": 6.001508042895442,
+        "ratios": {
+          "B0_over_V": 6.001508042895442,
+          "B1_over_V": 1.0002513404825737,
+          "B0_over_B1": 6
+        },
+        "token_context_waste_ratio": 6,
+        "token_ratios": {
+          "B0_over_V": 6,
+          "B1_over_V": 1,
+          "B0_over_B1": 6
+        },
+        "answer_relevant_tokens": 2575,
+        "tokens": {
+          "B0": 15450,
+          "B1": 2575,
+          "V": 2575
+        },
+        "honest_losses": []
+      }
+    },
+    {
+      "name": "pdftex-doc",
+      "kind": "producer",
+      "source": {
+        "path": "evidence/corpus/phase7-producers/pdftex-doc.pdf",
+        "len": 23622,
+        "sha256": "04eb3a7ba7a98ad9bd380abfb8cc4c8b8eb0d7bca60e2b39496b1c8cce671659",
+        "pages": 6
+      },
+      "encode": {
+        "candidate": "RAW",
+        "encoded_len": 24076,
+        "wall_ms": 91
+      },
+      "field": "4608c884bc6528f63e52ffb8e8afff678f36001bffb840c32623c439843a2d70",
+      "ingest_wall_ms": 2,
+      "llm": {
+        "question": "what is on page 1",
+        "tokenizer": {
+          "name": "bert-base-uncased",
+          "implementation": "huggingface/tokenizers (Python bindings)",
+          "implementation_version": "0.20.3",
+          "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+          "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_verified": true,
+          "add_special_tokens": false,
+          "config": {
+            "tokenizer_json_version": "1.0",
+            "model": "WordPiece",
+            "unk_token": "[UNK]",
+            "continuing_subword_prefix": "##",
+            "max_input_chars_per_word": 100,
+            "normalizer": {
+              "type": "BertNormalizer",
+              "clean_text": true,
+              "handle_chinese_chars": true,
+              "strip_accents": null,
+              "lowercase": true
+            },
+            "pre_tokenizer": {
+              "type": "BertPreTokenizer"
+            },
+            "post_processor": "TemplateProcessing",
+            "decoder": "WordPiece",
+            "vocab_size": 30522
+          }
+        },
+        "baselines": {
+          "B0_whole_document": {
+            "oracle": "pdftotext (poppler)",
+            "bytes": 58824,
+            "sha256": "126b84da95e406544ad9e371736a120632bcd994b6cd76759a5a34bfe6c0bee4",
+            "tokens": 12744,
+            "text_valid_utf8": true
+          },
+          "B1_page_local": {
+            "oracle": "pdftotext -f/-l (poppler)",
+            "bytes": 9804,
+            "sha256": "c12f0e5a7e18e1cf9fea13f5cdd041584fb027606fe05e5f3a47f497c4a2e97f",
+            "tokens": 2124,
+            "text_valid_utf8": true
+          },
+          "V_vole_page_text": {
+            "repr": "observe --page --kind text",
+            "bytes": 622,
+            "tokens": 256,
+            "text_valid_utf8": true,
+            "bytes_returned_matches_payload": true,
+            "stats": "{\"index_nodes_read\":1,\"seed_nodes_fetched\":4,\"seed_nodes_materialized\":5,\"seed_nodes_executed\":5,\"seed_nodes_reused\":0,\"cache_bytes_written\":104598,\"descriptor_bytes_read\":24107,\"descriptor_read_mode\":\"partial\",\"manifest_bytes_read\":244,\"index_bytes_read\":2098,\"seed_bytes_read\":449,\"bytes_read\":26898,\"bytes_returned\":622,\"deepened\":true,\"wall_micros\":594}"
+          }
+        },
+        "context_waste_ratio": 94.57234726688102,
+        "ratios": {
+          "B0_over_V": 94.57234726688102,
+          "B1_over_V": 15.762057877813504,
+          "B0_over_B1": 6
+        },
+        "token_context_waste_ratio": 49.78125,
+        "token_ratios": {
+          "B0_over_V": 49.78125,
+          "B1_over_V": 8.296875,
+          "B0_over_B1": 6
+        },
+        "answer_relevant_tokens": 2124,
+        "tokens": {
+          "B0": 12744,
+          "B1": 2124,
+          "V": 256
+        },
+        "honest_losses": []
+      }
+    },
+    {
+      "name": "reportlab-multipage",
+      "kind": "producer",
+      "source": {
+        "path": "evidence/corpus/phase7-producers/reportlab-multipage.pdf",
+        "len": 10906,
+        "sha256": "2cc7feedb7b3253432a03b22de96e89d9d327f412a8941898e95efd3311d75b1",
+        "pages": 6
+      },
+      "encode": {
+        "candidate": "BYTE_RANS",
+        "encoded_len": 11203,
+        "wall_ms": 53
+      },
+      "field": "d534383d05ba5ae7a455a2e4c51f4e3afd0626c9e2567fee99d97bd66b11677b",
+      "ingest_wall_ms": 1,
+      "llm": {
+        "question": "what is on page 1",
+        "tokenizer": {
+          "name": "bert-base-uncased",
+          "implementation": "huggingface/tokenizers (Python bindings)",
+          "implementation_version": "0.20.3",
+          "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+          "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+          "asset_verified": true,
+          "add_special_tokens": false,
+          "config": {
+            "tokenizer_json_version": "1.0",
+            "model": "WordPiece",
+            "unk_token": "[UNK]",
+            "continuing_subword_prefix": "##",
+            "max_input_chars_per_word": 100,
+            "normalizer": {
+              "type": "BertNormalizer",
+              "clean_text": true,
+              "handle_chinese_chars": true,
+              "strip_accents": null,
+              "lowercase": true
+            },
+            "pre_tokenizer": {
+              "type": "BertPreTokenizer"
+            },
+            "post_processor": "TemplateProcessing",
+            "decoder": "WordPiece",
+            "vocab_size": 30522
+          }
+        },
+        "baselines": {
+          "B0_whole_document": {
+            "oracle": "pdftotext (poppler)",
+            "bytes": 70842,
+            "sha256": "c99023b94deb8e1eb4c3c52333246e60b8ed79f02a6b4bf69ef4edd4b1c7a097",
+            "tokens": 15396,
+            "text_valid_utf8": true
+          },
+          "B1_page_local": {
+            "oracle": "pdftotext -f/-l (poppler)",
+            "bytes": 11807,
+            "sha256": "dc17e23098daf94d62a81777b70429816c10b15769b248c35c0867bcb011b409",
+            "tokens": 2566,
+            "text_valid_utf8": true
+          },
+          "V_vole_page_text": {
+            "repr": "observe --page --kind text",
+            "bytes": 11804,
+            "tokens": 2566,
+            "text_valid_utf8": true,
+            "bytes_returned_matches_payload": true,
+            "stats": "{\"index_nodes_read\":1,\"seed_nodes_fetched\":4,\"seed_nodes_materialized\":5,\"seed_nodes_executed\":5,\"seed_nodes_reused\":0,\"cache_bytes_written\":85898,\"descriptor_bytes_read\":11261,\"descriptor_read_mode\":\"partial\",\"manifest_bytes_read\":242,\"index_bytes_read\":1988,\"seed_bytes_read\":449,\"bytes_read\":13940,\"bytes_returned\":11804,\"deepened\":true,\"wall_micros\":630}"
+          }
+        },
+        "context_waste_ratio": 6.001524906811251,
+        "ratios": {
+          "B0_over_V": 6.001524906811251,
+          "B1_over_V": 1.0002541511352083,
+          "B0_over_B1": 6
+        },
+        "token_context_waste_ratio": 6,
+        "token_ratios": {
+          "B0_over_V": 6,
+          "B1_over_V": 1,
+          "B0_over_B1": 6
+        },
+        "answer_relevant_tokens": 2566,
+        "tokens": {
+          "B0": 15396,
+          "B1": 2566,
+          "V": 2566
+        },
+        "honest_losses": []
+      }
+    }
+  ],
+  "verdict": {
+    "per_case": [
+      {
+        "name": "large-50",
+        "kind": "generated",
+        "B0_bytes": 4485,
+        "B1_bytes": 91,
+        "V_bytes": 527275,
+        "B0_tokens": 2722,
+        "B1_tokens": 54,
+        "V_tokens": 340182,
+        "token_ratio_B0_over_V": 0.00800159914398763,
+        "token_ratio_B1_over_V": 0.00015873855759563997,
+        "verdict_vs_B1_tokens": "loss",
+        "verdict_vs_B0_tokens": "loss",
+        "losses": [
+          "V_page_text_larger_than_B1_page_local",
+          "V_page_text_larger_than_B0_whole_document",
+          "V_tokens_exceed_B1_page_local",
+          "V_tokens_exceed_B0_whole_document"
+        ]
+      },
+      {
+        "name": "large-400",
+        "kind": "generated",
+        "B0_bytes": 35868,
+        "B1_bytes": 91,
+        "V_bytes": 65913,
+        "B0_tokens": 22142,
+        "B1_tokens": 54,
+        "V_tokens": 41433,
+        "token_ratio_B0_over_V": 0.5344049429198948,
+        "token_ratio_B1_over_V": 0.0013033089566287742,
+        "verdict_vs_B1_tokens": "loss",
+        "verdict_vs_B0_tokens": "loss",
+        "losses": [
+          "V_page_text_larger_than_B1_page_local",
+          "V_page_text_larger_than_B0_whole_document",
+          "V_tokens_exceed_B1_page_local",
+          "V_tokens_exceed_B0_whole_document"
+        ]
+      },
+      {
+        "name": "libreoffice-export",
+        "kind": "producer",
+        "B0_bytes": 122315,
+        "B1_bytes": 1933,
+        "V_bytes": 62,
+        "B0_tokens": 27783,
+        "B1_tokens": 420,
+        "V_tokens": 22,
+        "token_ratio_B0_over_V": 1262.8636363636363,
+        "token_ratio_B1_over_V": 19.09090909090909,
+        "verdict_vs_B1_tokens": "win",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      },
+      {
+        "name": "cairo-vector",
+        "kind": "producer",
+        "B0_bytes": 71634,
+        "B1_bytes": 11939,
+        "V_bytes": 11936,
+        "B0_tokens": 15450,
+        "B1_tokens": 2575,
+        "V_tokens": 2575,
+        "token_ratio_B0_over_V": 6,
+        "token_ratio_B1_over_V": 1,
+        "verdict_vs_B1_tokens": "tie",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      },
+      {
+        "name": "pdftex-doc",
+        "kind": "producer",
+        "B0_bytes": 58824,
+        "B1_bytes": 9804,
+        "V_bytes": 622,
+        "B0_tokens": 12744,
+        "B1_tokens": 2124,
+        "V_tokens": 256,
+        "token_ratio_B0_over_V": 49.78125,
+        "token_ratio_B1_over_V": 8.296875,
+        "verdict_vs_B1_tokens": "win",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      },
+      {
+        "name": "reportlab-multipage",
+        "kind": "producer",
+        "B0_bytes": 70842,
+        "B1_bytes": 11807,
+        "V_bytes": 11804,
+        "B0_tokens": 15396,
+        "B1_tokens": 2566,
+        "V_tokens": 2566,
+        "token_ratio_B0_over_V": 6,
+        "token_ratio_B1_over_V": 1,
+        "verdict_vs_B1_tokens": "tie",
+        "verdict_vs_B0_tokens": "win",
+        "losses": []
+      }
+    ],
+    "vs_B1": {
+      "win": 2,
+      "tie": 2,
+      "loss": 2
+    },
+    "vs_B0": {
+      "win": 4,
+      "tie": 0,
+      "loss": 2
+    },
+    "any_token_reduction": true,
+    "all_token_reduction": false
+  },
+  "claim_scope": "Token counts are bert-base-uncased (WordPiece, vocab 30522) under the pinned tokenizers 0.20.3 runtime; they are not a claim about any other model. A smaller V is a working-set measurement, not a text-quality claim.",
+  "accounting_note": "B0/B1 are independent Poppler text extracts; V is the VOLE `observe --page --kind text` payload (a bounded heuristic text-run projection, basis=heuristic, not Poppler reading order)."
+}
