@@ -23,11 +23,13 @@
 use std::collections::BTreeMap;
 
 use quick_xml::Reader;
-use quick_xml::XmlVersion;
 use quick_xml::events::{BytesStart, Event};
 
 use crate::error::{Error, Result};
 use crate::limits::Limits;
+
+use super::xml::XmlState;
+use super::xml::{attr_of, doctype_declined, harden_xml, read_attrs, xml_err};
 
 /// The canonical (reserved) OPC content-types part name.
 pub const CONTENT_TYPES_PART: &str = "/[Content_Types].xml";
@@ -947,125 +949,6 @@ fn handle_relationship_element(
         resolved,
     });
     Ok(())
-}
-
-fn doctype_declined() -> Error {
-    Error::invalid_xml_structure("DOCTYPE is forbidden in an OPC part")
-}
-
-fn xml_err(e: quick_xml::Error) -> Error {
-    Error::invalid_xml_structure(format!("malformed XML: {e}"))
-}
-
-/// Reject constructs that must never reach the parser-backed path: over-large
-/// parts, UTF-16 encodings, NUL bytes, and non-UTF-8 bytes.
-fn harden_xml(bytes: &[u8], limits: Limits) -> Result<()> {
-    if bytes.len() as u64 > limits.max_xml_part_bytes {
-        return Err(Error::resource_limit("XML part exceeds max_xml_part_bytes"));
-    }
-    if bytes.starts_with(&[0xFF, 0xFE]) || bytes.starts_with(&[0xFE, 0xFF]) {
-        return Err(Error::invalid_xml_structure(
-            "UTF-16 XML parts are not supported (UTF-8 only)",
-        ));
-    }
-    if bytes.contains(&0) {
-        return Err(Error::invalid_xml_structure("XML part contains a NUL byte"));
-    }
-    if core::str::from_utf8(bytes).is_err() {
-        return Err(Error::invalid_xml_structure("XML part is not valid UTF-8"));
-    }
-    if limits.max_xml_doctype == 0 {
-        // Enforced event-by-event (`Event::DocType`), recorded here for clarity.
-    }
-    Ok(())
-}
-
-/// Read an element's attributes once, bounded by `max_xml_attrs_per_element`,
-/// unescaping the five predefined/numeric character references.
-fn read_attrs(e: &BytesStart<'_>, limits: Limits) -> Result<Vec<(String, String)>> {
-    let mut out: Vec<(String, String)> = Vec::new();
-    for attr in e.attributes() {
-        if out.len() as u64 >= u64::from(limits.max_xml_attrs_per_element) {
-            return Err(Error::resource_limit("XML element has too many attributes"));
-        }
-        let attr =
-            attr.map_err(|err| Error::invalid_xml_structure(format!("bad attribute: {err}")))?;
-        let key = attr.key.local_name().as_ref().to_string();
-        let value = attr
-            .normalized_value(XmlVersion::Implicit1_0)
-            .map_err(|err| Error::invalid_xml_structure(format!("bad attribute value: {err}")))?
-            .into_owned();
-        out.push((key, value));
-    }
-    Ok(out)
-}
-
-fn attr_of<'a>(attrs: &'a [(String, String)], name: &str) -> Option<&'a str> {
-    attrs
-        .iter()
-        .find(|(k, _)| k == name)
-        .map(|(_, v)| v.as_str())
-}
-
-/// Per-part XML budget: events, element nodes, depth, and accumulated text.
-struct XmlState {
-    events: u64,
-    nodes: u64,
-    depth: u64,
-    text: u64,
-}
-
-impl XmlState {
-    fn new() -> Self {
-        XmlState {
-            events: 0,
-            nodes: 0,
-            depth: 0,
-            text: 0,
-        }
-    }
-
-    fn event(&mut self, limits: Limits) -> Result<()> {
-        self.events = self.events.saturating_add(1);
-        if self.events > limits.max_xml_events {
-            return Err(Error::resource_limit("XML event bound exceeded"));
-        }
-        Ok(())
-    }
-
-    fn open(&mut self, limits: Limits) -> Result<()> {
-        self.nodes = self.nodes.saturating_add(1);
-        if self.nodes > limits.max_xml_nodes {
-            return Err(Error::resource_limit("XML node bound exceeded"));
-        }
-        self.depth = self.depth.saturating_add(1);
-        if self.depth > u64::from(limits.max_xml_depth) {
-            return Err(Error::invalid_xml_structure(
-                "XML nesting exceeds max_xml_depth",
-            ));
-        }
-        Ok(())
-    }
-
-    fn leaf(&mut self, limits: Limits) -> Result<()> {
-        self.nodes = self.nodes.saturating_add(1);
-        if self.nodes > limits.max_xml_nodes {
-            return Err(Error::resource_limit("XML node bound exceeded"));
-        }
-        Ok(())
-    }
-
-    fn close(&mut self) {
-        self.depth = self.depth.saturating_sub(1);
-    }
-
-    fn text(&mut self, n: usize, limits: Limits) -> Result<()> {
-        self.text = self.text.saturating_add(n as u64);
-        if self.text > limits.max_xml_text_bytes {
-            return Err(Error::resource_limit("XML text bound exceeded"));
-        }
-        Ok(())
-    }
 }
 
 #[cfg(test)]

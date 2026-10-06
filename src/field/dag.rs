@@ -505,6 +505,37 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::EpubModel => {
+            // The canonical EPUB (OCF) graph is derived on demand from the exact
+            // package source (the single dependency is the exact `PackageRoot`). It
+            // does not route through OPC. XML parsing and all bounds live in
+            // `adapter::epub`.
+            #[cfg(feature = "epub")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("EpubModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let source = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::epub::build_epub_model(&source, limits)?
+            }
+            #[cfg(not(feature = "epub"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "EPUB support is not compiled in (feature `epub`)",
+                ));
+            }
+        }
         NodeKind::PdfStreamDecoded => {
             let dep = node
                 .deps

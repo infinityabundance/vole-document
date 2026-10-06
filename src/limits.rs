@@ -107,6 +107,21 @@ pub struct Limits {
     pub max_opc_content_types_overrides: u32,
     /// Maximum byte length of an OPC part name (Phase 12, §3).
     pub max_opc_part_name_bytes: u32,
+    // The EPUB/OCF caps below mirror the threat model and DEFAULT/STRICT values
+    // frozen in `research/subagents/phase-12/I-security.md` §6 (§4 EPUB), as
+    // required by plan §DEC-5/§DEC-9. EPUB semantics are derived (`Q_gen`) only.
+    /// Maximum `rootfile` entries accepted in `META-INF/container.xml` (Phase 12, §4).
+    pub max_epub_rootfiles: u32,
+    /// Maximum Package Document manifest items accepted (Phase 12, §4).
+    pub max_epub_manifest_items: u32,
+    /// Maximum Package Document spine `itemref`s accepted (Phase 12, §4).
+    pub max_epub_spine_items: u32,
+    /// Maximum navigation-document nesting depth accepted (Phase 12, §4).
+    pub max_epub_nav_depth: u32,
+    /// Maximum manifest `fallback` chain length followed (Phase 12, §4).
+    pub max_epub_fallback_chain: u32,
+    /// Maximum XHTML element nodes accepted in one content/nav document (Phase 12, §4).
+    pub max_xhtml_nodes: u32,
 }
 
 impl Limits {
@@ -150,6 +165,12 @@ impl Limits {
         max_opc_rel_depth: 64,
         max_opc_content_types_overrides: 1 << 20,
         max_opc_part_name_bytes: 1 << 16,
+        max_epub_rootfiles: 16,
+        max_epub_manifest_items: 1 << 20,
+        max_epub_spine_items: 1 << 20,
+        max_epub_nav_depth: 64,
+        max_epub_fallback_chain: 32,
+        max_xhtml_nodes: 1 << 24,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -192,6 +213,12 @@ impl Limits {
         max_opc_rel_depth: 16,
         max_opc_content_types_overrides: 1 << 12,
         max_opc_part_name_bytes: 4096,
+        max_epub_rootfiles: 4,
+        max_epub_manifest_items: 1 << 14,
+        max_epub_spine_items: 1 << 14,
+        max_epub_nav_depth: 16,
+        max_epub_fallback_chain: 8,
+        max_xhtml_nodes: 1 << 16,
     };
 }
 

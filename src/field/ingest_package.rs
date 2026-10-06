@@ -29,6 +29,8 @@ use crate::container::Descriptor;
 use crate::error::{Error, Result};
 #[cfg(feature = "docx")]
 use crate::field::index::SEL_DOCX_MODEL;
+#[cfg(feature = "epub")]
+use crate::field::index::SEL_EPUB_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::{
@@ -72,6 +74,8 @@ pub struct PackageIngestReport {
     pub opc_model_nodes: u64,
     /// Whether a DOCX discovery model node was registered (feature `docx`).
     pub docx_model_nodes: u64,
+    /// Whether an EPUB (OCF) discovery model node was registered (feature `epub`).
+    pub epub_model_nodes: u64,
 }
 
 fn charge_node(node_count: &mut u64) -> Result<()> {
@@ -139,6 +143,7 @@ pub fn ingest_package(
     let mut declined_decodes: u64 = 0;
     let opc_model_nodes: u64;
     let docx_model_nodes: u64;
+    let epub_model_nodes: u64;
     let opc_model_id: Option<NodeId>;
 
     for member in &physical.members {
@@ -269,6 +274,41 @@ pub fn ingest_package(
         docx_model_nodes = 0;
     }
 
+    // The EPUB (OCF) discovery model (Phase 12.5): a single derived node that
+    // resolves the container rootfile semantically from `META-INF/container.xml`
+    // (never a hardcoded `OEBPS/content.opf`) and parses the Package Document
+    // metadata/manifest/spine on demand from the exact package source. It does
+    // **not** route through OPC (EPUB has no `[Content_Types].xml`). It is created
+    // for any package under the feature; a non-EPUB package simply declines typed
+    // when the node is first materialized. Exactness is untouched.
+    #[cfg(feature = "epub")]
+    {
+        let mut epub_model = SeedNode::new(
+            NodeKind::EpubModel,
+            limits.max_output_bytes,
+            Vec::new(),
+            vec![root_id],
+            "pkg:epub-model",
+        );
+        epub_model.limits.max_output_bytes = limits.max_output_bytes;
+        charge_node(&mut node_count)?;
+        let epub_id = store.seeds_mut().put_node(&epub_model.encode_canonical())?;
+        push_entry(
+            &mut entries,
+            IndexEntry {
+                key: SelectorKey::new(SEL_EPUB_MODEL, 0),
+                out_off: 0,
+                out_len: 0,
+                node_id: epub_id,
+            },
+        )?;
+        epub_model_nodes = 1;
+    }
+    #[cfg(not(feature = "epub"))]
+    {
+        epub_model_nodes = 0;
+    }
+
     let (index_root, index_node_count) = if entries.is_empty() {
         (None, 0)
     } else {
@@ -288,13 +328,14 @@ pub fn ingest_package(
         node_count,
         index_node_count,
         provenance: format!(
-            "field:package;members={};raw={};decoded={};declined={};opc={};docx={}",
+            "field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={}",
             physical.members.len(),
             raw_nodes,
             decoded_nodes,
             declined_decodes,
             opc_model_nodes,
-            docx_model_nodes
+            docx_model_nodes,
+            epub_model_nodes
         ),
     };
     let field = store.put_field(&manifest)?;
@@ -312,5 +353,6 @@ pub fn ingest_package(
         declined_decodes,
         opc_model_nodes,
         docx_model_nodes,
+        epub_model_nodes,
     })
 }

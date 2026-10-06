@@ -13,6 +13,9 @@
 
 pub mod zip;
 
+#[cfg(feature = "xml")]
+pub mod xml;
+
 #[cfg(feature = "opc")]
 pub mod opc;
 

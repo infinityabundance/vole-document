@@ -95,6 +95,13 @@ pub const SEL_OPC_MODEL: u8 = 9;
 /// relationship, styles, headers/footers, notes, comments) as `Q_gen` derived
 /// state, computed on demand from the OPC model.
 pub const SEL_DOCX_MODEL: u8 = 10;
+/// Selector kind: the canonical EPUB (OCF) discovery model (Phase 12.5).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// EPUB container + Package Document graph (`mimetype` facts, rootfiles, metadata,
+/// manifest, spine, nav identity) as `Q_gen` derived state, computed on demand from
+/// the exact package source — never via OPC (EPUB has no `[Content_Types].xml`).
+pub const SEL_EPUB_MODEL: u8 = 11;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

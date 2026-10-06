@@ -30,11 +30,15 @@ use std::time::Instant;
 use crate::adapter::docx::wml::StoryModel;
 #[cfg(feature = "docx")]
 use crate::adapter::docx::{DocxExtractProfile, DocxModel, DocxPartRef, DocxStory, story_params};
+#[cfg(feature = "epub")]
+use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
 use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, ReuseStats, SourceServer};
 #[cfg(feature = "docx")]
 use crate::field::index::SEL_DOCX_MODEL;
+#[cfg(feature = "epub")]
+use crate::field::index::SEL_EPUB_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::{
@@ -137,6 +141,40 @@ pub enum Selector {
         /// The extraction profile identity.
         profile: DocxExtractProfile,
     },
+    /// The EPUB (OCF) container + Package Document as a whole (Phase 12.5).
+    #[cfg(feature = "epub")]
+    EpubPackage,
+    /// A Package Document manifest item, by 0-based document-order index. `ExactBytes`
+    /// and `DecodedBytes` resolve to the item's container member; an external target
+    /// is an inert identifier and is a typed decline, never a fetch.
+    #[cfg(feature = "epub")]
+    EpubManifestItem {
+        /// The manifest index.
+        index: u32,
+    },
+    /// A spine item as the reading-order coordinate (Phase 12.5). The index is into
+    /// the reading order selected by `profile` (`linear-only` by default). This is
+    /// **not** `Page(n)`: reflowable EPUB has no intrinsic pages.
+    #[cfg(feature = "epub")]
+    EpubSpineItem {
+        /// The reading-order index.
+        index: u32,
+        /// The reading profile identity.
+        profile: EpubExtractProfile,
+    },
+    /// The EPUB Navigation Document (its `toc`/`landmarks`/`page-list` sets).
+    #[cfg(feature = "epub")]
+    EpubNav,
+    /// One flattened navigation entry, by 0-based index.
+    #[cfg(feature = "epub")]
+    EpubNavNode {
+        /// The entry index.
+        index: u32,
+    },
+    /// A container resource by member name (e.g. `OEBPS/text/ch1.xhtml`), resolved
+    /// through the manifest; external targets are inert and never fetched.
+    #[cfg(feature = "epub")]
+    EpubResource(String),
 }
 
 impl Selector {
@@ -207,6 +245,20 @@ impl Selector {
                 pattern,
                 profile.fingerprint()
             ),
+            #[cfg(feature = "epub")]
+            Selector::EpubPackage => "epub-package".to_string(),
+            #[cfg(feature = "epub")]
+            Selector::EpubManifestItem { index } => format!("epub-manifest-item:{index}"),
+            #[cfg(feature = "epub")]
+            Selector::EpubSpineItem { index, profile } => {
+                format!("epub-spine-item:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "epub")]
+            Selector::EpubNav => "epub-nav".to_string(),
+            #[cfg(feature = "epub")]
+            Selector::EpubNavNode { index } => format!("epub-nav-node:{index}"),
+            #[cfg(feature = "epub")]
+            Selector::EpubResource(name) => format!("epub-resource:{name}"),
         }
     }
 }
@@ -1295,6 +1347,34 @@ impl<S: SeedStore> Ctx<'_, S> {
                 },
                 R::Text,
             ) => self.docx_find(req, *story, pattern, profile),
+            #[cfg(feature = "epub")]
+            (Selector::EpubPackage, R::Metadata | R::Structure) => self.epub_package(req),
+            #[cfg(feature = "epub")]
+            (Selector::EpubManifestItem { index }, R::Metadata) => {
+                self.epub_manifest_item_meta(req, *index)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubManifestItem { index }, R::ExactBytes | R::DecodedBytes) => {
+                self.epub_manifest_item_bytes(req, *index)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubSpineItem { index, profile }, R::Metadata | R::Structure) => {
+                self.epub_spine_item_meta(req, *index, profile)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubSpineItem { index, profile }, R::ExactBytes | R::DecodedBytes) => {
+                self.epub_spine_item_bytes(req, *index, profile)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubNav, R::Metadata | R::Structure) => self.epub_nav(req),
+            #[cfg(feature = "epub")]
+            (Selector::EpubNavNode { index }, R::Metadata) => self.epub_nav_node(req, *index),
+            #[cfg(feature = "epub")]
+            (Selector::EpubResource(name), R::Metadata) => self.epub_resource_meta(req, name),
+            #[cfg(feature = "epub")]
+            (Selector::EpubResource(name), R::ExactBytes | R::DecodedBytes) => {
+                self.epub_resource_bytes(req, name)
+            }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
                 req.selector.canonical(),
@@ -2262,6 +2342,480 @@ impl<S: SeedStore> Ctx<'_, S> {
         self.store.seeds_mut().put_node(&node.encode_canonical())?;
         self.stats.deepened = true;
         Ok(node)
+    }
+}
+
+#[cfg(feature = "epub")]
+fn epub_opt_str(v: Option<&str>) -> String {
+    match v {
+        Some(s) => format!("\"{}\"", json_escape(s)),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "epub")]
+fn epub_opt_u32(v: Option<u32>) -> String {
+    match v {
+        Some(n) => n.to_string(),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "epub")]
+fn epub_str_array(items: &[String]) -> String {
+    format!(
+        "[{}]",
+        items
+            .iter()
+            .map(|s| format!("\"{}\"", json_escape(s)))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_dir_of(name: &str) -> String {
+    match name.rfind('/') {
+        Some(i) => name[..=i].to_string(),
+        None => String::new(),
+    }
+}
+
+#[cfg(feature = "epub")]
+fn epub_mimetype_json(m: &crate::adapter::epub::MimetypeFacts) -> String {
+    format!(
+        "{{\"present\":{},\"first\":{},\"stored\":{},\"no_extra\":{},\"exact_bytes\":{},\"conformant\":{}}}",
+        m.present, m.first, m.stored, m.no_extra, m.exact_bytes, m.conformant
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_rootfile_json(r: &crate::adapter::epub::RootFile) -> String {
+    let ord = if r.ordinal == u32::MAX {
+        None
+    } else {
+        Some(r.ordinal)
+    };
+    format!(
+        "{{\"full_path\":\"{}\",\"member\":\"{}\",\"media_type\":\"{}\",\"ordinal\":{}}}",
+        json_escape(&r.full_path),
+        json_escape(&r.member),
+        json_escape(&r.media_type),
+        epub_opt_u32(ord)
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_meta_json(e: &crate::adapter::epub::MetadataEntry) -> String {
+    format!(
+        "{{\"name\":\"{}\",\"property\":{},\"refines\":{},\"id\":{},\"scheme\":{},\"value\":\"{}\"}}",
+        json_escape(&e.name),
+        epub_opt_str(e.property.as_deref()),
+        epub_opt_str(e.refines.as_deref()),
+        epub_opt_str(e.id.as_deref()),
+        epub_opt_str(e.scheme.as_deref()),
+        json_escape(&e.value)
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_manifest_json(it: &crate::adapter::epub::ManifestItem) -> String {
+    format!(
+        "{{\"id\":\"{}\",\"href\":\"{}\",\"media_type\":\"{}\",\"properties\":{},\"fallback\":{},\"resolved\":{},\"ordinal\":{},\"external\":{}}}",
+        json_escape(&it.id),
+        json_escape(&it.href),
+        json_escape(&it.media_type),
+        epub_str_array(&it.properties),
+        epub_opt_str(it.fallback.as_deref()),
+        epub_opt_str(it.resolved.as_deref()),
+        epub_opt_u32(it.resolved_ordinal()),
+        it.external
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_spine_json(s: &crate::adapter::epub::SpineItemRef) -> String {
+    let index = if s.item_index == u32::MAX {
+        None
+    } else {
+        Some(s.item_index)
+    };
+    let ord = if s.ordinal == u32::MAX {
+        None
+    } else {
+        Some(s.ordinal)
+    };
+    format!(
+        "{{\"idref\":\"{}\",\"linear\":{},\"properties\":{},\"item_index\":{},\"ordinal\":{}}}",
+        json_escape(&s.idref),
+        s.linear,
+        epub_str_array(&s.properties),
+        epub_opt_u32(index),
+        epub_opt_u32(ord)
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_nav_json(index: u32, e: &crate::adapter::epub::NavEntry) -> String {
+    format!(
+        "{{\"index\":{},\"depth\":{},\"nav\":\"{}\",\"label\":\"{}\",\"href\":\"{}\",\"member\":{},\"fragment\":{},\"external\":{}}}",
+        index,
+        e.depth,
+        json_escape(&e.nav_type),
+        json_escape(&e.label),
+        json_escape(&e.href),
+        epub_opt_str(e.member.as_deref()),
+        epub_opt_str(e.fragment.as_deref()),
+        e.external
+    )
+}
+
+#[cfg(feature = "epub")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn epub_model(&mut self) -> Result<EpubModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_EPUB_MODEL, 0), "EPUB model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        EpubModel::decode(&bytes)
+    }
+
+    fn epub_package_doc(&mut self) -> Result<PackageDoc> {
+        let model = self.epub_model()?;
+        model.package.ok_or_else(|| {
+            Error::invalid_package_structure("EPUB container has no resolvable package document")
+        })
+    }
+
+    fn epub_member_decoded_bytes(&mut self, ordinal: u32) -> Result<Vec<u8>> {
+        let entry = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, ordinal),
+            "EPUB resource decoded bytes",
+        )?;
+        let node = self.load(&entry.node_id)?;
+        self.materialize(&node)
+    }
+
+    fn epub_member_span(&mut self, ordinal: Option<u32>) -> Option<(u64, u64)> {
+        let o = ordinal?;
+        self.lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, o))
+            .ok()?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)))
+    }
+
+    fn epub_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn epub_package(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.epub_model()?;
+        let doc = model.package.as_ref().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB container has no resolvable package document")
+        })?;
+        let rootfiles = model
+            .rootfiles
+            .iter()
+            .map(epub_rootfile_json)
+            .collect::<Vec<_>>()
+            .join(",");
+        let mut s = String::new();
+        s.push_str("{\"package\":\"");
+        s.push_str(&json_escape(&doc.member));
+        s.push_str("\",\"version\":");
+        s.push_str(&epub_opt_str(doc.version.as_deref()));
+        s.push_str(",\"unique_identifier\":");
+        s.push_str(&epub_opt_str(doc.unique_identifier.as_deref()));
+        s.push_str(",\"page_progression_direction\":");
+        s.push_str(&epub_opt_str(doc.page_progression.as_deref()));
+        s.push_str(",\"rendition_layout\":");
+        s.push_str(&epub_opt_str(doc.layout.as_deref()));
+        s.push_str(",\"cover_id\":");
+        s.push_str(&epub_opt_str(doc.cover_id.as_deref()));
+        s.push_str(",\"nav_item\":");
+        s.push_str(&epub_opt_u32(doc.nav_item));
+        s.push_str(",\"ncx_item\":");
+        s.push_str(&epub_opt_u32(doc.ncx_item));
+        s.push_str(&format!(
+            ",\"manifest_items\":{},\"spine_items\":{},\"metadata_entries\":{}",
+            doc.manifest.len(),
+            doc.spine.len(),
+            doc.metadata.len()
+        ));
+        s.push_str(",\"rootfiles\":[");
+        s.push_str(&rootfiles);
+        s.push_str("],\"mimetype\":");
+        s.push_str(&epub_mimetype_json(&model.mimetype));
+        if req.representation == Representation::Structure {
+            let man = doc
+                .manifest
+                .iter()
+                .map(epub_manifest_json)
+                .collect::<Vec<_>>()
+                .join(",");
+            let sp = doc
+                .spine
+                .iter()
+                .map(epub_spine_json)
+                .collect::<Vec<_>>()
+                .join(",");
+            let md = doc
+                .metadata
+                .iter()
+                .map(epub_meta_json)
+                .collect::<Vec<_>>()
+                .join(",");
+            s.push_str(",\"manifest\":[");
+            s.push_str(&man);
+            s.push_str("],\"spine\":[");
+            s.push_str(&sp);
+            s.push_str("],\"metadata\":[");
+            s.push_str(&md);
+            s.push(']');
+        }
+        s.push_str(",\"issues\":");
+        s.push_str(&epub_str_array(&doc.issues));
+        s.push('}');
+        let provenance = format!("epub;package={}", doc.member);
+        Ok(self.epub_answer(req, AnswerValue::Json(s), provenance, None, Vec::new()))
+    }
+
+    fn epub_manifest_item_meta(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let item = doc
+            .manifest
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("no EPUB manifest item {index}")))?;
+        let json = epub_manifest_json(item);
+        let provenance = format!("epub;manifest={index};id={}", item.id);
+        let span = self.epub_member_span(item.resolved_ordinal());
+        Ok(self.epub_answer(req, AnswerValue::Json(json), provenance, span, Vec::new()))
+    }
+
+    fn epub_manifest_item_bytes(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let item =
+            doc.manifest.get(index as usize).cloned().ok_or_else(|| {
+                Error::unsupported_feature(format!("no EPUB manifest item {index}"))
+            })?;
+        self.epub_item_bytes(req, &item)
+    }
+
+    fn epub_item_bytes(
+        &mut self,
+        req: &ObserveRequest,
+        item: &ManifestItem,
+    ) -> Result<FieldAnswer> {
+        if item.external {
+            return Err(Error::invalid_package_structure(format!(
+                "EPUB manifest item {:?} is an external target: inert, never fetched",
+                item.id
+            )));
+        }
+        let ordinal = item.resolved_ordinal().ok_or_else(|| {
+            Error::invalid_package_structure(format!(
+                "EPUB manifest item {:?} has no resolvable container member",
+                item.id
+            ))
+        })?;
+        if req.representation == Representation::ExactBytes {
+            self.indexed_exact(
+                req,
+                SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, ordinal),
+                "EPUB resource",
+            )
+        } else {
+            self.member_decoded(req, ordinal)
+        }
+    }
+
+    fn epub_spine_item_meta(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let order = doc.reading_order(profile);
+        let mi = *order.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "no EPUB spine item {index} under profile {}",
+                profile.fingerprint()
+            ))
+        })?;
+        if mi == u32::MAX {
+            return Err(Error::invalid_package_structure(
+                "EPUB spine item does not resolve to a manifest item",
+            ));
+        }
+        let item = doc.manifest.get(mi as usize).ok_or_else(|| {
+            Error::invalid_package_structure("EPUB spine item manifest index is out of range")
+        })?;
+        let spine_ref = doc.spine.iter().find(|s| s.item_index == mi);
+        let json = match spine_ref {
+            Some(s) => format!(
+                "{{\"index\":{},\"profile\":\"{}\",\"idref\":\"{}\",\"linear\":{},\"properties\":{},\"item\":{}}}",
+                index,
+                profile.fingerprint(),
+                json_escape(&s.idref),
+                s.linear,
+                epub_str_array(&s.properties),
+                epub_manifest_json(item)
+            ),
+            None => format!(
+                "{{\"index\":{},\"profile\":\"{}\",\"idref\":null,\"item\":{}}}",
+                index,
+                profile.fingerprint(),
+                epub_manifest_json(item)
+            ),
+        };
+        let provenance = format!(
+            "epub;spine={index};profile={};id={};part={}",
+            profile.fingerprint(),
+            item.id,
+            item.resolved.as_deref().unwrap_or("")
+        );
+        let span = self.epub_member_span(item.resolved_ordinal());
+        Ok(self.epub_answer(req, AnswerValue::Json(json), provenance, span, Vec::new()))
+    }
+
+    fn epub_spine_item_bytes(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let order = doc.reading_order(profile);
+        let mi = *order.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "no EPUB spine item {index} under profile {}",
+                profile.fingerprint()
+            ))
+        })?;
+        let item = doc.manifest.get(mi as usize).cloned().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB spine item manifest index is out of range")
+        })?;
+        self.epub_item_bytes(req, &item)
+    }
+
+    fn epub_resource_meta(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let item = doc
+            .manifest
+            .iter()
+            .find(|m| m.resolved.as_deref() == Some(name))
+            .ok_or_else(|| {
+                Error::invalid_package_structure(format!("no EPUB resource named {name:?}"))
+            })?;
+        let json = epub_manifest_json(item);
+        let span = self.epub_member_span(item.resolved_ordinal());
+        Ok(self.epub_answer(
+            req,
+            AnswerValue::Json(json),
+            format!("epub;resource={name}"),
+            span,
+            Vec::new(),
+        ))
+    }
+
+    fn epub_resource_bytes(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let item = doc
+            .manifest
+            .iter()
+            .find(|m| m.resolved.as_deref() == Some(name))
+            .cloned()
+            .ok_or_else(|| {
+                Error::invalid_package_structure(format!("no EPUB resource named {name:?}"))
+            })?;
+        self.epub_item_bytes(req, &item)
+    }
+
+    fn epub_nav(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let idx = doc.nav_item.ok_or_else(|| {
+            Error::invalid_package_structure(
+                "EPUB package has no navigation document (properties nav)",
+            )
+        })?;
+        let item = doc.manifest.get(idx as usize).cloned().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB nav manifest index is out of range")
+        })?;
+        let ordinal = item.resolved_ordinal().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB navigation document has no resolvable member")
+        })?;
+        let bytes = self.epub_member_decoded_bytes(ordinal)?;
+        let base = epub_dir_of(item.resolved.as_deref().unwrap_or(""));
+        let entries = crate::adapter::epub::parse_nav_document(&bytes, &base, self.limits)?;
+        let body = entries
+            .iter()
+            .enumerate()
+            .map(|(i, e)| epub_nav_json(i as u32, e))
+            .collect::<Vec<_>>()
+            .join(",");
+        let json = format!(
+            "{{\"nav_item\":\"{}\",\"entries\":[{}]}}",
+            json_escape(&item.id),
+            body
+        );
+        let provenance = format!(
+            "epub;nav={};part={}",
+            item.id,
+            item.resolved.as_deref().unwrap_or("")
+        );
+        let span = self.epub_member_span(Some(ordinal));
+        Ok(self.epub_answer(req, AnswerValue::Json(json), provenance, span, Vec::new()))
+    }
+
+    fn epub_nav_node(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let doc = self.epub_package_doc()?;
+        let idx = doc.nav_item.ok_or_else(|| {
+            Error::invalid_package_structure(
+                "EPUB package has no navigation document (properties nav)",
+            )
+        })?;
+        let item = doc.manifest.get(idx as usize).cloned().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB nav manifest index is out of range")
+        })?;
+        let ordinal = item.resolved_ordinal().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB navigation document has no resolvable member")
+        })?;
+        let bytes = self.epub_member_decoded_bytes(ordinal)?;
+        let base = epub_dir_of(item.resolved.as_deref().unwrap_or(""));
+        let entries = crate::adapter::epub::parse_nav_document(&bytes, &base, self.limits)?;
+        let e = entries
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("no EPUB nav entry {index}")))?;
+        let json = epub_nav_json(index, e);
+        Ok(self.epub_answer(
+            req,
+            AnswerValue::Json(json),
+            format!("epub;nav-node={index}"),
+            None,
+            Vec::new(),
+        ))
     }
 }
 

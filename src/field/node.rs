@@ -74,6 +74,11 @@ pub enum NodeKind {
     /// One WordprocessingML story parsed into its canonical [`crate::adapter::docx::wml::StoryModel`],
     /// honoring a declared extraction profile. Derived, never exact (Phase 12.4).
     DocxStory = 0x13,
+    /// The canonical EPUB (OCF) discovery model: `mimetype` conformance facts,
+    /// container rootfiles, and the Package Document metadata/manifest/spine,
+    /// derived on demand from the exact package source. Derived, never exact
+    /// (Phase 12.5).
+    EpubModel = 0x14,
 }
 
 impl NodeKind {
@@ -99,6 +104,7 @@ impl NodeKind {
             0x11 => NodeKind::PackageOpcModel,
             0x12 => NodeKind::DocxModel,
             0x13 => NodeKind::DocxStory,
+            0x14 => NodeKind::EpubModel,
             _ => return None,
         })
     }
@@ -125,6 +131,7 @@ impl NodeKind {
             NodeKind::PackageOpcModel => "PackageOpcModel",
             NodeKind::DocxModel => "DocxModel",
             NodeKind::DocxStory => "DocxStory",
+            NodeKind::EpubModel => "EpubModel",
         }
     }
 

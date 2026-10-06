@@ -199,6 +199,36 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             ]),
             will_not_materialize: kinds(&["other-stories", "whole-document"]),
         }),
+        #[cfg(feature = "epub")]
+        (Selector::EpubPackage, R::Metadata | R::Structure)
+        | (Selector::EpubNav, R::Metadata | R::Structure)
+        | (Selector::EpubNavNode { .. }, R::Metadata) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 3,
+            will_materialize: kinds(&["EpubModel", "PackageMemberDecoded", "PackageMemberRaw"]),
+            will_not_materialize: kinds(&["other-resources", "whole-document"]),
+        }),
+        #[cfg(feature = "epub")]
+        (Selector::EpubManifestItem { .. }, R::Metadata)
+        | (Selector::EpubSpineItem { .. }, R::Metadata | R::Structure)
+        | (Selector::EpubResource(_), R::Metadata) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["EpubModel"]),
+            will_not_materialize: kinds(&["external-targets", "whole-document"]),
+        }),
+        #[cfg(feature = "epub")]
+        (Selector::EpubManifestItem { .. }, R::ExactBytes | R::DecodedBytes)
+        | (Selector::EpubSpineItem { .. }, R::ExactBytes | R::DecodedBytes)
+        | (Selector::EpubResource(_), R::ExactBytes | R::DecodedBytes) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 3,
+            will_materialize: kinds(&["EpubModel", "PackageMemberRaw", "PackageMemberDecoded"]),
+            will_not_materialize: kinds(&["external-targets", "whole-document"]),
+        }),
         _ => Err(Error::unsupported_feature(format!(
             "unsupported observation: selector {} with representation {}",
             req.selector.canonical(),
