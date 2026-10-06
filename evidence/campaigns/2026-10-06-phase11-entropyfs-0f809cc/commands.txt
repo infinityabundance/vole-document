@@ -1,0 +1,19 @@
+# Phase 11 priority #3 — exact commands
+# Commit under test: 0f809cca7dc9cb4f0ed6b0d92c06fc36ce37f0c0 (branch phase11); dirty (uncommitted changes).
+# All commands run inside the pinned services; nothing on the host.
+
+docker compose run --rm --no-TTY dev sh -c 'cargo build --locked --all-features'
+docker compose run --rm --no-TTY dev sh -c 'sh tools/field-entropyfs-court.sh evidence/campaigns/2026-10-06-phase11-entropyfs-0f809cc'
+
+# Inside tools/field-entropyfs-court.sh (each line is a separate process):
+#   $BIN encode SOURCE.pdf WORK/doc.voldoc
+#   $BIN field-ingest WORK/doc.voldoc --store STORE --entropyfs
+#   $BIN field-store-stats --store STORE --entropyfs
+#   $BIN observe --store STORE --field FIELD --entropyfs --page 1 --kind text
+#   $BIN cache --store STORE --entropyfs --clear
+#   $BIN observe --store STORE --field PROMOTED --entropyfs --page 1 --kind text
+#   $BIN materialize --store STORE --field PROMOTED --entropyfs --exact --output out.pdf
+#   $BIN field-store-stats --store STORE --entropyfs
+
+# Gate:
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features --locked && cargo test --no-default-features'

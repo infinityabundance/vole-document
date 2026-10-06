@@ -37,9 +37,9 @@ use crate::field::ingest;
 use crate::field::manifest::FieldRoot;
 use crate::field::node::{NodeKind, SeedNode, read_u32_params, span_params, u32_params};
 use crate::field::partial::{PartialDescriptor, PartialLoad};
-use crate::field::{Field, FieldId, FieldStore};
+use crate::field::{Field, FieldId, FieldStore, SeedSubstrate};
 use crate::limits::Limits;
-use crate::store::{FsSeedStore, Id, IoSnapshot, NodeId, SeedStore};
+use crate::store::{Id, IoSnapshot, NodeId, SeedStore};
 
 use super::provenance::{AnswerValue, Basis, FieldAnswer, IntegrityScope, json_escape};
 
@@ -354,7 +354,8 @@ impl OpenedField {
         req: &ObserveRequest,
         limits: Limits,
     ) -> Result<OpenedField> {
-        if partial_eligible(req)
+        if store.supports_partial_descriptor()
+            && partial_eligible(req)
             && let Some(pf) = PartialField::try_open(store, id, limits)?
         {
             return Ok(OpenedField::Partial(Box::new(pf)));
@@ -430,7 +431,12 @@ impl PartialField {
         let io_before = store.io().snapshot();
         let manifest = store.get_field(id)?;
         let descriptor_id = Id::from_bytes(manifest.descriptor_id);
-        let path = store.descriptor_path(&descriptor_id);
+        let Some(path) = store.descriptor_path(&descriptor_id) else {
+            // The descriptor is not a filesystem file (EntropyFS backend): the
+            // seek-based partial lane is unavailable, so fall back to the full
+            // descriptor path.
+            return Ok(None);
+        };
         let loader = match PartialDescriptor::open(&path, limits)? {
             PartialLoad::Ready(l) => l,
             PartialLoad::Ineligible { bytes_read } => {
@@ -487,11 +493,10 @@ fn partial_eligible(req: &ObserveRequest) -> bool {
 }
 
 /// Build the seed and index sub-stores, sharing the field store's I/O counters.
-fn open_sub_stores(store: &FieldStore) -> Result<(CountingSeedStore<FsSeedStore>, FsIndexStore)> {
-    let root = store.root();
+fn open_sub_stores(store: &FieldStore) -> Result<(CountingSeedStore<SeedSubstrate>, FsIndexStore)> {
     let io = store.io();
-    let seeds = CountingSeedStore::new(FsSeedStore::open_with_io(root, io.handle())?);
-    let istore = FsIndexStore::open_with_io(root, io.handle())?;
+    let seeds = CountingSeedStore::new(store.seed_substrate());
+    let istore = FsIndexStore::open_with_io(store.root(), io.handle())?;
     Ok((seeds, istore))
 }
 
@@ -1067,6 +1072,7 @@ mod tests {
     use crate::container::{Descriptor, ObjectSource};
     use crate::dra::{Op, Program};
     use crate::field::plan;
+    use crate::store::FsSeedStore;
     use std::fs;
     use std::path::PathBuf;
 

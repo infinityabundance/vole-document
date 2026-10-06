@@ -81,15 +81,18 @@ const USAGE_STORE: &str = "";
 /// The field observation verbs are advertised only when the field is built in.
 #[cfg(feature = "field")]
 const USAGE_FIELD: &str = "\
-    vole-document field-ingest INPUT.voldoc --store DIR\n\
-    vole-document observe --store DIR --field HEX (--page N | --object N | --stream N |\n\
-        --revision N | --byte-range A..B) --kind metadata|text|structure|operators|\n\
-        encoded|decoded|exact|preview|full\n\
-    vole-document find    --store DIR --field HEX --text PATTERN\n\
-    vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze]\n\
-    vole-document preview --store DIR --field HEX --page N [--json]\n\
-    vole-document materialize --store DIR --field HEX --exact --output FILE\n\
-    vole-document cache  --store DIR [--clear]\n";
+    vole-document field-ingest INPUT.voldoc --store DIR [--entropyfs]
+    vole-document observe --store DIR --field HEX [--entropyfs] (--page N | --object N | --stream N |
+        --revision N | --byte-range A..B) --kind metadata|text|structure|operators|
+        encoded|decoded|exact|preview|full
+    vole-document find    --store DIR --field HEX --text PATTERN [--entropyfs]
+    vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs]
+    vole-document preview --store DIR --field HEX --page N [--json] [--entropyfs]
+    vole-document materialize --store DIR --field HEX --exact --output FILE [--entropyfs]
+    vole-document cache  --store DIR [--clear] [--entropyfs]
+    vole-document field-store-stats --store DIR [--entropyfs]
+    (--entropyfs needs a build with the entropyfs-store feature)
+";
 #[cfg(not(feature = "field"))]
 const USAGE_FIELD: &str = "";
 
@@ -238,6 +241,8 @@ fn run(args: &[String]) -> Result<()> {
         "preview" => cmd_field_preview(args, limits),
         #[cfg(feature = "field")]
         "cache" => cmd_field_cache(args),
+        #[cfg(feature = "field")]
+        "field-store-stats" => cmd_field_store_stats(args),
         #[cfg(feature = "field")]
         "share" => cmd_share_args(args, limits),
         other => Err(Error::usage(format!(
@@ -1367,6 +1372,7 @@ struct FieldArgs {
     analyze: bool,
     json: bool,
     no_cache: bool,
+    entropyfs: bool,
     positional: Vec<String>,
 }
 
@@ -1414,6 +1420,10 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--exact" => i += 1,
             "--no-cache" => {
                 out.no_cache = true;
+                i += 1;
+            }
+            "--entropyfs" => {
+                out.entropyfs = true;
                 i += 1;
             }
             "--store" => {
@@ -1628,6 +1638,54 @@ fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats, field: &FieldId
     )
 }
 
+/// Open the field store selected by `--entropyfs` (or the filesystem default).
+///
+/// The engine-backed backend requires a build with the `entropyfs-store`
+/// feature; asking for it without that feature is a typed `UnsupportedFeature`,
+/// never a silent fallback to the filesystem backend.
+#[cfg(feature = "field")]
+fn open_field_store(store_dir: &Path, entropyfs: bool) -> Result<FieldStore> {
+    #[cfg(feature = "entropyfs-store")]
+    if entropyfs {
+        return FieldStore::open_entropyfs(store_dir);
+    }
+    if entropyfs {
+        return Err(Error::unsupported_feature(
+            "--entropyfs requires a build with the entropyfs-store feature",
+        ));
+    }
+    FieldStore::open(store_dir)
+}
+
+/// `field-store-stats --store DIR [--entropyfs]`: report advisory engine
+/// accounting (blob count and bytes) for an EntropyFS-backed field store, so a
+/// court can witness that the seed DAG is many individual engine blobs.
+#[cfg(feature = "field")]
+fn cmd_field_store_stats(args: &[String]) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("field-store-stats requires --store DIR"))?;
+    let store = open_field_store(store_dir, out.entropyfs)?;
+    #[cfg(feature = "entropyfs-store")]
+    {
+        match store.engine_stats()? {
+            Some(s) => println!(
+                "{{\"backend\":\"entropyfs\",\"blob_count\":{},\"logical_bytes\":{},\"physical_used_bytes\":{}}}",
+                s.blob_count, s.logical_bytes, s.physical_used_bytes
+            ),
+            None => println!("{{\"backend\":\"fs\"}}"),
+        }
+    }
+    #[cfg(not(feature = "entropyfs-store"))]
+    {
+        let _ = store;
+        println!("{{\"backend\":\"fs\"}}");
+    }
+    Ok(())
+}
+
 #[cfg(feature = "field")]
 fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
     let out = parse_field_args(args)?;
@@ -1640,8 +1698,9 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
         .as_deref()
         .ok_or_else(|| Error::usage("field-ingest requires --store DIR"))?;
     let bytes = fs::read(input)?;
-    let mut store = FieldStore::open(store_dir)?;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
     let r = field_ingest::ingest_pdf(&mut store, &bytes, limits)?;
+    store.sync()?;
     let index_root = match r.index_root {
         Some(id) => format!("\"{}\"", id.to_hex()),
         None => "null".to_string(),
@@ -1696,10 +1755,11 @@ fn cmd_field_observe(args: &[String], limits: Limits) -> Result<()> {
         .as_deref()
         .ok_or_else(|| Error::usage("observe requires --kind KIND"))?;
     let representation = field_representation(kind)?;
-    let mut store = FieldStore::open(store_dir)?;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, selector, representation);
     let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
+    store.sync()?;
     println!("{}", field_answer_json(&answer, &stats, &field));
     Ok(())
 }
@@ -1719,10 +1779,11 @@ fn cmd_field_find(args: &[String], limits: Limits) -> Result<()> {
         .text
         .clone()
         .ok_or_else(|| Error::usage("find requires --text PATTERN"))?;
-    let mut store = FieldStore::open(store_dir)?;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, Selector::TextMatch(text), Representation::Text);
     let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
+    store.sync()?;
     println!("{}", field_answer_json(&answer, &stats, &field));
     Ok(())
 }
@@ -1744,7 +1805,7 @@ fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
         .as_deref()
         .ok_or_else(|| Error::usage("explain requires --kind KIND"))?;
     let representation = field_representation(kind)?;
-    let mut store = FieldStore::open(store_dir)?;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, selector, representation);
     if out.analyze {
@@ -1763,6 +1824,7 @@ fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
         let plan = explain(&manifest, &store, &req)?;
         println!("{}", plan.json);
     }
+    store.sync()?;
     Ok(())
 }
 
@@ -1830,10 +1892,11 @@ fn cmd_field_preview(args: &[String], limits: Limits) -> Result<()> {
         .page
         .ok_or_else(|| Error::usage("preview requires --page N"))?;
     let as_json = out.json;
-    let mut store = FieldStore::open(store_dir)?;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, Selector::Page(page), Representation::Preview);
     let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
+    store.sync()?;
     if !as_json && let AnswerValue::Bytes(bytes) = &answer.value {
         std::io::stdout().write_all(bytes).map_err(Error::from)?;
         return Ok(());
@@ -1992,6 +2055,7 @@ fn cmd_share_externalize(
 fn cmd_field_cache(args: &[String]) -> Result<()> {
     let mut store_dir: Option<PathBuf> = None;
     let mut clear = false;
+    let mut entropyfs = false;
     let mut i = 2;
     while i < args.len() {
         let a = args[i].as_str();
@@ -2004,6 +2068,10 @@ fn cmd_field_cache(args: &[String]) -> Result<()> {
                 clear = true;
                 i += 1;
             }
+            "--entropyfs" => {
+                entropyfs = true;
+                i += 1;
+            }
             "--store" => {
                 store_dir = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--store", inline,
@@ -2013,7 +2081,7 @@ fn cmd_field_cache(args: &[String]) -> Result<()> {
         }
     }
     let store_dir = store_dir.ok_or_else(|| Error::usage("cache requires --store DIR"))?;
-    let store = FieldStore::open(&store_dir)?;
+    let store = open_field_store(&store_dir, entropyfs)?;
     let cache = DerivedCache::open(store.root().join("cache"))?;
     if clear {
         let reclaimed = cache.clear()?;
@@ -2043,7 +2111,7 @@ fn cmd_field_materialize(args: &[String], limits: Limits) -> Result<()> {
         .output
         .as_deref()
         .ok_or_else(|| Error::usage("materialize requires --output FILE"))?;
-    let store = FieldStore::open(store_dir)?;
+    let store = open_field_store(store_dir, out.entropyfs)?;
     let id = FieldId::from_hex(field_hex)?;
     let field = Field::open(&store, &id, limits)?;
     let bytes = field.materialize_exact(limits)?;

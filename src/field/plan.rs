@@ -14,7 +14,7 @@ use crate::error::{Error, Result};
 use crate::field::FieldStore;
 use crate::field::index::{FsIndexStore, IndexEntry, SEL_PAGE, SelectorKey, lookup};
 use crate::field::manifest::FieldRoot;
-use crate::store::{NodeId, SeedStore};
+use crate::store::NodeId;
 
 use super::observe::{ObserveRequest, Representation, Selector, derived_nodes};
 

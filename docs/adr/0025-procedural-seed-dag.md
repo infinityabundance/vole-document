@@ -40,10 +40,15 @@ SeedNode {
 * Nodes are independently fetchable in small units. `SeedStore` exposes
   `put`/`get`/`get_range`/`contains`/`list`, mirroring `ObjectStore`.
 * `FsSeedStore` (files under the store root, atomic tmp→sync→rename, `pread`
-  range reads) is the reference substrate. `EntropyFsSeedStore` stores one node
-  per blob through the existing `entropyfs-store` feature; nodes are opaque to
-  EntropyFS, and we **never claim** EntropyFS natively stores VOLE procedural
-  state.
+  range reads) is the reference substrate. `EntropyFsStore` also implements
+  `SeedStore`, storing one domain-prefixed node per engine blob through the
+  existing `entropyfs-store` feature; nodes are opaque to EntropyFS, and we
+  **never claim** EntropyFS natively stores VOLE procedural state. `FieldStore`
+  selects either substrate via `FieldStore::open` (filesystem) or
+  `FieldStore::open_entropyfs` (engine); the `FieldStore` API does not leak which
+  one is in use except through stats. The engine exposes no enumeration, so
+  `list_nodes` (and manifest listing) declines rather than reporting a fake
+  sweep.
 * No arbitrary execution: a node names a bounded, versioned materializer from a
   fixed registry. Unknown mandatory materializers fail closed. No plugins, no
   embedded scripts, no decode-time inference.

@@ -44,7 +44,7 @@ use crate::field::manifest::FieldRoot;
 use crate::field::node::{MAX_NODE_DEPS, NodeKind, SeedNode, object_params, u32_params};
 use crate::field::{Field, FieldId, FieldStore};
 use crate::limits::Limits;
-use crate::store::{NodeId, SeedStore};
+use crate::store::NodeId;
 
 /// Hard cap on seed nodes one ingest may add.
 pub const MAX_INGEST_NODES: u64 = 1 << 20;

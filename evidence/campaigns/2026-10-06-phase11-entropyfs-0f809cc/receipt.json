@@ -1,0 +1,101 @@
+{
+  "campaign": "2026-10-06-phase11-entropyfs-0f809cc",
+  "phase": "phase11-entropyfs (priority #3: wire the procedural seed DAG through EntropyFS)",
+  "environment": {
+    "git": {
+      "commit": "0f809cca7dc9cb4f0ed6b0d92c06fc36ce37f0c0",
+      "commit_short": "0f809cc",
+      "branch": "phase11",
+      "dirty": true,
+      "status_porcelain": [
+        "M src/field/ingest.rs",
+        "M src/field/mod.rs",
+        "M src/field/observe.rs",
+        "M src/field/plan.rs",
+        "M src/main.rs",
+        "M src/store/entropyfs.rs",
+        "M src/store/mod.rs",
+        "?? evidence/campaigns/2026-10-06-phase11-entropyfs-0f809cc/",
+        "?? tools/field-entropyfs-court.sh"
+      ]
+    },
+    "arch": "x86_64",
+    "cargo_lock_sha256": "25fc018b20d57fe22b704fd528cfa9f3dc64969ed7aa0345fb0cd294e913eea2",
+    "toolchain": {
+      "rustc": "1.99.0 (b940084d7 2026-09-28)",
+      "cargo": "1.99.0 (5f94df478 2026-08-27)",
+      "edition": "2024",
+      "msrv": "1.89.0"
+    },
+    "images": {
+      "base_stable_digest": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+      "service": "vole-document/dev:1.99.0"
+    },
+    "env_affecting_semantics": {
+      "LC_ALL": "C",
+      "VOLE_BIN": "./target/debug/vole-document",
+      "cargo_flags": "--locked --all-features"
+    }
+  },
+  "feature": "entropyfs-store (implies store; field for the seed substrate)",
+  "source": {
+    "path": "evidence/campaigns/2026-10-05-phase3-486aa17/corpus/twopage.pdf",
+    "len": 684,
+    "sha256": "5677996dc3cafe598056c8809dbd23e6ac86891c9d49118d879c5ab07c152024"
+  },
+  "engine_substrate": {
+    "engine_root": "<store>/entropyfs",
+    "descriptor_namespace": "raw engine blob; BlobId == Id == BLAKE3(bytes)",
+    "manifest_namespace": "domain-prefixed engine blob (VOLE:VFIELD:v1); BlobId == FieldId",
+    "seed_namespace": "domain-prefixed engine blob (VOLE:PSEED:v1); BlobId == NodeId",
+    "index_namespace": "filesystem FsIndexStore under <store>/index",
+    "cache_namespace": "filesystem derived cache under <store>/cache",
+    "engine_opaque_to_vole_semantics": true,
+    "one_node_per_blob": true
+  },
+  "cross_process": {
+    "each_stage_is_a_new_process": true,
+    "seed_node_count": 12,
+    "engine_blob_count_after_ingest": 15,
+    "engine_logical_bytes_after_ingest": 2570,
+    "engine_physical_bytes_after_ingest": 40799,
+    "seed_nodes_are_individual_blobs": true,
+    "blob_count_after_3_node_deepen": 19,
+    "blob_delta_on_deepen": 4,
+    "observe_page1_deepened": true,
+    "observe_page1_seed_nodes_fetched": 3,
+    "observe_page1_seed_bytes_read": 355,
+    "cache_cleared_reclaimed_bytes": 361,
+    "re_deepened_after_cache_clear": false,
+    "materialized_len": 684,
+    "materialized_sha256": "5677996dc3cafe598056c8809dbd23e6ac86891c9d49118d879c5ab07c152024",
+    "byte_exact": true
+  },
+  "claimed": {
+    "one_canonical_seed_node_per_engine_blob": true,
+    "blob_count_at_least_seed_node_count": true,
+    "exactness_materialize_equals_source_across_processes": true,
+    "entropyfs_natively_understands_seed_nodes": false,
+    "speed_claim": false,
+    "list_nodes_through_engine": "declines (UnsupportedFeature)",
+    "list_fields_through_engine": "declines (UnsupportedFeature)",
+    "seed_mark_sweep_gc_through_engine": "unsupported",
+    "partial_descriptor_reads_on_engine_backend": false,
+    "durability_barrier_required": true
+  },
+  "tests_added": [
+    "store::entropyfs::seed_tests::put_get_range_roundtrip_through_the_engine",
+    "store::entropyfs::seed_tests::node_ids_are_engine_blob_ids",
+    "store::entropyfs::seed_tests::list_nodes_declines_with_a_typed_error",
+    "field::entropyfs_field_tests::ingest_observe_and_exact_materialize_through_the_engine",
+    "field::entropyfs_field_tests::cross_process_reopen_reads_what_a_previous_handle_wrote",
+    "field::entropyfs_field_tests::list_nodes_declines_so_gc_cannot_sweep"
+  ],
+  "gates": {
+    "command": "docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features --locked && cargo test --no-default-features'",
+    "fmt": "clean",
+    "clippy_all_targets_all_features_deny_warnings": "clean",
+    "test_all_features_locked": "green (lib 359 passed, 1 ignored; all integration targets green)",
+    "test_no_default_features": "green"
+  }
+}
