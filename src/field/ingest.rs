@@ -4,8 +4,11 @@
 //! [`FieldStore::ingest`]) followed by Stage B (cheap eager inversion): exact
 //! physical spans become `PdfObject` / `PdfRevision` / `PdfStreamEncoded` nodes,
 //! a lone-`/FlateDecode` stream is inflated once to learn its exact decoded
-//! length and becomes a `PdfStreamDecoded` node, and a bounded page-tree walk
-//! builds `PageContent` nodes. Every recovered observation is registered in the
+//! length and becomes a `PdfStreamDecoded` node (an unfiltered stream's encoded
+//! bytes are used directly as content), and a bounded page-tree walk builds
+//! `PageContent` nodes. Page keys (`/Type`, `/Kids`, `/Contents`, `/Pages`) are
+//! read only at the leading dictionary's top level, so a nested sub-dictionary
+//! cannot shadow them. Every recovered observation is registered in the
 //! hierarchical index and the manifest is re-written with the richer root.
 //!
 //! Stage B is **best-effort and never fatal**: a heuristic step that declines
@@ -25,7 +28,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::adapter::pdf::cos::{FilterClass, dict_name_value};
+use crate::adapter::pdf::cos::FilterClass;
 use crate::adapter::pdf::lexer::lex;
 use crate::adapter::pdf::physical::{PdfPhysical, scan};
 use crate::adapter::pdf::span::{Span, SpanKind};
@@ -232,6 +235,9 @@ fn stream_decoded_node(object: u32, encoded_id: NodeId, decoded_len: u64) -> See
 struct StageB {
     entries: Vec<IndexEntry>,
     decoded_by_object: BTreeMap<u32, (NodeId, u64)>,
+    /// Encoded node for streams with *no* `/Filter`, whose bytes are the raw
+    /// content (used to recover pages with unfiltered content streams).
+    plain_by_object: BTreeMap<u32, (NodeId, u64)>,
     node_count: u64,
     object_nodes: u64,
     stream_nodes: u64,
@@ -247,6 +253,7 @@ impl StageB {
         StageB {
             entries: Vec::new(),
             decoded_by_object: BTreeMap::new(),
+            plain_by_object: BTreeMap::new(),
             node_count,
             object_nodes: 0,
             stream_nodes: 0,
@@ -362,6 +369,11 @@ fn run_stage_b(
             node_id: encoded_id,
         })?;
 
+        // An unfiltered stream's encoded bytes *are* its content: remember the
+        // encoded node so a page whose `/Contents` is unfiltered can use it.
+        if stream.filter == FilterClass::Absent {
+            acc.plain_by_object.insert(number, (encoded_id, len));
+        }
         if stream.filter != FilterClass::FlateDecode {
             continue;
         }
@@ -415,12 +427,13 @@ fn recover_pages(
         ranges.push(leading_dict(span_window(&spans, obj.start, obj.end)));
     }
 
-    // The catalog is the lowest-numbered object whose `/Type` is `/Catalog`.
+    // The catalog is the lowest-numbered object whose *top-level* `/Type` is
+    // `/Catalog` (a nested `/Type` must not shadow it).
     let mut catalog: Option<usize> = None;
     for &idx in obj_index.values() {
         if let Some((lo, hi)) = ranges[idx] {
             let win = span_window(&spans, lo, hi);
-            if dict_name_value(source, win, lo, hi, b"Type") == Some(&b"Catalog"[..]) {
+            if top_level_name_value(source, win, lo, hi, b"Type") == Some(&b"Catalog"[..]) {
                 catalog = Some(idx);
                 break;
             }
@@ -458,9 +471,12 @@ fn recover_pages(
             continue;
         };
         let win = span_window(&spans, lo, hi);
-        match dict_name_value(source, win, lo, hi, b"Type") {
+        match top_level_name_value(source, win, lo, hi, b"Type") {
+            Some(b"Page") => pages.push(number),
             Some(b"Pages") => {
                 if let Some(kids) = collect_key_refs(source, win, lo, hi, b"Kids") {
+                    let kids =
+                        expand_ref_arrays(source, &spans, &physical.objects, &obj_index, kids);
                     for kid in kids.into_iter().rev() {
                         if !visited.contains(&kid) {
                             stack.push(kid);
@@ -468,8 +484,19 @@ fn recover_pages(
                     }
                 }
             }
-            Some(b"Page") => pages.push(number),
-            _ => {}
+            _ => {
+                // No/unknown `/Type`: a dict carrying `/Kids` (or a bare
+                // `/Count`) is still an internal page-tree node. Best-effort.
+                if let Some(kids) = collect_key_refs(source, win, lo, hi, b"Kids") {
+                    let kids =
+                        expand_ref_arrays(source, &spans, &physical.objects, &obj_index, kids);
+                    for kid in kids.into_iter().rev() {
+                        if !visited.contains(&kid) {
+                            stack.push(kid);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -485,6 +512,8 @@ fn recover_pages(
         let Some(content_refs) = collect_key_refs(source, win, lo, hi, b"Contents") else {
             continue;
         };
+        let content_refs =
+            expand_ref_arrays(source, &spans, &physical.objects, &obj_index, content_refs);
         if content_refs.len() > MAX_NODE_DEPS {
             continue;
         }
@@ -497,12 +526,19 @@ fn recover_pages(
             let Ok(content_number) = u32::try_from(*content) else {
                 continue;
             };
-            let Some(&(node_id, decoded_len)) = acc.decoded_by_object.get(&content_number) else {
+            // Prefer the inflated node; otherwise fall back to the encoded node
+            // of a stream that has *no* filter, whose bytes are the content.
+            let resolved = acc
+                .decoded_by_object
+                .get(&content_number)
+                .copied()
+                .or_else(|| acc.plain_by_object.get(&content_number).copied());
+            let Some((node_id, content_len)) = resolved else {
                 continue;
             };
             deps.push(node_id);
             total = total
-                .checked_add(decoded_len)
+                .checked_add(content_len)
                 .ok_or_else(|| Error::resource_limit("page content length overflow"))?;
             if let Some(&ci) = obj_index.get(content) {
                 let obj = &physical.objects[ci];
@@ -636,34 +672,96 @@ fn leading_dict(win: &[Span]) -> Option<(u64, u64)> {
     None
 }
 
-/// Collect the indirect references following `key` inside `[lo, hi)`.
+/// Collect the indirect references following a *top-level* `key` inside the
+/// leading dictionary `[lo, hi)`.
 ///
-/// Accepts a single `N G R` or an inline array of them. Returns `None` when the
-/// key is absent, the value is neither shape, or more than [`MAX_REFS`] entries
-/// appear (fail closed rather than guess).
+/// Only a key at bracket-depth 1 and outside every array is considered, so a
+/// nested sub-dictionary (e.g. Cairo's `/Group << ... >>` before `/Type /Page`)
+/// can never shadow it. Accepts a single `N G R` or an inline array of them.
+/// Returns `None` when the key is absent, the value is neither shape, or more
+/// than [`MAX_REFS`] entries appear (fail closed rather than guess).
 fn collect_key_refs(source: &[u8], win: &[Span], lo: u64, hi: u64, key: &[u8]) -> Option<Vec<u64>> {
-    let name = find_name(win, source, lo, hi, key)?;
+    let name = find_top_level_name(win, source, lo, hi, key)?;
     let t0 = next_sig(win, name + 1, hi)?;
-    let mut out: Vec<u64> = Vec::new();
     if win[t0].kind == SpanKind::ArrayOpen {
-        let mut i = t0 + 1;
-        loop {
-            let t = next_sig(win, i, hi)?;
-            if win[t].kind == SpanKind::ArrayClose {
-                return Some(out);
-            }
-            let (number, _generation, next) = read_ref(source, win, t, hi)?;
-            out.push(number);
-            if out.len() > MAX_REFS {
-                return None;
-            }
-            i = next;
-        }
+        parse_ref_array(source, win, t0, hi)
     } else {
         let (number, _generation, _next) = read_ref(source, win, t0, hi)?;
-        out.push(number);
-        Some(out)
+        Some(vec![number])
     }
+}
+
+/// The `/Name` value of a *top-level* `key` in the leading dictionary.
+///
+/// Depth-aware like [`collect_key_refs`], so a nested `/Type` (e.g. inside a
+/// `/Group` sub-dictionary) is not mistaken for the object's own type.
+fn top_level_name_value<'a>(
+    source: &'a [u8],
+    win: &[Span],
+    lo: u64,
+    hi: u64,
+    key: &[u8],
+) -> Option<&'a [u8]> {
+    let name = find_top_level_name(win, source, lo, hi, key)?;
+    let t = next_sig(win, name + 1, hi)?;
+    let span = win[t];
+    if span.kind != SpanKind::Name {
+        return None;
+    }
+    span_bytes(source, span)?.strip_prefix(b"/")
+}
+
+/// Parse an inline `[ N G R ... ]` array of references beginning at span index
+/// `open_idx` (a `ArrayOpen`), bounded by `hi`.
+fn parse_ref_array(source: &[u8], win: &[Span], open_idx: usize, hi: u64) -> Option<Vec<u64>> {
+    let mut out: Vec<u64> = Vec::new();
+    let mut i = open_idx + 1;
+    loop {
+        let t = next_sig(win, i, hi)?;
+        if win[t].kind == SpanKind::ArrayClose {
+            return Some(out);
+        }
+        let (number, _generation, next) = read_ref(source, win, t, hi)?;
+        out.push(number);
+        if out.len() > MAX_REFS {
+            return None;
+        }
+        i = next;
+    }
+}
+
+/// Expand any reference pointing at an object whose body is an array into the
+/// references inside that array (one level, best-effort).
+///
+/// Handles `/Kids 12 0 R` and `/Contents 12 0 R` where object 12 is `[ ... ]`.
+/// A reference whose target is absent or not an array is kept unchanged.
+fn expand_ref_arrays(
+    source: &[u8],
+    spans: &[Span],
+    objects: &[crate::adapter::pdf::physical::PdfObjectSpan],
+    obj_index: &BTreeMap<u64, usize>,
+    refs: Vec<u64>,
+) -> Vec<u64> {
+    let mut out: Vec<u64> = Vec::new();
+    for reference in refs {
+        if out.len() > MAX_REFS {
+            break;
+        }
+        let expanded = obj_index.get(&reference).and_then(|&idx| {
+            let obj = &objects[idx];
+            let win = span_window(spans, obj.start, obj.end);
+            let t = next_sig(win, 0, obj.end)?;
+            if win[t].kind != SpanKind::ArrayOpen {
+                return None;
+            }
+            parse_ref_array(source, win, t, obj.end)
+        });
+        match expanded {
+            Some(items) => out.extend(items),
+            None => out.push(reference),
+        }
+    }
+    out
 }
 
 /// Read one `N G R` reference at a significant span index.
@@ -679,18 +777,36 @@ fn read_ref(source: &[u8], win: &[Span], at: usize, hi: u64) -> Option<(u64, u64
     Some((number, generation, k + 1))
 }
 
-/// Index of a `Name` span equal to `/<key>` fully inside `[lo, hi)`.
-fn find_name(win: &[Span], source: &[u8], lo: u64, hi: u64, key: &[u8]) -> Option<usize> {
-    win.iter().position(|span| {
-        span.kind == SpanKind::Name
-            && span.start >= lo
-            && span
-                .start
-                .checked_add(span.len)
-                .is_some_and(|end| end <= hi)
-            && span_bytes(source, *span)
-                .is_some_and(|b| b.len() == key.len() + 1 && b[0] == b'/' && &b[1..] == key)
-    })
+/// Index of a *top-level* (bracket-depth 1, outside any array) `Name` span equal
+/// to `/<key>` fully inside `[lo, hi)`.
+///
+/// A nested dictionary or array increments the tracked depth, so a key that only
+/// appears inside one is never returned.
+fn find_top_level_name(win: &[Span], source: &[u8], lo: u64, hi: u64, key: &[u8]) -> Option<usize> {
+    let mut dict_depth: i32 = 0;
+    let mut array_depth: i32 = 0;
+    for (i, span) in win.iter().enumerate() {
+        if span.start < lo || span.start >= hi {
+            continue;
+        }
+        match span.kind {
+            SpanKind::DictOpen => dict_depth += 1,
+            SpanKind::DictClose => dict_depth -= 1,
+            SpanKind::ArrayOpen => array_depth += 1,
+            SpanKind::ArrayClose => array_depth -= 1,
+            SpanKind::Name
+                if dict_depth == 1
+                    && array_depth == 0
+                    && span_bytes(source, *span).is_some_and(|b| {
+                        b.len() == key.len() + 1 && b[0] == b'/' && &b[1..] == key
+                    }) =>
+            {
+                return Some(i);
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// Index of the next non-whitespace, non-comment span starting before `hi`.
@@ -876,6 +992,43 @@ mod tests {
             b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
         );
         w.stream_obj(4, " /Filter /FlateDecode", &encoded);
+        w.obj(5, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+        w.classic_trailer(6, " /Root 1 0 R");
+        w.buf
+    }
+
+    /// A one-page PDF whose page object carries a nested `/Group << ... /Type
+    /// /Group ... >>` *before* its own `/Type /Page` (Cairo-style key order).
+    fn fixture_pdf_nested_type() -> Vec<u8> {
+        let content = b"BT /F1 12 Tf 72 720 Td (Nested) Tj ET\n";
+        let encoded = zlib_stored(content);
+        let mut w = PdfBuilder::new();
+        w.text("%PDF-1.5\n");
+        w.obj(1, b"<< /Type /Catalog /Pages 2 0 R >>");
+        w.obj(2, b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        w.obj(
+            3,
+            b"<< /Contents 4 0 R /Group << /S /Transparency /Type /Group >> /MediaBox [0 0 612 792] /Parent 2 0 R /Resources << /Font << /F1 5 0 R >> >> /Type /Page >>",
+        );
+        w.stream_obj(4, " /Filter /FlateDecode", &encoded);
+        w.obj(5, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+        w.classic_trailer(6, " /Root 1 0 R");
+        w.buf
+    }
+
+    /// A one-page PDF whose content stream has no `/Filter`, so its encoded
+    /// bytes are the content.
+    fn fixture_pdf_unfiltered() -> Vec<u8> {
+        let content = b"BT /F1 12 Tf 72 720 Td (Plain) Tj ET\n";
+        let mut w = PdfBuilder::new();
+        w.text("%PDF-1.5\n");
+        w.obj(1, b"<< /Type /Catalog /Pages 2 0 R >>");
+        w.obj(2, b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        w.obj(
+            3,
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        );
+        w.stream_obj(4, "", content);
         w.obj(5, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
         w.classic_trailer(6, " /Root 1 0 R");
         w.buf
@@ -1131,6 +1284,68 @@ mod tests {
             .unwrap();
         assert!(!bytes.is_empty());
         assert!(String::from_utf8_lossy(&bytes).contains("Hello"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn nested_type_dict_does_not_shadow_page() {
+        let root = temp_root("nested-type");
+        let mut store = FieldStore::open(&root).unwrap();
+        let pdf = fixture_pdf_nested_type();
+        let report = ingest(&mut store, &pdf);
+        assert_eq!(
+            report.page_nodes, 1,
+            "a nested /Type /Group must not hide the page"
+        );
+
+        let istore = FsIndexStore::open(store.root()).unwrap();
+        let index_root = report.index_root.unwrap();
+        let page_entry = lookup(&istore, &index_root, &SelectorKey::new(SEL_PAGE, 1))
+            .unwrap()
+            .pop()
+            .unwrap();
+
+        let deepened = deepen_page(&mut store, &report.field, 1, Limits::DEFAULT).unwrap();
+        let field = Field::open(&store, &deepened, Limits::DEFAULT).unwrap();
+        let (_ops, text, _preview) = derived_chain(1, page_entry.node_id);
+        let mut budget = EvalBudget::default();
+        let bytes = field
+            .materialize_node(&text.content_id(), Limits::DEFAULT, &mut budget)
+            .unwrap();
+        assert!(String::from_utf8_lossy(&bytes).contains("Nested"));
+
+        assert_eq!(field.materialize_exact(Limits::DEFAULT).unwrap(), pdf);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn unfiltered_content_stream_recovers_page() {
+        let root = temp_root("unfiltered");
+        let mut store = FieldStore::open(&root).unwrap();
+        let pdf = fixture_pdf_unfiltered();
+        let report = ingest(&mut store, &pdf);
+        assert_eq!(
+            report.page_nodes, 1,
+            "an unfiltered /Contents stream must not be dropped"
+        );
+
+        let istore = FsIndexStore::open(store.root()).unwrap();
+        let index_root = report.index_root.unwrap();
+        let page_entry = lookup(&istore, &index_root, &SelectorKey::new(SEL_PAGE, 1))
+            .unwrap()
+            .pop()
+            .unwrap();
+
+        let deepened = deepen_page(&mut store, &report.field, 1, Limits::DEFAULT).unwrap();
+        let field = Field::open(&store, &deepened, Limits::DEFAULT).unwrap();
+        let (_ops, text, _preview) = derived_chain(1, page_entry.node_id);
+        let mut budget = EvalBudget::default();
+        let bytes = field
+            .materialize_node(&text.content_id(), Limits::DEFAULT, &mut budget)
+            .unwrap();
+        assert!(String::from_utf8_lossy(&bytes).contains("Plain"));
+
+        assert_eq!(field.materialize_exact(Limits::DEFAULT).unwrap(), pdf);
         fs::remove_dir_all(&root).ok();
     }
 }
