@@ -230,6 +230,39 @@ impl FsIndexStore {
         Ok(self.node_path(id).exists())
     }
 
+    /// Every node id physically present in the index namespace.
+    ///
+    /// Used to tell a genuinely new node from one a previous build already wrote
+    /// (the index is content-addressed, so an unchanged node has an unchanged
+    /// id and is never rewritten).
+    pub fn list_ids(&self) -> Result<Vec<NodeId>> {
+        let mut out: Vec<NodeId> = Vec::new();
+        let mut stack = vec![self.root.join("index")];
+        while let Some(dir) = stack.pop() {
+            let entries = match fs::read_dir(&dir) {
+                Ok(e) => e,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(e) => return Err(e.into()),
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                    continue;
+                }
+                if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                    && name.len() == 64
+                    && let Ok(id) = NodeId::from_hex(name)
+                {
+                    out.push(id);
+                }
+            }
+        }
+        out.sort_unstable();
+        out.dedup();
+        Ok(out)
+    }
+
     /// Number of stored nodes.
     pub fn count(&self) -> Result<u64> {
         let mut n = 0u64;
@@ -400,7 +433,55 @@ pub fn lookup(store: &FsIndexStore, root: &NodeId, key: &SelectorKey) -> Result<
 /// depth observed. Any structural fault, identity mismatch, inconsistent
 /// duplicate, dangling child, or range violation is a typed error.
 pub fn validate(store: &FsIndexStore, root: &NodeId) -> Result<(u64, u8)> {
-    validate_impl(store, root)
+    let (count, depth, _ids) = validate_impl_nodes(store, root)?;
+    Ok((count, depth))
+}
+
+/// Like [`validate`], but also returns every distinct tree-node id. A caller that
+/// must compare two trees can validate and enumerate in one pass instead of
+/// reading the same nodes twice.
+pub fn validate_nodes(store: &FsIndexStore, root: &NodeId) -> Result<(u64, u8, Vec<NodeId>)> {
+    validate_impl_nodes(store, root)
+}
+
+/// A single full traversal of an index tree: every leaf entry and every
+/// distinct tree-node id.
+///
+/// Both are collected in one pass so a caller that needs to carry untouched
+/// selector bindings forward (the immutable-edit witness) does not read the
+/// tree twice. Every node read is hash-checked by [`FsIndexStore::get`].
+pub struct TreeInspection {
+    /// Every leaf entry, sorted and deduplicated by [`entry_order`].
+    pub entries: Vec<IndexEntry>,
+    /// Every distinct node id reachable from the root (leaves and internals).
+    pub nodes: Vec<NodeId>,
+}
+
+/// Traverse the whole tree rooted at `root`, collecting every leaf entry and
+/// every distinct node id. This reads every node (not just a lookup path).
+pub fn inspect(store: &FsIndexStore, root: &NodeId) -> Result<TreeInspection> {
+    let mut entries: Vec<IndexEntry> = Vec::new();
+    let mut nodes: Vec<NodeId> = Vec::new();
+    let mut stack: Vec<NodeId> = vec![*root];
+    while let Some(id) = stack.pop() {
+        if nodes.contains(&id) {
+            continue;
+        }
+        let bytes = store.get(&id)?;
+        let node = parse_node(&bytes)?;
+        nodes.push(id);
+        match node.kind {
+            KIND_LEAF => entries.extend(node.leaf),
+            _ => {
+                for c in node.internal {
+                    stack.push(c.child_id);
+                }
+            }
+        }
+    }
+    entries.sort_by(entry_order);
+    entries.dedup();
+    Ok(TreeInspection { entries, nodes })
 }
 
 fn lookup_impl<R: NodeReader>(
@@ -447,7 +528,7 @@ fn lookup_impl<R: NodeReader>(
     Ok(out)
 }
 
-fn validate_impl<R: NodeReader>(store: &R, root: &NodeId) -> Result<(u64, u8)> {
+fn validate_impl_nodes<R: NodeReader>(store: &R, root: &NodeId) -> Result<(u64, u8, Vec<NodeId>)> {
     let mut seen: Vec<(NodeId, Vec<u8>, u8)> = Vec::new();
     let mut count = 0u64;
     let mut max_depth = 0u8;
@@ -507,7 +588,11 @@ fn validate_impl<R: NodeReader>(store: &R, root: &NodeId) -> Result<(u64, u8)> {
             }
         }
     }
-    Ok((count, max_depth))
+    Ok((
+        count,
+        max_depth,
+        seen.into_iter().map(|(id, _, _)| id).collect(),
+    ))
 }
 
 /// Record a visited node. Returns `true` if newly seen and `false` if already

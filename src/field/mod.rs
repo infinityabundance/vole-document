@@ -15,6 +15,7 @@
 pub mod cache;
 pub mod dag;
 pub mod derive;
+pub mod edit;
 pub mod explain;
 pub mod index;
 pub mod ingest;

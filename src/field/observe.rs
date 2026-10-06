@@ -1276,6 +1276,15 @@ impl<S: SeedStore> Ctx<'_, S> {
         let mut streams: Vec<u32> = Vec::new();
         for dep in &pc_node.deps {
             let dep_node = self.load(dep)?;
+            // Only a stream node's params are a content object number. An edited
+            // page's `PageContent` may depend on a raw `Literal` whose params *are*
+            // the content bytes, which must never be read as an object number.
+            if !matches!(
+                dep_node.kind,
+                NodeKind::PdfStreamDecoded | NodeKind::PdfStreamEncoded
+            ) {
+                continue;
+            }
             if let Ok(object) = read_u32_params(&dep_node.params) {
                 streams.push(object);
             }

@@ -27,6 +27,7 @@ use vole_document::error::{Error, Result};
 use vole_document::field::{
     Field, FieldId, FieldStore,
     cache::DerivedCache,
+    edit as field_edit,
     explain::explain,
     ingest as field_ingest,
     observe::{ObserveRequest, ObserveStats, Representation, Selector, observe},
@@ -82,6 +83,7 @@ const USAGE_STORE: &str = "";
 #[cfg(feature = "field")]
 const USAGE_FIELD: &str = "\
     vole-document field-ingest INPUT.voldoc --store DIR [--entropyfs]
+    vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs]
     vole-document observe --store DIR --field HEX [--entropyfs] (--page N | --object N | --stream N |
         --revision N | --byte-range A..B) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|full
@@ -232,6 +234,8 @@ fn run(args: &[String]) -> Result<()> {
         }
         #[cfg(feature = "field")]
         "field-ingest" => cmd_field_ingest(args, limits),
+        #[cfg(feature = "field")]
+        "field-edit" => cmd_field_edit(args, limits),
         #[cfg(feature = "field")]
         "observe" => cmd_field_observe(args, limits),
         #[cfg(feature = "field")]
@@ -1372,6 +1376,7 @@ struct FieldArgs {
     kind: Option<String>,
     text: Option<String>,
     output: Option<PathBuf>,
+    content: Option<PathBuf>,
     analyze: bool,
     json: bool,
     no_cache: bool,
@@ -1472,6 +1477,14 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
+                )?));
+            }
+            "--content" => {
+                out.content = Some(PathBuf::from(field_arg_value(
+                    args,
+                    &mut i,
+                    "--content",
+                    inline,
                 )?));
             }
             other if !other.starts_with("--") => {
@@ -1737,6 +1750,74 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
         r.page_nodes,
         r.revision_nodes,
         r.declined_streams,
+    );
+    Ok(())
+}
+
+#[cfg(feature = "field")]
+fn cmd_field_edit(args: &[String], _limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("field-edit requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("field-edit requires --field HEX"))?;
+    let page = out
+        .page
+        .ok_or_else(|| Error::usage("field-edit requires --page N"))?;
+    let content_path = out
+        .content
+        .as_deref()
+        .ok_or_else(|| Error::usage("field-edit requires --content FILE"))?;
+    let content = fs::read(content_path)?;
+    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let id = FieldId::from_hex(field_hex)?;
+    let r = field_edit::replace_page_content(&mut store, &id, page, &content)?;
+    store.sync()?;
+    println!(
+        concat!(
+            "{{",
+            "\"field\":\"{}\",",
+            "\"previous\":\"{}\",",
+            "\"page\":{},",
+            "\"page_content\":\"{}\",",
+            "\"content_literal\":\"{}\",",
+            "\"index_root\":\"{}\",",
+            "\"index_entries\":{},",
+            "\"index_entries_reused\":{},",
+            "\"index_entries_replaced\":{},",
+            "\"seed_nodes_new\":{},",
+            "\"seed_nodes_reused\":{},",
+            "\"index_nodes_reused\":{},",
+            "\"index_nodes_new\":{},",
+            "\"bytes_newly_persisted\":{},",
+            "\"descriptor_bytes_read\":{},",
+            "\"manifest_bytes_read\":{},",
+            "\"index_bytes_read\":{},",
+            "\"seed_bytes_read\":{}",
+            "}}"
+        ),
+        r.field.to_hex(),
+        r.previous.to_hex(),
+        r.page,
+        r.page_content.to_hex(),
+        r.content_literal.to_hex(),
+        r.index_root.to_hex(),
+        r.index_entries,
+        r.index_entries_reused,
+        r.index_entries_replaced,
+        r.seed_nodes_new,
+        r.seed_nodes_reused,
+        r.index_nodes_reused,
+        r.index_nodes_new,
+        r.bytes_newly_persisted,
+        r.descriptor_bytes_read,
+        r.manifest_bytes_read,
+        r.index_bytes_read,
+        r.seed_bytes_read,
     );
     Ok(())
 }
