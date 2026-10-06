@@ -22,13 +22,14 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 
 ## Status
 
-Current release: **`0.1.0-alpha.10`** (Phase 8). Exactness is unchanged
+Current release: **`0.1.0-alpha.11`** (Phase 9). Exactness is unchanged
 (`materialize(descriptor) == original_bytes`); whole-file compression remains a
 recorded loss against generic lossless tools (ADR-0017). Phase 7 measured a
-scoped random-access **decode-CPU** win (ADR-0018); Phase 8 adds the seek reader
-and measures a scoped random-access **bytes-read** win versus **non-seekable
-sequential** codecs only (ADR-0019) — a seekable/blocked format reads 2.6–30× less
-for the same late query.
+scoped random-access **decode-CPU** win (ADR-0018); Phase 8 measured a scoped
+random-access **bytes-read** win versus **non-seekable sequential** codecs only
+(ADR-0019); Phase 9 adds the cross-document content-addressed **store** and
+records a robust — but partly externalization-granularity-artifact — loss on the
+store axis (ADR-0020/0021).
 
 Phase 9 (branch `phase9`, ADR-0020/0021) adds a cross-document
 **content-addressed object store** and then measures the one axis a single-file
