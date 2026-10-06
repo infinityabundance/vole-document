@@ -28,6 +28,10 @@ the written rationale that must survive chat history.
 | [0021](0021-cross-document-sharing-result.md) | Cross-document sharing does not beat generic chunk dedup (measured) | Accepted — recorded negative result (Phase 9.3) |
 | [0022](0022-encoder-only-search-governance.md) | Encoder-only search governance, with zero decode authority | Accepted — mechanism implemented; parametric search is a recorded negative (Phase 10.1) |
 | [0023](0023-consolidated-findings.md) | The current representation stack does not beat purpose-built baselines on any measured axis (superseding consolidated decision) | Accepted — top-level negative-results consolidation (Phase 10.2) |
+| [0024](0024-document-field-authority.md) | The document is a persistent procedural field; authority is layered and never confused | Accepted (Phase 11.0) |
+| [0025](0025-procedural-seed-dag.md) | A VOLE-owned, content-addressed, immutable procedural seed DAG stored one blob per node | Accepted (Phase 11.0) |
+| [0026](0026-observation-query-provenance.md) | Typed observation algebra, provenance on every answer, EXPLAIN/EXPLAIN ANALYZE | Accepted (Phase 11.0) |
+| [0027](0027-cost-accounting.md) | Four accounting universes; multi-objective cost; lifetime-cost headline | Accepted (Phase 11.0) |
 
 ## Adding an ADR
 
