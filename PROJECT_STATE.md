@@ -35,9 +35,17 @@ non-default feature `entropyfs-store`) is a verified optional adapter whose
 `list`/`remove` decline because the engine exposes no per-blob delete. Three
 accounting universes are kept permanently distinct (standalone / unique-reachable
 / amortized, with the amortized rule fractional by reference count and
-`Σ amortized == unique reachable`). **No size or win is claimed yet**: the cohort
-measurement against per-file LZ and generic content-defined-chunk dedup is Phase
-9.3.
+`Σ amortized == unique reachable`). Phase 9.3 then **measured** the axis (campaign
+`2026-10-05-phase9-store-fdb2845`, ADR-0021): over 37 locally generated files
+(5,579,469 B, 10 deliberate-sharing strata) the unique-reachable universe
+`U = 3,369,900 B` **loses** to per-file min LZ (`1,304,307 B`) and to the strongest
+pinned content-defined-chunk dedup (borg 1.2.4, `771,383 B` raw / `210,836 B`
+compressed). The only win is byte-identical opaque repeats (`repeat-bin`,
+`U = 133,048 B`); `shared-payload`, `shared-bin`, `one-changed`, `incremental`,
+`reexport`, `repeat-pdf` and the pre-registered `shifted` control all lose to CDC,
+because the auto winner's bulk lives in entropy channels / `GRAPH` bytes that
+`externalize` does not share. Cross-document sharing is reported as store
+*amortization*, never "compression".
 
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED`).
@@ -88,8 +96,9 @@ measurement against per-file LZ and generic content-defined-chunk dedup is Phase
 | Nested PDF content proceduralization | 7 | PROPOSED | the clearest embodiment of the thesis |
 | PDF grammar/templates | 8 | PROPOSED | must pay definition cost |
 | EntropyFS store-backed form (`EntropyFsStore` adapter) | 9.2 | IMPLEMENTED (optional; not measured) | non-default feature `entropyfs-store`; a thin `ObjectStore` adapter over `entropyfs 0.7.17` `engine::Engine` (`default-features = false`) — `put → put_blob`, `get → get_blob` (whole-blob BLAKE3 gate), `get_range → read_blob_range` + a strict `offset+len <= stored_len` check, `contains`. `BlobId` is BLAKE3-256, identical to our `Id`; an `EmbeddedStore`-externalized descriptor materializes byte-exactly through it (`tests/entropyfs.rs`). `list`/`remove` decline with `UnsupportedFeature` (no per-blob delete), so mark-and-sweep GC cannot reclaim through it. Viable but **heavy** (non-optional `dsfb` + a ~40-crate tree), never required for the standalone form (ADR-0020) |
-| `ObjectStore` + `EmbeddedStore` + store-backed descriptor form | 9.1 | IMPLEMENTED (not measured) | `Id = BLAKE3-256` (archival identity stays SHA-256); `EXTERNAL_REF` (`0x80`, 40 B) + mandatory `FEATURE_EXTERNAL_OBJECTS`; `externalize`/`hydrate`; `gc` mark-and-sweep; `EmbeddedStore` (raw content-addressed directory, atomic write-then-rename `put`, strict `get_range`, per-object `remove`); `tests/store.rs`. Universe sufficed `+external-objects-v1` |
-| Three accounting universes (standalone / unique-reachable / amortized) | 9.1/9.2 | IMPLEMENTED (measured in 9.3) | `src/store/account.rs`; `store account` CLI. `S = Σ|serialize(d_i)|`, `U = Σ|serialize(e_i)| + Σ len(o)`, `A = Σ(|serialize(e_i)| + Σ len(o)/refcount(o))` with the amortized split fractional by reference count and integerized so `Σ A_i == U` exactly. `S` is the only whole-file-comparable universe (ADR-0020) |
+| `ObjectStore` + `EmbeddedStore` + store-backed descriptor form | 9.1 | ADOPTED | `Id = BLAKE3-256` (archival identity stays SHA-256); `EXTERNAL_REF` (`0x80`, 40 B) + mandatory `FEATURE_EXTERNAL_OBJECTS`; `externalize`/`hydrate`; `gc` mark-and-sweep; `EmbeddedStore` (raw content-addressed directory, atomic write-then-rename `put`, strict `get_range`, per-object `remove`); `tests/store.rs`. Universe sufficed `+external-objects-v1` |
+| Three accounting universes (standalone / unique-reachable / amortized) | 9.1/9.2 | ADOPTED | `src/store/account.rs`; `store account` CLI. `S = Σ|serialize(d_i)|`, `U = Σ|serialize(e_i)| + Σ len(o)`, `A = Σ(|serialize(e_i)| + Σ len(o)/refcount(o))` with the amortized split fractional by reference count and integerized so `Σ A_i == U` exactly. `S` is the only whole-file-comparable universe (ADR-0020) |
+| Cross-document store court (three universes vs per-file LZ and generic CDC) | 9.3 | RECORDED (store axis: loss) | campaign `2026-10-05-phase9-store-fdb2845` (ADR-0021, `docs/evidence/phase9-store-report.md`); 37 locally generated files, 5,579,469 B, 10 strata; 37/37 standalone + store-backed roots `cmp`-byte-exact, closure `dangling = 0`. `S = 3,762,694`; `U = A = 3,369,900`; unique object bytes `786,501`. Per-file min LZ `1,304,307`; strongest CDC (borg 1.2.4, chunker `10,15,11,127`, `--compression none`) `771,383`, with `--compression zstd,19` `210,836`. **`U` loses to all three.** Only win: `repeat-bin` (4 byte-identical opaque binaries, `U = 133,048` vs LZ 524,308 / CDC 140,640 / CDC-zstd 133,865). `shared-payload` (expected win) loses because the auto winner codes the shared stream in entropy channels, not the object table; `shifted` loses to CDC exactly as pre-registered. `tools/store-cohort.sh`, `tools/store-court.sh`, `tools/chunk-dedup.sh` |
 | DSFB encoder-only search governance | 10 | PROPOSED | **zero** decode authority |
 | Partial materialization (checkpoints beyond v1) | 11+ | PROPOSED | v1 random-access `view` measured in 7.3 (ADR-0018); the **seek/mmap descriptor reader landed in Phase 8** (ADR-0019), leaving checkpoint bytes as future work |
 | Coverage-guided fuzzing (`cargo-fuzz`/libFuzzer) | 7.1 | IMPLEMENTED | pinned dated nightly + `cargo-fuzz 0.13.2`; ten targets in `fuzz/fuzz_targets/`; bounded campaign `2026-10-05-phase7-fuzz-ca6a92b` (9/10 targets zero-crash; `deflate_replay` reported two upstream `preflate-rs` findings — F1 mitigated via the library's fail-closed `catch_unwind` boundary + regression test, F2 unbounded allocation now **contained on the decode path by process isolation**, ADR-0016); deterministic property/soak courts retained (`tests/property.rs`, `tools/soak-fuzz.sh`) |

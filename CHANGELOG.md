@@ -55,14 +55,44 @@ LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
 - Docs: `SPEC.md` (`EXTERNAL_REF` record, `ObjectSource` model, mandatory feature
   bits, universe string, feature policy), `docs/adr/0020-content-addressed-store.md`.
 
+### Measured — Phase 9.3 store court (recorded negative)
+
+- **Cross-document sharing does not beat per-file LZ or generic
+  content-defined-chunk dedup** on the phase9 cohort (campaign
+  `2026-10-05-phase9-store-fdb2845`; ADR-0021). 37 locally generated files,
+  5,579,469 B source, 10 strata. Standalone `S = 3,762,694 B`; unique reachable
+  `U = 3,369,900 B` (`==` amortized `A`); unique object bytes `786,501 B`.
+  Per-file min LZ `1,304,307 B` (gzip 1,495,074 / zstd 1,334,444 / xz 1,307,612 /
+  brotli 1,306,498). Strongest CDC (pinned borg 1.2.4, chunker `10,15,11,127`,
+  `--compression none`) `771,383 B`; the same with `--compression zstd,19`
+  `210,836 B`. **`U` loses to all three.** All 37 standalone and store-backed
+  roots decoded and `cmp` byte-exact; closure `dangling = 0`.
+- The only genuine win is `repeat-bin` (four byte-identical opaque binaries):
+  `U = 133,048 B` vs per-file LZ `524,308 B` and CDC `140,640 B` raw / `133,865 B`
+  compressed. `shared-payload` — the fixture expected to win — loses (`U = S =
+  800,210 B` vs CDC `285,257 B`) because the auto winner codes the shared stream in
+  entropy channels, not the object table. `shared-bin`, `one-changed`,
+  `incremental`, `reexport`, `repeat-pdf` and the pre-registered `shifted` control
+  all lose to CDC. **Cause:** `externalize` replaces only `Descriptor.objects`;
+  for channels/program winners that table is empty or a single whole-file object,
+  so sharing is whole-object-granular and coarse and CDC captures the same (and
+  near-duplicate) sharing the store misses.
+- **Tooling.** `tools/store-cohort.sh` (deterministic sharing cohort + committed
+  `cohort.json` ledger), `tools/store-court.sh` (three universes vs per-file LZ
+  and strongest CDC, per stratum), `tools/chunk-dedup.sh` (pinned borg CDC with a
+  parameter sweep), `borgbackup=1.2.4-1` added to the `baseline` image. Full
+  report `docs/evidence/phase9-store-report.md`; ADR-0021.
+
 ### Notes
 
 - **Claim discipline.** No size or compression claim is made for the store; a
   store root reference is never reported as a whole-document size. The honest
   comparison (per-file LZ and generic CDC dedup over a reproducible cohort) and
-  the expected negative are pre-registered in the Phase 9 contract and measured
-  in 9.3. `dsfb` remains a hard dependency of the *optional* `entropyfs-store`
-  feature only and retains **zero** decode authority (ADR-0008).
+  the pre-registered negative are now **measured and recorded**: cross-document
+  sharing is store *amortization*, never "compression", and it loses the store
+  axis to generic CDC on this cohort (ADR-0021). `dsfb` remains a hard dependency
+  of the *optional* `entropyfs-store` feature only and retains **zero** decode
+  authority (ADR-0008).
 
 ## [0.1.0-alpha.10] — unreleased
 
