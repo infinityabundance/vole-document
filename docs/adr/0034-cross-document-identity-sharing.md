@@ -16,6 +16,23 @@ research H §1–§7, J §2, J §7.
 > go/no-go test (ADR-0035) is **not evaluated**. See
 > [`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md)
 > (F8).
+>
+> **Close-out amendment (Phase 12.16, `dce2705`).** The three mandated controls now
+> exist in `evidence/campaigns/2026-10-06-phase12-share-controls-dce2705/`: a
+> post-`cache --clear` measurement (in-process **and** in a fresh OS process — the
+> example's `witness` mode reopens the persisted store, deletes `store/cache` and
+> re-observes), an on-disk witness (the shared blob node path and store sizes), and
+> a raw CDC/per-file baseline (`tools/chunk-dedup.sh`, borg with the frozen
+> `19,23,21,4095` params plus two smaller-chunk sweeps, `--compression none`; no
+> compression claim). **Result: the `N3` go/no-go test is evaluated and VIOLATED.**
+> The warm `0.339907` fraction falls to `0.0` (`nodes_reused=0`) after the cache
+> clear, in-process and in the fresh process, while `materialize_exact` and
+> `warm_bytes_exact` remain true. The reuse this ADR measured warm was served by the
+> on-disk **derived cache**, not by durable seed-store work reuse. Per ADR-0035,
+> cross-document **work** reuse is therefore recorded as a **negative**; the
+> *representation identity* this ADR also defines (one content-addressed blob /
+> decoded node shared across DOCX and EPUB, `nodes_id_shared=2`,
+> `shared_resource_ids=1`) is unaffected and remains confirmed (review F7).
 
 ## Context
 

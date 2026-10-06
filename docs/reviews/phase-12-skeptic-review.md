@@ -41,6 +41,23 @@ dead-code failure (§F6).
 | F15 | Top-of-file numeric claims in `phase-12-results.md` | LOW | **falsified** (two counts/ranges wrong) |
 | F16 | A0 (and A1's one-time build) pay Python interpreter startup per invocation | MED | **overstated** (runtime artifact flatters VOLE) |
 
+> **Close-out status (2026-10-06, `0d23a02` + receipts).** Findings F5, F6, F8, F12
+> and F13's sealed-receipt gap are addressed by dated amendments; no prior numbers
+> are rewritten. **F12/`N6` — closed**: the PDF no-regression court
+> (`evidence/campaigns/2026-10-06-phase12-pdf-noregression-0d23a02/`) compares A2 vs
+> A11 on 16 corpus PDFs / 128 `explain --analyze` observations (32/32 byte-exact, 0
+> regressions). **F8/`N3` — evaluated, VIOLATED**: the controls receipt
+> (`evidence/campaigns/2026-10-06-phase12-share-controls-dce2705/`) adds the
+> post-`cache --clear` (in-process + fresh-process) control and a raw CDC baseline;
+> post-clear reuse is `0.0`, so cross-document *work* reuse is a recorded negative.
+> **F5 — measured**: the FTS5 amendment
+> (`evidence/campaigns/2026-10-06-phase12-fts5-amendment-22302f9/`) measures a real
+> FTS5 `trigram`/`unicode61` index vs `LIKE`. **F6 — fixed**: the `package`-only
+> items in `src/field/document_format.rs` are feature-gated; default-feature clippy
+> is clean. **F13 — sealed**: `evidence/campaigns/2026-10-06-phase12-demo-fb8a592/`
+> records a live demo run (exit `0`). F3/F4/F10/F11/F15's scoping corrections stand;
+> F11's ladder and its A7/A8 "not separable" records are unchanged.
+
 ---
 
 ## F1 — Security court invariants hold; the outcome-class tally is wrong (MED)
@@ -421,11 +438,13 @@ negative record, and the evidence needed to decide each is currently **missing**
 
 1. **`N6` — PDF regression.** If a Phase-11-vs-Phase-12 PDF court shows any PDF
    surface (descriptor bytes, warm bytes-read, wall) worse on `phase12`, record
-   the widened API as a PDF regression (F12). *Not measured.*
+   the widened API as a PDF regression (F12). *Not measured.* — **Resolved
+   (`0d23a02`): measured, no regression; gate closed.**
 2. **`N3` — reuse.** If a **post-`cache --clear`** (cold-process) rerun of the 12.8
    sharing query does not reduce work versus a fresh store, or the reduction is
    **≤ the strongest CDC baseline on the same corpus**, record cross-document reuse
-   as a negative. *Not measured* (F8).
+   as a negative. *Not measured* (F8). — **Resolved (`dce2705`): measured; the
+   post-clear fraction is `0.0`, so cross-document reuse is recorded as a negative.**
 3. **`N5` — package-index-only.** If the small-document VOLE win is reproducible by
    `unzip -p` + `substr` at the same boundary, the "procedural field" adds nothing
    over a package index. *Not measured* (the `A3`/`A4` rungs of F11 would decide
@@ -450,7 +469,7 @@ simple lookups." Everything stronger is unsupported by the receipts.
 ## Honest gaps this review could not close
 
 * Real-world PDF/DOCX/EPUB corpora (all Phase-12 corpora are locally generated).
-* A Phase-11 baseline for the PDF lane (F12).
-* A current, like-for-like search lane (F5).
-* The `N3`/`N5` controls (F8/F11).
-* A sealed demo receipt (F13).
+* A Phase-11 baseline for the PDF lane (F12). — **closed (`0d23a02`).**
+* A current, like-for-like search lane (F5). — **closed (`22302f9`).**
+* The `N3`/`N5` controls (F8/F11). — **`N3` closed (`dce2705`); `N5` still open.**
+* A sealed demo receipt (F13). — **closed (`fb8a592`).**

@@ -1,7 +1,8 @@
 # Phase 12 — Universal multi-format document field: PDF + DOCX + EPUB
 
 Branch: `phase12`. Base: `main` @ `6c86938` (`v0.1.0-alpha.15`).
-Status: **IN PROGRESS** (12.15 skeptic review complete at `15b5729`).
+Status: **IN PROGRESS** (12.15 skeptic review complete at `15b5729`; 12.16
+close-out receipts sealed).
 
 > **Post-review status note (2026-10-06, `15b5729`).** The Phase-12.15 adversarial
 > review ([`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md))
@@ -21,6 +22,21 @@ Status: **IN PROGRESS** (12.15 skeptic review complete at `15b5729`).
 > (progressive inversion is the only mode); §107 is proxied by the A5 (`--no-cache`)
 > vs A6 (cache) comparison. The §109 PDF no-regression gate (`N6`) remains **open**
 > (still no Phase-11-vs-Phase-12 PDF receipt).
+>
+> **Phase 12.16 close-out (`0d23a02` + receipts).** Gates closed and one honest
+> negative recorded. **`N6` is closed** by
+> `evidence/campaigns/2026-10-06-phase12-pdf-noregression-0d23a02/` (A2 vs A11 over
+> 16 corpus PDFs / 128 observations: 32/32 byte-exact, 0 regressions). **`N3` is
+> evaluated and VIOLATED**: the 12.8 controls receipt
+> `evidence/campaigns/2026-10-06-phase12-share-controls-dce2705/` adds the
+> post-`cache --clear` (in-process + fresh-process) control and a raw borg CDC
+> baseline; post-clear reuse is `0.0`, so cross-document *work* reuse is a recorded
+> negative (representation identity is still shared). FTS5 is now **measured**
+> (`evidence/campaigns/2026-10-06-phase12-fts5-amendment-22302f9/`: FTS5-trigram vs
+> `LIKE`; whole-token `unicode61` misses embedded markers; FTS5 reads more bytes
+> than `LIKE` here). The default-feature clippy failure (`F6`) is fixed in
+> `src/field/document_format.rs`. The 12.14 demo has a sealed receipt
+> (`evidence/campaigns/2026-10-06-phase12-demo-fb8a592/`).
 
 Phase 12 proves the persistent procedural field is **not a PDF trick**. PDF, DOCX
 and EPUB enter through different **native inverse compilers** and converge on one

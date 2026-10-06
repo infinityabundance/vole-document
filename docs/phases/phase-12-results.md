@@ -27,6 +27,28 @@ in the pinned Docker services; nothing ran on the host.
 > (A5 → A6). `A7`, `A8` are recorded **not separable**; `A10` is measured
 > ingest-side. See [Ablation ladder (12.11b)](#ablation-ladder-1211b). `N6` (PDF no
 > regression) remains open.
+>
+> **Phase 12.16 close-out amendments (`0d23a02` + receipts).** Four gates closed and
+> one honestly recorded negative. (1) **`N6` is closed**: the PDF no-regression
+> court `evidence/campaigns/2026-10-06-phase12-pdf-noregression-0d23a02/` compares
+> the Phase-11 PDF field (A2) with the Phase-12 unified field (A11) on 16 corpus
+> PDFs / 128 `explain --analyze` observations: 32/32 lane-documents byte-exact
+> (length + SHA-256 + `cmp`), every per-observation answer and work counter
+> identical, **0 regressions**. (2) **`N3` is evaluated and VIOLATED**: the new
+> controls receipt `evidence/campaigns/2026-10-06-phase12-share-controls-dce2705/`
+> adds the ADR-0034 post-`cache --clear` (in-process **and** fresh-process) control
+> and a raw borg CDC baseline; the warm `0.339907` reuse fraction drops to **0.0**
+> after the derived-cache clear, so cross-document *work* reuse is recorded as a
+> negative (representation identity is still shared). See the 12.8 amendment below.
+> (3) **FTS5 is now measured** (it was not before): the FTS5 amendment receipt
+> `evidence/campaigns/2026-10-06-phase12-fts5-amendment-22302f9/` adds a real FTS5
+> `trigram` index to the A1 baseline and measures it against `LIKE` at N ∈
+> {1,10,100,1000}; FTS5 reads *more* than `LIKE` here, and the whole-token
+> `unicode61` index misses embedded markers. (4) **Default-feature clippy is
+> clean**: the `package`-only constants/helper in `src/field/document_format.rs`
+> are gated behind `#[cfg(feature = "package")]` (`F6` closed). (5) The 12.14 demo
+> now has a **sealed receipt**
+> `evidence/campaigns/2026-10-06-phase12-demo-fb8a592/` (live output, exit `0`).
 
 ## Cross-document reuse (12.8)
 
@@ -86,11 +108,29 @@ architecture supports; it is recorded as measured, not manufactured.
 > **OS-level witness**, and compared against a **CDC baseline** (`N3` makes
 > "reuse ≤ strongest CDC" a no-go). The 12.8 receipt contains **none of the
 > three**: `retained_inverse_work_fraction = 0.339907` is a single *warm,
+> `0.339907` is a single *warm,
 > in-process* observation (`grep -ri 'cache --clear|cdc|witness'` over the court,
 > driver, library test and receipt returns nothing). Without the post-clear control
 > it cannot be distinguished from a process-memory cache, and `N3` is **not
 > evaluated**. The fraction is computed from executions/bytes (not source size),
 > as claimed; only the controls are missing.
+>
+> **Controls added (`dce2705`).** The 12.16 receipt
+> `evidence/campaigns/2026-10-06-phase12-share-controls-dce2705/` implements all
+> three mandated controls: (a) post-`cache --clear` reuse, measured both in-process
+> and in a **separate OS process** (`examples/phase12_share_court.rs` `witness`
+> mode reopens the persisted store, removes `store/cache` and re-observes);
+> (b) an on-disk witness (the shared blob node path and store sizes); and (c) a raw
+> CDC/per-file baseline (`tools/chunk-dedup.sh` borg, frozen `19,23,21,4095` plus
+> two smaller-chunk sweeps, `--compression none`), reported without a compression
+> claim. **Result: `N3` is VIOLATED.** The warm fraction is `0.339907`, but after
+> the derived-cache clear it is `0.0` (`nodes_reused=0`) both in-process and in the
+> fresh process, with `materialize_exact=true`/`warm_bytes_exact=true`. The reuse
+> was therefore served by the on-disk *derived cache*, not by durable seed-store
+> work reuse; representation identity remains genuinely shared (`nodes_id_shared=2`,
+> `shared_resource_ids=1`). Per ADR-0035 this records cross-document **work** reuse
+> as a negative. The strongest CDC baseline saved `-1374` bytes (no generic dedup),
+> so the negative is driven by the `reuse ≈0` leg, not the CDC leg.
 
 ## Cross-format equivalence (12.9)
 
@@ -305,6 +345,15 @@ false for `delta.epub`.)*
   separately" is **withdrawn**: no FTS5/BM25 measurement exists in the receipt
   (the only search query run is `text LIKE '%…%'`), so the FTS lane is **not
   measured**, not separately reported.
+  *Amendment (`22302f9`).* The FTS lane **is now measured** — see
+  `evidence/campaigns/2026-10-06-phase12-fts5-amendment-22302f9/`.
+  The A1 baseline now carries two real FTS5 tables (`fts`, a whole-token
+  `unicode61` index, and `fts_tri`, a `trigram` substring index) and the A1 search
+  lane queries `fts_tri MATCH` instead of `LIKE`. Measured at N ∈ {1,10,100,1000}
+  over all 12 documents, LIKE and FTS5-trigram answer identically, while the
+  `unicode61` index misses `bravo.pdf`'s marker (embedded as `theXF13A`). On this
+  small corpus **FTS5 reads *more* than LIKE** (~12 KB/query, the trigram index
+  pages), and its wall is not lower; no FTS5-is-faster claim is made.
 * A0/A1 cannot answer the VOLE-only surfaces (native provenance; PDF structure,
   preview, object/decoded-stream bytes). *(Skeptic correction, `15b5729`.)* The
   earlier claim that those surfaces "are excluded from the lifetime frontier" is
@@ -631,6 +680,13 @@ runtime sources, then queries and rematerializes in fresh processes.
 | 6 | `materialize --exact` for all three, checked by length, SHA-256 **and** `cmp` against the oracle copies. |
 | 7 | a pointer to the 12.11 receipt and where the source-retaining SQLite+FTS5 baseline genuinely wins. |
 
+**Sealed receipt (`fb8a592`).** `tools/phase12-demo-receipt.sh` now runs the demo
+and seals `evidence/campaigns/2026-10-06-phase12-demo-fb8a592/` (`SUMMARY.md`,
+`commands.txt`, `environment.json`, `raw/demo.stdout.txt` = the live output, plus
+the live JSON artifacts). Recorded HEAD `fb8a592`, dirty `""`, exit code `0`,
+`DEMO OK`; the honest caveat below (capabilities runs on the oracle copy after
+source deletion) is restated in the receipt.
+
 ### Observed on this tree (commit `15b5729`, `doc-baseline`)
 
 *(Skeptic correction, `15b5729`.)* The earlier attribution to commit `7ac2b09` is
@@ -639,10 +695,15 @@ added in `15b5729` (`git ls-tree 7ac2b09` has no `tools/phase12-demo.sh`). The
 values below were re-verified live by the Phase-12.15 skeptic on `15b5729`
 (`evidence/campaigns/2026-10-06-phase12-skeptic-15b5729/raw/demo.txt`, exit `0`).
 This demo has **no sealed receipt of its own**; the numbers live only here. The
-`capabilities` step reads the sealed oracle copy after deletion (see caveats), so
-"fresh processes query the store with the source gone" applies to the query and
-materialization steps, not to `capabilities`. The final banner says "no step
-declined" because the declining PDF selectors are never invoked.
+> `capabilities` step reads the sealed oracle copy after deletion (see caveats), so
+> "fresh processes query the store with the source gone" applies to the query and
+> materialization steps, not to `capabilities`. The final banner says "no step
+> declined" because the declining PDF selectors are never invoked.
+>
+> *Resolved (`fb8a592`).* The demo **now has a sealed receipt** of its own:
+> `evidence/campaigns/2026-10-06-phase12-demo-fb8a592/`. The `15b5729` values above
+> remain as the skeptic's live re-verification; the receipt records a fresh live
+> run at `fb8a592` (dirty `""`, exit `0`).
 
 Representative values from a clean run (all live, none recorded): the triplet
 `905 / 3458 / 2858` bytes; `find XF12A` matched on all three with
@@ -671,3 +732,48 @@ parses. `materialize --exact` returned `cmp=equal` for all three. The demo exits
 * PDF has no heading/table/cell/spine coordinate, so the demo does not run those
   selectors on PDF (that typed decline is the 12.9 court's evidence); the demo
   shows the PDF capabilities list and the common `find`/`text`/`metadata` lane.
+
+## Close-out gate ledger (12.16)
+
+Dated amendments for the Phase-12 close-out (`0d23a02` and the sealed receipts
+below). Prior numbers above are **not rewritten**; each item links its receipt.
+
+| gate | status before | status now | receipt |
+|---|---|---|---|
+| `N6` / §109 PDF no regression | open (no receipt) | **closed** | `evidence/campaigns/2026-10-06-phase12-pdf-noregression-0d23a02/` |
+| `N3` cross-document reuse (ADR-0034 controls) | not evaluated | **VIOLATED** (honest negative) | `evidence/campaigns/2026-10-06-phase12-share-controls-dce2705/` |
+| FTS5 / BM25 search measured | claimed, not measured (`F5`) | **measured** (LIKE vs FTS5 trigram/unicode61) | `evidence/campaigns/2026-10-06-phase12-fts5-amendment-22302f9/` |
+| default-feature `cargo clippy -- -D warnings` (`F6`) | failing (dead code) | **clean** | gate run on `0d23a02` (see below) |
+| 12.14 demo sealed receipt (`F13`) | none | **sealed** | `evidence/campaigns/2026-10-06-phase12-demo-fb8a592/` |
+
+**`N6` — PDF no regression (closed).** `tools/phase12-pdf-noregression.sh` builds
+both lanes inside `doc-baseline` (A2 = `rans,store,field`; A11 = `--all-features`)
+and, for 16 PDFs from the committed Phase-7 / Phase-7-producers / Phase-8-large
+corpora, checks `materialize --exact` (length + SHA-256 + `cmp`) and four
+`explain --analyze` observations (`page 1 text`, `metadata`, `byte-range 0..64
+ exact`, `page 1 structure`) plus a `find` on a page-1 token. Result: **32/32
+lane-documents byte-exact, 128 observations with identical answer digests, and 0
+regressions** (A11 reads/executes no more than A2 on any observation; the recorded
+deltas are all `0`). Corpus bytes are gitignored; their SHA-256s are in
+`raw/corpus.tsv`.
+
+**`N3` — cross-document reuse (VIOLATED).** See the 12.8 amendment above. The
+warm fraction `0.339907` becomes `0.0` after `cache --clear`, both in-process and
+in a fresh process; per ADR-0035 this is a negative for cross-document *work*
+reuse. Representation identity (one content-addressed blob / decoded node shared
+across DOCX and EPUB) is unaffected and remains confirmed.
+
+**FTS5 (measured).** See the 12.11 amendment above. FTS5-trigram answers
+identically to `LIKE`; `unicode61` misses embedded markers; FTS5 reads more bytes
+than `LIKE` on this corpus.
+
+**Default-feature clippy (`F6`, closed).** `src/field/document_format.rs` gates
+`CONTENT_TYPES_MEMBER`, `PACKAGE_RELS_MEMBER`, `OFFICE_DOCUMENT_FRAGMENT` and the
+`contains` helper behind `#[cfg(feature = "package")]` (they are used only by the
+`package`-gated `detect_zip_family`). The full gate
+`cargo fmt --all && cargo clippy --all-targets --all-features -- -D warnings &&
+cargo clippy -- -D warnings && cargo test --all-features --locked && cargo test
+--no-default-features` is clean at `0d23a02` (`679` tests pass with all features,
+`306` with no default features, `0` failures).
+
+**12.14 demo (sealed).** See the 12.14 amendment above.
