@@ -760,6 +760,7 @@ dependencies = [
  "blake3",
  "entropyfs",
  "flate2",
+ "miniz_oxide",
  "preflate-rs",
  "ryg-rans-rs",
  "sha2",

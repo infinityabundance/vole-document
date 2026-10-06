@@ -45,6 +45,13 @@ mod entropyfs;
 #[cfg(feature = "entropyfs-store")]
 pub use entropyfs::EntropyFsStore;
 
+#[cfg(feature = "field")]
+mod seed;
+#[cfg(feature = "field")]
+pub use seed::{
+    FsSeedStore, NodeId, SEED_FORMAT_VERSION, SeedStore, SeedStoreStats, closure as seed_closure,
+};
+
 /// Size accounting reported by a backend.
 ///
 /// `total_bytes` is the sum of raw unique-object lengths (the backend-independent
