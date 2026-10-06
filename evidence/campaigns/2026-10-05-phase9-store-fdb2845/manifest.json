@@ -48,6 +48,7 @@
     "account-global.json",
     "baselines.json",
     "perfile.jsonl",
-    "commands.txt"
+    "commands.txt",
+    "gates.txt"
   ]
 }
