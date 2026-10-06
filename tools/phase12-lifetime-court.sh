@@ -23,8 +23,8 @@
 #   A1b  A1 + cached popular results                           (lane `a1b`)
 #   A2   Phase-11 field, PDF only (no `package` feature)       (lane `a2`)
 #   A3   ZIP physical only (`package`, no OPC/OCF graph)       (lane `a3`)
-#   A4   + native package graph (`opc`+`docx`+`epub`)          (lane `a4`, `--no-cache`)
-#   A5   + progressive semantic inversion                      (≡ A4; not separable)
+#   A4   + native package graph (`opc`; no docx/epub content)  (lane `a4`)
+#   A5   + progressive semantic inversion (docx/epub, --no-cache) (lane `a5`)
 #   A6   + persistent semantic reuse (`DerivedCache` on)       (lane `a6`)
 #   A7   + common observation layer                            (not separable; in dispatch)
 #   A8   + hierarchical indexes                                (not separable; built at ingest)
@@ -299,6 +299,7 @@ echo "phase12-lifetime-court: building ladder binaries" >&2
 build_all_features
 build_variant a2 "rans,store,field"
 build_variant a3 "rans,store,field,package"
+build_variant a4g "rans,store,field,package,opc"
 build_variant a46 "rans,store,field,package,opc,docx,epub"
 FULL_BIN="$BINDIR/vole-full"
 
@@ -306,7 +307,8 @@ FULL_BIN="$BINDIR/vole-full"
 FIELD_LANES=(
   "a2|$BINDIR/vole-a2||A2 Phase-11 field (PDF only; no package feature)"
   "a3|$BINDIR/vole-a3||A3 ZIP physical only (package, no opc/docx/epub)"
-  "a4|$BINDIR/vole-a46|--no-cache|A4 native package graph; A5 progressive semantic inversion (not separable from A4)"
+  "a4|$BINDIR/vole-a4g||A4 + native package graph (opc; no docx/epub content semantics)"
+  "a5|$BINDIR/vole-a46|--no-cache|A5 + progressive semantic inversion (docx/epub content, no persistent reuse)"
   "a6|$BINDIR/vole-a46||A6 + persistent semantic reuse (DerivedCache on)"
   "a9|$FULL_BIN|--entropyfs|A9 + EntropyFS fine-grained range access (entropyfs-store backend)"
   "a11|$FULL_BIN||A11 full Phase-12 system (filesystem backend, DerivedCache on)"
@@ -798,9 +800,9 @@ rm -f "$WORK/lanes.jpg" 2>/dev/null
   echo
   echo "## Per-document one-time and persistent cost (ladder)"
   echo
-  echo "| document | fmt | src B | A1 ms | A1 B | A1b ms | A1b B | a2 ms | a3 ms | a4 ms | a6 ms | a9 ms | a11 ms |"
-  echo "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
-  jq -r '.documents[] | "| \(.name) | \(.format) | \(.source.len) | \(.a1.preprocessing.wall_ms) | \(.a1.persistent_bytes) | \(.a1b.preprocessing.wall_ms) | \(.a1b.persistent_bytes) | \(.lanes.a2.one_time.wall_ms // "-") | \(.lanes.a3.one_time.wall_ms // "-") | \(.lanes.a4.one_time.wall_ms // "-") | \(.lanes.a6.one_time.wall_ms // "-") | \(.lanes.a9.one_time.wall_ms // "-") | \(.lanes.a11.one_time.wall_ms // "-") |"' "$OUTDIR/receipt.json"
+  echo "| document | fmt | src B | A1 ms | A1 B | A1b ms | A1b B | a2 ms | a3 ms | a4 ms | a5 ms | a6 ms | a9 ms | a11 ms |"
+  echo "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
+  jq -r '.documents[] | "| \(.name) | \(.format) | \(.source.len) | \(.a1.preprocessing.wall_ms) | \(.a1.persistent_bytes) | \(.a1b.preprocessing.wall_ms) | \(.a1b.persistent_bytes) | \(.lanes.a2.one_time.wall_ms // "-") | \(.lanes.a3.one_time.wall_ms // "-") | \(.lanes.a4.one_time.wall_ms // "-") | \(.lanes.a5.one_time.wall_ms // "-") | \(.lanes.a6.one_time.wall_ms // "-") | \(.lanes.a9.one_time.wall_ms // "-") | \(.lanes.a11.one_time.wall_ms // "-") |"' "$OUTDIR/receipt.json"
   echo
   echo "## Crossover (warm pass): where the ordering flips (or never)"
   echo
@@ -827,14 +829,14 @@ rm -f "$WORK/lanes.jpg" 2>/dev/null
   echo
   echo "## Ladder movement (N=1000 warm; A11 = full system)"
   echo
-  echo "| document | metric | A0 | A1 | A1b | A2 | A3 | A4 | A6 | A9 | A11 |"
-  echo "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
+  echo "| document | metric | A0 | A1 | A1b | A2 | A3 | A4 | A5 | A6 | A9 | A11 |"
+  echo "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
   jq -r --argjson max "$MAX_NS" '
     ([.cumulative[].pass]|max) as $P
     | (.cumulative) as $cum
     | .documents[] as $d
     | [ "cumulative_process_read_bytes", "cumulative_cpu_ms", "cumulative_wall_ms" ][] as $k
-    | (["a0","a1","a1b","a2","a3","a4","a6","a9","a11"]
+    | (["a0","a1","a1b","a2","a3","a4","a5","a6","a9","a11"]
        | map(. as $s | ([$cum[]|select(.name==$d.name and .system==$s and .pass==$P and .n==$max)][0][$k] // "-"))
        | map(if type=="number" then (.*100|round/100|tostring) else tostring end)
        | join(" | ")) as $row

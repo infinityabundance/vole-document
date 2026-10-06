@@ -155,6 +155,7 @@ fn schedule_pre_registers_the_ablation_ladder() {
         "lane a2:",
         "lane a3:",
         "lane a4:",
+        "lane a5:",
         "lane a6:",
         "lane a9:",
         "lane a11:",
@@ -186,6 +187,7 @@ fn court_runs_the_ablation_ladder() {
     // never by copy-pasting unrelated code.
     assert!(court.contains("--no-default-features --features"));
     assert!(court.contains("rans,store,field,package"));
+    assert!(court.contains("package,opc\""), "A4 graph-only build");
     assert!(court.contains("opc,docx,epub"));
     assert!(court.contains("--no-cache"), "A4/A5 vs A6 switch");
     assert!(court.contains("--entropyfs"), "A9 switch");

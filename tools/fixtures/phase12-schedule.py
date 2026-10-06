@@ -48,23 +48,26 @@ LADDER = [
      "switch": "lane a3: features rans,store,field,package (no opc/docx/epub)",
      "note": "ZIP physical members only; no OPC/OCF graph, so common semantic selectors decline"},
     {"rung": "A4", "status": "measured",
-     "switch": "lane a4: features rans,store,field,package,opc,docx,epub with --no-cache",
-     "note": "native package graph + progressive semantic inversion, no persistent reuse"},
-    {"rung": "A5", "status": "not separable",
-     "switch": "same as A4",
-     "note": "progressive semantic inversion is the only implemented mode (model nodes are "
-             "registered at ingest and parsed on first materialization); there is no eager "
-             "arm, so A5 == A4 and is measured on the A4 lane"},
+     "switch": "lane a4: features rans,store,field,package,opc (no docx/epub)",
+     "note": "native OPC package graph (content types, part/relationship resolution); on "
+             "the frozen common-selector schedule it answers the same single `full-source` "
+             "case as A3 — the graph's native selectors (package-part/relationship) are not "
+             "in the frozen schedule"},
+    {"rung": "A5", "status": "measured",
+     "switch": "lane a5: features rans,store,field,package,opc,docx,epub with --no-cache",
+     "note": "progressive semantic inversion (the docx/epub content adapters); "
+             "§106 eager-vs-progressive is not separable — progressive is the only mode "
+             "(model nodes are registered at ingest and parsed on first materialization)"},
     {"rung": "A6", "status": "measured",
      "switch": "lane a6: features rans,store,field,package,opc,docx,epub (DerivedCache on)",
-     "note": "A4/A5 plus persistent semantic reuse"},
+     "note": "A5 plus persistent semantic reuse"},
     {"rung": "A7", "status": "not separable",
-     "switch": "n/a (proxied by A4/A6)",
+     "switch": "n/a (proxied by A5/A6)",
      "note": "the common observation vocabulary *is* the dispatch (Ctx::common_dispatch); "
              "there is no native-only CLI path, so removing it is a capability-only "
              "(definitional) difference, not a cost rung"},
     {"rung": "A8", "status": "not separable",
-     "switch": "n/a (proxied by A3/A4)",
+     "switch": "n/a (proxied by A3/A5)",
      "note": "the hierarchical index is built unconditionally by package/PDF ingest and "
              "every narrow observation resolves through it (indexed_exact); there is no "
              "non-indexed observation build"},

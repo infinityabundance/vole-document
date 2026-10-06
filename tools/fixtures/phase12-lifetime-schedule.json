@@ -1135,19 +1135,19 @@
       "switch": "lane a3: features rans,store,field,package (no opc/docx/epub)"
     },
     {
-      "note": "native package graph + progressive semantic inversion, no persistent reuse",
+      "note": "native OPC package graph (content types, part/relationship resolution); on the frozen common-selector schedule it answers the same single `full-source` case as A3 \u2014 the graph's native selectors (package-part/relationship) are not in the frozen schedule",
       "rung": "A4",
       "status": "measured",
-      "switch": "lane a4: features rans,store,field,package,opc,docx,epub with --no-cache"
+      "switch": "lane a4: features rans,store,field,package,opc (no docx/epub)"
     },
     {
-      "note": "progressive semantic inversion is the only implemented mode (model nodes are registered at ingest and parsed on first materialization); there is no eager arm, so A5 == A4 and is measured on the A4 lane",
+      "note": "progressive semantic inversion (the docx/epub content adapters); \u00a7106 eager-vs-progressive is not separable \u2014 progressive is the only mode (model nodes are registered at ingest and parsed on first materialization)",
       "rung": "A5",
-      "status": "not separable",
-      "switch": "same as A4"
+      "status": "measured",
+      "switch": "lane a5: features rans,store,field,package,opc,docx,epub with --no-cache"
     },
     {
-      "note": "A4/A5 plus persistent semantic reuse",
+      "note": "A5 plus persistent semantic reuse",
       "rung": "A6",
       "status": "measured",
       "switch": "lane a6: features rans,store,field,package,opc,docx,epub (DerivedCache on)"
@@ -1156,13 +1156,13 @@
       "note": "the common observation vocabulary *is* the dispatch (Ctx::common_dispatch); there is no native-only CLI path, so removing it is a capability-only (definitional) difference, not a cost rung",
       "rung": "A7",
       "status": "not separable",
-      "switch": "n/a (proxied by A4/A6)"
+      "switch": "n/a (proxied by A5/A6)"
     },
     {
       "note": "the hierarchical index is built unconditionally by package/PDF ingest and every narrow observation resolves through it (indexed_exact); there is no non-indexed observation build",
       "rung": "A8",
       "status": "not separable",
-      "switch": "n/a (proxied by A3/A4)"
+      "switch": "n/a (proxied by A3/A5)"
     },
     {
       "note": "EntropyFS fine-grained range access (entropyfs-store backend); the narrow cache short-circuit is disabled by design on this backend",
