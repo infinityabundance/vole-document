@@ -2,13 +2,102 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.10] — unreleased
+
+Phase 8 — **seek-based partial I/O** — plus the Phase-8.4 seekable-baseline
+amendment that restates its result. Exactness is unchanged: the prime directive
+is still `materialize(descriptor) == original_bytes`, and whole-file compression
+remains a recorded negative against generic lossless tools (ADR-0017). Phase 8
+adds one optional wire record (the seek `DIRECTORY`) and a `Read + Seek` reader,
+and measures a new axis (random-access bytes read). The honest result is scoped:
+a bytes-read win **only versus non-seekable sequential** codecs.
+
+### Added
+
+- Phase 8.1/8.2 — seek `DIRECTORY` record and `Read + Seek` reader (ADR-0019):
+  - An optional `seek_directory_v1` record (`RecordTag::Directory = 0x71`) written
+    as the first record at fixed offset 64 with `FLAG_OPTIONAL`, carrying
+    LOCATORS, a CLASS_INDEX, and CHANNEL_LENGTHS. Its position is a constant, so
+    no header field is consumed and `FORMAT_MINOR` does not bump; a new ignorable
+    `FEATURE_SEEK_DIRECTORY` optional bit is set, and a decoder that ignores the
+    record still materializes exactly. Bounded by `Limits::max_directory_bytes` /
+    `max_directory_entries`.
+  - `materialize_observation_seeked` (`src/materialize/seek.rs`) serves the same
+    narrow observation as Phase 7.3 from a `Read + Seek` source. The directory is
+    **advisory, never authority**: locators are cross-checked against record
+    framing, the class index against a linear scan, and the observation index is
+    re-derived over directory-derived lengths; a lying directory is rejected and
+    a missing/oversized one declines (`UnsupportedFeature`). A partial read is an
+    *observation* (`integrity_verified == false`); `materialize`/`decode`/`verify`
+    remain the archival authority.
+  - `view` peeks only the 64-byte header before choosing the seek path, so a
+    seekable descriptor is never `fs::read` whole. New Phase-8 universe suffix
+    `+seek-directory-v1`; non-seek serialization re-bases only by the universe
+    length (+18 B on the stress corpus).
+- Phase 8.3 — seek bytes-read court: `strace` added to the opt-in `baseline`
+  image; `tools/seek-court.sh` / `tools/seek-table.jq` record the instrumented
+  `bytes_read`, a descriptor-file-attributed `strace -P` cross-check, syscall
+  count, wall/CPU/peak-RSS, and sequential gzip/zstd/xz compressed-prefix
+  baselines.
+- Phase 8.4 — seekable/blocked random-access baseline (the honest comparison):
+  `bgzip` (htslib 1.16 via the `tabix` package) and `pixz` 1.0.7 added to the
+  pinned `baseline` stage; `tools/seekable-baselines.sh`,
+  `tools/bgzf-seek-probe.pl`, `tools/xz-seek-probe.pl`,
+  `tools/xz-block-reframe.pl`, `tools/seekable-table.jq` build and measure
+  `bgzip -l 9` (BGZF), `xz --block-size=64KiB|1MiB|4MiB`, and `pixz`.
+
+### Measured
+
+- Campaign `2026-10-05-phase8-seek-08de2a9` (seek bytes-read court; ADR-0019) —
+  on a 33,789,340 B (32.22 MiB), 800-stream deterministic PDF (seekable
+  descriptor 17,566,832 B), the seeked `view` reads a **constant
+  439,679–461,367 B** for all 18 pre-registered queries (18/18 byte-exact; floor
+  = header 64 + DIRECTORY 27,390 + GRAPH 265,462 + OBSERVATION_INDEX 146,711 +
+  INTEGRITY 52). That is **4.7 %–~21× fewer bytes than gzip's compressed prefix**
+  and ~12–13× fewer than zstd/xz in the late region; CPU ~0.00 s and peak RSS
+  ~3.8 MB (from ~38 MB). The `strace` cross-check equals the instrumented count +
+  exactly 64 B (the header peek). **Restated (Phase 8.4):** this is a win only
+  against **non-seekable sequential** codecs. Against **seekable/blocked**
+  formats, the same late query (`--byte-range=32505856:256`; VOLE 460,713 B)
+  reads **more**: bgzip 23,808 B (~19×), `xz --block-size=64KiB` 15,344 B (~30×),
+  `xz 1MiB` 179,892 B (~2.6×); only `xz 4MiB` (708,612 B) and pixz 2,810,832 B
+  (16 MiB blocks) read more than VOLE. **Not a general random-access-I/O win.**
+  It also loses at `a = 0` vs gzip (327,680 B) and xz (73,728 B) and at early
+  queries (≤ ~1.7 MiB) vs xz's prefix. `zstd --seekable` does not exist in zstd
+  1.5.4. One locally generated corpus; no population claim. Receipts under
+  `evidence/campaigns/2026-10-05-phase8-seek-08de2a9/` (`report.md`,
+  `query-table.md`, `seekable.jsonl`, `seekable-table.md`, `seekable-report.md`);
+  reports `docs/evidence/phase8-seek-report.md`,
+  `docs/evidence/phase8-skeptic-review.md`.
+- **Whole-file remains a recorded negative (ADR-0017).** The best VOLE lane on
+  this corpus is **3.01×** xz, and even the seekable BGZF archive (7,995,600 B)
+  is smaller than the 17,566,832 B seekable descriptor (0.46×). The directory
+  buys query capability, not size.
+
+### Notes
+
+- **Claim discipline.** The seeked `view` reads a *floor* dominated by
+  GRAPH + OBSERVATION_INDEX + DIRECTORY: a 256-byte request still incurs
+  ~440 KB (~1,700×), and the write-up records where it loses at offset 0, at
+  early queries, and against compact-block seekable formats. Independent review:
+  `docs/evidence/phase8-skeptic-review.md` (independent adversarial reviewer,
+  Phase 8).
+- **Validator caveat.** A *referenced* channel's `decoded_length` is
+  cross-checked against its record (`InvalidContainer` on disagreement); an
+  *unreferenced* `CHANNEL_LENGTHS` entry is not validated. Benign: `analyze_ops`
+  never uses an unused length, so no wrong bytes are served.
+- No DRA, candidate, or entropy semantics changed in Phase 8.
+
 ## [0.1.0-alpha.9] — unreleased
 
 Phase 7 is **hardening plus a pivoted result**. It closes two Phase-6 unknowns
 (behaviour on a producer corpus, and coverage-guided fuzzing), then retires the
 whole-file *compression* claim honestly and measures a different axis —
-random-access decode cost. No wire format or candidate semantics change; the only
-new wire record is the optional, advisory `OBSERVATION_INDEX` (Phase 7.3).
+random-access decode cost. Phase 7 adds no wire record beyond the optional,
+advisory `OBSERVATION_INDEX` (Phase 7.3). Phase 8 (branch `phase8`, ADR-0019)
+adds a second optional wire record, the seek `DIRECTORY`, and a seek reader; its
+measured **bytes-read** result is recorded under Measured below. Exactness is
+unchanged in both phases.
 
 ### Added
 
@@ -162,6 +251,39 @@ new wire record is the optional, advisory `OBSERVATION_INDEX` (Phase 7.3).
   `vole-document;universe;phase7;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1`
   (DRA stays v8; no existing candidate bytes change beyond the universe bump and
   the optional index record).
+- Phase 8 — seek-based partial I/O (branch `phase8`, ADR-0019):
+  - An optional seek `DIRECTORY` record (`RecordTag::Directory = 0x71`,
+    `seek_directory_v1`) written as the first record at fixed offset 64 with
+    `FLAG_OPTIONAL`, carrying per-record LOCATORS (tag, offset, payload_len), a
+    CLASS_INDEX for O(1) class lookup, and CHANNEL_LENGTHS. Its position is a
+    constant, so no header field is consumed and `FORMAT_MINOR` does not bump; a
+    new ignorable `FEATURE_SEEK_DIRECTORY` optional bit is set and a decoder that
+    ignores the record still materializes exactly. Descriptor serialization
+    becomes a two-pass build when the directory is enabled, and `cost.directory`
+    charges its payload + framing so `cost.total()` stays exactly the serialized
+    length. Bounded by `Limits::max_directory_bytes` / `max_directory_entries`; an
+    oversized directory is declined before allocation.
+  - `materialize_observation_seeked` (`src/materialize/seek.rs`) serves the same
+    narrow observation as Phase 7.3 but from a `Read + Seek` source, reading only
+    the header, DIRECTORY, GRAPH, OBSERVATION_INDEX, INTEGRITY, and the referenced
+    OBJECT/ENTROPY_CHANNEL/MODEL records. The directory is **advisory, never
+    authority**: locators are cross-checked against record framing, the class
+    index against a linear scan, and the observation index is re-derived over
+    directory-derived lengths; a missing/oversized/lying directory is declined
+    (`UnsupportedFeature`) or rejected (`InvalidContainer`), never silently fully
+    read. The report carries a real `bytes_read` (an internal `CountingReader`)
+    and `integrity_verified == false` — a partial read is an *observation*, not
+    an archival verification.
+  - `view` peeks only the 64-byte header before choosing the seek path, so the
+    CLI no longer `fs::read`s the whole descriptor when it is seekable.
+  - New Phase-8 universe suffix `+seek-directory-v1`; the serialized record
+    sequence for `seek_directory == false` is otherwise byte-identical to
+    Phase 7 (non-seek lanes re-base only by the universe length, +18 B here).
+  - Measurement tooling: `strace` added to the opt-in `baseline` image, and
+    `tools/seek-court.sh` / `tools/seek-table.jq` record the instrumented
+    `bytes_read`, a descriptor-file-attributed `strace` cross-check, syscall
+    count, wall/CPU/peak-RSS, the Phase-7 stats, and sequential gzip/zstd/xz
+    compressed-prefix baselines.
 
 ### Fixed
 
@@ -307,15 +429,51 @@ new wire record is the optional, advisory `OBSERVATION_INDEX` (Phase 7.3).
   `evidence/campaigns/2026-10-05-phase7-partial-a5764c9/`; report
   `docs/evidence/phase7-partial-report.md`; review
   `docs/evidence/phase7c-skeptic-review.md`; ADR-0018.
+- Campaign `2026-10-05-phase8-seek-08de2a9` (verdict SCOPED POSITIVE on bytes
+  read **versus non-seekable sequential codecs**; ADR-0019) — the **seek-based
+  partial-I/O court**, closing ADR-0018's explicit no-I/O-win caveat. On the same
+  33,789,340 B (32.22 MiB), 800-stream deterministic PDF as Phase 7.3, the
+  seekable descriptor is **17,566,832 B** (the new DIRECTORY adds 27,390 B; index
+  + directory = 174,101 B over the non-seek base). All 18 pre-registered queries
+  are byte-exact. The seeked `view` reads a **constant 439,679–461,367 B**
+  regardless of offset — exactly header 64 + DIRECTORY 27,390 + GRAPH 265,462 +
+  OBSERVATION_INDEX 146,711 + INTEGRITY 52 at `a = 0`, plus one referenced channel
+  + model where a channel is needed — which is ≤ 2.6 % of the descriptor for
+  every query (H1 18/18). In the late region (≥ 50 % in, H2 8/8) that is
+  **4.7 %–~21× fewer bytes than gzip's compressed prefix** (9,764,864 B vs
+  460,713 B at 31 MiB) and ~12–13× fewer than zstd/xz. A `strace -P`
+  descriptor-file cross-check equals the instrumented count + exactly 64 B (the
+  header peek), so there is no hidden whole-file read. CPU drops to ~0.00 s and
+  peak RSS from Phase 7's ~38 MB to **~3.8 MB**. **Amendment (Phase 8.4): this is
+  not a general random-access-I/O win** — against seekable/blocked formats the
+  same late query reads **more**: bgzip (BGZF) 23,808 B (~19×), xz
+  --block-size=64KiB 15,344 B (~30×), xz 1MiB 179,892 B (~2.6×) all read less
+  than VOLE's 460,713 B (only xz 4MiB 708,612 B and pixz 2,810,832 B read more),
+  and BGZF's whole file (7,995,600 B) is smaller than the seekable descriptor.
+  It also **loses on bytes at `a = 0`** versus gzip (327,680 B) and xz (73,728 B)
+  and at early queries (≤ ~1.7 MiB) versus xz's tiny compressed prefix; the
+  floor is constant in the offset and would dominate a descriptor below ~9 MB.
+  Whole-file size is still **3.01×** xz. One locally generated corpus; **no
+  population claim**. Receipt under `evidence/campaigns/2026-10-05-phase8-seek-08de2a9/`
+  (`report.md`, `query-table.md`, `seekable.jsonl`, `seekable-table.md`,
+  `seekable-report.md`); reports `docs/evidence/phase8-seek-report.md`,
+  `docs/evidence/phase8-skeptic-review.md`; drivers `tools/seek-court.sh`,
+  `tools/seekable-baselines.sh`.
 
 ### Notes
 
 - **Honest framing.** VOLE's prime directive is exactness
   (`materialize(descriptor) == original_bytes`), and on whole-file size VOLE's
   best lane loses to every generic lossless compressor tested (ADR-0017). The
-  pivot is deliberate: Phase 7 measures **random-access decode cost** instead of
-  whole-file ratio, and reports it with the explicit v1 I/O caveat (ADR-0018).
-  Both axes are separate receipts and separate verdicts and are never conflated.
+  pivot is deliberate: Phase 7 measures **random-access decode cost** and Phase 8
+  the **random-access I/O cost** (bytes read), each against sequential
+  decompression to the same offset. Both axes are separate receipts and separate
+  verdicts and are never conflated. The Phase-8 bytes-read win is scoped to one
+  large locally generated PDF and **only to non-seekable sequential codecs**: a
+  purpose-built seekable/blocked format (BGZF ~24 KB; blocked xz 15–180 KB) reads
+  **2.6–30× less** for the same late query, so it is not a general
+  random-access-I/O win; it also loses at the start of the file and versus xz's
+  early prefix.
 - The wire format remains **PROVISIONAL** and is not frozen v1. `OBSERVATION_INDEX`
   (`observation_index_v1`) is optional and **advisory**: it is re-derived and
   re-checked against the authoritative program at parse and can only cause a

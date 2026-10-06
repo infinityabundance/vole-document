@@ -146,6 +146,15 @@ WORKDIR /work
 # part of any fast gate; only the opt-in `baseline` service builds it.
 # `tools/baselines.sh` runs the compressors and the VOLE lanes over complete
 # files; `tools/partial-court.sh` runs the random-access query head-to-head.
+# Phase 8 adds `strace` so `tools/seek-court.sh` can cross-check the seek
+# reader's instrumented `bytes_read` against the actual descriptor-file read
+# syscalls (never the loader's or a pipe's read-ahead).
+# Phase 8.4 adds the honest **seekable/blocked** random-access baselines: `bgzip`
+# (from the `tabix` package, BGZF block-gzip + `.gzi` index) and `pixz` (an
+# indexed, parallel xz with `-x start:size` random access), plus the equivalent
+# `xz --block-size=…` streams. These are what a purpose-built random-access
+# format actually costs to seek; the non-blocked gzip/zstd/xz prefixes are the
+# *sequential* baseline and are separately labelled as such.
 # ---------------------------------------------------------------------------
 FROM dev AS baseline
 ENV DEBIAN_FRONTEND=noninteractive
@@ -159,5 +168,8 @@ RUN apt-get update \
       coreutils \
       pv \
       time \
+      strace \
+      tabix \
+      pixz \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /work

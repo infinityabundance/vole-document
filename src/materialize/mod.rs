@@ -5,6 +5,7 @@
 //! searches, guesses, optimizes, or invokes external tools.
 
 pub mod observation;
+pub mod seek;
 
 use crate::container::{Descriptor, ParsedDescriptor};
 use crate::error::{Error, Result};
@@ -127,6 +128,7 @@ mod tests {
             objects: vec![source.to_vec()],
             program: crate::dra::Program::new(vec![Op::EmitObject { object_id: 0 }]),
             observation_index: None,
+            seek_directory: false,
             source_sha256: sha256(source),
             source_len: source.len() as u64,
         }

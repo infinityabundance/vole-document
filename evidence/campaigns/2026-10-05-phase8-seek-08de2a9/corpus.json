@@ -1,0 +1,60 @@
+{
+  "corpus": "phase8-large",
+  "generator": "vole-document pdf-make-large (encode-time subcommand; no library/runtime dependency)",
+  "command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document pdf-make-large evidence/corpus/phase8-large 800",
+  "source": "evidence/corpus/phase8-large/large.pdf",
+  "sha256": "983915aef64bfce2beed5bc000822a2aceb9a8c3beb0ca760de0a95ad12c205a",
+  "source_len": 33789340,
+  "source_len_mib": 32.22,
+  "objects_argument": 800,
+  "streams": 800,
+  "indirect_objects": 1603,
+  "stream_encoding": "level-0 DEFLATE (stored blocks) in a real zlib (RFC 1950) wrapper; each stream carries distinct per-stream LCG content, so no plaintext is shared between streams",
+  "byte_reproducible": true,
+  "reproduction_note": "Regenerated under Phase 8 with the same arguments; SHA-256 and length are identical to the Phase-7 corpus (983915ae…12c205a, 33,789,340 B), so the two campaigns are directly comparable.",
+  "deflate_census": {
+    "flate_streams": 800,
+    "replayed": 800,
+    "declined": 0,
+    "compressed_bytes": 33584800,
+    "plaintext_bytes": 33576000,
+    "correction_bytes": 22400,
+    "rans_plaintext_bytes": 17107593,
+    "replayed_rans_dedup_bytes": 17107621
+  },
+  "external_checks": {
+    "qpdf_version": "11.3.0",
+    "qpdf_check": "rc=0: 'No syntax or stream encoding errors found'",
+    "ghostscript_version": "10.00.0",
+    "ghostscript_render": "rc=0 (first page to nullpage)"
+  },
+  "descriptor": {
+    "path": "evidence/scratch/phase8/large.seek.voldoc",
+    "candidate": "PDF_DEFLATE_REPLAY_RANS_INDEXED",
+    "bytes": 17566832,
+    "ratio_vs_source": 0.519887,
+    "has_seek_directory": true,
+    "gitignored": true,
+    "encode_command": "docker compose run --rm --no-TTY dev ./target/debug/vole-document encode --force pdf-deflate-replay-rans-indexed evidence/corpus/phase8-large/large.pdf evidence/scratch/phase8/large.seek.voldoc",
+    "cost_breakdown": {
+      "header": 64,
+      "universe": 188,
+      "format": 76,
+      "record_framing": 19272,
+      "objects": 28,
+      "graph": 265450,
+      "models": 68800,
+      "entropy_payload": 17038793,
+      "residuals": 0,
+      "index": 146711,
+      "directory": 27390,
+      "integrity": 40,
+      "trailer": 20
+    },
+    "directory_cost_bytes": 27390,
+    "directory_payload_bytes": 27378,
+    "directory_entry_count": 1608,
+    "directory_note": "The seek DIRECTORY record adds 27,390 B (12 B framing + 27,378 B payload) and is located at fixed offset 64. It carries 1,608 locators (the DIRECTORY itself, UNIVERSE, FORMAT, 800 MODEL, 800 ENTROPY_CHANNEL, 1 OBJECT, GRAPH, OBSERVATION_INDEX, INTEGRITY, TRAILER), a class index, and 800 channel decoded lengths; it is well under the 1 MiB max_directory_bytes bound. Non-seekable lanes re-base +18 B versus Phase 7 only because the UNIVERSE string gained the +seek-directory-v1 suffix; the serialized record sequence for seek_directory == false is otherwise unchanged."
+  },
+  "corpus_limitation": "Streams are level-0 (stored) zlib, so the corpus is the weak-producer regime where exact replay is trivially available and corrections are tiny (28 B/stream, deduplicated to one 28 B object). It is NOT a survey of strong real-world DEFLATE; it is a large multi-object random-access stress corpus. Distinctness of per-stream plaintext (not repeated-bytes) is what makes the query court meaningful."
+}

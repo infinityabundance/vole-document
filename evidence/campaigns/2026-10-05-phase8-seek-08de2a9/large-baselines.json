@@ -1,0 +1,70 @@
+{
+  "units": "bytes",
+  "delta_convention": "positive = best VOLE lane is larger than the comparator (VOLE loses); negative = VOLE is smaller (VOLE wins)",
+  "rows": [
+    {
+      "corpus": "phase8-large",
+      "file": "large.pdf",
+      "source_len": 33789340,
+      "gzip9": 9999924,
+      "zstd19": 6184771,
+      "xz9e": 5841896,
+      "brotli11": 6101311,
+      "raw": 33789774,
+      "rle": null,
+      "byte_rans": 17773299,
+      "pdf_physical": 33829866,
+      "pdf_channels": 17754940,
+      "pdf_layout": null,
+      "pdf_layout_rans": null,
+      "deflate_replay": 33851522,
+      "deflate_replay_rans": 17392731,
+      "auto_candidate": "PDF_DEFLATE_REPLAY_RANS",
+      "auto_len": 17392731,
+      "best_vole": 17392731,
+      "best_vole_lane": "PDF_DEFLATE_REPLAY_RANS",
+      "verify_ok": true,
+      "roundtrip_ok": true,
+      "rank": [
+        "xz",
+        "brotli",
+        "zstd",
+        "gzip",
+        "best_vole",
+        "byte_rans",
+        "raw"
+      ],
+      "best_generic": 5841896,
+      "best_generic_name": "xz",
+      "delta_vs_best_generic": 11550835,
+      "delta_vs_byte_rans": -380568
+    }
+  ],
+  "summary": {
+    "overall": {
+      "files": 1,
+      "vole_beats_gzip": 0,
+      "vole_beats_zstd": 0,
+      "vole_beats_xz": 0,
+      "vole_beats_brotli": 0,
+      "vole_beats_any_generic": 0,
+      "vole_beats_byte_rans": 1,
+      "total_bytes_vs_best_generic": 11550835,
+      "total_bytes_vs_byte_rans": -380568
+    },
+    "by_corpus": [
+      {
+        "files": 1,
+        "vole_beats_gzip": 0,
+        "vole_beats_zstd": 0,
+        "vole_beats_xz": 0,
+        "vole_beats_brotli": 0,
+        "vole_beats_any_generic": 0,
+        "vole_beats_byte_rans": 1,
+        "total_bytes_vs_best_generic": 11550835,
+        "total_bytes_vs_byte_rans": -380568,
+        "corpus": "phase8-large"
+      }
+    ]
+  }
+}

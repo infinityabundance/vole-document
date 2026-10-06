@@ -1,0 +1,20 @@
+Phase-8 release gate results (version `0.1.0-alpha.10`, branch `phase8`, tree =
+`49b14fd`). All Docker-only.
+
+Command                                                                        Result
+docker compose run --rm --no-TTY dev  cargo fmt --all --check                  PASS (rc 0)
+docker compose run --rm --no-TTY dev  cargo clippy --all-targets --all-features -- -D warnings
+                                                                               PASS (no warnings)
+docker compose run --rm --no-TTY dev  cargo test --all-features --locked       PASS 387 passed / 0 failed / 1 ignored (272 lib unit)
+docker compose run --rm --no-TTY dev  cargo test --locked                      PASS 347 passed / 0 failed / 1 ignored (262 lib unit)
+docker compose run --rm --no-TTY dev  cargo test --no-default-features         PASS 291 passed / 0 failed / 1 ignored (240 lib unit)
+docker compose run --rm --no-TTY msrv cargo test --locked --all-features       PASS 387 passed / 0 failed / 1 ignored (272 lib unit)
+                                                                               (rustc 1.89.0 29483883e 2025-08-04)
+docker compose run --rm --no-TTY policy sh -c 'cargo audit && cargo deny check'
+                                                                               PASS (audit rc 0; deny: advisories ok, bans ok, licenses ok, sources ok)
+                                                                               (one non-fatal duplicate-crate warning for `syn` 1.0.109/2.0.119)
+
+Test counts are unchanged from Phase 8.3 (387/347/291); the alpha.10 release adds
+no tests — it bumps the version, refreshes the lockfiles (root package version
+only), restates the Phase-8 claim, adds the seekable/blocked baseline court and
+its receipt, and adds `docs/evidence/phase8-skeptic-review.md`.

@@ -7,6 +7,9 @@
 
 use crate::EXACTNESS_PROFILE_EXACT_BYTES;
 use crate::accounting::CostBreakdown;
+use crate::container::directory::{
+    DirectoryEntry, RecordSite, SEEK_DIRECTORY_ALL_SECTIONS, SeekDirectory,
+};
 use crate::container::header::{HEADER_LEN, Header, MAGIC};
 use crate::container::observation::ObservationIndex;
 use crate::container::record::{FLAG_OPTIONAL, RECORD_OVERHEAD, RecordReader, RecordTag};
@@ -23,10 +26,12 @@ use crate::limits::Limits;
 /// new universe string. The `universe_id` in the header is the first 16 bytes
 /// of SHA-256 over this string.
 ///
-/// Phase 7 adds an optional `OBSERVATION_INDEX` record (partial-decode view),
-/// so the suffix `+observation-index-v1` is appended; the DRA graph stays at
-/// `dra-8` and the exactness semantics are unchanged.
-pub const UNIVERSE: &str = "vole-document;universe;phase7;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1";
+/// Phase 7 adds an optional `OBSERVATION_INDEX` record (partial-decode view);
+/// Phase 8 adds an optional `DIRECTORY` record (seek-based partial I/O), so the
+/// suffix `+seek-directory-v1` is appended. The DRA graph stays at `dra-8`, the
+/// `FORMAT_MINOR` does not move, and the exactness semantics are unchanged: a
+/// decoder that ignores the directory still fully materializes.
+pub const UNIVERSE: &str = "vole-document;universe;phase8;exact-bytes;dra-8;opaque+entropy+pdf+channels+offsets+packed+packed-channels+deflate-replay-preflate-0.7.6-experimental+observation-index-v1+seek-directory-v1";
 
 /// First 16 bytes of SHA-256 over a universe declaration string.
 pub fn universe_id_from_str(universe: &str) -> [u8; 16] {
@@ -59,6 +64,13 @@ pub struct Descriptor {
     /// record is validated against the program at parse time; it is never
     /// authority.
     pub observation_index: Option<ObservationIndex>,
+    /// Whether to emit an optional seek `DIRECTORY` record (Phase 8).
+    ///
+    /// `false` is today's descriptor and produces the exact Phase-7 record
+    /// sequence (the universe string still carries the Phase-8 suffix). When
+    /// `true`, `serialize` writes a two-pass `DIRECTORY` record as the first
+    /// record; a directory requires an observation index to describe.
+    pub seek_directory: bool,
     /// SHA-256 of the exact reconstructed source.
     pub source_sha256: [u8; 32],
     /// Exact reconstructed source length.
@@ -74,6 +86,23 @@ pub struct ParsedDescriptor {
     pub cost: CostBreakdown,
     /// Encode the universe identifier that was validated against the header.
     pub universe_id: [u8; 16],
+}
+
+/// A record payload staged during the first pass of [`Descriptor::serialize`].
+struct PendingRecord {
+    tag: RecordTag,
+    flags: u8,
+    payload: Vec<u8>,
+}
+
+impl PendingRecord {
+    fn new(tag: RecordTag, flags: u8, payload: Vec<u8>) -> Self {
+        PendingRecord {
+            tag,
+            flags,
+            payload,
+        }
+    }
 }
 
 impl Descriptor {
@@ -110,37 +139,48 @@ impl Descriptor {
     ///
     /// Optional bits are ignorable: a decoder that does not understand them
     /// still materializes the source exactly. The observation-index bit records
-    /// only that a partial-decode lane is available; exactness never requires
-    /// it.
+    /// only that a partial-decode lane is available, and the seek-directory bit
+    /// only that a seek-based lane is available; exactness never requires either.
     pub fn optional_features(&self) -> u32 {
+        let mut bits = 0u32;
         if self.observation_index.is_some() {
-            crate::container::header::FEATURE_OBSERVATION_INDEX
-        } else {
-            0
+            bits |= crate::container::header::FEATURE_OBSERVATION_INDEX;
         }
+        if self.seek_directory {
+            bits |= crate::container::header::FEATURE_SEEK_DIRECTORY;
+        }
+        bits
     }
 
     /// Serialize to a complete `.voldoc` byte sequence plus cost attribution.
+    ///
+    /// When [`Descriptor::seek_directory`] is set this is a two-pass build: every
+    /// record payload is encoded first, the seek directory's length is computed
+    /// from counts alone (so there is no chicken-and-egg), then the records are
+    /// emitted after the directory. A descriptor without a directory emits exactly
+    /// the record sequence and bytes it emitted before this field existed, and
+    /// `cost.directory == 0`.
     pub fn serialize(&self) -> Result<(Vec<u8>, CostBreakdown)> {
+        if self.seek_directory && self.observation_index.is_none() {
+            return Err(Error::invalid_container(
+                "a seek directory requires an observation index",
+            ));
+        }
+
         let mut cost = CostBreakdown {
             header: HEADER_LEN as u64,
             ..Default::default()
         };
-        let mut out = Vec::new();
 
-        let header = self.header();
-        out.extend_from_slice(&header.encode());
-
-        let mut records: u64 = 0;
-        let mut write =
-            |out: &mut Vec<u8>, tag: RecordTag, flags: u8, payload: &[u8]| -> Result<()> {
-                crate::container::record::write_record(out, tag as u8, flags, payload)?;
-                records += 1;
-                Ok(())
-            };
+        // ----- Pass 1: encode every record payload; emit no bytes yet. -----
+        let mut pending: Vec<PendingRecord> = Vec::new();
 
         // UNIVERSE
-        write(&mut out, RecordTag::Universe, 0, self.universe.as_bytes())?;
+        pending.push(PendingRecord::new(
+            RecordTag::Universe,
+            0,
+            self.universe.as_bytes().to_vec(),
+        ));
         cost.universe = self.universe.len() as u64;
 
         // FORMAT: [class u8][basis_len u32 LE][basis bytes]
@@ -151,60 +191,145 @@ impl Descriptor {
         fmt.push(self.source_format);
         fmt.extend_from_slice(&basis_len.to_le_bytes());
         fmt.extend_from_slice(basis);
-        write(&mut out, RecordTag::Format, 0, &fmt)?;
         cost.format = fmt.len() as u64;
+        pending.push(PendingRecord::new(RecordTag::Format, 0, fmt));
 
         // MODELS
         for model in &self.models {
             let encoded = model.encode()?;
-            write(&mut out, RecordTag::Model, 0, &encoded)?;
             cost.models += encoded.len() as u64;
+            pending.push(PendingRecord::new(RecordTag::Model, 0, encoded));
         }
 
         // ENTROPY CHANNELS
         for channel in &self.channels {
             let encoded = channel.encode()?;
-            write(&mut out, RecordTag::EntropyChannel, 0, &encoded)?;
             cost.entropy_payload += encoded.len() as u64;
+            pending.push(PendingRecord::new(RecordTag::EntropyChannel, 0, encoded));
         }
 
         // OBJECTS
         for obj in &self.objects {
-            write(&mut out, RecordTag::Object, 0, obj)?;
             cost.objects += obj.len() as u64;
+            pending.push(PendingRecord::new(RecordTag::Object, 0, obj.clone()));
         }
 
         // GRAPH
         let graph = self.program.encode()?;
-        write(&mut out, RecordTag::Graph, 0, &graph)?;
         cost.graph = graph.len() as u64;
+        pending.push(PendingRecord::new(RecordTag::Graph, 0, graph));
 
         // OBSERVATION_INDEX (optional, advisory). Written with the optional flag
         // so a decoder that ignores it still fully materializes.
         let mut index_records: u64 = 0;
         if let Some(index) = &self.observation_index {
             let payload = index.encode()?;
-            write(
-                &mut out,
-                RecordTag::ObservationIndex,
-                FLAG_OPTIONAL,
-                &payload,
-            )?;
             index_records = 1;
             cost.index = payload.len() as u64 + RECORD_OVERHEAD as u64;
+            pending.push(PendingRecord::new(
+                RecordTag::ObservationIndex,
+                FLAG_OPTIONAL,
+                payload,
+            ));
         }
 
         // INTEGRITY: [sha256 32][source_len u64 LE]
         let mut integ = Vec::with_capacity(40);
         integ.extend_from_slice(&self.source_sha256);
         integ.extend_from_slice(&self.source_len.to_le_bytes());
-        write(&mut out, RecordTag::Integrity, 0, &integ)?;
         cost.integrity = integ.len() as u64;
+        pending.push(PendingRecord::new(RecordTag::Integrity, 0, integ));
+
+        // ----- Seek directory (optional). Build it before emitting anything, so
+        // the record offsets can account for its own (count-determined) length. -----
+        let mut directory_payload: Option<Vec<u8>> = None;
+        let mut directory_records: u64 = 0;
+        if self.seek_directory {
+            let channel_lengths: Vec<u64> =
+                self.channels.iter().map(|c| c.decoded_length).collect();
+
+            // Locators in file order: the DIRECTORY itself (offset 64), then every
+            // pending record, then the TRAILER. Offsets after the directory are
+            // filled once its record length is known.
+            let mut entries: Vec<DirectoryEntry> = Vec::with_capacity(pending.len() + 2);
+            entries.push(DirectoryEntry {
+                tag: RecordTag::Directory as u8,
+                offset: HEADER_LEN as u64,
+                payload_len: 0,
+            });
+            for rec in &pending {
+                let payload_len = u32::try_from(rec.payload.len())
+                    .map_err(|_| Error::resource_limit("record payload exceeds u32"))?;
+                entries.push(DirectoryEntry {
+                    tag: rec.tag as u8,
+                    offset: 0,
+                    payload_len,
+                });
+            }
+            entries.push(DirectoryEntry {
+                tag: RecordTag::Trailer as u8,
+                offset: 0,
+                payload_len: 20,
+            });
+            let classes = crate::container::directory::class_index(&entries);
+
+            // The provisional encode fixes the directory's own payload length:
+            // offsets are placeholder-valued but fixed-width, so only the counts
+            // determine the length. There is no circular dependency.
+            let mut dir = SeekDirectory {
+                section_flags: SEEK_DIRECTORY_ALL_SECTIONS,
+                entries,
+                classes,
+                channel_lengths,
+            };
+            let dir_payload_len = dir.encode()?.len();
+            dir.entries[0].payload_len = u32::try_from(dir_payload_len)
+                .map_err(|_| Error::resource_limit("seek directory payload exceeds u32"))?;
+
+            let mut off = (HEADER_LEN + RECORD_OVERHEAD + dir_payload_len) as u64;
+            let last = dir.entries.len() - 1;
+            for entry in &mut dir.entries[1..last] {
+                entry.offset = off;
+                off = off
+                    .checked_add(RECORD_OVERHEAD as u64)
+                    .and_then(|v| v.checked_add(u64::from(entry.payload_len)))
+                    .ok_or_else(|| Error::invalid_container("seek directory offset overflow"))?;
+            }
+            dir.entries[last].offset = off;
+
+            let payload = dir.encode()?;
+            debug_assert_eq!(payload.len(), dir_payload_len);
+            cost.directory = dir_payload_len as u64 + RECORD_OVERHEAD as u64;
+            directory_records = 1;
+            directory_payload = Some(payload);
+        }
+
+        // ----- Pass 2: emit. -----
+        let mut out = Vec::new();
+        out.extend_from_slice(&self.header().encode());
+
+        if let Some(payload) = &directory_payload {
+            crate::container::record::write_record(
+                &mut out,
+                RecordTag::Directory as u8,
+                FLAG_OPTIONAL,
+                payload,
+            )?;
+        }
+        for rec in &pending {
+            crate::container::record::write_record(
+                &mut out,
+                rec.tag as u8,
+                rec.flags,
+                &rec.payload,
+            )?;
+        }
 
         // TRAILER: [record_count u32][payload_bytes u64][MAGIC 8]
-        // record_count includes the trailer itself.
+        // record_count includes the trailer itself and any directory record.
+        let total_records = pending.len() as u64 + directory_records + 1;
         let total_records =
-            u32::try_from(records + 1).map_err(|_| Error::resource_limit("too many records"))?;
+            u32::try_from(total_records).map_err(|_| Error::resource_limit("too many records"))?;
         let payload_bytes = (out.len() - HEADER_LEN) as u64;
         let mut trailer = Vec::with_capacity(20);
         trailer.extend_from_slice(&total_records.to_le_bytes());
@@ -213,11 +338,13 @@ impl Descriptor {
         crate::container::record::write_record(&mut out, RecordTag::Trailer as u8, 0, &trailer)?;
         cost.trailer = trailer.len() as u64;
 
-        // Framing overhead for every record after the fixed header. The
-        // optional index record's framing is charged to `cost.index` instead,
-        // so subtract its count here to keep `total()` exactly the serialized
-        // length (every `CostBreakdown` category remains a real byte).
-        cost.record_framing = RECORD_OVERHEAD as u64 * (total_records as u64 - index_records);
+        // Framing overhead for every record after the fixed header. The optional
+        // index and directory records' framing is charged to `cost.index` and
+        // `cost.directory` instead, so subtract their counts here to keep
+        // `total()` exactly the serialized length (every category stays a real
+        // byte).
+        cost.record_framing =
+            RECORD_OVERHEAD as u64 * (u64::from(total_records) - index_records - directory_records);
 
         debug_assert_eq!(cost.total(), out.len() as u64);
         Ok((out, cost))
@@ -262,9 +389,20 @@ impl Descriptor {
         let mut trailer_record_count: Option<u32> = None;
         let mut records_seen: u32 = 0;
         let mut index_records: u64 = 0;
+        let mut directory_records: u64 = 0;
+        let mut seek_directory: Option<SeekDirectory> = None;
+        let mut sites: Vec<RecordSite> = Vec::new();
 
         while let Some(rec) = reader.next_record()? {
             records_seen += 1;
+            let site = RecordSite {
+                tag: rec.tag,
+                offset: reader.position() as u64
+                    - (RECORD_OVERHEAD as u64 + rec.payload.len() as u64),
+                payload_len: u32::try_from(rec.payload.len())
+                    .map_err(|_| Error::resource_limit("record payload exceeds u32"))?,
+            };
+            sites.push(site);
             if saw_trailer {
                 return Err(Error::invalid_container("record found after TRAILER"));
             }
@@ -362,6 +500,25 @@ impl Descriptor {
                     cost.index = rec.payload.len() as u64 + RECORD_OVERHEAD as u64;
                     index_records = 1;
                     observation_index = Some(idx);
+                }
+                Some(RecordTag::Directory) => {
+                    if seek_directory.is_some() {
+                        return Err(Error::invalid_container("duplicate DIRECTORY record"));
+                    }
+                    if !rec.is_optional() {
+                        return Err(Error::invalid_container(
+                            "DIRECTORY record must carry FLAG_OPTIONAL",
+                        ));
+                    }
+                    if sites.len() != 1 {
+                        return Err(Error::invalid_container(
+                            "DIRECTORY record must be the first record",
+                        ));
+                    }
+                    let dir = SeekDirectory::decode(&rec.payload, limits)?;
+                    cost.directory = rec.payload.len() as u64 + RECORD_OVERHEAD as u64;
+                    directory_records = 1;
+                    seek_directory = Some(dir);
                 }
                 Some(RecordTag::Integrity) => {
                     if source_sha256.is_some() {
@@ -492,9 +649,19 @@ impl Descriptor {
             index.validate(&program, &object_lens, &channel_lens, limits)?;
         }
 
-        // As in `serialize`, the optional index record's framing is charged to
-        // `cost.index`, so exclude it from the framing total.
-        cost.record_framing = RECORD_OVERHEAD as u64 * (records_seen as u64 - index_records);
+        // The seek directory is advisory too: it must be consistent with the
+        // actual record framing, but the framing and the program remain the
+        // authority. A malformed or inconsistent directory is rejected rather
+        // than trusted.
+        if let Some(dir) = &seek_directory {
+            dir.validate(&sites, bytes.len() as u64, limits)?;
+        }
+
+        // As in `serialize`, the optional index and directory records' framing is
+        // charged to `cost.index`/`cost.directory`, so exclude their counts from
+        // the framing total.
+        cost.record_framing =
+            RECORD_OVERHEAD as u64 * (records_seen as u64 - index_records - directory_records);
 
         Ok(ParsedDescriptor {
             descriptor: Descriptor {
@@ -506,6 +673,7 @@ impl Descriptor {
                 objects,
                 program,
                 observation_index,
+                seek_directory: seek_directory.is_some(),
                 source_sha256,
                 source_len,
             },
@@ -532,6 +700,7 @@ mod tests {
             objects: vec![source.to_vec()],
             program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
             observation_index: None,
+            seek_directory: false,
             source_sha256: sha256(source),
             source_len: source.len() as u64,
         }
@@ -776,6 +945,182 @@ mod tests {
                 .unwrap_err()
                 .class(),
             crate::ErrorClass::CoverageViolation
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase 8 — the optional seek `DIRECTORY` record.
+    // -----------------------------------------------------------------------
+
+    /// A seekable descriptor: the two-op indexed descriptor plus the directory
+    /// switch.
+    fn seekable_descriptor() -> Descriptor {
+        let mut d = indexed_descriptor();
+        d.seek_directory = true;
+        d
+    }
+
+    /// Rebuild a descriptor's bytes after mutating its decoded directory payload,
+    /// recomputing the record CRC. The directory payload length is unchanged by
+    /// offset/count mutations, so the trailer stays consistent. The result is a
+    /// *CRC-valid* but potentially lying directory.
+    fn rebuild_with_directory(bytes: &[u8], mut mutate: impl FnMut(&mut SeekDirectory)) -> Vec<u8> {
+        use crate::container::record::{RecordReader, write_record};
+        let header = &bytes[0..HEADER_LEN];
+        let mut reader = RecordReader::new(bytes, HEADER_LEN, Limits::DEFAULT);
+        let mut records = Vec::new();
+        while let Some(r) = reader.next_record().unwrap() {
+            records.push(r);
+        }
+        let mut out = header.to_vec();
+        for r in &records {
+            if r.tag == RecordTag::Directory as u8 {
+                let mut dir = SeekDirectory::decode(&r.payload, Limits::DEFAULT).unwrap();
+                mutate(&mut dir);
+                write_record(&mut out, r.tag, r.flags, &dir.encode().unwrap()).unwrap();
+            } else {
+                write_record(&mut out, r.tag, r.flags, &r.payload).unwrap();
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn seek_directory_roundtrips_materializes_and_charges() {
+        let d = seekable_descriptor();
+        assert_eq!(
+            d.optional_features(),
+            crate::container::header::FEATURE_OBSERVATION_INDEX
+                | crate::container::header::FEATURE_SEEK_DIRECTORY
+        );
+        let (bytes, cost) = d.serialize().unwrap();
+        assert_eq!(cost.total(), bytes.len() as u64, "cost must be the length");
+        assert!(
+            cost.directory > 0,
+            "the directory payload + framing is charged"
+        );
+
+        let parsed = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap();
+        assert_eq!(parsed.descriptor, d, "seekable descriptor must round-trip");
+        assert!(parsed.descriptor.seek_directory);
+        assert_eq!(parsed.cost.total(), bytes.len() as u64);
+        assert_eq!(parsed.cost.directory, cost.directory);
+
+        // The normal materialize path is unaffected by the advisory directory.
+        let out = crate::materialize::decode_to_bytes(&bytes, Limits::DEFAULT)
+            .unwrap()
+            .0;
+        assert_eq!(out, b"abcde");
+    }
+
+    #[test]
+    fn directory_is_the_first_record_and_is_optional() {
+        let (bytes, _) = seekable_descriptor().serialize().unwrap();
+        let mut r = RecordReader::new(&bytes, HEADER_LEN, Limits::DEFAULT);
+        let first = r.next_record().unwrap().unwrap();
+        assert_eq!(first.tag, RecordTag::Directory as u8);
+        assert!(
+            first.is_optional(),
+            "the directory must carry FLAG_OPTIONAL"
+        );
+        // The directory is locatable at the fixed offset after the header.
+        let mut r = RecordReader::new(&bytes, HEADER_LEN, Limits::DEFAULT);
+        r.next_record().unwrap().unwrap();
+        assert_eq!(
+            r.position(),
+            HEADER_LEN + RECORD_OVERHEAD + first.payload.len(),
+            "the next record must begin right after the directory"
+        );
+    }
+
+    #[test]
+    fn non_seekable_descriptor_has_no_directory_cost() {
+        let d = sample(b"no directory here");
+        let (bytes, cost) = d.serialize().unwrap();
+        assert_eq!(cost.directory, 0);
+        assert_eq!(cost.total(), bytes.len() as u64);
+        assert_eq!(d.optional_features(), 0);
+        // The record sequence is unchanged: the first record is UNIVERSE, not a
+        // DIRECTORY.
+        let mut r = RecordReader::new(&bytes, HEADER_LEN, Limits::DEFAULT);
+        assert_eq!(
+            r.next_record().unwrap().unwrap().tag,
+            RecordTag::Universe as u8
+        );
+        let parsed = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap();
+        assert!(!parsed.descriptor.seek_directory);
+        assert_eq!(parsed.cost.directory, 0);
+    }
+
+    #[test]
+    fn seek_directory_without_index_is_rejected() {
+        let mut d = sample(b"abc");
+        d.seek_directory = true;
+        assert_eq!(
+            d.serialize().unwrap_err().class(),
+            crate::ErrorClass::InvalidContainer
+        );
+    }
+
+    #[test]
+    fn corrupted_directory_payload_is_rejected() {
+        let (mut bytes, _) = seekable_descriptor().serialize().unwrap();
+        // Flip a byte inside the directory payload (its first payload byte, the
+        // version); the record CRC32C must catch it.
+        bytes[HEADER_LEN + 8] ^= 0x01;
+        assert_eq!(
+            Descriptor::parse(&bytes, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::InvalidContainer
+        );
+    }
+
+    #[test]
+    fn lying_directory_is_rejected_on_parse() {
+        let (bytes, _) = seekable_descriptor().serialize().unwrap();
+        // Sanity: the honest directory parses.
+        Descriptor::parse(&bytes, Limits::DEFAULT).unwrap();
+
+        // A locator offset that does not match the framing.
+        let lying = rebuild_with_directory(&bytes, |dir| dir.entries[1].offset += 1);
+        assert_eq!(
+            Descriptor::parse(&lying, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::InvalidContainer
+        );
+
+        // A class count that disagrees with a scan of the locators.
+        let lying = rebuild_with_directory(&bytes, |dir| dir.classes[0].count += 1);
+        assert_eq!(
+            Descriptor::parse(&lying, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::InvalidContainer
+        );
+
+        // A directory record that does not carry FLAG_OPTIONAL would strand an
+        // older decoder, so this build rejects it too.
+        let mut reader = RecordReader::new(&bytes, HEADER_LEN, Limits::DEFAULT);
+        let mut records = Vec::new();
+        while let Some(r) = reader.next_record().unwrap() {
+            records.push(r);
+        }
+        let mut out = bytes[0..HEADER_LEN].to_vec();
+        for r in &records {
+            let flags = if r.tag == RecordTag::Directory as u8 {
+                0
+            } else {
+                r.flags
+            };
+            crate::container::record::write_record(&mut out, r.tag, flags, &r.payload).unwrap();
+        }
+        assert_eq!(
+            Descriptor::parse(&out, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::InvalidContainer
         );
     }
 }

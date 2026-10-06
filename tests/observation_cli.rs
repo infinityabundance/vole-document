@@ -179,15 +179,28 @@ fn indexed_candidate_is_exact_charged_and_deterministic() {
         indexed.descriptor.observation_index.is_some(),
         "the indexed candidate must carry an index"
     );
+    assert!(
+        indexed.descriptor.seek_directory,
+        "only the indexed candidate enables the seek directory"
+    );
 
     let (indexed_bytes, indexed_cost) = indexed.descriptor.serialize().unwrap();
+    assert!(
+        indexed_cost.directory > 0,
+        "an enabled seek directory must be charged"
+    );
+    // Parsing the serialized bytes recovers the directory (cost and flag).
+    let reparsed = Descriptor::parse(&indexed_bytes, DEFAULT).unwrap();
+    assert!(reparsed.descriptor.seek_directory);
+    assert_eq!(reparsed.cost.directory, indexed_cost.directory);
     let unindexed = propose_pdf_deflate_replay_rans(&src, DEFAULT)
         .unwrap()
         .expect("flate.pdf has FlateDecode streams");
     let (unindexed_bytes, _) = unindexed.descriptor.serialize().unwrap();
 
-    // The only structural difference is the optional index record, so the size
-    // delta is exactly the charged index cost.
+    // The only structural differences are the optional index record and (Phase 8)
+    // the optional seek DIRECTORY record, so the size delta is exactly the charged
+    // index cost plus the charged directory cost.
     assert!(
         indexed_bytes.len() > unindexed_bytes.len(),
         "indexed {} must exceed un-indexed {}",
@@ -196,8 +209,8 @@ fn indexed_candidate_is_exact_charged_and_deterministic() {
     );
     assert_eq!(
         (indexed_bytes.len() - unindexed_bytes.len()) as u64,
-        indexed_cost.index,
-        "size delta must equal the charged index cost"
+        indexed_cost.index + indexed_cost.directory,
+        "size delta must equal the charged index plus directory cost"
     );
     assert_eq!(indexed_cost.total(), indexed_bytes.len() as u64);
 
@@ -271,6 +284,14 @@ fn view_serves_mid_byte_range_from_indexed_candidate() {
     assert!(
         stats.contains("\"selector\":\"byte-range:"),
         "stats JSON must carry the selector: {stats}"
+    );
+    assert!(
+        stats.contains("\"bytes_read\":"),
+        "stats JSON must carry the real bytes_read: {stats}"
+    );
+    assert!(
+        stats.contains("\"integrity_verified\":false"),
+        "a partial view must report integrity_verified false: {stats}"
     );
 }
 

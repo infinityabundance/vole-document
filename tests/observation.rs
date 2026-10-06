@@ -368,6 +368,7 @@ fn empty_source_requests_are_typed_errors() {
             selectors: Vec::new(),
             digests: Vec::new(),
         }),
+        seek_directory: false,
         source_sha256: sha256(empty),
         source_len: 0,
     };
@@ -461,6 +462,7 @@ fn channel_descriptor() -> (ParsedDescriptor, Vec<u8>) {
             selectors: Vec::new(),
             digests: Vec::new(),
         }),
+        seek_directory: false,
         source_sha256: sha256(&source),
         source_len: source.len() as u64,
     };

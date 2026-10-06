@@ -1,0 +1,19 @@
+Phase-8 gate results (Phase 8.3, branch `phase8`, measured code = `08de2a9`;
+gates run at `602ecf8`, docs-only delta). All Docker-only.
+
+Command                                                                        Result
+docker compose run --rm --no-TTY dev  cargo fmt --all --check                  PASS (rc 0)
+docker compose run --rm --no-TTY dev  cargo clippy --all-targets --all-features -- -D warnings
+                                                                               PASS (no warnings)
+docker compose run --rm --no-TTY dev  cargo test --all-features --locked       PASS 387 passed / 0 failed / 1 ignored (272 lib unit)
+docker compose run --rm --no-TTY dev  cargo test --locked                      PASS 347 passed / 0 failed / 1 ignored (262 lib unit)
+docker compose run --rm --no-TTY dev  cargo test --no-default-features         PASS 291 passed / 0 failed / 1 ignored (240 lib unit)
+docker compose run --rm --no-TTY msrv cargo test --locked --all-features       PASS 387 passed / 0 failed / 1 ignored (272 lib unit)
+docker compose run --rm --no-TTY policy sh -c 'cargo audit && cargo deny check'
+                                                                               PASS (audit rc 0; deny: advisories ok, bans ok, licenses ok, sources ok)
+
+New Phase-8 tests: 15 library unit tests (seek directory encode/decode/validate,
+structural/geometry/framing checks) plus `tests/observation_seek.rs` (3 tests:
+seeked slice == full slice for start/middle/end + object/stream selectors,
+tamper/no-directory decline). Phase 7 reported 369/332/276; Phase 8 reports
+387/347/291.

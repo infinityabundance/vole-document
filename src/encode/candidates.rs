@@ -193,6 +193,7 @@ pub fn propose_rle(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
         objects: vec![],
         program: Program::new(ops),
         observation_index: None,
+        seek_directory: false,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };
@@ -249,6 +250,7 @@ pub fn propose_byte_rans(input: &[u8], limits: Limits) -> Result<Option<Candidat
         objects: vec![],
         program: Program::new(vec![Op::DecodeChannel { channel_id: 0 }]),
         observation_index: None,
+        seek_directory: false,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };

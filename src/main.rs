@@ -5,15 +5,19 @@
 //! destination.
 
 use std::fs;
+#[cfg(feature = "rans")]
+use std::fs::File;
 use std::io::Write;
+#[cfg(feature = "rans")]
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use vole_document::adapter::pdf;
-#[cfg(feature = "rans")]
-use vole_document::container::ParsedDescriptor;
 use vole_document::container::UNIVERSE;
+#[cfg(feature = "rans")]
+use vole_document::container::header::{FEATURE_SEEK_DIRECTORY, HEADER_LEN, Header};
 use vole_document::dra::Op;
 use vole_document::encode::candidates::CandidateKind;
 use vole_document::error::{Error, Result};
@@ -409,12 +413,45 @@ fn cmd_view(
     stats: bool,
     limits: Limits,
 ) -> Result<()> {
+    // Peek only the fixed 64-byte header first. A descriptor that advertises the
+    // seek feature is served by the seek reader over the same handle, so the
+    // process never `fs::read`s the whole descriptor: the bytes-read claim is a
+    // real on-disk-I/O claim, not a post-hoc approximation. A descriptor without
+    // one keeps the Phase-7 in-memory path (which must parse the whole file).
+    let mut file = File::open(input)?;
+    let mut hdr = [0u8; HEADER_LEN];
+    file.read_exact(&mut hdr)
+        .map_err(|_| Error::invalid_container("truncated header"))?;
+    let header = Header::decode(&hdr)?;
+    if header.optional_features & FEATURE_SEEK_DIRECTORY != 0 {
+        // `materialize_observation_seeked` seeks to offset 0 itself for the
+        // header, so rewind our peek rather than leaving the position at 64.
+        file.seek(SeekFrom::Start(0))
+            .map_err(|e| Error::io(format!("seek to start failed: {e}")))?;
+        let report = vole_document::materialize::seek::materialize_observation_seeked(
+            file, selector, limits,
+        )?;
+        let json = observation_json(&selector, header.declared_source_len, &report);
+        return emit_view(output, stats, &report, &json);
+    }
+    drop(file);
     let encoded = fs::read(input)?;
     let parsed = vole_document::container::Descriptor::parse(&encoded, limits)?;
     let report = vole_document::materialize::observation::materialize_observation(
         &parsed, selector, limits,
     )?;
-    let json = observation_json(&selector, &parsed, &report);
+    let json = observation_json(&selector, parsed.descriptor.source_len, &report);
+    emit_view(output, stats, &report, &json)
+}
+
+/// Write the served bytes (or print stats) exactly as the `view` CLI documents.
+#[cfg(feature = "rans")]
+fn emit_view(
+    output: Option<&Path>,
+    stats: bool,
+    report: &ObservationReport,
+    json: &str,
+) -> Result<()> {
     match output {
         Some(path) => {
             write_atomic(path, &report.bytes)?;
@@ -436,7 +473,7 @@ fn cmd_view(
 #[cfg(feature = "rans")]
 fn observation_json(
     selector: &ObservationSelector,
-    parsed: &ParsedDescriptor,
+    source_len: u64,
     report: &ObservationReport,
 ) -> String {
     let s = &report.stats;
@@ -457,12 +494,14 @@ fn observation_json(
             "\"channels_total\":{},",
             "\"entropy_bytes_decoded\":{},",
             "\"descriptor_bytes_traversed\":{},",
+            "\"bytes_read\":{},",
+            "\"integrity_verified\":{},",
             "\"output_bytes\":{},",
             "\"work_amplification\":{:.6}",
             "}}"
         ),
         selector_label(selector),
-        parsed.descriptor.source_len,
+        source_len,
         report.range.0,
         report.range.1.saturating_sub(report.range.0),
         report.bytes.len(),
@@ -474,6 +513,8 @@ fn observation_json(
         s.channels_total,
         s.entropy_bytes_decoded,
         s.descriptor_bytes_traversed,
+        s.bytes_read,
+        s.integrity_verified,
         s.output_bytes,
         s.work_amplification(),
     )
