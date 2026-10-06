@@ -70,6 +70,8 @@ const MAX_PAGES: usize = 1 << 16;
 /// What one ingest recovered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IngestReport {
+    /// The detected document format (byte-based, Phase 12.7).
+    pub format: crate::field::document_format::DocumentFormat,
     /// The (richest) field id, whose manifest binds the recovered index.
     pub field: FieldId,
     /// The exact `DocumentExact` root node id.
@@ -113,6 +115,10 @@ pub fn ingest_pdf(
         (field.manifest().clone(), field.materialize_exact(limits)?)
     };
     let source_len = source.len() as u64;
+    // Byte-based format detection, recorded in the manifest provenance so the
+    // universal observation API can dispatch common selectors without re-reading
+    // the source (Phase 12.7). Never derived from a file name.
+    let fmt = crate::field::document_format::detect_document_format(&source, limits);
 
     let mut acc = StageB::new(manifest.node_count);
     let scanned = match scan(&source, limits) {
@@ -141,6 +147,8 @@ pub fn ingest_pdf(
     } else {
         (None, 0, "field:ingest-b;declined=scan".to_string())
     };
+    // Prefix the machine-readable format token (idempotent if already present).
+    let provenance = format!("{}{}", fmt.provenance_prefix(), provenance);
 
     let mut new_manifest = manifest.clone();
     if let Some(root) = &index_root {
@@ -152,6 +160,7 @@ pub fn ingest_pdf(
     let field = store.put_field(&new_manifest)?;
 
     Ok(IngestReport {
+        format: fmt,
         field,
         root_node: manifest.root_node,
         index_root,
@@ -165,6 +174,42 @@ pub fn ingest_pdf(
         revision_nodes: acc.revision_nodes,
         declined_streams: acc.declined_streams,
     })
+}
+
+/// A universal ingest outcome: which native inverse compiler ran.
+#[cfg(feature = "package")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IngestOutcome {
+    /// A PDF (or opaque non-ZIP) field, produced by [`ingest_pdf`].
+    Pdf(IngestReport),
+    /// A ZIP-based package (DOCX/EPUB/generic ZIP), produced by
+    /// [`crate::field::ingest_package::ingest_package`].
+    Package(crate::field::ingest_package::PackageIngestReport),
+}
+
+/// Detect the source format **from bytes** and invert it with the right adapter
+/// (Phase 12.7). A validated ZIP is inverted through the byte-authoritative
+/// package layer; everything else (PDF and the opaque floor) goes through
+/// [`ingest_pdf`]. Never consults a file name.
+#[cfg(feature = "package")]
+pub fn ingest(
+    store: &mut FieldStore,
+    descriptor_bytes: &[u8],
+    limits: Limits,
+) -> Result<IngestOutcome> {
+    let parsed = crate::container::Descriptor::parse(descriptor_bytes, limits)?;
+    let source = crate::materialize::materialize(&parsed, limits)?;
+    if crate::field::document_format::is_zip(&source, limits) {
+        Ok(IngestOutcome::Package(
+            crate::field::ingest_package::ingest_package(store, descriptor_bytes, limits)?,
+        ))
+    } else {
+        Ok(IngestOutcome::Pdf(ingest_pdf(
+            store,
+            descriptor_bytes,
+            limits,
+        )?))
+    }
 }
 
 /// Add a minimal observation-index op table to a descriptor blob that lacks one,
@@ -240,8 +285,16 @@ pub fn deepen_page_with_manifest(
     if !manifest.has_index() {
         return Ok(field);
     }
-    // Already promoted for this page: idempotent no-op.
-    if manifest.provenance == format!("field:deepen;page={page}") {
+    // Already promoted for this page: idempotent no-op. The format token is
+    // preserved so a promoted field still serves common observations.
+    let format_token = manifest
+        .provenance
+        .split(';')
+        .next()
+        .filter(|t| t.starts_with("format="))
+        .map_or(String::new(), |t| format!("{t};"));
+    let target = format!("{format_token}field:deepen;page={page}");
+    if manifest.provenance == target {
         return Ok(field);
     }
 
@@ -265,7 +318,7 @@ pub fn deepen_page_with_manifest(
 
     let mut new_manifest = manifest.clone();
     new_manifest.node_count = manifest.node_count.saturating_add(3);
-    new_manifest.provenance = format!("field:deepen;page={page}");
+    new_manifest.provenance = format!("{format_token}field:deepen;page={page}");
     store.put_field(&new_manifest)
 }
 

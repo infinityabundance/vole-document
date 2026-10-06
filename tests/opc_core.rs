@@ -467,11 +467,16 @@ fn plan_and_explain_are_honest_for_native_selectors() {
             .iter()
             .any(|k| k == "PackageMemberDecoded")
     );
-    // Frozen plan JSON key set is unchanged by 12.3 (only values differ).
+    // Frozen plan JSON key set (12.7 widens it with the format/adapter/capability
+    // resolution and the index route; values differ per selector).
     let mut keys = Vec::new();
     for k in [
         "selector",
         "representation",
+        "format",
+        "adapter",
+        "capability",
+        "index_route",
         "shape",
         "index_reads",
         "required_nodes",
@@ -485,7 +490,7 @@ fn plan_and_explain_are_honest_for_native_selectors() {
         );
         keys.push(k);
     }
-    assert_eq!(keys.len(), 7);
+    assert_eq!(keys.len(), 11);
     assert_eq!(actual.answer_basis, Basis::DeterministicallyDerived);
     assert!(!actual.exact);
 }

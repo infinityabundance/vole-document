@@ -13,8 +13,10 @@
 //! state. A field never weakens `materialize(root) == original_bytes` (ADR-0024).
 
 pub mod cache;
+pub mod capabilities;
 pub mod dag;
 pub mod derive;
+pub mod document_format;
 pub mod edit;
 pub mod explain;
 pub mod index;

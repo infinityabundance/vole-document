@@ -27,6 +27,8 @@ use vole_document::error::{Error, Result};
 use vole_document::field::{
     Field, FieldId, FieldStore,
     cache::DerivedCache,
+    capabilities as field_capabilities,
+    document_format::detect_document_format,
     edit as field_edit,
     explain::explain,
     ingest as field_ingest,
@@ -85,9 +87,11 @@ const USAGE_FIELD: &str = "\
     vole-document field-ingest INPUT.voldoc --store DIR [--entropyfs]
     vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs]
     vole-document observe --store DIR --field HEX [--entropyfs] (--page N | --object N | --stream N |
-        --revision N | --byte-range A..B) --kind metadata|text|structure|operators|
+        --revision N | --byte-range A..B | --metadata | --doc-text | --heading N |
+        --block N | --table N | --cell T:R:C | --resource N | --link N | --text PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|full
     vole-document find    --store DIR --field HEX --text PATTERN [--entropyfs]
+        (format-agnostic lexical search: the common SearchMatch selector)
     vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs]
     vole-document preview --store DIR --field HEX --page N [--json] [--entropyfs]
     vole-document materialize --store DIR --field HEX --exact --output FILE [--entropyfs]
@@ -108,13 +112,16 @@ const USAGE_SHARE: &str = "\
 const USAGE_SHARE: &str = "";
 
 const USAGE_TAIL: &str = "\
-    vole-document capabilities
+    vole-document capabilities [ROOT]
 
 KIND (for encode --force): raw | rle | byte-rans | pdf-physical | pdf-channels |
     pdf-layout | pdf-layout-rans | pdf-deflate-replay | pdf-deflate-replay-rans |
     pdf-deflate-replay-rans-indexed
     Forces the complete-cost court to consider only that candidate family, for
     honest per-mechanism ablation. Fails when the input does not propose it.
+
+    capabilities ROOT detects ROOT's document format from bytes (never a file
+    name) and prints the supported common selectors/representations.
 
 EXIT CODES:
     0 ok   2 usage   3 io   4 invalid-container   5 unsupported-version
@@ -180,7 +187,7 @@ fn run(args: &[String]) -> Result<()> {
             print!("{}", usage());
             Ok(())
         }
-        "capabilities" => cmd_capabilities(),
+        "capabilities" => cmd_capabilities(args),
         "encode" => cmd_encode_args(args, limits),
         "decode" | "materialize" => {
             #[cfg(feature = "field")]
@@ -1277,7 +1284,16 @@ fn json_escape(s: &str) -> String {
     out
 }
 
-fn cmd_capabilities() -> Result<()> {
+fn cmd_capabilities(args: &[String]) -> Result<()> {
+    // `capabilities ROOT` discovers the detected document format and the common
+    // selectors/representations its adapter serves (Phase 12.7); the bare
+    // `capabilities` verb remains the codec/format-level report.
+    if let Some(path) = args.get(2) {
+        if let Some(extra) = args.get(3) {
+            return Err(Error::usage(format!("unexpected extra argument {extra:?}")));
+        }
+        return cmd_document_capabilities(Path::new(path));
+    }
     println!(
         concat!(
             "{{",
@@ -1301,6 +1317,34 @@ fn cmd_capabilities() -> Result<()> {
         cfg!(feature = "deflate-replay"),
     );
     Ok(())
+}
+
+/// `capabilities ROOT`: detect `ROOT`'s document format from bytes (never a file
+/// name) and print the machine-readable common-observation capability set.
+#[cfg(feature = "field")]
+fn cmd_document_capabilities(input: &Path) -> Result<()> {
+    let bytes = fs::read(input)?;
+    let limits = Limits::DEFAULT;
+    let source: Vec<u8> =
+        if bytes.len() >= 8 && bytes[..8] == vole_document::container::header::MAGIC {
+            let parsed = vole_document::container::Descriptor::parse(&bytes, limits)?;
+            materialize::materialize(&parsed, limits)?
+        } else {
+            bytes
+        };
+    let fmt = detect_document_format(&source, limits);
+    println!(
+        "{}",
+        field_capabilities::capabilities_for_format(fmt).to_json()
+    );
+    Ok(())
+}
+
+#[cfg(not(feature = "field"))]
+fn cmd_document_capabilities(_input: &Path) -> Result<()> {
+    Err(Error::unsupported_feature(
+        "document capabilities require a build with the field feature",
+    ))
 }
 
 fn describe_op(op: &Op) -> String {
@@ -1375,6 +1419,14 @@ struct FieldArgs {
     byte_range: Option<(u64, u64)>,
     kind: Option<String>,
     text: Option<String>,
+    metadata: bool,
+    doc_text: bool,
+    heading: Option<u32>,
+    block: Option<u32>,
+    table: Option<u32>,
+    cell: Option<(u32, u32, u32)>,
+    resource: Option<u32>,
+    link: Option<u32>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     analyze: bool,
@@ -1474,6 +1526,49 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             }
             "--kind" => out.kind = Some(field_arg_value(args, &mut i, "--kind", inline)?),
             "--text" => out.text = Some(field_arg_value(args, &mut i, "--text", inline)?),
+            "--metadata" => {
+                out.metadata = true;
+                i += 1;
+            }
+            "--doc-text" => {
+                out.doc_text = true;
+                i += 1;
+            }
+            "--heading" => {
+                out.heading = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--heading", inline)?,
+                    "--heading",
+                )?);
+            }
+            "--block" => {
+                out.block = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--block", inline)?,
+                    "--block",
+                )?);
+            }
+            "--table" => {
+                out.table = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--table", inline)?,
+                    "--table",
+                )?);
+            }
+            "--cell" => {
+                out.cell = Some(parse_cell_triple(&field_arg_value(
+                    args, &mut i, "--cell", inline,
+                )?)?);
+            }
+            "--resource" => {
+                out.resource = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--resource", inline)?,
+                    "--resource",
+                )?);
+            }
+            "--link" => {
+                out.link = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--link", inline)?,
+                    "--link",
+                )?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -1522,6 +1617,21 @@ fn parse_field_range(value: &str) -> Result<(u64, u64)> {
 }
 
 #[cfg(feature = "field")]
+fn parse_cell_triple(value: &str) -> Result<(u32, u32, u32)> {
+    let parts: Vec<&str> = value.split(':').collect();
+    if parts.len() != 3 {
+        return Err(Error::usage("--cell must be TABLE:ROW:COL (e.g. 0:1:1)"));
+    }
+    let mut out = [0u32; 3];
+    for (i, p) in parts.iter().enumerate() {
+        out[i] = p
+            .parse()
+            .map_err(|_| Error::usage(format!("--cell component {p:?} is not a u32")))?;
+    }
+    Ok((out[0], out[1], out[2]))
+}
+
+#[cfg(feature = "field")]
 fn field_selector(out: &FieldArgs) -> Result<Selector> {
     let mut chosen: Vec<Selector> = Vec::new();
     if let Some(n) = out.page {
@@ -1540,7 +1650,31 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         chosen.push(Selector::ByteRange { offset, len });
     }
     if let Some(text) = &out.text {
-        chosen.push(Selector::TextMatch(text.clone()));
+        chosen.push(Selector::SearchMatch(text.clone()));
+    }
+    if out.metadata {
+        chosen.push(Selector::Metadata);
+    }
+    if out.doc_text {
+        chosen.push(Selector::Text);
+    }
+    if let Some(n) = out.heading {
+        chosen.push(Selector::Heading(n));
+    }
+    if let Some(n) = out.block {
+        chosen.push(Selector::Block(n));
+    }
+    if let Some(n) = out.table {
+        chosen.push(Selector::Table(n));
+    }
+    if let Some((table, row, col)) = out.cell {
+        chosen.push(Selector::Cell { table, row, col });
+    }
+    if let Some(n) = out.resource {
+        chosen.push(Selector::Resource(n));
+    }
+    if let Some(n) = out.link {
+        chosen.push(Selector::Link(n));
     }
     match chosen.len() {
         0 => Err(Error::usage("exactly one selector flag is required")),
@@ -1715,8 +1849,33 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
         .ok_or_else(|| Error::usage("field-ingest requires --store DIR"))?;
     let bytes = fs::read(input)?;
     let mut store = open_field_store(store_dir, out.entropyfs)?;
-    let r = field_ingest::ingest_pdf(&mut store, &bytes, limits)?;
-    store.sync()?;
+    // Universal ingest: detect the format from bytes and invert with the right
+    // adapter. Without the `package` feature only the PDF/opaque lane exists.
+    #[cfg(feature = "package")]
+    {
+        match field_ingest::ingest(&mut store, &bytes, limits)? {
+            field_ingest::IngestOutcome::Package(r) => {
+                store.sync()?;
+                print_package_ingest(&r);
+            }
+            field_ingest::IngestOutcome::Pdf(r) => {
+                store.sync()?;
+                print_pdf_ingest(&r);
+            }
+        }
+        Ok(())
+    }
+    #[cfg(not(feature = "package"))]
+    {
+        let r = field_ingest::ingest_pdf(&mut store, &bytes, limits)?;
+        store.sync()?;
+        print_pdf_ingest(&r);
+        Ok(())
+    }
+}
+
+#[cfg(feature = "field")]
+fn print_pdf_ingest(r: &field_ingest::IngestReport) {
     let index_root = match r.index_root {
         Some(id) => format!("\"{}\"", id.to_hex()),
         None => "null".to_string(),
@@ -1724,6 +1883,7 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
     println!(
         concat!(
             "{{",
+            "\"format\":\"{}\",",
             "\"field\":\"{}\",",
             "\"root_node\":\"{}\",",
             "\"index_root\":{},",
@@ -1738,6 +1898,7 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
             "\"declined_streams\":{}",
             "}}"
         ),
+        r.format.name(),
         r.field.to_hex(),
         r.root_node.to_hex(),
         index_root,
@@ -1751,7 +1912,48 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
         r.revision_nodes,
         r.declined_streams,
     );
-    Ok(())
+}
+
+#[cfg(all(feature = "field", feature = "package"))]
+fn print_package_ingest(r: &vole_document::field::ingest_package::PackageIngestReport) {
+    let index_root = match r.index_root {
+        Some(id) => format!("\"{}\"", id.to_hex()),
+        None => "null".to_string(),
+    };
+    println!(
+        concat!(
+            "{{",
+            "\"format\":\"{}\",",
+            "\"field\":\"{}\",",
+            "\"root_node\":\"{}\",",
+            "\"index_root\":{},",
+            "\"node_count\":{},",
+            "\"index_node_count\":{},",
+            "\"source_len\":{},",
+            "\"member_count\":{},",
+            "\"raw_nodes\":{},",
+            "\"decoded_nodes\":{},",
+            "\"declined_decodes\":{},",
+            "\"opc_model_nodes\":{},",
+            "\"docx_model_nodes\":{},",
+            "\"epub_model_nodes\":{}",
+            "}}"
+        ),
+        r.format.name(),
+        r.field.to_hex(),
+        r.root_node.to_hex(),
+        index_root,
+        r.node_count,
+        r.index_node_count,
+        r.source_len,
+        r.member_count,
+        r.raw_nodes,
+        r.decoded_nodes,
+        r.declined_decodes,
+        r.opc_model_nodes,
+        r.docx_model_nodes,
+        r.epub_model_nodes,
+    );
 }
 
 #[cfg(feature = "field")]
@@ -1865,7 +2067,9 @@ fn cmd_field_find(args: &[String], limits: Limits) -> Result<()> {
         .ok_or_else(|| Error::usage("find requires --text PATTERN"))?;
     let mut store = open_field_store(store_dir, out.entropyfs)?;
     let id = FieldId::from_hex(field_hex)?;
-    let req = observe_request(&out, Selector::TextMatch(text), Representation::Text);
+    // Format-agnostic lexical find: the common `SearchMatch` selector dispatches
+    // through the detected format's adapter (Phase 12.7).
+    let req = observe_request(&out, Selector::SearchMatch(text), Representation::Text);
     let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
     store.sync()?;
     println!("{}", field_answer_json(&answer, &stats, &field));
@@ -1893,15 +2097,18 @@ fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, selector, representation);
     if out.analyze {
-        let planned_json = {
-            let manifest = store.get_field(&id)?;
-            explain(&manifest, &store, &req)?.json
-        };
+        let manifest = store.get_field(&id)?;
+        let planned_json = explain(&manifest, &store, &req)?.json;
+        let fmt = vole_document::field::document_format::DocumentFormat::from_provenance(
+            &manifest.provenance,
+        );
+        let format_name = fmt.map_or("unknown", |f| f.name());
+        let adapter = fmt.map_or("unknown", |f| f.adapter());
         let (answer, stats, promoted) = observe(&mut store, &id, &req, limits)?;
         println!(
             "{{\"plan\":{},\"actual\":{}}}",
             planned_json,
-            explain_actual_json(&stats, &answer, &promoted)
+            explain_actual_json(&stats, &answer, &promoted, format_name, adapter)
         );
     } else {
         let manifest = store.get_field(&id)?;
@@ -1916,16 +2123,26 @@ fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
 /// the promoted field id, the per-class physical byte counts (review fix #1),
 /// and the reuse counters (11.8).
 #[cfg(feature = "field")]
-fn explain_actual_json(stats: &ObserveStats, answer: &FieldAnswer, field: &FieldId) -> String {
+fn explain_actual_json(
+    stats: &ObserveStats,
+    answer: &FieldAnswer,
+    field: &FieldId,
+    format: &str,
+    adapter: &str,
+) -> String {
     format!(
         concat!(
             "{{",
             "\"field\":\"{}\",",
+            "\"format\":\"{}\",",
+            "\"adapter\":\"{}\",",
             "\"index_nodes_read\":{},",
             "\"seed_nodes_fetched\":{},",
             "\"seed_nodes_materialized\":{},",
             "\"seed_nodes_executed\":{},",
             "\"seed_nodes_reused\":{},",
+            "\"member_decodes\":{},",
+            "\"xml_parses\":{},",
             "\"cache_bytes_written\":{},",
             "\"descriptor_bytes_read\":{},",
             "\"descriptor_read_mode\":\"{}\",",
@@ -1935,17 +2152,22 @@ fn explain_actual_json(stats: &ObserveStats, answer: &FieldAnswer, field: &Field
             "\"bytes_read\":{},",
             "\"bytes_returned\":{},",
             "\"deepened\":{},",
+            "\"whole_source_materialized\":{},",
             "\"wall_micros\":{},",
             "\"basis\":\"{}\",",
             "\"exact\":{}",
             "}}"
         ),
         field.to_hex(),
+        json_escape(format),
+        json_escape(adapter),
         stats.index_nodes_read,
         stats.seed_nodes_fetched,
         stats.seed_nodes_materialized,
         stats.seed_nodes_executed,
         stats.seed_nodes_reused,
+        stats.member_decodes,
+        stats.xml_parses,
         stats.cache_bytes_written,
         stats.descriptor_bytes_read,
         stats.descriptor_read_mode.name(),
@@ -1955,6 +2177,7 @@ fn explain_actual_json(stats: &ObserveStats, answer: &FieldAnswer, field: &Field
         stats.bytes_read,
         stats.bytes_returned,
         stats.deepened,
+        answer.integrity_scope == vole_document::field::provenance::IntegrityScope::WholeSource,
         stats.wall_micros,
         answer.basis.name(),
         answer.exact,

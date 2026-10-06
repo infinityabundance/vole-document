@@ -7,12 +7,20 @@
 //!
 //! The JSON key sets are frozen and exact:
 //!
-//! * plan   — `selector`, `representation`, `shape`, `index_reads`,
-//!   `required_nodes`, `will_materialize`, `will_not_materialize`.
-//! * actual — `index_nodes_read`, `seed_nodes_fetched`, `seed_nodes_materialized`,
+//! * plan   — `selector`, `representation`, `format`, `adapter`, `capability`,
+//!   `index_route`, `shape`, `index_reads`, `required_nodes`,
+//!   `will_materialize`, `will_not_materialize`.
+//! * actual — `format`, `adapter`, `index_nodes_read`, `seed_nodes_fetched`,
+//!   `seed_nodes_materialized`, `member_decodes`, `xml_parses`,
 //!   `descriptor_bytes_read`, `descriptor_read_mode`, `manifest_bytes_read`,
 //!   `index_bytes_read`, `seed_bytes_read`, `bytes_read`, `bytes_returned`,
-//!   `deepened`, `wall_micros`, `basis`, `exact`.
+//!   `deepened`, `whole_source_materialized`, `wall_micros`, `basis`, `exact`.
+//!
+//! `format`/`adapter` are the detected format and its adapter; `capability` is the
+//! resolved path (`native`, or `common:<selector> -> <adapter>`); `index_route` is
+//! `hier-index`/`none`. `member_decodes`/`xml_parses` are observation-boundary
+//! materialization requests (see [`ObserveStats`]); `whole_source_materialized` is
+//! yes exactly when the answer verified whole-source integrity.
 //!
 //! `bytes_read` is the **sum** of the four `*_bytes_read` classes: total physical
 //! bytes this observation made the OS fetch, including the descriptor blob. It is
@@ -20,10 +28,11 @@
 //! review (ADR-0027 accounting).
 
 use crate::error::Result;
+use crate::field::document_format::DocumentFormat;
 use crate::field::manifest::FieldRoot;
 use crate::field::observe::{ObserveRequest, ObserveStats, OpenedField, observe_opened};
 use crate::field::plan::{ObservePlan, plan};
-use crate::field::provenance::{Basis, json_escape};
+use crate::field::provenance::{Basis, IntegrityScope, json_escape};
 use crate::field::{FieldId, FieldStore};
 use crate::limits::Limits;
 
@@ -45,6 +54,12 @@ pub struct ExplainActual {
     pub answer_basis: Basis,
     /// Whether the answer was exact.
     pub exact: bool,
+    /// The detected document format (`"unknown"` when the manifest predates it).
+    pub format: String,
+    /// The adapter that served the answer.
+    pub adapter: String,
+    /// Whether the whole source was materialized (whole-source integrity checked).
+    pub whole_source_materialized: bool,
 }
 
 impl ExplainActual {
@@ -54,9 +69,13 @@ impl ExplainActual {
         format!(
             concat!(
                 "{{",
+                "\"format\":\"{}\",",
+                "\"adapter\":\"{}\",",
                 "\"index_nodes_read\":{},",
                 "\"seed_nodes_fetched\":{},",
                 "\"seed_nodes_materialized\":{},",
+                "\"member_decodes\":{},",
+                "\"xml_parses\":{},",
                 "\"descriptor_bytes_read\":{},",
                 "\"descriptor_read_mode\":\"{}\",",
                 "\"manifest_bytes_read\":{},",
@@ -65,14 +84,19 @@ impl ExplainActual {
                 "\"bytes_read\":{},",
                 "\"bytes_returned\":{},",
                 "\"deepened\":{},",
+                "\"whole_source_materialized\":{},",
                 "\"wall_micros\":{},",
                 "\"basis\":\"{}\",",
                 "\"exact\":{}",
                 "}}"
             ),
+            json_escape(&self.format),
+            json_escape(&self.adapter),
             s.index_nodes_read,
             s.seed_nodes_fetched,
             s.seed_nodes_materialized,
+            s.member_decodes,
+            s.xml_parses,
             s.descriptor_bytes_read,
             s.descriptor_read_mode.name(),
             s.manifest_bytes_read,
@@ -81,6 +105,7 @@ impl ExplainActual {
             s.bytes_read,
             s.bytes_returned,
             s.deepened,
+            self.whole_source_materialized,
             s.wall_micros,
             self.answer_basis.name(),
             self.exact,
@@ -95,7 +120,7 @@ pub fn explain(
     req: &ObserveRequest,
 ) -> Result<ExplainPlan> {
     let plan = plan(manifest, store, req)?;
-    let json = plan_json(req, &plan);
+    let json = plan_json(req, &plan, manifest);
     Ok(ExplainPlan { plan, json })
 }
 
@@ -114,13 +139,17 @@ pub fn explain_analyze(
     let started = std::time::Instant::now();
     let opened = OpenedField::open(store, id, req, limits)?;
     let planned = plan(opened.manifest(), store, req)?;
-    let json = plan_json(req, &planned);
+    let json = plan_json(req, &planned, opened.manifest());
     let (answer, mut stats, _) = observe_opened(store, &opened, req, limits)?;
     stats.wall_micros = started.elapsed().as_micros().min(u128::from(u64::MAX)) as u64;
+    let fmt = DocumentFormat::from_provenance(&opened.manifest().provenance);
     let actual = ExplainActual {
         stats,
         answer_basis: answer.basis,
         exact: answer.exact,
+        format: fmt.map_or("unknown", |f| f.name()).to_string(),
+        adapter: fmt.map_or("unknown", |f| f.adapter()).to_string(),
+        whole_source_materialized: answer.integrity_scope == IntegrityScope::WholeSource,
     };
     Ok((
         ExplainPlan {
@@ -131,12 +160,28 @@ pub fn explain_analyze(
     ))
 }
 
-fn plan_json(req: &ObserveRequest, plan: &ObservePlan) -> String {
+fn plan_json(req: &ObserveRequest, plan: &ObservePlan, manifest: &FieldRoot) -> String {
+    let fmt = DocumentFormat::from_provenance(&manifest.provenance);
+    let format_name = fmt.map_or("unknown", |f| f.name());
+    let adapter = fmt.map_or("unknown", |f| f.adapter());
+    let capability = match crate::field::capabilities::common_selector_name(&req.selector) {
+        Some(name) => format!("common:{name} -> {adapter}"),
+        None => "native".to_string(),
+    };
+    let index_route = if manifest.has_index() {
+        "hier-index"
+    } else {
+        "none"
+    };
     format!(
         concat!(
             "{{",
             "\"selector\":\"{}\",",
             "\"representation\":\"{}\",",
+            "\"format\":\"{}\",",
+            "\"adapter\":\"{}\",",
+            "\"capability\":\"{}\",",
+            "\"index_route\":\"{}\",",
             "\"shape\":\"{}\",",
             "\"index_reads\":{},",
             "\"required_nodes\":{},",
@@ -146,6 +191,10 @@ fn plan_json(req: &ObserveRequest, plan: &ObservePlan) -> String {
         ),
         json_escape(&req.selector.canonical()),
         json_escape(req.representation.name()),
+        json_escape(format_name),
+        json_escape(adapter),
+        json_escape(&capability),
+        index_route,
         plan.shape.name(),
         plan.index_reads,
         plan.required_nodes,
@@ -168,15 +217,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn actual_json_has_exactly_the_fifteen_keys() {
+    fn actual_json_has_exactly_the_documented_keys() {
         let actual = ExplainActual {
             stats: ObserveStats::default(),
             answer_basis: Basis::DirectlyObserved,
             exact: true,
+            format: "unknown".to_string(),
+            adapter: "unknown".to_string(),
+            whole_source_materialized: false,
         };
         assert_eq!(
             actual.to_json(),
-            "{\"index_nodes_read\":0,\"seed_nodes_fetched\":0,\"seed_nodes_materialized\":0,\"descriptor_bytes_read\":0,\"descriptor_read_mode\":\"full\",\"manifest_bytes_read\":0,\"index_bytes_read\":0,\"seed_bytes_read\":0,\"bytes_read\":0,\"bytes_returned\":0,\"deepened\":false,\"wall_micros\":0,\"basis\":\"directly-observed\",\"exact\":true}"
+            "{\"format\":\"unknown\",\"adapter\":\"unknown\",\"index_nodes_read\":0,\"seed_nodes_fetched\":0,\"seed_nodes_materialized\":0,\"member_decodes\":0,\"xml_parses\":0,\"descriptor_bytes_read\":0,\"descriptor_read_mode\":\"full\",\"manifest_bytes_read\":0,\"index_bytes_read\":0,\"seed_bytes_read\":0,\"bytes_read\":0,\"bytes_returned\":0,\"deepened\":false,\"whole_source_materialized\":false,\"wall_micros\":0,\"basis\":\"directly-observed\",\"exact\":true}"
         );
     }
 

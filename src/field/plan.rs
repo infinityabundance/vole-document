@@ -12,6 +12,7 @@
 
 use crate::error::{Error, Result};
 use crate::field::FieldStore;
+use crate::field::document_format::DocumentFormat;
 use crate::field::index::{FsIndexStore, IndexEntry, SEL_PAGE, SelectorKey, lookup};
 use crate::field::manifest::FieldRoot;
 use crate::store::NodeId;
@@ -68,6 +69,12 @@ pub struct ObservePlan {
 
 /// Plan an observation. Pure: no materialization and no writes.
 pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> Result<ObservePlan> {
+    // Common (format-neutral) selectors plan through the detected format's
+    // capability set, so an unsupported pair fails closed here exactly as it does
+    // at evaluation time (Phase 12.7).
+    if req.selector.is_common() {
+        return common_plan(manifest, req);
+    }
     use Representation as R;
     match (&req.selector, req.representation) {
         (Selector::Document, R::FullDocument | R::ExactBytes) => Ok(ObservePlan {
@@ -272,6 +279,62 @@ fn index_plan(kind: &str) -> ObservePlan {
         required_nodes: 1,
         will_materialize: kinds(&[kind]),
         will_not_materialize: kinds(&["images", "xobjects", "PageContent", "whole-document"]),
+    }
+}
+
+/// Plan a common (format-neutral) observation. Pure and capability-checked: an
+/// unsupported pair fails closed with the same typed error the evaluator raises.
+fn common_plan(manifest: &FieldRoot, req: &ObserveRequest) -> Result<ObservePlan> {
+    use crate::field::capabilities;
+    let fmt = DocumentFormat::from_provenance(&manifest.provenance).ok_or_else(|| {
+        Error::unsupported_feature(
+            "field manifest does not record a document format; common observations are unavailable",
+        )
+    })?;
+    if !capabilities::common_supported(fmt, &req.selector, req.representation) {
+        return Err(Error::unsupported_feature(format!(
+            "unsupported common observation: format {} does not support selector {} with representation {}",
+            fmt.name(),
+            req.selector.canonical(),
+            req.representation.name()
+        )));
+    }
+    // Document metadata is answered from already-validated state; every other
+    // common observation materializes the format's model/content closure.
+    if matches!(req.selector, Selector::Metadata) {
+        return Ok(ObservePlan {
+            shape: PlanShape::CachedObservation,
+            index_reads: 0,
+            required_nodes: 0,
+            will_materialize: Vec::new(),
+            will_not_materialize: kinds(&["whole-document", "seed-nodes"]),
+        });
+    }
+    Ok(ObservePlan {
+        shape: PlanShape::DeepenThenObserve,
+        index_reads: 2,
+        required_nodes: 4,
+        will_materialize: kinds(common_materialize(fmt)),
+        will_not_materialize: kinds(&["other-spine-items", "other-stories", "whole-document"]),
+    })
+}
+
+fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
+    match fmt {
+        DocumentFormat::Pdf => &["PageContent", "TextRuns"],
+        DocumentFormat::Docx => &[
+            "DocxModel",
+            "DocxStory",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Epub => &[
+            "EpubModel",
+            "EpubContent",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Opaque => &[],
     }
 }
 

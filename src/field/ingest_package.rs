@@ -50,6 +50,8 @@ const FLAG_ENCRYPTED: u16 = 0x0001;
 /// What one package ingest recovered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackageIngestReport {
+    /// The detected document format (byte-based, Phase 12.7).
+    pub format: crate::field::document_format::DocumentFormat,
     /// The field id, whose manifest binds the recovered index.
     pub field: FieldId,
     /// The exact `PackageRoot` node id.
@@ -117,6 +119,8 @@ pub fn ingest_package(
     let parsed = Descriptor::parse(&observable, limits)?;
     let source = crate::materialize::materialize(&parsed, limits)?;
     let source_len = source.len() as u64;
+    // Byte-based format detection (never a file name), recorded in the manifest.
+    let detected_format = crate::field::document_format::detect_document_format(&source, limits);
     let descriptor_id = store.put_descriptor(&observable)?;
 
     // The physical cover is the authority; `reemits` proves the cover is an exact
@@ -328,7 +332,8 @@ pub fn ingest_package(
         node_count,
         index_node_count,
         provenance: format!(
-            "field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={}",
+            "{}field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={}",
+            detected_format.provenance_prefix(),
             physical.members.len(),
             raw_nodes,
             decoded_nodes,
@@ -341,6 +346,7 @@ pub fn ingest_package(
     let field = store.put_field(&manifest)?;
 
     Ok(PackageIngestReport {
+        format: detected_format,
         field,
         root_node: root_id,
         index_root,
