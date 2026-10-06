@@ -211,13 +211,30 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
         }),
         #[cfg(feature = "epub")]
         (Selector::EpubManifestItem { .. }, R::Metadata)
-        | (Selector::EpubSpineItem { .. }, R::Metadata | R::Structure)
+        | (Selector::EpubSpineItem { .. }, R::Metadata)
         | (Selector::EpubResource(_), R::Metadata) => Ok(ObservePlan {
             shape: PlanShape::DeepenThenObserve,
             index_reads: 1,
             required_nodes: 2,
             will_materialize: kinds(&["EpubModel"]),
             will_not_materialize: kinds(&["external-targets", "whole-document"]),
+        }),
+        #[cfg(feature = "epub")]
+        (Selector::EpubSpineItem { .. }, R::Text | R::Structure | R::Preview)
+        | (Selector::EpubBlock { .. }, R::Text | R::Metadata | R::Structure)
+        | (Selector::EpubCell { .. }, R::Text | R::Metadata)
+        | (Selector::EpubLink { .. }, R::Metadata)
+        | (Selector::EpubFind { .. }, R::Text) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 4,
+            will_materialize: kinds(&[
+                "EpubModel",
+                "EpubContent",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-spine-items", "whole-document"]),
         }),
         #[cfg(feature = "epub")]
         (Selector::EpubManifestItem { .. }, R::ExactBytes | R::DecodedBytes)

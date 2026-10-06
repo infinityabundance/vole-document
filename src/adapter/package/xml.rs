@@ -53,6 +53,20 @@ pub(crate) fn doctype_declined() -> Error {
 /// Read an element's attributes once, bounded by `max_xml_attrs_per_element`,
 /// unescaping the five predefined/numeric character references.
 pub(crate) fn read_attrs(e: &BytesStart<'_>, limits: Limits) -> Result<Vec<(String, String)>> {
+    Ok(read_attrs_qualified(e, limits)?
+        .into_iter()
+        .map(|(qname, value)| (local_part(&qname).to_string(), value))
+        .collect())
+}
+
+/// Read an element's attributes once, preserving the **qualified** name (namespace
+/// prefix intact), bounded by `max_xml_attrs_per_element`. Callers that must
+/// distinguish `epub:type` from a bare HTML `type` use this; the prefix-stripping
+/// [`read_attrs`] is the common case.
+pub(crate) fn read_attrs_qualified(
+    e: &BytesStart<'_>,
+    limits: Limits,
+) -> Result<Vec<(String, String)>> {
     let mut out: Vec<(String, String)> = Vec::new();
     for attr in e.attributes() {
         if out.len() as u64 >= u64::from(limits.max_xml_attrs_per_element) {
@@ -60,7 +74,7 @@ pub(crate) fn read_attrs(e: &BytesStart<'_>, limits: Limits) -> Result<Vec<(Stri
         }
         let attr =
             attr.map_err(|err| Error::invalid_xml_structure(format!("bad attribute: {err}")))?;
-        let key = attr.key.local_name().as_ref().to_string();
+        let key = attr.key.as_ref().to_string();
         let value = attr
             .normalized_value(XmlVersion::Implicit1_0)
             .map_err(|err| Error::invalid_xml_structure(format!("bad attribute value: {err}")))?
@@ -68,6 +82,11 @@ pub(crate) fn read_attrs(e: &BytesStart<'_>, limits: Limits) -> Result<Vec<(Stri
         out.push((key, value));
     }
     Ok(out)
+}
+
+/// The part of a qualified attribute name after the last `:` (the local name).
+fn local_part(qname: &str) -> &str {
+    qname.rsplit(':').next().unwrap_or(qname)
 }
 
 /// The value of the first attribute named `name` (namespace prefix stripped).

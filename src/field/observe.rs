@@ -175,6 +175,54 @@ pub enum Selector {
     /// through the manifest; external targets are inert and never fetched.
     #[cfg(feature = "epub")]
     EpubResource(String),
+    /// One block of a spine item's content document (Phase 12.6), by 0-based
+    /// document-order index into that item's parsed [`crate::adapter::epub::Block`]
+    /// list (heading/paragraph/list/table).
+    #[cfg(feature = "epub")]
+    EpubBlock {
+        /// The reading-order spine index.
+        index: u32,
+        /// The block index.
+        block: u32,
+        /// The reading profile identity.
+        profile: EpubExtractProfile,
+    },
+    /// One table cell of a spine item, addressed by **physical** position: the
+    /// 0-based table index among the item's tables, the 0-based `tr` index, and the
+    /// 0-based cell index within that row (spans are reported, never projected).
+    #[cfg(feature = "epub")]
+    EpubCell {
+        /// The reading-order spine index.
+        index: u32,
+        /// The 0-based table index.
+        table: u32,
+        /// The 0-based row index.
+        row: u32,
+        /// The 0-based physical cell index within the row.
+        col: u32,
+        /// The reading profile identity.
+        profile: EpubExtractProfile,
+    },
+    /// One link of a spine item's content document, by 0-based index.
+    #[cfg(feature = "epub")]
+    EpubLink {
+        /// The reading-order spine index.
+        index: u32,
+        /// The link index.
+        link: u32,
+        /// The reading profile identity.
+        profile: EpubExtractProfile,
+    },
+    /// A text search over one spine item's blocks, scoped by the reading profile.
+    #[cfg(feature = "epub")]
+    EpubFind {
+        /// The reading-order spine index.
+        index: u32,
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The reading profile identity.
+        profile: EpubExtractProfile,
+    },
 }
 
 impl Selector {
@@ -259,6 +307,41 @@ impl Selector {
             Selector::EpubNavNode { index } => format!("epub-nav-node:{index}"),
             #[cfg(feature = "epub")]
             Selector::EpubResource(name) => format!("epub-resource:{name}"),
+            #[cfg(feature = "epub")]
+            Selector::EpubBlock {
+                index,
+                block,
+                profile,
+            } => format!(
+                "epub-block:{index}:{block};profile={}",
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "epub")]
+            Selector::EpubCell {
+                index,
+                table,
+                row,
+                col,
+                profile,
+            } => format!(
+                "epub-cell:{index}:{table}:{row}:{col};profile={}",
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "epub")]
+            Selector::EpubLink {
+                index,
+                link,
+                profile,
+            } => format!("epub-link:{index}:{link};profile={}", profile.fingerprint()),
+            #[cfg(feature = "epub")]
+            Selector::EpubFind {
+                index,
+                pattern,
+                profile,
+            } => format!(
+                "epub-find:{index}:{pattern};profile={}",
+                profile.fingerprint()
+            ),
         }
     }
 }
@@ -1358,8 +1441,20 @@ impl<S: SeedStore> Ctx<'_, S> {
                 self.epub_manifest_item_bytes(req, *index)
             }
             #[cfg(feature = "epub")]
-            (Selector::EpubSpineItem { index, profile }, R::Metadata | R::Structure) => {
+            (Selector::EpubSpineItem { index, profile }, R::Metadata) => {
                 self.epub_spine_item_meta(req, *index, profile)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubSpineItem { index, profile }, R::Text) => {
+                self.epub_spine_item_text(req, *index, profile)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubSpineItem { index, profile }, R::Structure) => {
+                self.epub_spine_item_structure(req, *index, profile)
+            }
+            #[cfg(feature = "epub")]
+            (Selector::EpubSpineItem { index, profile }, R::Preview) => {
+                self.epub_spine_item_preview(req, *index, profile)
             }
             #[cfg(feature = "epub")]
             (Selector::EpubSpineItem { index, profile }, R::ExactBytes | R::DecodedBytes) => {
@@ -1375,6 +1470,44 @@ impl<S: SeedStore> Ctx<'_, S> {
             (Selector::EpubResource(name), R::ExactBytes | R::DecodedBytes) => {
                 self.epub_resource_bytes(req, name)
             }
+            #[cfg(feature = "epub")]
+            (
+                Selector::EpubBlock {
+                    index,
+                    block,
+                    profile,
+                },
+                R::Text | R::Metadata | R::Structure,
+            ) => self.epub_block(req, *index, *block, profile),
+            #[cfg(feature = "epub")]
+            (
+                Selector::EpubCell {
+                    index,
+                    table,
+                    row,
+                    col,
+                    profile,
+                },
+                R::Text | R::Metadata,
+            ) => self.epub_cell(req, *index, *table, *row, *col, profile),
+            #[cfg(feature = "epub")]
+            (
+                Selector::EpubLink {
+                    index,
+                    link,
+                    profile,
+                },
+                R::Metadata,
+            ) => self.epub_link(req, *index, *link, profile),
+            #[cfg(feature = "epub")]
+            (
+                Selector::EpubFind {
+                    index,
+                    pattern,
+                    profile,
+                },
+                R::Text,
+            ) => self.epub_find(req, *index, pattern, profile),
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
                 req.selector.canonical(),
@@ -2471,6 +2604,157 @@ fn epub_nav_json(index: u32, e: &crate::adapter::epub::NavEntry) -> String {
 }
 
 #[cfg(feature = "epub")]
+fn epub_block_json(index: u32, b: &crate::adapter::epub::Block) -> String {
+    use crate::adapter::epub::Block;
+    match b {
+        Block::Heading {
+            level,
+            id,
+            epub_type,
+            text,
+        } => format!(
+            "{{\"index\":{index},\"kind\":\"heading\",\"level\":{level},\"id\":{},\"epub_type\":{},\"text\":\"{}\"}}",
+            epub_opt_str(id.as_deref()),
+            epub_opt_str(epub_type.as_deref()),
+            json_escape(text)
+        ),
+        Block::Paragraph { text } => format!(
+            "{{\"index\":{index},\"kind\":\"paragraph\",\"text\":\"{}\"}}",
+            json_escape(text)
+        ),
+        Block::List { ordered, items } => format!(
+            "{{\"index\":{index},\"kind\":\"list\",\"ordered\":{ordered},\"items\":{}}}",
+            epub_str_array(items)
+        ),
+        Block::Table { rows } => format!(
+            "{{\"index\":{index},\"kind\":\"table\",\"rows\":{},\"cols\":{}}}",
+            rows.len(),
+            rows.first().map_or(0, |r| r.cells.len())
+        ),
+    }
+}
+
+#[cfg(feature = "epub")]
+fn epub_cell_json(table: u32, row: u32, col: u32, c: &crate::adapter::epub::Cell) -> String {
+    format!(
+        "{{\"table\":{table},\"row\":{row},\"col\":{col},\"header\":{},\"colspan\":{},\"rowspan\":{},\"text_len\":{}}}",
+        c.header,
+        c.colspan,
+        c.rowspan,
+        c.text.len()
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_link_json(index: u32, l: &crate::adapter::epub::Link) -> String {
+    format!(
+        "{{\"index\":{index},\"href\":\"{}\",\"text\":\"{}\",\"fragment\":{},\"member\":{},\"external\":{},\"epub_type\":{}}}",
+        json_escape(&l.href),
+        json_escape(&l.text),
+        epub_opt_str(l.fragment.as_deref()),
+        epub_opt_str(l.member.as_deref()),
+        l.external,
+        epub_opt_str(l.epub_type.as_deref())
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_resource_json(index: usize, r: &crate::adapter::epub::Resource) -> String {
+    format!(
+        "{{\"index\":{index},\"kind\":\"{}\",\"attr\":\"{}\",\"value\":\"{}\",\"member\":{},\"external\":{}}}",
+        json_escape(&r.kind),
+        json_escape(&r.attr),
+        json_escape(&r.value),
+        epub_opt_str(r.member.as_deref()),
+        r.external
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_section_json(index: usize, s: &crate::adapter::epub::Section) -> String {
+    format!(
+        "{{\"index\":{index},\"local\":\"{}\",\"epub_type\":{},\"depth\":{}}}",
+        json_escape(&s.local),
+        epub_opt_str(s.epub_type.as_deref()),
+        s.depth
+    )
+}
+
+#[cfg(feature = "epub")]
+fn epub_content_structure_json(
+    index: u32,
+    model: &crate::adapter::epub::ContentModel,
+    item: &ManifestItem,
+    profile: &EpubExtractProfile,
+) -> String {
+    let blocks = model
+        .blocks
+        .iter()
+        .enumerate()
+        .map(|(i, b)| epub_block_json(i as u32, b))
+        .collect::<Vec<_>>()
+        .join(",");
+    let headings = model
+        .blocks
+        .iter()
+        .enumerate()
+        .filter(|(_, b)| matches!(b, crate::adapter::epub::Block::Heading { .. }))
+        .map(|(i, b)| epub_block_json(i as u32, b))
+        .collect::<Vec<_>>()
+        .join(",");
+    let links = model
+        .links
+        .iter()
+        .enumerate()
+        .map(|(i, l)| epub_link_json(i as u32, l))
+        .collect::<Vec<_>>()
+        .join(",");
+    let resources = model
+        .resources
+        .iter()
+        .enumerate()
+        .map(|(i, r)| epub_resource_json(i, r))
+        .collect::<Vec<_>>()
+        .join(",");
+    let sections = model
+        .sections
+        .iter()
+        .enumerate()
+        .map(|(i, s)| epub_section_json(i, s))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        concat!(
+            "{{\"spine\":{},\"part\":\"{}\",\"profile\":\"{}\",\"root\":\"{}\",",
+            "\"body\":{},\"scripted\":{},\"xhtml_nodes\":{},",
+            "\"blocks\":[{}],\"headings\":[{}],\"links\":[{}],",
+            "\"resources\":[{}],\"fragments\":{},\"sections\":[{}]}}"
+        ),
+        index,
+        json_escape(item.resolved.as_deref().unwrap_or("")),
+        profile.fingerprint(),
+        json_escape(&model.root_local),
+        model.body_seen,
+        model.scripted,
+        model.xhtml_nodes,
+        blocks,
+        headings,
+        links,
+        resources,
+        epub_str_array(&model.fragments),
+        sections
+    )
+}
+
+#[cfg(feature = "epub")]
+type EpubContentView = (
+    crate::adapter::epub::ContentModel,
+    ManifestItem,
+    Option<(u64, u64)>,
+    Vec<NodeId>,
+);
+
+#[cfg(feature = "epub")]
 impl<S: SeedStore> Ctx<'_, S> {
     fn epub_model(&mut self) -> Result<EpubModel> {
         let entry = self.require_entry(SelectorKey::new(SEL_EPUB_MODEL, 0), "EPUB model")?;
@@ -2718,6 +3002,244 @@ impl<S: SeedStore> Ctx<'_, S> {
             Error::invalid_package_structure("EPUB spine item manifest index is out of range")
         })?;
         self.epub_item_bytes(req, &item)
+    }
+
+    /// Resolve a spine item to its parsed content model, parsing **only** that
+    /// item's XHTML member (plus the shared model/decoded member) and persisting
+    /// the derived content node in the disposable cache so later queries reuse it.
+    /// Nothing here parses any *other* spine item.
+    fn epub_content_view(
+        &mut self,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<EpubContentView> {
+        let doc = self.epub_package_doc()?;
+        let order = doc.reading_order(profile);
+        let mi = *order.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "no EPUB spine item {index} under profile {}",
+                profile.fingerprint()
+            ))
+        })?;
+        let item = doc.manifest.get(mi as usize).cloned().ok_or_else(|| {
+            Error::invalid_package_structure("EPUB spine item manifest index is out of range")
+        })?;
+        let ordinal = item.resolved_ordinal().ok_or_else(|| {
+            Error::invalid_package_structure(format!(
+                "EPUB spine item {:?} has no resolvable container member",
+                item.id
+            ))
+        })?;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, ordinal),
+            "EPUB spine content decoded bytes",
+        )?;
+        let base_dir = epub_dir_of(item.resolved.as_deref().unwrap_or(""));
+        let mut node = SeedNode::new(
+            NodeKind::EpubContent,
+            self.limits.max_output_bytes,
+            crate::adapter::epub::content_params(index, ordinal, &base_dir, profile),
+            vec![dec.node_id],
+            "epub:content",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let model = crate::adapter::epub::ContentModel::decode(&bytes)?;
+        let span = self.epub_member_span(Some(ordinal));
+        Ok((model, item, span, vec![id, dec.node_id]))
+    }
+
+    fn epub_spine_item_text(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let provenance = format!(
+            "epub;spine={index};part={};profile={};content",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        Ok(self.epub_answer(req, AnswerValue::Text(model.text()), provenance, span, deps))
+    }
+
+    fn epub_spine_item_structure(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let json = epub_content_structure_json(index, &model, &item, profile);
+        let provenance = format!(
+            "epub;spine={index};part={};profile={};structure",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        Ok(self.epub_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    fn epub_spine_item_preview(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let text = model.preview_text(
+            index,
+            item.resolved.as_deref().unwrap_or(""),
+            &profile.fingerprint(),
+        );
+        let provenance = format!(
+            "epub;spine={index};part={};profile={};preview",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        Ok(self.epub_answer(req, AnswerValue::Text(text), provenance, span, deps))
+    }
+
+    fn epub_block(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        block: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let b = model.blocks.get(block as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("EPUB spine item {index} has no block {block}"))
+        })?;
+        let provenance = format!(
+            "epub;spine={index};part={};block={block};profile={}",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(b.text()),
+            Representation::Metadata | Representation::Structure => {
+                AnswerValue::Json(epub_block_json(block, b))
+            }
+            _ => {
+                return Err(Error::unsupported_feature(format!(
+                    "unsupported observation: selector {} with representation {}",
+                    req.selector.canonical(),
+                    req.representation.name()
+                )));
+            }
+        };
+        Ok(self.epub_answer(req, value, provenance, span, deps))
+    }
+
+    fn epub_cell(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        table: u32,
+        row: u32,
+        col: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let t = model.table(table).ok_or_else(|| {
+            Error::unsupported_feature(format!("EPUB spine item {index} has no table {table}"))
+        })?;
+        let crate::adapter::epub::Block::Table { rows } = t else {
+            return Err(Error::internal_invariant(
+                "table selector resolved a non-table",
+            ));
+        };
+        let r = rows.get(row as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("EPUB table {table} has no row {row}"))
+        })?;
+        let c = r.cells.get(col as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("EPUB table {table} row {row} has no cell {col}"))
+        })?;
+        let provenance = format!(
+            "epub;spine={index};part={};table={table};row={row};col={col};profile={}",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(c.text.clone()),
+            Representation::Metadata => AnswerValue::Json(epub_cell_json(table, row, col, c)),
+            _ => {
+                return Err(Error::unsupported_feature(format!(
+                    "unsupported observation: selector {} with representation {}",
+                    req.selector.canonical(),
+                    req.representation.name()
+                )));
+            }
+        };
+        Ok(self.epub_answer(req, value, provenance, span, deps))
+    }
+
+    fn epub_link(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        link: u32,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let l = model.links.get(link as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("EPUB spine item {index} has no link {link}"))
+        })?;
+        let provenance = format!(
+            "epub;spine={index};part={};link={link};profile={}",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        Ok(self.epub_answer(
+            req,
+            AnswerValue::Json(epub_link_json(link, l)),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+
+    fn epub_find(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        pattern: &str,
+        profile: &EpubExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (model, item, span, deps) = self.epub_content_view(index, profile)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for (i, b) in model.blocks.iter().enumerate() {
+            let t = b.text();
+            if t.contains(pattern) {
+                estimated = estimated.saturating_add(t.len() as u64 + 48);
+                if estimated > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "EPUB find exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                items.push(format!(
+                    "{{\"block\":{i},\"kind\":\"{}\",\"text\":\"{}\"}}",
+                    b.kind(),
+                    json_escape(&t)
+                ));
+            }
+        }
+        let provenance = format!(
+            "epub;spine={index};part={};profile={};find",
+            item.resolved.as_deref().unwrap_or(""),
+            profile.fingerprint()
+        );
+        Ok(self.epub_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            span,
+            deps,
+        ))
     }
 
     fn epub_resource_meta(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {

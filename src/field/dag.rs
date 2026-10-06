@@ -536,6 +536,39 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::EpubContent => {
+            // One spine item's XHTML content document parsed into its bounded native
+            // model. Its single dependency is the decoded member node; the parse is
+            // bounded entirely inside `adapter::epub::content`. It never executes
+            // scripts and never fetches an external target.
+            #[cfg(feature = "epub")]
+            {
+                let (_spine, _ordinal, base_dir, _profile) =
+                    crate::adapter::epub::read_content_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("EpubContent has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::epub::parse_content(&bytes, &base_dir, limits)?.encode()
+            }
+            #[cfg(not(feature = "epub"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "EPUB support is not compiled in (feature `epub`)",
+                ));
+            }
+        }
         NodeKind::PdfStreamDecoded => {
             let dep = node
                 .deps

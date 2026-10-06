@@ -39,6 +39,13 @@ use crate::adapter::package::zip::{ZipMember, ZipPhysical, scan};
 use crate::error::{Error, Result};
 use crate::limits::Limits;
 
+pub mod content;
+
+pub use content::{
+    Block, Cell, ContentModel, Link, Resource, Section, TableRow, content_params, parse_content,
+    read_content_params,
+};
+
 /// The exact `mimetype` payload required by OCF.
 pub const EPUB_MIMETYPE: &str = "application/epub+zip";
 /// The mandatory OCF container descriptor member.

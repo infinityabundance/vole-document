@@ -79,6 +79,10 @@ pub enum NodeKind {
     /// derived on demand from the exact package source. Derived, never exact
     /// (Phase 12.5).
     EpubModel = 0x14,
+    /// One spine item's XHTML content document parsed into its bounded native
+    /// content model (headings/paragraphs/lists/tables/links/resources), honoring
+    /// a declared extraction profile. Derived, never exact (Phase 12.6).
+    EpubContent = 0x15,
 }
 
 impl NodeKind {
@@ -105,6 +109,7 @@ impl NodeKind {
             0x12 => NodeKind::DocxModel,
             0x13 => NodeKind::DocxStory,
             0x14 => NodeKind::EpubModel,
+            0x15 => NodeKind::EpubContent,
             _ => return None,
         })
     }
@@ -132,6 +137,7 @@ impl NodeKind {
             NodeKind::DocxModel => "DocxModel",
             NodeKind::DocxStory => "DocxStory",
             NodeKind::EpubModel => "EpubModel",
+            NodeKind::EpubContent => "EpubContent",
         }
     }
 
