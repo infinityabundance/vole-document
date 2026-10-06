@@ -1,0 +1,32 @@
+{
+  "question": "what is on page 1",
+  "baselines": {
+    "B0_whole_document": {
+      "oracle": "pdftotext (poppler)",
+      "bytes": 35868,
+      "sha256": "2cc2de6d14bf4e1e1a4e67f79f63cbdec2008db5b63caa1816ab46ba559145f0"
+    },
+    "B1_page_local": {
+      "oracle": "pdftotext -f/-l (poppler)",
+      "bytes": 91,
+      "sha256": "bd2af578e2e1eac00c0f399ba650ebc959bba2b713194b8316c45cfa5869ea38"
+    },
+    "V_vole_page_text": {
+      "repr": "observe --page --kind text",
+      "bytes": 65913,
+      "stats": "{\"index_nodes_read\":1,\"seed_nodes_fetched\":0,\"seed_nodes_materialized\":0,\"seed_nodes_executed\":0,\"seed_nodes_reused\":1,\"cache_bytes_written\":0,\"bytes_read\":0,\"bytes_returned\":65913,\"deepened\":false,\"wall_micros\":33562}"
+    }
+  },
+  "context_waste_ratio": 0.5441718629101998,
+  "ratios": {
+    "B0_over_V": 0.5441718629101998,
+    "B1_over_V": 0.0013806077708494531,
+    "B0_over_B1": 394.15384615384613
+  },
+  "tokens": null,
+  "tokens_reason": "no pinned offline tokenizer (no vendored BPE/model with a recorded SHA-256); UTF-8 bytes reported only, token counts not claimed",
+  "honest_losses": [
+    "V_page_text_larger_than_B1_page_local",
+    "V_page_text_larger_than_B0_whole_document"
+  ]
+}

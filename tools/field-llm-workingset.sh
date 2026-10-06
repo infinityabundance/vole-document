@@ -51,13 +51,13 @@ pdftotext -f "$PAGE" -l "$PAGE" "$PDF" "$TMP/b1.txt" 2>/dev/null || : > "$TMP/b1
 B1=$(wc -c < "$TMP/b1.txt" | tr -d ' ')
 B1_SHA=$(sha256sum "$TMP/b1.txt" | cut -d' ' -f1)
 
-# V — VOLE page text observation. Parse `bytes_returned` from the stats object
-# (the CLI emits the value before `"stats"`; the stats object itself is valid
-# JSON, so we isolate it rather than parse the whole malformed line).
+# V — VOLE page text observation. The `observe` JSON is now valid (the missing
+# comma before `"stats"` was fixed in 63f43fb), so it parses standalone with jq;
+# `bytes_returned` is the page-text byte count.
 V_RAW=$("$BIN" observe --store "$STORE" --field "$FIELD" --page "$PAGE" --kind text 2>/dev/null || true)
-V_STATS=$(printf '%s' "$V_RAW" | sed -n 's/.*"stats":\({[^}]*}\).*/\1/p')
-V=$(printf '%s' "$V_STATS" | sed -n 's/.*"bytes_returned":\([0-9][0-9]*\).*/\1/p')
-[ -n "$V" ] || V=0
+V_STATS=$(printf '%s' "$V_RAW" | jq -c '.stats' 2>/dev/null || echo '{}')
+V=$(printf '%s' "$V_RAW" | jq -r '.stats.bytes_returned' 2>/dev/null || echo 0)
+[ -n "$V" ] && [ "$V" != null ] || V=0
 
 # context_waste_ratio, stated precisely: bytes of whole-document extract divided
 # by bytes of the page-scoped VOLE answer. >1 means the whole-document baseline

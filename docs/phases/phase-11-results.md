@@ -1,11 +1,19 @@
 # Phase 11 — results (11.9 fair baselines, 11.10 LLM working set, 11.11 resilience + source removal)
 
-Branch: `phase11`. Commit under test: `b2658eb` (dirty: this phase's own new
-files; no `src/`, `tests/`, `fuzz/`, or `Cargo.*` change).
+Branch: `phase11`. Commit under test: `63f43fb` (plus this subphase's court
+re-run; no `src/`, `tests/`, `fuzz/`, or `Cargo.*` change beyond the
+`observe`-JSON comma fix already in `63f43fb`).
 
 Sealed receipt:
-`evidence/campaigns/2026-10-06-phase11-b2658eb/`
+`evidence/campaigns/2026-10-06-phase11-63f43fb/`
 (`receipt.json`, `SUMMARY.md`, `commands.txt`, `gates.txt`, `raw/`).
+
+A **first** run of this court (against `b2658eb`) exposed a defect in the
+committed field CLI: `observe`/`preview --json` omitted the comma before the
+`"stats"` object, so the whole line was not valid JSON. That was fixed in
+`src/main.rs` (commit `63f43fb`, this receipt): the `observe` output now parses
+standalone with `jq`, and each case cross-checks the parsed `stats` object
+against `explain --analyze` (they match).
 
 Everything below was measured in the pinned Docker services; nothing ran on the
 host. The field court runs in a new `db-baseline` service
@@ -60,6 +68,10 @@ process.
 * **Disposable cache.** After `cache --clear` (reclaiming 26,366,641 /
   3,298,225 / 305,123 B), the raw `preview` output SHA-256 is unchanged and
   observation remains correct — the cache is confirmed off-wire.
+* **`observe` JSON is valid and self-consistent.** The `observe`/`preview
+  --json` output now parses standalone with `jq`, and the parsed `stats` object
+  is byte-identical to the corresponding `explain --analyze` counters (excluding
+  `wall_micros`) for every case.
 
 ## Losses (recorded, not hidden)
 
@@ -95,10 +107,6 @@ process.
   Poppler; on the real producer document V is smaller. V is a bounded *heuristic
   text-run projection*, not Poppler reading-order extraction — the byte
   comparison is not a text-quality claim in either direction.
-* **Pre-existing CLI defect (not fixed here; `src/` is out of scope).** The
-  `observe`/`preview --json` output has a missing comma before `"stats"`, so the
-  whole line is not valid JSON. The court isolates the (valid) `"stats"` object
-  and uses `explain --analyze` (valid) for full stats.
 
 ## Tokens
 
@@ -118,7 +126,7 @@ claimed."* No tokenizer was installed, and no "tokens saved" is claimed.
 docker compose run --rm --no-TTY dev sh -c 'cargo build --all-features --locked'
 docker compose build db-baseline
 docker compose run --rm --no-TTY --user "$(id -u):$(id -g)" db-baseline \
-    sh tools/field-court.sh evidence/campaigns/2026-10-06-phase11-b2658eb
+    sh tools/field-court.sh evidence/campaigns/2026-10-06-phase11-63f43fb
 ```
 
 Environment recorded in the receipt: rustc `1.99.0 (b940084d7 2026-09-28)`,

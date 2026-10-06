@@ -1,0 +1,12 @@
+# Phase 11.9-11.11 gates — branch phase11
+# commit 63f43fb4bcde9b041f9fea727a56e0927b57b52a  (63f43fb)
+
+## dev: cargo build --all-features --locked
+ Container vole-document-dev-run-c8aeb4dfa215 Creating 
+ Container vole-document-dev-run-c8aeb4dfa215 Created 
+    Finished `dev` profile [optimized + debuginfo] target(s) in 0.02s
+
+## docker compose build db-baseline
+#15 resolving provenance for metadata file
+#15 DONE 0.0s
+ Image vole-document/db-baseline:1.99.0 Built 
