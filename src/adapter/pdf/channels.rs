@@ -64,6 +64,33 @@ pub const fn kind_from_id(id: u8) -> Option<SpanKind> {
     })
 }
 
+/// Coarse role id for a [`SpanKind`], used by the Phase-10 `ByRole` search
+/// partition. It maps the 12 fine kinds onto three roles — `0` structural
+/// (delimiters and names), `1` text (strings, comments, whitespace), `2` binary
+/// (bare regular tokens: numbers, operators, keywords).
+///
+/// Role ids are a strict subset of `0..KIND_COUNT`, so a plan built with
+/// [`split_role`] reuses the *same* payload-channel id space and the *same*
+/// [`join`] / `INTERLEAVE_CHANNELS` semantics as [`split`]: the decoder treats a
+/// kind id as an opaque payload-channel index, so a role partition is
+/// wire-legal with no decoder change.
+pub const fn role_id(k: SpanKind) -> u8 {
+    match k {
+        SpanKind::DictOpen
+        | SpanKind::DictClose
+        | SpanKind::ArrayOpen
+        | SpanKind::ArrayClose
+        | SpanKind::BraceOpen
+        | SpanKind::BraceClose
+        | SpanKind::Name => 0,
+        SpanKind::LiteralString
+        | SpanKind::HexString
+        | SpanKind::Comment
+        | SpanKind::Whitespace => 1,
+        SpanKind::Regular => 2,
+    }
+}
+
 /// A typed transposition of a byte stream into parallel channels.
 ///
 /// The three views are aligned: `kinds[i]` and `lengths[i]` describe token `i`,
@@ -102,6 +129,30 @@ impl TokenChannelPlan {
 /// plan. The concatenated payload is exactly `input.len()` bytes, so work is also
 /// bounded by `limits.max_output_bytes`.
 pub fn split(input: &[u8], limits: Limits) -> Result<Option<TokenChannelPlan>> {
+    split_with(input, limits, kind_id)
+}
+
+/// Split `input` into the three-role coarse partition of [`role_id`].
+///
+/// This is the `ByRole` variant of [`split`]: the same exact phase-3.1 cover is
+/// transposed using [`role_id`] instead of [`kind_id`], so the resulting plan
+/// reuses the same `KIND_COUNT` payload-channel space (only roles `0..=2` are
+/// non-empty) and is reconstructed by the *unmodified* [`join`].
+///
+/// It is a pure re-labelling of the same cover, so it is byte-exact by the same
+/// partition argument as [`split`]. Used only by the encoder-side Phase-10
+/// search governor; nothing on the decode path references it.
+pub fn split_role(input: &[u8], limits: Limits) -> Result<Option<TokenChannelPlan>> {
+    split_with(input, limits, role_id)
+}
+
+/// Shared implementation of [`split`] / [`split_role`]: lex the exact cover and
+/// transpose it using `map` for the per-token kind byte.
+fn split_with(
+    input: &[u8],
+    limits: Limits,
+    map: fn(SpanKind) -> u8,
+) -> Result<Option<TokenChannelPlan>> {
     // The payloads together hold exactly `input.len()` bytes; refuse to build a
     // plan whose represented bytes exceed the declared output bound.
     if input.len() as u64 > limits.max_output_bytes {
@@ -131,7 +182,7 @@ pub fn split(input: &[u8], limits: Limits) -> Result<Option<TokenChannelPlan>> {
     for span in spans {
         let len = u32::try_from(span.len)
             .map_err(|_| Error::resource_limit(format!("span length {} exceeds u32", span.len)))?;
-        let id = kind_id(span.kind);
+        let id = map(span.kind);
         let start = span.start as usize;
         let end = start + span.len as usize;
         plan.kinds.push(id);

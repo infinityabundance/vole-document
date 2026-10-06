@@ -3,6 +3,12 @@
 pub mod candidates;
 pub mod court;
 
+/// Encoder-only search governance, compiled only under the non-default,
+/// dependency-free `dsfb-search` feature. Encoder-only: the decode path never
+/// imports it (see `docs/adr/0022-encoder-only-search-governance.md`).
+#[cfg(feature = "dsfb-search")]
+pub mod governor;
+
 use crate::accounting::CostBreakdown;
 use crate::encode::candidates::CandidateKind;
 use crate::error::{Error, Result};
