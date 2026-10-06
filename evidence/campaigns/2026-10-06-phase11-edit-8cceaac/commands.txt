@@ -1,0 +1,21 @@
+# Phase 11.12 immutable node-level edit court — exact commands
+# Commit under test: 8cceaaced3f3ceb29cf51bbc47cac48d11d91289 (branch phase11); dirty: 
+# All commands run inside the pinned, capped db-baseline image; nothing on the host.
+
+docker compose build db-baseline
+docker compose run --rm --no-TTY dev sh -c 'cargo build --all-features --locked'
+docker compose run --rm --no-TTY -e HOST_IMAGE_ID=<db-baseline image id> db-baseline \
+    sh tools/field-edit-court.sh evidence/campaigns/2026-10-06-phase11-edit-8cceaac
+
+# Inside the court:
+#   $BIN encode PRODUCER /tmp/tmp.oQcyKFyjNw/doc.voldoc
+#   $BIN field-ingest /tmp/tmp.oQcyKFyjNw/doc.voldoc --store /tmp/tmp.oQcyKFyjNw/store            # -> R0
+#   $BIN materialize --store /tmp/tmp.oQcyKFyjNw/store --field R0 --exact --output r0-before.bin
+#   $BIN observe --store /tmp/tmp.oQcyKFyjNw/store --field R0 --page 1 --kind text
+#   strace -f -e trace=openat,open,read,pread64 -o edit.strace \
+#     $BIN field-edit --store /tmp/tmp.oQcyKFyjNw/store --field R0 --page 1 --content edit-content.bin   # -> R1
+#   $BIN materialize --store /tmp/tmp.oQcyKFyjNw/store --field R0 --exact --output r0-after.bin
+#   $BIN materialize --store /tmp/tmp.oQcyKFyjNw/store --field R1 --exact --output r1.bin
+#   $BIN observe --store /tmp/tmp.oQcyKFyjNw/store --field R1 --page 1 --kind text
+#   $BIN observe --store /tmp/tmp.oQcyKFyjNw/store --field R1 --page 2 --kind text
+#   grep -Ec '/descriptor/[0-9a-f]{64}' edit.strace                      # -> 0

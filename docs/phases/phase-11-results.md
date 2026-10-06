@@ -407,3 +407,68 @@ dominates within N ≤ 1,000.
 * **Dependency-cache integrity still fails closed.** The probe mirrors
   `materialize_inner`'s guard exactly: a cache error or oversized entry is a
   miss, never wrong bytes, and a poisoned cache forces recomputation.
+
+## Immutable edit witness (Phase 11.12)
+
+Receipt: [`evidence/campaigns/2026-10-06-phase11-edit-8cceaac/`](../../evidence/campaigns/2026-10-06-phase11-edit-8cceaac/SUMMARY.md).
+
+The procedural field is a **document-field trajectory**, not a stack of unrelated
+whole-document snapshots. `field::edit::replace_page_content` implements one
+narrow, immutable, content-addressed edit: it installs caller-supplied bytes as
+the decoded content of one existing page of an indexed field and mints a new
+root `R1` that structurally shares all unaffected procedural state with `R0`.
+
+**What is genuinely shared vs copied (one edit, real producer PDF).** Input:
+`evidence/corpus/phase7-producers/libreoffice-export.pdf` (74,371 B, 61 pages,
+sha256 `a853f8e2…`). Edit page 1's decoded content to a 54 B one-operator stream.
+
+| quantity | value |
+|---|---:|
+| index entries carried forward unchanged (same key, same node id) | 318 |
+| index entries replaced (the edited page) | 1 |
+| index tree nodes that already existed (not rewritten) | 2 |
+| index tree nodes written anew | 2 |
+| new seed nodes (`Literal` + `PageContent`) | 2 |
+| payload bytes newly persisted (all nodes + manifest) | 8,776 |
+| descriptor bytes read by the edit | 0 |
+| descriptor blobs opened by the edit (`strace`) | 0 |
+| manifest bytes read by the edit | 246 |
+| index bytes read by the edit | 43,688 |
+
+Shared **by id, never rewritten**: the descriptor blob, the `DocumentExact`
+root, every unaffected `PageContent`/`PdfObject`/`PdfStreamEncoded`/
+`PdfStreamDecoded` node, and every index node that already existed. Newly
+written: two seed nodes, the index leaf holding the edited page and the internal
+spine above it, and one manifest. The edit reads **no descriptor bytes** and, as
+witnessed by `strace`, opens **no descriptor blob** — no re-parse and no re-bake
+of the old document.
+
+**Exactness.** `R0` before the edit, `R0` after the edit, and `R1` all
+materialize the original 74,371 bytes with matching length, matching SHA-256
+(`a853f8e2…`) and `cmp`-equal bytes. The exact archive is untouched by
+construction, so it is the *derived* page observation that changes: `R1` page 1
+text is `VOLE EDIT WITNESS PAGE`, `R0` page 1 text is byte-identical before and
+after the edit, and pages 2…61 observe byte-identically in both roots. Repeating
+the identical edit yields the identical `R1` and writes zero new bytes
+(idempotent, content-addressed); a different content yields a different `R1`.
+
+**Supported subset (narrow, stated honestly).** Exactly one operation: replace
+one existing page's decoded content bytes in an already-indexed filesystem field,
+with new content `<= MAX_EDIT_CONTENT_BYTES` (48 KiB). The `.voldoc` descriptor is
+copied verbatim, so this is a **procedural edit of a derived page projection, not
+a rewrite of the PDF**, and it makes no authorial-intent claim. There is no
+generic editing (no insert/delete/reorder, no object-graph or cross-reference
+mutation, no re-encoding), one page per call, and the edited page loses its
+source byte span and reports no content-stream object numbers in `structure`.
+
+**Honest losses.** The edit reads the whole hierarchical index (all leaves) to
+carry untouched bindings forward — **43,688 B read** against **8,776 B** written;
+the read is descriptor-free but not free. Index-*node* reuse needs a multi-node
+index (this producer has four; a single-leaf index necessarily rewrites its one
+leaf, and reuse is then witnessed only at entry level, which the counters report
+separately).
+
+Gates for this subphase (pinned Docker `dev`): `cargo fmt --all` clean;
+`cargo clippy --all-targets --all-features -- -D warnings` clean;
+`cargo test --all-features --locked` and `cargo test --no-default-features` both
+green (29 test-result groups each); the edit court runs and seals the receipt.

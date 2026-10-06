@@ -1,0 +1,30 @@
+{
+  "checks": {
+    "r0_exact_before": true,
+    "r0_exact_after_edit": true,
+    "r1_exact_same_original_bytes": true,
+    "r0_unchanged_by_edit": true,
+    "r1_shows_edited_page": true,
+    "unaffected_page_shared": true,
+    "edit_used_content_addressed_nodes": true,
+    "unaffected_bindings_reused": true,
+    "unaffected_index_nodes_shared": true,
+    "edit_read_no_descriptor_bytes": true,
+    "edit_opened_no_descriptor_blob": true
+  },
+  "counters": {
+    "seed_nodes_reused": 0,
+    "seed_nodes_new": 2,
+    "index_entries": 319,
+    "index_entries_reused": 318,
+    "index_entries_replaced": 1,
+    "index_nodes_reused": 2,
+    "index_nodes_new": 2,
+    "bytes_newly_persisted": 8776,
+    "descriptor_bytes_read_in_edit": 0,
+    "manifest_bytes_read_in_edit": 246,
+    "index_bytes_read_in_edit": 43688,
+    "descriptor_file_opens_in_edit": 0
+  },
+  "all_witness_checks_pass": true
+}

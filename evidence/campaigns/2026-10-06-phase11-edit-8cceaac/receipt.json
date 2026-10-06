@@ -1,0 +1,176 @@
+{
+  "campaign": "phase11-edit",
+  "phase": "Phase 11.12 — immutable node-level edit witness",
+  "environment": {
+    "git": {
+      "commit": "8cceaaced3f3ceb29cf51bbc47cac48d11d91289",
+      "commit_short": "8cceaac",
+      "dirty": ""
+    },
+    "arch": "x86_64",
+    "cargo_lock_sha256": "25fc018b20d57fe22b704fd528cfa9f3dc64969ed7aa0345fb0cd294e913eea2",
+    "toolchain": {
+      "rustc": "1.99.0 (b940084d7 2026-09-28)",
+      "cargo": "1.99.0 (5f94df478 2026-08-27)"
+    },
+    "images": {
+      "base_stable_digest": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+      "image_ref": "vole-document/db-baseline:1.99.0",
+      "db_baseline_image_id": "sha256:41418aa8a7aadd376fa434b82af2c12f09a624dda81b1c3e3b6aa3a4bb738f1d"
+    },
+    "oracles": {
+      "jq": "jq-1.6",
+      "strace": "version 6.1",
+      "pdfinfo": "22.12.0"
+    },
+    "env_affecting_semantics": {
+      "LC_ALL": "C",
+      "VOLE_BIN": "./target/debug/vole-document"
+    }
+  },
+  "case": {
+    "source": {
+      "path": "evidence/corpus/phase7-producers/libreoffice-export.pdf",
+      "len": 74371,
+      "sha256": "a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529",
+      "pages": 61
+    },
+    "encode": {
+      "candidate": "BYTE_RANS",
+      "encoded_len": 72850,
+      "wall_ms": 490
+    },
+    "ingest": {
+      "field": "85c4415e41f397c8be8ccdeb7cf7ffd5a2ea51269b7a02649188fb6fe2b77544",
+      "wall_ms": 8,
+      "report": {
+        "field": "85c4415e41f397c8be8ccdeb7cf7ffd5a2ea51269b7a02649188fb6fe2b77544",
+        "root_node": "fac00dfb503a893d29a04b5bca9b2c1dfdd6989d37cf9c45d73d6c0c91cbde0a",
+        "index_root": "607d729ed1b732b35401a5654c658f4a4cc8dab2ff4bd6d30b67acf2462ae10d",
+        "node_count": 320,
+        "index_node_count": 4,
+        "source_len": 74371,
+        "object_nodes": 131,
+        "stream_nodes": 63,
+        "decoded_stream_nodes": 63,
+        "page_nodes": 61,
+        "revision_nodes": 1,
+        "declined_streams": 0
+      }
+    },
+    "edit": {
+      "field": "4591fa4fdef1183e688870e74c9646219d0d84176494e4dd98d096ea7f5df672",
+      "previous": "85c4415e41f397c8be8ccdeb7cf7ffd5a2ea51269b7a02649188fb6fe2b77544",
+      "page": 1,
+      "page_content": "c0be6cf01baae205e392e66966a9ae49619be8f07f025cb551a1858bf05ab5a6",
+      "content_literal": "59c1b8af1c088380a2d7c633314975f9b3ccbd1736cc68517f4c44d303d59757",
+      "index_root": "3007ffd4fd579155c9048489f897428b32570c259a378c393d29cb9ebaf21fd7",
+      "index_entries": 319,
+      "index_entries_reused": 318,
+      "index_entries_replaced": 1,
+      "seed_nodes_new": 2,
+      "seed_nodes_reused": 0,
+      "index_nodes_reused": 2,
+      "index_nodes_new": 2,
+      "bytes_newly_persisted": 8776,
+      "descriptor_bytes_read": 0,
+      "manifest_bytes_read": 246,
+      "index_bytes_read": 43688,
+      "seed_bytes_read": 0,
+      "descriptor_file_opens": 0,
+      "manifest_file_opens": 2,
+      "index_file_opens": 10,
+      "edit_content_len": 54,
+      "marker": "VOLE EDIT WITNESS PAGE"
+    },
+    "exactness": {
+      "r0_before": {
+        "len": 74371,
+        "sha256": "a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529",
+        "cmp_vs_source": "equal"
+      },
+      "r0_after_edit": {
+        "len": 74371,
+        "sha256": "a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529",
+        "cmp_vs_source": "equal"
+      },
+      "r1": {
+        "len": 74371,
+        "sha256": "a853f8e28323ab35f6eda288dc07f36de034560dc03d0a6cf10f8a7a70054529",
+        "cmp_vs_source": "equal"
+      }
+    },
+    "observations": {
+      "edit_page": {
+        "page": 1,
+        "r0_text": "\u0005\u0006\n\u0005\u001f\n#\n\u0005$\n\u0005%\n#\n\u0005'\n\u0005(\n#\n#\n\u0006\n#\n \n$\n#\n&\n'\n#\n)\n#\n#\n\u001f\n \n#\n%\n&\n#\n(\n",
+        "r0_text_after_edit": "\u0005\u0006\n\u0005\u001f\n#\n\u0005$\n\u0005%\n#\n\u0005'\n\u0005(\n#\n#\n\u0006\n#\n \n$\n#\n&\n'\n#\n)\n#\n#\n\u001f\n \n#\n%\n&\n#\n(\n",
+        "r1_text": "VOLE EDIT WITNESS PAGE\n",
+        "r1_text_contains_marker": true,
+        "r0_structure": {
+          "page": 1,
+          "text_bytes": 62,
+          "draw_ops": 0,
+          "path_ops": 1,
+          "content_streams": [
+            5
+          ]
+        },
+        "r1_structure": {
+          "page": 1,
+          "text_bytes": 23,
+          "draw_ops": 0,
+          "path_ops": 0,
+          "content_streams": []
+        },
+        "r0_after_matches_before": true
+      },
+      "unchanged_page": {
+        "page": 2,
+        "r0_text": ")\n#\n\u0006\n\u001f\n#\n$\n%\n#\n'\n(\n#\n#\n\u0006\n#\n \n$\n#\n&\n'\n#\n)\n#\n#\n\u001f\n \n#\n%\n&\n",
+        "r1_text": ")\n#\n\u0006\n\u001f\n#\n$\n%\n#\n'\n(\n#\n#\n\u0006\n#\n \n$\n#\n&\n'\n#\n)\n#\n#\n\u001f\n \n#\n%\n&\n",
+        "identical": true
+      }
+    }
+  },
+  "verdict": {
+    "checks": {
+      "r0_exact_before": true,
+      "r0_exact_after_edit": true,
+      "r1_exact_same_original_bytes": true,
+      "r0_unchanged_by_edit": true,
+      "r1_shows_edited_page": true,
+      "unaffected_page_shared": true,
+      "edit_used_content_addressed_nodes": true,
+      "unaffected_bindings_reused": true,
+      "unaffected_index_nodes_shared": true,
+      "edit_read_no_descriptor_bytes": true,
+      "edit_opened_no_descriptor_blob": true
+    },
+    "counters": {
+      "seed_nodes_reused": 0,
+      "seed_nodes_new": 2,
+      "index_entries": 319,
+      "index_entries_reused": 318,
+      "index_entries_replaced": 1,
+      "index_nodes_reused": 2,
+      "index_nodes_new": 2,
+      "bytes_newly_persisted": 8776,
+      "descriptor_bytes_read_in_edit": 0,
+      "manifest_bytes_read_in_edit": 246,
+      "index_bytes_read_in_edit": 43688,
+      "descriptor_file_opens_in_edit": 0
+    },
+    "all_witness_checks_pass": true
+  },
+  "claim_scope": "A content-addressed procedural field supports an immutable single-page content override: the new root shares every unaffected selector binding and index node by id with the old root, both roots materialize the same original bytes exactly, and the edit reads no descriptor bytes and opens no descriptor blob. This is a procedural edit of a derived page projection; it is NOT a rewrite of the PDF and makes no authorial-intent claim.",
+  "supported_subset": "decode-level replacement of one existing page decoded content bytes in an indexed field; content <= MAX_EDIT_CONTENT_BYTES (48 KiB); page must already exist; the exact archive descriptor is unchanged.",
+  "limitations": [
+    "No generic editing: no insert/delete/reorder of pages or objects, no cross-reference or object-graph mutation, no re-encoding.",
+    "The exact .voldoc descriptor is copied verbatim, so materialize(R1) == materialize(R0) == the original source bytes; only derived page observations change.",
+    "The replaced page loses its source byte span and reports no content-stream object numbers in its structure observation (its bytes are not in the source).",
+    "One page per call.",
+    "The edit reads the whole hierarchical index (all leaves) to carry bindings forward; the recorded index_bytes_read is that cost. It reads zero descriptor bytes.",
+    "Index-node reuse is only possible when the index has more than one node; a single-leaf index necessarily rewrites its one leaf."
+  ]
+}
