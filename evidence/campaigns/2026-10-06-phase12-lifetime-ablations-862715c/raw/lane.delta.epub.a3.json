@@ -1,0 +1,52 @@
+{
+  "lane": "a3",
+  "rung": "A3 ZIP physical only (package, no opc/docx/epub)",
+  "bin": "/tmp/tmp.GvnuEHhyIh/bin/vole-a3",
+  "flags": "",
+  "one_time": {
+    "wall_ms": 4,
+    "cpu_ms": 0,
+    "process_read_bytes": 130322
+  },
+  "encode": {
+    "wall_ms": 3,
+    "cpu_ms": 0
+  },
+  "ingest": {
+    "wall_ms": 1,
+    "cpu_ms": 0
+  },
+  "ingest_report": {
+    "format": "epub",
+    "field": "21883465067d991cf83d82ad5ff445b9d0b65046a0c448aa9236cdd3cd4e1d86",
+    "root_node": "1774fceb31e831b707d033c2f7b6961c85ac5892e1dcf97faa8cd19657a372f9",
+    "index_root": "b06d1869cb1fe49ed7077adcc0283371cdb81021d846b60dfc6deacd88df6453",
+    "node_count": 13,
+    "index_node_count": 1,
+    "source_len": 58599,
+    "member_count": 6,
+    "raw_nodes": 6,
+    "decoded_nodes": 6,
+    "declined_decodes": 0,
+    "opc_model_nodes": 0,
+    "docx_model_nodes": 0,
+    "epub_model_nodes": 0,
+    "resource_blob_nodes": 1,
+    "shared_resource_ids": 0,
+    "shared_resource_bytes": 0,
+    "nodes_id_shared": 0,
+    "seed_bytes_written": 2184,
+    "index_bytes_written": 668
+  },
+  "store_universe_bytes": {
+    "descriptor": 59140,
+    "seed": 4184,
+    "index": 848,
+    "manifest": 366,
+    "derived_cache": 40,
+    "total": 64718
+  },
+  "answered_cases": 1,
+  "declined_cases": 11,
+  "failed_cases": 0
+}

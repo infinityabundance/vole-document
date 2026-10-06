@@ -1,0 +1,50 @@
+{
+  "lane": "a3",
+  "rung": "A3 ZIP physical only (package, no opc/docx/epub)",
+  "bin": "/tmp/tmp.GvnuEHhyIh/bin/vole-a3",
+  "flags": "",
+  "one_time": {
+    "wall_ms": 2,
+    "cpu_ms": 0,
+    "process_read_bytes": 16248
+  },
+  "encode": {
+    "wall_ms": 1,
+    "cpu_ms": 0
+  },
+  "ingest": {
+    "wall_ms": 1,
+    "cpu_ms": 0
+  },
+  "ingest_report": {
+    "format": "pdf",
+    "field": "9d7b36e96fc427798b5a044c91d24e1d064d5be2e21d04414b954dca51d678f8",
+    "root_node": "01c556b4906cbe0bb3434f4864e2ee0b599c658838bda300ff3d7b73bf943b20",
+    "index_root": "f31f84238dacea219ab9b6cd6061cd6c5607d72264bae021fd842b797bd80351",
+    "node_count": 11,
+    "index_node_count": 1,
+    "source_len": 841,
+    "object_nodes": 6,
+    "stream_nodes": 1,
+    "decoded_stream_nodes": 1,
+    "page_nodes": 1,
+    "revision_nodes": 1,
+    "declined_streams": 0,
+    "resource_blob_nodes": 0,
+    "shared_resource_ids": 0,
+    "shared_resource_bytes": 0,
+    "nodes_id_shared": 0,
+    "seed_bytes_written": 724
+  },
+  "store_universe_bytes": {
+    "descriptor": 1382,
+    "seed": 2998,
+    "index": 738,
+    "manifest": 819,
+    "derived_cache": 1692,
+    "total": 7769
+  },
+  "answered_cases": 6,
+  "declined_cases": 1,
+  "failed_cases": 0
+}

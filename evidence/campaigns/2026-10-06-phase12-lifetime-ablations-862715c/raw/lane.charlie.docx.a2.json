@@ -1,0 +1,50 @@
+{
+  "lane": "a2",
+  "rung": "A2 Phase-11 field (PDF only; no package feature)",
+  "bin": "/tmp/tmp.GvnuEHhyIh/bin/vole-a2",
+  "flags": "",
+  "one_time": {
+    "wall_ms": 1,
+    "cpu_ms": 0,
+    "process_read_bytes": 23013
+  },
+  "encode": {
+    "wall_ms": 1,
+    "cpu_ms": 0
+  },
+  "ingest": {
+    "wall_ms": 0,
+    "cpu_ms": 0
+  },
+  "ingest_report": {
+    "format": "opaque",
+    "field": "ab332b7ed9b4224abed8eaff451dfa5b88f6932de1a3c0e5fa57c24a2333a6c2",
+    "root_node": "abdb8a82d1cae88dc656d054c81a586c17f4fc99121e2b0adaafde14782e40f8",
+    "index_root": null,
+    "node_count": 1,
+    "index_node_count": 0,
+    "source_len": 3282,
+    "object_nodes": 0,
+    "stream_nodes": 0,
+    "decoded_stream_nodes": 0,
+    "page_nodes": 0,
+    "revision_nodes": 0,
+    "declined_streams": 0,
+    "resource_blob_nodes": 0,
+    "shared_resource_ids": 0,
+    "shared_resource_bytes": 0,
+    "nodes_id_shared": 0,
+    "seed_bytes_written": 0
+  },
+  "store_universe_bytes": {
+    "descriptor": 3823,
+    "seed": 240,
+    "index": 40,
+    "manifest": 555,
+    "derived_cache": 40,
+    "total": 4838
+  },
+  "answered_cases": 1,
+  "declined_cases": 11,
+  "failed_cases": 0
+}

@@ -11,6 +11,16 @@ Status: **IN PROGRESS** (12.15 skeptic review complete at `15b5729`).
 > below as **not satisfied** and the PDF no-regression gate as **open**. The
 > primary hypothesis's "at least one clearly defined workload region" is supported
 > only for the small-document region of a **~0.8–61 KB self-authored corpus**.
+>
+> **Phase 12.11b update (`862715c`).** The ablation ladder **has now been run**
+> (`evidence/campaigns/2026-10-06-phase12-lifetime-ablations-862715c/`): `A1b`,
+> `A2`, `A3`, `A4`/`A5`, `A6`, `A9`, `A11` are measured lanes; `A5`, `A7`, `A8` are
+> recorded **not separable** in the landed architecture and `A10` is measured
+> ingest-side, each with its reason (see the results doc's "Ablation ladder
+> (12.11b)"). §106 is not separable (progressive inversion is the only mode); §107
+> is proxied by the A4 (`--no-cache`) vs A6 (cache) comparison. The §109 PDF
+> no-regression gate (`N6`) remains **open** (still no Phase-11-vs-Phase-12 PDF
+> receipt).
 
 Phase 12 proves the persistent procedural field is **not a PDF trick**. PDF, DOCX
 and EPUB enter through different **native inverse compilers** and converge on one
@@ -146,7 +156,11 @@ plus per-format index kinds and extract profiles.
 
 ## Required ablations (§105)
 
-*(Not all run — see the post-review status note above and the review's F11.)*
+*(Run in 12.11b — receipt
+`evidence/campaigns/2026-10-06-phase12-lifetime-ablations-862715c/`. `A5`, `A7`,
+`A8` are not separable in the landed architecture; `A10` is measured ingest-side;
+see the results doc's "Ablation ladder (12.11b)". The pre-registered rung table
+lives in `tools/fixtures/phase12-lifetime-schedule.json` `.ladder`.)*
 
 A0 direct tooling · A1 preprocessed SQLite+FTS (source-retaining) · A2 Phase-11
 field · A3 ZIP physical only · A4 + package graph · A5 + progressive semantic
