@@ -55,6 +55,14 @@ pub const MAX_TOTAL_DECODED: u64 = 512 * 1024 * 1024;
 const MAX_PAGE_TREE_NODES: usize = 1 << 16;
 /// Maximum number of references gathered from one `/Kids` or `/Contents`.
 const MAX_REFS: usize = 1 << 16;
+/// Maximum number of object streams indexed in one page-recovery pass.
+const MAX_OBJSTM: usize = 1 << 12;
+/// Maximum `/N` (object count) admitted from one object stream.
+const MAX_OBJSTM_OBJECTS: usize = 1 << 16;
+/// Maximum total decoded object-stream bytes retained for page recovery (64 MiB).
+const MAX_OBJSTM_BYTES: u64 = 64 * 1024 * 1024;
+/// Maximum pages recovered in one page-tree walk.
+const MAX_PAGES: usize = 1 << 16;
 
 /// What one ingest recovered.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -399,6 +407,12 @@ fn run_stage_b(
 }
 
 /// Best-effort page-tree recovery: `/Root` catalog → `/Pages` → `/Kids` → `/Page`.
+///
+/// Object bodies are read from the exact physical source *or* from a decoded
+/// `/ObjStm` buffer, so a producer that keeps its whole page tree inside an
+/// object stream (pdfTeX) still recovers its pages. Physical objects shadow
+/// object-stream objects of the same number, and every key read is
+/// top-level-dictionary-depth-1 correct so a nested `/Type` cannot shadow one.
 fn recover_pages(
     store: &mut FieldStore,
     source: &[u8],
@@ -421,32 +435,180 @@ fn recover_pages(
         obj_index.insert(obj.number, i);
     }
 
-    // Leading dictionary range of every object.
-    let mut ranges: Vec<Option<(u64, u64)>> = Vec::with_capacity(physical.objects.len());
+    // The leading dict/array range of every physical object.
+    let mut containers: Vec<Option<(bool, u64, u64)>> = Vec::with_capacity(physical.objects.len());
     for obj in &physical.objects {
-        ranges.push(leading_dict(span_window(&spans, obj.start, obj.end)));
+        containers.push(leading_container(span_window(&spans, obj.start, obj.end)));
     }
 
-    // The catalog is the lowest-numbered object whose *top-level* `/Type` is
-    // `/Catalog` (a nested `/Type` must not shadow it).
-    let mut catalog: Option<usize> = None;
-    for &idx in obj_index.values() {
-        if let Some((lo, hi)) = ranges[idx] {
-            let win = span_window(&spans, lo, hi);
-            if top_level_name_value(source, win, lo, hi, b"Type") == Some(&b"Catalog"[..]) {
-                catalog = Some(idx);
-                break;
+    // Streams already decoded by Stage B (needed to read an `/ObjStm`'s bytes).
+    // Taken out of `acc` so the walk below can mutate it without a borrow clash.
+    let decoded_by_object = std::mem::take(&mut acc.decoded_by_object);
+    let plain_by_object = std::mem::take(&mut acc.plain_by_object);
+
+    // Index object streams: map each contained object number to its body range
+    // inside the retained decoded buffer. A stream with no decoded node is
+    // skipped outright -- the bytes are never guessed at.
+    let mut buffers: Vec<ObjStmBuf> = Vec::new();
+    let mut objstm: BTreeMap<u64, Resolved> = BTreeMap::new();
+    let mut total_objstm: u64 = 0;
+    for stream in &physical.streams {
+        if buffers.len() >= MAX_OBJSTM {
+            break;
+        }
+        let Ok(number32) = u32::try_from(stream.object) else {
+            continue;
+        };
+        let Some(&(_node, decoded_len)) = decoded_by_object.get(&number32) else {
+            continue;
+        };
+        let Some(&idx) = obj_index.get(&stream.object) else {
+            continue;
+        };
+        let Some((is_array, lo, hi)) = containers[idx] else {
+            continue;
+        };
+        if is_array {
+            continue;
+        }
+        let win = span_window(&spans, lo, hi);
+        if top_level_name_value(source, win, lo, hi, b"Type") != Some(&b"ObjStm"[..]) {
+            continue;
+        }
+        let (Some(start), Some(end)) = (
+            usize::try_from(stream.data_start).ok(),
+            stream
+                .data_start
+                .checked_add(stream.data_len)
+                .and_then(|e| usize::try_from(e).ok()),
+        ) else {
+            continue;
+        };
+        let Some(encoded) = source.get(start..end) else {
+            continue;
+        };
+        let Ok(decoded) = crate::field::derive::inflate_zlib(encoded, decoded_len, limits) else {
+            continue;
+        };
+        if decoded.is_empty() {
+            continue;
+        }
+        let Some(total) = total_objstm.checked_add(decoded.len() as u64) else {
+            continue;
+        };
+        if total > MAX_OBJSTM_BYTES {
+            continue;
+        }
+        let Some(n) = top_level_integer_value(source, win, lo, hi, b"N") else {
+            continue;
+        };
+        if n == 0 || n > MAX_OBJSTM_OBJECTS as u64 {
+            continue;
+        }
+        let first = top_level_integer_value(source, win, lo, hi, b"First");
+        let Some(pairs) = parse_objstm_header(&decoded, first, n as usize) else {
+            continue;
+        };
+        let Ok(decoded_lexed) = lex(&decoded, limits) else {
+            continue;
+        };
+        let buf_spans = decoded_lexed.spans.spans;
+        // Per spec the pair offsets are relative to `/First` (the header end);
+        // when `/First` is absent the offsets are treated as absolute.
+        let base = first.unwrap_or(0);
+        let buf_index = buffers.len();
+        let len = decoded.len() as u64;
+        let mut entries: Vec<(u64, Resolved)> = Vec::with_capacity(pairs.len());
+        for (i, &(object, offset)) in pairs.iter().enumerate() {
+            if object == 0 {
+                continue;
             }
+            let Some(body_lo) = base.checked_add(offset) else {
+                continue;
+            };
+            let body_hi = pairs
+                .get(i + 1)
+                .and_then(|&(_, next)| base.checked_add(next))
+                .filter(|&next| next >= body_lo && next <= len)
+                .unwrap_or(len);
+            if body_lo > body_hi || body_hi > len {
+                continue;
+            }
+            let Some((body_is_array, clo, chi)) =
+                leading_container(span_window(&buf_spans, body_lo, body_hi))
+            else {
+                continue;
+            };
+            if clo < body_lo || chi > body_hi {
+                continue;
+            }
+            entries.push((
+                object,
+                Resolved {
+                    src: Src::ObjStm(buf_index),
+                    is_array: body_is_array,
+                    lo: clo,
+                    hi: chi,
+                },
+            ));
+        }
+        buffers.push(ObjStmBuf {
+            bytes: decoded,
+            spans: buf_spans,
+        });
+        total_objstm = total;
+        for (object, resolved) in entries {
+            objstm.insert(object, resolved);
         }
     }
-    let Some(cat_idx) = catalog else {
+
+    // Unified resolver: physical objects shadow object-stream objects.
+    let physical_numbers: BTreeSet<u64> = physical
+        .objects
+        .iter()
+        .map(|o| o.number)
+        .filter(|&n| n != 0)
+        .collect();
+    let mut map: BTreeMap<u64, Resolved> = BTreeMap::new();
+    for (i, obj) in physical.objects.iter().enumerate() {
+        if obj.number == 0 {
+            continue;
+        }
+        if let Some((is_array, lo, hi)) = containers[i] {
+            map.insert(
+                obj.number,
+                Resolved {
+                    src: Src::Physical,
+                    is_array,
+                    lo,
+                    hi,
+                },
+            );
+        }
+    }
+    for (object, resolved) in objstm {
+        if !physical_numbers.contains(&object) {
+            map.insert(object, resolved);
+        }
+    }
+    let resolver = ObjResolver {
+        source,
+        source_spans: &spans,
+        buffers: &buffers,
+        map,
+    };
+
+    // The catalog is the lowest-numbered object whose *top-level* `/Type` is
+    // `/Catalog`, whether it lives in the physical source or an object stream.
+    let Some(catalog) = resolver
+        .map
+        .values()
+        .find(|&&res| resolver.is_type(res, b"Catalog"))
+        .copied()
+    else {
         return Ok(());
     };
-    let Some((clo, chi)) = ranges[cat_idx] else {
-        return Ok(());
-    };
-    let cwin = span_window(&spans, clo, chi);
-    let Some(pages_refs) = collect_key_refs(source, cwin, clo, chi, b"Pages") else {
+    let Some(pages_refs) = resolver.key_refs(catalog, b"Pages") else {
         return Ok(());
     };
     let Some(&pages_root) = pages_refs.first() else {
@@ -464,37 +626,23 @@ fn recover_pages(
         if visited.len() > MAX_PAGE_TREE_NODES {
             break;
         }
-        let Some(&idx) = obj_index.get(&number) else {
+        let Some(res) = resolver.resolve(number) else {
             continue;
         };
-        let Some((lo, hi)) = ranges[idx] else {
+        if res.is_array {
             continue;
-        };
-        let win = span_window(&spans, lo, hi);
-        match top_level_name_value(source, win, lo, hi, b"Type") {
-            Some(b"Page") => pages.push(number),
-            Some(b"Pages") => {
-                if let Some(kids) = collect_key_refs(source, win, lo, hi, b"Kids") {
-                    let kids =
-                        expand_ref_arrays(source, &spans, &physical.objects, &obj_index, kids);
-                    for kid in kids.into_iter().rev() {
-                        if !visited.contains(&kid) {
-                            stack.push(kid);
-                        }
-                    }
-                }
+        }
+        if resolver.is_type(res, b"Page") {
+            if pages.len() < MAX_PAGES {
+                pages.push(number);
             }
-            _ => {
-                // No/unknown `/Type`: a dict carrying `/Kids` (or a bare
-                // `/Count`) is still an internal page-tree node. Best-effort.
-                if let Some(kids) = collect_key_refs(source, win, lo, hi, b"Kids") {
-                    let kids =
-                        expand_ref_arrays(source, &spans, &physical.objects, &obj_index, kids);
-                    for kid in kids.into_iter().rev() {
-                        if !visited.contains(&kid) {
-                            stack.push(kid);
-                        }
-                    }
+        } else if let Some(kids) = resolver.key_refs(res, b"Kids") {
+            // A `/Pages` node, or a dict with no usable `/Type` that still
+            // carries `/Kids`: both are internal page-tree nodes. Best-effort.
+            let kids = resolver.expand(kids);
+            for kid in kids.into_iter().rev() {
+                if !visited.contains(&kid) {
+                    stack.push(kid);
                 }
             }
         }
@@ -502,54 +650,45 @@ fn recover_pages(
 
     let mut page_number: u32 = 0;
     for page_obj in pages {
-        let Some(&idx) = obj_index.get(&page_obj) else {
+        let Some(res) = resolver.resolve(page_obj) else {
             continue;
         };
-        let Some((lo, hi)) = ranges[idx] else {
-            continue;
-        };
-        let win = span_window(&spans, lo, hi);
-        let Some(content_refs) = collect_key_refs(source, win, lo, hi, b"Contents") else {
-            continue;
-        };
-        let content_refs =
-            expand_ref_arrays(source, &spans, &physical.objects, &obj_index, content_refs);
-        if content_refs.len() > MAX_NODE_DEPS {
-            continue;
-        }
-
         let mut deps: Vec<NodeId> = Vec::new();
         let mut total: u64 = 0;
         let mut min_start: Option<u64> = None;
         let mut max_end: u64 = 0;
-        for content in &content_refs {
-            let Ok(content_number) = u32::try_from(*content) else {
-                continue;
-            };
-            // Prefer the inflated node; otherwise fall back to the encoded node
-            // of a stream that has *no* filter, whose bytes are the content.
-            let resolved = acc
-                .decoded_by_object
-                .get(&content_number)
-                .copied()
-                .or_else(|| acc.plain_by_object.get(&content_number).copied());
-            let Some((node_id, content_len)) = resolved else {
-                continue;
-            };
-            deps.push(node_id);
-            total = total
-                .checked_add(content_len)
-                .ok_or_else(|| Error::resource_limit("page content length overflow"))?;
-            if let Some(&ci) = obj_index.get(content) {
-                let obj = &physical.objects[ci];
-                min_start = Some(min_start.map_or(obj.start, |m| m.min(obj.start)));
-                max_end = max_end.max(obj.end);
+        if let Some(content_refs) = resolver.key_refs(res, b"Contents") {
+            let content_refs = resolver.expand(content_refs);
+            if content_refs.len() <= MAX_NODE_DEPS {
+                for content in &content_refs {
+                    let Ok(content_number) = u32::try_from(*content) else {
+                        continue;
+                    };
+                    // `/Contents` streams are physical (a stream cannot live in
+                    // an `/ObjStm`). Prefer the inflated node; otherwise the
+                    // encoded node of an unfiltered stream, whose bytes are the
+                    // content.
+                    let resolved = decoded_by_object
+                        .get(&content_number)
+                        .copied()
+                        .or_else(|| plain_by_object.get(&content_number).copied());
+                    let Some((node_id, content_len)) = resolved else {
+                        continue;
+                    };
+                    deps.push(node_id);
+                    total = total
+                        .checked_add(content_len)
+                        .ok_or_else(|| Error::resource_limit("page content length overflow"))?;
+                    if let Some(&ci) = obj_index.get(content) {
+                        let obj = &physical.objects[ci];
+                        min_start = Some(min_start.map_or(obj.start, |m| m.min(obj.start)));
+                        max_end = max_end.max(obj.end);
+                    }
+                }
             }
         }
-        if deps.is_empty() {
-            continue;
-        }
-
+        // A page with no resolvable content is still a page: record an empty
+        // `PageContent` so `SEL_PAGE` numbering stays contiguous and meaningful.
         page_number = page_number
             .checked_add(1)
             .ok_or_else(|| Error::resource_limit("page number overflow"))?;
@@ -563,10 +702,13 @@ fn recover_pages(
         let node_id = acc.put(store, &node)?;
         let (out_off, out_len) = match min_start {
             Some(start) => (start, max_end.saturating_sub(start)),
-            None => {
-                let obj = &physical.objects[idx];
-                (obj.start, obj.end.saturating_sub(obj.start))
-            }
+            None => match obj_index.get(&page_obj) {
+                Some(&pi) => {
+                    let obj = &physical.objects[pi];
+                    (obj.start, obj.end.saturating_sub(obj.start))
+                }
+                None => (0, 0),
+            },
         };
         acc.add_entry(IndexEntry {
             key: SelectorKey::new(SEL_PAGE, page_number),
@@ -578,6 +720,100 @@ fn recover_pages(
     }
 
     Ok(())
+}
+
+/// One decoded object stream retained for byte-level page recovery.
+struct ObjStmBuf {
+    bytes: Vec<u8>,
+    spans: Vec<Span>,
+}
+
+/// Where a resolved object's body bytes live.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Src {
+    /// The exact physical source (`N 0 obj ... endobj`).
+    Physical,
+    /// A decoded `/ObjStm` buffer, by index into the retained buffers.
+    ObjStm(usize),
+}
+
+/// A resolved object body: its source, leading-container kind, and byte range.
+#[derive(Clone, Copy)]
+struct Resolved {
+    src: Src,
+    is_array: bool,
+    lo: u64,
+    hi: u64,
+}
+
+/// A read-only resolver over physical and object-stream object bodies.
+struct ObjResolver<'a> {
+    source: &'a [u8],
+    source_spans: &'a [Span],
+    buffers: &'a [ObjStmBuf],
+    map: BTreeMap<u64, Resolved>,
+}
+
+impl<'a> ObjResolver<'a> {
+    /// The byte slice and lexical cover backing a resolved object body.
+    fn view(&self, res: Resolved) -> (&'a [u8], &'a [Span]) {
+        match res.src {
+            Src::Physical => (self.source, self.source_spans),
+            Src::ObjStm(i) => {
+                let buf = &self.buffers[i];
+                (&buf.bytes, &buf.spans)
+            }
+        }
+    }
+
+    /// Resolve an object number to its body, if it has a leading container.
+    fn resolve(&self, number: u64) -> Option<Resolved> {
+        self.map.get(&number).copied()
+    }
+
+    /// Whether the object's *top-level* `/Type` is `want`.
+    fn is_type(&self, res: Resolved, want: &[u8]) -> bool {
+        if res.is_array {
+            return false;
+        }
+        let (bytes, spans) = self.view(res);
+        let win = span_window(spans, res.lo, res.hi);
+        top_level_name_value(bytes, win, res.lo, res.hi, b"Type") == Some(want)
+    }
+
+    /// The indirect references following a top-level `key` in the object dict.
+    fn key_refs(&self, res: Resolved, key: &[u8]) -> Option<Vec<u64>> {
+        if res.is_array {
+            return None;
+        }
+        let (bytes, spans) = self.view(res);
+        let win = span_window(spans, res.lo, res.hi);
+        collect_key_refs(bytes, win, res.lo, res.hi, key)
+    }
+
+    /// Expand references that point at an array object into the refs inside it
+    /// (one level, best-effort), across both sources.
+    fn expand(&self, refs: Vec<u64>) -> Vec<u64> {
+        let mut out: Vec<u64> = Vec::new();
+        for reference in refs {
+            if out.len() > MAX_REFS {
+                break;
+            }
+            let expanded = self.resolve(reference).and_then(|res| {
+                if !res.is_array {
+                    return None;
+                }
+                let (bytes, spans) = self.view(res);
+                let win = span_window(spans, res.lo, res.hi);
+                parse_ref_array(bytes, win, 0, res.hi)
+            });
+            match expanded {
+                Some(items) => out.extend(items),
+                None => out.push(reference),
+            }
+        }
+        out
+    }
 }
 
 /// Learn a lone zlib stream's exact decoded length, or decline.
@@ -645,29 +881,39 @@ fn span_window(spans: &[Span], lo: u64, hi: u64) -> &[Span] {
     &spans[a..b]
 }
 
-/// The leading `<< ... >>` dictionary byte range within an object's spans.
-fn leading_dict(win: &[Span]) -> Option<(u64, u64)> {
-    let mut depth: u32 = 0;
-    let mut open_off: u64 = 0;
-    for span in win {
-        match span.kind {
-            SpanKind::DictOpen => {
-                if depth == 0 {
-                    open_off = span.start;
-                }
+/// The leading `<< ... >>` or `[ ... ]` container byte range within a window.
+///
+/// Returns `(is_array, lo, hi)`. The first container opened in the window wins,
+/// so an indirect-object header (`N G obj`) is skipped and a nested container
+/// cannot be mistaken for the object's own body. `None` when the window holds no
+/// balanced container (fail closed rather than guess).
+fn leading_container(win: &[Span]) -> Option<(bool, u64, u64)> {
+    for (i, span) in win.iter().enumerate() {
+        let closer = match span.kind {
+            SpanKind::DictOpen => SpanKind::DictClose,
+            SpanKind::ArrayOpen => SpanKind::ArrayClose,
+            _ => continue,
+        };
+        let opener = span.kind;
+        let mut depth: u32 = 0;
+        for s in &win[i..] {
+            if s.kind == opener {
                 depth = depth.checked_add(1)?;
-            }
-            SpanKind::DictClose => {
+            } else if s.kind == closer {
                 if depth == 0 {
                     continue;
                 }
                 depth -= 1;
                 if depth == 0 {
-                    return Some((open_off, span.start.checked_add(span.len)?));
+                    return Some((
+                        opener == SpanKind::ArrayOpen,
+                        span.start,
+                        s.start.checked_add(s.len)?,
+                    ));
                 }
             }
-            _ => {}
         }
+        return None;
     }
     None
 }
@@ -730,38 +976,66 @@ fn parse_ref_array(source: &[u8], win: &[Span], open_idx: usize, hi: u64) -> Opt
     }
 }
 
-/// Expand any reference pointing at an object whose body is an array into the
-/// references inside that array (one level, best-effort).
-///
-/// Handles `/Kids 12 0 R` and `/Contents 12 0 R` where object 12 is `[ ... ]`.
-/// A reference whose target is absent or not an array is kept unchanged.
-fn expand_ref_arrays(
+/// The integer value of a *top-level* `key` in the given dictionary window.
+fn top_level_integer_value(
     source: &[u8],
-    spans: &[Span],
-    objects: &[crate::adapter::pdf::physical::PdfObjectSpan],
-    obj_index: &BTreeMap<u64, usize>,
-    refs: Vec<u64>,
-) -> Vec<u64> {
-    let mut out: Vec<u64> = Vec::new();
-    for reference in refs {
-        if out.len() > MAX_REFS {
-            break;
+    win: &[Span],
+    lo: u64,
+    hi: u64,
+    key: &[u8],
+) -> Option<u64> {
+    let name = find_top_level_name(win, source, lo, hi, key)?;
+    let t = next_sig(win, name + 1, hi)?;
+    integer_span(source, win[t])
+}
+
+/// Parse an `/ObjStm` header of `n` `objnum offset` integer pairs.
+///
+/// When `/First` is present the header is bounded to the bytes before it and the
+/// remainder must be blank; when it is absent the pairs are read from the start of
+/// the buffer. Bounded by `n`, so a corrupted count cannot scan unboundedly.
+fn parse_objstm_header(bytes: &[u8], first: Option<u64>, n: usize) -> Option<Vec<(u64, u64)>> {
+    let mut pos = 0usize;
+    let mut pairs = Vec::with_capacity(n.min(4096));
+    for _ in 0..n {
+        let object = read_uint_ws(bytes, &mut pos)?;
+        let offset = read_uint_ws(bytes, &mut pos)?;
+        pairs.push((object, offset));
+    }
+    if let Some(f) = first {
+        let f = usize::try_from(f).ok()?;
+        if f > bytes.len() || pos > f {
+            return None;
         }
-        let expanded = obj_index.get(&reference).and_then(|&idx| {
-            let obj = &objects[idx];
-            let win = span_window(spans, obj.start, obj.end);
-            let t = next_sig(win, 0, obj.end)?;
-            if win[t].kind != SpanKind::ArrayOpen {
-                return None;
-            }
-            parse_ref_array(source, win, t, obj.end)
-        });
-        match expanded {
-            Some(items) => out.extend(items),
-            None => out.push(reference),
+        if bytes[pos..f].iter().any(|&b| !is_pdf_ws(b)) {
+            return None;
         }
     }
-    out
+    Some(pairs)
+}
+
+/// Read a whitespace-delimited unsigned decimal integer, advancing `pos`.
+fn read_uint_ws(bytes: &[u8], pos: &mut usize) -> Option<u64> {
+    while *pos < bytes.len() && is_pdf_ws(bytes[*pos]) {
+        *pos += 1;
+    }
+    let start = *pos;
+    let mut value: u64 = 0;
+    while *pos < bytes.len() && bytes[*pos].is_ascii_digit() {
+        value = value
+            .checked_mul(10)?
+            .checked_add(u64::from(bytes[*pos] - b'0'))?;
+        *pos += 1;
+    }
+    if *pos == start {
+        return None;
+    }
+    Some(value)
+}
+
+/// Whether `b` is a PDF whitespace byte (PDF 32000-1 Table 1).
+fn is_pdf_ws(b: u8) -> bool {
+    matches!(b, 0x00 | 0x09 | 0x0A | 0x0C | 0x0D | 0x20)
 }
 
 /// Read one `N G R` reference at a significant span index.
@@ -976,6 +1250,15 @@ mod tests {
                 "trailer\n<< /Size {size}{extra} >>\nstartxref\n{xref}\n%%EOF\n"
             ));
         }
+        /// A trailer (with no xref body) pointing at `/Root`; enough for the
+        /// physical scan, which never consults the cross-reference table. Used by
+        /// fixtures whose catalog is not a physical object (it lives in an
+        /// `/ObjStm`, which has no physical offset to record).
+        fn raw_trailer(&mut self, size: u64, root: u64) {
+            self.text(&format!(
+                "trailer\n<< /Size {size} /Root {root} 0 R >>\n%%EOF\n"
+            ));
+        }
     }
 
     /// A classic-xref PDF with one page and one lone-Flate content stream whose
@@ -1031,6 +1314,86 @@ mod tests {
         w.stream_obj(4, "", content);
         w.obj(5, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
         w.classic_trailer(6, " /Root 1 0 R");
+        w.buf
+    }
+
+    /// Build an `/ObjStm` payload: an `objnum offset` header plus the bodies.
+    ///
+    /// Returns the stored-block-zlib-compressed stream, the pair count (`/N`),
+    /// and the header length (`/First`). Offsets are relative to `/First` and
+    /// bodies are newline-separated, as PDF 32000-1 §7.5.7 requires.
+    fn objstm_stream(objs: &[(u64, &[u8])]) -> (Vec<u8>, u64, u64) {
+        let mut bodies = Vec::new();
+        let mut offsets = Vec::new();
+        for (_, body) in objs {
+            offsets.push(bodies.len());
+            bodies.extend_from_slice(body);
+            bodies.push(b'\n');
+        }
+        let mut header = String::new();
+        for (i, (number, _)) in objs.iter().enumerate() {
+            if i > 0 {
+                header.push(' ');
+            }
+            header.push_str(&format!("{number} {}", offsets[i]));
+        }
+        header.push('\n');
+        let first = header.len() as u64;
+        let mut decoded = header.into_bytes();
+        decoded.extend_from_slice(&bodies);
+        (zlib_stored(&decoded), objs.len() as u64, first)
+    }
+
+    /// A PDF whose `/Catalog`, `/Pages`, and `/Page` all live inside `/ObjStm`
+    /// object 1, with a physical (Flate) content stream. The plaintext says
+    /// `(Streamed)`.
+    fn fixture_pdf_objstm() -> Vec<u8> {
+        let content = b"BT /F1 12 Tf 72 720 Td (Streamed) Tj ET\n";
+        let encoded = zlib_stored(content);
+        let page = b"<< /Type /Page /Parent 3 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 6 0 R >> >> /Contents 5 0 R >>";
+        let pages = b"<< /Type /Pages /Kids [2 0 R] /Count 1 >>";
+        let catalog = b"<< /Type /Catalog /Pages 3 0 R >>";
+        let (objstm, n, first) = objstm_stream(&[(2, page), (3, pages), (4, catalog)]);
+        let mut w = PdfBuilder::new();
+        w.text("%PDF-1.5\n");
+        w.stream_obj(
+            1,
+            &format!(" /Filter /FlateDecode /Type /ObjStm /N {n} /First {first}"),
+            &objstm,
+        );
+        w.stream_obj(5, " /Filter /FlateDecode", &encoded);
+        w.obj(6, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+        w.raw_trailer(7, 4);
+        w.buf
+    }
+
+    /// Like [`fixture_pdf_objstm`] but the object stream's own `/Pages` tree is
+    /// shadowed by a *later physical* catalog and page tree. The physical tree's
+    /// plaintext says `(Physical)`; the object stream's says `(Streamed)`.
+    fn fixture_pdf_objstm_shadowed() -> Vec<u8> {
+        let streamed = zlib_stored(b"BT /F1 12 Tf 72 720 Td (Streamed) Tj ET\n");
+        let physical = zlib_stored(b"BT /F1 12 Tf 72 720 Td (Physical) Tj ET\n");
+        let page = b"<< /Type /Page /Parent 2 0 R /Contents 5 0 R >>";
+        let pages = b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>";
+        let catalog = b"<< /Type /Catalog /Pages 2 0 R >>";
+        let (objstm, n, first) = objstm_stream(&[(2, pages), (3, page), (4, catalog)]);
+        let mut w = PdfBuilder::new();
+        w.text("%PDF-1.5\n");
+        w.stream_obj(
+            1,
+            &format!(" /Filter /FlateDecode /Type /ObjStm /N {n} /First {first}"),
+            &objstm,
+        );
+        // A later physical object number 4 shadows the object-stream catalog.
+        w.obj(4, b"<< /Type /Catalog /Pages 7 0 R >>");
+        w.stream_obj(5, " /Filter /FlateDecode", &streamed);
+        w.obj(7, b"<< /Type /Pages /Kids [8 0 R] /Count 1 >>");
+        w.obj(
+            8,
+            b"<< /Type /Page /Parent 7 0 R /MediaBox [0 0 612 792] /Contents 9 0 R >>",
+        );
+        w.stream_obj(9, " /Filter /FlateDecode", &physical);
+        w.raw_trailer(10, 4);
         w.buf
     }
 
@@ -1344,6 +1707,103 @@ mod tests {
             .materialize_node(&text.content_id(), Limits::DEFAULT, &mut budget)
             .unwrap();
         assert!(String::from_utf8_lossy(&bytes).contains("Plain"));
+
+        assert_eq!(field.materialize_exact(Limits::DEFAULT).unwrap(), pdf);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn objstm_page_tree_is_recovered_and_deepened() {
+        let root = temp_root("objstm-page");
+        let mut store = FieldStore::open(&root).unwrap();
+        let pdf = fixture_pdf_objstm();
+        let report = ingest(&mut store, &pdf);
+        assert_eq!(
+            report.page_nodes, 1,
+            "a page whose dictionary lives in an /ObjStm must be recovered"
+        );
+
+        let istore = FsIndexStore::open(store.root()).unwrap();
+        let index_root = report.index_root.unwrap();
+        let page_entry = lookup(&istore, &index_root, &SelectorKey::new(SEL_PAGE, 1))
+            .unwrap()
+            .pop()
+            .unwrap();
+
+        let deepened = deepen_page(&mut store, &report.field, 1, Limits::DEFAULT).unwrap();
+        let field = Field::open(&store, &deepened, Limits::DEFAULT).unwrap();
+        let (_ops, text, _preview) = derived_chain(1, page_entry.node_id);
+        let mut budget = EvalBudget::default();
+        let bytes = field
+            .materialize_node(&text.content_id(), Limits::DEFAULT, &mut budget)
+            .unwrap();
+        assert!(String::from_utf8_lossy(&bytes).contains("Streamed"));
+
+        assert_eq!(field.materialize_exact(Limits::DEFAULT).unwrap(), pdf);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn malformed_objstm_is_skipped_without_panic() {
+        let root = temp_root("objstm-bad");
+        let mut store = FieldStore::open(&root).unwrap();
+        // (a) an absurd `/N` above the object cap, (b) a `/First` past the end of
+        // the decoded buffer (a truncated header).
+        for (n, first) in [(100_000u64, 3u64), (3, 4096)] {
+            let encoded = zlib_stored(b"BT /F1 12 Tf 72 720 Td (X) Tj ET\n");
+            let page = b"<< /Type /Page /Parent 3 0 R /Contents 5 0 R >>";
+            let pages = b"<< /Type /Pages /Kids [2 0 R] /Count 1 >>";
+            let catalog = b"<< /Type /Catalog /Pages 3 0 R >>";
+            let (objstm, _, _) = objstm_stream(&[(2, page), (3, pages), (4, catalog)]);
+            let mut w = PdfBuilder::new();
+            w.text("%PDF-1.5\n");
+            w.stream_obj(
+                1,
+                &format!(" /Filter /FlateDecode /Type /ObjStm /N {n} /First {first}"),
+                &objstm,
+            );
+            w.stream_obj(5, " /Filter /FlateDecode", &encoded);
+            w.obj(6, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+            w.raw_trailer(7, 4);
+            let pdf = w.buf;
+
+            let report = ingest(&mut store, &pdf);
+            assert_eq!(
+                report.page_nodes, 0,
+                "a malformed /ObjStm must yield no pages"
+            );
+            let field = Field::open(&store, &report.field, Limits::DEFAULT).unwrap();
+            assert_eq!(field.materialize_exact(Limits::DEFAULT).unwrap(), pdf);
+        }
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn physical_object_shadows_objstm_object() {
+        let root = temp_root("objstm-shadow");
+        let mut store = FieldStore::open(&root).unwrap();
+        let pdf = fixture_pdf_objstm_shadowed();
+        let report = ingest(&mut store, &pdf);
+        assert_eq!(report.page_nodes, 1);
+
+        // The later physical catalog 4 and its page tree must win over the
+        // object-stream catalog 4, so the recovered text says `Physical`.
+        let istore = FsIndexStore::open(store.root()).unwrap();
+        let index_root = report.index_root.unwrap();
+        let page_entry = lookup(&istore, &index_root, &SelectorKey::new(SEL_PAGE, 1))
+            .unwrap()
+            .pop()
+            .unwrap();
+        let deepened = deepen_page(&mut store, &report.field, 1, Limits::DEFAULT).unwrap();
+        let field = Field::open(&store, &deepened, Limits::DEFAULT).unwrap();
+        let (_ops, text, _preview) = derived_chain(1, page_entry.node_id);
+        let mut budget = EvalBudget::default();
+        let bytes = field
+            .materialize_node(&text.content_id(), Limits::DEFAULT, &mut budget)
+            .unwrap();
+        let rendered = String::from_utf8_lossy(&bytes);
+        assert!(rendered.contains("Physical"), "got {rendered:?}");
+        assert!(!rendered.contains("Streamed"), "got {rendered:?}");
 
         assert_eq!(field.materialize_exact(Limits::DEFAULT).unwrap(), pdf);
         fs::remove_dir_all(&root).ok();
