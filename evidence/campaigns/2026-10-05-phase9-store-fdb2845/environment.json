@@ -1,0 +1,45 @@
+{
+  "campaign": "2026-10-05-phase9-store-fdb2845",
+  "arch": "x86_64",
+  "git_branch": "phase9",
+  "git_commit": "fdb2845e04bcd97fac4edb67c0a5d7910f3d6680",
+  "git_commit_short": "fdb2845",
+  "git_dirty": "untracked evidence/campaigns/2026-10-05-phase9-store-fdb2845/ (this seal); no tracked modifications",
+  "cargo_lock_sha256": "423cb197ae239be9e90771fefbdb07f6afb47fbb652e5a22292741fd05491f8c",
+  "toolchains": {
+    "dev": {
+      "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+      "service_image": "vole-document/dev:1.99.0",
+      "rustc": "1.99.0 (b940084d7 2026-09-28)",
+      "cargo": "1.99.0 (5f94df478 2026-08-27)"
+    },
+    "baseline": {
+      "service_image": "vole-document/baseline:1.99.0",
+      "image_id": "sha256:48bfe8599b9ed479c0958cc7a6e8f62ce7806de8a1c7f9542a2afe2263d6a154",
+      "derived_from": "dev (rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e)",
+      "gzip": "1.12",
+      "zstd": "1.5.4",
+      "xz": "5.4.1",
+      "brotli": "1.0.9",
+      "jq": "1.6",
+      "borg": "1.2.4 (apt borgbackup=1.2.4-1)"
+    },
+    "tools": {
+      "service_image": "vole-document/tools:bookworm",
+      "base_image": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+      "qpdf": "11.3.0",
+      "ghostscript": "10.00.0"
+    }
+  },
+  "external_oracles": {
+    "qpdf": "11.3.0 (PDF validity check in store-cohort.sh, informational)",
+    "borg": "1.2.4 (content-defined-chunk dedup baseline)"
+  },
+  "env_vars_affecting_semantics": {
+    "CARGO_TERM_COLOR": "never",
+    "LC_ALL": "C",
+    "BASELINE_CORPUS": "phase9",
+    "VOLE_BIN": "./target/debug/vole-document"
+  },
+  "notes": "All commands ran through compose.yaml services; nothing ran on the host except git and docker. The Phase-7 producer subset was regenerated with tools/pdf-corpus.sh in the `tools` service (its regenerated provenance.json was restored to the committed version; only the gitignored bytes are used). Ghostscript outputs are excluded from the cohort (per-run /ID, not byte-reproducible)."
+}

@@ -1,0 +1,1 @@
+{"tool":"borg","borg_version":"1.2.4","chunker_params":"10,15,11,127","compression":"none","dir":"evidence/corpus/phase9","borg_unique_bytes":771383,"borg_unique_bytes_run2":771383,"borg_deterministic":true,"borg_total_size":5588344,"borg_total_csize":5594092,"borg_total_chunks":1918,"borg_unique_chunks":244}

@@ -1,0 +1,458 @@
+{
+  "cohort": "phase9",
+  "files": 37,
+  "source_bytes": 5579469,
+  "standalone_bytes": 3762694,
+  "unique_reachable_bytes": 3369900,
+  "unique_root_bytes": 2583399,
+  "unique_object_bytes": 786501,
+  "amortized_bytes_total": 3369900,
+  "amortized_bytes_per_file": [
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/dup-resource_dup-resource_pdf.src.voldoc",
+      "root_bytes": 56955,
+      "standalone_bytes": 56944,
+      "reachable_objects": 1,
+      "amortized_bytes": 56965
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/incremental_rev-0_pdf.src.voldoc",
+      "root_bytes": 16715,
+      "standalone_bytes": 16715,
+      "reachable_objects": 0,
+      "amortized_bytes": 16715
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/incremental_rev-1_pdf.src.voldoc",
+      "root_bytes": 32725,
+      "standalone_bytes": 32725,
+      "reachable_objects": 0,
+      "amortized_bytes": 32725
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/incremental_rev-2_pdf.src.voldoc",
+      "root_bytes": 48998,
+      "standalone_bytes": 48998,
+      "reachable_objects": 0,
+      "amortized_bytes": 48998
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/incremental_rev-3_pdf.src.voldoc",
+      "root_bytes": 65578,
+      "standalone_bytes": 65578,
+      "reachable_objects": 0,
+      "amortized_bytes": 65578
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/incremental_rev-4_pdf.src.voldoc",
+      "root_bytes": 82438,
+      "standalone_bytes": 82438,
+      "reachable_objects": 0,
+      "amortized_bytes": 82438
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/one-changed_one-base_pdf.src.voldoc",
+      "root_bytes": 160038,
+      "standalone_bytes": 160038,
+      "reachable_objects": 0,
+      "amortized_bytes": 160038
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/one-changed_one-changed_pdf.src.voldoc",
+      "root_bytes": 160071,
+      "standalone_bytes": 160071,
+      "reachable_objects": 0,
+      "amortized_bytes": 160071
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/p7_hand-base1_pdf.src.voldoc",
+      "root_bytes": 74680,
+      "standalone_bytes": 74680,
+      "reachable_objects": 0,
+      "amortized_bytes": 74680
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/p7_hand-base2_pdf.src.voldoc",
+      "root_bytes": 56955,
+      "standalone_bytes": 56944,
+      "reachable_objects": 1,
+      "amortized_bytes": 56965
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/p7_qpdf-compress_pdf.src.voldoc",
+      "root_bytes": 49465,
+      "standalone_bytes": 49465,
+      "reachable_objects": 0,
+      "amortized_bytes": 49465
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/p7_qpdf-linearize_pdf.src.voldoc",
+      "root_bytes": 49726,
+      "standalone_bytes": 49726,
+      "reachable_objects": 0,
+      "amortized_bytes": 49726
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/p7_qpdf-nocompress_pdf.src.voldoc",
+      "root_bytes": 74672,
+      "standalone_bytes": 74672,
+      "reachable_objects": 0,
+      "amortized_bytes": 74672
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/p7_qpdf-preserve-objectstreams_pdf.src.voldoc",
+      "root_bytes": 57050,
+      "standalone_bytes": 57039,
+      "reachable_objects": 1,
+      "amortized_bytes": 57059
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/reexport_reexport-linearize_pdf.src.voldoc",
+      "root_bytes": 49726,
+      "standalone_bytes": 49726,
+      "reachable_objects": 0,
+      "amortized_bytes": 49726
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/reexport_reexport-nocompress_pdf.src.voldoc",
+      "root_bytes": 74672,
+      "standalone_bytes": 74672,
+      "reachable_objects": 0,
+      "amortized_bytes": 74672
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/reexport_reexport-objectstreams_pdf.src.voldoc",
+      "root_bytes": 49465,
+      "standalone_bytes": 49465,
+      "reachable_objects": 0,
+      "amortized_bytes": 49465
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/repeat-bin_repeat-0_bin.src.voldoc",
+      "root_bytes": 494,
+      "standalone_bytes": 131526,
+      "reachable_objects": 1,
+      "amortized_bytes": 33262
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/repeat-bin_repeat-1_bin.src.voldoc",
+      "root_bytes": 494,
+      "standalone_bytes": 131526,
+      "reachable_objects": 1,
+      "amortized_bytes": 33262
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/repeat-bin_repeat-2_bin.src.voldoc",
+      "root_bytes": 494,
+      "standalone_bytes": 131526,
+      "reachable_objects": 1,
+      "amortized_bytes": 33262
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/repeat-bin_repeat-3_bin.src.voldoc",
+      "root_bytes": 494,
+      "standalone_bytes": 131526,
+      "reachable_objects": 1,
+      "amortized_bytes": 33262
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/repeat-pdf_repeat-0_pdf.src.voldoc",
+      "root_bytes": 74680,
+      "standalone_bytes": 74680,
+      "reachable_objects": 0,
+      "amortized_bytes": 74680
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/repeat-pdf_repeat-1_pdf.src.voldoc",
+      "root_bytes": 74680,
+      "standalone_bytes": 74680,
+      "reachable_objects": 0,
+      "amortized_bytes": 74680
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/repeat-pdf_repeat-2_pdf.src.voldoc",
+      "root_bytes": 74680,
+      "standalone_bytes": 74680,
+      "reachable_objects": 0,
+      "amortized_bytes": 74680
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/repeat-pdf_repeat-3_pdf.src.voldoc",
+      "root_bytes": 74680,
+      "standalone_bytes": 74680,
+      "reachable_objects": 0,
+      "amortized_bytes": 74680
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shared-bin_shared-0_bin.src.voldoc",
+      "root_bytes": 494,
+      "standalone_bytes": 131534,
+      "reachable_objects": 1,
+      "amortized_bytes": 131574
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shared-bin_shared-1_bin.src.voldoc",
+      "root_bytes": 494,
+      "standalone_bytes": 131534,
+      "reachable_objects": 1,
+      "amortized_bytes": 131574
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shared-bin_shared-2_bin.src.voldoc",
+      "root_bytes": 494,
+      "standalone_bytes": 131534,
+      "reachable_objects": 1,
+      "amortized_bytes": 131574
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shared-bin_shared-3_bin.src.voldoc",
+      "root_bytes": 494,
+      "standalone_bytes": 131534,
+      "reachable_objects": 1,
+      "amortized_bytes": 131574
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shared-bin_shared-4_bin.src.voldoc",
+      "root_bytes": 494,
+      "standalone_bytes": 131534,
+      "reachable_objects": 1,
+      "amortized_bytes": 131574
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shared-payload_shared-0_pdf.src.voldoc",
+      "root_bytes": 160042,
+      "standalone_bytes": 160042,
+      "reachable_objects": 0,
+      "amortized_bytes": 160042
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shared-payload_shared-1_pdf.src.voldoc",
+      "root_bytes": 160042,
+      "standalone_bytes": 160042,
+      "reachable_objects": 0,
+      "amortized_bytes": 160042
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shared-payload_shared-2_pdf.src.voldoc",
+      "root_bytes": 160042,
+      "standalone_bytes": 160042,
+      "reachable_objects": 0,
+      "amortized_bytes": 160042
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shared-payload_shared-3_pdf.src.voldoc",
+      "root_bytes": 160042,
+      "standalone_bytes": 160042,
+      "reachable_objects": 0,
+      "amortized_bytes": 160042
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shared-payload_shared-4_pdf.src.voldoc",
+      "root_bytes": 160042,
+      "standalone_bytes": 160042,
+      "reachable_objects": 0,
+      "amortized_bytes": 160042
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shifted_shift-base_pdf.src.voldoc",
+      "root_bytes": 160040,
+      "standalone_bytes": 160040,
+      "reachable_objects": 0,
+      "amortized_bytes": 160040
+    },
+    {
+      "root": "/tmp/tmp.UfAdp4r2Sx/store/shifted_shift-one_pdf.src.voldoc",
+      "root_bytes": 160054,
+      "standalone_bytes": 160054,
+      "reachable_objects": 0,
+      "amortized_bytes": 160054
+    }
+  ],
+  "reachable_objects": 7,
+  "store_physical_bytes": 786501,
+  "dangling": 0,
+  "gzip9_sum": 1495074,
+  "zstd19_sum": 1334444,
+  "xz9e_sum": 1307612,
+  "brotli11_sum": 1306498,
+  "perfile_min_lz_sum": 1304307,
+  "cdc_unique_raw": 771383,
+  "cdc_unique_zstd": 210838,
+  "borg_version": "1.2.4",
+  "cdc_params": "10,15,11,127",
+  "cdc_deterministic": true,
+  "verdict": {
+    "vs_perfile_lz": "LOSS",
+    "vs_cdc": "LOSS",
+    "vs_cdc_compressed": "LOSS",
+    "vs_min_baseline": "LOSS",
+    "object_bytes_vs_cdc": "TIE"
+  },
+  "strata": [
+    {
+      "stratum": "dup-resource",
+      "files": 1,
+      "source_bytes": 181787,
+      "standalone_bytes": 56944,
+      "unique_reachable_bytes": 56984,
+      "unique_object_bytes": 29,
+      "perfile_min_lz_sum": 3454,
+      "cdc_unique_raw": 101586,
+      "cdc_unique_zstd": 11531,
+      "verdict": {
+        "vs_perfile_lz": "LOSS",
+        "vs_cdc": "WIN",
+        "vs_cdc_compressed": "LOSS"
+      }
+    },
+    {
+      "stratum": "incremental",
+      "files": 5,
+      "source_bytes": 394305,
+      "standalone_bytes": 246454,
+      "unique_reachable_bytes": 246454,
+      "unique_object_bytes": 0,
+      "perfile_min_lz_sum": 6793,
+      "cdc_unique_raw": 51192,
+      "cdc_unique_zstd": 7082,
+      "verdict": {
+        "vs_perfile_lz": "LOSS",
+        "vs_cdc": "LOSS",
+        "vs_cdc_compressed": "LOSS"
+      }
+    },
+    {
+      "stratum": "one-changed",
+      "files": 2,
+      "source_bytes": 516111,
+      "standalone_bytes": 320109,
+      "unique_reachable_bytes": 320109,
+      "unique_object_bytes": 0,
+      "perfile_min_lz_sum": 14040,
+      "cdc_unique_raw": 270984,
+      "cdc_unique_zstd": 27014,
+      "verdict": {
+        "vs_perfile_lz": "LOSS",
+        "vs_cdc": "LOSS",
+        "vs_cdc_compressed": "LOSS"
+      }
+    },
+    {
+      "stratum": "p7",
+      "files": 6,
+      "source_bytes": 751150,
+      "standalone_bytes": 362526,
+      "unique_reachable_bytes": 362577,
+      "unique_object_bytes": 29,
+      "perfile_min_lz_sum": 25042,
+      "cdc_unique_raw": 226918,
+      "cdc_unique_zstd": 31864,
+      "verdict": {
+        "vs_perfile_lz": "LOSS",
+        "vs_cdc": "LOSS",
+        "vs_cdc_compressed": "LOSS"
+      }
+    },
+    {
+      "stratum": "reexport",
+      "files": 3,
+      "source_bytes": 266646,
+      "standalone_bytes": 173863,
+      "unique_reachable_bytes": 173863,
+      "unique_object_bytes": 0,
+      "perfile_min_lz_sum": 15184,
+      "cdc_unique_raw": 96854,
+      "cdc_unique_zstd": 17854,
+      "verdict": {
+        "vs_perfile_lz": "LOSS",
+        "vs_cdc": "LOSS",
+        "vs_cdc_compressed": "LOSS"
+      }
+    },
+    {
+      "stratum": "repeat-bin",
+      "files": 4,
+      "source_bytes": 524288,
+      "standalone_bytes": 526104,
+      "unique_reachable_bytes": 133048,
+      "unique_object_bytes": 131072,
+      "perfile_min_lz_sum": 524308,
+      "cdc_unique_raw": 140640,
+      "cdc_unique_zstd": 133863,
+      "verdict": {
+        "vs_perfile_lz": "WIN",
+        "vs_cdc": "WIN",
+        "vs_cdc_compressed": "WIN"
+      }
+    },
+    {
+      "stratum": "repeat-pdf",
+      "files": 4,
+      "source_bytes": 483380,
+      "standalone_bytes": 298720,
+      "unique_reachable_bytes": 298720,
+      "unique_object_bytes": 0,
+      "perfile_min_lz_sum": 11536,
+      "cdc_unique_raw": 82106,
+      "cdc_unique_zstd": 9196,
+      "verdict": {
+        "vs_perfile_lz": "LOSS",
+        "vs_cdc": "LOSS",
+        "vs_cdc_compressed": "LOSS"
+      }
+    },
+    {
+      "stratum": "shared-bin",
+      "files": 5,
+      "source_bytes": 655400,
+      "standalone_bytes": 657670,
+      "unique_reachable_bytes": 657870,
+      "unique_object_bytes": 655400,
+      "perfile_min_lz_sum": 655425,
+      "cdc_unique_raw": 147253,
+      "cdc_unique_zstd": 138451,
+      "verdict": {
+        "vs_perfile_lz": "TIE",
+        "vs_cdc": "LOSS",
+        "vs_cdc_compressed": "LOSS"
+      }
+    },
+    {
+      "stratum": "shared-payload",
+      "files": 5,
+      "source_bytes": 1290290,
+      "standalone_bytes": 800210,
+      "unique_reachable_bytes": 800210,
+      "unique_object_bytes": 0,
+      "perfile_min_lz_sum": 34591,
+      "cdc_unique_raw": 285257,
+      "cdc_unique_zstd": 28199,
+      "verdict": {
+        "vs_perfile_lz": "LOSS",
+        "vs_cdc": "LOSS",
+        "vs_cdc_compressed": "LOSS"
+      }
+    },
+    {
+      "stratum": "shifted",
+      "files": 2,
+      "source_bytes": 516112,
+      "standalone_bytes": 320094,
+      "unique_reachable_bytes": 320094,
+      "unique_object_bytes": 0,
+      "perfile_min_lz_sum": 13934,
+      "cdc_unique_raw": 288854,
+      "cdc_unique_zstd": 28865,
+      "verdict": {
+        "vs_perfile_lz": "LOSS",
+        "vs_cdc": "LOSS",
+        "vs_cdc_compressed": "LOSS"
+      }
+    }
+  ],
+  "verification": {
+    "files_checked": 37,
+    "standalone_byte_exact": true,
+    "store_backed_byte_exact": true
+  }
+}

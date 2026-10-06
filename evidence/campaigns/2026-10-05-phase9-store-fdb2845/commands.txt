@@ -1,0 +1,48 @@
+# Phase 9.3 store campaign — exact commands
+#
+# Commit under test: fdb2845e04bcd97fac4edb67c0a5d7910f3d6680 (branch phase9)
+# All commands run through compose.yaml; nothing runs on the host.
+
+# --- toolchain / dependencies -------------------------------------------------
+docker compose run --rm --no-TTY dev cargo build --locked --all-features
+
+# --- Stage A: cohort (deterministic, locally generated, no third-party bytes) --
+# Prerequisite: the Phase-7 producer corpus bytes (gitignored, regenerable).
+docker compose run --rm --no-TTY tools sh tools/pdf-corpus.sh
+docker compose run --rm --no-TTY tools sh tools/store-cohort.sh
+# -> evidence/corpus/phase9/cohort.json (ledger, committed) + gitignored bytes
+
+# --- Stage B/C: the store court (three universes + per-file LZ + CDC) ---------
+docker compose run --rm --no-TTY baseline sh tools/store-court.sh \
+    evidence/corpus/phase9 \
+    evidence/campaigns/2026-10-05-phase9-store-fdb2845
+
+# --- the CDC baseline directly (pinned borg; determinism cross-check) ---------
+docker compose run --rm --no-TTY baseline sh tools/chunk-dedup.sh \
+    evidence/corpus/phase9 /tmp/cdc.json
+# -> {"tool":"borg","borg_version":"1.2.4",
+#     "chunker_params":"19,23,21,4095","compression":"none",
+#     "borg_unique_bytes":4272988,"borg_unique_bytes_run2":4272988,
+#     "borg_deterministic":true, ...}
+# The court sweeps chunker params and keeps the smallest (10,15,11,127 ->
+# 771,383 B with --compression none; 210,836 B with --compression zstd,19).
+
+# --- gates (Stage E) ----------------------------------------------------------
+docker compose run --rm --no-TTY dev cargo fmt --all --check
+docker compose run --rm --no-TTY dev cargo clippy --all-targets --all-features -- -D warnings
+docker compose run --rm --no-TTY dev cargo test --all-features --locked
+docker compose run --rm --no-TTY dev cargo test --locked
+docker compose run --rm --no-TTY dev cargo test --no-default-features
+docker compose run --rm --no-TTY msrv cargo test --locked --all-features
+docker compose run --rm --no-TTY policy sh -c 'cargo audit && cargo deny check'
+
+# --- reproduce/exactness checks performed by tools/store-court.sh -------------
+# per file:  vole-document encode FILE work/<uniq>.src.voldoc   (auto winner)
+#            vole-document verify work/<uniq>.src.voldoc
+#            vole-document decode work/<uniq>.src.voldoc  /tmp/dec ; cmp /tmp/dec FILE
+#            vole-document store put work/<uniq>.src.voldoc STORE
+#            vole-document decode --store STORE STORE/<uniq>.src.voldoc /tmp/dec2 ; cmp /tmp/dec2 FILE
+# cohort:    vole-document store account STORE <all roots>        (closure dangling must be 0)
+# strata:    vole-document store account STORE <stratum roots>
+# per-file LZ: sh tools/baselines.sh <out.json> evidence/corpus/phase9
+# CDC:         sh tools/chunk-dedup.sh <dir> <out.json> [params] [compression]

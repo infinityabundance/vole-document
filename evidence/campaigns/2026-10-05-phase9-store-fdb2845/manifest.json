@@ -1,0 +1,53 @@
+{
+  "campaign": "2026-10-05-phase9-store-fdb2845",
+  "phase": "Phase 9.3 — cross-document content-addressed store: three accounting universes vs per-file LZ and generic content-defined-chunk dedup",
+  "branch": "phase9",
+  "commit": "fdb2845e04bcd97fac4edb67c0a5d7910f3d6680",
+  "commit_short": "fdb2845",
+  "amends": null,
+  "cohort": "evidence/corpus/phase9 — 37 locally generated files, 5,579,469 B source, 10 strata (p7, repeat-bin, repeat-pdf, shared-payload, shared-bin, dup-resource, reexport, one-changed, incremental, shifted). No third-party bytes; generator tools/store-cohort.sh; ledger cohort.json.",
+  "claim": "On this cohort the EmbeddedStore's unique-reachable universe (U = 3,369,900 B) LOSES the store axis: it is larger than per-file min LZ (1,304,307 B) and larger than the strongest pinned content-defined-chunk dedup (borg 1.2.4, chunker 10,15,11,127, compression none: 771,383 B; the same with zstd,19 chunk compression: 210,836 B). Object-granularity sharing beats both baselines on exactly one stratum — repeat-bin, byte-identical opaque binaries (U = 133,048 B vs per-file LZ 524,308 B, CDC raw 140,640 B, CDC+zstd 133,865 B). On shared-payload (the expected win fixture), shared-bin, one-changed, incremental, reexport and shifted the store loses to CDC; on repeat-pdf it does no dedup at all. Cause: the auto-winning candidate for most PDFs keeps the document's bulk in entropy channels and program INLINE ops, which `externalize` does not externalise, so only whole DRA objects (usually the entire file for RAW winners) are shared.",
+  "verification": "Every one of the 37 standalone descriptors and every one of the 37 store-backed roots was decoded and `cmp`-ed byte-exact; `store account` closure reported dangling = 0. `verify` has no resolver and so was run on the standalone form only; the store-backed form is gated by decode --store (which re-checks the whole-source INTEGRITY SHA-256) + cmp.",
+  "universe_totals_bytes": {
+    "source_bytes": 5579469,
+    "standalone_bytes": 3762694,
+    "unique_reachable_bytes": 3369900,
+    "amortized_bytes_total": 3369900,
+    "unique_object_bytes": 786501,
+    "store_physical_bytes": 786501
+  },
+  "baselines_bytes": {
+    "gzip9_sum": 1495074,
+    "zstd19_sum": 1334444,
+    "xz9e_sum": 1307612,
+    "brotli11_sum": 1306498,
+    "perfile_min_lz_sum": 1304307,
+    "cdc_unique_raw": 771383,
+    "cdc_unique_zstd": 210836,
+    "cdc_params": "10,15,11,127",
+    "cdc_tool": "borg 1.2.4 (Debian bookworm pin borgbackup=1.2.4-1)"
+  },
+  "verdict": {
+    "overall_vs_perfile_lz": "LOSS",
+    "overall_vs_cdc": "LOSS",
+    "overall_vs_cdc_compressed": "LOSS",
+    "object_bytes_vs_cdc_raw": "TIE",
+    "winning_strata_vs_both_baselines": ["repeat-bin"],
+    "losing_strata_vs_cdc": ["incremental", "one-changed", "p7", "reexport", "repeat-pdf", "shared-bin", "shared-payload", "shifted"],
+    "tie_strata": ["shared-bin (vs per-file LZ only)"]
+  },
+  "files": [
+    "manifest.json",
+    "environment.json",
+    "cohort.json",
+    "results.json",
+    "report.md",
+    "cdc-sweep.json",
+    "cdc-global.json",
+    "cdc-global-zstd.json",
+    "account-global.json",
+    "baselines.json",
+    "perfile.jsonl",
+    "commands.txt"
+  ]
+}
