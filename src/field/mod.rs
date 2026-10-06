@@ -14,6 +14,7 @@
 
 pub mod dag;
 pub mod derive;
+pub mod index;
 pub mod manifest;
 pub mod node;
 
