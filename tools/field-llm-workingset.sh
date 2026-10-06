@@ -84,34 +84,55 @@ printf '%s' "$V_RAW" | jq -j '.text' > "$TMP/v.txt" 2>/dev/null || : > "$TMP/v.t
 V_DISK=$(wc -c < "$TMP/v.txt" | tr -d ' ')
 if [ "$V_DISK" = "$V" ]; then V_BYTES_MATCH=true; else V_BYTES_MATCH=false; fi
 
-# Tokens: one pinned loader invocation, three files, one JSON object.
-TOK=$(python3 "$LLM_TOKENIZE_PY" \
-  --tokenizer "$LLM_TOKENIZER_JSON" \
-  --expect-sha256 "$EXPECT_SHA" \
-  --name "$LLM_TOKENIZER_NAME" \
-  --files "$TMP/b0.txt" "$TMP/b1.txt" "$TMP/v.txt")
-TOK_OK=$(printf '%s' "$TOK" | jq -r '.ok')
-if [ "$TOK_OK" != true ]; then
-  echo "field-llm-workingset: tokenizer failed:" >&2
-  printf '%s\n' "$TOK" >&2
-  exit 5
+# Tokens require the pinned runtime, installed in the `llm-workingset` image —
+# the intended home of this court. Other callers (e.g. `db-baseline` running
+# `tools/field-court.sh`) have no Python, so the script *degrades to bytes only*
+# with an explicit reason instead of failing. A token number is still never
+# reported without the tokenizer that produced it.
+TOK_AVAILABLE=false
+if command -v python3 >/dev/null 2>&1 && [ -f "$LLM_TOKENIZER_JSON" ] && [ -f "$LLM_TOKENIZE_PY" ] \
+   && python3 -c 'import tokenizers' >/dev/null 2>&1; then
+  TOK_AVAILABLE=true
 fi
-B0_TOK=$(printf '%s' "$TOK" | jq -r '.counts[0].tokens')
-B1_TOK=$(printf '%s' "$TOK" | jq -r '.counts[1].tokens')
-V_TOK=$(printf '%s' "$TOK" | jq -r '.counts[2].tokens')
-B0_DECODED_OK=$(printf '%s' "$TOK" | jq -r '.counts[0].valid_utf8')
-B1_DECODED_OK=$(printf '%s' "$TOK" | jq -r '.counts[1].valid_utf8')
-V_DECODED_OK=$(printf '%s' "$TOK" | jq -r '.counts[2].valid_utf8')
-printf '%s' "$TOK" > "$TMP/tok.json"
+
+if [ "$TOK_AVAILABLE" = true ]; then
+  # One pinned loader invocation, three files, one JSON object.
+  TOK=$(python3 "$LLM_TOKENIZE_PY" \
+    --tokenizer "$LLM_TOKENIZER_JSON" \
+    --expect-sha256 "$EXPECT_SHA" \
+    --name "$LLM_TOKENIZER_NAME" \
+    --files "$TMP/b0.txt" "$TMP/b1.txt" "$TMP/v.txt")
+  TOK_OK=$(printf '%s' "$TOK" | jq -r '.ok')
+  if [ "$TOK_OK" != true ]; then
+    echo "field-llm-workingset: tokenizer failed:" >&2
+    printf '%s\n' "$TOK" >&2
+    exit 5
+  fi
+  B0_TOK=$(printf '%s' "$TOK" | jq -r '.counts[0].tokens')
+  B1_TOK=$(printf '%s' "$TOK" | jq -r '.counts[1].tokens')
+  V_TOK=$(printf '%s' "$TOK" | jq -r '.counts[2].tokens')
+  B0_DECODED_OK=$(printf '%s' "$TOK" | jq -r '.counts[0].valid_utf8')
+  B1_DECODED_OK=$(printf '%s' "$TOK" | jq -r '.counts[1].valid_utf8')
+  V_DECODED_OK=$(printf '%s' "$TOK" | jq -r '.counts[2].valid_utf8')
+  printf '%s' "$TOK" > "$TMP/tok.json"
+  TOKENS_REASON=null
+else
+  B0_TOK=null; B1_TOK=null; V_TOK=null
+  B0_DECODED_OK=null; B1_DECODED_OK=null; V_DECODED_OK=null
+  printf '{"tokenizer":null}' > "$TMP/tok.json"
+  TOKENS_REASON='"pinned tokenizer not installed in this image; UTF-8 bytes only (run the token court inside the llm-workingset service)"'
+fi
 
 # context_waste_ratio, stated precisely: bytes of whole-document extract divided
 # by bytes of the page-scoped VOLE answer. >1 means the whole-document baseline
 # hands the model that many times more context than VOLE's page-local answer.
 # The token-space counterpart (`token_ratios`) is the same comparison under the
-# named tokenizer.
+# named tokenizer (null when the tokenizer is unavailable).
 jq -n \
   --arg pdf "$PDF" \
   --argjson page "$PAGE" \
+  --argjson tok_available "$TOK_AVAILABLE" \
+  --argjson tokens_reason "$TOKENS_REASON" \
   --argjson b0_bytes "$B0" --arg b0_sha256 "$B0_SHA" --argjson b0_tokens "$B0_TOK" \
   --argjson b1_bytes "$B1" --arg b1_sha256 "$B1_SHA" --argjson b1_tokens "$B1_TOK" \
   --argjson v_bytes "$V" --argjson v_tokens "$V_TOK" \
@@ -122,10 +143,12 @@ jq -n \
   --argjson v_decoded_ok "$V_DECODED_OK" \
   --slurpfile tok "$TMP/tok.json" \
   '
-  def ratio($x;$y): if $y > 0 then ($x / $y) else null end;
+  def ratio($x;$y): if ($x != null and $y != null and $y > 0) then ($x / $y) else null end;
   {
     question: ("what is on page " + ($page|tostring)),
     tokenizer: ($tok[0].tokenizer),
+    tokens_measured: $tok_available,
+    tokens_reason: $tokens_reason,
     baselines: {
       B0_whole_document: {oracle: "pdftotext (poppler)", bytes: $b0_bytes,
                           sha256: $b0_sha256, tokens: $b0_tokens, text_valid_utf8: $b0_decoded_ok},
@@ -152,8 +175,8 @@ jq -n \
     honest_losses: (
       [ if $v_bytes > $b1_bytes then "V_page_text_larger_than_B1_page_local" else empty end,
         if $v_bytes > $b0_bytes then "V_page_text_larger_than_B0_whole_document" else empty end,
-        if $v_tokens > $b1_tokens then "V_tokens_exceed_B1_page_local" else empty end,
-        if $v_tokens > $b0_tokens then "V_tokens_exceed_B0_whole_document" else empty end ]
+        if ($v_tokens != null and $v_tokens > $b1_tokens) then "V_tokens_exceed_B1_page_local" else empty end,
+        if ($v_tokens != null and $v_tokens > $b0_tokens) then "V_tokens_exceed_B0_whole_document" else empty end ]
     )
   }' > "$OUT"
 
