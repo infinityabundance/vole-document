@@ -464,9 +464,9 @@ process_case_lanes() {
 
     printf '%s\t%s\t%s\t%s\t%s' "$name" "$i" "$id" "$a0_read" "$a1_read" > "$d/row.tsv"
     printf '\t%s' "$a1b_read" >> "$d/row.tsv"
-    printf '%s\t%s' "$i" "$a0_read" >> "$d/casebytes.a0.tsv"
-    printf '%s\t%s' "$i" "$a1_read" >> "$d/casebytes.a1.tsv"
-    printf '%s\t%s' "$i" "$a1b_read" >> "$d/casebytes.a1b.tsv"
+    printf '%s\t%s\n' "$i" "$a0_read" >> "$d/casebytes.a0.tsv"
+    printf '%s\t%s\n' "$i" "$a1_read" >> "$d/casebytes.a1.tsv"
+    printf '%s\t%s\n' "$i" "$a1b_read" >> "$d/casebytes.a1b.tsv"
     printf '%s\t%s\t%s\t%s\t%s\n' "$name" "$id" "A0:$a0_status" "A1:$a1_status" "A1b:$a1b_status" >> "$RAW/assertions.tsv"
 
     # Ladder field lanes
