@@ -158,6 +158,31 @@ services:
       - cargo-target:/work/target
     command: ["sh", "-c", "sqlite3 --version; pdftotext -v; qpdf --version | head -1"]
 
+  # Phase-11.13 LLM working-set *token* court (opt-in; never part of a fast
+  # gate). Same pinned base digest as `dev`/`baseline`, plus Poppler (`pdftotext`
+  # for B0/B1), `jq`, and a pinned HuggingFace `tokenizers` runtime. Runs
+  # `tools/llm-token-court.sh`; the vendored tokenizer asset is on disk, so the
+  # court is offline-deterministic. Capped like the other measurement lanes.
+  llm-workingset:
+    build:
+      context: .
+      target: llm-workingset
+    image: vole-document/llm-workingset:1.99.0
+    network_mode: host
+    working_dir: /work
+    mem_limit: 4g
+    memswap_limit: 4g
+    pids_limit: 2048
+    cpus: 4
+    environment:
+      CARGO_TERM_COLOR: never
+      VOLE_BIN: ./target/debug/vole-document
+    volumes:
+      - .:/work
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/work/target
+    command: ["sh", "-c", "python3 -c 'import tokenizers; print(tokenizers.__version__)'"]
+
   # Dependency-policy gate (cargo-audit + cargo-deny).
   policy:
     build:

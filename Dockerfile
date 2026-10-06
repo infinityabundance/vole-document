@@ -199,3 +199,41 @@ RUN apt-get update \
       qpdf \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
+
+# ---------------------------------------------------------------------------
+# Phase-11.13 LLM working-set *token* court (priority #8). Derives from the
+# pinned `dev` toolchain (same base digest as `dev`/`baseline`, so rustc/cargo
+# match the measurement binary) and adds the two things the token court needs
+# beyond a plain dev image:
+#   * Poppler (`pdftotext`, the B0/B1 oracle) and `jq` (the receipt assembler);
+#   * a *pinned* real tokenizer: the HuggingFace `tokenizers` runtime at an
+#     exact version, installed from a hash-pinned wheel, plus the vendored
+#     `bert-base-uncased` `tokenizer.json` committed in the repository
+#     (tools/tokenizers/, SHA-256 recorded in PROVENANCE.txt and re-verified at
+#     court time). The court never touches the network: the model asset is on
+#     disk, so the token count is offline-deterministic.
+#
+# Hash-pinned cp311 wheels (bookworm ships Python 3.11.2):
+#   x86_64  453c7769d22231960ee0e883d1005c93c68015025a5e4ae56275406d94a3c907
+#   aarch64 ef820880d5e4e8484e2fa54ff8d297bb32519eaa7815694dc835ace9130a3eea
+# Both are the manylinux2014 wheels for tokenizers 0.20.3. `--no-deps`:
+# `import tokenizers` + `Tokenizer.from_file` do not need `huggingface-hub`
+# (that is only pulled in by `from_pretrained`), so the runtime is exactly one
+# hash-verified wheel.
+# ---------------------------------------------------------------------------
+FROM dev AS llm-workingset
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      poppler-utils \
+      jq \
+      python3 \
+      python3-pip \
+ && rm -rf /var/lib/apt/lists/*
+RUN printf 'tokenizers==0.20.3 \
+  --hash=sha256:453c7769d22231960ee0e883d1005c93c68015025a5e4ae56275406d94a3c907 \
+  --hash=sha256:ef820880d5e4e8484e2fa54ff8d297bb32519eaa7815694dc835ace9130a3eea\n' \
+      > /tmp/tokenizers-requirements.txt \
+ && pip3 install --break-system-packages --no-cache-dir --no-deps --require-hashes -r /tmp/tokenizers-requirements.txt \
+ && rm -f /tmp/tokenizers-requirements.txt
+WORKDIR /work
