@@ -33,6 +33,13 @@ the written rationale that must survive chat history.
 | [0026](0026-observation-query-provenance.md) | Typed observation algebra, provenance on every answer, EXPLAIN/EXPLAIN ANALYZE | Accepted (Phase 11.0) |
 | [0027](0027-cost-accounting.md) | Four accounting universes; multi-objective cost; lifetime-cost headline | Accepted (Phase 11.0) |
 | [0028](0028-finer-than-object-sharing.md) | Finer-than-object shareable units still lose to content-defined chunking (measured) | Accepted — recorded negative result (Phase 11.14) |
+| [0029](0029-multi-format-authority-model.md) | Three distinct representational layers for a multi-format field; no lossy universal AST | Accepted (Phase 12.0) |
+| [0030](0030-zip-physical-layer.md) | A byte-authoritative ZIP physical layer shared by DOCX/EPUB | Accepted (Phase 12.0) |
+| [0031](0031-common-observation-model.md) | A shared observation vocabulary, not a shared schema; native selectors first-class | Accepted (Phase 12.0) |
+| [0032](0032-docx-adapter-scope.md) | DOCX adapter scope: OPC semantic discovery, WML subset, stories, versioned profiles | Accepted (Phase 12.0) |
+| [0033](0033-epub-adapter-scope.md) | EPUB adapter scope: OCF, package, spine-first order, bounded XHTML; no invented pages | Accepted (Phase 12.0) |
+| [0034](0034-cross-document-identity-sharing.md) | Cross-document identity and sharing: state, not bytes; exact versioned content identity | Accepted (Phase 12.0) |
+| [0035](0035-phase12-lifetime-benchmark.md) | Phase-12 lifetime benchmark: pre-registered ablations, accounting boundary, go/no-go | Accepted (Phase 12.0) |
 
 ## Adding an ADR
 
