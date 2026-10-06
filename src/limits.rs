@@ -55,6 +55,33 @@ pub struct Limits {
     /// `13 * record_count` bytes, so this also caps the record count a directory
     /// can describe.
     pub max_directory_bytes: u32,
+    // The ZIP caps below mirror the threat model and DEFAULT/STRICT values frozen
+    // in `research/subagents/phase-12/I-security.md` §6 (threat ids Z1–Z15), as
+    // required by plan §DEC-3/§DEC-9.
+    /// Maximum number of ZIP members accepted in one archive (Phase 12, Z2).
+    pub max_zip_members: u32,
+    /// Maximum declared compressed size of a single ZIP member (Phase 12, Z1).
+    pub max_zip_member_compressed: u64,
+    /// Maximum declared uncompressed size of a single ZIP member (Phase 12, Z1).
+    pub max_zip_member_uncompressed: u64,
+    /// Maximum sum of declared uncompressed sizes across all members (Z2).
+    pub max_zip_aggregate_uncompressed: u64,
+    /// Maximum declared uncompressed/compressed ratio for one member (Z1).
+    pub max_zip_compression_ratio: u32,
+    /// Maximum raw name byte length of one member (Phase 12, Z13/Z14).
+    pub max_zip_name_bytes: u32,
+    /// Maximum raw extra-field byte length of one member (Z7/Z14).
+    pub max_zip_extra_bytes: u32,
+    /// Maximum per-entry comment byte length (Z14).
+    pub max_zip_entry_comment_bytes: u32,
+    /// Maximum archive comment byte length (Z14/Z15).
+    pub max_zip_archive_comment_bytes: u32,
+    /// Maximum central-directory byte length (Z14).
+    pub max_zip_central_dir_bytes: u64,
+    /// Maximum leading bytes before the first local header (Z14).
+    pub max_zip_prefix_bytes: u64,
+    /// Maximum trailing bytes after the EOCD record (Z14).
+    pub max_zip_trailing_bytes: u64,
 }
 
 impl Limits {
@@ -75,6 +102,18 @@ impl Limits {
         max_pdf_spans: 1 << 26,
         max_index_selectors: 1 << 20,
         max_directory_bytes: 1 << 20,
+        max_zip_members: 1 << 20,
+        max_zip_member_compressed: 1 << 34,
+        max_zip_member_uncompressed: 1 << 34,
+        max_zip_aggregate_uncompressed: 1 << 36,
+        max_zip_compression_ratio: 1024,
+        max_zip_name_bytes: 1 << 16,
+        max_zip_extra_bytes: 1 << 16,
+        max_zip_entry_comment_bytes: 1 << 16,
+        max_zip_archive_comment_bytes: 1 << 16,
+        max_zip_central_dir_bytes: 1 << 28,
+        max_zip_prefix_bytes: 1 << 20,
+        max_zip_trailing_bytes: 1 << 20,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -94,6 +133,18 @@ impl Limits {
         max_pdf_spans: 1 << 16,
         max_index_selectors: 1 << 16,
         max_directory_bytes: 1 << 18,
+        max_zip_members: 1 << 16,
+        max_zip_member_compressed: 1 << 26,
+        max_zip_member_uncompressed: 1 << 26,
+        max_zip_aggregate_uncompressed: 1 << 27,
+        max_zip_compression_ratio: 256,
+        max_zip_name_bytes: 4096,
+        max_zip_extra_bytes: 4096,
+        max_zip_entry_comment_bytes: 4096,
+        max_zip_archive_comment_bytes: 4096,
+        max_zip_central_dir_bytes: 1 << 20,
+        max_zip_prefix_bytes: 1 << 16,
+        max_zip_trailing_bytes: 1 << 16,
     };
 }
 

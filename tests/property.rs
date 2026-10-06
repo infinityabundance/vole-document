@@ -399,6 +399,18 @@ fn limits_never_change_reconstructed_bytes() {
         max_pdf_spans: 1 << 26,
         max_index_selectors: 1 << 26,
         max_directory_bytes: 1 << 26,
+        max_zip_members: 1 << 24,
+        max_zip_member_compressed: 1 << 50,
+        max_zip_member_uncompressed: 1 << 50,
+        max_zip_aggregate_uncompressed: 1 << 52,
+        max_zip_compression_ratio: 1 << 20,
+        max_zip_name_bytes: 1 << 24,
+        max_zip_extra_bytes: 1 << 24,
+        max_zip_entry_comment_bytes: 1 << 24,
+        max_zip_archive_comment_bytes: 1 << 24,
+        max_zip_central_dir_bytes: 1 << 30,
+        max_zip_prefix_bytes: 1 << 30,
+        max_zip_trailing_bytes: 1 << 30,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

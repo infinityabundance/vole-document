@@ -758,6 +758,7 @@ name = "vole-document"
 version = "0.1.0-alpha.15"
 dependencies = [
  "blake3",
+ "crc32fast",
  "entropyfs",
  "flate2",
  "miniz_oxide",

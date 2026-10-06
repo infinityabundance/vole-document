@@ -67,6 +67,14 @@ entropyfs = { version = "=0.7.17", optional = true, default-features = false }
 # and has no C toolchain. Pinned exactly.
 miniz_oxide = { version = "=0.8.9", optional = true }
 
+# Phase 12: ZIP CRC-32/ISO-HDLC (the polynomial the ZIP format mandates — **not**
+# CRC-32C/Castagnoli). Optional and gated by the non-default `package` feature;
+# it is used only to verify the CRC of `stored` members and to build derived
+# observations, never in the exactness path (a member's exact leaf is its raw
+# compressed span). `crc32fast` is permissive (MIT/Apache-2.0) and pure Rust.
+# Already present in `Cargo.lock` transitively; pinned exactly.
+crc32fast = { version = "=1.5.2", optional = true }
+
 [dev-dependencies]
 # Test-only zlib stream generator for the exact-replay courts. Never a runtime
 # dependency of the library. The `zlib-rs` backend is used deliberately: it is a
@@ -114,6 +122,12 @@ dsfb-search = []
 # behavior: a descriptor produced with the field present decodes identically in
 # a build without it, and the field is never in the exactness path.
 field = ["dep:miniz_oxide", "store"]
+# Phase 12: the byte-authoritative ZIP physical layer shared by DOCX and EPUB.
+# Optional and **never** in `default`: it pulls a pure-Rust CRC-32 (`crc32fast`)
+# used only for `stored`-member CRC verification and derived observations. It
+# adds **no** decoder behavior to the exactness path — a ZIP source's exact leaf
+# is its raw compressed span — so enabling it never changes `.voldoc` bytes.
+package = ["dep:crc32fast"]
 # Later phases (declared so the feature surface is deliberate, not accidental):
 # pdf = []
 

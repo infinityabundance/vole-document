@@ -43,6 +43,17 @@ pub enum ErrorClass {
     ReconstructionMismatch,
     /// The operation was cooperatively cancelled.
     Cancelled,
+    /// A ZIP container structure error (Phase 12+): malformed or contradictory
+    /// local/central/ZIP64 records, an ambiguous byte cover, a broken descriptor,
+    /// multi-disk layout, or a hostile member name.
+    InvalidZipStructure,
+    /// An XML part structure error (Phase 12+, reserved): malformed or forbidden
+    /// constructs (DOCTYPE/XXE, encoding tricks) in a package part.
+    InvalidXmlStructure,
+    /// An OPC/OCF package structure error (Phase 12+, reserved): a missing or
+    /// ambiguous main part, content-type abuse, `mimetype` trick, or an ambiguous
+    /// part-name identity.
+    InvalidPackageStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -67,6 +78,9 @@ impl ErrorClass {
             ErrorClass::CoverageViolation => 15,
             ErrorClass::ReconstructionMismatch => 16,
             ErrorClass::Cancelled => 17,
+            ErrorClass::InvalidZipStructure => 18,
+            ErrorClass::InvalidXmlStructure => 19,
+            ErrorClass::InvalidPackageStructure => 20,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -90,6 +104,9 @@ impl ErrorClass {
             ErrorClass::CoverageViolation => "CoverageViolation",
             ErrorClass::ReconstructionMismatch => "ReconstructionMismatch",
             ErrorClass::Cancelled => "Cancelled",
+            ErrorClass::InvalidZipStructure => "InvalidZipStructure",
+            ErrorClass::InvalidXmlStructure => "InvalidXmlStructure",
+            ErrorClass::InvalidPackageStructure => "InvalidPackageStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -167,6 +184,9 @@ impl Error {
     ctor!(coverage_violation, CoverageViolation);
     ctor!(reconstruction_mismatch, ReconstructionMismatch);
     ctor!(cancelled, Cancelled);
+    ctor!(invalid_zip_structure, InvalidZipStructure);
+    ctor!(invalid_xml_structure, InvalidXmlStructure);
+    ctor!(invalid_package_structure, InvalidPackageStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 
@@ -194,6 +214,9 @@ mod tests {
             ErrorClass::CoverageViolation,
             ErrorClass::ReconstructionMismatch,
             ErrorClass::Cancelled,
+            ErrorClass::InvalidZipStructure,
+            ErrorClass::InvalidXmlStructure,
+            ErrorClass::InvalidPackageStructure,
             ErrorClass::InternalInvariant,
         ];
         let mut codes: Vec<i32> = classes.iter().map(|c| c.exit_code()).collect();
