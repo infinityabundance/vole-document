@@ -1,0 +1,21 @@
+# Phase 12.8 cross-document procedural state court — controls — exact commands
+# Commit under test: dce2705b59a7b5abd60c14c982a3fcef16c53cbf (branch phase12); dirty: 
+# Run (UTC): 2026-10-06T19:06:48Z
+# Base image (ARG BASE_STABLE): rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+# Service image: vole-document/doc-baseline:1.99.0
+# rustc 1.99.0, cargo 1.99.0 (5f94df478 2026-08-27), borg 1.2.4, jq jq-1.6, arch x86_64
+# Cargo.lock sha256: 710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e
+# All commands run inside the pinned, capped doc-baseline image; nothing on the host.
+
+docker compose run --rm --no-TTY doc-baseline sh tools/phase12-share-court.sh
+
+# Inside phase12-share-court.sh:
+#   (1) cargo run --all-features --example phase12_share_court -- CAMPAIGN random  SCRATCH
+#   (2) cargo run --all-features --example phase12_share_court -- CAMPAIGN witness SCRATCH EPUB_FIELD
+#       ^ a *second OS process* reopens the persisted store, clears the derived cache
+#         directory, and re-measures reuse (the ADR-0034 fresh-process control).
+#   (3) sh tools/chunk-dedup.sh COHORT OUT {19,23,21,4095 | 16,20,18,4095 | 12,16,14,4095} none
+# The first invocation writes CAMPAIGN/raw/: shared.resource.bin, control.resource.bin,
+# docx_shared.docx, epub_shared.epub, epub_control.epub, metrics.json, post_clear.json,
+# witness.json; the second writes witness.measure.json. Stores are in the gitignored
+# evidence/scratch/phase12-share (regenerable bytes, never sealed).

@@ -1,0 +1,1 @@
+{"tool":"borg","borg_version":"1.2.4","chunker_params":"19,23,21,4095","compression":"none","dir":"evidence/scratch/phase12-share/cdc-cohort","borg_unique_bytes":18109,"borg_unique_bytes_run2":18109,"borg_deterministic":true,"borg_total_size":16735,"borg_total_csize":16744,"borg_total_chunks":5,"borg_unique_chunks":5}

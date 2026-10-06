@@ -1,0 +1,10 @@
+{
+  "mode": "witness",
+  "fresh_process": true,
+  "cache_cleared_before_warm": true,
+  "cold": {"node_executions": 4, "input_bytes": 12217, "nodes_reused": 0, "work_units": 12221},
+  "warm_post_clear": {"node_executions": 4, "input_bytes": 12217, "nodes_reused": 0, "nodes_id_shared": 2, "work_units": 12221},
+  "retained_inverse_work_fraction_post_clear": 0.000000,
+  "warm_bytes_exact": true,
+  "materialize_exact": true
+}

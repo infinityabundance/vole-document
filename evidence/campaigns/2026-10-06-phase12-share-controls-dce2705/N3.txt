@@ -1,0 +1,4 @@
+
+## N3 verdict (ADR-0035: reuse ≈0 or ≤ strongest CDC on reuse work)
+ * warm in-process fraction = `0.339907`; post-`cache --clear` in-process = `0.0` (`nodes_reused=0`). * fresh-process post-clear fraction = `0.0` (`nodes_reused=0`), \`materialize_exact=True\`, `warm_bytes_exact=True`. * strongest CDC baseline (smallest `borg_unique_bytes` over the sweep) = `18109` of `16735` total cohort bytes → CDC dedup saving = `-1374` bytes. 
+**N3 is VIOLATED.** the post-`cache --clear` reuse (in-process **and** fresh-process) is ≈0 and `nodes_reused=0`, so the warm `0.339907` fraction was served by the derived cache, not by durable seed-store work reuse. This is the N3 `reuse ≈0` condition, so cross-document *work* reuse is recorded as a negative (representation identity remains shared — see `nodes_id_shared`). No compression claim is made: a shared blob is scored as state/work.
