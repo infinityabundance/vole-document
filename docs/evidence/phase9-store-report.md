@@ -90,7 +90,7 @@ can emit is the whole deflate stream. See `phase9-skeptic-review.md`.
 
 | stratum | files | S | U | LZ | CDC raw | CDC zstd | vs LZ | vs CDC | vs CDC+zstd |
 |---|---:|---:|---:|---:|---:|---:|---|---|---|
-| repeat-bin | 4 | 526,104 | 133,048 | 524,308 | 140,640 | 133,865 | WIN | WIN | WIN |
+| repeat-bin | 4 | 526,104 | 133,048 | 524,308 | 140,640 | 133,863 | WIN | WIN | WIN |
 | dup-resource | 1 | 56,944 | 56,984 | 3,454 | 101,586 | 11,531 | LOSS | WIN | LOSS |
 | shared-bin | 5 | 657,670 | 657,870 | 655,425 | 147,253 | 138,450 | TIE | LOSS | LOSS |
 | shared-payload | 5 | 800,210 | 800,210 | 34,591 | 285,257 | 28,195 | LOSS | LOSS | LOSS |

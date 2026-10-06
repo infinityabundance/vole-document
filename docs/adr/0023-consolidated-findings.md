@@ -36,26 +36,39 @@ phases.
    - a **small partial-decode CPU win** for late random-access queries on large
      documents, versus sequential `gzip`/`xz` (ADR-0018), realized after Phase 8 as
      a bytes-read win **versus non-seekable sequential codecs only** (ADR-0019) —
-     never beating zstd's decoder, always losing to seekable/blocked formats, and
-     carrying an offset-independent ~440 KB floor; and
+     never beating zstd's decoder, **losing to fine-block seekable formats but
+     reading less than coarse-block ones** (BGZF 23,808 B and xz-64KiB 15,344 B
+     read less than VOLE's 460,713 B; xz-4MiB 708,612 B and pixz 2,810,832 B read
+     more), and carrying an offset-independent ~440 KB floor; and
    - **whole-object dedup of identical opaque files** in the content-addressed
      store (ADR-0021) — real but **marginal versus CDC** and large only versus
      per-file LZ, which is the wrong comparison for a sharing axis.
 
-3. **Three axes are recorded losses**, each against a named purpose-built
-   baseline: whole-file size vs `gzip`/`zstd`/`xz`/`brotli` (0/27, ADR-0017);
-   random-access bytes read vs seekable/blocked formats (2.6–30× more, ADR-0019);
-   cross-document sharing vs per-file LZ **and** generic CDC (ADR-0021). The
-   cause is structural: the DRA + typed-residual + entropy-channel representation
-   is **coarser** than LZ77 plus seekable-block formats, and byte-exactness is
-   shared with any lossless compressor, so it is a floor rather than an advantage.
+3. **One qualitative capability difference is under-claimed (stated as a
+   capability, not a bytes-read win).** A single `.voldoc` artifact simultaneously
+   provides full byte-exact archival materialization **and** structural
+   observation (`--pdf-object`/`--pdf-stream`/`--pdf-revision`). BGZF and blocked
+   xz provide byte-range seeks only — the seekable court measured byte ranges
+   only — so neither can answer an object/stream/revision query without first
+   reconstructing and re-parsing the document. This is a capability difference,
+   not a size or bytes-read advantage.
 
-4. **Encoder-only search governance buys nothing measurable** (ADR-0022): the
+4. **Three axes are recorded losses**, each against a named purpose-built
+   baseline: whole-file size vs `gzip`/`zstd`/`xz`/`brotli` (0/27, ADR-0017);
+   random-access bytes read vs fine-block seekable formats (2.6–30× more,
+   ADR-0019; VOLE reads **less** than coarse-block seekable formats, so it sits
+   between fine and coarse block sizes rather than always losing); cross-document
+   sharing vs per-file LZ **and** generic CDC (ADR-0021). The cause is structural:
+   the DRA + typed-residual + entropy-channel representation is **coarser** than
+   LZ77 plus seekable-block formats, and byte-exactness is shared with any lossless
+   compressor, so it is a floor rather than an advantage.
+
+5. **Encoder-only search governance buys nothing measurable** (ADR-0022): the
    fixed complete-cost heuristic already attains the exhaustive minimum on every
    workload in the frozen cohort (median byte benefit 0 ‰). The mechanism is
    retained as an optional, encoder-only substrate; the fixed court is kept.
 
-5. **Claim discipline becomes normative.** From this ADR forward, in this
+6. **Claim discipline becomes normative.** From this ADR forward, in this
    repository:
 
    - no whole-file "compression" claim may be made without the four generic
@@ -90,7 +103,8 @@ phases.
 - [`FINDINGS.md`](../../FINDINGS.md) — the authoritative consolidated findings
 - ADR-0017 (whole-file size: 0/27 vs generic compressors)
 - ADR-0018 (partial materialization: scoped decode-CPU win, no I/O win)
-- ADR-0019 (seek-based I/O: scoped win vs non-seekable; loses to seekable)
+- ADR-0019 (seek-based I/O: scoped win vs non-seekable; loses to fine-block
+  seekable formats, reads less than coarse-block ones)
 - ADR-0021 (cross-document sharing: robust loss vs LZ and CDC)
 - ADR-0022 (encoder-only governance: no measurable byte benefit)
 - `docs/evidence/phase{6,7,7b,7c,8,9}-skeptic-review.md` (the falsified-claims log)

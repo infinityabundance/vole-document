@@ -157,7 +157,7 @@ LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
   representation change.
 - Under the **auto** candidate the only win is `repeat-bin` (four byte-identical
   opaque binaries): `U = 133,048 B` vs per-file LZ `524,308 B` (−74.6 %), CDC
-  `140,640 B` raw (−5.4 %) / `133,865 B` compressed (−0.6 %, ~0.8 KB — real but
+  `140,640 B` raw (−5.4 %) / `133,863 B` compressed (−0.6 %, ~0.8 KB — real but
   marginal). `shared-payload` — the fixture expected to win — loses in the auto
   run (`U = S = 800,210 B` vs CDC `285,257 B`) because the auto winner codes the
   shared stream in entropy channels, not the object table; **forcing

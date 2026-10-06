@@ -95,7 +95,7 @@ themselves, checked by length + SHA-256 + byte compare.
 |---|---|---|---|---|---|
 | **Exactness** (all phases) | the source bytes (`length` + `SHA-256` + `byte_compare`) | every admitted input in every sealed campaign round-trips byte-exactly (e.g. 27/27 Phase 7.0c, 18/18 Phase 7.3, 18/18 Phase 8, 37/37 Phase 9, all Phase-10 workloads) | **HELD** (prime directive) | all campaigns | 0001 |
 | **Whole-file size** | best of `gzip -9`, `zstd -19 --long=27`, `xz -9e`, `brotli -q 11` (each round-trip verified) | best VOLE lane beats a generic compressor on **0/27** files; best generic smaller on every file by **+460,320 B** total | **LOSS** | `2026-10-05-phase7-baselines-7b9f662` | [0017](docs/adr/0017-generic-lossless-baselines.md) |
-| **Random-access bytes read** | **seekable/blocked** formats: bgzip (BGZF 64 KiB), `xz --block-size=64KiB/1MiB`, pixz (16 MiB) | late query VOLE **460,713 B** vs BGZF **23,808 B** (~19×), xz-64KiB **15,344 B** (~30×), xz-1MiB **179,892 B** (~2.6×) | **LOSS** | `2026-10-05-phase8-seek-08de2a9` (`seekable.jsonl`) | [0019](docs/adr/0019-seek-based-io.md) |
+| **Random-access bytes read** | **seekable/blocked** formats: bgzip (BGZF 64 KiB), `xz --block-size=64KiB/1MiB/4MiB`, pixz (16 MiB) | late query VOLE **460,713 B** loses to **fine-block** formats (BGZF **23,808 B** ~19×, xz-64KiB **15,344 B** ~30×, xz-1MiB **179,892 B** ~2.6×) but reads **less** than **coarse-block** ones (xz-4MiB **708,612 B**, pixz **2,810,832 B**) | **MIXED (loss vs fine-block)** | `2026-10-05-phase8-seek-08de2a9` (`seekable.jsonl`) | [0019](docs/adr/0019-seek-based-io.md) |
 | **Random-access bytes read** | **non-seekable sequential** gzip/zstd/xz compressed prefixes | late query VOLE 460,713 B vs gzip prefix 9,764,864 B → **12–21×** fewer bytes | **SCOPED WIN** | `2026-10-05-phase8-seek-08de2a9` | [0019](docs/adr/0019-seek-based-io.md) |
 | **Partial-view decode CPU** | sequential `gzip`/`zstd`/`xz` decoders | late queries ≈**2–5×** faster than gzip, ≈**4–13×** than xz; **never beats zstd's decoder**; RSS ~38 MB vs gzip ~1.2 MB | **SCOPED WIN (CPU only)** | `2026-10-05-phase7-partial-a5764c9` | [0018](docs/adr/0018-partial-materialization.md) |
 | **Cross-document sharing** | per-file min LZ **and** content-defined-chunk dedup (borg 1.2.4, chunker `10,15,11,127`) | unique-reachable `U = 3,369,900 B` vs per-file LZ **1,304,307 B** vs CDC-raw **771,383 B** | **ROBUST LOSS** | `2026-10-05-phase9-store-fdb2845` | [0021](docs/adr/0021-cross-document-sharing-result.md) |
@@ -124,12 +124,17 @@ On a 33,789,340 B / 800-stream PDF whose seekable descriptor is 17,566,832 B, th
 seeked `view` reads a **constant 439,679–461,367 B** (a floor of header +
 DIRECTORY + GRAPH + OBSERVATION_INDEX + INTEGRITY) and all 18/18 queries are
 byte-exact. Versus **non-seekable sequential** gzip/zstd/xz prefixes this is a
-**12–21×** scoped win in the late region. Versus **seekable/blocked** formats it
-**loses** (2.6–30× more bytes; BGZF is also smaller whole-file, 7,995,600 B <
-17,566,832 B). It also loses at offset 0 and in the early region; the
+**12–21×** scoped win in the late region. Versus **fine-block seekable** formats
+it **loses** (BGZF 23,808 B and xz-64KiB 15,344 B read 19–30× fewer bytes;
+xz-1MiB 179,892 B reads ~2.6× fewer; BGZF is also smaller whole-file,
+7,995,600 B < 17,566,832 B), but versus **coarse-block seekable** formats it
+reads **less** (xz-4MiB 708,612 B; pixz 2,810,832 B with 16 MiB blocks). It
+therefore **sits between fine and coarse block sizes** — a loss to fine-block
+formats and a minor win over coarse-block ones — so it is **not a general
+random-access-I/O win.** It also loses at offset 0 and in the early region; the
 offset-independent floor would dominate a descriptor smaller than ~9 MB. The
 Phase-8.4 amendment and `docs/evidence/phase8-skeptic-review.md` record this
-plainly: **not a general random-access-I/O win.**
+plainly.
 
 **Partial-view decode CPU (ADR-0018, receipt `2026-10-05-phase7-partial-a5764c9`).**
 18/18 queries byte-exact; mid/late queries touch ~0.41–0.43 MB
@@ -192,12 +197,24 @@ Exactly two scoped results survive:
 1. **A small partial-decode CPU win on large documents** for late random-access
    queries, versus sequential `gzip`/`xz` (ADR-0018), later realized as a
    bytes-read win **versus non-seekable sequential codecs only** (ADR-0019). It
-   never beats zstd's decoder, loses to seekable/blocked formats, and carries an
-   offset-independent ~440 KB floor.
+   never beats zstd's decoder, **loses to fine-block seekable formats but reads
+   less than coarse-block ones** (BGZF 23,808 B and xz-64KiB 15,344 B read less
+   than VOLE's 460,713 B; xz-4MiB 708,612 B and pixz 2,810,832 B read more), and
+   carries an offset-independent ~440 KB floor.
 2. **Whole-object dedup of *identical opaque* files** in the content-addressed
    store (ADR-0021). This is real but **marginal versus CDC**: `repeat-bin`
-   `U = 133,048 B` vs CDC+zstd `133,865 B` (~0.8 KB, ~0.6 %), and large only versus
+   `U = 133,048 B` vs CDC+zstd `133,863 B` (~0.8 KB, ~0.6 %), and large only versus
    *per-file LZ* (`524,308 B`) — which is the wrong comparison for a sharing axis.
+
+Beyond those two scoped results there is one **under-claimed qualitative
+capability difference** (stated as a capability, **not** a bytes-read win): a
+single `.voldoc` artifact simultaneously provides full byte-exact archival
+materialization **and** structural observation (`--pdf-object`, `--pdf-stream`,
+`--pdf-revision`). BGZF and blocked xz offer byte-range seeks only — the
+seekable court above measured byte ranges only — so a byte-range seekable format
+cannot answer an object/stream/revision query without first reconstructing and
+re-parsing the document. This is a capability BGZF/blocked-xz do not offer; it
+is not a size or bytes-read advantage.
 
 Nothing else wins. In particular the store wins **nothing** on near-duplicate or
 sub-object sharing (CDC captures those), and the governor wins **nothing** at all.
@@ -230,8 +247,10 @@ left untouched (corrections are prose/amendments).
 | **Phase-6 "win reproduces on qpdf transformer output"** | The "qpdf win" is a `qpdf --object-streams=preserve` **copy** of our own `hand-base2.pdf` fixture's two byte-identical raw streams (`ec028dc1…`); **99.93 %** of it is inherited. Every genuinely transformed producer output loses or declines (win 3 / lose 8 / decline 12, all 3 wins self-authored). | [`phase7-skeptic-review.md`](docs/evidence/phase7-skeptic-review.md) |
 | **Phase-7.0b "Cairo: first authoring-generator witness"** | The generator repeated **one identical page six times**, so Cairo emitted six byte-identical streams (plaintext *and* compressed bytes); generic LZ does ~2× better (gzip 17,382 B; xz-9e 16,852 B) than the 34,574 B "win", which was only vs the weak order-0 `BYTE_RANS`. | [`phase7b-skeptic-review.md`](docs/evidence/phase7b-skeptic-review.md) |
 | **Phase-6 win region = "shared **or** weakly coded"** | Each conjunct alone loses (four negative controls); the win requires shared **and** large/weakly-coded plaintext. | [`phase6-skeptic-review.md`](docs/evidence/phase6-skeptic-review.md) |
+| **Phase-6 descriptor labels: "three *shared* plaintext channels", "six stored bitstreams", "levels 0/1 almost verbatim"** | The real `PDF_DEFLATE_REPLAY_RANS` descriptor for `flate.pdf` is `streams=6 replayed=6 channels=3 objects=6`, but **only `p1` is shared** (four streams at levels 0/1/6/9; `p2`/`p3` are unique); `BYTE_RANS` **order-0-codes** the streams rather than storing them; level 1 is ~19 % of the plaintext (6,197 B), **not** verbatim (only level 0 is, 31,998 B). | [`phase6-skeptic-review.md`](docs/evidence/phase6-skeptic-review.md) |
+| **Phase-7c F1 primary metric = `descriptor_bytes_traversed + entropy_bytes_decoded` (0.41–0.46 MB)** | **Double-counts** the decoded channels: `descriptor_bytes_traversed` already includes the referenced entropy-channel payload bytes that `entropy_bytes_decoded` reports again. Superseded by **`descriptor_bytes_traversed` alone (412,161–433,694 B ≈ 0.41–0.43 MB)**, constant across offset. | [`phase7c-skeptic-review.md`](docs/evidence/phase7c-skeptic-review.md) |
 | **Phase-7.0 `correction/compressed` p50 = 0.004518** | Misattributed: 0.004518 is the `pdf-make-samples` **subset** median; the corpus-wide p50 is **0.014716**. | [`phase7-skeptic-review.md`](docs/evidence/phase7-skeptic-review.md) |
-| **Phase-8 "bytes-read win" as a general random-access-I/O result** | Holds only against **non-seekable sequential** codecs; against seekable/blocked formats VOLE reads **2.6–30× more**. Also, the "reads only the 64-byte header, DIRECTORY, …" wording hid a ~440 KB floor. | [`phase8-skeptic-review.md`](docs/evidence/phase8-skeptic-review.md) |
+| **Phase-8 "bytes-read win" as a general random-access-I/O result** | Holds only against **non-seekable sequential** codecs; against **fine-block** seekable/blocked formats VOLE reads **2.6–30× more** (it reads **less** than **coarse-block** ones: xz-4MiB 708,612 B, pixz 2,810,832 B). Also, the "reads only the 64-byte header, DIRECTORY, …" wording hid a ~440 KB floor. | [`phase8-skeptic-review.md`](docs/evidence/phase8-skeptic-review.md) |
 | **Phase-9 "the only win is byte-identical opaque repeats"; "a finer unit is not implied by the current set"; fixed CDC-zstd 210,836 B** | Granularity: forcing `PDF_DEFLATE_REPLAY` (a current-set candidate) wins `shared-payload` over raw CDC. Compressed-CDC is **non-deterministic** (210,835–210,840 B). The negative survives; its size is partly an artifact. | [`phase9-skeptic-review.md`](docs/evidence/phase9-skeptic-review.md) |
 | **Phase-7.3 partial "allocation" win / early boundary ≤ 1–8 MiB** | It is a decode-**CPU** win; peak RSS is a **loss** (~38 MB vs gzip ~1.2 MB); the early boundary is ≤ ~8–16 MiB. | [`phase7c-skeptic-review.md`](docs/evidence/phase7c-skeptic-review.md) |
 
@@ -283,9 +302,11 @@ Each of these is a concrete, falsifiable next step — and each carries an expli
   architecture, external-oracle versions, the exact command line, and any
   environment variables that affect semantics. Receipts are immutable: new runs get
   new directories and **corrections are amendments, not rewrites**.
-- **Tags are the durable record.** Releases are annotated tags
-  `v0.1.0-alpha.2` … `v0.1.0-alpha.12`; merged phase branches are deleted once the
-  tag preserves the history.
+- **Tags are the durable record.** Annotated tags **`v0.1.0-alpha.2`** …
+  **`v0.1.0-alpha.11`** exist. **`v0.1.0-alpha.12`** is the current release and is
+  tagged when this phase merges. **`v0.1.0-alpha.1`** has **no git tag** — its
+  CHANGELOG section exists, but the tag lineage begins at `v0.1.0-alpha.2`.
+  Merged phase branches are deleted once the tag preserves the history.
 - **Feature / mandatory-bit policy.** The default build is permissive-only
   (`default = ["rans", "store"]`). `deflate-replay` is **opt-in** and pulls LGPL
   `cabac` (ADR-0014). A descriptor whose `replay_codec` tag is unknown, or that

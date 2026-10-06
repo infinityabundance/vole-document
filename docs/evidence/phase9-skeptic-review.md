@@ -67,7 +67,7 @@ the current candidate set and already shares at deflate-stream granularity.
 
 - **`repeat-bin`** (four byte-identical opaque binaries) is a real win under the
   auto candidate: `U = 133,048` vs per-file LZ `524,308` (**−74.6 %**), CDC raw
-  `140,640` (−5.4 %), CDC+zstd `133,865` (**−0.6 %, ≈815–820 B** — real but
+  `140,640` (−5.4 %), CDC+zstd `133,863` (**−0.6 %, ≈815–820 B** — real but
   marginal).
 - **`shared-payload`**, forced to `PDF_DEFLATE_REPLAY`, is a second win **over
   raw CDC only**: `264,139` vs `285,257`; it still **loses** to per-file LZ
