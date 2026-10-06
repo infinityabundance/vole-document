@@ -35,6 +35,16 @@ mod embedded;
 #[cfg(feature = "store")]
 pub use embedded::{EmbeddedStore, STORE_FORMAT_VERSION, STORE_MAGIC};
 
+#[cfg(feature = "store")]
+mod account;
+#[cfg(feature = "store")]
+pub use account::{AccountReport, RootAccount, account};
+
+#[cfg(feature = "entropyfs-store")]
+mod entropyfs;
+#[cfg(feature = "entropyfs-store")]
+pub use entropyfs::EntropyFsStore;
+
 /// Size accounting reported by a backend.
 ///
 /// `total_bytes` is the sum of raw unique-object lengths (the backend-independent

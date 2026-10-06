@@ -45,6 +45,14 @@ preflate-rs = { version = "=0.7.6", optional = true, default-features = false }
 # identity only (the archival identity remains SHA-256). Pinned exactly.
 blake3 = { version = "=1.8.7", optional = true }
 
+# EntropyFS embeddable engine (Phase 9.2). Optional and heavy: even with
+# `default-features = false` it pulls a ~40-crate tree (clap/serde/rustix/rand)
+# and a **non-optional** `dsfb` dependency. It is never in the default build and
+# is never required for the standalone form; the embedded reference store stays
+# the measured backend. The engine's `BlobId` is BLAKE3-256 of the blob bytes,
+# identical to our `Id`.
+entropyfs = { version = "=0.7.17", optional = true, default-features = false }
+
 [dev-dependencies]
 # Test-only zlib stream generator for the exact-replay courts. Never a runtime
 # dependency of the library. The `zlib-rs` backend is used deliberately: it is a
@@ -65,9 +73,13 @@ rans = ["dep:ryg-rans-rs"]
 store = ["dep:blake3"]
 # Phase 6: exact DEFLATE bitstream replay via preflate-rs (LGPL dependency).
 deflate-replay = ["dep:preflate-rs"]
+# Phase 9.2: the optional `EntropyFsStore` adapter over the embeddable EntropyFS
+# engine. Heavy (pulls a non-optional `dsfb` and a ~40-crate tree), so it is
+# **never** in `default`; enabling it implies `store` (the `ObjectStore` trait and
+# `Id`). The engine is not required to materialize a store-backed descriptor.
+entropyfs-store = ["dep:entropyfs", "store"]
 # Later phases (declared so the feature surface is deliberate, not accidental):
 # pdf = []
-# entropyfs-store = ["dep:entropyfs"]
 # dsfb-search = ["dep:dsfb"]
 
 [profile.release]

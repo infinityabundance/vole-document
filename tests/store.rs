@@ -17,7 +17,7 @@ use vole_document::error::ErrorClass;
 use vole_document::integrity::sha256;
 use vole_document::limits::Limits;
 use vole_document::materialize::{materialize, materialize_with};
-use vole_document::store::{EmbeddedStore, ObjectStore, externalize, gc, hydrate};
+use vole_document::store::{EmbeddedStore, ObjectStore, account, externalize, gc, hydrate};
 
 const DEFAULT: Limits = Limits::DEFAULT;
 
@@ -354,4 +354,50 @@ fn externalize_hydrate_roundtrips_bytes() {
     externalize(&mut again, &vole_document::store::NullResolver, &mut store).unwrap();
     let table = |d: &Descriptor| -> Vec<ObjectSource> { d.objects.clone() };
     assert_eq!(table(&again), table(&backed));
+}
+
+/// The three accounting universes are kept distinct and the amortized split
+/// telescopes back to the unique-reachable total (`Σ A_i == U`).
+#[test]
+fn account_three_universes_and_amortized_rule() {
+    let dir = TempDir::new("account");
+    let mut store = EmbeddedStore::open(dir.join("store")).unwrap();
+
+    // Two roots that share one object: the content store holds it once. The
+    // object is larger than the ~40 B `EXTERNAL_REF` framing, so the store-backed
+    // roots are smaller than the standalone form and U < S.
+    let shared: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let mut a = roundtrip(&propose(&shared, DEFAULT).unwrap());
+    let mut b = roundtrip(&propose(&shared, DEFAULT).unwrap());
+    let null = vole_document::store::NullResolver;
+    externalize(&mut a, &null, &mut store).unwrap();
+    externalize(&mut b, &null, &mut store).unwrap();
+    assert_eq!(store.stats().unwrap().object_count, 1);
+
+    let report = account(&[a.clone(), b.clone()], &store).unwrap();
+    assert_eq!(report.unique_objects, 1);
+    assert_eq!(report.unique_object_bytes, shared.len() as u64);
+
+    let (a_bytes, _) = a.serialize().unwrap();
+    let (b_bytes, _) = b.serialize().unwrap();
+    let expected_u = a_bytes.len() as u64 + b_bytes.len() as u64 + shared.len() as u64;
+    assert_eq!(report.unique_reachable_bytes, expected_u);
+    assert_eq!(report.amortized_bytes, expected_u, "Σ amortized == U");
+    let amortized_sum: u64 = report.roots.iter().map(|r| r.amortized_bytes).sum();
+    assert_eq!(amortized_sum, expected_u, "per-root A_i must sum to U");
+
+    // Standalone counts the shared object twice, so it strictly exceeds U.
+    assert!(report.standalone_bytes > report.unique_reachable_bytes);
+    assert_eq!(
+        report.standalone_bytes,
+        report.roots.iter().map(|r| r.standalone_bytes).sum::<u64>()
+    );
+
+    // Each root references exactly the one shared object and pays ~half of it.
+    let half = shared.len() as u64 / 2;
+    for r in &report.roots {
+        assert_eq!(r.reachable_objects, 1);
+        assert!(r.amortized_bytes >= r.root_bytes + half);
+    }
+    assert!(report.dangling.is_empty());
 }

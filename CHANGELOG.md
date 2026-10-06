@@ -2,6 +2,68 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.11] — unreleased
+
+Phase 9 — **cross-document content-addressed store** (9.1 store core, 9.2
+optional EntropyFS backend + store CLI). Exactness is unchanged: a store-backed
+descriptor must materialize the exact same bytes as its standalone form. **No
+size or win is claimed here** — whether object-granularity sharing beats per-file
+LZ and generic content-defined-chunk dedup is the Phase 9.3 cohort measurement.
+
+### Added
+
+- **Phase 9.1 — `ObjectStore` + `EmbeddedStore` + store-backed descriptor form**
+  (ADR-0020). `Id = BLAKE3-256(object bytes)` is the relational store namespace,
+  kept strictly distinct from the SHA-256 whole-source *archival* identity (an
+  `Id` never appears in `INTEGRITY`). New optional-but-load-bearing `EXTERNAL_REF`
+  record (`0x80`; `id:[u8;32]`, `len:u64LE`, exactly 40 B) puts each object-table
+  entry in one of two forms; the entry's position remains its `object_id`, so the
+  DRA is untouched. A store-backed descriptor declares the mandatory
+  `FEATURE_EXTERNAL_OBJECTS` (`1 << 1`) bit; a build without the new default
+  `store` feature fails closed with `UnsupportedFeature` (exit 6). New universe
+  suffix `+external-objects-v1` (prefix `phase9`; `dra-8` and `FORMAT_MINOR`
+  unchanged). `externalize` (inline → external) and `hydrate` (external → inline)
+  convert both ways and materialize identical bytes. `gc` mark-and-sweeps the
+  union of the roots' external ids; a non-empty dangling set is a live
+  `MissingExternalObject`. `EmbeddedStore` is a raw local content-addressed
+  directory (`objects/<aa>/<bb>/<64-hex-id>`) with atomic write-then-rename `put`,
+  strict `get_range`, per-object `remove`, and a `STORE` backend marker.
+  `CostBreakdown::external_refs` charges the 40 B payload (framing to
+  `record_framing`). Tests: `tests/store.rs`.
+- **Phase 9.2 — optional `EntropyFsStore` + store CLI + docs.** A thin
+  `ObjectStore` adapter over the embeddable `entropyfs = "=0.7.17"`
+  `engine::Engine` (`default-features = false`), behind the non-default,
+  heavy `entropyfs-store` feature (implies `store`; pulls a non-optional `dsfb`
+  and a ~40-crate tree). `put → put_blob`, `get → get_blob` (full whole-blob
+  BLAKE3 gate), `get_range → read_blob_range` plus an explicit strict
+  `offset + len <= stored_len` check (the engine clips at EOF), `contains →
+  contains`; `BlobId` is BLAKE3-256, asserted identical to our `Id`, so an
+  `EmbeddedStore`-externalized descriptor resolves unchanged. `list`/`remove`
+  decline with `UnsupportedFeature` (no per-blob delete), so mark-and-sweep GC
+  cannot reclaim through it; reclamation is EntropyFS's own reachability-GC
+  policy. New CLI: `decode --store STORE_DIR`, `store put INPUT.voldoc STORE_DIR`
+  (writes `STORE_DIR/<stem>.voldoc`), `store account STORE_DIR ROOT...`, and
+  `store gc STORE_DIR ROOT...`. `src/store/account.rs` computes the three
+  universes. Tests: `tests/entropyfs.rs`; formatting both ways proven
+  byte-exact.
+- **Three accounting universes (kept permanently distinct).** Standalone
+  `S = Σ|serialize(d_i)|` (whole-file; the only universe comparable to a per-file
+  compressor); unique-reachable `U = Σ|serialize(e_i)| + Σ len(o)` (shared bytes
+  counted once); amortized `A = Σ(|serialize(e_i)| + Σ len(o)/refcount(o))` with
+  the split **fractional by reference count**, integerized by largest remainder so
+  `Σ A_i == U` exactly. `store account` prints all three and the per-root split.
+- Docs: `SPEC.md` (`EXTERNAL_REF` record, `ObjectSource` model, mandatory feature
+  bits, universe string, feature policy), `docs/adr/0020-content-addressed-store.md`.
+
+### Notes
+
+- **Claim discipline.** No size or compression claim is made for the store; a
+  store root reference is never reported as a whole-document size. The honest
+  comparison (per-file LZ and generic CDC dedup over a reproducible cohort) and
+  the expected negative are pre-registered in the Phase 9 contract and measured
+  in 9.3. `dsfb` remains a hard dependency of the *optional* `entropyfs-store`
+  feature only and retains **zero** decode authority (ADR-0008).
+
 ## [0.1.0-alpha.10] — unreleased
 
 Phase 8 — **seek-based partial I/O** — plus the Phase-8.4 seekable-baseline

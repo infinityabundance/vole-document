@@ -15,6 +15,8 @@ use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use vole_document::adapter::pdf;
+#[cfg(feature = "store")]
+use vole_document::container::Descriptor;
 use vole_document::container::UNIVERSE;
 #[cfg(feature = "rans")]
 use vole_document::container::header::{FEATURE_SEEK_DIRECTORY, HEADER_LEN, Header};
@@ -24,6 +26,8 @@ use vole_document::error::{Error, Result};
 use vole_document::limits::Limits;
 #[cfg(feature = "rans")]
 use vole_document::materialize::observation::{ObservationReport, ObservationSelector};
+#[cfg(feature = "store")]
+use vole_document::store::{EmbeddedStore, account, externalize, gc};
 use vole_document::{encode, integrity, materialize};
 
 const USAGE_HEAD: &str = "\
@@ -54,6 +58,16 @@ const USAGE_VIEW: &str = "\
 #[cfg(not(feature = "rans"))]
 const USAGE_VIEW: &str = "";
 
+/// The store lines are advertised only when the object store is built in.
+#[cfg(feature = "store")]
+const USAGE_STORE: &str = "\
+    vole-document decode --store STORE_DIR INPUT.voldoc OUTPUT\n\
+    vole-document store put     INPUT.voldoc STORE_DIR\n\
+    vole-document store account STORE_DIR ROOT...\n\
+    vole-document store gc      STORE_DIR ROOT...\n";
+#[cfg(not(feature = "store"))]
+const USAGE_STORE: &str = "";
+
 const USAGE_TAIL: &str = "\
     vole-document capabilities
 
@@ -73,7 +87,7 @@ EXIT CODES:
 /// The full usage text, with the replay-gated command line included only when
 /// the feature is present.
 fn usage() -> String {
-    format!("{USAGE_HEAD}{USAGE_VIEW}{USAGE_DEFLATE_STATS}{USAGE_TAIL}")
+    format!("{USAGE_HEAD}{USAGE_VIEW}{USAGE_DEFLATE_STATS}{USAGE_STORE}{USAGE_TAIL}")
 }
 
 fn main() -> ExitCode {
@@ -127,11 +141,7 @@ fn run(args: &[String]) -> Result<()> {
         }
         "capabilities" => cmd_capabilities(),
         "encode" => cmd_encode_args(args, limits),
-        "decode" | "materialize" => {
-            let input = arg(args, 2, "INPUT.voldoc")?;
-            let output = arg(args, 3, "OUTPUT")?;
-            cmd_decode(&input, &output, limits)
-        }
+        "decode" | "materialize" => cmd_decode_args(args, limits),
         "verify" => {
             let input = arg(args, 2, "INPUT.voldoc")?;
             cmd_verify(&input, limits)
@@ -142,6 +152,8 @@ fn run(args: &[String]) -> Result<()> {
         }
         #[cfg(feature = "rans")]
         "view" => cmd_view_args(args, limits),
+        #[cfg(feature = "store")]
+        "store" => cmd_store_args(args, limits),
         "pdf-inspect" => {
             let input = arg(args, 2, "INPUT")?;
             cmd_pdf_inspect(&input, limits)
@@ -548,12 +560,305 @@ fn cmd_decode(input: &Path, output: &Path, limits: Limits) -> Result<()> {
     Ok(())
 }
 
+/// Parse `decode`/`materialize` arguments: an optional `--store STORE_DIR`
+/// (store-backed descriptors), then the positional `INPUT.voldoc` and `OUTPUT`.
+///
+/// A standalone `decode INPUT OUTPUT` invocation is unchanged. Without the
+/// `store` cargo feature, `--store` is refused with `UnsupportedFeature` rather
+/// than ignored.
+fn cmd_decode_args(args: &[String], limits: Limits) -> Result<()> {
+    let mut store_dir: Option<PathBuf> = None;
+    let mut positional: Vec<&str> = Vec::new();
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        if a == "--store" {
+            let dir = args
+                .get(i + 1)
+                .ok_or_else(|| Error::usage("--store requires a STORE_DIR argument"))?;
+            store_dir = Some(PathBuf::from(dir));
+            i += 2;
+        } else if let Some(dir) = a.strip_prefix("--store=") {
+            store_dir = Some(PathBuf::from(dir));
+            i += 1;
+        } else {
+            positional.push(a);
+            i += 1;
+        }
+    }
+    let input = positional
+        .first()
+        .map(PathBuf::from)
+        .ok_or_else(|| Error::usage("missing argument INPUT.voldoc"))?;
+    let output = positional
+        .get(1)
+        .map(PathBuf::from)
+        .ok_or_else(|| Error::usage("missing argument OUTPUT"))?;
+    if positional.len() > 2 {
+        return Err(Error::usage(format!(
+            "unexpected extra argument {:?}",
+            positional[2]
+        )));
+    }
+    if let Some(dir) = store_dir {
+        #[cfg(feature = "store")]
+        {
+            return cmd_decode_with_store(&dir, &input, &output, limits);
+        }
+        #[cfg(not(feature = "store"))]
+        {
+            let _ = dir;
+            return Err(Error::unsupported_feature(
+                "this build was compiled without the `store` feature",
+            ));
+        }
+    }
+    cmd_decode(&input, &output, limits)
+}
+
+/// Materialize a store-backed descriptor, resolving `EXTERNAL_REF` objects
+/// through an [`EmbeddedStore`] rooted at `store_dir`.
+#[cfg(feature = "store")]
+fn cmd_decode_with_store(
+    store_dir: &Path,
+    input: &Path,
+    output: &Path,
+    limits: Limits,
+) -> Result<()> {
+    let encoded = fs::read(input)?;
+    let store = EmbeddedStore::open(store_dir)?;
+    let (bytes, parsed) = materialize::decode_to_bytes_with(&encoded, &store, limits)?;
+    write_atomic(output, &bytes)?;
+    println!(
+        concat!(
+            "{{",
+            "\"ok\":true,",
+            "\"source_len\":{},",
+            "\"sha256\":\"{}\",",
+            "\"graph_ops\":{},",
+            "\"objects\":{},",
+            "\"store\":\"{}\"",
+            "}}"
+        ),
+        bytes.len(),
+        integrity::to_hex(&parsed.descriptor.source_sha256),
+        parsed.descriptor.program.ops.len(),
+        parsed.descriptor.objects.len(),
+        store_dir.display()
+    );
+    Ok(())
+}
+
 fn cmd_verify(input: &Path, limits: Limits) -> Result<()> {
     let encoded = fs::read(input)?;
     let report = materialize::verify(&encoded, limits)?;
     println!(
         "{{\"ok\":true,\"source_len\":{},\"sha256\":\"{}\",\"objects\":{},\"graph_ops\":{}}}",
         report.source_len, report.sha256_hex, report.object_count, report.graph_ops
+    );
+    Ok(())
+}
+
+/// `store put | account | gc` argument dispatch (Phase 9.2).
+///
+/// Every `ROOT...` is a `ROOT.voldoc` descriptor. `put` writes the store-backed
+/// descriptor to `STORE_DIR/<input-stem>.voldoc`; `account` and `gc` read their
+/// roots in place.
+#[cfg(feature = "store")]
+fn cmd_store_args(args: &[String], limits: Limits) -> Result<()> {
+    match args.get(2).map(String::as_str) {
+        Some("put") => {
+            let input = arg(args, 3, "INPUT.voldoc")?;
+            let store_dir = arg(args, 4, "STORE_DIR")?;
+            if let Some(extra) = args.get(5) {
+                return Err(Error::usage(format!("unexpected extra argument {extra:?}")));
+            }
+            cmd_store_put(&input, &store_dir, limits)
+        }
+        Some("account") => {
+            let store_dir = arg(args, 3, "STORE_DIR")?;
+            let roots = root_args(args, 4)?;
+            cmd_store_account(&store_dir, &roots, limits)
+        }
+        Some("gc") => {
+            let store_dir = arg(args, 3, "STORE_DIR")?;
+            let roots = root_args(args, 4)?;
+            cmd_store_gc(&store_dir, &roots, limits)
+        }
+        Some(other) => Err(Error::usage(format!(
+            "unknown store subcommand {other:?}; expected put | account | gc"
+        ))),
+        None => Err(Error::usage(
+            "store requires a subcommand: put | account | gc",
+        )),
+    }
+}
+
+#[cfg(feature = "store")]
+fn root_args(args: &[String], start: usize) -> Result<Vec<PathBuf>> {
+    let roots: Vec<PathBuf> = args
+        .get(start..)
+        .unwrap_or(&[])
+        .iter()
+        .map(PathBuf::from)
+        .collect();
+    if roots.is_empty() {
+        return Err(Error::usage("expected at least one ROOT.voldoc"));
+    }
+    Ok(roots)
+}
+
+/// Externalize every object of `input` into `store_dir` and write the
+/// store-backed descriptor to `STORE_DIR/<input-stem>.voldoc`.
+///
+/// An input that is already store-backed resolves its references through the
+/// destination store before re-putting every object, so the operation is
+/// idempotent and every object ends up in `store_dir` (a reference the store
+/// cannot satisfy fails closed).
+#[cfg(feature = "store")]
+fn cmd_store_put(input: &Path, store_dir: &Path, limits: Limits) -> Result<()> {
+    let encoded = fs::read(input)?;
+    let mut descriptor = Descriptor::parse(&encoded, limits)?.descriptor;
+    let stem = input
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| Error::usage(format!("input {input:?} has no usable file stem")))?;
+    let output = store_dir.join(format!("{stem}.voldoc"));
+
+    let mut store = EmbeddedStore::open(store_dir)?;
+    let resolver = store.clone();
+    externalize(&mut descriptor, &resolver, &mut store)?;
+    let (bytes, _cost) = descriptor.serialize()?;
+    write_atomic(&output, &bytes)?;
+    let stats = store.stats()?;
+    println!(
+        concat!(
+            "{{",
+            "\"ok\":true,",
+            "\"output\":\"{}\",",
+            "\"objects\":{},",
+            "\"stored_objects\":{},",
+            "\"stored_bytes\":{},",
+            "\"root_bytes\":{}",
+            "}}"
+        ),
+        output.display(),
+        descriptor.objects.len(),
+        stats.object_count,
+        stats.stored_bytes,
+        bytes.len()
+    );
+    Ok(())
+}
+
+/// Print the three accounting universes (standalone / unique-reachable /
+/// amortized) over the roots, plus the per-root amortized split.
+#[cfg(feature = "store")]
+fn cmd_store_account(store_dir: &Path, roots: &[PathBuf], limits: Limits) -> Result<()> {
+    let store = EmbeddedStore::open(store_dir)?;
+    let mut descriptors = Vec::with_capacity(roots.len());
+    for path in roots {
+        let encoded = fs::read(path)?;
+        descriptors.push(Descriptor::parse(&encoded, limits)?.descriptor);
+    }
+    let report = account(&descriptors, &store)?;
+    let stats = store.stats()?;
+    let per_root: Vec<String> = report
+        .roots
+        .iter()
+        .zip(roots)
+        .map(|(r, path)| {
+            format!(
+                concat!(
+                    "{{",
+                    "\"root\":\"{}\",",
+                    "\"root_bytes\":{},",
+                    "\"standalone_bytes\":{},",
+                    "\"reachable_objects\":{},",
+                    "\"amortized_bytes\":{}",
+                    "}}"
+                ),
+                path.display(),
+                r.root_bytes,
+                r.standalone_bytes,
+                r.reachable_objects,
+                r.amortized_bytes
+            )
+        })
+        .collect();
+    println!(
+        concat!(
+            "{{",
+            "\"ok\":true,",
+            "\"roots\":{},",
+            "\"standalone_bytes\":{},",
+            "\"unique_reachable_bytes\":{},",
+            "\"amortized_bytes\":{},",
+            "\"unique_objects\":{},",
+            "\"unique_object_bytes\":{},",
+            "\"stored_bytes\":{},",
+            "\"dangling\":{},",
+            "\"per_root\":[{}]",
+            "}}"
+        ),
+        report.roots.len(),
+        report.standalone_bytes,
+        report.unique_reachable_bytes,
+        report.amortized_bytes,
+        report.unique_objects,
+        report.unique_object_bytes,
+        stats.stored_bytes,
+        report.dangling.len(),
+        per_root.join(","),
+    );
+    Ok(())
+}
+
+/// Run mark-and-sweep GC over the roots and print the report. Every `ROOT` must
+/// be a store-backed descriptor (one with external references); a standalone
+/// root would otherwise mark nothing and let GC sweep the whole store.
+#[cfg(feature = "store")]
+fn cmd_store_gc(store_dir: &Path, roots: &[PathBuf], limits: Limits) -> Result<()> {
+    let store = EmbeddedStore::open(store_dir)?;
+    let mut descriptors = Vec::with_capacity(roots.len());
+    for path in roots {
+        let encoded = fs::read(path)?;
+        descriptors.push(Descriptor::parse(&encoded, limits)?.descriptor);
+    }
+    for (path, d) in roots.iter().zip(&descriptors) {
+        if !d
+            .objects
+            .iter()
+            .any(|o| matches!(o, vole_document::container::ObjectSource::External { .. }))
+        {
+            return Err(Error::usage(format!(
+                "ROOT {} is not store-backed (no EXTERNAL_REF); refusing to GC",
+                path.display()
+            )));
+        }
+    }
+    let report = gc(&descriptors, &store)?;
+    let dangling: Vec<String> = report
+        .dangling
+        .iter()
+        .map(|id| format!("\"{}\"", id.to_hex()))
+        .collect();
+    println!(
+        concat!(
+            "{{",
+            "\"ok\":true,",
+            "\"reachable\":{},",
+            "\"swept\":{},",
+            "\"bytes_reclaimed\":{},",
+            "\"dangling\":{},",
+            "\"dangling_ids\":[{}]",
+            "}}"
+        ),
+        report.reachable,
+        report.swept,
+        report.bytes_reclaimed,
+        report.dangling.len(),
+        dangling.join(",")
     );
     Ok(())
 }
