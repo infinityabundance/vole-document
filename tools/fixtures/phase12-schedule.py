@@ -25,6 +25,63 @@ import sys
 NS = [1, 10, 100, 1000]
 PASSES = 2
 
+# The required ablation ladder (plan §105, ADR-0035), pre-registered here *before*
+# measurement. `status` is one of:
+#   baseline        a reference system (A0/A1)
+#   measured        a separable rung with its own switch, run as its own lane
+#   not separable   the landed architecture gates it by another rung's feature;
+#                   recorded honestly (never fabricated) with the closest proxy
+LADDER = [
+    {"rung": "A0", "status": "baseline",
+     "switch": "lane a0: direct per-query tooling (pdftotext/pdfinfo; stdlib zipfile+XML)",
+     "note": "no persistence"},
+    {"rung": "A1", "status": "baseline",
+     "switch": "lane a1: python3 phase12-baseline.py build/query",
+     "note": "source-retaining SQLite+FTS5 acceptance gate"},
+    {"rung": "A1b", "status": "measured",
+     "switch": "lane a1b: A1 + result_cache materialized views (one SQL source of truth)",
+     "note": "A1 plus cached popular results"},
+    {"rung": "A2", "status": "measured",
+     "switch": "lane a2: build --no-default-features --features rans,store,field",
+     "note": "Phase-11 field, PDF only: DOCX/EPUB semantic surfaces decline"},
+    {"rung": "A3", "status": "measured",
+     "switch": "lane a3: features rans,store,field,package (no opc/docx/epub)",
+     "note": "ZIP physical members only; no OPC/OCF graph, so common semantic selectors decline"},
+    {"rung": "A4", "status": "measured",
+     "switch": "lane a4: features rans,store,field,package,opc,docx,epub with --no-cache",
+     "note": "native package graph + progressive semantic inversion, no persistent reuse"},
+    {"rung": "A5", "status": "not separable",
+     "switch": "same as A4",
+     "note": "progressive semantic inversion is the only implemented mode (model nodes are "
+             "registered at ingest and parsed on first materialization); there is no eager "
+             "arm, so A5 == A4 and is measured on the A4 lane"},
+    {"rung": "A6", "status": "measured",
+     "switch": "lane a6: features rans,store,field,package,opc,docx,epub (DerivedCache on)",
+     "note": "A4/A5 plus persistent semantic reuse"},
+    {"rung": "A7", "status": "not separable",
+     "switch": "n/a (proxied by A4/A6)",
+     "note": "the common observation vocabulary *is* the dispatch (Ctx::common_dispatch); "
+             "there is no native-only CLI path, so removing it is a capability-only "
+             "(definitional) difference, not a cost rung"},
+    {"rung": "A8", "status": "not separable",
+     "switch": "n/a (proxied by A3/A4)",
+     "note": "the hierarchical index is built unconditionally by package/PDF ingest and "
+             "every narrow observation resolves through it (indexed_exact); there is no "
+             "non-indexed observation build"},
+    {"rung": "A9", "status": "measured",
+     "switch": "lane a9: all-features with --entropyfs",
+     "note": "EntropyFS fine-grained range access (entropyfs-store backend); the narrow "
+             "cache short-circuit is disabled by design on this backend"},
+    {"rung": "A10", "status": "not separable (per-document court)",
+     "switch": "ingest-side proxy: all documents into one shared store",
+     "note": "the per-document lifetime lanes use one store per document by construction, "
+             "so cross-document sharing cannot manifest there; measured as the shared-store "
+             "ingest delta; the reuse-work court is the 12.8 share receipt"},
+    {"rung": "A11", "status": "measured",
+     "switch": "lane a11: all-features, filesystem backend, DerivedCache on",
+     "note": "full Phase-12 system; identical to the prior court's V lane"},
+]
+
 # The per-format ordered case list. Each entry:
 #   id, kind (text|metadata|exact), arg, expected_kind, expected
 # `expected_kind` is one of: equals (exact string), contains (substring),
@@ -188,19 +245,23 @@ def main():
         "corpus": corpus,
         "corpus_generator": "tools/fixtures/phase12-corpus-gen.py",
         "documents": docs,
+        "ladder": LADDER,
         "notes": [
             "Order is frozen before measurement; the court refuses to run without this file.",
             "Each case is a (document, surface) point named by id; the full schedule for all",
-            "three systems (A0/A1/V) is this same ordered list expanded by the rule above.",
+            "systems is this same ordered list expanded by the rule above.",
             "A0 = direct per-query tooling; A1 = one-time preprocessed source-retaining",
-            "SQLite+FTS5; V = the Phase-12 VOLE field. No system may reorder the schedule.",
+            "SQLite+FTS5; A1b = A1 + cached popular results; A2-A11 = the required Phase-12",
+            "ablation ladder (see `ladder`); A11 is the full system (the prior court's V lane).",
+            "No system may reorder the schedule.",
         ],
     }
     with open(out, "w") as f:
         json.dump(schedule, f, indent=2, sort_keys=True)
         f.write("\n")
     print(json.dumps({"out": out, "documents": len(docs),
-                      "cases_per_doc": {d["name"]: len(d["cases"]) for d in docs}},
+                      "cases_per_doc": {d["name"]: len(d["cases"]) for d in docs},
+                      "ladder_rungs": [r["rung"] for r in LADDER]},
                      sort_keys=True))
     return 0
 

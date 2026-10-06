@@ -138,6 +138,65 @@ fn schedule_emitter_freezes_the_order() {
 }
 
 #[test]
+fn schedule_pre_registers_the_ablation_ladder() {
+    // Every required rung (plan §105 / ADR-0035) is pre-registered with its status
+    // and switch, so the ladder cannot be chosen after seeing a result.
+    for rung in [
+        "A0", "A1", "A1b", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11",
+    ] {
+        assert!(
+            SCHEDULE.contains(&format!("\"rung\": \"{rung}\"")),
+            "missing pre-registered rung {rung}"
+        );
+    }
+    // The separable rungs name a real switch (a feature-set build or a runtime flag).
+    for switch in [
+        "lane a1b:",
+        "lane a2:",
+        "lane a3:",
+        "lane a4:",
+        "lane a6:",
+        "lane a9:",
+        "lane a11:",
+    ] {
+        assert!(SCHEDULE.contains(switch), "missing switch {switch}");
+    }
+    // Non-separable rungs are recorded honestly, never fabricated.
+    assert!(
+        SCHEDULE.contains("\"status\": \"not separable\""),
+        "A5/A7/A8 must be recorded as not separable"
+    );
+    assert!(
+        SCHEDULE.contains("not separable (per-document court)"),
+        "A10 must be recorded as not separable in the per-document court"
+    );
+    assert!(
+        !SCHEDULE.contains("\"status\": \"\""),
+        "no blank-status rung"
+    );
+}
+
+#[test]
+fn court_runs_the_ablation_ladder() {
+    let court = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tools/phase12-lifetime-court.sh"),
+    )
+    .expect("court script must be readable");
+    // Rungs are implemented by enabling capabilities (feature sets + runtime flags),
+    // never by copy-pasting unrelated code.
+    assert!(court.contains("--no-default-features --features"));
+    assert!(court.contains("rans,store,field,package"));
+    assert!(court.contains("opc,docx,epub"));
+    assert!(court.contains("--no-cache"), "A4/A5 vs A6 switch");
+    assert!(court.contains("--entropyfs"), "A9 switch");
+    // A1b reuses A1's own SQL as the single source of truth for the result cache.
+    assert!(court.contains("populate_a1b"));
+    // The receipt records the pre-registered rung table and the A10 ingest-side proxy.
+    assert!(court.contains("rungs:$sched[0].ladder"));
+    assert!(court.contains("a10_shared_ingest"));
+}
+
+#[test]
 fn court_scripts_are_present() {
     for p in [
         "tools/phase12-lifetime-court.sh",
