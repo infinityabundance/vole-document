@@ -59,5 +59,11 @@
       "seekable-environment.json": "1ddd62d4e443f819890ad13156b5d5cb8c40399a6b00fd8246d448c839c01caf"
     },
     "note": "results.json, report.md, environment.json and query-table.md are unchanged; this amendment adds new artifacts only."
+  },
+  "gates_alpha10": {
+    "tree": "49b14fd",
+    "file": "gates-alpha10.txt",
+    "sha256": "f9d72f3d598722c2af90fa0bf85acb67adfb3bdd4f6aacf5ab7b16a87d540dcc",
+    "result": "all green: fmt, clippy -D warnings, tests 387/347/291 (0 failed, 1 ignored), msrv 387, audit+deny ok"
   }
 }
