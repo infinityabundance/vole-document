@@ -7,10 +7,11 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.9` (Phase 7 — hardening plus partial
-materialization). Exactness is unchanged; whole-file compression is a recorded
-loss against generic lossless tools (ADR-0017); the pivoted result is a scoped
-random-access decode-CPU win with an explicit no-I/O-win v1 caveat (ADR-0018).
+**Current release:** `0.1.0-alpha.10` (Phase 8 — seek-based partial I/O).
+Exactness is unchanged; whole-file compression is a recorded loss against
+generic lossless tools (ADR-0017). Phase 7 measured a scoped random-access
+decode-CPU win (ADR-0018); Phase 8 adds the seek reader and measures a scoped
+random-access bytes-read win **versus non-seekable sequential codecs** (ADR-0019).
 
 Phase 8 (branch `phase8`, ADR-0019) adds an optional seek `DIRECTORY` record and
 a `Read + Seek` reader. On the same 33.8 MB corpus a seeked `view` reads a

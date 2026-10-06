@@ -22,11 +22,13 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 
 ## Status
 
-Current release: **`0.1.0-alpha.9`** (Phase 7). Exactness is unchanged
+Current release: **`0.1.0-alpha.10`** (Phase 8). Exactness is unchanged
 (`materialize(descriptor) == original_bytes`); whole-file compression remains a
-recorded loss against generic lossless tools (ADR-0017), and the pivoted Phase-7
-result is a scoped random-access **decode-CPU** win with an explicit no-I/O-win
-v1 caveat (ADR-0018).
+recorded loss against generic lossless tools (ADR-0017). Phase 7 measured a
+scoped random-access **decode-CPU** win (ADR-0018); Phase 8 adds the seek reader
+and measures a scoped random-access **bytes-read** win versus **non-seekable
+sequential** codecs only (ADR-0019) — a seekable/blocked format reads 2.6–30× less
+for the same late query.
 
 | Area | State | Evidence |
 |---|---|---|
