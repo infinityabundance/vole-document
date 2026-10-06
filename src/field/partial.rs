@@ -59,7 +59,15 @@ pub struct PartialDescriptor {
     object_sites: Vec<RecordSite>,
     channel_sites: Vec<RecordSite>,
     model_sites: Vec<RecordSite>,
-    program: Program,
+    /// On-disk locator of the `GRAPH` record. Read + cross-checked **lazily**,
+    /// only when a source range is actually served, so a fully cache-served
+    /// observation never reads the program (review fix: keep the descriptor out
+    /// of the narrow-observation path).
+    graph_site: Option<RecordSite>,
+    /// The CRC-checked observation-index op table (op geometry).
+    index: ObservationIndex,
+    /// The lazily-loaded, cross-checked reconstruction program.
+    program: RefCell<Option<Program>>,
     /// Per-op output lengths, in program order, from the validated op table.
     per_op: Vec<u64>,
 }
@@ -71,7 +79,7 @@ impl std::fmt::Debug for PartialDescriptor {
             .field("objects", &self.object_sites.len())
             .field("channels", &self.channel_sites.len())
             .field("models", &self.model_sites.len())
-            .field("graph_ops", &self.program.ops.len())
+            .field("graph_ops", &self.index.ops.len())
             .finish_non_exhaustive()
     }
 }
@@ -104,7 +112,7 @@ impl PartialDescriptor {
         let header = Header::decode(&hdr)?;
 
         let mut universe: Option<String> = None;
-        let mut graph: Option<Program> = None;
+        let mut graph_site: Option<RecordSite> = None;
         let mut index: Option<ObservationIndex> = None;
         let mut source_sha256: Option<[u8; 32]> = None;
         let mut source_len: Option<u64> = None;
@@ -160,10 +168,7 @@ impl PartialDescriptor {
                             .map_err(|_| Error::invalid_container("UNIVERSE is not UTF-8"))?,
                     );
                 }
-                Some(RecordTag::Graph) => {
-                    let rec = read_record_at(&mut reader, pos, limits)?;
-                    graph = Some(Program::decode(&rec.payload, limits)?);
-                }
+                Some(RecordTag::Graph) => graph_site = Some(site),
                 Some(RecordTag::ObservationIndex) => {
                     let rec = read_record_at(&mut reader, pos, limits)?;
                     index = Some(ObservationIndex::decode(&rec.payload, limits)?);
@@ -211,9 +216,10 @@ impl PartialDescriptor {
         }
 
         // The slow lane is only admissible with the small records that define the
-        // source and the program/index that define op geometry.
-        let (Some(universe), Some(program), Some(index), Some(source_sha256), Some(source_len)) =
-            (universe, graph, index, source_sha256, source_len)
+        // source and the op table that defines op geometry. The program is NOT
+        // read here: it is loaded and cross-checked lazily on first `serve_range`.
+        let (Some(universe), Some(index), Some(source_sha256), Some(source_len)) =
+            (universe, index, source_sha256, source_len)
         else {
             return Ok(PartialLoad::Ineligible {
                 bytes_read: reader.bytes_read(),
@@ -224,18 +230,13 @@ impl PartialDescriptor {
                 "UNIVERSE record does not match the header universe id",
             ));
         }
-        if index.section_flags & SECTION_OP_TABLE == 0 || index.ops.len() != program.ops.len() {
+        if index.section_flags & SECTION_OP_TABLE == 0 {
             // No usable op table: fall back to the full path.
             return Ok(PartialLoad::Ineligible {
                 bytes_read: reader.bytes_read(),
             });
         }
-
-        let object_lens: Vec<u64> = object_sites
-            .iter()
-            .map(|s| u64::from(s.payload_len))
-            .collect();
-        let per_op = validate_op_table(&program, &index, &object_lens, source_len)?;
+        let per_op = per_op_from_index(&index, source_len)?;
 
         Ok(PartialLoad::Ready(Box::new(PartialDescriptor {
             reader: RefCell::new(reader),
@@ -244,7 +245,9 @@ impl PartialDescriptor {
             object_sites,
             channel_sites,
             model_sites,
-            program,
+            graph_site,
+            index,
+            program: RefCell::new(None),
             per_op,
         })))
     }
@@ -271,7 +274,38 @@ impl PartialDescriptor {
 
     /// Number of instructions in the reconstruction program.
     pub fn graph_ops(&self) -> usize {
-        self.program.ops.len()
+        self.index.ops.len()
+    }
+
+    /// Load and cross-check the reconstruction program on demand.
+    ///
+    /// Only a call that actually serves source bytes needs the program; a fully
+    /// cache-served observation never does. The first call reads the `GRAPH`
+    /// record, re-runs the op-table cross-check against it, and memoizes the
+    /// result.
+    fn ensure_program(&self, limits: Limits) -> Result<std::cell::Ref<'_, Program>> {
+        if self.program.borrow().is_none() {
+            let site = self.graph_site.ok_or_else(|| {
+                Error::unsupported_feature("partial descriptor has no reconstruction graph")
+            })?;
+            let payload = self.read_site(&site, limits)?;
+            let program = Program::decode(&payload, limits)?;
+            let object_lens: Vec<u64> = self
+                .object_sites
+                .iter()
+                .map(|s| u64::from(s.payload_len))
+                .collect();
+            let checked = validate_op_table(&program, &self.index, &object_lens, self.source_len)?;
+            if checked != self.per_op {
+                return Err(Error::invalid_container(
+                    "observation index op table disagrees with the program",
+                ));
+            }
+            *self.program.borrow_mut() = Some(program);
+        }
+        Ok(std::cell::Ref::map(self.program.borrow(), |p| {
+            p.as_ref().expect("program set above")
+        }))
     }
 
     fn read_site(&self, site: &RecordSite, limits: Limits) -> Result<Vec<u8>> {
@@ -298,7 +332,8 @@ impl SourceServer for PartialDescriptor {
                 self.source_len
             )));
         }
-        let window = select_ops_from_lengths(&self.program, &self.per_op, offset, end)?;
+        let program = self.ensure_program(limits)?;
+        let window = select_ops_from_lengths(&program, &self.per_op, offset, end)?;
         let (objects_used, channels_used) = selection_references(
             &window.ops,
             self.object_sites.len(),
@@ -359,6 +394,27 @@ impl SourceServer for PartialDescriptor {
             "partial descriptor cannot serve the whole document",
         ))
     }
+}
+
+/// Sum the op table's declared output lengths and confirm they cover the source
+/// exactly. This needs no program: the op-table geometry is self-describing, and
+/// the program is cross-checked against it lazily on first serve.
+fn per_op_from_index(index: &ObservationIndex, source_len: u64) -> Result<Vec<u64>> {
+    let mut per_op: Vec<u64> = Vec::with_capacity(index.ops.len());
+    let mut total: u64 = 0;
+    for entry in &index.ops {
+        let claimed = u64::from(entry.out_len);
+        total = total
+            .checked_add(claimed)
+            .ok_or_else(|| Error::resource_limit("observation op length overflow"))?;
+        per_op.push(claimed);
+    }
+    if total != source_len {
+        return Err(Error::invalid_container(format!(
+            "observation index op table totals {total} bytes but the source declares {source_len}"
+        )));
+    }
+    Ok(per_op)
 }
 
 /// Cross-check the observation-index op table against the program's own op
