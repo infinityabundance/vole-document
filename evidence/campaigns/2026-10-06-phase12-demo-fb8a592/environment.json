@@ -1,0 +1,20 @@
+{
+  "campaign": "2026-10-06-phase12-demo-fb8a592",
+  "run_utc": "2026-10-06T19:08:16Z",
+  "arch": "x86_64",
+  "git_branch": "phase12",
+  "git_commit": "fb8a5923bc1d0138b820a69d6c3d8cc4ad3b9e2b",
+  "git_dirty": "",
+  "cargo_lock_sha256": "710e2b53719f567587472f4deb99a361530aa247dfb48633442c4a0dd576de1e",
+  "doc_baseline": {
+    "service_image": "vole-document/doc-baseline:1.99.0",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "rustc": "1.99.0",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "jq": "jq-1.6"
+  },
+  "demo_exit_code": 0,
+  "commands": "sh tools/phase12-demo.sh",
+  "caveat": "The capabilities step runs on the sealed oracle copy under evidence/scratch/phase12-demo/oracle, kept for format detection and cmp after the runtime sources and descriptors were deleted; the store never references the oracle copy (same design as the 12.10 removal court).",
+  "env_vars_affecting_semantics": { "CARGO_TERM_COLOR": "never", "LC_ALL": "C" }
+}
