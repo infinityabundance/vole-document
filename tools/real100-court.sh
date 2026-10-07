@@ -26,7 +26,7 @@ export LC_ALL=C
 
 SHA=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 STAMP=$(date -u +%Y-%m-%d)
-CAMPAIGN=evidence/campaigns/${STAMP}-real100-frontier-${SHA}
+CAMPAIGN=evidence/campaigns/${STAMP}-real100-${TAG:-frontier}-${SHA}
 RAW=$CAMPAIGN/raw
 WORK=${WORK:-evidence/scratch/real100-frontier-work}
 mkdir -p "$RAW" "$WORK"
@@ -34,15 +34,25 @@ mkdir -p "$RAW" "$WORK"
 MANIFEST=${MANIFEST:-real100-v1/manifest.tsv}
 CORPUS=${CORPUS:-real100-v1/documents}
 SCHEDULE=$RAW/schedule.json
-BIN=${VOLE_BIN:-./target/debug/vole-document}
+BIN=${VOLE_BIN:-}
 BASE=tools/fixtures/phase12-baseline.py
 OP_TIMEOUT=${OP_TIMEOUT:-180}
 REPEAT_N=${REPEAT_N:-5}
 LIMIT=${LIMIT:-0}   # 0 = the full frozen population; >0 caps docs (smoke / bounded run)
+# Build profile. Phase 15 repairs the court: the real100 numbers were taken on an
+# unoptimized debug binary. `PROFILE=release` builds `--release` and uses
+# `target/release/vole-document`.
+PROFILE=${PROFILE:-debug}
+case "$PROFILE" in
+    release) BUILD_ARGS="--release --locked --all-features"; DEFAULT_BIN=target/release/vole-document ;;
+    *)       BUILD_ARGS="--locked --all-features";           DEFAULT_BIN=target/debug/vole-document ;;
+esac
+BIN=${BIN:-$DEFAULT_BIN}
 
 echo "== real100 frontier court ==" >&2
-echo "-- building all-features binary" >&2
-cargo build --locked --all-features >&2
+echo "-- building ($PROFILE) binary" >&2
+# shellcheck disable=SC2086
+cargo build $BUILD_ARGS >&2
 
 echo "-- verifying the frozen corpus (SHA-256 + length + format)" >&2
 if ! sh tools/realcorpus/verify.sh --corpus real100-v1 >"$RAW/verify.txt" 2>&1; then
@@ -130,7 +140,7 @@ submit() { # docid agency fmt sizeclass workload lane rc wall
 }
 
 printf 'id\tagency\tfmt\tsclass\tworkload\tlane\trc\twall_ms\n' >"$RAW/ops.tsv"
-printf 'id\tagency\tfmt\tsclass\tblen\tvenc_rc\tvenc_ms\tving_rc\tving_ms\tv_bytes\ta1_build_rc\ta1_build_ms\ta1_bytes\n' >"$RAW/onetime.tsv"
+printf 'id\tagency\tfmt\tsclass\tblen\tvenc_rc\tvenc_ms\tving_rc\tving_ms\tv_desc_bytes\tv_store_bytes\tv_transient_bytes\ta1_build_rc\ta1_build_ms\ta1_bytes\n' >"$RAW/onetime.tsv"
 printf 'id\tagency\tfmt\tsclass\tv_ok\tv_rc\tv_wall\ta1_ok\ta1_rc\ta1_wall\ta0_ok\ta0_wall\n' >"$RAW/exact.tsv"
 
 # --- main loop -------------------------------------------------------------
@@ -164,10 +174,16 @@ while IFS=$'\t' read -r id agency fmt path sha blen sclass tags family; do
     timeout "$OP_TIMEOUT" python3 "$BASE" build --format "$fmt" --source "$src" --db "$d/a1.db" --metrics "$d/a1.build.metrics.json" >"$d/a1.build.json" 2>"$d/a1.build.err"; a1b_rc=$?
     t1=$(now_ms); a1b=$(( t1-t0 ))
 
-    vbytes=$(du -sb "$d/v.voldoc" "$d/vstore" 2>/dev/null | awk '{s+=$1} END{print s+0}')
+    # Storage universes (ADR-0027 extended): the persistent footprint the field
+    # needs after `field-ingest` (the store alone — the standalone `.voldoc` may be
+    # deleted), the optional standalone descriptor, and the transient ingest total.
+    v_desc_bytes=$(du -sb "$d/v.voldoc" 2>/dev/null | awk '{print $1+0}')
+    v_store_bytes=$(du -sb "$d/vstore" 2>/dev/null | awk '{print $1+0}')
+    v_transient_bytes=$(( v_desc_bytes + v_store_bytes ))
     a1bytes=$(du -sb "$d/a1.db" 2>/dev/null | awk '{s+=$1} END{print s+0}')
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$id" "$agency" "$fmt" "$sclass" "$blen" "$venc_rc" "$venc" "$ving_rc" "$ving" "$vbytes" "$a1b_rc" "$a1b" "$a1bytes" >>"$RAW/onetime.tsv"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$id" "$agency" "$fmt" "$sclass" "$blen" "$venc_rc" "$venc" "$ving_rc" "$ving" \
+        "$v_desc_bytes" "$v_store_bytes" "$v_transient_bytes" "$a1b_rc" "$a1b" "$a1bytes" >>"$RAW/onetime.tsv"
 
     # ---- per-op lanes -----------------------------------------------------
     for w in text_once heading table resource metadata; do

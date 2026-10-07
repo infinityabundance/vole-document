@@ -132,16 +132,27 @@ def main(argv):
                               order=["pdf", "docx", "epub"]))
     out.append(frontier_table(ops, lambda r: r["sclass"], "By size class"))
 
-    # one-time costs
-    out.append("### One-time costs (build/ingest, per document)")
+    out.append("### One-time costs + storage universes (per document)")
     out.append("")
-    out.append("| id | format | size | VOLE encode ms | VOLE ingest ms | VOLE bytes | A1 build ms | A1 db bytes |")
-    out.append("|---|---|---|---:|---:|---:|---:|---:|")
+    out.append("VOLE persistent = the field store alone after `field-ingest` (the "
+               "standalone `.voldoc` may be deleted); descriptor = the optional "
+               "standalone `.voldoc`; transient = store + descriptor during ingest.")
+    out.append("")
+    out.append("| id | format | size | VOLE encode ms | VOLE ingest ms | VOLE persistent B | VOLE descriptor B | VOLE transient B | A1 build ms | A1 db B |")
+    out.append("|---|---|---|---:|---:|---:|---:|---:|---:|---:|")
     for r in onetime:
-        out.append("| {} | {} | {} | {} | {} | {} | {} | {} |".format(
+        out.append("| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
             r["id"], r["fmt"], r["sclass"], r["venc_ms"], r["ving_ms"],
-            r["v_bytes"], r["a1_build_ms"], r["a1_bytes"]))
+            r.get("v_store_bytes", "?"), r.get("v_desc_bytes", "?"),
+            r.get("v_transient_bytes", "?"), r["a1_build_ms"], r["a1_bytes"]))
     out.append("")
+    if onetime:
+        vs = sum(int(r.get("v_store_bytes", 0) or 0) for r in onetime)
+        vd = sum(int(r.get("v_desc_bytes", 0) or 0) for r in onetime)
+        a1 = sum(int(r.get("a1_bytes", 0) or 0) for r in onetime)
+        out.append(f"Totals over {len(onetime)} docs: VOLE persistent {vs} B, "
+                   f"VOLE descriptor {vd} B, A1 db {a1} B.")
+        out.append("")
 
     # exactness
     vok = sum(1 for r in exact if r["v_ok"] == "1")
