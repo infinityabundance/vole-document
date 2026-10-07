@@ -234,11 +234,13 @@ Current limitations:
   measured file (the representation is coarser than LZ77).
 - **Not a database.** A source-retaining SQLite+FTS5 baseline wins the
   large-document byte frontier and wall/CPU at N=1000.
-- **Self-authored corpora through Phase 12.** Published performance results
-  through Phase 12 use self-authored deterministic corpora; no population claim
-  is made, and reflowable EPUB genuinely has no intrinsic pages. `real100-v1` is
-  a frozen 100-document NASA/NIST corpus selected independently of VOLE
-  performance; its VOLE performance court has not yet been run.
+- **Self-authored corpora through Phase 12; first real-corpus court run.** Published
+  performance results through Phase 12 use self-authored deterministic corpora.
+  `real100-v1` is a frozen 100-document NASA/NIST corpus selected independently of
+  VOLE performance; its first frontier court has now been run and is mixed — VOLE
+  wins repeated observations and DOCX tables/metadata, and loses cold lookups,
+  real EPUB content (an XHTML `DOCTYPE` the bounded-XML policy forbids) and
+  >100 MiB PDFs ([frontier report](docs/evidence/real100-frontier-report.md)).
 - **Partial reusability.** Cross-document durable *work* reuse is a negative, and
   XLSX/PPTX and other adapters remain `PROPOSED`.
 

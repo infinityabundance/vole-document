@@ -51,6 +51,7 @@ state, and the exact command line. Independent adversarial reviews live in
 | 13.3 | ODT adapter | byte-exact + queryable after source + descriptor deletion, fresh process | `phase13-odt-95c486d` | — |
 | 13.4 | byte-level partial-materialization checkpoints | exact + advisory, but redundant with the index (+bytes, identical op work) | `phase13-checkpoints-9d1306a` | — |
 | N5 | package-index-only gate | package index answers 0/72 structural selectors, field 72/72 — falsified | `phase13-n5-21948bd` | [phase-12](../reviews/phase-12-skeptic-review.md) |
+| real100 | frontier court over the frozen 100-doc NASA/NIST corpus | mixed: VOLE wins repeated observations + DOCX tables/metadata; loses cold lookups, real EPUB content (DOCTYPE), >100 MiB PDFs | `real100-frontier-8f10d00` | — |
 
 Receipt short names are the suffixes of `evidence/campaigns/2026-10-*<name>/`.
 
@@ -62,6 +63,7 @@ Human-readable reports kept alongside the machine receipts in this directory:
 - [phase7-partial-report.md](phase7-partial-report.md) — Phase-7.3 partial-materialization court.
 - [phase8-seek-report.md](phase8-seek-report.md) — Phase-8.3 seek-based bytes-read court.
 - [phase9-store-report.md](phase9-store-report.md) — Phase-9.3 cross-document store court.
+- [real100-frontier-report.md](real100-frontier-report.md) — the `real100-v1` frontier court over the frozen real NASA/NIST corpus.
 
 ## Reproducing
 

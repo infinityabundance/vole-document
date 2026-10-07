@@ -223,6 +223,17 @@ only.
    PARTIAL, and the `glossary/index` DOCX gate needs a second index-bearing Word
    document that NIST does not publish.
 
+## First court (frontier map)
+
+The frozen corpus has been run once through the frozen architecture and the two
+honest baselines (SQLite/FTS; direct tooling) with **no tuning before the court**.
+Result: a mixed frontier map, not a win count — VOLE wins repeated observations
+and DOCX tables/metadata, and loses cold single lookups, real EPUB content (the
+bounded-XML policy forbids the XHTML `DOCTYPE` these files carry) and >100 MiB
+PDFs (encode OOM/timeout under the lane cap). Full map, caveats and the implied
+product region: [docs/evidence/real100-frontier-report.md](../docs/evidence/real100-frontier-report.md);
+sealed campaign `evidence/campaigns/2026-10-07-real100-frontier-8f10d00/`.
+
 ## Harness fix
 
 `tools/realcorpus/acquire.py` `cmd_add_tsv` had its add call mis-indented after
