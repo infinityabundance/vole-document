@@ -129,7 +129,7 @@ guess. `materialize(descriptor) == original_bytes` is unchanged.
 deterministic `pdf-make-large` corpus and the `PDF_DEFLATE_REPLAY_RANS_INDEXED`
 lane, plus the `flate.pdf` sample, measured with the internal `CountingReader`
 (`bytes_read`) and the served `ops_evaluated`. Sealed receipt:
-`evidence/campaigns/2026-10-07-phase13-checkpoints-<shortsha>/`.
+`evidence/campaigns/2026-10-07-phase13-checkpoints-9d1306a/`.
 
 **Outcome — recorded negative (ADR-0039).**
 

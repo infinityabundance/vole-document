@@ -56,7 +56,7 @@ mechanism is implemented and measured rather than reasoned about.
 ## Consequences
 
 - **Measured result (receipt
-  `evidence/campaigns/2026-10-07-phase13-checkpoints-<shortsha>/`):** on the
+  `evidence/campaigns/2026-10-07-phase13-checkpoints-9d1306a/`):** on the
   deterministic `pdf-make-large` corpus and the `PDF_DEFLATE_REPLAY_RANS_INDEXED`
   lane (the Phase-8 seek lane), the checkpoint lane serves **byte-identical**
   slices with **identical `ops_evaluated`** to the index lane for every

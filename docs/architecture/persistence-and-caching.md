@@ -99,7 +99,7 @@ negative**: it is materially redundant with the index's own op table, so the
 checkpoint record is larger than the index it replaces and every query reads
 *more* bytes (20/40/120 objects: +259/+439/+1,159 B per byte-range query) with
 identical op work. Receipt:
-`evidence/campaigns/2026-10-07-phase13-checkpoints-<shortsha>/`. ADR-0039.
+`evidence/campaigns/2026-10-07-phase13-checkpoints-9d1306a/`. ADR-0039.
 
 ## Not yet built
 

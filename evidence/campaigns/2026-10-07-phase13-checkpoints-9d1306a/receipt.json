@@ -1,0 +1,38 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-phase13-checkpoints-9d1306a",
+  "phase": "13.4 — byte-level partial-materialization checkpoint records",
+  "utc_date": "2026-10-07T07:20:00Z",
+  "git_commit": "9d1306a9429add142a9ff9ce2d610412cd8c4807",
+  "git_short": "9d1306a",
+  "git_dirty_tracked": "0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "dev",
+  "service_image_id": "sha256:652fbf80bd6631f9a80df84589bc1227e374a576d5267c343b87471b911415c8",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "7ec7c1ab7d371947c320f1393bdd3f3668c9712e64090c6e6df98efb113a7d55",
+  "arch": "x86_64",
+  "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor",
+  "oracles": {},
+  "env_semantics": {
+    "CARGO_TERM_COLOR": "never"
+  },
+  "hypotheses": {
+    "H1_byte_exact": "checkpointed descriptor materializes exactly; checkpoint lane == index lane, byte-for-byte",
+    "H2_advisory": "lying/corrupt/non-optional checkpoint rejected; reader falls back to the index lane, exact bytes",
+    "H3_work_negative": "per-op checkpoint table is redundant with the index and its record is larger; bytes_read does not fall, CPU unchanged"
+  },
+  "court": "tests/phase13_checkpoints.rs",
+  "court_tests": 4,
+  "court_passed": 4,
+  "in_file_checkpoint_tests": 7,
+  "in_file_descriptor_tests": 5,
+  "gate": {"all_features": "passed", "no_default_features": "passed", "check_docs": "passed", "total_passed": 1048, "total_failed": 0},
+  "measured": {
+    "objects_20": {"descriptor_bytes_floor": 94754, "descriptor_bytes_cp": 98984, "delta_bytes_read_per_query": 259},
+    "objects_40": {"descriptor_bytes_floor": 189073, "descriptor_bytes_cp": 197143, "delta_bytes_read_per_query": 439},
+    "objects_120": {"descriptor_bytes_floor": 567382, "descriptor_bytes_cp": 590812, "delta_bytes_read_per_query": 1159},
+    "ops_evaluated": "identical across lanes"
+  },
+  "verdict": "PASS (recorded negative on the work axis)"
+}
