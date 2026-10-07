@@ -1,0 +1,23 @@
+# real100-v1 frontier court — Phase 15.2 resident lane
+#
+# Measured commit 78f7ea8 (branch phase15), clean working tree at court start.
+# Adds the `v_r` resident lane to the frozen court: the same REPEAT_N text
+# observations are served by ONE `observe-batch` process (--repeat), and a
+# heterogeneous `session_mixed` batch (text/heading/table/resource/metadata) is
+# served by one process too. The cold per-process lanes are unchanged.
+#
+# The host executed nothing: build + every lane run inside the digest-pinned
+# `doc-baseline` compose service (mem_limit == memswap_limit == 6g, cpus: 8).
+
+docker compose run -d --name p15r1 -e PROFILE=release -e TAG=release-resident doc-baseline bash tools/real100-court.sh
+docker wait p15r1
+docker logs p15r1
+
+# Result (honest): naive residency does NOT reduce repeated-observation lifetime
+# cost on this corpus. VOLE resident wins only for documents below ~1 MiB; for
+# 1-10MiB / 10-50MiB / 50-100MiB the cold lane is faster. Mechanism: the cold
+# `observe` path takes `narrow_probe` — a per-call manifest + derived-cache
+# short-circuit that returns the already-derived node without building the full
+# evaluation context; `observe-batch` (v_r) always builds the full context, so
+# its per-observation cost is higher even though it pays process spawn once.
+# The `session_mixed` row is informational: no other lane answers it.

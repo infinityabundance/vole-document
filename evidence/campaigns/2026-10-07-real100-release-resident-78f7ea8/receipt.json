@@ -1,0 +1,44 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-real100-release-resident-78f7ea8",
+  "phase": "Phase 15.2 resident runtime — resident lane of the frozen real100-v1 court",
+  "utc_date": "2026-10-07",
+  "measured_commit": "78f7ea8",
+  "measured_commit_subject": "phase15.4: bounded parallel CPU (rayon, non-default feature) + batch-exit semantics",
+  "measured_binary": "target/release/vole-document",
+  "profile": "release",
+  "tree_state": "clean at court start; the 15.6 promotion edits were made after the release binary was built and are NOT in the measured binary",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "corpus": "real100-v1",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "documents": 100,
+  "op_timeout_s": 180,
+  "repeat_n": 5,
+  "answered": { "v": 455, "v_r": 184, "a1": 506, "a0": 508 },
+  "declined": { "v": 245, "v_r": 16, "a1": 194, "a0": 192 },
+  "exact": { "v": "97/100", "a1": "98/100", "a0": "100/100" },
+  "storage_universes_bytes": {
+    "v_persistent_store": 2667668262,
+    "v_descriptor_standalone": 1704524849,
+    "a1_sqlite_db": 2891784192,
+    "note": "the resident lane adds NO storage universe; it runs against the same $d/vstore"
+  },
+  "headline_result": "NEGATIVE/partial: residency alone does not pay on this corpus.",
+  "resident_vs_cold_text_repeat": {
+    "all": "cold v median 7 ms vs resident v_r median 9 ms -> cold 'win', resident 'loss' (both at the process/cache noise floor)",
+    "<100KiB": "resident wins",
+    "100KiB-1MiB": "resident wins",
+    "1-10MiB": "cold wins",
+    "10-50MiB": "cold wins",
+    "50-100MiB": "cold wins",
+    "mechanism": "the cold `observe` path runs `narrow_probe` (a per-call manifest + derived-cache short-circuit returning the derived node without building the full Ctx), whereas `observe-batch` always evaluates the full path; its higher per-observation cost exceeds the once-per-batch process-spawn saving for documents above ~1 MiB",
+    "identified_fix": "hoist narrow_probe's manifest/index opens into the session so residency keeps the short-circuit (15.2 follow-up; not shipped here)"
+  },
+  "session_mixed": {
+    "answered_rc0": 95,
+    "answered_informational": "v_r is the ONLY lane that answers a heterogeneous batch; rc=0 now means the session ran and answered at least one observation (a typed per-request decline is reported on its own JSON line)",
+    "note": "informational witness, not a verdict"
+  },
+  "interpretation": "repeated text observation costs ~1-2 ms per observation regardless of lane on this corpus; the dominant lifetime costs are ingest (encode + field-ingest) and storage, not repeated observation. Residency is therefore not the lever Phase 15 is looking for; 15.3 (packed store), 15.4 (parallel ingest) and 15.6 (adaptive promotion) are.",
+  "tuning": "none; corpus and schedule frozen"
+}
