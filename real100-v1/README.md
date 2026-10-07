@@ -26,14 +26,14 @@ real100-v1/
   README.md                 this file
   manifest.tsv              canonical manifest (tab-separated, 20 fields)
   manifest.toml             generated view of manifest.tsv
-  SHA256SUMS                sha256 of every committed document
+  SHA256SUMS                sha256 of every manifest row (bytes re-fetched, not committed)
   documents/
     nasa/{pdf,epub}/        NASA PDFs and EPUBs (gitignored bytes)
     nist/{pdf,docx,epub}/   NIST PDFs, DOCX, EPUBs (gitignored bytes)
   pilot/                    the development-only real20-pilot (see pilot/README.md)
   sources/                  candidate catalogs, the frozen selection, probe +
                             diversity evidence (see sources/README.md)
-  .cache/                   on-demand bytes for redistributable=false rows
+  .cache/                   on-demand bytes for rows not fetched into documents/
                             (gitignored; not committed)
 ```
 
@@ -72,7 +72,10 @@ cross_format_family_id revision_family_id rights_status redistributable
   never a local conversion.
 - `redistributable` is recorded honestly per source. NASA and NIST public
   documents are generally US-Government public domain with attribution, so all
-  rows here are `redistributable=true` and their bytes are committed.
+  rows here are `redistributable=true`: their bytes *may* be redistributed, but
+  the repository commits only the manifest, `SHA256SUMS` and byte lengths — the
+  bytes themselves are fetched on demand into the gitignored `documents/` and
+  are never committed.
 
 ## Selection discipline
 
