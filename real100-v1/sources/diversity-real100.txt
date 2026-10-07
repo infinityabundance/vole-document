@@ -1,8 +1,8 @@
 corpus: real100-v1
-documents in manifest: 98
+documents in manifest: 100
   nasa  epub  15
   nasa  pdf   40
-  nist  docx  13
+  nist  docx  15
   nist  epub  10
   nist  pdf   20
 
@@ -11,56 +11,56 @@ documents in manifest: 98
   NASA PDF                                 40-40          40  PASS
   NASA EPUB                                15-15          15  PASS
   NIST PDF                                 20-20          20  PASS
-  NIST DOCX                                15-15          13  PARTIAL
+  NIST DOCX                                15-15          15  PASS
   NIST EPUB                                10-10          10  PASS
   NASA total                               55-55          55  PASS
-  NIST total                               45-45          43  PARTIAL
+  NIST total                               45-45          45  PASS
   PDF total                                60-60          60  PASS
-  DOCX total                               15-15          13  PARTIAL
+  DOCX total                               15-15          15  PASS
   EPUB total                               25-25          25  PASS
 
 == nasa-era ==
   gate                                     target        now  status
   pre-1960                                 5-5             5  PASS
-  1960-1979                                7-7             6  PARTIAL
-  1980-1999                                8-8             7  PARTIAL
-  2000-2014                                8-8             7  PARTIAL
-  2015-2024                                8-8            11  PARTIAL
+  1960-1979                                7-7             7  PASS
+  1980-1999                                8-8             8  PASS
+  2000-2014                                8-8             8  PASS
+  2015-2024                                8-8             8  PASS
   2025-2026                                4-4             4  PASS
 
 == nasa-center ==
   gate                                     target        now  status
-  distinct centers (>=4, none >40%)        4               6  PASS
+  distinct centers (>=4, none >40%)        4               8  PASS
   max single-center share <=40%            =0              0  PASS
 
 == nasa-doctype ==
   gate                                     target        now  status
-  TM                                       8-10            6  PARTIAL
-  TR                                       8-10            7  PARTIAL
-  CR                                       5-7             4  PARTIAL
+  TM                                       8-10            8  PASS
+  TR                                       8-10            6  PARTIAL
+  CR                                       5-7             5  PASS
   conference/research                      4-6             4  PASS
   handbook/reference                       3-5             2  PARTIAL
   NACA/early                               5               5  PASS
 
 == nasa-struct ==
   gate                                     target        now  status
-  scanned/legacy-image                     8              14  PASS
-  table-heavy                              8              13  PASS
-  figure-heavy                             8              26  PASS
-  equation-heavy                           6               6  PASS
+  scanned/legacy-image                     8              17  PASS
+  table-heavy                              8              15  PASS
+  figure-heavy                             8              29  PASS
+  equation-heavy                           6               7  PASS
   multi-column                             5               6  PASS
-  appendix/reference-heavy                 5               2  PARTIAL
-  very large                               3               9  PASS
+  appendix/reference-heavy                 5               3  PARTIAL
+  very large                               3              15  PASS
   simple born-digital                      4               2  PARTIAL
 
 == nasa-epub ==
   gate                                     target        now  status
   long multi-chapter                       4              15  PASS
-  image-heavy                              3              13  PASS
-  reference/footnote-heavy                 2               4  PASS
-  simple                                   2               4  PASS
-  nav-heavy                                2               5  PASS
-  unusual/large                            2               6  PASS
+  image-heavy                              3              14  PASS
+  reference/footnote-heavy                 2               3  PASS
+  simple                                   2               5  PASS
+  nav-heavy                                2               7  PASS
+  unusual/large                            2               5  PASS
 
 == nist-pdf ==
   gate                                     target        now  status
@@ -73,19 +73,19 @@ documents in manifest: 98
 
 == nist-docx ==
   gate                                     target        now  status
-  table-heavy                              3               8  PASS
+  table-heavy                              3               9  PASS
   procedure-heavy                          2               2  PASS
-  deep headings                            2               2  PASS
+  deep headings                            2               3  PASS
   forms                                    2              10  PASS
   glossary/index                           2               1  PARTIAL
-  image-heavy                              2               0  FAIL
-  list-heavy                               1              10  PASS
+  image-heavy                              2               2  PASS
+  list-heavy                               1              11  PASS
   long regulatory                          1               0  FAIL
 
 == nist-epub ==
   gate                                     target        now  status
   long                                     3               9  PASS
-  table-heavy                              2               1  PARTIAL
+  table-heavy                              2               2  PASS
   figure-heavy                             2               7  PASS
   reference-heavy                          1               7  PASS
   simple                                   1               3  PASS
@@ -93,36 +93,36 @@ documents in manifest: 98
 
 == cross-format ==
   gate                                     target        now  status
-  NASA PDF<->EPUB (10-12)                  10-12          12  PASS
-  NIST PDF<->DOCX (8-10)                   8-10            2  PARTIAL
-  NIST PDF<->EPUB (>=5)                    5               1  PARTIAL
+  NASA PDF<->EPUB (10-12)                  10-12          10  PASS
+  NIST PDF<->DOCX (8-10)                   8-10            1  PARTIAL
+  NIST PDF<->EPUB (>=5)                    5               5  PASS
 
 == revision ==
   gate                                     target        now  status
-  docs in revision/publication families (15-20) 15-20          23  PARTIAL
+  docs in revision/publication families (15-20) 15-20          21  PARTIAL
 
 == size ==
   gate                                     target        now  status
   <100KiB                                  10-10           8  PARTIAL
-  100KiB-1MiB                              20-20          19  PARTIAL
-  1-10MiB                                  30-30          48  PARTIAL
-  10-50MiB                                 20-20          18  PARTIAL
-  50-100MiB                                10-10           3  PARTIAL
-  >100MiB                                  5-5             2  PARTIAL
+  100KiB-1MiB                              20-20          17  PARTIAL
+  1-10MiB                                  30-30          40  PARTIAL
+  10-50MiB                                 20-20          20  PASS
+  50-100MiB                                10-10          10  PASS
+  >100MiB                                  5-5             5  PASS
 
 == corpus-min ==
   gate                                     target        now  status
-  tables (>=25)                            25             22  PARTIAL
-  figure/resource-heavy (>=25)             25             52  PASS
-  equations (>=15)                         15              6  PARTIAL
+  tables (>=25)                            25             26  PASS
+  figure/resource-heavy (>=25)             25             59  PASS
+  equations (>=15)                         15              7  PARTIAL
   appendix/reference-heavy (>=15)          15             13  PARTIAL
-  scanned PDFs (>=10)                      10             15  PASS
-  complex/object-stream PDFs (>=10)        10             41  PASS
+  scanned PDFs (>=10)                      10             18  PASS
+  complex/object-stream PDFs (>=10)        10             38  PASS
   multi-column (>=8)                       8               6  PARTIAL
-  rich DOCX (>=8)                          8              13  PASS
+  rich DOCX (>=8)                          8              15  PASS
   unusual DOCX (>=6)                       6              10  PASS
   substantial-spine EPUBs (>=8)            8              24  PASS
-  image-heavy EPUBs (>=6)                  6              13  PASS
-  files >100MiB (>=5)                      5               2  PARTIAL
+  image-heavy EPUBs (>=6)                  6              14  PASS
+  files >100MiB (>=5)                      5               5  PASS
 
-summary: 49 PASS  29 PARTIAL  2 FAIL  (of 80 gates)
+summary: 66 PASS  13 PARTIAL  1 FAIL  (of 80 gates)

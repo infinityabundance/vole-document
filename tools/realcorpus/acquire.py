@@ -214,6 +214,17 @@ def _sanitize(v):
 
 def write_manifests(corpus, rows, meta):
     tsv, toml = manifest_paths(corpus)
+    # Preserve a freeze marker across regeneration: a frozen corpus is terminal,
+    # so rewriting the generated view must not silently unfreeze it.
+    frozen_lines = []
+    if os.path.exists(toml):
+        try:
+            with open(toml, encoding="utf-8") as pf:
+                frozen_lines = [ln.rstrip("\n") for ln in pf
+                                if ln.startswith(("frozen = ", "frozen_utc = ",
+                                                  "documents = "))]
+        except OSError:
+            frozen_lines = []
     os.makedirs(corpus, exist_ok=True)
     with open(tsv, "w", encoding="utf-8") as f:
         f.write("\t".join(FIELDS) + "\n")
@@ -226,6 +237,8 @@ def write_manifests(corpus, rows, meta):
         f.write('schema_version = 1\n')
         f.write('corpus = %s\n' % toml_str(meta.get("corpus", "")))
         f.write('generated_utc = %s\n' % toml_str(now_utc()))
+        for line in frozen_lines:
+            f.write(line + "\n")
         if meta.get("note"):
             f.write('note = %s\n' % toml_str(meta["note"]))
         f.write("\n")
@@ -552,33 +565,33 @@ def cmd_add_tsv(args):
             print("skip (present): %s" % row["id"])
             skip += 1
             continue
-            ns = argparse.Namespace(
-                corpus=args.corpus, id=row["id"], agency=row["agency"],
-                format=row["format"], url=row["url"],
-                landing_page=row.get("landing", ""), title=row.get("title", ""),
-                publication_id=row.get("pubid", ""), year=row.get("year", ""),
-                family=row.get("family", ""),
-                document_type=row.get("doctype", ""),
-                producer=row.get("producer", ""), size_class="",
-                structural_tags=row.get("tags", ""),
-                cross_format_family_id=row.get("cross", ""),
-                revision_family_id=row.get("rev", ""),
-                rights_status=row.get("rights", ""),
-                redistributable=row.get("redist", "true") or "true",
-                keep_private=False, corpus_name=args.corpus_name or "",
-                timeout=args.timeout)
-            try:
-                rc = cmd_add(ns)
-            except Exception as e:  # noqa: BLE001
-                print("FAILED (recorded, continuing): %s: %s"
-                      % (row["id"], str(e)[:200]), file=sys.stderr)
-                rc = 1
-            if rc == 0:
-                ok += 1
-            else:
-                print("FAILED (recorded, continuing): %s" % row["id"],
-                      file=sys.stderr)
-                fail += 1
+        ns = argparse.Namespace(
+            corpus=args.corpus, id=row["id"], agency=row["agency"],
+            format=row["format"], url=row["url"],
+            landing_page=row.get("landing", ""), title=row.get("title", ""),
+            publication_id=row.get("pubid", ""), year=row.get("year", ""),
+            family=row.get("family", ""),
+            document_type=row.get("doctype", ""),
+            producer=row.get("producer", ""), size_class="",
+            structural_tags=row.get("tags", ""),
+            cross_format_family_id=row.get("cross", ""),
+            revision_family_id=row.get("rev", ""),
+            rights_status=row.get("rights", ""),
+            redistributable=row.get("redist", "true") or "true",
+            keep_private=False, corpus_name=args.corpus_name or "",
+            timeout=args.timeout)
+        try:
+            rc = cmd_add(ns)
+        except Exception as e:  # noqa: BLE001
+            print("FAILED (recorded, continuing): %s: %s"
+                  % (row["id"], str(e)[:200]), file=sys.stderr)
+            rc = 1
+        if rc == 0:
+            ok += 1
+        else:
+            print("FAILED (recorded, continuing): %s" % row["id"],
+                  file=sys.stderr)
+            fail += 1
     print("acquire: %d added, %d skipped, %d failed, %d tags updated"
           % (ok, skip, fail, updated))
     return 0

@@ -35,6 +35,56 @@ ERAS = [("pre1960", 0, 1959, 5), ("1960-79", 1960, 1979, 7),
         ("2015-24", 2015, 2024, 8), ("2025-26", 2025, 2026, 4)]
 DOC_QUOTA = {"TM": 8, "TR": 8, "CR": 4, "CONFERENCE": 4, "SP": 2, "NACA": 5}
 
+# --- NASA e-book cross-format pages ---------------------------------------
+# Chosen by pre-performance attributes only: upload year (the era proxy the
+# e-book PDF carries) and landing-page category. Ten pages are cross-paired with
+# their official PDF; the two 2025 uploads put those e-book PDFs in the 2025-26
+# era band and the eight 2015-24 uploads land in 2015-24, leaving the older era
+# bands to NTRS technical publications.
+CROSS_PAGES = [
+    # 2025 uploads (e-book PDFs -> 2025-26 era)
+    "https://www.nasa.gov/history/history-publications-and-resources/nasa-history-series/a-history-of-near-earth-objects-research/",
+    "https://www.nasa.gov/history/ascension/",
+    # 2015-2024 uploads (e-book PDFs -> 2015-24 era)
+    "https://www.nasa.gov/missions/station/a-researchers-guide-to-cellular-biology/",
+    "https://www.nasa.gov/missions/station/a-researchers-guide-to-acceleration-environment/",
+    "https://www.nasa.gov/missions/station/a-researchers-guide-to-combustion-science/",
+    "https://www.nasa.gov/aeronautics/beyond-tube-and-wing/",
+    "https://www.nasa.gov/ebooks/earth-at-night/",
+    "https://www.nasa.gov/ebooks/earth/",
+    "https://www.nasa.gov/ebooks/earth-as-art/",
+    "https://www.nasa.gov/ebooks/counting-the-many-ways-the-space-station-benefits-humankind/",
+]
+# Five further EPUB-only pages chosen for category spread (history/photo/guide/aero).
+EXTRA_EPUB_PAGES = [
+    "https://www.nasa.gov/history/history-publications-and-resources/nasa-history-series/50-years-of-solar-system-exploration-historical-perspectives/",
+    "https://www.nasa.gov/aeronautics/a-new-twist-in-flight-research/",
+    "https://www.nasa.gov/missions/station/a-researchers-guide-to-fundamental-physics/",
+    "https://www.nasa.gov/history/history-publications-and-resources/nasa-history-series/archaeology-anthropology-and-interstellar-communication/",
+    "https://www.nasa.gov/science-research/for-researchers/a-researchers-guide-to-earth-observations/",
+]
+
+# --- curated NTRS technical publications (30) -----------------------------
+# Selected by pre-performance attributes only: era, doctype, centre and the
+# candidate's measured byte size (read-only HEAD probe, sources/ntrs_sizes.tsv).
+#   5 pre-1960 NACA (3 in the >100 MiB band, 2 in 50-100 MiB)
+#   7 for 1960-79  (6 TR + 1 CR which is 50-100 MiB)
+#   8 for 1980-99  (3 TM + 3 CR + 1 conference + 1 SP handbook)
+#   8 for 2000-14  (3 TM + 3 conference + 1 SP + 1 CR)
+#   2 for 2025-26  (2 TM)
+CURATED_NTRS = [
+    "19930091112", "20050019296", "20050019295", "19710070068", "19930091058",
+    "19670002631", "19630009859", "19680022079", "19980223593",
+    "19660028846", "19660023256", "19760013038",
+    "19830022035", "19890006474", "19820003180",
+    "19900001638", "19970035961", "19970014917",
+    "19960051323", "19960002194",
+    "20110007108", "20020082935", "20020039536",
+    "20010024890", "20030005526", "20020067708",
+    "20080008301", "20050192421",
+    "20260002490", "20250004035",
+]
+
 
 def load_tsv(path, has_header=True):
     rows = []
@@ -195,120 +245,51 @@ def build():
     sel = Sel()
     pages, titles = nasa_epub_pages()
 
-    # 1) NASA EPUB (15); the first 12 that also have a PDF form cross-format
-    # families. Order the pairing so e-book PDFs land in the newest eras first
-    # (their upload year is the era proxy), leaving the four older era bands to
-    # NTRS technical publications.
-    chosen = pick_epubs(pages)
-    with_pdf = [p for p in chosen if "pdf" in pages[p]]
-
-    def pdf_year(p):
-        y = year_from_url(pages[p]["pdf"])
-        return y if isinstance(y, int) else 0
-
-    newest = sorted([p for p in with_pdf if pdf_year(p) >= 2025],
-                    key=lambda p: (-pdf_year(p), p))
-    mid = sorted([p for p in with_pdf if 2015 <= pdf_year(p) <= 2024],
-                 key=lambda p: (-pdf_year(p), p))
-    rest = [p for p in with_pdf if p not in newest and p not in mid]
-    ordered = []
-    for p in newest[:4] + mid + rest:
-        if p not in ordered:
-            ordered.append(p)
-    cross_pages = ordered[:12]
+    # 1) NASA EPUB (15): 10 cross-format e-books followed by 5 EPUB-only pages.
+    cross_pages = list(CROSS_PAGES)
+    extra_pages = list(EXTRA_EPUB_PAGES)
+    for p in cross_pages + extra_pages:
+        if p not in pages or "epub" not in pages[p] or "pdf" not in pages[p]:
+            raise SystemExit("missing EPUB/PDF page in pool: %s" % p)
     cross_ids = {}
     for i, p in enumerate(cross_pages, 1):
         cross_ids[p] = "cf-nasa-ebook-%02d" % i
 
-    for i, p in enumerate(chosen, 1):
+    for i, p in enumerate(cross_pages + extra_pages, 1):
         sel.add("nasa-epub-%04d" % i, "nasa", "epub", pages[p]["epub"], p,
                 titles[p], "NASA eBook", year_from_url(pages[p]["epub"]),
                 "NASA-EBOOK", "SP", "NASA", curate_epub(category(p), titles[p]),
                 cross_ids.get(p, ""), "")
 
-    # 2) NASA PDF (40) = 12 paired e-book PDFs + 28 NTRS.
+    # 2) NASA PDF (40) = 10 paired e-book PDFs + 30 curated NTRS technical
+    #    publications. The NTRS list is curated by pre-performance attributes
+    #    only (era, doctype, centre, measured byte size), never by a codec
+    #    result; see CURATED_NTRS.
     ebooks = []
     for p in cross_pages:
         url = pages[p]["pdf"]
         ebooks.append({"url": url, "landing": p, "title": titles[p],
-                       "pubid": os.path.basename(url), "year": year_from_url(url),
+                       "pubid": os.path.basename(url),
+                       "year": year_from_url(pages[p]["epub"]),
                        "doctype": "EBOOK", "center": "", "cross": cross_ids[p]})
 
-    ntrs = []
+    ntrs = {}
     for pid, year, sti, center, rn, title, pdf, land in load_tsv(
             os.path.join(SRC, "nasa_ntrs_candidates.tsv")):
         y = int(year) if year.isdigit() else None
-        ntrs.append({"id": pid, "year": y, "sti": sti, "center": center,
+        ntrs[pid] = {"id": pid, "year": y, "sti": sti, "center": center,
                      "rn": rn, "title": title, "url": pdf, "landing": land,
-                     "doctype": classify_ntrs(rn, sti, y)})
-
-    # era counts contributed by the e-book PDFs
-    ec = collections.Counter()
-    for e in ebooks:
-        if e["year"]:
-            n = era_of(e["year"])
-            if n:
-                ec[n] += 1
-    ntrs_n = {}
-    for name, lo, hi, target in ERAS:
-        ntrs_n[name] = max(0, target - ec.get(name, 0))
-    want = 28
-    diff = want - sum(ntrs_n.values())
-    # adjust: add to eras with the most headroom in the raw pool
-    if diff:
-        order = sorted([e[0] for e in ERAS],
-                       key=lambda n: (-(ntrs_n[n]), n))
-        i = 0
-        while diff > 0 and i < 1000:
-            ntrs_n[order[i % len(order)]] += 1
-            diff -= 1
-            i += 1
-        i = 0
-        while diff < 0 and i < 1000:
-            n = order[i % len(order)]
-            if ntrs_n[n] > 0:
-                ntrs_n[n] -= 1
-                diff += 1
-            i += 1
-
-    # doctype quotas (technical publications only; e-book PDFs are counted
-    # separately as EBOOK and are excluded from the technical doc-type buckets)
-    quota = dict(DOC_QUOTA)
-    era_cap = dict(ntrs_n)
-
-    used = set()
-    picks = []
-    # Doctype-first greedy: place the scarcest/priority types first, respecting
-    # each era's remaining capacity, then fill leftover era capacity with any
-    # candidate. Deterministic: candidates are visited in id order.
-    prio = ["NACA", "TR", "SP", "CR", "CONFERENCE", "TM"]
-    for dt in prio:
-        for cand in sorted([c for c in ntrs if c["doctype"] == dt and c["year"]],
-                           key=lambda c: c["id"]):
-            if quota.get(dt, 0) <= 0:
-                break
-            e = era_of(cand["year"])
-            if cand["id"] in used or not e or era_cap.get(e, 0) <= 0:
-                continue
-            picks.append(cand)
-            used.add(cand["id"])
-            era_cap[e] -= 1
-            quota[dt] -= 1
-    for cand in sorted(ntrs, key=lambda c: c["id"]):
-        if sum(era_cap.values()) <= 0:
-            break
-        e = era_of(cand["year"]) if cand["year"] else None
-        if cand["id"] in used or not e or era_cap.get(e, 0) <= 0:
-            continue
-        picks.append(cand)
-        used.add(cand["id"])
-        era_cap[e] -= 1
+                     "doctype": classify_ntrs(rn, sti, y)}
+    missing = [pid for pid in CURATED_NTRS if pid not in ntrs]
+    if missing:
+        raise SystemExit("curated NTRS ids not in pool: %s" % missing)
+    picks = [ntrs[pid] for pid in CURATED_NTRS]
 
     for i, e in enumerate(ebooks, 1):
         sel.add("nasa-pdf-eb-%02d" % i, "nasa", "pdf", e["url"], e["landing"],
                 e["title"], e["pubid"], e["year"], "NASA-EBOOK", e["doctype"],
                 "NASA", "", e["cross"], "")
-    for i, c in enumerate(sorted(picks, key=lambda c: c["id"]), 1):
+    for i, c in enumerate(picks, 1):
         tags = curate_nasa(c["doctype"], c["year"], c["title"], c["center"])
         sel.add("nasa-pdf-%04d" % i, "nasa", "pdf", c["url"], c["landing"],
                 c["title"], c["rn"] or c["id"], c["year"] or "", "NASA-NTRS",
@@ -323,22 +304,22 @@ def build():
 def build_nist(sel):
     # (pubid, year, family, url, landing, title)
     docs = [
-        ("NIST SP 800-53 Rev. 5", 2020, "SP",
-         NIST + "/SpecialPublications/NIST.SP.800-53r5.pdf",
-         CSRC + "/pubs/sp/800/53/r5/upd1/final",
-         "Security and Privacy Controls for Information Systems and Organizations", "rev-nist-sp800-53"),
         ("NIST SP 800-115", 2008, "SP",
          NIST + "/Legacy/SP/nistspecialpublication800-115.pdf",
          CSRC + "/pubs/sp/800/115/final",
          "Technical Guide to Information Security Testing and Assessment", ""),
-        ("NIST SP 800-171 Rev. 3", 2024, "SP",
-         NIST + "/SpecialPublications/NIST.SP.800-171r3.pdf",
-         CSRC + "/pubs/sp/800/171/r3/final",
-         "Protecting Controlled Unclassified Information in Nonfederal Systems and Organizations", "rev-nist-sp800-171"),
-        ("NIST SP 800-207", 2020, "SP",
-         NIST + "/SpecialPublications/NIST.SP.800-207.pdf",
-         CSRC + "/pubs/sp/800/207/final",
-         "Zero Trust Architecture", ""),
+        ("NIST SP 800-123", 2009, "SP",
+         NIST + "/Legacy/SP/nistspecialpublication800-123.pdf",
+         CSRC + "/pubs/sp/800/123/final",
+         "Guide to General Server Security", ""),
+        ("NIST SP 800-30 Rev. 1", 2012, "SP",
+         NIST + "/Legacy/SP/nistspecialpublication800-30r1.pdf",
+         CSRC + "/pubs/sp/800/30/r1/final",
+         "Guide for Conducting Risk Assessments", ""),
+        ("NIST SP 800-144", 2011, "SP",
+         NIST + "/Legacy/SP/nistspecialpublication800-144.pdf",
+         CSRC + "/pubs/sp/800/144/final",
+         "Guidelines on Security and Privacy in Public Cloud Computing", ""),
         ("NIST SP 800-18 Rev. 2", 2025, "SP",
          NIST + "/SpecialPublications/NIST.SP.800-18r2.pdf",
          CSRC + "/pubs/sp/800/18/r2/final",
@@ -387,10 +368,10 @@ def build_nist(sel):
          NIST + "/FIPS/NIST.FIPS.140-3.pdf",
          CSRC + "/pubs/fips/140-3/final",
          "Security Requirements for Cryptographic Modules", "rev-nist-fips-140"),
-        ("NIST FIPS 180-4", 2015, "FIPS",
-         NIST + "/FIPS/NIST.FIPS.180-4.pdf",
-         CSRC + "/pubs/fips/180-4/upd1/final",
-         "Secure Hash Standard (SHS)", "rev-nist-fips-180"),
+        ("NIST FIPS 140-2", 2001, "FIPS",
+         NIST + "/FIPS/NIST.FIPS.140-2.pdf",
+         CSRC + "/pubs/fips/140-2/upd2/final",
+         "Security Requirements for Cryptographic Modules (FIPS 140-2)", "rev-nist-fips-140"),
         ("NIST CSWP 29 (CSF 2.0)", 2024, "OTHER",
          NIST + "/CSWP/NIST.CSWP.29.pdf",
          "https://www.nist.gov/cyberframework",
@@ -405,9 +386,12 @@ def build_nist(sel):
          "Artificial Intelligence Risk Management Framework: Generative AI Profile", "rev-nist-ai-600"),
     ]
     cross_map = {
-        "NIST SP 800-53 Rev. 5": "cf-nist-sp800-53r5",
-        "NIST SP 800-18 Rev. 2": "cf-nist-sp800-18r2",
         "NIST SP 800-115": "cf-nist-sp800-115",
+        "NIST SP 800-123": "cf-nist-sp800-123",
+        "NIST SP 800-30 Rev. 1": "cf-nist-sp800-30r1",
+        "NIST SP 800-144": "cf-nist-sp800-144",
+        "NIST SP 800-18 Rev. 2": "cf-nist-sp800-18r2",
+        "NIST FIPS 140-2": "cf-nist-fips140-2",
     }
     for i, (pubid, year, fam, url, landing, title, rev) in enumerate(docs, 1):
         sel.add("nist-pdf-%04d" % i, "nist", "pdf", url, landing, title, pubid,
@@ -472,6 +456,12 @@ def build_nist_docx(sel):
         ("NIST Sample Chain-of-Custody Form", 2017, "OTHER",
          "https://www.nist.gov/system/files/documents/2017/04/28/Sample-Chain-of-Custody-Form.docx",
          "", ""),
+        ("NIST CFReDS Data Leakage Case (answers)", "", "OTHER",
+         "https://cfreds-archive.nist.gov/data_leakage_case/leakage-answers.docx",
+         "", ""),
+        ("NIST CFReDS Mobile Device Data Population (Android Z970)", "", "OTHER",
+         "https://s3.amazonaws.com/cftt.cfreds.nist.gov/cfreds/mobile/CHIPOFF/ZTE+Z970/Android+Z970_Mobile+Device+Data+Population.docx",
+         "", ""),
     ]
     for i, (pubid, year, fam, url, cross, rev) in enumerate(docs, 1):
         sel.add("nist-docx-%04d" % i, "nist", "docx", url, url, pubid, pubid,
@@ -483,31 +473,33 @@ def build_nist_epub(sel):
     docs = [
         ("800-115", "800-115/sp800_115.epub", 2008, "Technical Guide to Information Security Testing and Assessment", "cf-nist-sp800-115"),
         ("800-122", "800-122/sp800_122.epub", 2010, "Guide to Protecting the Confidentiality of Personally Identifiable Information", ""),
-        ("800-123", "800-123/sp800_123.epub", 2009, "Guide to General Server Security", ""),
-        ("800-30-rev1", "800-30-rev1/sp800_30_r1.epub", 2012, "Guide for Conducting Risk Assessments", ""),
+        ("800-123", "800-123/sp800_123.epub", 2009, "Guide to General Server Security", "cf-nist-sp800-123"),
+        ("800-30-rev1", "800-30-rev1/sp800_30_r1.epub", 2012, "Guide for Conducting Risk Assessments", "cf-nist-sp800-30r1"),
         ("800-127", "800-127/sp800_127.epub", 2010, "Guide to Bluetooth Security", ""),
         ("800-133", "800-133/sp800_133.epub", 2012, "Recommendation for Cryptographic Key Generation", ""),
-        ("800-144", "800-144/sp800_144.epub", 2011, "Guidelines on Security and Privacy in Public Cloud Computing", ""),
+        ("800-144", "800-144/sp800_144.epub", 2011, "Guidelines on Security and Privacy in Public Cloud Computing", "cf-nist-sp800-144"),
         ("800-145", "800-145/sp800_145.epub", 2011, "The NIST Definition of Cloud Computing", ""),
         ("800-146", "800-146/sp800_146.epub", 2012, "Cloud Computing Synopsis and Recommendations", ""),
-        ("800-162", "800-162/sp800_162.epub", 2014, "Guide to Attribute Based Access Control (ABAC) Definition and Considerations", ""),
-        ("800-30-rev1", "800-30-rev1/sp800_30_r1.epub", 2012, "Guide for Conducting Risk Assessments", ""),
-        ("800-84", "800-84/sp800_84.epub", 2006, "Guide to Test, Training, and Exercise Programs for IT Plans and Capabilities", ""),
-        ("800-92", "800-92/sp800_92.epub", 2006, "Guide to Computer Security Log Management", ""),
+        ("FIPS 140-2", "https://csrc.nist.gov/files/pubs/fips/140-2/upd2/final/docs/fips140_2_chng2_20021203.epub", 2001, "Security Requirements for Cryptographic Modules (FIPS 140-2)", "cf-nist-fips140-2"),
     ]
     for i, (num, path, year, title, cross) in enumerate(docs[:10], 1):
-        url = "%s/%s" % (base, path)
+        url = path if path.startswith("http") else "%s/%s" % (base, path)
         tags = ""
         short = {"800-123", "800-145", "800-84", "800-92", "800-127"}
-        if num in short:
-            tags = "simple;nav-heavy"
-        elif num == "800-115":
+        if num == "800-115":
             tags = "unusual;table-heavy;reference-heavy;figure-heavy"
+        elif num == "FIPS 140-2":
+            tags = "figure-heavy;reference-heavy;table-heavy"
+        elif num in short:
+            tags = "simple;nav-heavy"
         else:
             tags = "reference-heavy;figure-heavy"
+        if num == "FIPS 140-2":
+            pubid, fam = "NIST FIPS 140-2 (EPUB)", "FIPS"
+        else:
+            pubid, fam = "NIST SP %s (EPUB)" % num, "SP"
         sel.add("nist-epub-%04d" % i, "nist", "epub", url, url,
-                title, "NIST SP %s (EPUB)" % num, year, "SP", "SP", "NIST",
-                tags, cross, "")
+                title, pubid, year, fam, fam, "NIST", tags, cross, "")
 
 
 def main():

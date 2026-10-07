@@ -45,3 +45,25 @@ formats (ADR-0019); cross-document sharing at object granularity (ADR-0021) and
 finer-than-object granularity (ADR-0028); cross-document durable work reuse
 (ADR-0034, `N3`); encoder-only parametric search as a byte win (ADR-0022). See
 [Findings](findings.md).
+
+## real100-v1 corpus (frozen, 2026-10-07)
+
+The `real100-v1` real NASA/NIST corpus is frozen at **100 documents**
+(branch `real100-v1`; bytes gitignored, manifest + `SHA256SUMS` committed).
+Diversity is **66 PASS / 13 PARTIAL / 1 FAIL** of 80 pre-performance gates. See
+[the corpus README](../../real100-v1/README.md) and the close-out note
+[phase real100-v1 corpus](../phases/real100-v1-corpus.md).
+
+The remaining PARTIAL/FAIL gates are **corpus-spec over-constraints given
+published material**, recorded rather than fabricated:
+
+| Quota | Status | Why it cannot be met |
+|---|---|---|
+| NIST DOCX `long regulatory` | FAIL | NIST publishes no long regulatory Word document; Handbooks 44/130/133/105 are PDF-only |
+| NIST `PDF<->DOCX` 8-10 | PARTIAL (1) | Only 5 NIST SP families publish DOCX at all, and the SP slot count is fixed at 5; max is 5, and they compete with `PDF<->EPUB` |
+| `glossary/index` DOCX | PARTIAL (1) | NIST publishes a single index-bearing Word document |
+| size `<100KiB` / `100KiB-1MiB` / `1-10MiB` | PARTIAL | Their exact targets plus the three satisfied large bands sum to 95, impossible at 100 documents |
+| NASA `TR` 8-10 / `handbook/ref` 3-5, `simple born-digital`, `appendix/ref-heavy` | PARTIAL | Technical-doctype minimums sum to 33 > the 30 non-e-book NASA PDFs |
+
+This is a corpus deliverable, not a codec claim; it does not itself assert any
+VOLE result.
