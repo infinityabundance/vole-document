@@ -821,12 +821,15 @@ dependencies = [
  "crc32fast",
  "entropyfs",
  "flate2",
+ "memchr",
  "miniz_oxide",
  "preflate-rs",
  "quick-xml",
  "rayon",
  "ryg-rans-rs",
  "sha2",
+ "zlib-rs",
+ "zune-inflate",
 ]
 
 [[package]]
@@ -881,3 +884,12 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
+
+[[package]]
+name = "zune-inflate"
+version = "0.2.54"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73ab332fe2f6680068f3582b16a24f90ad7096d5d39b974d1c0aff0125116f02"
+dependencies = [
+ "simd-adler32",
+]

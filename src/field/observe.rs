@@ -1466,6 +1466,8 @@ struct ModelMemoInner {
     /// Byte cap on materialized node output; `0` disables the memo.
     budget: u64,
     /// Approximate bytes currently held (costed by materialized node length).
+    /// Only the `docx` maps are costed, so this is dead when that feature is off.
+    #[cfg_attr(not(feature = "docx"), allow(dead_code))]
     used: u64,
     #[cfg(feature = "docx")]
     docx: HashMap<NodeId, Arc<DocxModel>>,
@@ -1546,6 +1548,8 @@ struct Ctx<'a, S: SeedStore> {
     cache: Box<dyn OutputCache>,
     reuse: ReuseStats,
     /// Resident typed-model memo (Phase 15.2); consulted only when `use_cache`.
+    /// Only the `docx` model paths read it, so it is dead without that feature.
+    #[cfg_attr(not(feature = "docx"), allow(dead_code))]
     models: ModelMemo,
     current_id: FieldId,
 }

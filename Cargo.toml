@@ -38,6 +38,14 @@ name = "phase12_share_court"
 path = "examples/phase12_share_court.rs"
 required-features = ["docx", "epub"]
 
+# The Phase-15.5 DEFLATE-decompression ablation harness (GB/s, correctness, peak
+# RSS) over the frozen `real100-v1` corpus members. Feature-gated to the optional
+# candidate backends so the default build never compiles it.
+[[example]]
+name = "deflate_ablation"
+path = "examples/deflate_ablation.rs"
+required-features = ["deflate-ablation"]
+
 [dependencies]
 # Archival source identity. Pinned exactly for the first sealed universe.
 sha2 = "=0.10.9"
@@ -81,6 +89,26 @@ miniz_oxide = { version = "=0.8.9", optional = true }
 # compressed span). `crc32fast` is permissive (MIT/Apache-2.0) and pure Rust.
 # Already present in `Cargo.lock` transitively; pinned exactly.
 crc32fast = { version = "=1.5.2", optional = true }
+
+# Phase 15.5: safe-API SIMD substring scan for the PDF `find_endstream` hot loop
+# (`src/adapter/pdf/lexer.rs`), a scalar 8-byte-at-a-time scan over whole stream
+# payloads. `memchr`'s `memmem` uses an SSE2/AVX2 prefilter + two-way algorithm and
+# is `#![no_std]`-capable; it is already locked transitively via `quick-xml`, is
+# permissive (`Unlicense OR MIT`), and its MSRV (1.61) is far below ours. Optional
+# and gated by `memmem-scan` (implied by `field`/`package`); never enabled on its
+# own. Pinned exactly.
+memchr = { version = "=2.8.3", optional = true }
+
+# Phase 15.5: DEFLATE-decompression *ablation* candidates (feature
+# `deflate-ablation`, never `default`). These are measurement backends for
+# `examples/deflate_ablation.rs` only; they add **no** decoder behavior to the
+# exactness path (which never calls an inflater — a stream's exact leaf is its raw
+# compressed span). `zlib-rs` is `Zlib`-only (the license allowance is added to
+# `deny.toml`); `zune-inflate` is `MIT OR Apache-2.0 OR Zlib` and pure Rust. Both
+# contain internal `unsafe`, which our crate-local `unsafe_code = "forbid"` lint
+# permits (it forbids `unsafe` in *this* crate, not in a dependency). Pinned exactly.
+zlib-rs = { version = "=0.5.5", optional = true }
+zune-inflate = { version = "=0.2.54", optional = true, default-features = false, features = ["zlib", "std"] }
 
 # Phase 15.4: bounded CPU parallelism for the naturally independent ingest work
 # (per-stream inflate, `/ObjStm` decode + per-buffer lex, package member encode).
@@ -147,13 +175,13 @@ dsfb-search = []
 # BLAKE3-256 (domain-separated from the object `Id`). It adds **no** decoder
 # behavior: a descriptor produced with the field present decodes identically in
 # a build without it, and the field is never in the exactness path.
-field = ["dep:miniz_oxide", "store"]
+field = ["dep:miniz_oxide", "store", "memmem-scan"]
 # Phase 12: the byte-authoritative ZIP physical layer shared by DOCX and EPUB.
 # Optional and **never** in `default`: it pulls a pure-Rust CRC-32 (`crc32fast`)
 # used only for `stored`-member CRC verification and derived observations. It
 # adds **no** decoder behavior to the exactness path — a ZIP source's exact leaf
 # is its raw compressed span — so enabling it never changes `.voldoc` bytes.
-package = ["dep:crc32fast"]
+package = ["dep:crc32fast", "memmem-scan"]
 # Phase 12.3: the generic OPC core (content types, package/part relationships,
 # part-name resolution, RFC 3986 target resolution, the OPC package graph). It
 # implies `xml` (the shared bounded-XML policy) and `package`/`field` (the ZIP
@@ -196,6 +224,25 @@ epub = ["package", "field", "xml"]
 # pool is used only when `--workers > 1`. It implies `field` because every
 # parallel site lives in the field ingest.
 parallel = ["field", "dep:rayon"]
+# Phase 15.5: safe-API SIMD substring scan (`memchr::memmem`) for the PDF
+# `find_endstream` scan over whole stream payloads. Not in `default` on its own,
+# but implied by `field`/`package` (both on in the shipped build). When absent,
+# `lexer.rs` compiles the scalar reference scan, so `--no-default-features` still
+# builds. Output is identical to the scalar scan (differential test in
+# `lexer.rs`), so it changes no `.voldoc` byte.
+memmem-scan = ["dep:memchr"]
+# Phase 15.5: enable `miniz_oxide`'s optional `simd` adler-32 path
+# (`simd-adler32`), currently OFF. Output-preserving by construction: it swaps only
+# the zlib checksum hasher, never the DEFLATE bit decoder, so decoded bytes are
+# identical; proven by the differential/fixture tests. Kept non-default and
+# standalone so the DEFLATE ablation can build a `miniz-scalar` and a `miniz-simd`
+# binary from the same source; fold into `field` only after the court shows a win.
+miniz-simd = ["miniz_oxide?/simd"]
+# Phase 15.5: the DEFLATE-decompression ablation harness (GB/s, correctness, peak
+# RSS) over the frozen `real100-v1` corpus. Non-default; it pulls the candidate
+# backends as optional deps. It adds **no** decoder behavior and changes no
+# `.voldoc` bytes — it exists only to measure inflate honestly.
+deflate-ablation = ["field", "package", "dep:zlib-rs", "dep:zune-inflate"]
 # Later phases (declared so the feature surface is deliberate, not accidental):
 # pdf = []
 
