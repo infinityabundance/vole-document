@@ -84,9 +84,9 @@ const USAGE_STORE: &str = "";
 /// The field observation verbs are advertised only when the field is built in.
 #[cfg(feature = "field")]
 const USAGE_FIELD: &str = "\
-    vole-document field-ingest INPUT.voldoc --store DIR [--entropyfs]
-    vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs]
-    vole-document observe --store DIR --field HEX [--entropyfs] (--page N | --object N | --stream N |
+    vole-document field-ingest INPUT.voldoc --store DIR [--entropyfs | --packed]
+    vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs | --packed]
+    vole-document observe --store DIR --field HEX [--entropyfs | --packed] (--page N | --object N | --stream N |
         --revision N | --byte-range A..B | --metadata | --doc-text | --heading N |
         --block N | --table N | --cell T:R:C | --resource N | --link N |
         --spine-item N | --text PATTERN) --kind metadata|text|structure|operators|
@@ -95,14 +95,16 @@ const USAGE_FIELD: &str = "\
         [--requests FILE|-] [--repeat N]
         (one process serving many observations: one JSON answer per line; each
          request line is the per-observation flag grammar WITHOUT --store/--field)
-    vole-document find    --store DIR --field HEX --text PATTERN [--entropyfs]
+    vole-document find    --store DIR --field HEX --text PATTERN [--entropyfs | --packed]
         (format-agnostic lexical search: the common SearchMatch selector)
-    vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs]
-    vole-document preview --store DIR --field HEX --page N [--json] [--entropyfs]
-    vole-document materialize --store DIR --field HEX --exact --output FILE [--entropyfs]
-    vole-document cache  --store DIR [--clear] [--entropyfs]
-    vole-document field-store-stats --store DIR [--entropyfs]
+    vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs | --packed]
+    vole-document preview --store DIR --field HEX --page N [--json] [--entropyfs | --packed]
+    vole-document materialize --store DIR --field HEX --exact --output FILE [--entropyfs | --packed]
+    vole-document cache  --store DIR [--clear] [--entropyfs | --packed]
+    vole-document field-store-stats --store DIR [--entropyfs | --packed]
     (--entropyfs needs a build with the entropyfs-store feature)
+    (--packed replaces the seed/ namespace with fieldpack/; mutually exclusive
+     with --entropyfs; observe-batch does not support it)
 ";
 #[cfg(not(feature = "field"))]
 const USAGE_FIELD: &str = "";
@@ -1450,6 +1452,9 @@ struct FieldArgs {
     json: bool,
     no_cache: bool,
     entropyfs: bool,
+    /// `--packed`: serve seeds from `fieldpack/` segments instead of `seed/`
+    /// (mutually exclusive with `--entropyfs`).
+    packed: bool,
     positional: Vec<String>,
 }
 
@@ -1501,6 +1506,10 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             }
             "--entropyfs" => {
                 out.entropyfs = true;
+                i += 1;
+            }
+            "--packed" => {
+                out.packed = true;
                 i += 1;
             }
             "--store" => {
@@ -1837,13 +1846,23 @@ fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats, field: &FieldId
     )
 }
 
-/// Open the field store selected by `--entropyfs` (or the filesystem default).
+/// Open the field store selected by `--entropyfs`/`--packed` (or the filesystem
+/// default).
 ///
 /// The engine-backed backend requires a build with the `entropyfs-store`
 /// feature; asking for it without that feature is a typed `UnsupportedFeature`,
-/// never a silent fallback to the filesystem backend.
+/// never a silent fallback to the filesystem backend. `--packed` and
+/// `--entropyfs` are mutually exclusive backends of the same seed seam.
 #[cfg(feature = "field")]
-fn open_field_store(store_dir: &Path, entropyfs: bool) -> Result<FieldStore> {
+fn open_field_store(store_dir: &Path, entropyfs: bool, packed: bool) -> Result<FieldStore> {
+    if entropyfs && packed {
+        return Err(Error::usage(
+            "--packed and --entropyfs are mutually exclusive seed backends",
+        ));
+    }
+    if packed {
+        return FieldStore::open_packed(store_dir);
+    }
     #[cfg(feature = "entropyfs-store")]
     if entropyfs {
         return FieldStore::open_entropyfs(store_dir);
@@ -1866,7 +1885,11 @@ fn cmd_field_store_stats(args: &[String]) -> Result<()> {
         .store
         .as_deref()
         .ok_or_else(|| Error::usage("field-store-stats requires --store DIR"))?;
-    let store = open_field_store(store_dir, out.entropyfs)?;
+    let store = open_field_store(store_dir, out.entropyfs, out.packed)?;
+    if out.packed {
+        println!("{{\"backend\":\"packed\"}}");
+        return Ok(());
+    }
     #[cfg(feature = "entropyfs-store")]
     {
         match store.engine_stats()? {
@@ -1897,7 +1920,7 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
         .as_deref()
         .ok_or_else(|| Error::usage("field-ingest requires --store DIR"))?;
     let bytes = fs::read(input)?;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
     // Universal ingest: detect the format from bytes and invert with the right
     // adapter. Without the `package` feature only the PDF/opaque lane exists.
     #[cfg(feature = "package")]
@@ -2046,7 +2069,7 @@ fn cmd_field_edit(args: &[String], _limits: Limits) -> Result<()> {
         .as_deref()
         .ok_or_else(|| Error::usage("field-edit requires --content FILE"))?;
     let content = fs::read(content_path)?;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
     let id = FieldId::from_hex(field_hex)?;
     let r = field_edit::replace_page_content(&mut store, &id, page, &content)?;
     store.sync()?;
@@ -2112,7 +2135,7 @@ fn cmd_field_observe(args: &[String], limits: Limits) -> Result<()> {
         .as_deref()
         .ok_or_else(|| Error::usage("observe requires --kind KIND"))?;
     let representation = field_representation(kind)?;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, selector, representation);
     let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
@@ -2141,6 +2164,11 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
         .store
         .as_deref()
         .ok_or_else(|| Error::usage("observe-batch requires --store DIR"))?;
+    if out.packed {
+        return Err(Error::unsupported_feature(
+            "--packed is not supported by observe-batch; use observe (or open the store per observation)",
+        ));
+    }
     let field_hex = out
         .field
         .as_deref()
@@ -2220,7 +2248,7 @@ fn cmd_field_find(args: &[String], limits: Limits) -> Result<()> {
         .text
         .clone()
         .ok_or_else(|| Error::usage("find requires --text PATTERN"))?;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
     let id = FieldId::from_hex(field_hex)?;
     // Format-agnostic lexical find: the common `SearchMatch` selector dispatches
     // through the detected format's adapter (Phase 12.7).
@@ -2248,7 +2276,7 @@ fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
         .as_deref()
         .ok_or_else(|| Error::usage("explain requires --kind KIND"))?;
     let representation = field_representation(kind)?;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, selector, representation);
     if out.analyze {
@@ -2360,7 +2388,7 @@ fn cmd_field_preview(args: &[String], limits: Limits) -> Result<()> {
         .page
         .ok_or_else(|| Error::usage("preview requires --page N"))?;
     let as_json = out.json;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, Selector::Page(page), Representation::Preview);
     let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
@@ -2616,6 +2644,7 @@ fn cmd_field_cache(args: &[String]) -> Result<()> {
     let mut store_dir: Option<PathBuf> = None;
     let mut clear = false;
     let mut entropyfs = false;
+    let mut packed = false;
     let mut i = 2;
     while i < args.len() {
         let a = args[i].as_str();
@@ -2632,6 +2661,10 @@ fn cmd_field_cache(args: &[String]) -> Result<()> {
                 entropyfs = true;
                 i += 1;
             }
+            "--packed" => {
+                packed = true;
+                i += 1;
+            }
             "--store" => {
                 store_dir = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--store", inline,
@@ -2641,7 +2674,7 @@ fn cmd_field_cache(args: &[String]) -> Result<()> {
         }
     }
     let store_dir = store_dir.ok_or_else(|| Error::usage("cache requires --store DIR"))?;
-    let store = open_field_store(&store_dir, entropyfs)?;
+    let store = open_field_store(&store_dir, entropyfs, packed)?;
     let cache = DerivedCache::open(store.root().join("cache"))?;
     if clear {
         let reclaimed = cache.clear()?;
@@ -2671,7 +2704,7 @@ fn cmd_field_materialize(args: &[String], limits: Limits) -> Result<()> {
         .output
         .as_deref()
         .ok_or_else(|| Error::usage("materialize requires --output FILE"))?;
-    let store = open_field_store(store_dir, out.entropyfs)?;
+    let store = open_field_store(store_dir, out.entropyfs, out.packed)?;
     let id = FieldId::from_hex(field_hex)?;
     let field = Field::open(&store, &id, limits)?;
     let bytes = field.materialize_exact(limits)?;

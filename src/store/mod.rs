@@ -61,6 +61,11 @@ pub use seed::{
     closure as seed_closure,
 };
 
+#[cfg(feature = "field")]
+mod pack;
+#[cfg(feature = "field")]
+pub use pack::PackedSeedStore;
+
 /// Size accounting reported by a backend.
 ///
 /// `total_bytes` is the sum of raw unique-object lengths (the backend-independent

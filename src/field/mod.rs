@@ -39,6 +39,7 @@ pub use manifest::{FieldId, FieldRoot};
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 #[cfg(feature = "entropyfs-store")]
 use std::sync::Arc;
@@ -51,7 +52,7 @@ use crate::error::{Error, Result};
 use crate::limits::Limits;
 #[cfg(feature = "entropyfs-store")]
 use crate::store::{EntropyFsStore, map_engine_error};
-use crate::store::{FsSeedStore, Id, IoCounters, IoSnapshot, NodeId, SeedStore};
+use crate::store::{FsSeedStore, Id, IoCounters, IoSnapshot, NodeId, PackedSeedStore, SeedStore};
 
 #[cfg(feature = "entropyfs-store")]
 use self::manifest::FIELD_ROOT_DOMAIN;
@@ -81,6 +82,8 @@ pub const PACKAGE_UNIVERSE: &str = "vole-document;universe;phase11;exact-bytes;d
 pub(crate) enum SeedSubstrate {
     /// Plain files under `<root>/seed` ([`FsSeedStore`]).
     Fs { root: PathBuf, io: IoCounters },
+    /// Packed segments under `<root>/fieldpack` ([`PackedSeedStore`]).
+    Packed { store: Rc<PackedSeedStore> },
     /// One engine blob per node, through the store's shared EntropyFS engine.
     #[cfg(feature = "entropyfs-store")]
     EntropyFs {
@@ -95,6 +98,7 @@ impl SeedStore for SeedSubstrate {
             SeedSubstrate::Fs { root, io } => {
                 FsSeedStore::open_with_io(root, io.handle())?.put_node(canonical)
             }
+            SeedSubstrate::Packed { store } => store.insert(canonical),
             #[cfg(feature = "entropyfs-store")]
             SeedSubstrate::EntropyFs { store, .. } => store.seed_put(canonical),
         }
@@ -105,6 +109,7 @@ impl SeedStore for SeedSubstrate {
             SeedSubstrate::Fs { root, io } => {
                 FsSeedStore::open_with_io(root, io.handle())?.get_node(id)
             }
+            SeedSubstrate::Packed { store } => store.fetch(id),
             #[cfg(feature = "entropyfs-store")]
             SeedSubstrate::EntropyFs { store, io } => {
                 let bytes = store.seed_get(id)?;
@@ -119,6 +124,7 @@ impl SeedStore for SeedSubstrate {
             SeedSubstrate::Fs { root, io } => {
                 FsSeedStore::open_with_io(root, io.handle())?.get_node_range(id, offset, len)
             }
+            SeedSubstrate::Packed { store } => store.fetch_range(id, offset, len),
             #[cfg(feature = "entropyfs-store")]
             SeedSubstrate::EntropyFs { store, io } => {
                 let bytes = store.seed_get_range(id, offset, len)?;
@@ -133,6 +139,7 @@ impl SeedStore for SeedSubstrate {
             SeedSubstrate::Fs { root, io } => {
                 FsSeedStore::open_with_io(root, io.handle())?.contains_node(id)
             }
+            SeedSubstrate::Packed { store } => store.has(id),
             #[cfg(feature = "entropyfs-store")]
             SeedSubstrate::EntropyFs { store, .. } => store.seed_contains(id),
         }
@@ -143,6 +150,7 @@ impl SeedStore for SeedSubstrate {
             SeedSubstrate::Fs { root, io } => {
                 FsSeedStore::open_with_io(root, io.handle())?.list_nodes()
             }
+            SeedSubstrate::Packed { store } => store.entries(),
             #[cfg(feature = "entropyfs-store")]
             SeedSubstrate::EntropyFs { store, .. } => store.seed_list(),
         }
@@ -276,9 +284,15 @@ impl BlobBackend {
 ///   descriptor/<64-hex>       serialized .voldoc descriptor blobs
 ///   field/<64-hex>            canonical field manifests
 ///   seed/<aa>/<bb>/<64-hex>   canonical seed nodes (FsSeedStore)
+///   fieldpack/seg-N.pack      canonical seed nodes, packed (PackedSeedStore)
 ///   index/<64-hex>            hierarchical index nodes (11.3)
 ///   cache/                    derived observation cache (11.8)
 /// ```
+///
+/// A packed store ([`FieldStore::open_packed`]) replaces the `seed/` namespace
+/// with `fieldpack/` (append-only segments plus an immutable per-segment index)
+/// while leaving `descriptor/`, `field/`, `index/`, and `cache/` as files, so the
+/// seek-based partial lane and `FieldId` are unchanged.
 ///
 /// An EntropyFS-backed store ([`FieldStore::open_entropyfs`], feature
 /// `entropyfs-store`) keeps the descriptor, manifest, and seed namespaces in
@@ -375,6 +389,32 @@ impl FieldStore {
         })
     }
 
+    /// Create or open a field store whose **seed namespace** is a packed segment
+    /// store (`fieldpack/`) instead of one file per node.
+    ///
+    /// The descriptor, manifest, hierarchical index, and cache namespaces remain
+    /// plain files, so the seek-based partial-descriptor lane and `FieldId` are
+    /// unchanged; only `<root>/seed` is replaced by `<root>/fieldpack`. A packed
+    /// store must therefore be opened with the matching CLI flag (`--packed`),
+    /// exactly like `--entropyfs`.
+    pub fn open_packed(root: impl AsRef<Path>) -> Result<Self> {
+        let root = root.as_ref().to_path_buf();
+        fs::create_dir_all(root.join("descriptor"))?;
+        fs::create_dir_all(root.join("field"))?;
+        fs::create_dir_all(root.join("index"))?;
+        fs::create_dir_all(root.join("cache"))?;
+        // No `root/seed`; the `fieldpack/` directory is created by the writer.
+        let io = IoCounters::new();
+        let packed = Rc::new(PackedSeedStore::open_write(&root, io.handle())?);
+        let seeds = SeedSubstrate::Packed { store: packed };
+        Ok(FieldStore {
+            root,
+            backend: BlobBackend::Fs,
+            seeds,
+            io,
+        })
+    }
+
     /// The physical-I/O counters shared by this store and its seed substrate.
     ///
     /// Every descriptor/manifest/index/seed read made through any handle derived
@@ -428,10 +468,16 @@ impl FieldStore {
     /// (`tmp -> fsync -> rename`) and needs no barrier.
     pub fn sync(&self) -> Result<()> {
         match &self.backend {
-            BlobBackend::Fs => Ok(()),
+            BlobBackend::Fs => {}
             #[cfg(feature = "entropyfs-store")]
-            BlobBackend::EntropyFs(store) => store.sync(),
+            BlobBackend::EntropyFs(store) => store.sync()?,
         }
+        // A packed seed substrate keeps an open append segment; sealing it here
+        // makes every acknowledged node durable and readable by a fresh open.
+        if let SeedSubstrate::Packed { store } = &self.seeds {
+            store.seal()?;
+        }
+        Ok(())
     }
 
     /// Advisory engine accounting for an EntropyFS-backed store, or `None` for
@@ -912,6 +958,126 @@ mod entropyfs_field_tests {
         let reachable =
             seed_closure(store.seeds(), &[manifest.root_node], |_| Ok(Vec::new())).unwrap();
         assert!(reachable.contains(&manifest.root_node));
+        std::fs::remove_dir_all(&root).ok();
+    }
+}
+
+/// The packed seed store (`fieldpack/`): must be semantically indistinguishable
+/// from the reference filesystem store — same node ids, same bytes, same field
+/// answers, and the same exact materialization.
+#[cfg(test)]
+mod packed_field_tests {
+    use super::*;
+    use crate::field::observe::{self, ObserveRequest, Representation, Selector};
+    use crate::field::provenance::AnswerValue;
+
+    fn temp_root(label: &str) -> PathBuf {
+        let mut p = std::env::temp_dir();
+        p.push(format!(
+            "vole-field-packed-{label}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        p
+    }
+
+    fn tiny_descriptor() -> Vec<u8> {
+        use crate::container::{Descriptor, ObjectSource};
+        use crate::dra::{Op, Program};
+        let source = b"the exact field bytes";
+        let d = Descriptor {
+            universe: crate::container::UNIVERSE.to_string(),
+            source_format: crate::SOURCE_FORMAT_OPAQUE,
+            format_basis: "opaque:field-packed-test".to_string(),
+            models: vec![],
+            channels: vec![],
+            objects: vec![ObjectSource::Inline(source.to_vec())],
+            program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
+            observation_index: None,
+            seek_directory: false,
+            checkpoints: None,
+            source_sha256: crate::integrity::sha256(source),
+            source_len: source.len() as u64,
+        };
+        d.serialize().unwrap().0
+    }
+
+    #[test]
+    fn packed_matches_fs_for_ingest_observe_and_exact_materialize() {
+        let fs_root = temp_root("fs");
+        let pk_root = temp_root("packed");
+        let descriptor = tiny_descriptor();
+        let expected = b"the exact field bytes";
+
+        let mut fs_store = FieldStore::open(&fs_root).unwrap();
+        let fs_id = fs_store.ingest(&descriptor, Limits::DEFAULT).unwrap();
+        fs_store.sync().unwrap();
+
+        let mut pk_store = FieldStore::open_packed(&pk_root).unwrap();
+        let pk_id = pk_store.ingest(&descriptor, Limits::DEFAULT).unwrap();
+        pk_store.sync().unwrap();
+
+        // The backend is deliberately not recorded in the manifest: the same
+        // ingest yields a byte-identical FieldId under either backend.
+        assert_eq!(
+            fs_id, pk_id,
+            "the packed backend must not change the FieldId"
+        );
+        assert_eq!(
+            fs_store.get_field(&fs_id).unwrap().root_node,
+            pk_store.get_field(&pk_id).unwrap().root_node,
+            "node identity is content-derived and backend-independent"
+        );
+
+        // `materialize --exact` is descriptor-driven and byte-identical.
+        {
+            let f = Field::open(&fs_store, &fs_id, Limits::DEFAULT).unwrap();
+            assert_eq!(f.materialize_exact(Limits::DEFAULT).unwrap(), expected);
+            let p = Field::open(&pk_store, &pk_id, Limits::DEFAULT).unwrap();
+            assert_eq!(p.materialize_exact(Limits::DEFAULT).unwrap(), expected);
+        }
+
+        // The same narrow observation resolves to the same bytes through both.
+        let req = ObserveRequest::new(
+            Selector::ByteRange { offset: 4, len: 5 },
+            Representation::ExactBytes,
+        );
+        let (fs_ans, _, _) =
+            observe::observe(&mut fs_store, &fs_id, &req, Limits::DEFAULT).unwrap();
+        let (pk_ans, _, _) =
+            observe::observe(&mut pk_store, &pk_id, &req, Limits::DEFAULT).unwrap();
+        match (&fs_ans.value, &pk_ans.value) {
+            (AnswerValue::Bytes(a), AnswerValue::Bytes(b)) => {
+                assert_eq!(a, b, "packed and fs observations must agree");
+                assert_eq!(b, b"exact");
+            }
+            other => panic!("expected byte answers, got {other:?}"),
+        }
+
+        std::fs::remove_dir_all(&fs_root).ok();
+        std::fs::remove_dir_all(&pk_root).ok();
+    }
+
+    #[test]
+    fn packed_reopen_serves_the_same_field() {
+        let root = temp_root("reopen");
+        let descriptor = tiny_descriptor();
+        let id = {
+            let mut store = FieldStore::open_packed(&root).unwrap();
+            let id = store.ingest(&descriptor, Limits::DEFAULT).unwrap();
+            // Seal so a fresh handle sees the nodes through the immutable index.
+            store.sync().unwrap();
+            id
+        };
+        let store = FieldStore::open_packed(&root).unwrap();
+        let field = Field::open(&store, &id, Limits::DEFAULT).unwrap();
+        assert_eq!(
+            field.materialize_exact(Limits::DEFAULT).unwrap(),
+            b"the exact field bytes"
+        );
         std::fs::remove_dir_all(&root).ok();
     }
 }
