@@ -1,0 +1,35 @@
+{
+  "campaign": "2026-10-07-phase15-crossroot-7429d61",
+  "run_utc": "2026-10-07T17:17:29Z",
+  "arch": "x86_64",
+  "git_branch": "phase15",
+  "git_commit": "7429d617e84c267a1062cf6485122637edd74781",
+  "git_dirty": "?? tools/fixtures/phase15-crossroot.py;?? tools/phase15-crossroot-court.sh;",
+  "cargo_lock_sha256": "2ddb5e9645086a006f3b02b0bcf890564c5523a2c89ac03bf5fe82f9ef98d412",
+  "doc_baseline": {
+    "service_image": "vole-document/doc-baseline:1.99.0",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "rustc": "1.99.0",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "borg": "1.2.4",
+    "jq": "jq-1.6",
+    "python3": "3.11.2"
+  },
+  "features_under_test": "all-features (field, package, opc, docx, epub, entropyfs-store, deflate-replay, ...)",
+  "env_vars_affecting_semantics": { "CARGO_TERM_COLOR": "never", "LC_ALL": "C" },
+  "parameters": {
+    "manifest": "real100-v1/manifest.tsv",
+    "corpus": "real100-v1/documents",
+    "per_op_timeout_s": 300,
+    "max_member_bytes": 0
+  },
+  "controls": {
+    "cold": "explain --analyze --no-cache (cache bytes ignored)",
+    "intra": "empty cache, one fresh-process observation per member (intra-observation reuse floor)",
+    "warm": "explain --analyze in-order per family (shared store, cache on)",
+    "warm_fresh": "fresh OS process, cache intact (counter liveness)",
+    "postclear_star": "fresh OS process after the store's cache/ directory is removed, on the max-warm-reuse member (durability falsifier)",
+    "cdc_baseline": "raw/cdc/<family>.jsonl (borg, --compression none, three frozen sweeps)"
+  },
+  "notes": "All commands ran through compose.yaml inside the pinned, capped doc-baseline image; nothing ran on the host except git and docker. N3 had no SQLite comparison; its only baseline was borg CDC, so none is reproduced. No compression claim: a shared blob is scored as state/work."
+}

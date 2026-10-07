@@ -1,0 +1,784 @@
+{
+  "corpus": "real100-v1/documents",
+  "families": [
+    {
+      "family_id": "cf-nasa-ebook-01",
+      "key": "cross_format:cf-nasa-ebook-01",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nasa",
+          "byte_len": 4341936,
+          "family_id": "cf-nasa-ebook-01",
+          "format": "epub",
+          "id": "nasa-epub-0001",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nasa/epub/nasa-epub-0001.epub",
+          "sha256": "109cb7a0b00ac70cd8072ccc70a51b1c41c9f8fe445872d3da27a89a7f234f65"
+        },
+        {
+          "agency": "nasa",
+          "byte_len": 4556385,
+          "family_id": "cf-nasa-ebook-01",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-01",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-01.pdf",
+          "sha256": "ba0d2ef48e8f71122adcf523360f13b5eedeb8dd050543fe35a3c7970bf5a312"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nasa-ebook-02",
+      "key": "cross_format:cf-nasa-ebook-02",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nasa",
+          "byte_len": 18929328,
+          "family_id": "cf-nasa-ebook-02",
+          "format": "epub",
+          "id": "nasa-epub-0002",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nasa/epub/nasa-epub-0002.epub",
+          "sha256": "4d4014695e8d8981fc54327c6f9a82dcc5361f1d0f75c22c26b19558eb052ab5"
+        },
+        {
+          "agency": "nasa",
+          "byte_len": 20759892,
+          "family_id": "cf-nasa-ebook-02",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-02",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-02.pdf",
+          "sha256": "5325843ccc2098e1c8a8043eb52c23f7e8fdb7fc6e94e8893a5513f50fd200ef"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nasa-ebook-03",
+      "key": "cross_format:cf-nasa-ebook-03",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nasa",
+          "byte_len": 3492358,
+          "family_id": "cf-nasa-ebook-03",
+          "format": "epub",
+          "id": "nasa-epub-0003",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nasa/epub/nasa-epub-0003.epub",
+          "sha256": "674adf9b2f10a4f298c9c38530e4217ae6e901dc3c58546f3ad7fd14513dd4f3"
+        },
+        {
+          "agency": "nasa",
+          "byte_len": 1619846,
+          "family_id": "cf-nasa-ebook-03",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-03",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-03.pdf",
+          "sha256": "84c60ba8cfe09586b7b152059b74015b3bcf849fe397a4a257420707d902c060"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nasa-ebook-04",
+      "key": "cross_format:cf-nasa-ebook-04",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nasa",
+          "byte_len": 4788734,
+          "family_id": "cf-nasa-ebook-04",
+          "format": "epub",
+          "id": "nasa-epub-0004",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nasa/epub/nasa-epub-0004.epub",
+          "sha256": "4094e8bfdaa827af0701299bf0c70ab75af850e675bd4ac49038d53a4ef1300b"
+        },
+        {
+          "agency": "nasa",
+          "byte_len": 3400064,
+          "family_id": "cf-nasa-ebook-04",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-04",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-04.pdf",
+          "sha256": "9ffe990d3df1600794c0adf5530b6f50385ca49b8754e257765496316b76ba94"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nasa-ebook-05",
+      "key": "cross_format:cf-nasa-ebook-05",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nasa",
+          "byte_len": 4858060,
+          "family_id": "cf-nasa-ebook-05",
+          "format": "epub",
+          "id": "nasa-epub-0005",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nasa/epub/nasa-epub-0005.epub",
+          "sha256": "d5515b24d11ad3f0267d94e824ebf3c969926693484910f3a8e7989b81c52d28"
+        },
+        {
+          "agency": "nasa",
+          "byte_len": 1500825,
+          "family_id": "cf-nasa-ebook-05",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-05",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-05.pdf",
+          "sha256": "5fe046efe4e35e506023e27a9784d041e893026f19c9987591483614aea5d6b6"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nasa-ebook-06",
+      "key": "cross_format:cf-nasa-ebook-06",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nasa",
+          "byte_len": 10867010,
+          "family_id": "cf-nasa-ebook-06",
+          "format": "epub",
+          "id": "nasa-epub-0006",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nasa/epub/nasa-epub-0006.epub",
+          "sha256": "ddfd2b3c5e17fa666e10995c06ea7ae837a984e2c14cfc70c6735d9ed5eb7bf4"
+        },
+        {
+          "agency": "nasa",
+          "byte_len": 5695308,
+          "family_id": "cf-nasa-ebook-06",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-06",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-06.pdf",
+          "sha256": "fb66c37327685198d5a96a85b71dfcd39191e1a5d1b09e02476d83abc3e9e8d6"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nasa-ebook-07",
+      "key": "cross_format:cf-nasa-ebook-07",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nasa",
+          "byte_len": 46837603,
+          "family_id": "cf-nasa-ebook-07",
+          "format": "epub",
+          "id": "nasa-epub-0007",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nasa/epub/nasa-epub-0007.epub",
+          "sha256": "d33bba3c35d50e70e111cbd310220cf89bda4a83a81e7c77af44f98caac951f4"
+        },
+        {
+          "agency": "nasa",
+          "byte_len": 40758835,
+          "family_id": "cf-nasa-ebook-07",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-07",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-07.pdf",
+          "sha256": "8e622ca8f6d1ba0cf809549bddfee69e6754c3a3480d151c1fb54baf49b09be0"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nasa-ebook-08",
+      "key": "cross_format:cf-nasa-ebook-08",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nasa",
+          "byte_len": 25400776,
+          "family_id": "cf-nasa-ebook-08",
+          "format": "epub",
+          "id": "nasa-epub-0008",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nasa/epub/nasa-epub-0008.epub",
+          "sha256": "47a77099b80e14648bb8bff272a65545fe2d3d4533dbcb9901dd070d0df67e1a"
+        },
+        {
+          "agency": "nasa",
+          "byte_len": 35352230,
+          "family_id": "cf-nasa-ebook-08",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-08",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-08.pdf",
+          "sha256": "390c0e2742a6bc79d976f63be9e9ab8ba1ec2806f1411533cf05ec5fafef75a4"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nasa-ebook-09",
+      "key": "cross_format:cf-nasa-ebook-09",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nasa",
+          "byte_len": 39526816,
+          "family_id": "cf-nasa-ebook-09",
+          "format": "epub",
+          "id": "nasa-epub-0009",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nasa/epub/nasa-epub-0009.epub",
+          "sha256": "c21e1272f4527d2ee5592261d09dfcee2bd672f8c6e6cf76519855b5f1a5aa0b"
+        },
+        {
+          "agency": "nasa",
+          "byte_len": 11308153,
+          "family_id": "cf-nasa-ebook-09",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-09",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-09.pdf",
+          "sha256": "89607e2958a2cc054caf605757b0ab127129204629b1302653e4732b2b839100"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nasa-ebook-10",
+      "key": "cross_format:cf-nasa-ebook-10",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nasa",
+          "byte_len": 45000233,
+          "family_id": "cf-nasa-ebook-10",
+          "format": "epub",
+          "id": "nasa-epub-0010",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nasa/epub/nasa-epub-0010.epub",
+          "sha256": "b2c59febe27ebe0062e77905c4d432d24f5fac7f5ea0718ad3bb43d217c38437"
+        },
+        {
+          "agency": "nasa",
+          "byte_len": 16903230,
+          "family_id": "cf-nasa-ebook-10",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-10",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-10.pdf",
+          "sha256": "6cc7614530fc053e35e754d839c39da3786a441e9576ea0e409a8f60dd30aa34"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nist-fips140-2",
+      "key": "cross_format:cf-nist-fips140-2",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 119715,
+          "family_id": "cf-nist-fips140-2",
+          "format": "epub",
+          "id": "nist-epub-0010",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/epub/nist-epub-0010.epub",
+          "sha256": "a887d24b81ed8afd8db88cb361e7534730d48595b512430a49022f2e0e7af144"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 1466246,
+          "family_id": "cf-nist-fips140-2",
+          "format": "pdf",
+          "id": "nist-pdf-0017",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/pdf/nist-pdf-0017.pdf",
+          "sha256": "0df0fdd676df643874adfbbf767b8508af3cc6520aff5cfef7d39428e1c63cd4"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nist-sp800-115",
+      "key": "cross_format:cf-nist-sp800-115",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 168431,
+          "family_id": "cf-nist-sp800-115",
+          "format": "epub",
+          "id": "nist-epub-0001",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/epub/nist-epub-0001.epub",
+          "sha256": "b6bdb557a0d7bdac3bd579ade42520f6bf89ffe319a52ebc8b786bff59a06064"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 544047,
+          "family_id": "cf-nist-sp800-115",
+          "format": "pdf",
+          "id": "nist-pdf-0001",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/pdf/nist-pdf-0001.pdf",
+          "sha256": "58e5ed41e5c8ca34ce14fd80b70f118f2c6d613d1647bc307edca30bcc45f063"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nist-sp800-123",
+      "key": "cross_format:cf-nist-sp800-123",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 89755,
+          "family_id": "cf-nist-sp800-123",
+          "format": "epub",
+          "id": "nist-epub-0003",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/epub/nist-epub-0003.epub",
+          "sha256": "d7c59053c31dc8cd169c1d3aee746193681275cbae353695d742db0ffa7cb7c9"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 263703,
+          "family_id": "cf-nist-sp800-123",
+          "format": "pdf",
+          "id": "nist-pdf-0002",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/pdf/nist-pdf-0002.pdf",
+          "sha256": "182ae5d23011108fba08c3a56c5029b8a26a428480ae38ac61877f6f3365db41"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nist-sp800-144",
+      "key": "cross_format:cf-nist-sp800-144",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 145523,
+          "family_id": "cf-nist-sp800-144",
+          "format": "epub",
+          "id": "nist-epub-0007",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/epub/nist-epub-0007.epub",
+          "sha256": "3f53159c643ecc5df4919f4dc403f643660d59c8f548485a2bb7bdec7932790a"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 1105061,
+          "family_id": "cf-nist-sp800-144",
+          "format": "pdf",
+          "id": "nist-pdf-0004",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/pdf/nist-pdf-0004.pdf",
+          "sha256": "47f0fdf31f4f2b37fb2a8fa0bf77235aad0b3daa74a6397603a619a839500a42"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nist-sp800-18r2",
+      "key": "cross_format:cf-nist-sp800-18r2",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 2286200,
+          "family_id": "cf-nist-sp800-18r2",
+          "format": "docx",
+          "id": "nist-docx-0001",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0001.docx",
+          "sha256": "47885ad3f525df8ed56c18d9cce06c510babbc5440dcf823a9a13d08017151f4"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 2241851,
+          "family_id": "cf-nist-sp800-18r2",
+          "format": "docx",
+          "id": "nist-docx-0002",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0002.docx",
+          "sha256": "ba74e785e9780fb77c295b0830c1cd7dce93765c5086ea08a56b133153fe330c"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 2267651,
+          "family_id": "cf-nist-sp800-18r2",
+          "format": "docx",
+          "id": "nist-docx-0003",
+          "kind": "cross_format",
+          "member_index": 2,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0003.docx",
+          "sha256": "6960559df6108873b6fef4f4d30f6b2dbc1bac5da7e9f76fbe9376dee2148fe0"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 2258240,
+          "family_id": "cf-nist-sp800-18r2",
+          "format": "docx",
+          "id": "nist-docx-0004",
+          "kind": "cross_format",
+          "member_index": 3,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0004.docx",
+          "sha256": "5773efff6a47f1f95663c7182e3ee0d9f0eaf5fc7c699e488467945a11a634f2"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 1313448,
+          "family_id": "cf-nist-sp800-18r2",
+          "format": "pdf",
+          "id": "nist-pdf-0005",
+          "kind": "cross_format",
+          "member_index": 4,
+          "path": "real100-v1/documents/nist/pdf/nist-pdf-0005.pdf",
+          "sha256": "640f9124469f285fc39dbeffd59708c84043d1a6b64cc87988f31e7e98942371"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nist-sp800-218",
+      "key": "cross_format:cf-nist-sp800-218",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 162933,
+          "family_id": "cf-nist-sp800-218",
+          "format": "docx",
+          "id": "nist-docx-0011",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0011.docx",
+          "sha256": "517d0db2b62df0b6a6b24004fe6dfb0c8a26bd1713178efd799beb8b69781c17"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 154292,
+          "family_id": "cf-nist-sp800-218",
+          "format": "docx",
+          "id": "nist-docx-0012",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0012.docx",
+          "sha256": "4f4a2aa689ed2c0f5a6cf6e718b773e980b066327dfa524c8198e92f61ef7a6c"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nist-sp800-30r1",
+      "key": "cross_format:cf-nist-sp800-30r1",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 336417,
+          "family_id": "cf-nist-sp800-30r1",
+          "format": "epub",
+          "id": "nist-epub-0004",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/epub/nist-epub-0004.epub",
+          "sha256": "88fb61a08197d01ea178a4456f0e61363c06d3b8c9d847655505723b24984e28"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 826897,
+          "family_id": "cf-nist-sp800-30r1",
+          "format": "pdf",
+          "id": "nist-pdf-0003",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/pdf/nist-pdf-0003.pdf",
+          "sha256": "f214087f0bdb35932a28c16eb93932a33c67a6edfb5e6f1638866bd201c98e04"
+        }
+      ]
+    },
+    {
+      "family_id": "cf-nist-sp800-34r1",
+      "key": "cross_format:cf-nist-sp800-34r1",
+      "kind": "cross_format",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 57045,
+          "family_id": "cf-nist-sp800-34r1",
+          "format": "docx",
+          "id": "nist-docx-0005",
+          "kind": "cross_format",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0005.docx",
+          "sha256": "c429c2b93397b318fa14c9718afb564f9162913e1a71a0d964849a5b862a996d"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 56935,
+          "family_id": "cf-nist-sp800-34r1",
+          "format": "docx",
+          "id": "nist-docx-0006",
+          "kind": "cross_format",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0006.docx",
+          "sha256": "345fa5f2eb4d47d2433e409cf6c0bbef7256be00d475cb337efdfd19194e90dd"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 42191,
+          "family_id": "cf-nist-sp800-34r1",
+          "format": "docx",
+          "id": "nist-docx-0007",
+          "kind": "cross_format",
+          "member_index": 2,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0007.docx",
+          "sha256": "34ce81fe417d491b479de92465b5c2673378f6987423d68c649ada1ed84b3522"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 28783,
+          "family_id": "cf-nist-sp800-34r1",
+          "format": "docx",
+          "id": "nist-docx-0008",
+          "kind": "cross_format",
+          "member_index": 3,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0008.docx",
+          "sha256": "3fe358f1cf866c3a6208692517e1705b86581c08bfba49000b95998bc0b581a0"
+        }
+      ]
+    },
+    {
+      "family_id": "rev-nist-fips-140",
+      "key": "revision:rev-nist-fips-140",
+      "kind": "revision",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 310627,
+          "family_id": "rev-nist-fips-140",
+          "format": "pdf",
+          "id": "nist-pdf-0016",
+          "kind": "revision",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/pdf/nist-pdf-0016.pdf",
+          "sha256": "942a4f929dfbd2b4af2e4e03df7f6e6377054346afd9bee346ed0ebac5db384b"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 1466246,
+          "family_id": "rev-nist-fips-140",
+          "format": "pdf",
+          "id": "nist-pdf-0017",
+          "kind": "revision",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/pdf/nist-pdf-0017.pdf",
+          "sha256": "0df0fdd676df643874adfbbf767b8508af3cc6520aff5cfef7d39428e1c63cd4"
+        }
+      ]
+    },
+    {
+      "family_id": "rev-nist-hb44",
+      "key": "revision:rev-nist-hb44",
+      "kind": "revision",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 77578129,
+          "family_id": "rev-nist-hb44",
+          "format": "pdf",
+          "id": "nist-pdf-0013",
+          "kind": "revision",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/pdf/nist-pdf-0013.pdf",
+          "sha256": "419b1501115086972ddfcb9accdc49dca0b8a27c3af8aa5d648b21d30229e34d"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 6071591,
+          "family_id": "rev-nist-hb44",
+          "format": "pdf",
+          "id": "nist-pdf-0014",
+          "kind": "revision",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/pdf/nist-pdf-0014.pdf",
+          "sha256": "21d2901d7143fc91a52b9df8b2fdaca9f6c144f3090083275bc93385ca218db4"
+        }
+      ]
+    },
+    {
+      "family_id": "rev-nist-sp800-18",
+      "key": "revision:rev-nist-sp800-18",
+      "kind": "revision",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 2286200,
+          "family_id": "rev-nist-sp800-18",
+          "format": "docx",
+          "id": "nist-docx-0001",
+          "kind": "revision",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0001.docx",
+          "sha256": "47885ad3f525df8ed56c18d9cce06c510babbc5440dcf823a9a13d08017151f4"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 2241851,
+          "family_id": "rev-nist-sp800-18",
+          "format": "docx",
+          "id": "nist-docx-0002",
+          "kind": "revision",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0002.docx",
+          "sha256": "ba74e785e9780fb77c295b0830c1cd7dce93765c5086ea08a56b133153fe330c"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 2267651,
+          "family_id": "rev-nist-sp800-18",
+          "format": "docx",
+          "id": "nist-docx-0003",
+          "kind": "revision",
+          "member_index": 2,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0003.docx",
+          "sha256": "6960559df6108873b6fef4f4d30f6b2dbc1bac5da7e9f76fbe9376dee2148fe0"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 2258240,
+          "family_id": "rev-nist-sp800-18",
+          "format": "docx",
+          "id": "nist-docx-0004",
+          "kind": "revision",
+          "member_index": 3,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0004.docx",
+          "sha256": "5773efff6a47f1f95663c7182e3ee0d9f0eaf5fc7c699e488467945a11a634f2"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 1313448,
+          "family_id": "rev-nist-sp800-18",
+          "format": "pdf",
+          "id": "nist-pdf-0005",
+          "kind": "revision",
+          "member_index": 4,
+          "path": "real100-v1/documents/nist/pdf/nist-pdf-0005.pdf",
+          "sha256": "640f9124469f285fc39dbeffd59708c84043d1a6b64cc87988f31e7e98942371"
+        }
+      ]
+    },
+    {
+      "family_id": "rev-nist-sp800-218",
+      "key": "revision:rev-nist-sp800-218",
+      "kind": "revision",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 162933,
+          "family_id": "rev-nist-sp800-218",
+          "format": "docx",
+          "id": "nist-docx-0011",
+          "kind": "revision",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0011.docx",
+          "sha256": "517d0db2b62df0b6a6b24004fe6dfb0c8a26bd1713178efd799beb8b69781c17"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 154292,
+          "family_id": "rev-nist-sp800-218",
+          "format": "docx",
+          "id": "nist-docx-0012",
+          "kind": "revision",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0012.docx",
+          "sha256": "4f4a2aa689ed2c0f5a6cf6e718b773e980b066327dfa524c8198e92f61ef7a6c"
+        }
+      ]
+    },
+    {
+      "family_id": "rev-nist-sp800-34",
+      "key": "revision:rev-nist-sp800-34",
+      "kind": "revision",
+      "members": [
+        {
+          "agency": "nist",
+          "byte_len": 57045,
+          "family_id": "rev-nist-sp800-34",
+          "format": "docx",
+          "id": "nist-docx-0005",
+          "kind": "revision",
+          "member_index": 0,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0005.docx",
+          "sha256": "c429c2b93397b318fa14c9718afb564f9162913e1a71a0d964849a5b862a996d"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 56935,
+          "family_id": "rev-nist-sp800-34",
+          "format": "docx",
+          "id": "nist-docx-0006",
+          "kind": "revision",
+          "member_index": 1,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0006.docx",
+          "sha256": "345fa5f2eb4d47d2433e409cf6c0bbef7256be00d475cb337efdfd19194e90dd"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 42191,
+          "family_id": "rev-nist-sp800-34",
+          "format": "docx",
+          "id": "nist-docx-0007",
+          "kind": "revision",
+          "member_index": 2,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0007.docx",
+          "sha256": "34ce81fe417d491b479de92465b5c2673378f6987423d68c649ada1ed84b3522"
+        },
+        {
+          "agency": "nist",
+          "byte_len": 28783,
+          "family_id": "rev-nist-sp800-34",
+          "format": "docx",
+          "id": "nist-docx-0008",
+          "kind": "revision",
+          "member_index": 3,
+          "path": "real100-v1/documents/nist/docx/nist-docx-0008.docx",
+          "sha256": "3fe358f1cf866c3a6208692517e1705b86581c08bfba49000b95998bc0b581a0"
+        }
+      ]
+    }
+  ],
+  "manifest": "real100-v1/manifest.tsv",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595"
+}

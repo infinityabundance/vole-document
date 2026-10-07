@@ -1,0 +1,3 @@
+{"key": "cross_format:cf-nasa-ebook-07", "params": "default", "unique_bytes": 87599367, "total_size": 87596438, "unique_chunks": 37, "total_chunks": 37, "deterministic": true}
+{"key": "cross_format:cf-nasa-ebook-07", "params": "16", "unique_bytes": 87611858, "total_size": 87596438, "unique_chunks": 292, "total_chunks": 292, "deterministic": true}
+{"key": "cross_format:cf-nasa-ebook-07", "params": "12", "unique_bytes": 87777588, "total_size": 87596438, "unique_chunks": 4301, "total_chunks": 4302, "deterministic": true}

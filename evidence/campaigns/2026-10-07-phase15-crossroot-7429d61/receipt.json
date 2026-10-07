@@ -1,0 +1,109 @@
+{
+  "artifacts": {
+    "cdc": "raw/cdc/*.jsonl",
+    "commands": "commands.txt",
+    "environment": "environment.json",
+    "families": "raw/families.tsv",
+    "measure": "raw/measure.jsonl",
+    "n3": "N3.txt",
+    "plan": "raw/plan.json",
+    "summary": "raw/summary.json"
+  },
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "campaign": "2026-10-07-phase15-crossroot-7429d61",
+  "cargo_lock_sha256": "2ddb5e9645086a006f3b02b0bcf890564c5523a2c89ac03bf5fe82f9ef98d412",
+  "environment": {
+    "arch": "x86_64",
+    "campaign": "2026-10-07-phase15-crossroot-7429d61",
+    "cargo_lock_sha256": "2ddb5e9645086a006f3b02b0bcf890564c5523a2c89ac03bf5fe82f9ef98d412",
+    "controls": {
+      "cdc_baseline": "raw/cdc/<family>.jsonl (borg, --compression none, three frozen sweeps)",
+      "cold": "explain --analyze --no-cache (cache bytes ignored)",
+      "intra": "empty cache, one fresh-process observation per member (intra-observation reuse floor)",
+      "postclear_star": "fresh OS process after the store's cache/ directory is removed, on the max-warm-reuse member (durability falsifier)",
+      "warm": "explain --analyze in-order per family (shared store, cache on)",
+      "warm_fresh": "fresh OS process, cache intact (counter liveness)"
+    },
+    "doc_baseline": {
+      "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+      "borg": "1.2.4",
+      "cargo": "1.99.0 (5f94df478 2026-08-27)",
+      "jq": "jq-1.6",
+      "python3": "3.11.2",
+      "rustc": "1.99.0",
+      "service_image": "vole-document/doc-baseline:1.99.0"
+    },
+    "env_vars_affecting_semantics": {
+      "CARGO_TERM_COLOR": "never",
+      "LC_ALL": "C"
+    },
+    "features_under_test": "all-features (field, package, opc, docx, epub, entropyfs-store, deflate-replay, ...)",
+    "git_branch": "phase15",
+    "git_commit": "7429d617e84c267a1062cf6485122637edd74781",
+    "git_dirty": "?? tools/fixtures/phase15-crossroot.py;?? tools/phase15-crossroot-court.sh;",
+    "notes": "All commands ran through compose.yaml inside the pinned, capped doc-baseline image; nothing ran on the host except git and docker. N3 had no SQLite comparison; its only baseline was borg CDC, so none is reproduced. No compression claim: a shared blob is scored as state/work.",
+    "parameters": {
+      "corpus": "real100-v1/documents",
+      "manifest": "real100-v1/manifest.tsv",
+      "max_member_bytes": 0,
+      "per_op_timeout_s": 300
+    },
+    "run_utc": "2026-10-07T17:17:29Z"
+  },
+  "falsifiers": {
+    "i_post_cache_clear_derived_reuse_zero": {
+      "holds": true,
+      "note": "a fresh OS process after `cache --clear` re-observed the max-warm member and reused nothing above its empty-cache floor, so no computation is durable.",
+      "postclear_star_reused_above_floor": 0
+    },
+    "ii_avoided_work_le_representation_identity_work": {
+      "derived_work_units_saved": 0,
+      "holds": true,
+      "nodes_id_shared": 44,
+      "note": "cross-member derived work avoided is 0 units; the only durable sharing is representation identity (nodes_id_shared)."
+    },
+    "iii_chunk_dedup_reproduces": {
+      "cdc_dedup_saving_bytes": 32158196,
+      "derived_output_bytes_saved": 0,
+      "note": "the derived-output bytes saved are 0 (cross-member reuse 0), so the 32158196-byte chunk-CDC saving is unrelated and reproduces nothing derivational"
+    }
+  },
+  "families_available": 23,
+  "families_measured": 23,
+  "git_branch": "phase15",
+  "git_commit": "7429d617e84c267a1062cf6485122637edd74781",
+  "git_dirty": "?? tools/fixtures/phase15-crossroot.py;?? tools/phase15-crossroot-court.sh;",
+  "manifest": "real100-v1/manifest.tsv",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "members_ingested": "56/56",
+  "metrics": {
+    "cdc_best_unique_bytes": 425970952,
+    "cdc_dedup_saving_bytes": 32158196,
+    "cdc_total_size_bytes": 458129148,
+    "cold_work_units": 257940010,
+    "cross_member_reused_nodes": 0,
+    "intra_observation_reuse_floor": 30,
+    "nodes_id_shared": 44,
+    "postclear_star_reused_nodes": 30,
+    "retained_inverse_work_fraction": 1.5259362050889273e-05,
+    "seed_bytes_written": 15710228,
+    "shared_resource_bytes": 79720,
+    "shared_resource_ids": 4,
+    "store_bytes": 725622538,
+    "warm_fresh_reused_nodes": 85,
+    "warm_reused_nodes": 30,
+    "warm_work_units": 257936074
+  },
+  "n3_verdict_text": "## N3 verdict (ADR-0035: reuse \u22480 or \u2264 strongest CDC on reuse work)\n\n* families measured: `23` (members ingested: `56/56`).\n* warm in-order reuse: `30` nodes; empty-cache (intra-observation) floor: `30` nodes; **cross-member reuse = `0` nodes** (retained_inverse_work_fraction = `1.5259362050889273e-05` over `257940010` cold work units).\n* representation identity: `44` nodes id-shared, `4` shared resources (`79720` bytes); store bytes = `725622538`.\n* falsifier (i) fresh-process, post-`cache --clear` reuse of the max-warm member = `30` nodes, i.e. `0` above that member's empty-cache floor (must be 0 \u21d2 no durable output store); the same member with the cache intact (fresh process) reused `85` (caches are cross-process, so a non-zero here proves the counter is live).\n* falsifier (iii) chunk-level CDC (borg, `--compression none`, frozen params) over the family sources: best unique `425970952` of `458129148` bytes \u21d2 dedup saving `32158196` bytes.\n\n**N3 is VIOLATED.** there is no cross-member derived reuse even warm (cross-member reuse = 0 nodes); the warm `seed_nodes_reused` is entirely each member's own intra-observation (diamond) reuse, which an empty cache already shows. Representation identity is shared (`nodes_id_shared` > 0) but no *computed* state is, and nothing survives `cache --clear`. The N3 `reuse \u22480` condition holds \u2014 a recorded negative, as ADR-0035 requires. No compression claim is made: a shared blob is scored as state/work.",
+  "notes": [
+    "N3 had no SQLite comparison; its only baseline was borg CDC, so none is reproduced.",
+    "No compression claim: a shared blob is scored as state/work, never a store-size fraction.",
+    "Exactness is out of scope for this court; it measures sharing/reuse, not reconstruction.",
+    "This is a measurement-first deliverable: no durable DerivationStore was implemented; the court measures whether one is warranted."
+  ],
+  "phase": "15.7",
+  "run_utc": "2026-10-07T17:17:29Z",
+  "service_image": "vole-document/doc-baseline:1.99.0",
+  "title": "durable cross-root derivations \u2014 N3 re-run over the real real100-v1 families",
+  "verdict": "VIOLATED"
+}

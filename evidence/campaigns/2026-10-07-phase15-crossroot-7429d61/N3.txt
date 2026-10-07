@@ -1,0 +1,10 @@
+
+## N3 verdict (ADR-0035: reuse ≈0 or ≤ strongest CDC on reuse work)
+
+* families measured: `23` (members ingested: `56/56`).
+* warm in-order reuse: `30` nodes; empty-cache (intra-observation) floor: `30` nodes; **cross-member reuse = `0` nodes** (retained_inverse_work_fraction = `1.5259362050889273e-05` over `257940010` cold work units).
+* representation identity: `44` nodes id-shared, `4` shared resources (`79720` bytes); store bytes = `725622538`.
+* falsifier (i) fresh-process, post-`cache --clear` reuse of the max-warm member = `30` nodes, i.e. `0` above that member's empty-cache floor (must be 0 ⇒ no durable output store); the same member with the cache intact (fresh process) reused `85` (caches are cross-process, so a non-zero here proves the counter is live).
+* falsifier (iii) chunk-level CDC (borg, `--compression none`, frozen params) over the family sources: best unique `425970952` of `458129148` bytes ⇒ dedup saving `32158196` bytes.
+
+**N3 is VIOLATED.** there is no cross-member derived reuse even warm (cross-member reuse = 0 nodes); the warm `seed_nodes_reused` is entirely each member's own intra-observation (diamond) reuse, which an empty cache already shows. Representation identity is shared (`nodes_id_shared` > 0) but no *computed* state is, and nothing survives `cache --clear`. The N3 `reuse ≈0` condition holds — a recorded negative, as ADR-0035 requires. No compression claim is made: a shared blob is scored as state/work.

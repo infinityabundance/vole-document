@@ -1,0 +1,3 @@
+{"key": "cross_format:cf-nist-sp800-218", "params": "default", "unique_bytes": 318538, "total_size": 317225, "unique_chunks": 4, "total_chunks": 4, "deterministic": true}
+{"key": "cross_format:cf-nist-sp800-218", "params": "16", "unique_bytes": 318632, "total_size": 317225, "unique_chunks": 6, "total_chunks": 6, "deterministic": true}
+{"key": "cross_format:cf-nist-sp800-218", "params": "12", "unique_bytes": 319119, "total_size": 317225, "unique_chunks": 17, "total_chunks": 17, "deterministic": true}

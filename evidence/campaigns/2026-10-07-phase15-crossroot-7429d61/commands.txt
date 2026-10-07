@@ -1,0 +1,23 @@
+# Phase 15.7 durable cross-root derivations court — exact commands
+# Commit under test: 7429d617e84c267a1062cf6485122637edd74781 (branch phase15); dirty: ?? tools/fixtures/phase15-crossroot.py;?? tools/phase15-crossroot-court.sh;
+# Run (UTC): 2026-10-07T17:17:29Z
+# Base image (ARG BASE_STABLE): rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+# Service image: vole-document/doc-baseline:1.99.0
+# rustc 1.99.0, cargo 1.99.0 (5f94df478 2026-08-27), borg 1.2.4, jq jq-1.6, python3 3.11.2, arch x86_64
+# Cargo.lock sha256: 2ddb5e9645086a006f3b02b0bcf890564c5523a2c89ac03bf5fe82f9ef98d412
+# All commands run inside the pinned, capped doc-baseline image; nothing on the host.
+
+docker compose run --rm --no-TTY doc-baseline bash tools/phase15-crossroot-court.sh
+
+# Inside phase15-crossroot-court.sh:
+#   (0) cargo build --locked --all-features
+#   (1) python3 tools/fixtures/phase15-crossroot.py plan MANIFEST CORPUS CAMPAIGN/raw
+#   (2) per family: encode MEMBER -> .voldoc; field-ingest into ONE shared store;
+#         explain --analyze arms: --no-cache (cold); empty-cache one-shot per member
+#         (intra floor); in-order warm; fresh-process warm (cache intact); fresh-process
+#         post-cache-clear on the max-warm member (durability);
+#         tools/chunk-dedup.sh COHORT OUT {19,23,21,4095|16,20,18,4095|12,16,14,4095} none
+#   (3) python3 tools/fixtures/phase15-crossroot.py aggregate CAMPAIGN  ->  raw/summary.json, N3.txt
+#   (4) python3 tools/fixtures/phase15-crossroot.py receipt  CAMPAIGN  ->  receipt.json, SUMMARY.md
+# Stores and CDC cohorts are in the gitignored evidence/scratch/phase15-crossroot
+# (regenerable bytes, never sealed).
