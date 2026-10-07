@@ -27,29 +27,51 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 
 > ### 📌 Findings
 >
-> **Phase 11 changed the axis.** On whole-file size VOLE still loses to generic
-> compressors and is not a compressor (**0/27**, [ADR-0017](docs/adr/0017-generic-lossless-baselines.md)).
-> But the persistent procedural field now has **scoped, receipted measured wins**:
-> a *warm, cache-served* narrow observation reads **8.4–8.9 KB / ~99 µs** versus
-> the fair preprocessed SQLite baseline's **24,393 B / ~1 ms** and Poppler's
-> **136,128 B / ~8 ms**; lifetime wall beats raw PDF tooling on **5/5** documents;
-> and after deleting the source a new process still rematerializes the exact
-> original (length + SHA-256 + `cmp`). **Cold narrow observations still lose** on
-> bytes, cross-document sharing loses to CDC/`tar|xz`, and an earlier warm-byte
-> claim was **falsified by the independent skeptic** (the cache-served answer read
-> had been excluded from the byte count) — see
-> [`docs/reviews/phase-11-skeptic-review.md`](docs/reviews/phase-11-skeptic-review.md).
-> Read [`FINDINGS.md`](FINDINGS.md) and ADRs 0017–0028.
+> **Phase 12 extends the measured axis to three formats.** PDF, DOCX and EPUB
+> enter through separate native inverse compilers over a shared byte-authoritative
+> ZIP layer and converge on **one** persistent `DocumentField` with **common**
+> observations plus retained **format-native** structure
+> (ADRs [0029](docs/adr/0029-multi-format-authority-model.md)–[0035](docs/adr/0035-phase12-lifetime-benchmark.md)).
+> Exactness is unchanged: all three formats rematerialize byte-for-byte (length +
+> SHA-256 + `cmp`) after source **and** descriptor deletion in a fresh process
+> (removal **38/38**, triplet **96/96**; `N6` PDF no-regression closed, **32/32**).
+> The courts are honestly mixed. **VOLE still loses whole-file size to generic
+> compressors (0/27, [ADR-0017](docs/adr/0017-generic-lossless-baselines.md))** and
+> is not a database: the source-retaining SQLite+FTS5 baseline **A1 wins the large
+> ~60 KB synthetic documents' byte frontier (N=10–1000) and wall/CPU at N=1000**,
+> and an FTS5 trigram index is **not faster** than `LIKE` here. **Cross-document
+> durable work reuse is a recorded negative (`N3`):** the warm reuse fraction
+> 0.339907 falls to **0.0** after `cache --clear`, so only *representation
+> identity* (one content-addressed blob shared DOCX↔EPUB) is genuinely shared. The
+> ablation ladder credits the small-document win to the **content adapters**
+> (A4→A5) and to **persistent semantic reuse** (A5→A6, bytes for CPU), with
+> **EntropyFS (A9) a loss**. Phase 11's scoped wins still stand (warm narrow
+> observation ~99 µs / 8.4–8.9 KB overhead; lifetime wall beats raw PDF tooling
+> 5/5; exact rematerialization after source deletion), while its warm-byte claim
+> was **falsified by the independent skeptic**. Read [`FINDINGS.md`](FINDINGS.md),
+> [`docs/phases/phase-12-results.md`](docs/phases/phase-12-results.md), and ADRs
+> 0017–0035. No universality or "beats databases" claim is made.
 
 ## Status
 
-Current release: **`0.1.0-alpha.13`** (Phase 11 — persistent procedural document
-field). Phase 11 turns the byte-exact representation into a **persistent,
-queryable procedural field**: inverse-proceduralize early (object/stream/page
-tree, including `/ObjStm`), persist the recovered state as a content-addressed
-**seed DAG** (filesystem or EntropyFS backend), navigate it with a bounded
-**hierarchical observation index**, and materialize as late as possible — a
-narrow observation resolves its minimum dependency closure and, when warm, never
+Current release: **`0.1.0-alpha.16`** (Phase 12 — universal multi-format document
+field: PDF + DOCX + EPUB). Phase 12 makes the Phase-11 persistent procedural field
+**format-universal across three formats**: PDF, DOCX and EPUB enter through
+separate native inverse compilers — the Phase-11 PDF adapter, a WordprocessingML
+(DOCX) inverse and a bounded-XHTML/OCF (EPUB) inverse — built over a shared
+**byte-authoritative ZIP** layer (physical member scanner + generic OPC/OCF
+package graph), and all three converge on **one** `DocumentField` exposing
+**common** observations *and* retained **format-native** structure, with per-answer
+provenance (`format=<fmt>;common;<native>`). "Universal" here means the field
+vocabulary is shared across the three implemented formats, **not** that every
+format is supported; ODT and other adapters remain PROPOSED.
+
+Phase 11 (the load-bearing foundation) turned the byte-exact representation into a
+**persistent, queryable procedural field**: inverse-proceduralize early
+(object/stream/page tree, including `/ObjStm`), persist the recovered state as a
+content-addressed **seed DAG** (filesystem or EntropyFS backend), navigate it with
+a bounded **hierarchical observation index**, and materialize as late as possible —
+a narrow observation resolves its minimum dependency closure and, when warm, never
 opens the descriptor at all.
 
 **Exactness is unchanged and remains the invariant, not a competitive win.**
@@ -92,6 +114,27 @@ sequential** codecs only (ADR-0019); Phase 9 added the cross-document store and
 recorded a robust loss (ADR-0020/0021); Phase 10.1 added an optional encoder-only
 governor that buys no bytes (ADR-0022). See the Phase-11 subsection below for the
 field results, and ADRs 0024–0028 for the Phase-11 architecture.
+
+Phase 12 (branch `phase12`, ADRs 0029–0035,
+[`docs/phases/phase-12-results.md`](docs/phases/phase-12-results.md)) makes that
+field **format-universal across three formats** (PDF + DOCX + EPUB) and its results
+are honestly mixed. **Exactness is unchanged and receipted:** all three formats
+rematerialize byte-for-byte after source **and** descriptor deletion in a fresh
+process (removal **38/38**; triplet **96/96**), and the PDF no-regression gate
+(`N6`) is closed (A2 vs A11: **32/32** byte-exact, **0 regressions**). **But this
+is not a database win:** VOLE wins the small-document lifetime frontier and the
+cold one-time comparison, while the source-retaining **SQLite+FTS5 baseline (A1)
+wins the large ~60 KB synthetic documents' byte frontier (N=10–1000) and wall/CPU
+at N=1000**. The ablation ladder attributes the small-document win to the **content
+adapters** (A4→A5) and to **persistent semantic reuse** (A5→A6, which trades bytes
+for CPU), with **EntropyFS (A9) a recorded loss** and `A7`/`A8` **not separable**.
+**Cross-document durable work reuse is a recorded negative (`N3`):** the warm
+`retained_inverse_work_fraction` 0.339907 falls to **0.0** after `cache --clear`,
+so only *representation identity* (one content-addressed blob shared DOCX↔EPUB) is
+shared, not durable work; and an FTS5 trigram index is **not faster** than `LIKE`
+here (it reads more; `unicode61` misses embedded markers). The LLM working set
+(pinned `bert-base-uncased`) is 1 win / 8 tie / 3 loss vs page-local text and
+9 win / 0 tie / 3 loss vs the whole document.
 
 Phase 9 (branch `phase9`, ADR-0020/0021) adds a cross-document
 **content-addressed object store** and then measures the one axis a single-file
@@ -156,7 +199,7 @@ than one object per file (ADR-0021, `docs/evidence/phase9-store-report.md`,
 | Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; amendment campaign `2026-10-05-phase7-corpus-b-c4eb77e` (supersedes `2026-10-05-phase7-corpus-f1f8d26`); 24/24 replayed, 0 declined; diagnostic only, no new candidate |
 | Generator-family Flate corpus (`producers`: ReportLab/Cairo/LibreOffice/pdfTeX) | **Measured (claim corrected 7.0c)** | campaign `2026-10-05-phase7-producers-e071250`; 87/87 replayed; `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` on Cairo (58,711 → 34,574, −24,137 B) but the Cairo file is a **repeated-identical-bytes harness artifact** (six byte-identical streams), and generic LZ does ~2× better (gzip -9 17,382 B; xz -9e 16,852 B); the "first authoring-generator witness" claim is withdrawn; no candidate changed |
 | Generic-compressor baseline ladder (gzip/zstd/xz/brotli vs VOLE) | **Measured — the honest comparison** | campaign `2026-10-05-phase7-baselines-7b9f662`; `tools/baselines.sh` + opt-in `baseline` image; **VOLE beats gzip/zstd/xz/brotli on 0/27 files** (+460,320 B vs the best generic); prior "wins" were relative to the weak order-0 `BYTE_RANS` lane |
-| Coverage-guided fuzzing (`cargo-fuzz`, ten targets) | **Measured** | campaign `2026-10-05-phase7-fuzz-ca6a92b`; pinned `nightly-bookworm-slim-2026-10-04` + `cargo-fuzz 0.13.2`; 9/10 targets zero-crash; two upstream `preflate-rs` findings (F1 mitigated + regression test; F2 contained on the decode path by process isolation, ADR-0016) |
+| Coverage-guided fuzzing (`cargo-fuzz`, ten Phase-7.1 targets) | **Measured** | campaign `2026-10-05-phase7-fuzz-ca6a92b`; pinned `nightly-bookworm-slim-2026-10-04` + `cargo-fuzz 0.13.2`; 9/10 targets zero-crash; two upstream `preflate-rs` findings (F1 mitigated + regression test; F2 contained on the decode path by process isolation, ADR-0016); **eight more targets added for ZIP/OPC/OCF/XML in Phase 12** |
 | Process-isolated DEFLATE replay (`__replay-worker`) | **Implemented** | `replay_bounded` runs `preflate` in a child under `RLIMIT_AS` + a wall-clock timeout; knobs `VOLE_REPLAY_WORKER`/`VOLE_REPLAY_MEM_MB`/`VOLE_REPLAY_TIMEOUT_MS`; a library embedder without a worker keeps the in-process residual |
 | Partial materialization (`OBSERVATION_INDEX` + `view`) | **Measured — scoped positive (decode CPU, no I/O win)** | campaign `2026-10-05-phase7-partial-a5764c9`; 18/18 queries byte-exact; mid/late queries touch ~0.41–0.43 MB (`descriptor_bytes_traversed` alone; its `entropy_bytes_decoded` breakdown is a subset already counted there and must not be added) vs gzip inflating `a+len` (late region 1.4–2.3 %, ~2–5× faster than gzip, ~4–13× than xz); **v1 reads the whole descriptor, so on-disk I/O is not reduced** and it loses in the early region (≤ ~8–16 MiB) (ADR-0018) |
 | Deterministic large corpus generator (`pdf-make-large`) | **Tooling** | encode-time subcommand; classic-xref PDF of `OBJECTS` (default 800) distinct zlib `FlateDecode` streams, ≥32 MiB, correct by construction; bytes gitignored |
@@ -175,13 +218,29 @@ than one object per file (ADR-0021, `docs/evidence/phase9-store-report.md`,
 | Fair-baseline / lifetime / pinned-tokenizer courts | **Measured (mixed)** | campaigns `…-lifetime-5a7edd3`, `…-llm-tokens-824faa9`; A1 preprocessed SQLite wins the narrow-query byte court (24,393 B); VOLE crosses A0 on wall on every doc but the A1 wall crossover is **absent on 3/5** documents; tokens (`bert-base-uncased`, pinned offline, hash-verified) 2 win / 2 tie / 2 loss vs page-local |
 | Immutable edit witness (declared narrow subset) | **Implemented (scoped)** | ADR-0025; `src/field/edit.rs`; shares the descriptor/root/unaffected nodes **by content id** (0 bytes read); 2 new seed nodes |
 | Finer-than-object shareable units | **Recorded — loss to CDC** | ADR-0028; `unique_bytes` lower bound loses to strongest CDC and to `tar` + `xz -9e` |
-| Partial materialization byte-level checkpoints (beyond v1) | Planned (Phase 13) | v1 random-access `view` was measured in 7.3 (ADR-0018) and the seek reader/partial lane landed in Phase 8/11 (ADR-0019/0024), but **literal byte-level checkpoint records** were never built; Phase 13 implements and measures them |
+| Byte-authoritative ZIP layer (physical member scan + generic OPC/OCF package graph) | **Implemented** | ADR-0030; `src/adapter/package/`; feature `package`/`opc`; exact member cover, ZIP64/data descriptors bounded; a ZIP member is a first-class field root (no path trust) |
+| DOCX adapter (WordprocessingML) | **Implemented** | ADR-0032; `src/adapter/docx/`; feature `docx`; stories, paragraphs/runs, tables/grids, tracked changes, notes |
+| EPUB adapter (OCF/package + bounded XHTML content) | **Implemented** | ADR-0033; `src/adapter/epub/`; feature `epub`; package summary, spine order, blocks, links, resources |
+| Universal multi-format `DocumentField` + `capabilities` + common vocabulary | **Adopted / Measured** | ADR-0029/0031; one format-agnostic `field-ingest`; `format=<fmt>;common;<native>` provenance; byte-based format detection; triplet court **96/96** |
+| Source + descriptor removal exactness (PDF/DOCX/EPUB) | **Measured** | campaign `2026-10-06-phase12-removal-dc4d5a3`; **38/38** assertions (length + SHA-256 + `cmp`), fresh process |
+| PDF no-regression gate (`N6`) | **Measured — closed** | campaign `2026-10-06-phase12-pdf-noregression-0d23a02`; A2 (Phase-11 PDF) vs A11 (unified): **32/32** byte-exact, 0 regressions |
+| Lifetime + LLM working-set + ablation ladder (A0/A1/A1b/A2–A11) | **Measured (mixed)** | campaigns `…-lifetime-3eaf576`, `…-lifetime-ablations-06db12a`, `…-llm-3eaf576`, `…-fts5-amendment-22302f9`; A1 wins large ~60 KB docs; win attributed to content adapters (A4→A5) + persistent reuse (A5→A6); **EntropyFS (A9) a loss**; tokens 1/8/3 vs page-local, 9/0/3 vs whole doc; FTS5 not faster than `LIKE` |
+| Cross-document procedural reuse (state-level) | **Recorded — `N3` negative** | ADR-0034/0035; `…-share-e7ef693` + controls `…-share-controls-dce2705`; representation identity shared (one blob DOCX↔EPUB) but warm reuse 0.339907 → **0.0** after `cache --clear` |
+| Security/fuzz for ZIP/OPC/OCF/XML surfaces | **Measured — scoped** | campaign `2026-10-06-phase12-security-33f6d04`; **315/315** over 45 hostile fixtures (16 reject / 22 opaque-preserve-and-decline / 7 accept); 8 new fuzz targets `exit=0` |
+| Flagship three-format demo | **Measured** | campaign `2026-10-06-phase12-demo-fb8a592`; live output, exit `0`; review `docs/reviews/phase-12-skeptic-review.md` + close-out corrections |
+| Partial materialization byte-level checkpoints (beyond v1) | Planned (Phase 13) | v1 random-access `view` was measured in 7.3 (ADR-0018) and the seek reader/partial lane landed in Phase 8/11 (ADR-0019/0024), but **literal byte-level checkpoint records** were never built; Phase 13 implements and measures them ([`docs/phases/phase-13-plan.md`](docs/phases/phase-13-plan.md)) |
 
 "Implemented" means the mechanism exists and is tested. "Measured" means there is
 a sealed campaign under `evidence/`. The Phase-1 core establishes exactness,
 framing, integrity, bounds, and receipts before any entropy or format-aware
 mechanism is allowed to compete; Phase 2 then measures entropy channels on that
 same exactness floor.
+
+**Phase 13 (branch `phase13`, in progress)** closes the remaining Phase-12
+`PROPOSED` items and the last open gate — a PDF `/Length`/revision size court, PDF
+grammar/templates, an ODT adapter over the ZIP/OPC layers, byte-level
+partial-materialization checkpoints, and the `N5` package-index-only gate. See
+[`docs/phases/phase-13-plan.md`](docs/phases/phase-13-plan.md).
 
 ### Phase 2 measured results
 
@@ -810,6 +869,43 @@ entropyfs, lifetime, share, llm-tokens, edit, skeptic); results write-up
 [`docs/phases/phase-11-results.md`](docs/phases/phase-11-results.md); review
 [`docs/reviews/phase-11-skeptic-review.md`](docs/reviews/phase-11-skeptic-review.md).
 
+### Universal multi-format document field (Phase 12) measured results
+
+Phase 12 makes the Phase-11 field **format-universal across three formats** over a
+shared byte-authoritative ZIP layer (ADRs 0029–0035); the full write-up is
+[`docs/phases/phase-12-results.md`](docs/phases/phase-12-results.md).
+
+- **Exactness (receipted).** PDF, DOCX and EPUB rematerialize byte-for-byte
+  (length + SHA-256 + `cmp`) after source **and** descriptor deletion in a fresh
+  process: source-removal **38/38**; the DOCX/EPUB logical "triplet" equivalence
+  court **96/96**. The PDF no-regression gate `N6` is **closed** (A2 vs A11:
+  **32/32** byte-exact, **0 regressions**).
+- **One `DocumentField`, honest provenance.** Common observations
+  (`metadata`/`text`/`heading`/`block`/`table`/`cell`/`resource`/`link`/`find`) plus
+  retained **native** structure, each answer tagged `format=<fmt>;common;<native>`.
+- **Lifetime / LLM working set (mixed).** VOLE wins the small-document frontier
+  and the cold one-time comparison, but the source-retaining **SQLite+FTS5 baseline
+  (A1)** wins the large ~60 KB synthetic documents' byte frontier (N=10–1000) and
+  wall/CPU at N=1000, so this is not a database win. The ablation ladder attributes
+  the small-document win to the **content adapters** (A4→A5) and **persistent
+  semantic reuse** (A5→A6, bytes for CPU); **EntropyFS (A9) is a loss**; `A7`/`A8`
+  are not separable. The pinned `bert-base-uncased` token court is 1 win / 8 tie /
+  3 loss vs page-local text and 9 win / 0 tie / 3 loss vs the whole document.
+- **Recorded negatives.** Cross-document **durable work reuse (`N3`)** is a
+  negative: the warm `retained_inverse_work_fraction` 0.339907 falls to **0.0**
+  after `cache --clear` (only representation identity is shared). An FTS5 trigram
+  index is **not faster** than `LIKE` here (it reads more; `unicode61` misses
+  embedded markers).
+- **Security.** **315/315** court assertions over 45 hostile ZIP/OPC/OCF/XML
+  fixtures (16 reject / 22 opaque-preserve-and-decline / 7 accept), plus 8 new fuzz
+  targets at `exit=0` (campaign `2026-10-06-phase12-security-33f6d04`).
+
+An independent adversarial review
+([`docs/reviews/phase-12-skeptic-review.md`](docs/reviews/phase-12-skeptic-review.md))
+found, and the 12.16 close-out corrected, the security class tally, the unmeasured
+FTS5 claim, the un-run ablation ladder, the missing PDF/reuse/demo receipts, and a
+default-feature clippy failure. No claim above is stronger than those receipts.
+
 ## Quick start (Docker only)
 
 All project commands run inside pinned containers. The host only invokes Docker.
@@ -875,7 +971,10 @@ vole-document inspect     INPUT.voldoc
 vole-document pdf-make-large DIR [OBJECTS]
 vole-document capabilities
 
-# Phase 11 — persistent procedural field (feature `field`, on by default)
+# Phase 11/12 — persistent procedural document field; one format-agnostic ingest
+# over PDF+DOCX+EPUB (feature `field`, on by default; `package`/`opc`/`docx`/`epub`
+# enable the ZIP/DOCX/EPUB adapters). Format is detected from bytes; provenance is
+# `format=<fmt>;common;<native>`.
 vole-document field-ingest  INPUT.voldoc --store DIR [--entropyfs]
 vole-document observe       --store DIR --field HEX (--page N | --object N | --stream N | --revision N | --byte-range A..B) --kind KIND
 vole-document find          --store DIR --field HEX --text PATTERN
@@ -911,11 +1010,15 @@ Two layers, both Docker-only:
   FUZZ_SECONDS=60 docker compose run --rm --no-TTY fuzz sh tools/fuzz.sh
   ```
 
-Ten targets cover the `.voldoc` container parser/materializer, the
+Ten Phase-7.1 targets cover the `.voldoc` container parser/materializer, the
 `encode`→`decode` round trip, the DRA decoder/analyzer/evaluator, the rANS model
 and channel decoders, the PDF lexer and physical scanner, xref/`/Prev`, the
-`DEFLATE_REPLAY` wrapper, and `verify`. See `fuzz/README.md` for the pinned
-toolchain, seeds, and regeneration. The sealed campaign
+`DEFLATE_REPLAY` wrapper, and `verify`. Phase 12 adds **eight more** targets for the
+ZIP/OPC/OCF/XML surface — `zip_scan`, `zip_decode`, `opc_rels`, `docx_wml`,
+`epub_package`, `epub_content`, `xml_part`, `common_observe` — every one of which
+returned `exit=0` (no new crash, hang, or amplification) in the
+`2026-10-06-phase12-security-33f6d04` campaign. See `fuzz/README.md` for the pinned
+toolchain, seeds, and regeneration. The sealed Phase-7.1 campaign
 `evidence/campaigns/2026-10-05-phase7-fuzz-ca6a92b/` observed zero crashes on
 nine of ten targets and reported two upstream `preflate-rs` findings (one
 mitigated fail-closed, one recorded upstream resource limitation).

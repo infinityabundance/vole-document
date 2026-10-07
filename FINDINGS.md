@@ -2,7 +2,10 @@
 
 **Status:** authoritative top-level summary of the VOLE-Document programme, superseding
 the per-phase narratives. Decision record: [ADR-0023](docs/adr/0023-consolidated-findings.md).
-**Version:** `0.1.0-alpha.12` (Phase 10.2).
+**Version:** `0.1.0-alpha.12` (Phase 10.2) — this document is **frozen at Phase 10.2**.
+For Phase 11 and Phase 12 see **§9** (the current release is `0.1.0-alpha.16`,
+Phase 12); the authoritative Phase-12 evidence is
+[`docs/phases/phase-12-results.md`](docs/phases/phase-12-results.md).
 
 This document states, in one place, **what was built, what was measured, against
 which baseline, what won, what lost, and why.** Every number below is traceable to
@@ -259,7 +262,10 @@ All review documents: [`phase6`](docs/evidence/phase6-skeptic-review.md),
 [`phase7b`](docs/evidence/phase7b-skeptic-review.md),
 [`phase7c`](docs/evidence/phase7c-skeptic-review.md),
 [`phase8`](docs/evidence/phase8-skeptic-review.md),
-[`phase9`](docs/evidence/phase9-skeptic-review.md).
+[`phase9`](docs/evidence/phase9-skeptic-review.md). Phase-11 and Phase-12
+corrections are recorded separately in **§9** above and in their reviews:
+[`phase-11-skeptic-review.md`](docs/reviews/phase-11-skeptic-review.md),
+[`phase-12-skeptic-review.md`](docs/reviews/phase-12-skeptic-review.md).
 
 ---
 
@@ -318,18 +324,22 @@ Each of these is a concrete, falsifiable next step — and each carries an expli
   environment variables that affect semantics. Receipts are immutable: new runs get
   new directories and **corrections are amendments, not rewrites**.
 - **Tags are the durable record.** Annotated tags **`v0.1.0-alpha.2`** …
-  **`v0.1.0-alpha.11`** exist. **`v0.1.0-alpha.12`** is the current release and is
-  tagged when this phase merges. **`v0.1.0-alpha.1`** has **no git tag** — its
+  **`v0.1.0-alpha.16`** exist. **`v0.1.0-alpha.16`** is the current release
+  (Phase 12; see §9). **`v0.1.0-alpha.1`** has **no git tag** — its
   CHANGELOG section exists, but the tag lineage begins at `v0.1.0-alpha.2`.
-  Merged phase branches are deleted once the tag preserves the history.
+  *(This bullet is a dated corrective: it previously stopped at
+  `v0.1.0-alpha.12` as the then-current release.)* Merged phase branches are
+  deleted once the tag preserves the history.
 - **Feature / mandatory-bit policy.** The default build is permissive-only
-  (`default = ["rans", "store"]`). `deflate-replay` is **opt-in** and pulls LGPL
-  `cabac` (ADR-0014). A descriptor whose `replay_codec` tag is unknown, or that
-  needs a capability the build lacks (channel, external object, seek directory),
-  sets a **mandatory feature bit** and **fails closed** with `UnsupportedFeature`
-  (exit 6) rather than being reinterpreted. Semantic changes bump the universe
-  string; optional capabilities use ignorable optional bits. The wire format is
-  pre-1.0 and not yet frozen (ADR-0004).
+  (`default = ["rans", "store", "field"]`; the `field` feature was added in
+  Phase 11 — this bullet previously read `["rans", "store"]`). `deflate-replay`
+  is **opt-in** and pulls LGPL `cabac` (ADR-0014). A descriptor whose
+  `replay_codec` tag is unknown, or that needs a capability the build lacks
+  (channel, external object, seek directory), sets a **mandatory feature bit** and
+  **fails closed** with `UnsupportedFeature` (exit 6) rather than being
+  reinterpreted. Semantic changes bump the universe string; optional capabilities
+  use ignorable optional bits. The wire format is pre-1.0 and not yet frozen
+  (ADR-0004).
 
 ### Gate suite (Phase 10.2)
 

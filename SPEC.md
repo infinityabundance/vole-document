@@ -346,6 +346,14 @@ which superseded the Phase-5 string
 which superseded the Phase-4 string
 (`vole-document;universe;phase-4;exact-bytes;dra-3;opaque+entropy+pdf+channels`).
 
+**Dated note (Phase 11/12, 2026-10-06).** This `.voldoc` *descriptor* universe is
+unchanged through Phase 12 — `dra-8` and `FORMAT_MINOR` do not move and the wire
+stays byte-compatible. The Phase-11 persistent field and the Phase-12 multi-format
+package field carry their **own**, separate universe strings
+(`…;phase11;…+procedural-seed-field-v1+hier-index-v1` and `…+package-v1`; see
+`src/field/mod.rs`), so the descriptor universe string should not be read as
+tracking the release number.
+
 ## Entropy records (Phase 2, extended in Phase 4)
 
 Phase 2 introduces two entropy records and one graph op (`MODEL`,
@@ -512,10 +520,12 @@ section is **PROVISIONAL**.
 
 ## Feature policy
 
-- `default = ["rans", "store"]`: the native scalar entropy decoder
-  (`ryg-rans-rs` `=0.5.1`, **safe manual** API only) and the content-addressed
-  object store (`Id = BLAKE3-256`, `blake3` `=1.8.7`) are present by default. The
-  default build is **permissive-only** and pulls no copyleft dependency.
+- `default = ["rans", "store", "field"]`: the native scalar entropy decoder
+  (`ryg-rans-rs` `=0.5.1`, **safe manual** API only), the content-addressed
+  object store (`Id = BLAKE3-256`, `blake3` `=1.8.7`) and the Phase-11 persistent
+  field are present by default. (This bullet previously read `["rans", "store"]`;
+  `field` was added in Phase 11.) The default build is **permissive-only** and
+  pulls no copyleft dependency.
 - The exact DEFLATE replay engine (`preflate-rs` `=0.7.6`) is **opt-in** via
   `--features deflate-replay` (or `--all-features`); it transitively pulls the
   `cabac` crate, licensed LGPL-3.0-or-later (ADR-0014).

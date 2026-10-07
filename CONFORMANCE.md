@@ -48,6 +48,14 @@ passing with `--features dsfb-search` (default + the governor, without
 `tests/governor.rs` (8 integration tests, compiled only under the non-default
 `dsfb-search` feature); `examples/governor_court.rs` is the court driver.
 
+**Later counts (Phase 12.16 close-out, `0d23a02`).** The default feature set is now
+`default = ["rans", "store", "field"]` (`field` added in Phase 11), and the full
+gate reports **679** passing with `--all-features` and **306** with
+`--no-default-features`, 0 failures; the non-PDF adapters add the `package`, `opc`,
+`docx` and `epub` features (`src/adapter/package/`, `src/adapter/docx/`,
+`src/adapter/epub/`). The Phase-10.1 counts above are retained as the historical
+snapshot they are (`docs/phases/phase-12-results.md`, "Close-out gate ledger").
+
 `encode --force KIND` is the ablation surface: it runs the *same* complete-cost
 court over a one-element candidate set (`KIND` in `raw`, `rle`, `byte-rans`,
 `pdf-physical`, `pdf-channels`, `pdf-layout`, `pdf-layout-rans`,
@@ -64,6 +72,31 @@ docker compose run --rm --no-TTY dev cargo test  --all-features
 docker compose run --rm --no-TTY dev cargo clippy --all-targets --all-features -- -D warnings
 docker compose run --rm --no-TTY dev cargo fmt --all --check
 ```
+
+## Phase 11–13 courts (added after the Phase-10 snapshot above)
+
+The Phase-11 persistent procedural field and Phase-12 multi-format adapters add
+their own courts (run in the same `cargo test --all-features` gate):
+
+- **Field / observation** — `tests/field_authority.rs`, `tests/field_observe.rs`,
+  `tests/field_partial.rs`, `tests/field_reuse.rs`, `tests/field_edit.rs`,
+  `tests/share_account.rs`, `tests/observation_seek.rs`.
+- **ZIP / OPC / OCF / adapters** — `tests/zip_physical.rs`, `tests/opc_core.rs`,
+  `tests/package_field.rs`, `tests/docx_adapter.rs`, `tests/epub_adapter.rs`,
+  `tests/epub_content.rs`, `tests/universal_api.rs`,
+  `tests/cross_document_reuse.rs`.
+- **Phase-12 courts** — `tests/phase12_courts.rs` (triplet / equivalence),
+  `tests/phase12_lifetime.rs` (lifetime + ablation ladder),
+  `tests/phase12_security.rs` (hostile input), with drivers
+  `tools/phase12-*.sh` and `examples/phase12_share_court.rs`.
+- **Fuzzing** — 8 Phase-12 targets (`zip_scan`, `zip_decode`, `opc_rels`,
+  `docx_wml`, `epub_package`, `epub_content`, `xml_part`, `common_observe`) added
+  to the `fuzz` service; every target returned `exit=0` in the
+  `2026-10-06-phase12-security-33f6d04` campaign.
+
+The Phase-13 subphases (byte-level checkpoints, ODT adapter, size-mechanism
+courts, the `N5` gate) add their courts as they land; see
+[`docs/phases/phase-13-plan.md`](docs/phases/phase-13-plan.md).
 
 ## Standing invariants
 
@@ -88,7 +121,8 @@ docker compose run --rm --no-TTY dev cargo fmt --all --check
    still materialize exactly and channel-bearing ones fail closed with
    `UnsupportedFeature` (never a silent reinterpretation).
 10. **Opt-in replay and its bounds**: the default build is permissive-only
-    (`default = ["rans"]`); the DEFLATE replay stack is opt-in. At decode time a
+    (`default = ["rans", "store", "field"]`; the `field` feature was added in
+    Phase 11); the DEFLATE replay stack is opt-in. At decode time a
     `DEFLATE_REPLAY` op names its semantics with a `replay_codec` tag (unknown id
     ⇒ `UnsupportedFeature`), rejects a declared output above the VOLE
     replay-profile admission limit `min(max_output_bytes, max_replay_bytes,
