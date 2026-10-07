@@ -2,6 +2,53 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [Unreleased] — Phase 13: closing the remaining proposals and the `N5` gate
+
+Phase 13 closes the Phase-12 `PROPOSED` items and the last open skeptic gate.
+Every subphase is measured with the same exactness invariant
+(`materialize(descriptor) == original_bytes`); the wire is unchanged (`dra-8`,
+`FORMAT_MINOR` do not move) and every negative result is recorded.
+
+### Added
+
+- **ODT adapter** (`src/adapter/odt.rs`, feature `odt`) — a bounded OpenDocument
+  (ODF) inverse over the shared ZIP + bounded-XML layers. Resolves the main content
+  part semantically from `META-INF/manifest.xml` (never a hardcoded path) and reuses
+  the ZIP layer but **not** the OPC graph (ODF is not OPC). Byte-exact and queryable
+  after source **and** descriptor deletion in a fresh process; typed declines on a
+  missing/malformed manifest with exactness preserved (ADR-0038).
+- **Optional `CHECKPOINT` record** (`src/container/checkpoint.rs`, `RecordTag`
+  `0x60`, ignorable) — validate-or-decline, falls back to the observation index
+  (ADR-0039, recorded negative).
+
+### Measured
+
+- **13.1** PDF `/Length`/revision as a *size* mechanism: byte-exact, **0 wins** vs
+  the ladder and vs generic (ADR-0036).
+- **13.2** PDF `PDF_COS_TEMPLATE` grammar/templates: byte-exact, a scoped VOLE-ladder
+  win (4/28 files) but **0 wins vs generic** (ADR-0037).
+- **13.3** ODT adapter: **adopted** (ADR-0038).
+- **13.4** Byte-level checkpoints: byte-exact and advisory, but **redundant with the
+  observation index** (16 B/op vs 9 B/op; +259/+439/+1,159 B per byte-range query,
+  identical op work) — recorded negative (ADR-0039).
+- **13.5** Gate `N5` (package-index-only): the literal mechanical control
+  (`zipfile.read`/`unzip -p` + byte substring) answers **0/72** structural selectors
+  while the field answers **72/72** — `N5` **falsified**, gate closed
+  (`2026-10-07-phase13-n5-21948bd`).
+
+### Fixed
+
+- Stale documentation reconciled: the `real100-v1` corpora caveat, the
+  ODT-is-ODF-not-OPC wording, the Phase-13.3 results section, and exact receipt ids.
+- Default-feature `cargo clippy --all-targets -- -D warnings` re-verified clean (the
+  `package`-only items in `src/field/document_format.rs` are feature-gated).
+
+### Reproducibility
+
+- `compose.yaml` OOM containment is now machine-checked: `tools/check-compose-caps.sh`
+  fails if any service lacks `mem_limit == memswap_limit` + `pids_limit`, wired into
+  `tools/check-docs.sh` and a CI `integrity` job.
+
 ## [0.1.0-alpha.16] — Phase 12: universal multi-format document field
 
 Phase 12 makes the persistent procedural field **format-universal**. PDF, DOCX and

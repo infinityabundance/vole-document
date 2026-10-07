@@ -1,0 +1,13 @@
+# Phase 13.5 — gate N5 mechanical negative control (branch phase13)
+
+# Court (field lane assertions + package-index-only control)
+docker compose run --rm --no-TTY doc-baseline sh tools/phase13-5-n5-court.sh
+
+# Corpus regeneration (deterministic; only if absent)
+docker compose run --rm --no-TTY producers python3 tools/fixtures/phase12-corpus-gen.py evidence/scratch/phase12-lifetime-corpus
+
+# Full gate (raw transcript committed verbatim)
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all --check && \
+  cargo clippy --all-targets --all-features -- -D warnings && \
+  cargo test --all-features --locked && \
+  cargo test --no-default-features && sh tools/check-docs.sh'

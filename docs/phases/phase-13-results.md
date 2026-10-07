@@ -194,3 +194,58 @@ that must evaluate ops — dominates regardless. **Closed as a recorded negative
 the mechanism stays implemented (opt-in) so the negative is reproducible and the
 fallback discipline is tested. No cap was raised; no validate-or-decline rule was
 weakened.
+
+## Gate `N5` — package-index-only (13.5)
+
+**Question.** The last open skeptic gate. `N5`: is the caller-visible
+small-document win just a *package index* (`unzip -p` + `substr`), i.e. does the
+procedural field add nothing over slicing a ZIP member? The 12.11b ladder answered
+it *by proxy* (the A3/A4 rungs decline the semantic surfaces) but never ran the
+literal mechanical control.
+
+**Control.** `tools/fixtures/phase13-n5-control.py` builds exactly the gate's
+lane: decompress every ZIP member with the stdlib (`zipfile`, the mechanical
+`unzip -p`) and answer each pre-registered selector with byte operations only — no
+XML parsing, no relationship graph, no format semantics. Selectors are classified
+`exact` (whole-source, resource-bytes), `literal-search` (`find --text`), and
+`structural` (block / heading / table / cell / resource / metadata / provenance).
+
+**Court.** `tools/phase13-5-n5-court.sh` (pre-registered H1/H2) on the frozen
+12.11 DOCX/EPUB corpus (8 documents × 12 cases) and its pre-registered schedule:
+the field lane re-asserts every answer, the control measures the package lane on
+the same cases. Sealed receipt:
+`evidence/campaigns/2026-10-07-phase13-n5-21948bd/`.
+
+### Outcome — `N5` falsified; gate closed
+
+| lane | structural (semantic) | literal search | whole-source / decoded | all |
+| --- | --- | --- | --- | --- |
+| Phase-12 field (A11) | **72/72** | 8/8 | 12/16 | 92/96 |
+| package index only (`zipfile.read` + byte substring) | **0/72** | 8/8 | 8/16 | 16/96 |
+
+The package index resolves only the whole-source and literal-search selectors; it
+resolves **0/72** structural selectors. Even under the generous reading that the
+answer merely has to occur somewhere in a raw member, only **59/96** expected
+values are byte-reachable, and the selector→answer mapping stays unresolved.
+The small-document win is therefore not reproducible by `unzip -p` + `substr`.
+
+The field's four non-passes are all one pre-existing, recorded limitation: the
+DOCX adapter declines the *decoded* resource observation (`resource:N --kind
+decoded`, typed `UnsupportedFeature`, rc=6) — `V:declined` in 12.11 and
+`a2..a11:declined` in 12.11b. Not a regression. On that single raw-bytes selector
+the package index is stronger than the field, which does not rescue `N5` because
+it is not a semantic case.
+
+Gate (`fmt` / `clippy` all-features **and** default / `test` all-features **and**
+no-default / `check-docs`): green, **1048 passed, 0 failed** (`raw/gate.txt`).
+
+### Gate sweep (`N1`–`N6`)
+
+| gate | question | status | evidence |
+| --- | --- | --- | --- |
+| `N1` | empty frontier on the like-for-like (common answered) set | **not triggered** — A11 still beats A0 on wall/CPU for every small document; A1's wins are the large-document byte frontier and N=1000 on the large synthetic docs | 12.11 crossover (F4-corrected) |
+| `N2` | common vocabulary is capability-only if separable | **not separable** (definitional: the common vocabulary *is* the dispatch) | 12.11b A7 |
+| `N3` | cross-document durable work reuse | **recorded negative** — post-`cache --clear` reuse fraction `0.0` | `2026-10-06-phase12-share-controls-dce2705` |
+| `N4` | ETL illusion (decline-rate threshold) | **not evaluated** — no pre-registered threshold exists; the rate is recorded | 12.11b honest gaps |
+| `N5` | package-index-only | **falsified** (this subphase) | `2026-10-07-phase13-n5-21948bd` |
+| `N6` | PDF no-regression | **closed** — measured, no regression | `2026-10-06-phase12-pdf-noregression-0d23a02` |

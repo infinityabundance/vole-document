@@ -46,6 +46,11 @@ state, and the exact command line. Independent adversarial reviews live in
 | 12.14 | flagship demo | live output, exit 0 | `phase12-demo-fb8a592` | [phase-12](../reviews/phase-12-skeptic-review.md) |
 | N6 | PDF no-regression | A2 vs A11: 32/32 exact, 0 regressions | `phase12-pdf-noregression-0d23a02` | [phase-12](../reviews/phase-12-skeptic-review.md) |
 | 12.15 | skeptic review | findings F1–F16, close-out amendments | `phase12-skeptic-15b5729` | [phase-12](../reviews/phase-12-skeptic-review.md) |
+| 13.1 | PDF `/Length`/revision as a size mechanism | byte-exact; 0 wins vs the ladder and vs generic | `phase13-pdf-length-revision-12fc84e` | — |
+| 13.2 | PDF COS grammar/templates | byte-exact; scoped VOLE-ladder win, 0 wins vs generic | `phase13-pdf-grammar-dfba2a4` | — |
+| 13.3 | ODT adapter | byte-exact + queryable after source + descriptor deletion, fresh process | `phase13-odt-95c486d` | — |
+| 13.4 | byte-level partial-materialization checkpoints | exact + advisory, but redundant with the index (+bytes, identical op work) | `phase13-checkpoints-9d1306a` | — |
+| N5 | package-index-only gate | package index answers 0/72 structural selectors, field 72/72 — falsified | `phase13-n5-21948bd` | [phase-12](../reviews/phase-12-skeptic-review.md) |
 
 Receipt short names are the suffixes of `evidence/campaigns/2026-10-*<name>/`.
 

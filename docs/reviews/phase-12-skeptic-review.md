@@ -57,6 +57,14 @@ dead-code failure (§F6).
 > is clean. **F13 — sealed**: `evidence/campaigns/2026-10-06-phase12-demo-fb8a592/`
 > records a live demo run (exit `0`). F3/F4/F10/F11/F15's scoping corrections stand;
 > F11's ladder and its A7/A8 "not separable" records are unchanged.
+>
+> **`N5` close-out (2026-10-07, `21948bd`, Phase 13.5).** The last open gate is
+> sealed by the literal mechanical control the reviewer asked for: the
+> package-index-only lane (`zipfile.read` of every member + byte substring, the
+> mechanical `unzip -p` + `substr`) answers **0/72** structural selectors while the
+> field answers **72/72**
+> (`evidence/campaigns/2026-10-07-phase13-n5-21948bd/`). `N5` is **falsified** and
+> the gate is closed.
 
 ---
 
@@ -448,7 +456,10 @@ negative record, and the evidence needed to decide each is currently **missing**
 3. **`N5` — package-index-only.** If the small-document VOLE win is reproducible by
    `unzip -p` + `substr` at the same boundary, the "procedural field" adds nothing
    over a package index. *Not measured* (the `A3`/`A4` rungs of F11 would decide
-   it).
+   it). — **Resolved (`21948bd`, Phase 13.5): measured; N5 falsified.** The literal
+   control decompresses every member and answers with byte operations only: it
+   answers 0/72 structural selectors, the field answers 72/72 (only the 4 known
+   DOCX decoded-resource declines differ, and those are raw-bytes, not semantic).
 4. **`N1` — empty frontier on a like-for-like set.** If, on the **common answered
    set** (declined cases removed from both numerator and denominator, F4), A1
    beats VOLE on the small documents at every N, the small-document win
@@ -471,5 +482,6 @@ simple lookups." Everything stronger is unsupported by the receipts.
 * Real-world PDF/DOCX/EPUB corpora (all Phase-12 corpora are locally generated).
 * A Phase-11 baseline for the PDF lane (F12). — **closed (`0d23a02`).**
 * A current, like-for-like search lane (F5). — **closed (`22302f9`).**
-* The `N3`/`N5` controls (F8/F11). — **`N3` closed (`dce2705`); `N5` still open.**
+* The `N3`/`N5` controls (F8/F11). — **`N3` closed (`dce2705`); `N5` closed
+  (`21948bd`, Phase 13.5 — falsified).**
 * A sealed demo receipt (F13). — **closed (`fb8a592`).**
