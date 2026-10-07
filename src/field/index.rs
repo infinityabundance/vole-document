@@ -102,6 +102,14 @@ pub const SEL_DOCX_MODEL: u8 = 10;
 /// manifest, spine, nav identity) as `Q_gen` derived state, computed on demand from
 /// the exact package source — never via OPC (EPUB has no `[Content_Types].xml`).
 pub const SEL_EPUB_MODEL: u8 = 11;
+/// Selector kind: the canonical ODT (ODF) discovery model (Phase 13.3).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// ODT package graph (`mimetype` facts and the parsed `META-INF/manifest.xml` file
+/// entries, with the main content part resolved semantically) as `Q_gen` derived
+/// state, computed on demand from the exact package source — never via OPC (ODF has
+/// no `[Content_Types].xml`).
+pub const SEL_ODT_MODEL: u8 = 12;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

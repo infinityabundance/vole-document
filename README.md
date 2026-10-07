@@ -1,950 +1,290 @@
 # VOLE-Document
 
-A persistent procedural document runtime with byte-exact reconstruction.
+A persistent procedural document runtime with byte-exact reconstruction:
+`materialize(descriptor) == original_bytes`, always.
 
 VOLE-Document inverse-proceduralizes a document into a **bounded deterministic
 reconstruction description** — reconstruction structure, parameters/state, typed
 residual channels, and typed rANS channels — persists the recovered procedural
-state, and lets you **query it directly** (page text, structure, preview, streams,
-objects, revisions, exact byte ranges) with a typed observation API, provenance,
-and `EXPLAIN`/`EXPLAIN ANALYZE`. The exact original bytes are always recoverable.
+state as a queryable **document field**, and lets you query it directly (page
+text, structure, preview, streams, objects, revisions, exact byte ranges) with a
+typed observation API, per-answer provenance, and `EXPLAIN`/`EXPLAIN ANALYZE`.
+
+The forward direction is ordinary: a file is opened, parsed, and rendered. VOLE
+runs it backwards. It recovers the *computation that would produce these exact
+bytes* and stores that computation instead of the file — as a reconstruction
+program plus typed residual and entropy channels — then materializes the original
+bytes only when asked. Because the reconstruction is a program, the persisted
+document becomes a **field** that can answer many typed questions directly,
+without re-opening, re-parsing, or re-rendering the source.
 
 The governing invariant of the exact profile is uncompromising:
 
 ```text
-descriptor:            materialize(descriptor) == original_bytes
-persistent field:      materialize(field_root)  == original_bytes
+descriptor:       materialize(descriptor) == original_bytes
+persistent field: materialize(field_root)  == original_bytes
 ```
 
 Parsing successfully, producing "the same" text, the same object graph, the same
-pages, the same rendering, or a canonical re-save are **not** substitutes.
+pages, the same rendering, or a canonical re-save are **not** substitutes. Every
+exact court requires all three of equal length, equal SHA-256, and `cmp` byte
+equality. Compression is an implementation detail here, not the product: rANS is
+the entropy substrate *beneath* the representation, never the procedural model.
+This project is neither a compressor nor a database — whole-file size and
+database style both lose, and the losses are recorded (see
+[Findings](docs/project/findings.md)).
 
-> Compression is an implementation detail here, not the product. rANS is the
-> entropy substrate beneath the representation, never the procedural model. The
-> point is a document that remains a *queryable, reconstructible computational
-> field* rather than a re-opened file. See [`SPEC.md`](SPEC.md),
-> [`PROJECT_STATE.md`](PROJECT_STATE.md), and [`docs/`](docs/).
+## Why this matters
 
-> ### 📌 Findings
->
-> **Phase 11 changed the axis.** On whole-file size VOLE still loses to generic
-> compressors and is not a compressor (**0/27**, [ADR-0017](docs/adr/0017-generic-lossless-baselines.md)).
-> But the persistent procedural field now has **scoped, receipted measured wins**:
-> a *warm, cache-served* narrow observation reads **8.4–8.9 KB / ~99 µs** versus
-> the fair preprocessed SQLite baseline's **24,393 B / ~1 ms** and Poppler's
-> **136,128 B / ~8 ms**; lifetime wall beats raw PDF tooling on **5/5** documents;
-> and after deleting the source a new process still rematerializes the exact
-> original (length + SHA-256 + `cmp`). **Cold narrow observations still lose** on
-> bytes, cross-document sharing loses to CDC/`tar|xz`, and an earlier warm-byte
-> claim was **falsified by the independent skeptic** (the cache-served answer read
-> had been excluded from the byte count) — see
-> [`docs/reviews/phase-11-skeptic-review.md`](docs/reviews/phase-11-skeptic-review.md).
-> Read [`FINDINGS.md`](FINDINGS.md) and ADRs 0017–0028.
+Document-heavy AI systems repeatedly turn the same source material into temporary working representations. A document may be parsed for ingestion, extracted into text, divided into chunks, indexed for retrieval, converted for another consumer, rendered for visual inspection, cached, and then partially reconstructed again when a later task needs different information.
 
-## Status
-
-Current release: **`0.1.0-alpha.13`** (Phase 11 — persistent procedural document
-field). Phase 11 turns the byte-exact representation into a **persistent,
-queryable procedural field**: inverse-proceduralize early (object/stream/page
-tree, including `/ObjStm`), persist the recovered state as a content-addressed
-**seed DAG** (filesystem or EntropyFS backend), navigate it with a bounded
-**hierarchical observation index**, and materialize as late as possible — a
-narrow observation resolves its minimum dependency closure and, when warm, never
-opens the descriptor at all.
-
-**Exactness is unchanged and remains the invariant, not a competitive win.**
-`materialize(descriptor) == original_bytes` and `materialize(field_root) ==
-original_bytes` hold byte-for-byte (length + SHA-256 + `cmp`), including after the
-source is deleted and across process restarts; the derived cache is disposable
-and off the authority path.
-
-**Phase 11's measured wins are scoped and receipted** (see
-[`docs/phases/phase-11-results.md`](docs/phases/phase-11-results.md)):
-
-- **Warm narrow observation (agent-interactive):** 0 descriptor bytes read,
-  8.4–8.9 KB total overhead, ~99 µs wall — versus the fair preprocessed-SQLite
-  baseline (**24,393 B / ~1 ms**) and Poppler page text (**136,128 B / ~8 ms**)
-  on the small/medium cases. This is an *overhead* + *wall* win; it requires a
-  warm derived cache and it is reported honestly as such.
-- **Lifetime wall vs raw PDF tooling:** win on 5/5 documents.
-- **Cross-process reuse:** a repeated observation in a new OS process executes
-  **0** seed nodes and reads **0** seed bytes.
-- **Partial descriptors:** a cold narrow observation reads its record closure
-  (~0.22–0.36 MB), not the whole ~17 MB descriptor (−98%).
-
-**Phase 11's recorded losses and corrections:** the **cold** narrow-observation
-byte court still loses to SQLite; lifetime vs the preprocessed DB crosses over on
-only 2/5 documents (absent for large/producer docs); whole-file size loses (0/27);
-finer-than-object sharing loses to `tar|xz` and strongest CDC
-([ADR-0028](docs/adr/0028-finer-than-object-sharing.md)); and the independent
-skeptic **falsified** the original warm-byte-vs-SQLite claim
-([review](docs/reviews/phase-11-skeptic-review.md)).
-
-The pre-Phase-11 consolidation still stands for the axes it covers: through
-Phase 10, the single-file representation stack did not beat purpose-built
-baselines on any measured axis ([ADR-0023](docs/adr/0023-consolidated-findings.md),
-[`FINDINGS.md`](FINDINGS.md)). Phase 11 does not overturn that; it adds a new axis
-— a persistent procedural field — on which scoped wins are now measured. Whole-file
-size remains a recorded loss against generic lossless tools (**0/27**, ADR-0017);
-Phase 7 measured a scoped random-access **decode-CPU** win (ADR-0018); Phase 8
-measured a scoped random-access **bytes-read** win versus **non-seekable
-sequential** codecs only (ADR-0019); Phase 9 added the cross-document store and
-recorded a robust loss (ADR-0020/0021); Phase 10.1 added an optional encoder-only
-governor that buys no bytes (ADR-0022). See the Phase-11 subsection below for the
-field results, and ADRs 0024–0028 for the Phase-11 architecture.
-
-Phase 9 (branch `phase9`, ADR-0020/0021) adds a cross-document
-**content-addressed object store** and then measures the one axis a single-file
-compressor structurally cannot serve. The store is exact (a store-backed
-descriptor materializes the same bytes as its standalone form) and its three
-accounting universes are kept permanently distinct. The **measured result is a
-recorded negative**: over 37 locally generated files (5,579,469 B, 10
-deliberate-sharing strata) the unique-reachable universe `U = 3,369,900 B` loses
-to per-file min LZ (`1,304,307 B`) and to the strongest pinned
-content-defined-chunk dedup (borg 1.2.4: deterministic `771,383 B` raw;
-compressed non-deterministic, 210,835–210,840 B). The negative is **robust** —
-forcing the finest candidate in the current set (`--force pdf-deflate-replay`)
-still gives `U = 2,360,054 B`, and a per-stratum oracle ~`2,537,730 B` — but its
-size is **partly an artifact of externalization granularity/candidate selection**:
-the auto winner emits only 0–1 objects per file. Under the auto candidate only
-byte-identical opaque repeats win (`repeat-bin`, `U = 133,048 B`); forcing
-`PDF_DEFLATE_REPLAY` (one object per deflate stream) flips the `shared-payload`
-fixture to `264,139 B`, a win over **raw** CDC (`285,257 B`) that still loses to
-LZ (`34,591 B`) and compressed CDC (`28,195 B`). No current candidate emits more
-than one object per file (ADR-0021, `docs/evidence/phase9-store-report.md`,
-`docs/evidence/phase9-skeptic-review.md`). Cross-document sharing is store
-*amortization*, never "compression".
-
-| Area | State | Evidence |
-|---|---|---|
-| Exact `.voldoc` container (framing, header, records) | **Implemented** | `src/container/`, unit + conformance courts |
-| Typed errors + stable exit codes | **Implemented** | `src/error.rs` |
-| Centralized resource limits | **Implemented** | `src/limits.rs` |
-| CRC32C framing + SHA-256 archival identity | **Implemented** | `src/integrity.rs` |
-| Document Reconstruction Algebra (literal subset) | **Implemented** | `src/dra/` |
-| Coverage certificate (checked invariant) | **Implemented** | `src/dra/program.rs` |
-| RAW exact opaque adapter | **Implemented** | `src/adapter/opaque/` |
-| Candidate complete-cost court + decode-before-commit | **Implemented** | `src/encode/` |
-| CLI (`encode`/`decode`/`verify`/`inspect`/`capabilities`) | **Implemented** | `src/main.rs` |
-| Exact court over a mixed corpus | **Measured** | `evidence/campaigns/` |
-| Native rANS floor (order-0 / typed byte channels) | **Measured** | campaign `2026-10-05-phase2-f6af30b` |
-| RLE candidate (`REPEAT_LAST` run-length) | **Measured** | campaign `2026-10-05-phase2-f6af30b` |
-| BYTE_RANS candidate (order-0 byte channel) | **Measured** | campaign `2026-10-05-phase2-f6af30b` |
-| Entropy capsule (full decoder-entry state, not a seed) | **Measured** | ADR-0006; `src/entropy/` |
-| PDF lexical span cover (Phase 3.1) | **Measured** | campaign `2026-10-05-phase3-486aa17` |
-| PDF byte-authoritative physical scanner (Phase 3.2–3.3) | **Measured** | campaign `2026-10-05-phase3-486aa17` |
-| PDF incremental revision map (Phase 3.4) | **Measured** | campaign `2026-10-05-phase3-486aa17` |
-| qpdf differential oracle court (oracle, never authority) | **Measured** | `tools/pdf-oracle.sh`; campaign `2026-10-05-phase3-486aa17` |
-| PDF lexical channel transposition (`split`/`join`) | **Implemented** | `src/adapter/pdf/channels.rs`; `tests/pdf_channels.rs` |
-| `INTERLEAVE_CHANNELS` DRA op (DRA v3) | **Measured** | `src/dra/op.rs`; campaign `2026-10-05-phase4-3840bc4` |
-| Compact entropy model wire v2 (sparse/dense, smaller chosen) | **Measured** | `src/entropy/model.rs`; campaign `2026-10-05-phase4-3840bc4` |
-| Forced-candidate ablation (`encode --force KIND`) | **Measured** | `tools/phase4-court.sh`; campaign `2026-10-05-phase4-3840bc4` |
-| PDF typed channels (`PDF_CHANNELS`) | **Recorded (rejected on corpus)** | campaign `2026-10-05-phase4-3840bc4`; exact but loses to `BYTE_RANS` on complete cost (ADR-0010) |
-| Positional DRA ops (`MARK_OFFSET` / `EMIT_OFFSET`, DRA v4) | **Implemented** | `src/dra/op.rs`; `tests/pdf_layout.rs` |
-| PDF layout candidate (`PDF_LAYOUT`) | **Recorded (rejected on cost)** | campaign `2026-10-05-phase5-7193001`; byte-exact and predicts xref offsets/`startxref`, but loses to RAW/`BYTE_RANS` on DRA framing cost (ADR-0011) |
-| Packed segment framing (`PACK_SEGMENTS`, DRA v5) | **Implemented** | `src/dra/op.rs`; opcode `0x08`, one op + a compact varint item table over a single data object, amortizing per-segment framing |
-| PDF layout on packed framing (layout-v2) | **Recorded (beats RAW at scale, rejected vs `BYTE_RANS`)** | campaign `2026-10-05-phase5-4521778`; packed+coalesced layout beats RAW on `many.pdf` (10,069 vs 10,215) but still loses to `BYTE_RANS` (5,181); residual stored literally (ADR-0012) |
-| `PACKED_CHANNELS` DRA op (DRA v6) | **Implemented** | opcode `0x09`; reconstructs from a data channel + a plan channel (serialized item table) with a declared output length validated at eval; universe → `phase5-8` |
-| PDF layout + rANS (`PDF_LAYOUT_RANS`) | **Recorded — rejected vs `BYTE_RANS`** | campaign `2026-10-05-phase5-8-cf8048d`; byte-exact, but wins 0 / loses 8 / declines 3 head-to-head (ADR-0013) |
-| Phase-5 forced-candidate court (`--force pdf-layout`) | **Measured** | `tools/phase5-court.sh`; campaigns `2026-10-05-phase5-7193001` and `2026-10-05-phase5-4521778` |
-| Phase-5.8 forced-candidate court (`--force pdf-layout-rans`) | **Measured** | `tools/phase5-8-court.sh`; campaign `2026-10-05-phase5-8-cf8048d` |
-| Lexer stream opacity (`stream`+EOL opaque span) | **Adopted** | campaign `2026-10-05-phase6-0d0bb79`; stream-data bytes are a byte-authoritative span, so `/FlateDecode` stream spans are exact |
-| `DEFLATE_REPLAY` DRA op (DRA v8) | **Implemented** | `src/dra/op.rs`; opcode `0x0A`, explicit `replay_codec` tag (`preflate-0.7.6-experimental`), exact raw-DEFLATE replay from `(plaintext, corrections)` with a declared output length statically bounded before the engine runs, `catch_unwind`-isolated, mandatory feature bit (opt-in `deflate-replay` cargo feature) |
-| Exact DEFLATE replay, raw plaintext (`PDF_DEFLATE_REPLAY`) | **Recorded — rejected vs `BYTE_RANS`** | campaign `2026-10-05-phase6-0d0bb79`; byte-exact, but on `flate.pdf` 56,736 vs `BYTE_RANS` 49,291 (plaintext ≈ bitstream) |
-| Exact DEFLATE replay, shared rANS plaintext (`PDF_DEFLATE_REPLAY_RANS`) | **Adopted — first structural win (over `BYTE_RANS`, on a self-authored fixture)** | campaign `2026-10-05-phase6-0d0bb79`; `flate.pdf` 36,102 vs `BYTE_RANS` 49,291 (**−13,189 B**). A per-mechanism result only: not a generic-compressor win, and its enabling condition is not produced by tested transformers (ADR-0015, `docs/evidence/phase7b-skeptic-review.md`) |
-| Phase-6 replay court (`--force pdf-deflate-replay[-rans]`) | **Measured** | `tools/phase6-court.sh`; campaign `2026-10-05-phase6-0d0bb79` |
-| Producer-stratified Flate ratio harness (`deflate-stats`) | **Measured** | `tools/pdf-corpus.sh`; amendment campaign `2026-10-05-phase7-corpus-b-c4eb77e` (supersedes `2026-10-05-phase7-corpus-f1f8d26`); 24/24 replayed, 0 declined; diagnostic only, no new candidate |
-| Generator-family Flate corpus (`producers`: ReportLab/Cairo/LibreOffice/pdfTeX) | **Measured (claim corrected 7.0c)** | campaign `2026-10-05-phase7-producers-e071250`; 87/87 replayed; `PDF_DEFLATE_REPLAY_RANS` beats `BYTE_RANS` on Cairo (58,711 → 34,574, −24,137 B) but the Cairo file is a **repeated-identical-bytes harness artifact** (six byte-identical streams), and generic LZ does ~2× better (gzip -9 17,382 B; xz -9e 16,852 B); the "first authoring-generator witness" claim is withdrawn; no candidate changed |
-| Generic-compressor baseline ladder (gzip/zstd/xz/brotli vs VOLE) | **Measured — the honest comparison** | campaign `2026-10-05-phase7-baselines-7b9f662`; `tools/baselines.sh` + opt-in `baseline` image; **VOLE beats gzip/zstd/xz/brotli on 0/27 files** (+460,320 B vs the best generic); prior "wins" were relative to the weak order-0 `BYTE_RANS` lane |
-| Coverage-guided fuzzing (`cargo-fuzz`, ten targets) | **Measured** | campaign `2026-10-05-phase7-fuzz-ca6a92b`; pinned `nightly-bookworm-slim-2026-10-04` + `cargo-fuzz 0.13.2`; 9/10 targets zero-crash; two upstream `preflate-rs` findings (F1 mitigated + regression test; F2 contained on the decode path by process isolation, ADR-0016) |
-| Process-isolated DEFLATE replay (`__replay-worker`) | **Implemented** | `replay_bounded` runs `preflate` in a child under `RLIMIT_AS` + a wall-clock timeout; knobs `VOLE_REPLAY_WORKER`/`VOLE_REPLAY_MEM_MB`/`VOLE_REPLAY_TIMEOUT_MS`; a library embedder without a worker keeps the in-process residual |
-| Partial materialization (`OBSERVATION_INDEX` + `view`) | **Measured — scoped positive (decode CPU, no I/O win)** | campaign `2026-10-05-phase7-partial-a5764c9`; 18/18 queries byte-exact; mid/late queries touch ~0.41–0.43 MB (`descriptor_bytes_traversed` alone; its `entropy_bytes_decoded` breakdown is a subset already counted there and must not be added) vs gzip inflating `a+len` (late region 1.4–2.3 %, ~2–5× faster than gzip, ~4–13× than xz); **v1 reads the whole descriptor, so on-disk I/O is not reduced** and it loses in the early region (≤ ~8–16 MiB) (ADR-0018) |
-| Deterministic large corpus generator (`pdf-make-large`) | **Tooling** | encode-time subcommand; classic-xref PDF of `OBJECTS` (default 800) distinct zlib `FlateDecode` streams, ≥32 MiB, correct by construction; bytes gitignored |
-| Seek `DIRECTORY` + `Read + Seek` reader (`view`) | **Measured — scoped bytes-read win vs non-seekable sequential codecs** | campaign `2026-10-05-phase8-seek-08de2a9`; 18/18 queries byte-exact; seeked `view` reads a constant ~0.44–0.46 MB (GRAPH + OBSERVATION_INDEX + DIRECTORY floor), 12–21× fewer bytes than sequential gzip/zstd/xz prefixes for late queries; loses at offset 0 and early (ADR-0019) |
-| Seekable/blocked random-access baseline (bgzip / blocked xz / pixz) | **Recorded — the honest random-access comparison (falsifies “general random-access win”)** | amendment to campaign `2026-10-05-phase8-seek-08de2a9` (`seekable-report.md`); late query VOLE 460,713 B vs bgzip 23,808 B (~19×), xz-64KiB 15,344 B (~30×), xz-1MiB 179,892 B (~2.6×), xz-4MiB 708,612 B (VOLE wins), pixz 2,810,832 B (VOLE wins); BGZF whole-file 7,995,600 B < 17,566,832 B; `docs/evidence/phase8-skeptic-review.md` |
-| Content-addressed object store (`ObjectStore`/`EmbeddedStore`, `EXTERNAL_REF`) | **Implemented** | `src/store/`, `tests/store.rs`; ADR-0020; `Id = BLAKE3-256`, mandatory `FEATURE_EXTERNAL_OBJECTS`, `externalize`/`hydrate`, `gc` |
-| Three accounting universes (standalone / unique-reachable / amortized) | **Measured** | campaign `2026-10-05-phase9-store-fdb2845`; `store account`; `Σ amortized == unique reachable` by construction |
-| Cross-document store court (universes vs per-file LZ + generic CDC) | **Recorded — store axis is a loss** | campaign `2026-10-05-phase9-store-fdb2845` (ADR-0021); `U = 3,369,900 B` loses to per-file min LZ (`1,304,307 B`) and to CDC borg 1.2.4 (`771,383 B` raw deterministic / 210,835–210,840 B compressed, non-deterministic); the negative is robust (forced `--force pdf-deflate-replay` `U = 2,360,054 B`; per-stratum oracle ~`2,537,730 B`) but partly an externalization-granularity artifact; under the auto candidate only `repeat-bin` wins (`133,048 B`), while forcing `PDF_DEFLATE_REPLAY` flips `shared-payload` to `264,139 B` (win over raw CDC, loss to LZ/zstd); no current candidate emits >1 object/file; 37/37 byte-exact; `docs/evidence/phase9-skeptic-review.md` |
-| EntropyFS store backend (`EntropyFsStore`, optional adapter) | **Implemented (optional, not the measured backend)** | non-default `entropyfs-store` feature; `list`/`remove` decline (no per-blob delete); ADR-0008/0020 |
-| DSFB search governance (Phase 10.1) | **Implemented (encoder-only, `dsfb-search`) / search recorded negative** | campaign `2026-10-05-phase10-governor-d2b09c9`; dependency-free `dsfb-search = []`; guided never worse than fixed (H1) and matches exhaustive on 8/8 holdout with ≤ ½ candidates (H2), but the fixed heuristic already equals exhaustive on every workload, so the search adds **zero bytes** (H3); zero decode authority proven (ADR-0022) |
-| Procedural seed DAG (canonical immutable nodes + content-addressed `SeedStore`) | **Implemented** | ADR-0025; `src/field/`; `NodeId = BLAKE3("VOLE:PSEED:v1" ‖ state ‖ dep ids)`, domain-separated from the object `Id`; `FsSeedStore` + optional one-blob-per-node EntropyFS backend; green = present with complete id-matching closure, red = absent; exactness unchanged |
-| Hierarchical observation index (`HIER_INDEX = 0x72`) | **Implemented** | ADR-0024/0026; bounded (fanout ≤ 256, depth ≤ 3, node ≤ 8 KiB), advisory, re-derivable; a lying/cyclic/out-of-closure/oversized node is rejected fail-closed |
-| Observation query engine + provenance + `EXPLAIN`/`EXPLAIN ANALYZE` | **Implemented / Measured** | ADRs 0024/0026/0027; typed `FieldAnswer{basis, scope, dependency ids, source spans}`; deterministic planner + per-component selective late materialization; no agent/LLM/model on the decode path |
-| Partial descriptor reads + descriptor-free warm path | **Measured — overhead-only + wall win; the warm *byte* win vs A1 is withdrawn on large docs** | campaigns `…-partial-b7de39d`, `…-desc-free-a8ad6f4`; cold page observation reads its record closure (~0.22–0.36 MB, not the ~17 MB blob); warm `descriptor_bytes_read == 0`, ~8.4–8.9 KB overhead, ~99 µs — but the warm process also reads the cached answer, so the vs-A1 byte win fails on large cases (skeptic F1) |
-| Cross-process reuse + source-removal exactness | **Measured** | new OS process executes **0** seed nodes / reads **0** seed bytes; after deleting the source, exact rematerialization (length + SHA-256 + `cmp`) |
-| Fair-baseline / lifetime / pinned-tokenizer courts | **Measured (mixed)** | campaigns `…-lifetime-5a7edd3`, `…-llm-tokens-824faa9`; A1 preprocessed SQLite wins the narrow-query byte court (24,393 B); VOLE crosses A0 on wall on every doc but the A1 wall crossover is **absent on 3/5** documents; tokens (`bert-base-uncased`, pinned offline, hash-verified) 2 win / 2 tie / 2 loss vs page-local |
-| Immutable edit witness (declared narrow subset) | **Implemented (scoped)** | ADR-0025; `src/field/edit.rs`; shares the descriptor/root/unaffected nodes **by content id** (0 bytes read); 2 new seed nodes |
-| Finer-than-object shareable units | **Recorded — loss to CDC** | ADR-0028; `unique_bytes` lower bound loses to strongest CDC and to `tar` + `xz -9e` |
-| Partial materialization byte-level checkpoints (beyond v1) | Planned | v1 random-access `view` measured in 7.3 (ADR-0018); the seek descriptor reader landed in Phase 8 (ADR-0019) and the **Phase-11 observation engine delivered selective late materialization** (ADR-0024/0026); only literal byte-level checkpoint records remain future work |
-
-"Implemented" means the mechanism exists and is tested. "Measured" means there is
-a sealed campaign under `evidence/`. The Phase-1 core establishes exactness,
-framing, integrity, bounds, and receipts before any entropy or format-aware
-mechanism is allowed to compete; Phase 2 then measures entropy channels on that
-same exactness floor.
-
-### Phase 2 measured results
-
-Phase 2 is **order-0 typed byte channels only** — no context model, no typed
-residuals, and no format awareness. On a 9-file mixed corpus the cumulative
-core→full ladder over serialized `.voldoc` bytes is:
+A typical lifetime can involve the same underlying document passing repeatedly through work such as:
 
 ```text
-sum_source = 590081
-sum_core   = 464474   (RAW + RLE)
-sum_full   = 291304   (RAW + RLE + BYTE_RANS)
-delta      = 173170   (sum_core - sum_full)
+parse
+extract
+chunk
+index
+convert
+render
+cache
+re-read
+re-extract
+re-contextualize
 ```
 
-The entire delta is attributed to the two files where `BYTE_RANS` wins
-(`text-256k.bin` 262144 → 143746; `skewed.bin` 65536 → 11382). `RLE` wins the
-long runs (`zeros-64k.bin` 65536 → 283; `runs.bin` 65536 → 3088). Negative
-controls hold: `BYTE_RANS` never wins on random 64 KiB (stored RAW at 65536 →
-65845, a 309-byte fixed framing overhead) or on empty/one-byte inputs (RLE).
-The canonical model's bytes are charged like any other bytes, so on tiny or
-high-entropy inputs order-0 rANS loses to RAW/RLE as required — this is a scoped
-measurement on one deterministic corpus, not a general compression claim.
+Each representation is useful, but most captures only one view of the document and much of the computation that produced it is discarded. A later operation that needs a different view often starts again from the source or from another derived representation.
 
-The entropy substrate is optional in the build: `default = ["rans"]`. The exact
-DEFLATE replay stack is **opt-in** (`--features deflate-replay`); a
-channel-bearing or replay-bearing descriptor decoded without the required
-feature returns an explicit `UnsupportedFeature`, never a silent
-reinterpretation.
-
-Receipt:
-[`evidence/campaigns/2026-10-05-phase2-f6af30b/`](evidence/campaigns/2026-10-05-phase2-f6af30b/).
-
-### Phase 3 measured results
-
-Phase 3 adds a **byte-authoritative PDF physical scanner**: an owned lexer, a
-conservative structural span cover, `/Length` resolution, and an append-only
-revision map. The sealed campaign `2026-10-05-phase3-486aa17` runs over a
-deterministic 9-item corpus (7 valid PDFs plus `malformed.pdf` and `notpdf.bin`
-as negative controls):
-
-- **Coverage** — `all_covered = true`: 171 spans, 19 objects, and 8 revisions
-  across the corpus, partitioned into a contiguous cover of `[0, len)` with no
-  gap and no overlap.
-- **Byte-exactness** — `all_exact = true`: `materialize(descriptor) ==
-  original_bytes` for every item, including both negative controls through the
-  opaque RAW lane.
-- **Validated detection** — a file is a PDF only when the bytes show a `%PDF-`
-  header **and** an indirect object **and** a `%%EOF`; the extension is never
-  authority, and both controls report `is_pdf = false`.
-- **Revision map** — the incremental input yields two append-only revisions with
-  a `/Prev` chain, and `/Size` is treated as never decreasing.
-- **qpdf oracle** — 100% object-number agreement with qpdf 11.3 (classic 4/4,
-  two-page 6/6, incremental 5/5); `qpdf --check` reports valid; `pdfinfo` pages
-  1/2/1. Divergence is expected where objects are compressed inside object
-  streams: those have no physical `N G obj` marker, so a physical scanner
-  enumerates fewer objects than qpdf's semantic view. qpdf is an oracle, never
-  the byte authority.
-
-The literal PDF candidate currently **loses to RAW**: RAW won all 9 items and
-`PDF_PHYSICAL` won 0. This is the **expected Phase-3 result** — the physical lane
-persists each span as one literal `INLINE` op with no structural compression, so
-its per-span overhead loses once complete cost is charged. Structural
-compression (xref/`/Length` proceduralization, stream replay) is Phase 5+ and is
-not claimed here.
-
-Receipt:
-[`evidence/campaigns/2026-10-05-phase3-486aa17/`](evidence/campaigns/2026-10-05-phase3-486aa17/).
-
-### Phase 4 measured results
-
-Phase 4 transposes the byte-authoritative lexical cover into **typed channels**
-(one kind id per token, one 4-byte length per token, one payload stream per
-lexical kind) and reconstructs them with the bounded `INTERLEAVE_CHANNELS` DRA op
-(DRA v3). Each channel gets its own order-0 byte-rANS model, and model wire **v2**
-serializes to whichever of sparse or dense is smaller. The sealed campaign
-`2026-10-05-phase4-3840bc4` runs a forced-candidate ablation (`encode --force
-KIND`) over a deterministic 10-file corpus:
+VOLE-Document explores a different lifetime model:
 
 ```text
-A0 RAW            = 71036
-A1 + RLE          = 71036
-A2 + BYTE_RANS    = 43297
-A3 + PDF_PHYSICAL = 43297
-A4 + PDF_CHANNELS = 43297     leave-one-out channel delta = 0
+source document
+      ↓
+inverse once
+      ↓
+persistent reconstructive state
+      ↓
+observe only what this computation needs
+      ↓
+text / structure / tables / resources / provenance / exact bytes
 ```
 
-All 10 files round-trip byte-exactly (`cmp` + `verify`) and the qpdf oracle
-re-check passes. Auto winners: RAW = 8, `BYTE_RANS` = 2, `PDF_PHYSICAL` = 0,
-`PDF_CHANNELS` = 0. On the text-heavy scale sample `bigtext.pdf` (65,549 B) the
-forced sizes were RAW = 65,871, `BYTE_RANS` = 38,142, `PDF_CHANNELS` = 46,432:
-typed channels beat RAW by ~21.6% but **lose to `BYTE_RANS` by ~8,290 B**. Compact
-sparse models cut the per-channel model overhead from 7,224 B to 1,981 B, which
-was not enough to close the gap. The honest conclusion is that coarse lexical
-transposition plus per-channel order-0 models does **not** beat a monolithic
-order-0 `BYTE_RANS` on this corpus, so the typed lexical channels were **rejected
-by the complete-cost court** and `PDF_CHANNELS` is recorded (not adopted). A win
-would require *conditioning and ordering* rather than more marginal per-kind
-models — that is Phase 5+ work (ADR-0010).
+The document is inverse-compiled into durable computational state rather than treated only as an opaque file to be repeatedly decoded. That state retains enough information to reconstruct the exact original bytes while also exposing narrower observations directly through the document field.
 
-Receipt:
-[`evidence/campaigns/2026-10-05-phase4-3840bc4/`](evidence/campaigns/2026-10-05-phase4-3840bc4/).
+This creates the possibility of carrying useful work forward across the lifetime of a document. Parsing decisions, recovered structure, provenance, package relationships, native format structure, and derived observations can become persistent state rather than transient products of a single request.
 
-### Phase 5 measured results
-
-Phase 5 adds **positional DRA ops** (`MARK_OFFSET` / `EMIT_OFFSET`, DRA v4)
-and the first candidate that replaces literal structural bytes with
-*procedurally determined* ones: the classic cross-reference **layout** lane
-(`PDF_LAYOUT`), which marks each indirect object's introducer offset and the
-`xref` section start, then regenerates the 10-digit xref entry offsets and the
-`startxref` value from those marks. The sealed campaign
-`2026-10-05-phase5-7193001` runs the forced-candidate ablation
-(`encode --force KIND`) over a deterministic 10-file corpus:
+The long-term question is therefore not only how cheaply a document can be stored, but how much repeated work can be avoided when the same document participates in many computations over time:
 
 ```text
-A0 RAW            = 71116
-A1 + RLE          = 71116
-A2 + BYTE_RANS    = 43377
-A3 + PDF_PHYSICAL = 43377
-A4 + PDF_CHANNELS = 43377
-A5 + PDF_LAYOUT   = 43377     leave-one-out layout delta = 0
+traditional lifetime
+
+source
+ ├─ parse → text
+ ├─ parse → chunks
+ ├─ parse → structure
+ ├─ parse → tables
+ ├─ render → preview
+ ├─ parse → provenance
+ └─ reopen → exact source
+
+
+VOLE lifetime
+
+source
+   ↓
+persistent DocumentField
+   ├─ text
+   ├─ chunks / blocks
+   ├─ structure
+   ├─ tables
+   ├─ resources
+   ├─ provenance
+   ├─ previews
+   └─ exact source
 ```
 
-All 10 files round-trip byte-exactly through their auto winner (`cmp` +
-`verify`); auto winners are RAW = 8, `BYTE_RANS` = 2, and `PDF_PHYSICAL` /
-`PDF_CHANNELS` / `PDF_LAYOUT` = 0. **The prediction works and the descriptor is
-exact** — `classic.pdf` regenerates 3 of 4 xref entry offsets plus the
-`startxref`, and `incremental.pdf` regenerates 5 of 7 entries plus two
-`startxref` values — but the lane still **loses to RAW and `BYTE_RANS` on
-complete cost**: `classic.pdf` 798 vs RAW 659, and `bigtext.pdf` 66,066 vs RAW
-65,879 / `BYTE_RANS` 38,150. Layout wins 0 of the 7 classic-xref files. The
-reason is framing, not prediction: the DRA pays a `MarkOffset` per object and
-per xref section plus an `EmitOffset` per predicted entry, and that per-segment
-op framing (tag + operand length) costs more than the ~7 digits saved per
-predicted offset at document scale. The predicted structure is right; the
-reconstruction *container* is too expensive. This is recorded honestly as a
-negative result (ADR-0011) and a format-design input for later phases.
+This matters most for workloads that repeatedly revisit heterogeneous documents and ask different questions of them: retrieval systems, document agents, research systems, technical knowledge bases, compliance and audit workflows, and long-lived document infrastructure.
 
-Receipt:
-[`evidence/campaigns/2026-10-05-phase5-7193001/`](evidence/campaigns/2026-10-05-phase5-7193001/).
+The economic hypothesis is measurable: **if enough useful document computation can be retained in compact procedural state, the cumulative cost of repeated parsing, extraction, materialization, I/O, and model context can fall over the lifetime of the document.** VOLE-Document measures that hypothesis directly rather than assuming it. The repository records the regions where the field wins, ties, declines, or loses against direct tooling and persistent database baselines.
 
-### Packed framing (Phase 5.7) measured results
+Exact source closure is part of that model. A narrower observation never has to become the archival authority for the document: the persistent field can answer derived questions while retaining a verified path back to the original bytes.
 
-Phase 5.7 attacks the framing root cause directly. The `PACK_SEGMENTS` DRA op
-(opcode `0x08`, bumping the DRA graph to **version 5**, universe
-`phase6-prep;…;dra-5;…+packed`) amortizes per-segment framing: instead of one
-tagged op per literal run, it carries **one op plus a compact varint item table**
-(`Literal` varint-length / `Mark` / `Emit`) over a single data object. The layout
-candidate was rebuilt on this op (**layout-v2**), and literal coalescing (5.7.2b)
-merges adjacent literal runs: on `many.pdf` (200 objects, 9,881 B) the item table
-fell from **1,413 to 805** items.
+## How it works
 
-The sealed campaign `2026-10-05-phase5-4521778` runs the forced-candidate
-ablation over an 11-file corpus:
-
-```text
-A0 RAW            = 81371
-A2 + BYTE_RANS    = 48598
-A5 + PDF_LAYOUT   = 48598     leave-one-out layout delta = 0
+```mermaid
+flowchart TD
+    A["source bytes (PDF / DOCX / EPUB / ODT)"] --> B["native inverse compiler"]
+    B --> C["DocumentField: seed DAG + observation index"]
+    C --> D["typed observations (text, structure, bytes, ...)"]
+    C --> E["materialize --exact => original bytes"]
 ```
 
-Forced sizes:
+Source bytes enter a **format-native inverse compiler** (a PDF physical scanner,
+a WordprocessingML inverse, a bounded-XHTML/OCF inverse, or a bounded
+OpenDocument (ODF) inverse over a shared
+byte-authoritative ZIP layer). The recovered state is persisted as a
+content-addressed **procedural seed DAG** plus a bounded **observation index**.
+Queries resolve their minimum dependency closure and materialize as late as
+possible; the exact whole document is just one observation
+(`FullExactDocument`) among many. Authority is layered and never confused: the
+DRA plus `INTEGRITY` is normative for reconstruction, the seed DAG is normative
+for observations, indexes are advisory, and the derived cache is disposable
+(ADRs [0024](docs/adr/0024-document-field-authority.md),
+[0029](docs/adr/0029-multi-format-authority-model.md)).
 
-```text
-many.pdf     layout-v2 10069   RAW 10215   BYTE_RANS 5181   (layout beats RAW by 146 B)
-classic.pdf  layout      711   RAW   663
-bigtext.pdf  layout    65929   RAW 65883   BYTE_RANS 38154
-```
+## What it does
 
-Packed framing plus coalescing makes **structural layout prediction beat RAW at
-scale** (`many.pdf` 10,069 vs 10,215), which the per-segment Phase-5 framing never
-managed. It is still **not adopted**: it loses to `BYTE_RANS` (5,181), wins 0 of
-the 8 classic-xref samples, and the leave-one-out layout delta is 0, so layout is
-never the auto winner. The honest conclusion is that the framing is fixed, but the
-residual data object is stored **literally**, so any order-0 entropy lane
-dominates it. The remaining lever is to entropy-code the residual data object —
-structural prediction **composed with** rANS on the residual, which is the paper's
-layered model — not more literal packing. This is recorded as a partial positive
-(ADR-0012).
+| Capability | What it means |
+|---|---|
+| Exact reconstruction | `materialize(descriptor)` and `materialize(field_root)` equal the original bytes (length + SHA-256 + `cmp`). |
+| Inverse proceduralization | Recovers a bounded DRA reconstruction program plus typed residual and order-0 rANS channels from the document. |
+| Persistent field | Stores the recovered state as a content-addressed seed DAG that survives deletion of the source. |
+| Typed observations | Selectors (document / page / object / stream / revision / byte-range / text-match) × representations (metadata / text / structure / operators / encoded / decoded / exact / preview). |
+| Provenance | Every answer carries a typed basis, scope, dependency ids, and exact source spans. |
+| `EXPLAIN` | `explain` shows the intended plan; `explain --analyze` reports the actual work (bytes read by class, nodes executed vs reused, decodes, wall/CPU). |
+| Partial materialization | Serves one byte range, object, stream, or revision from an advisory seek `DIRECTORY` + observation index without materializing the whole document. |
+| Multi-format | One field vocabulary over PDF, DOCX, EPUB and ODT, with retained native structure and `format=…;common;…` provenance. |
+| Hostile-input contract | Typed errors, checked arithmetic, bounded resources, fail-closed unknowns; the decoder never executes document content. |
 
-Receipt:
-[`evidence/campaigns/2026-10-05-phase5-4521778/`](evidence/campaigns/2026-10-05-phase5-4521778/).
+## Supported formats
 
-### Layout + rANS residual (Phase 5.8) measured results
+| Format | Physical layer | Native inverse | Exact | Common observations |
+|---|---|---|---|---|
+| PDF | owned lexer + physical span scanner | objects, streams, revisions, page tree, `/ObjStm` | yes | `metadata`, `text`, `find` |
+| DOCX | shared byte-authoritative ZIP + OPC | WordprocessingML stories, paragraphs, runs, tables, notes, tracked changes | yes | `metadata`, `text`, `heading`, `block`, `table`, `cell`, `resource`, `link`, `find` |
+| EPUB | shared byte-authoritative ZIP + OCF | package, manifest, spine, bounded XHTML | yes | `metadata`, `text`, `heading`, `block`, `table`, `cell`, `resource`, `link`, `find` |
+| ODT | shared byte-authoritative ZIP + ODF | OpenDocument: paragraphs, headings, lists, tables, notes, tracked changes, sections | yes | `metadata`, `text`, `heading`, `block`, `table`, `cell`, `resource`, `link`, `find` |
+| XLSX, PPTX, others | — | — | PROPOSED | — |
 
-Phase 5.8 builds the lever ADR-0012 named: the `PACKED_CHANNELS` DRA op (opcode
-`0x09`, DRA **v6**, universe
-`phase5-8;…;dra-6;…+packed+packed-channels`) reconstructs from a **data channel**
-plus a **plan channel** (the serialized item table) with a declared output length
-validated at eval, and the `PDF_LAYOUT_RANS` candidate codes the layout plan's
-data object and its item table each as their own order-0 rANS channel. The sealed
-campaign `2026-10-05-phase5-8-cf8048d` runs the forced-candidate ablation over the
-11-file corpus:
-
-```text
-A0 RAW               = 81591
-A2 + BYTE_RANS       = 48818
-A6 + PDF_LAYOUT_RANS = 48818     leave-one-out layout+rANS delta = 0
-```
-
-Forced sizes:
-
-```text
-classic.pdf  RAW 683  BYTE_RANS 728  PDF_LAYOUT 731  PDF_LAYOUT_RANS 883
-bigtext.pdf  RAW 65903  BYTE_RANS 38174  PDF_LAYOUT_RANS 38341
-many.pdf     RAW 10235  BYTE_RANS 5201  PDF_LAYOUT 10089  PDF_LAYOUT_RANS 5914
-```
-
-On `many.pdf` the layout+rANS size breaks down as data 7,877, plan 1,815, models
-645, payload 4,775. Head-to-head against `BYTE_RANS`: **win 0, lose 8, declined
-3**. The honest conclusion: layout+rANS does **not** beat `BYTE_RANS`. Channel 0
-codes nearly the whole file — the same job `BYTE_RANS` does with one channel — so
-the plan channel (1,815 B on `many.pdf`) plus a second model are added metadata
-`BYTE_RANS` never pays. Three phases (4, 5, 5.7) plus this one converge: at the
-tested scale, PDF structural proceduralization does not beat a whole-file order-0
-rANS lane.
-
-Receipt:
-[`evidence/campaigns/2026-10-05-phase5-8-cf8048d/`](evidence/campaigns/2026-10-05-phase5-8-cf8048d/).
-
-### Exact DEFLATE replay (Phase 6) measured results
-
-Phases 4–5.8 all proceduralize **plain** syntax that `BYTE_RANS` already models
-well. Phase 6 attacks a different layer: bytes the producer has **already
-entropy-coded**. The `DEFLATE_REPLAY` DRA op (opcode `0x0A`, DRA **v8**, universe
-`phase6;…;dra-8;…+deflate-replay-preflate-0.7.6-experimental`) reconstructs the
-*original* raw DEFLATE bitstream of a `/FlateDecode` stream from `(plaintext,
-corrections)`. Its `replay_codec` tag names the correction representation as an
-experimental, version-coupled preflate-0.7.6 layout (not frozen v1), and an
-unknown tag fails closed. The
-byte-authoritative scanner owns stream discovery and `/Filter` classification;
-`preflate` never discovers streams. A lexer fix makes `stream`+EOL payloads opaque
-spans. Two candidates use the op: `PDF_DEFLATE_REPLAY` (raw, deduplicated
-plaintext objects) and `PDF_DEFLATE_REPLAY_RANS` (each unique plaintext is one
-shared order-0 byte-rANS channel). The sealed campaign
-`2026-10-05-phase6-0d0bb79` runs the forced-candidate ablation over the 12-file
-corpus:
-
-```text
-A0 RAW                      = 139950
-A2 + BYTE_RANS              =  98560
-A6 + PDF_LAYOUT_RANS        =  98560
-A7 + PDF_DEFLATE_REPLAY     =  98560
-A8 + PDF_DEFLATE_REPLAY_RANS=  85371     leave-one-out replay-rANS delta = -13189
-```
-
-Forced sizes on `flate.pdf` (57,513 B):
-
-```text
-RAW 57908   BYTE_RANS 49291   PDF_DEFLATE_REPLAY 56736   PDF_DEFLATE_REPLAY_RANS 36102
-```
-
-`PDF_DEFLATE_REPLAY_RANS` is the auto winner on `flate.pdf` and **beats
-`BYTE_RANS` by 13,189 B**. The six `FlateDecode` streams are the content
-plaintext `p1` at levels 9/6/1/0 (one shared plaintext, four appearances), a
-graphics stream `p2` at level 6, and an incompressible stream `p3` at level 6
-that DEFLATE stores; the descriptor replays all six and codes their **3 unique
-plaintexts** as order-0 channels (`streams=6 replayed=6 channels=3 objects=6`).
-Of `p1`'s four appearances only the level-0 stream is weakly coded (stored);
-level 1 is ~19% of the plaintext and levels 6/9 are strong, so the win needs the
-shared plaintext to *also* have a large/weakly-coded appearance. `BYTE_RANS`
-order-0-codes the six streams to 49,291 B; it does not carry them verbatim. The
-raw-plaintext variant loses (56,736 B) because a strongly-compressed stream's
-plaintext is nearly as large as the stream it replaces. Head-to-head vs
-`BYTE_RANS`: **win 1, lose 0, decline 11** (the other files have no lone
-`FlateDecode` stream); every auto winner is exact (`cmp` + `verify`). This is
-**one composed sample**, at commit `0d0bb79`, measured on a single synthetic
-fixture: the win requires a shared plaintext that also has a large/weakly-coded
-appearance (unique strongly-compressed streams lose, by up to 4.46×), and the
-losing region is unique, strongly-compressed plaintext. It is the first measured
-positive for a PDF structural candidate
-(ADR-0015); the plain-syntax converging negatives (ADR-0010–ADR-0013) stand.
-
-Receipt:
-[`evidence/campaigns/2026-10-05-phase6-0d0bb79/`](evidence/campaigns/2026-10-05-phase6-0d0bb79/).
-
-### Producer-stratified Flate ratio (Phase 7.0) measured results
-
-`tools/pdf-corpus.sh` builds a locally-generated corpus from distinct producer
-lineages (Ghostscript 10.00.0 at five `/PDFSETTINGS`, qpdf 11.3.0 in four modes,
-a hand-written stored-block-zlib base, plus the Phase-3 synthetic set), and
-`vole-document deflate-stats` measures the exact-replay ratio per `FlateDecode`
-stream — `correction/compressed`, `(plaintext+corr)/compressed`,
-`(rANS(plaintext)+corr)/compressed` — with p10/p50/p90 by producer, the
-exact-replay acceptance rate, and every decline. It also reports two aggregate
-complete costs so shared plaintext is not overcounted:
-`replayed_rans_full_bytes` (naive per-stream sum) and
-`replayed_rans_dedup_bytes` (one charge per unique plaintext + one per unique
-correction, matching the shared-channel candidate).
-
-On 24 `FlateDecode` streams (re-measured after the Stage-A lexer stream-boundary
-fix): **24 replayed, 0 declined (acceptance 1.000)**. The pre-fix run saw only 17
-streams (11 replayed, 6 declined); the census rose because the old over-read had
-swallowed whole stream objects (every qpdf-generated file was undercounted;
-`qpdf-preserve-objectstreams.pdf` had reported zero). The Phase-6 win region
-appears **only in our own hand-authored fixtures** (`hand-base2.pdf`: deduped
-rANS 55,531 vs naive 111,062; `flate.pdf`: 34,051 vs 89,437). The same geometry
-in `qpdf-preserve-objectstreams.pdf` (55,531 vs 111,062) is present **only
-because qpdf `--object-streams=preserve` copied and renumbered the two
-byte-identical raw streams already authored in `hand-base2.pdf`** (confirmed via
-`qpdf --raw-stream-data`: all four stream hashes are `ec028dc1…`); the fixture
-already wins 112,011 → 56,885 B and qpdf adds +41 B, so **99.93% of the reported
-qpdf win is inherited**. No genuinely transformed producer output exhibits the
-region. Corpus-wide `correction/compressed` p10/p50/p90 = 0.000320 / **0.014716**
-/ 0.097360; the `0.004518` median is the `pdf-make-samples` subset only.
-The six former declines were all `not_zlib` **because of a scanner locality
-limitation** — the lexer's `find_endstream` required an EOL before `endstream`,
-which Ghostscript omits (spec "should", qpdf-tolerated) — not because those
-streams are not zlib (they begin `78 9c`, confirmed via `qpdf --raw-stream-data`).
-That limitation is **fixed** (commit `c4eb77e`): `find_endstream` now locates the
-`endstream` keyword by right-termination. This is a **scoped** result about
-locally generated files; qpdf/Ghostscript are transformers, not authoring apps,
-and browser/office/TeX families remain a recorded gap. No candidate is adopted.
-
-Receipt:
-[`evidence/campaigns/2026-10-05-phase7-corpus-b-c4eb77e/`](evidence/campaigns/2026-10-05-phase7-corpus-b-c4eb77e/)
-(amendment; supersedes the original
-[`2026-10-05-phase7-corpus-f1f8d26/`](evidence/campaigns/2026-10-05-phase7-corpus-f1f8d26/));
-report: [`docs/evidence/phase7-corpus-report.md`](docs/evidence/phase7-corpus-report.md).
-
-**Complete-cost court (the decisive Phase-7.0 measurement).** The ratio harness
-is a diagnostic; the court decides. A second sealed campaign
-(`2026-10-05-phase7-court-99dc72e`, commit `99dc72e`, driver
-`tools/pdf-court.sh`) runs the real CLI over all 23 locally generated corpus
-files — unforced and with `--force raw|byte-rans|pdf-deflate-replay|pdf-deflate-replay-rans`
-— and compares complete serialized `.voldoc` sizes. `PDF_DEFLATE_REPLAY_RANS` vs
-`BYTE_RANS`: **win 3, lose 8, decline 12 — all 3 wins self-authored**. The wins
-are exactly the Phase-6 shared-plaintext geometry, and in all three the unforced
-court picks `PDF_DEFLATE_REPLAY_RANS`:
-
-```text
-qpdf-preserve-objectstreams.pdf  BYTE_RANS 112147 -> PDF_DEFLATE_REPLAY_RANS 56980  (-55167)
-hand-base2.pdf                   BYTE_RANS 112011 -> PDF_DEFLATE_REPLAY_RANS 56885  (-55126)
-_synthetic/flate.pdf             BYTE_RANS  49291 -> PDF_DEFLATE_REPLAY_RANS 36102  (-13189)
-```
-
-The reported "qpdf win" is not a transformed-producer result:
-`qpdf --object-streams=preserve` copied and renumbered the two byte-identical raw
-streams (`ec028dc1…`) already authored in our `hand-base2.pdf` fixture (the
-fixture wins 112,011 → 56,885 B; qpdf adds only **+41 B**, so **99.93% of the
-55,167 B win is inherited**). Every **genuinely transformed** producer output
-loses or declines on this corpus: all 5 Ghostscript variants and both qpdf
-compression variants (unique, strongly-compressed plaintext) **lose**, and the 12
-files with no replayable Flate lane **decline** (a forced lane the input does not
-propose is a typed `Usage` error, recorded `null`). So on this locally generated
-corpus exact replay **wins 3 / loses 8 / declines 12, and all 3 wins are
-self-authored** (two fixtures plus a preserved copy of one). `--deterministic-id`
-is a `/ID`-only normalization (55,165 B no-flag vs 55,167 B flagged): it makes
-the court reproducible but neither creates nor destroys the win. The Phase-6 win
-is real and byte-exact, but its enabling condition (a plaintext shared across
-streams with a large/weakly-coded appearance) is **not produced by the tested
-transformers**, which motivates Phase 7.2 (nested content proceduralization). All
-23 auto winners are `verify` + `cmp` byte-exact. The corpus is **locally
-generated** and is **not a population sample**; qpdf and Ghostscript are
-**transformers, not authoring applications**, and browser/PDFium, LibreOffice,
-pdfTeX and Adobe outputs remain a recorded gap. No candidate is adopted and no
-wire format changed.
-
-Receipt:
-[`evidence/campaigns/2026-10-05-phase7-court-99dc72e/`](evidence/campaigns/2026-10-05-phase7-court-99dc72e/).
-
-### Generator-family Flate corpus (Phase 7.0b) measured results
-
-The Phase-7.0 gap was that qpdf and Ghostscript are **transformers** and never emit
-the shared plaintext the win region needs. Phase 7.0b adds a separate, opt-in
-`producers` image (`Dockerfile` stage + compose service, base
-`debian:bookworm-slim@sha256:3783cc01…`, the same digest as `tools`; ~724 MB) with
-four real **authoring generators**: ReportLab 3.6.12, Cairo 1.20.1/libcairo 1.16.0,
-LibreOffice Writer 7.4.7.2, and pdfTeX 3.141592653-2.6-1.40.24. All four ran.
-`tools/pdf-corpus-producers.sh` generates one PDF per family from the same
-deterministic content document as `tools/pdf-corpus.sh`, fingerprints every
-`/FlateDecode` payload, and applies
-`qpdf --deterministic-id --stream-data=preserve --object-streams=preserve` only when
-it leaves every payload byte-identical (ReportLab, Cairo, LibreOffice; pdfTeX kept
-raw). ReportLab/Cairo/pdfTeX are byte-reproducible; LibreOffice is not.
-
-`deflate-stats`: **87 Flate streams, 87 replayed, 0 declined → acceptance 1.000**;
-corpus-wide `correction/compressed` p10/p50/p90 = 0.034759 / 0.047945 / 0.068028.
-
-Complete-cost court: `PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS` — **win 1 / lose 3 /
-decline 0**:
-
-```text
-cairo-vector.pdf        BYTE_RANS  58711 -> PDF_DEFLATE_REPLAY_RANS  34574  (-24137)  WIN
-reportlab-multipage.pdf BYTE_RANS  11144 -> PDF_DEFLATE_REPLAY_RANS  14456  (+3312)   lose
-pdftex-doc.pdf          BYTE_RANS  24435 -> PDF_DEFLATE_REPLAY_RANS  35098  (+10663)  lose
-libreoffice-export.pdf  BYTE_RANS  72791 -> PDF_DEFLATE_REPLAY_RANS 375265 (+302474)  lose
-```
-
-**Correction (Phase 7.0c): the Cairo "win" is a harness repeated-bytes artifact.**
-An independent adversarial review found that `tools/pdf-corpus-producers.sh` draws
-**one identical page six times** (no per-page variation), so Cairo emits six streams
-whose **compressed bytes are identical *and* whose plaintexts are identical**. The
-court therefore cannot distinguish plaintext-sharing from plain compressed-byte
-repetition, and generic LZ captures far more of the same redundancy: on
-`cairo-vector.pdf`, `gzip -9` = **17,382 B**, `zlib -9` = 17,376 B and `xz -9e` =
-**16,852 B** — about **half** the 34,574 B reported as the "winning"
-`PDF_DEFLATE_REPLAY_RANS` size. `BYTE_RANS` is a weak order-0 baseline with no LZ, so
-the −24,137 B delta is a win over an order-0 lane on repeated identical bytes. The
-phrases "a genuine authoring application does produce the win region", "the producer
-creates the geometry" and "first authoring-generator witness" are **withdrawn**.
-Correct characterization: *our deterministic generator repeated one identical page
-six times; Cairo emitted six byte-identical streams (compressed bytes and plaintext
-both identical); this witnesses a repeated-identical-bytes region already captured
-better by generic LZ, not the shared-plaintext-vs-distinct-compression mechanism.*
-ReportLab and pdfTeX are the same story (identical repeats) and **lose** at complete
-cost; LibreOffice shares nothing. The delta is **conditional** on repeated identical
-page content and is **not** a population claim; prior "wins" were measured against a
-weak order-0 baseline and the generic ladder (below) is the honest comparison. No
-candidate or wire format changed. Review:
-[`docs/evidence/phase7b-skeptic-review.md`](docs/evidence/phase7b-skeptic-review.md).
-
-Receipt:
-[`evidence/campaigns/2026-10-05-phase7-producers-e071250/`](evidence/campaigns/2026-10-05-phase7-producers-e071250/);
-script `tools/pdf-corpus-producers.sh`; ledger
-[`evidence/corpus/phase7-producers/provenance.json`](evidence/corpus/phase7-producers/provenance.json).
-
-### Generic-compressor baseline ladder (Phase 7.0c) measured results
-
-Phase 7.0/7.0b measured VOLE only against `BYTE_RANS`, a whole-file **order-0
-byte-rANS** lane with no LZ. Phase 7.0c adds the honest comparison: a pinned,
-opt-in `baseline` image (the pinned `dev` base plus `gzip`, `zstd`, `xz`, `brotli`,
-`jq`) and `tools/baselines.sh`, which for every corpus file records the smallest
-lossless complete-file size for `gzip -9`, `zstd -19 --long=27`, `xz -9e` and
-`brotli -q 11` (each round-trip verified) and the complete serialized `.voldoc`
-size of every VOLE lane, then compares against the best VOLE lane.
-
-**Result: on 27 corpus files the best VOLE lane beats gzip/zstd/xz/brotli on 0
-files.** The best generic compressor is smaller on every file, by **+460,320 B**
-total (phase7 +410,355 over 23 files; producers +49,965 over 4). On the Cairo file
-the "winning" 34,574 B is **2.07×** brotli's 16,670 B; on `flate.pdf` the 36,102 B
-is **1.91×** xz's 18,884 B:
-
-```text
-cairo-vector.pdf        source 58424  gzip 17382  zstd 16836  xz 16852  brotli 16670  BYTE_RANS 58711  best VOLE 34574  (+17904 vs brotli)
-_synthetic/flate.pdf    source 57513  gzip 22426  zstd 20171  xz 18884  brotli 18891  BYTE_RANS 49291  best VOLE 36102  (+17218 vs xz)
-```
-
-Prior "wins" were relative to a weak order-0 baseline and do not survive the
-generic ladder. VOLE's byte-exact structural reconstruction is unchanged; its
-*compression* claim does not survive on this corpus. All 27 auto winners are
-`verify` + `cmp` byte-exact; no candidate or wire format changed. Review:
-[`docs/evidence/phase7b-skeptic-review.md`](docs/evidence/phase7b-skeptic-review.md).
-
-Receipt:
-[`evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/`](evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/)
-(full per-file table `baseline-table.md`); driver `tools/baselines.sh`.
-
-### Partial materialization / observation views (Phase 7.3) measured results
-
-Whole-file compression loses (above), so Phase 7.3 measures the pivoted axis —
-**random-access query cost**. `view` serves one output range from a descriptor
-carrying an optional, advisory `OBSERVATION_INDEX`: when the program is a
-sequence of linear independent ops it evaluates only the ops intersecting
-`[a,b)` and decodes only the referenced entropy channels, and every served slice
-is `cmp`'d against the full materialization. The corpus is a 33,789,340 B
-(32.22 MiB), 800-stream deterministic PDF from the encode-time `pdf-make-large`
-subcommand (`qpdf --check` rc 0; 800 replayed / 0 declined).
-
-**Result: a scoped positive on decode CPU, byte-exact on all 18
-pre-registered queries.** For any query at ≥ ~2 MiB the indexed lane touches
-~0.41–0.43 MB (`descriptor_bytes_traversed` alone; its `entropy_bytes_decoded`
-breakdown is a subset already counted there and must not be added) regardless
-of offset, while gzip must inflate `a + len`; in the late region (≥ 50 % in) that
-is **1.4–2.3 %** of gzip's bytes, and VOLE is **~2–5× faster than gzip** and
-**~4–13× faster than xz** on CPU. It **loses** in the early region (≤ ~8–16 MiB),
-**never beats zstd's raw decompressor** on wall time, uses ~38 MB peak RSS vs
-gzip's ~1.2 MB, and whole-file size is still **2.98×** xz. The decisive caveat:
-`view` reads and parses the **whole** descriptor, so on-disk I/O is **not**
-reduced (no bytes-read win yet; `descriptor_bytes_traversed` is a CPU-side
-approximation) — an mmap/seek reader is the prerequisite for that claim.
-
-Receipt:
-[`evidence/campaigns/2026-10-05-phase7-partial-a5764c9/`](evidence/campaigns/2026-10-05-phase7-partial-a5764c9/)
-(`query-table.md`, `report.md`); report
-[`docs/evidence/phase7-partial-report.md`](docs/evidence/phase7-partial-report.md);
-drivers `tools/partial-court.sh`, `tools/partial-table.jq`; ADR-0018.
-
-### Seek-based partial I/O (Phase 8.3) measured results
-
-Phase 8 supplies the mmap/seek reader ADR-0018 required. A descriptor may carry
-an optional seek `DIRECTORY` record (first record, fixed offset 64,
-`FLAG_OPTIONAL`, cross-checked and never trusted); the `view` CLI peeks only the
-64-byte header and serves from a `Read + Seek` reader that fetches those record
-*classes* the query needs (header, DIRECTORY, GRAPH, OBSERVATION_INDEX,
-INTEGRITY, and the one referenced object/channel/model) — it never `fs::read`s
-the whole descriptor. This is a **floor**, not a small read: a 256-byte request
-still incurs ~440 KB (~1,700×). A partial read is an *observation*
-(`integrity_verified == false`); `materialize`/`decode`/`verify` remain the
-archival authority.
-
-**Result: a scoped bytes-read win versus non-seekable sequential codecs,
-byte-exact on all 18 pre-registered queries.** On the same 33,789,340 B
-(32.22 MiB) corpus the seekable descriptor is 17,566,832 B (DIRECTORY 27,390 B).
-The seeked `view` reads a **constant 439,679–461,367 B** regardless of offset
-(floor = header 64 + DIRECTORY 27,390 + GRAPH 265,462 + OBSERVATION_INDEX
-146,711 + INTEGRITY 52), ≤ 2.6 % of the descriptor for every query. In the late
-region (≥ 50 % in, 8/8 queries) that is **4.7 %–~21× fewer bytes than gzip's
-compressed prefix** (9,764,864 B vs 460,713 B at 31 MiB) and ~12–13× fewer than
-zstd/xz; a `strace -P` descriptor-file cross-check equals the instrumented count
-+ exactly 64 B (the header peek). CPU drops to ~0.00 s and peak RSS from ~38 MB
-to **~3.8 MB**.
-
-**Not a general random-access-I/O win (Phase 8.4 amendment).** Against
-**seekable/blocked** formats, for the same late query: bgzip (BGZF) reads
-**23,808 B** (~19× fewer than VOLE's 460,713 B), `xz --block-size=64KiB`
-**15,344 B** (~30× fewer) and `1MiB` **179,892 B** (~2.6× fewer) — and BGZF's
-whole file (7,995,600 B) is even smaller than the seekable descriptor. VOLE only
-wins where the block size is large (`xz --block-size=4MiB` 708,612 B; pixz
-2,810,832 B, 16 MiB blocks). See `docs/evidence/phase8-skeptic-review.md`.
-
-**Where it loses (recorded).** At `a = 0` the constant floor exceeds gzip's first
-bytes (327,680 B) and xz's (73,728 B); at early queries (≤ ~1.7 MiB) it loses to
-xz's tiny compressed prefix; and versus compact-block seekable formats it loses
-across the late region. The floor is constant in the offset, so it would
-dominate a descriptor smaller than ~9 MB — a large-document mechanism. Whole-file
-size is still **3.01×** xz (and 0.46× BGZF). One locally generated corpus;
-**no population claim**.
-
-**Validator caveat.** A *referenced* channel's `decoded_length` is cross-checked
-against its record; an *unreferenced* `CHANNEL_LENGTHS` entry is not — benign,
-since `analyze_ops` never uses an unused length, so no wrong bytes are served.
-
-Receipt:
-[`evidence/campaigns/2026-10-05-phase8-seek-08de2a9/`](evidence/campaigns/2026-10-05-phase8-seek-08de2a9/)
-(`query-table.md`, `report.md`, `seekable.jsonl`, `seekable-table.md`,
-`seekable-report.md`); reports
-[`docs/evidence/phase8-seek-report.md`](docs/evidence/phase8-seek-report.md),
-[`docs/evidence/phase8-skeptic-review.md`](docs/evidence/phase8-skeptic-review.md);
-drivers `tools/seek-court.sh`, `tools/seek-table.jq`,
-`tools/seekable-baselines.sh`; ADR-0019.
-
-### Encoder-only search governance (Phase 10.1) measured results
-
-The brief's Phase 10 asks for a **DSFB**-style search governor with **zero decode
-authority**. Empirically, the published `dsfb 0.1.2` crate is **Drift-Slew Fusion
-Bootstrap state estimation** — a Kalman-like `f64` observer over sensor channels
-with no candidate / residual / search-directive API — present in the lockfile only
-transitively through the optional EntropyFS engine. It is therefore recorded as
-*unavailable-for-purpose* and is **not** a dependency: the feature is the
-**dependency-free** `dsfb-search = []`.
-
-The governor (`src/encode/governor.rs`) is encoder-only and integer-only. It
-produces typed residual diagnostics, proposes candidates from a tiny parametric
-space over *existing* mechanisms (`scale_bits`, `partition`, `replay`, `packed`,
-`depth`), and maps the incumbent's dominant residual to a directive with a pure
-`govern` function. Every candidate it can enable is serialized, parsed,
-materialized, byte-compared, and priced by the *same* complete-cost court; no
-governance state is persisted and `src/container/header.rs` is untouched, so a
-governer-produced descriptor decodes byte-exactly in a build **without** the
-feature.
-
-The court (`tools/governor-court.sh`, campaign
-`2026-10-05-phase10-governor-d2b09c9`, ADR-0022) compares `Exhaustive`,
-`FixedHeuristic`, and `DsfbGuided` over a small deterministic cohort split into
-disjoint tune/holdout/control sets. Pre-registered hypotheses: **H1 HELD**
-(`DsfbGuided.final ≤ FixedHeuristic.final` everywhere); **H2 HELD**
-(`guided.final == exhaustive.final` on 8/8 holdout with ≤ ½ the candidates);
-**H4 HELD** (negative controls `Stop(Raw)` and match the RAW descriptor
-byte-for-byte). But **H3 also HOLDS**, and it is the substantive result: the fixed
-heuristic already attains the exhaustive minimum on **every** workload, so the
-parametric search adds **zero bytes**. Representative rows (final bytes /
-candidates): `flate.pdf` 36,161 (fixed 10, exhaustive 438, guided 150);
-`bigtext.pdf` 38,274 (7/414/126); `many.pdf` 5,301 (7/414/126). **The fixed
-complete-cost court is retained**; the governor remains an optional, encoder-only
-feature. Small locally generated cohort; **no population claim**.
-
-Receipt:
-[`evidence/campaigns/2026-10-05-phase10-governor-d2b09c9/`](evidence/campaigns/2026-10-05-phase10-governor-d2b09c9/)
-(`results.json`, `hypotheses.json`, `decode-proof.json`, `report.md`); driver
-`tools/governor-court.sh`; ADR-0022.
-
-### Persistent procedural document field (Phase 11) measured results
-
-Phase 11 stops treating the persisted document as a re-openable archive and makes
-it a **queryable procedural field** (ADRs [0024](docs/adr/0024-document-field-authority.md)–[0028](docs/adr/0028-finer-than-object-sharing.md)):
-
-- **Procedural seed DAG.** Each recovered computation is a canonical, versioned
-  node (`NodeId = BLAKE3("VOLE:PSEED:v1" ‖ state ‖ dep ids)`), stored one blob per
-  node in a content-addressed seed store, on a plain-filesystem backend or the
-  optional EntropyFS engine (`entropyfs-store`). The DAG is immutable and
-  cycle-free; the id *is* the fingerprint, so a changed dependency yields a new
-  node and reuse has no invalidation pass.
-- **Hierarchical observation index.** A bounded selector-keyed tree (fanout ≤ 256,
-  depth ≤ 3, node ≤ 8 KiB) navigated path-only; it accelerates and never defines
-  truth (a lying/oversized/out-of-closure node is rejected fail-closed).
-- **Progressive inverse compiler.** Stage A durable capture; Stage B cheap eager
-  inversion (physical spans, revisions, objects, streams, decoded streams, page
-  tree, `/ObjStm`-hosted page objects); Stage C demand-driven deepening. Real
-  producers recover their pages: Cairo 6, LibreOffice 61, pdfTeX 6, ReportLab 6.
-- **Observation engine.** Typed selectors (Document/Page/Object/Stream/Revision/
-  ByteRange/TextMatch) × representations (Metadata/Text/Structure/Operators/
-  Encoded/Decoded/Exact/Preview/FullDocument), each answer a `FieldAnswer` with a
-  typed `basis` (authored / directly-observed / deterministically-derived /
-  heuristic / inferred / unresolved) and `integrity_scope`, plus deterministic
-  planning and `EXPLAIN` / `EXPLAIN ANALYZE`.
-- **Selective late materialization, reuse, and source independence.** A narrow
-  observation reads its minimum closure; the derived cache is off-wire and
-  closure-keyed; the source PDF can be deleted and a new process still queries the
-  field and rematerializes the exact original. An immutable edit witness shows one
-  page-content override sharing 318/319 index entries and the descriptor (0 bytes
-  read) while both roots stay exact.
-
-**Measured, with the four accounting universes kept distinct** (source /
-archive+store / procedural field / derived cache; ADR-0027). Representative
-numbers (page-1 text; `evidence/campaigns/2026-10-06-phase11-desc-free-a8ad6f4/`):
-
-| lane | bytes read | wall | note |
-|---|---:|---:|---|
-| VOLE field, **warm** (cache-served) | **8.4–8.9 KB** overhead | **~99 µs** | 0 descriptor bytes |
-| VOLE field, **cold** (partial descriptor) | 0.08–0.36 MB | — | re-derives text from the page channel |
-| A1 preprocessed SQLite | 24,393 B | ~1 ms | one-time extraction charged |
-| A0 Poppler `pdftotext -f1 -l1` | 136,128 B | ~8 ms | — |
-
-**Honest correction (independent skeptic).** The original warm-byte claim omitted
-the cache-served answer read (measured in the derived-cache universe), so on large
-documents the warm *byte* court is a **loss**; the surviving win is the overhead +
-wall result and the small producer documents. The LLM token court now reports a
-**pinned** tokenizer (`bert-base-uncased`, asset SHA-256 verified) and finds V wins
-2 / ties 2 / loses 2 versus page-local extraction — a working-set measure, never a
-text-quality claim. Finer-than-object sharing wins versus per-file LZ and frozen
-CDC but **loses** versus `tar|xz` and strongest CDC (`unique_bytes` is a lower
-bound only).
-
-Receipts: `evidence/campaigns/2026-10-06-phase11-*` (plan, io, partial, desc-free,
-entropyfs, lifetime, share, llm-tokens, edit, skeptic); results write-up
-[`docs/phases/phase-11-results.md`](docs/phases/phase-11-results.md); review
-[`docs/reviews/phase-11-skeptic-review.md`](docs/reviews/phase-11-skeptic-review.md).
+"Universal" means the observation vocabulary is shared across the four
+implemented formats, **not** that every format is supported. Details and
+capability gaps: [Format support](docs/reference/format-support.md).
 
 ## Quick start (Docker only)
 
-All project commands run inside pinned containers. The host only invokes Docker.
+All commands run inside pinned containers; the host only invokes Docker.
 
 ```sh
-# Build the toolchain image (pinned by digest in Dockerfile)
+# Build the pinned toolchain image, then run the gate
 docker compose build dev
-
-# Build, test, lint, format
-docker compose run --rm --no-TTY dev cargo test  --all-features
+docker compose run --rm --no-TTY dev cargo test --all-features --locked
 docker compose run --rm --no-TTY dev cargo clippy --all-targets --all-features -- -D warnings
-docker compose run --rm --no-TTY dev cargo fmt --all --check
+```
 
-# MSRV gate (Rust 1.89)
-docker compose build msrv
-docker compose run --rm --no-TTY msrv cargo build --locked
+End-to-end: ingest a document, inspect and run an observation, then reconstruct
+the exact bytes.
 
-# Generic-compressor baseline ladder (Phase 7.0c; opt-in baseline image)
-docker compose build baseline
-docker compose run --rm --no-TTY dev cargo build --locked --all-features
-docker compose run --rm --no-TTY -e BASELINE_CORPUS=phase7 baseline \
-  sh tools/baselines.sh /tmp/baselines.json evidence/corpus/phase7
-
-# Partial-materialization query court (Phase 7.3; opt-in baseline image)
+```sh
+# 1. Wrap the source in the exact container (RAW accepts any bytes; the format
+#    is detected from the bytes, never the extension).
 docker compose run --rm --no-TTY dev \
-  ./target/debug/vole-document pdf-make-large evidence/corpus/phase7-large 800
-docker compose run --rm --no-TTY dev ./target/debug/vole-document encode \
-  --force pdf-deflate-replay-rans-indexed evidence/corpus/phase7-large/large.pdf /tmp/large.voldoc
-docker compose run --rm --no-TTY baseline \
-  sh tools/partial-court.sh /tmp/queries.jsonl evidence/corpus/phase7-large/large.pdf \
-  /tmp/large.voldoc /tmp/large.pdf.gz /tmp/large.pdf.zst /tmp/large.pdf.xz
+  ./target/debug/vole-document encode --force raw report.docx report.docx.voldoc
 
-# Seek-based partial-I/O bytes-read court (Phase 8.3; opt-in baseline image)
-docker compose build baseline   # adds strace to the dev-derived toolchain
-docker compose run --rm --no-TTY dev ./target/debug/vole-document encode \
-  --force pdf-deflate-replay-rans-indexed evidence/corpus/phase8-large/large.pdf /tmp/large.seek.voldoc
-docker compose run --rm --no-TTY baseline \
-  sh tools/seek-court.sh /tmp/queries.jsonl evidence/corpus/phase8-large/large.pdf \
-  /tmp/large.seek.voldoc /tmp/large.pdf.gz /tmp/large.pdf.zst /tmp/large.pdf.xz
+# 2. Inverse-proceduralize into a persistent field. Prints the field id (HEX).
+docker compose run --rm --no-TTY dev \
+  ./target/debug/vole-document field-ingest report.docx.voldoc --store /tmp/field
 
-# Seekable/blocked random-access baseline court (Phase 8.4; opt-in baseline image)
-# adds tabix(bgzip)+pixz to the baseline stage, then builds bgzip/xz-blocked/pixz
-# and measures the honest random-access cost (covering block(s) + index).
-docker compose run --rm --no-TTY baseline \
-  sh tools/seekable-baselines.sh /tmp/seekable.jsonl evidence/corpus/phase8-large/large.pdf \
-  /tmp/large.seek.voldoc /tmp/seekable
-jq -rs -f tools/seekable-table.jq /tmp/seekable.jsonl > /tmp/seekable-table.md
+# 3. Show the plan, then run it and measure the actual work.
+docker compose run --rm --no-TTY dev \
+  ./target/debug/vole-document explain --store /tmp/field --field "$FIELD" --block 1 --kind text --analyze
 
-# Phase 1 exact court (writes an evidence receipt)
-docker compose run --rm --no-TTY dev sh tools/phase1-court.sh
+# 4. Query one observation (text, structure, table cell, …).
+docker compose run --rm --no-TTY dev \
+  ./target/debug/vole-document observe --store /tmp/field --field "$FIELD" --block 1 --kind text
+
+# 5. Reconstruct the exact original bytes — length + SHA-256 + cmp all match.
+docker compose run --rm --no-TTY dev \
+  ./target/debug/vole-document materialize --store /tmp/field --field "$FIELD" --exact --output report.docx.out
 ```
 
-CLI surface (activated by the pipeline, not by extension — extensions are hints,
-never authority):
+`explain --analyze` for a narrow observation reports
+`whole_source_materialized: false` — the field answered from its minimum closure,
+not by re-materializing the document. The full CLI surface is in
+[CLI](docs/reference/cli.md).
 
-```text
-vole-document encode      [--force KIND] INPUT   OUTPUT.voldoc
-vole-document decode      INPUT.voldoc   OUTPUT
-vole-document materialize INPUT.voldoc   OUTPUT
-vole-document view        INPUT.voldoc [OUTPUT] --byte-range A:L | --pdf-object N:G | --pdf-stream N:G | --pdf-revision I [--stats]
-vole-document verify      INPUT.voldoc
-vole-document inspect     INPUT.voldoc
-vole-document pdf-make-large DIR [OBJECTS]
-vole-document capabilities
+## Current status
 
-# Phase 11 — persistent procedural field (feature `field`, on by default)
-vole-document field-ingest  INPUT.voldoc --store DIR [--entropyfs]
-vole-document observe       --store DIR --field HEX (--page N | --object N | --stream N | --revision N | --byte-range A..B) --kind KIND
-vole-document find          --store DIR --field HEX --text PATTERN
-vole-document explain       --store DIR --field HEX ... [--analyze]
-vole-document preview       --store DIR --field HEX --page N [--json]
-vole-document materialize   --store DIR --field HEX --exact --output FILE
-vole-document cache         --store DIR [--clear]
-vole-document field-edit    --store DIR --field HEX --page N --content-bytes HEX
-vole-document share-account [--store DIR] INPUT.voldoc...
-```
+Release **`0.1.0-alpha.16`** (Phase 12 — a universal multi-format document
+field over PDF + DOCX + EPUB). Phase 13 is in progress and closes the remaining
+Phase-12 proposals; see [Roadmap](docs/project/roadmap.md). Headline
+measurements, each with its own results doc:
 
-`encode --force KIND` forces the complete-cost court to consider only one
-candidate family (`raw`, `rle`, `byte-rans`, `pdf-physical`, `pdf-channels`,
-`pdf-layout`, `pdf-layout-rans`, `pdf-deflate-replay`, `pdf-deflate-replay-rans`)
-for honest per-mechanism ablation; it never
-bypasses exactness, and it fails with a typed usage error when the input does not
-propose that kind.
+1. **Exactness holds after the source is gone.** PDF, DOCX and EPUB
+   rematerialize byte-for-byte (length + SHA-256 + `cmp`) after the source *and*
+   the descriptor are deleted, in a fresh process: removal **38/38**, triplet
+   **96/96** ([Phase 12 results](docs/phases/phase-12-results.md)).
+2. **Warm observations are cheap.** A repeated narrow observation reads **0**
+   descriptor bytes and adds **8.4–8.9 KB** of descriptor-free overhead at
+   **~99 µs** wall — an *overhead-only* figure that excludes the cached answer
+   payload it also reads ([Phase 11 results](docs/phases/phase-11-results.md)).
+3. **Small-document lifetime is a scoped win.** On a self-authored 841 B–61 KB
+   corpus, the field beats direct per-query tooling and the cold one-time
+   baseline; the source-retaining SQLite+FTS5 baseline wins the large-document
+   frontier and wall/CPU at N=1000 ([Phase 12 results](docs/phases/phase-12-results.md)).
+4. **Whole-file size is a recorded loss.** The best VOLE lane beats
+   gzip/zstd/xz/brotli on **0/27** files; the best generic compressor is smaller
+   on every file ([Findings](docs/project/findings.md)).
+5. **Cross-document durable work reuse is a recorded negative (`N3`).** The warm
+   reuse fraction `0.339907` falls to **0.0** after `cache --clear`; only exact
+   *representation identity* is shared ([Phase 12 results](docs/phases/phase-12-results.md)).
 
-## Fuzzing
+Current limitations:
 
-Two layers, both Docker-only:
+- **Not a compressor.** Whole-file size loses to generic lossless tools on every
+  measured file (the representation is coarser than LZ77).
+- **Not a database.** A source-retaining SQLite+FTS5 baseline wins the
+  large-document byte frontier and wall/CPU at N=1000.
+- **Self-authored corpora through Phase 12; first real-corpus court run.** Published
+  performance results through Phase 12 use self-authored deterministic corpora.
+  `real100-v1` is a frozen 100-document NASA/NIST corpus selected independently of
+  VOLE performance; its first frontier court has now been run and is mixed — VOLE
+  wins repeated observations and DOCX tables/metadata, and loses cold lookups,
+  real EPUB content (an XHTML `DOCTYPE` the bounded-XML policy forbids) and
+  >100 MiB PDFs ([frontier report](docs/evidence/real100-frontier-report.md)).
+- **Partial reusability.** Cross-document durable *work* reuse is a negative, and
+  XLSX/PPTX and other adapters remain `PROPOSED`.
 
-- **Deterministic property/mutation courts** (`tests/property.rs`,
-  `tests/goldens.rs`, `tests/malformed.rs`) plus the longer soak run
-  `tools/soak-fuzz.sh` (`VOLE_FUZZ_ITERS`, default 200000).
-- **Coverage-guided libFuzzer targets** (Phase 7.1) in the standalone `fuzz/`
-  `cargo-fuzz` package (excluded from `cargo package`), built and run in the
-  pinned dated-nightly `fuzz` Docker service:
+## Documentation
 
-  ```sh
-  docker compose build fuzz
-  docker compose run --rm --no-TTY fuzz cargo fuzz build
-  FUZZ_SECONDS=60 docker compose run --rm --no-TTY fuzz sh tools/fuzz.sh
-  ```
+- [Documentation index](docs/README.md) — the map.
+- [Architecture](docs/architecture/overview.md) — what the system is today.
+- [Formats](docs/formats/pdf.md) — PDF, DOCX, EPUB, ODT authority boundaries.
+- [Specification](docs/reference/specification.md) — the `.voldoc` wire format.
+- [Conformance](docs/reference/conformance.md) — courts, invariants, fuzzing.
+- [Findings](docs/project/findings.md) — consolidated positive and negative results.
+- [Status ledger](docs/project/status.md) — the single authoritative status table.
+- [Security](docs/SECURITY.md) — threat model and hostile-input contract.
 
-Ten targets cover the `.voldoc` container parser/materializer, the
-`encode`→`decode` round trip, the DRA decoder/analyzer/evaluator, the rANS model
-and channel decoders, the PDF lexer and physical scanner, xref/`/Prev`, the
-`DEFLATE_REPLAY` wrapper, and `verify`. See `fuzz/README.md` for the pinned
-toolchain, seeds, and regeneration. The sealed campaign
-`evidence/campaigns/2026-10-05-phase7-fuzz-ca6a92b/` observed zero crashes on
-nine of ten targets and reported two upstream `preflate-rs` findings (one
-mitigated fail-closed, one recorded upstream resource limitation).
+## Reproducibility
+
+Everything runs in digest-pinned Docker services (`compose.yaml`); nothing runs
+on the host. Each sealed run under `evidence/campaigns/<date>-<phase>-<gitsha>/`
+records the base image digest, `rustc`/`cargo` versions, `Cargo.lock` SHA-256, git
+commit and dirty state, CPU architecture, oracle versions, and the exact command.
+Receipts are immutable: corrections are amendments, never rewrites. The docs
+themselves are checked by
+[`tools/check-docs.sh`](tools/check-docs.sh).
 
 ## Repository layout
 
 ```text
-src/            one crate; modules for architectural separation
-tests/          exact / malformed / conformance courts
-fuzz/           cargo-fuzz coverage-guided targets (excluded from the crate)
-tools/          court and gate scripts (run inside Docker)
-docs/           architecture, ADRs, security, phase notes
-evidence/       immutable campaign receipts (machine-readable)
-research/       LOCAL ONLY — gitignored (paper, snapshots, subagent findings)
+src/        one crate; modules for architectural separation
+tests/      exact / malformed / conformance courts
+fuzz/       cargo-fuzz coverage-guided targets (excluded from the crate)
+tools/      court, gate, and doc-check scripts (run inside Docker)
+docs/       architecture, formats, reference, ADRs, phases, reviews, project
+evidence/   immutable campaign receipts (machine-readable)
+research/   LOCAL ONLY — gitignored (paper, snapshots, subagent findings)
 ```
 
-`research/` is intentionally excluded from version control. Durable findings that
-matter to a phase are frozen into ADRs and phase notes and referenced from
-receipts by hash.
-
-## Licensing
+## License and citation
 
 Dual-licensed under either MIT or Apache-2.0, at your option. See
-[`LICENSE-MIT`](LICENSE-MIT) and [`LICENSE-APACHE`](LICENSE-APACHE).
+[`LICENSE-MIT`](LICENSE-MIT) and [`LICENSE-APACHE`](LICENSE-APACHE). Citation
+metadata is in [`CITATION.cff`](CITATION.cff).
 
-**Third-party license note.** The `deflate-replay` feature (Phase 6) is
-**opt-in** and depends on `preflate-rs`, which depends on `cabac`, licensed
-**LGPL-3.0-or-later**. The default build (`default = ["rans", "store", "field"]`)
-is **permissive-only** and contains no LGPL code. Rust links statically by default,
-so a binary built **with** `--features deflate-replay` (or `--all-features`)
-contains LGPL code and carries the corresponding obligations. See
-[ADR-0014](docs/adr/0014-lgpl-cabac-dependency.md).
+**Third-party license note.** The opt-in `deflate-replay` feature depends on
+`preflate-rs`, which depends on `cabac` (LGPL-3.0-or-later). The default build
+(`default = ["rans", "store", "field"]`) is permissive-only. A binary built with
+`--features deflate-replay` (or `--all-features`) links LGPL code and carries the
+corresponding obligations (ADR-0014).

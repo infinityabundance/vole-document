@@ -2,7 +2,7 @@
 
 Campaign: `evidence/campaigns/2026-10-05-phase9-store-fdb2845/` (branch `phase9`,
 commit `fdb2845`). ADR: [0021](../adr/0021-cross-document-sharing-result.md).
-Independent adversarial review: [phase9-skeptic-review.md](phase9-skeptic-review.md).
+Independent adversarial review: [phase9-skeptic-review.md](../reviews/phase9-skeptic-review.md).
 
 ## Question
 

@@ -1,0 +1,11 @@
+# real100-v1 frontier court (frozen architecture over the frozen 100-doc corpus)
+
+# Build the measurement binary (all features = A11), then run the court
+docker compose run --rm --no-TTY dev          sh -c "cargo build --locked --all-features"
+docker compose run --rm --no-TTY doc-baseline bash tools/real100-court.sh
+
+# Bounded smoke / partial run (first N docs of the frozen schedule)
+docker compose run --rm --no-TTY -e LIMIT=5 doc-baseline bash tools/real100-court.sh
+
+# Corpus verification is automatic inside the court (tools/realcorpus/verify.sh):
+#   docker compose run --rm --no-TTY doc-baseline sh tools/realcorpus/verify.sh --corpus real100-v1

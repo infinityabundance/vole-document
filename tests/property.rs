@@ -283,6 +283,7 @@ fn literal_descriptor(source: &[u8]) -> Descriptor {
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(source),
         source_len: source.len() as u64,
     }
@@ -399,6 +400,7 @@ fn limits_never_change_reconstructed_bytes() {
         max_pdf_spans: 1 << 26,
         max_index_selectors: 1 << 26,
         max_directory_bytes: 1 << 26,
+        max_checkpoint_bytes: 1 << 26,
         max_zip_members: 1 << 24,
         max_zip_member_compressed: 1 << 50,
         max_zip_member_uncompressed: 1 << 50,
@@ -428,6 +430,9 @@ fn limits_never_change_reconstructed_bytes() {
         max_epub_nav_depth: 1 << 12,
         max_epub_fallback_chain: 1 << 10,
         max_xhtml_nodes: 1 << 30,
+        max_odt_manifest_entries: 1 << 24,
+        max_odt_blocks: 1 << 24,
+        max_odt_notes: 1 << 24,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

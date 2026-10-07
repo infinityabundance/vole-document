@@ -1,0 +1,21 @@
+path	format	pages	bytes	text_chars	images	fonts	objstm	xref_stream	encrypted	zip_members	media_files	spine	nav	tables	headings	max_heading	list_items	text_chars2	suggested_tags
+real100-v1/pilot/documents/nasa/epub/nasa-epub-0001.epub	epub		1703705							51	13	11	no					309829	multi-chapter
+real100-v1/pilot/documents/nasa/epub/nasa-epub-0002.epub	epub		39526816							265	163	91	no					54511	multi-chapter;image-heavy
+real100-v1/pilot/documents/nasa/epub/nasa-epub-0003.epub	epub		3747808							67	30	17	no					87344	multi-chapter;image-heavy
+real100-v1/pilot/documents/nasa/epub/nasa-epub-0004.epub	epub		46837603							342	205	96	no					110004	multi-chapter;image-heavy
+real100-v1/pilot/documents/nasa/pdf/nasa-pdf-0001.pdf	pdf	202	28003279	257667	202	1172	yes	yes											figure-heavy;complex-xref
+real100-v1/pilot/documents/nasa/pdf/nasa-pdf-0002.pdf	pdf	73	10034634	55514	73	47	yes	yes											figure-heavy;complex-xref
+real100-v1/pilot/documents/nasa/pdf/nasa-pdf-0003.pdf	pdf	254	116881125	294426	254	12	no	no											figure-heavy
+real100-v1/pilot/documents/nasa/pdf/nasa-pdf-0004.pdf	pdf	88	7527570	222215	88	12	no	no											figure-heavy
+real100-v1/pilot/documents/nasa/pdf/nasa-pdf-0005.pdf	pdf	424	3182235	793765	4	48	yes	yes											complex-xref;very-large
+real100-v1/pilot/documents/nasa/pdf/nasa-pdf-0006.pdf	pdf	360	8936698	1108564	28	288	yes	yes											complex-xref;very-large
+real100-v1/pilot/documents/nist/docx/nist-docx-0001.docx	docx		2286200							45	1			0	1	1	74	10669	list-heavy
+real100-v1/pilot/documents/nist/docx/nist-docx-0002.docx	docx		57045							13	0			4	0	0	71	30404	table-heavy;list-heavy
+real100-v1/pilot/documents/nist/epub/nist-epub-0001.epub	epub		168431							33	4	21	no					209688	multi-chapter
+real100-v1/pilot/documents/nist/epub/nist-epub-0002.epub	epub		35841							16	2	7	no					10513	
+real100-v1/pilot/documents/nist/pdf/nist-pdf-0001.pdf	pdf	13	80356	24524	1	7	yes	yes											complex-xref
+real100-v1/pilot/documents/nist/pdf/nist-pdf-0002.pdf	pdf	492	6073678	1351530	996	13	yes	yes											figure-heavy;complex-xref;very-large
+real100-v1/pilot/documents/nist/pdf/nist-pdf-0003.pdf	pdf	70	1313448	134656	42	11	yes	yes											complex-xref
+real100-v1/pilot/documents/nist/pdf/nist-pdf-0004.pdf	pdf	80	544047	214487	118	12	yes	yes											figure-heavy;complex-xref
+real100-v1/pilot/documents/nist/pdf/nist-pdf-0005.pdf	pdf	88	5701173	102892	2374	17	yes	yes											figure-heavy;complex-xref
+real100-v1/pilot/documents/nist/pdf/nist-pdf-0006.pdf	pdf	573	77578129	1289288	10	1679	yes	yes											complex-xref;very-large

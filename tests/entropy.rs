@@ -52,8 +52,30 @@ impl Rng {
 /// lane-specific assertions. Every court case runs through here, so exactness
 /// (gate 1) is enforced even when the headline claim is about cost.
 fn exact_roundtrip(input: &[u8], limits: Limits, label: &str) -> (Vec<u8>, encode::EncodeReport) {
-    let (bytes, report) =
-        encode::encode(input, limits).unwrap_or_else(|e| panic!("[{label}] encode failed: {e}"));
+    check_roundtrip(input, limits, None, label)
+}
+
+/// Like [`exact_roundtrip`] but forces a single candidate lane, so a claim about
+/// *that* lane is not coupled to the auto winner. (Phase 13.2 added a phrase
+/// template that can win the full court on repeated text, so an "order-0 rANS
+/// wins" claim must force the lane rather than observe the auto winner.)
+fn exact_roundtrip_forced(
+    input: &[u8],
+    limits: Limits,
+    kind: CandidateKind,
+    label: &str,
+) -> (Vec<u8>, encode::EncodeReport) {
+    check_roundtrip(input, limits, Some(kind), label)
+}
+
+fn check_roundtrip(
+    input: &[u8],
+    limits: Limits,
+    force: Option<CandidateKind>,
+    label: &str,
+) -> (Vec<u8>, encode::EncodeReport) {
+    let (bytes, report) = encode::encode_with(input, limits, force)
+        .unwrap_or_else(|e| panic!("[{label}] encode failed: {e}"));
     let (out, parsed) = materialize::decode_to_bytes(&bytes, limits)
         .unwrap_or_else(|e| panic!("[{label}] decode failed: {e}"));
 
@@ -206,11 +228,14 @@ fn random_wrapped_looking_control() {
 // Positive results: the lane must win AND the representation must be exact.
 // ---------------------------------------------------------------------------
 
-/// Gates 1 and 7: rANS must beat RAW on low-entropy text, exactly.
+/// Gates 1 and 7: rANS must beat RAW on low-entropy text, exactly. Forced to the
+/// `BYTE_RANS` lane so the claim is about order-0 rANS itself, not the auto
+/// winner (which a phrase-template lane may take on repeated text).
 #[test]
 fn low_entropy_text_wins_and_is_exact() {
     let input = text_corpus();
-    let (bytes, report) = exact_roundtrip(&input, Limits::DEFAULT, "text-60k");
+    let (bytes, report) =
+        exact_roundtrip_forced(&input, Limits::DEFAULT, CandidateKind::ByteRans, "text-60k");
     assert_eq!(
         report.kind,
         CandidateKind::ByteRans,

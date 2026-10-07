@@ -168,5 +168,5 @@ arbitrary sub-object chunks) remains a representation change.
   `environment.json`, `cohort.json`, `results.json`, `report.md`,
   `cdc-sweep.json`, `perfile.jsonl`)
 - `tools/store-cohort.sh`, `tools/store-court.sh`, `tools/chunk-dedup.sh`
-- `docs/evidence/phase9-store-report.md`, `docs/evidence/phase9-skeptic-review.md`
+- `docs/evidence/phase9-store-report.md`, `docs/reviews/phase9-skeptic-review.md`
 - ADR-0017 (per-file LZ is the whole-file comparator), ADR-0020 (store contract)

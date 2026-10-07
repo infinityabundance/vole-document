@@ -51,6 +51,15 @@ pub const FEATURE_OBSERVATION_INDEX: u32 = 1 << 0;
 /// alone is complete. Exactness never requires this bit.
 pub const FEATURE_SEEK_DIRECTORY: u32 = 1 << 1;
 
+/// Optional feature bit: the descriptor carries a `CHECKPOINT` record and so
+/// advertises a byte-level partial-materialization checkpoint lane (Phase 13.4).
+///
+/// Optional bits are ignorable: a decoder built without checkpoint support still
+/// materializes the source exactly, because the `CHECKPOINT` record is written
+/// with [`crate::container::record::FLAG_OPTIONAL`] and the reconstruction program
+/// alone is complete. Exactness never requires this bit.
+pub const FEATURE_CHECKPOINTS: u32 = 1 << 2;
+
 /// Feature bits this build understands and supports.
 ///
 /// The `deflate-replay` cargo feature adds [`FEATURE_DEFLATE_REPLAY`]; the

@@ -160,6 +160,16 @@ opc = ["package", "field", "xml"]
 # enabling it never changes `.voldoc` bytes and exactness is untouched. Never in
 # `default`.
 docx = ["opc"]
+# Phase 13.3: the OpenDocument Text (ODT) adapter built on the shared byte-authoritative
+# ZIP layer and the bounded-XML policy. ODF is **not** OPC (no `[Content_Types].xml`,
+# no `officeDocument` relationship), so — like EPUB — it discovers its main part
+# semantically from `META-INF/manifest.xml` (never a hardcoded `content.xml`) and
+# reuses the OPC *helpers* without routing through the OPC graph. It adds a declared,
+# versioned extraction profile and derived (`Q_gen`) OpenDocument observations. It
+# adds **no** decoder behavior: an ODT source's exact leaf is still its 12.2 member raw
+# spans, so enabling it never changes `.voldoc` bytes and exactness is untouched.
+# Never in `default`.
+odt = ["opc"]
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores. `quick-xml` only; adds **no** decoder behavior and is
 # never in `default` on its own (it is implied by `opc` and `epub`).

@@ -472,20 +472,7 @@ pub(crate) fn resolve_selector(
     source_len: u64,
 ) -> Result<(u64, u64)> {
     match selector {
-        ObservationSelector::ByteRange { offset, len } => {
-            if len == 0 {
-                return Err(Error::usage("observation byte range must be non-empty"));
-            }
-            let end = offset
-                .checked_add(len)
-                .ok_or_else(|| Error::usage("observation byte range overflows"))?;
-            if end > source_len {
-                return Err(Error::usage(format!(
-                    "observation byte range {offset}..{end} exceeds source length {source_len}"
-                )));
-            }
-            Ok((offset, end))
-        }
+        ObservationSelector::ByteRange { .. } => resolve_byte_range(selector, source_len),
         ObservationSelector::PdfIndirectObject { object, generation } => resolve_pdf(
             index,
             SELECTOR_OBJECT,
@@ -521,6 +508,36 @@ pub(crate) fn resolve_selector(
                 ))),
             }
         }
+    }
+}
+
+/// Resolve a raw byte-range selector to `[offset, offset+len)`.
+///
+/// This is the one selector that needs no `OBSERVATION_INDEX`; the checkpoint
+/// lane of the seek reader uses it directly. It is shared with
+/// [`resolve_selector`] so the two cannot diverge.
+pub(crate) fn resolve_byte_range(
+    selector: ObservationSelector,
+    source_len: u64,
+) -> Result<(u64, u64)> {
+    match selector {
+        ObservationSelector::ByteRange { offset, len } => {
+            if len == 0 {
+                return Err(Error::usage("observation byte range must be non-empty"));
+            }
+            let end = offset
+                .checked_add(len)
+                .ok_or_else(|| Error::usage("observation byte range overflows"))?;
+            if end > source_len {
+                return Err(Error::usage(format!(
+                    "observation byte range {offset}..{end} exceeds source length {source_len}"
+                )));
+            }
+            Ok((offset, end))
+        }
+        _ => Err(Error::internal_invariant(
+            "resolve_byte_range called with a non-byte-range selector",
+        )),
     }
 }
 

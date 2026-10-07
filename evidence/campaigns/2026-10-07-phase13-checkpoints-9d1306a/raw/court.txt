@@ -1,0 +1,26 @@
+ Container vole-document-dev-run-d4a352f3397e Creating 
+ Container vole-document-dev-run-d4a352f3397e Created 
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.02s
+     Running tests/phase13_checkpoints.rs (target/debug/deps/phase13_checkpoints-65681f09f92d9d25)
+
+running 4 tests
+objects,descriptor_bytes_floor,descriptor_bytes_cp,query,offset,len,bytes_read_floor,bytes_read_cp,delta,ops_eval_floor,ops_eval_cp,output_bytes
+test an_absent_checkpoint_changes_no_bytes_and_still_decodes ... ok
+test checkpoint_is_exact_and_deterministic_on_flate_pdf ... ok
+20,94754,98984,start,0,64,11896,12155,259,7,7,64
+20,94754,98984,quarter,42389,64,11896,12155,259,2,2,64
+20,94754,98984,middle,84778,256,16020,16279,259,1,1,256
+20,94754,98984,end,169493,64,11896,12155,259,7,7,64
+test a_lying_checkpoint_falls_back_to_the_index_lane ... ok
+40,189073,197143,start,0,64,22736,23175,439,7,7,64
+40,189073,197143,quarter,84699,64,22736,23175,439,5,5,64
+40,189073,197143,middle,169398,256,26862,27301,439,1,1,256
+40,189073,197143,end,338733,64,22736,23175,439,7,7,64
+120,567382,590812,start,0,64,66388,67547,1159,7,7,64
+120,567382,590812,quarter,254012,64,70510,71669,1159,1,1,64
+120,567382,590812,middle,508024,256,70517,71676,1159,1,1,256
+120,567382,590812,end,1015985,64,66388,67547,1159,7,7,64
+test checkpoint_lane_matches_index_lane_and_reports_work ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+

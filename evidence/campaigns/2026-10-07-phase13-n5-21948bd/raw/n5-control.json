@@ -1,0 +1,1149 @@
+{
+  "corpus": "evidence/scratch/phase12-lifetime-corpus",
+  "documents": [
+    {
+      "format": "docx",
+      "member_count": 7,
+      "name": "alpha.docx",
+      "records": [
+        {
+          "arg": "block:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "heading:0",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "block:3",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "cell:0:6:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "table:0",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "resource:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "metadata",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "metadata",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "search:XF12A",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "search",
+          "note": "byte-substring scan of members (unzip -p | substr)",
+          "package_resolvable": true,
+          "selector_class": "literal-search",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "full-source",
+          "brute_member_sha": false,
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "note": "whole source bytes (cat); no package traversal needed",
+          "package_resolvable": true,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "resource-bytes:0",
+          "brute_member_sha": true,
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "note": "selector names a logical resource; the package index cannot resolve which member it is (a member SHA matches only by brute force)",
+          "package_resolvable": false,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        }
+      ],
+      "source": "alpha.docx",
+      "source_sha256": "18a55a0830da155f482a4b3790b3a1f2671474edfa7a5e48a59d8ddccb8a2fd9"
+    },
+    {
+      "format": "epub",
+      "member_count": 6,
+      "name": "alpha.epub",
+      "records": [
+        {
+          "arg": "block:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "heading:0",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/nav.xhtml"
+        },
+        {
+          "arg": "block:3",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "cell:0:6:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "table:0",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "resource:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "metadata",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "metadata",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/package.opf"
+        },
+        {
+          "arg": "block:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/nav.xhtml"
+        },
+        {
+          "arg": "search:XF12A",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "search",
+          "note": "byte-substring scan of members (unzip -p | substr)",
+          "package_resolvable": true,
+          "selector_class": "literal-search",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "full-source",
+          "brute_member_sha": false,
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "note": "whole source bytes (cat); no package traversal needed",
+          "package_resolvable": true,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "resource-bytes:0",
+          "brute_member_sha": true,
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "note": "selector names a logical resource; the package index cannot resolve which member it is (a member SHA matches only by brute force)",
+          "package_resolvable": false,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        }
+      ],
+      "source": "alpha.epub",
+      "source_sha256": "88f8b9120c8914911abadf30e25ef890faba70bfae28c67bc2ba7dfa2bbc09be"
+    },
+    {
+      "format": "docx",
+      "member_count": 7,
+      "name": "bravo.docx",
+      "records": [
+        {
+          "arg": "block:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "heading:0",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "block:3",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "cell:0:10:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "table:0",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "resource:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "metadata",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "metadata",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "search:XF13A",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "search",
+          "note": "byte-substring scan of members (unzip -p | substr)",
+          "package_resolvable": true,
+          "selector_class": "literal-search",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "full-source",
+          "brute_member_sha": false,
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "note": "whole source bytes (cat); no package traversal needed",
+          "package_resolvable": true,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "resource-bytes:0",
+          "brute_member_sha": true,
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "note": "selector names a logical resource; the package index cannot resolve which member it is (a member SHA matches only by brute force)",
+          "package_resolvable": false,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        }
+      ],
+      "source": "bravo.docx",
+      "source_sha256": "3d075838be55d6d4db8465171337423fda2503239c59e7ad92e88f83d69f8ab6"
+    },
+    {
+      "format": "epub",
+      "member_count": 6,
+      "name": "bravo.epub",
+      "records": [
+        {
+          "arg": "block:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "heading:0",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/nav.xhtml"
+        },
+        {
+          "arg": "block:3",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "cell:0:10:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "table:0",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "resource:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "metadata",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "metadata",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/package.opf"
+        },
+        {
+          "arg": "block:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/nav.xhtml"
+        },
+        {
+          "arg": "search:XF13A",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "search",
+          "note": "byte-substring scan of members (unzip -p | substr)",
+          "package_resolvable": true,
+          "selector_class": "literal-search",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "full-source",
+          "brute_member_sha": false,
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "note": "whole source bytes (cat); no package traversal needed",
+          "package_resolvable": true,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "resource-bytes:0",
+          "brute_member_sha": true,
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "note": "selector names a logical resource; the package index cannot resolve which member it is (a member SHA matches only by brute force)",
+          "package_resolvable": false,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        }
+      ],
+      "source": "bravo.epub",
+      "source_sha256": "aa38ebba1ac58837d6e63c3609eff379bf9dc28b2e79b72e7d773dc84912c8f5"
+    },
+    {
+      "format": "docx",
+      "member_count": 7,
+      "name": "charlie.docx",
+      "records": [
+        {
+          "arg": "block:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "heading:0",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "block:3",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "cell:0:3:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "table:0",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "resource:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "metadata",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "metadata",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "search:XF14A",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "search",
+          "note": "byte-substring scan of members (unzip -p | substr)",
+          "package_resolvable": true,
+          "selector_class": "literal-search",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "full-source",
+          "brute_member_sha": false,
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "note": "whole source bytes (cat); no package traversal needed",
+          "package_resolvable": true,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "resource-bytes:0",
+          "brute_member_sha": true,
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "note": "selector names a logical resource; the package index cannot resolve which member it is (a member SHA matches only by brute force)",
+          "package_resolvable": false,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        }
+      ],
+      "source": "charlie.docx",
+      "source_sha256": "4e4601a9f01a4fb14e9b8ede3340be9617110ec7f173e06b36e64b74dad2de21"
+    },
+    {
+      "format": "epub",
+      "member_count": 6,
+      "name": "charlie.epub",
+      "records": [
+        {
+          "arg": "block:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "heading:0",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/nav.xhtml"
+        },
+        {
+          "arg": "block:3",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "cell:0:3:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "table:0",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "resource:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "metadata",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "metadata",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/package.opf"
+        },
+        {
+          "arg": "block:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/nav.xhtml"
+        },
+        {
+          "arg": "search:XF14A",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "search",
+          "note": "byte-substring scan of members (unzip -p | substr)",
+          "package_resolvable": true,
+          "selector_class": "literal-search",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "full-source",
+          "brute_member_sha": false,
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "note": "whole source bytes (cat); no package traversal needed",
+          "package_resolvable": true,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "resource-bytes:0",
+          "brute_member_sha": true,
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "note": "selector names a logical resource; the package index cannot resolve which member it is (a member SHA matches only by brute force)",
+          "package_resolvable": false,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        }
+      ],
+      "source": "charlie.epub",
+      "source_sha256": "337024cd1a5c5728d7bfea8ae63ba892265d0b10e487e19de6f7c7ef9b8ff667"
+    },
+    {
+      "format": "docx",
+      "member_count": 7,
+      "name": "delta.docx",
+      "records": [
+        {
+          "arg": "block:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "heading:0",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "block:3",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "cell:0:600:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "table:0",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "resource:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "metadata",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "metadata",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "search:XF15A",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "search",
+          "note": "byte-substring scan of members (unzip -p | substr)",
+          "package_resolvable": true,
+          "selector_class": "literal-search",
+          "value_in_raw": true,
+          "value_member": "word/document.xml"
+        },
+        {
+          "arg": "full-source",
+          "brute_member_sha": false,
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "note": "whole source bytes (cat); no package traversal needed",
+          "package_resolvable": true,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "resource-bytes:0",
+          "brute_member_sha": true,
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "note": "selector names a logical resource; the package index cannot resolve which member it is (a member SHA matches only by brute force)",
+          "package_resolvable": false,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        }
+      ],
+      "source": "delta.docx",
+      "source_sha256": "5a6fe261d8a15f6fa733db642e346f9a54aa2240fbecfeafdc9773b4a937a4ed"
+    },
+    {
+      "format": "epub",
+      "member_count": 6,
+      "name": "delta.epub",
+      "records": [
+        {
+          "arg": "block:1",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "narrow-text",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "heading:0",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "heading-section",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/nav.xhtml"
+        },
+        {
+          "arg": "block:3",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "paragraph-context",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "cell:0:600:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "table-cell",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "table:0",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "expand-table",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "resource:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "resource",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "metadata",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "metadata",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/package.opf"
+        },
+        {
+          "arg": "block:2",
+          "brute_member_sha": false,
+          "expected_kind": "equals",
+          "id": "adjacent-region",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": true,
+          "value_member": "OEBPS/nav.xhtml"
+        },
+        {
+          "arg": "search:XF15A",
+          "brute_member_sha": false,
+          "expected_kind": "contains",
+          "id": "search",
+          "note": "byte-substring scan of members (unzip -p | substr)",
+          "package_resolvable": true,
+          "selector_class": "literal-search",
+          "value_in_raw": true,
+          "value_member": "OEBPS/chapter1.xhtml"
+        },
+        {
+          "arg": "full-source",
+          "brute_member_sha": false,
+          "expected_kind": "sha256",
+          "id": "full-source",
+          "note": "whole source bytes (cat); no package traversal needed",
+          "package_resolvable": true,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "resource-bytes:0",
+          "brute_member_sha": true,
+          "expected_kind": "sha256",
+          "id": "exact-member",
+          "note": "selector names a logical resource; the package index cannot resolve which member it is (a member SHA matches only by brute force)",
+          "package_resolvable": false,
+          "selector_class": "exact",
+          "value_in_raw": false,
+          "value_member": null
+        },
+        {
+          "arg": "block:0",
+          "brute_member_sha": false,
+          "expected_kind": "nonempty",
+          "id": "native-provenance",
+          "note": "structural selector; requires format-native parsing (XML run assembly / table grid / relationship graph), not a byte substring",
+          "package_resolvable": false,
+          "selector_class": "structural",
+          "value_in_raw": false,
+          "value_member": null
+        }
+      ],
+      "source": "delta.epub",
+      "source_sha256": "31655cfa38e50089bfaa3cd19a37fffcb5862e3bc438dc5660aac3401f6daab8"
+    }
+  ],
+  "generator": "tools/fixtures/phase13-n5-control.py",
+  "lane": "package-index-only: zipfile.read (mechanical `unzip -p`) + byte substring",
+  "schedule": "tools/fixtures/phase12-lifetime-schedule.json",
+  "summary": {
+    "brute_member_sha_matches": 8,
+    "cases": 96,
+    "documents": 8,
+    "exact": 16,
+    "literal_search": 8,
+    "package_resolvable": 16,
+    "resolvable_exact": 8,
+    "resolvable_literal_search": 8,
+    "resolvable_structural": 0,
+    "structural": 72,
+    "value_in_raw": 59
+  }
+}

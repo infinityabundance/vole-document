@@ -100,7 +100,7 @@ phases.
 
 ## References
 
-- [`FINDINGS.md`](../../FINDINGS.md) — the authoritative consolidated findings
+- [`FINDINGS.md`](../project/findings.md) — the authoritative consolidated findings
 - ADR-0017 (whole-file size: 0/27 vs generic compressors)
 - ADR-0018 (partial materialization: scoped decode-CPU win, no I/O win)
 - ADR-0019 (seek-based I/O: scoped win vs non-seekable; loses to fine-block

@@ -1,0 +1,18 @@
+# Phase 13.4 — byte-level checkpoint records (branch phase13)
+
+# Court (integration; prints the measured bytes_read table)
+docker compose run --rm --no-TTY dev sh -c 'cargo test --all-features --test phase13_checkpoints -- --nocapture'
+
+# In-file unit/integration tests
+docker compose run --rm --no-TTY dev sh -c 'cargo test --all-features --lib checkpoint'
+
+# Full gate (raw transcript: raw/gate.txt, committed verbatim, 1570 lines)
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all && \
+  cargo clippy --all-targets --all-features -- -D warnings && \
+  cargo clippy -- -D warnings && \
+  cargo test --all-features --locked && \
+  cargo test --no-default-features && sh tools/check-docs.sh'
+
+# Toolchain / identity probes
+docker compose run --rm --no-TTY dev sh -c 'rustc --version; cargo --version; sha256sum Cargo.lock; uname -m; grep -m1 "model name" /proc/cpuinfo'
+docker inspect --format='{{.Id}}' vole-document/dev:1.99.0

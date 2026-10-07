@@ -1,0 +1,32 @@
+ Container vole-document-dev-run-f02031b5f381 Creating 
+ Container vole-document-dev-run-f02031b5f381 Created 
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.02s
+     Running tests/odt_adapter.rs (target/debug/deps/odt_adapter-f19c35fd938334ec)
+
+running 9 tests
+test detection_and_capabilities_are_byte_based ... ok
+test missing_manifest_declines_typed_and_keeps_exactness ... ok
+test malformed_manifest_declines_typed_and_keeps_exactness ... ok
+test exact_materialization_is_byte_identical ... ok
+test provenance_carries_format_part_and_profile ... ok
+test removal_then_fresh_process_is_queryable_and_exact ... ok
+test progressive_inversion_reuses_persisted_state_after_restart ... ok
+test tracked_changes_profiles_differ_as_specified ... ok
+test headings_paragraphs_table_cell_and_links_resolve ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+--- lib odt ---
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.02s
+     Running unittests src/lib.rs (target/debug/deps/vole_document-f081638334d77bec)
+
+running 6 tests
+test adapter::odt::tests::absolute_uri_detection ... ok
+test adapter::odt::tests::content_params_roundtrip ... ok
+test adapter::odt::tests::model_roundtrip ... ok
+test adapter::odt::tests::profile_roundtrips_and_fingerprints ... ok
+test adapter::odt::tests::wrong_root_is_declined ... ok
+test adapter::odt::tests::content_parses_tracked_changes_headings_and_tables ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 420 filtered out; finished in 0.00s
+

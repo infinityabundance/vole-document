@@ -7,6 +7,7 @@
 
 use crate::EXACTNESS_PROFILE_EXACT_BYTES;
 use crate::accounting::CostBreakdown;
+use crate::container::checkpoint::CheckpointTable;
 use crate::container::directory::{
     DirectoryEntry, RecordSite, SEEK_DIRECTORY_ALL_SECTIONS, SeekDirectory,
 };
@@ -114,6 +115,15 @@ pub struct Descriptor {
     /// `true`, `serialize` writes a two-pass `DIRECTORY` record as the first
     /// record; a directory requires an observation index to describe.
     pub seek_directory: bool,
+    /// Optional advisory byte-level checkpoint table (Phase 13.4).
+    ///
+    /// `None` is today's descriptor and emits no `CHECKPOINT` record. When
+    /// `Some`, `serialize` writes one `FLAG_OPTIONAL` `CHECKPOINT` record (which a
+    /// decoder that ignores it skips, still fully materializing) and the seek
+    /// `DIRECTORY` indexes it. A checkpoint is **advisory, never authority**: it
+    /// requires a seek directory to be locatable, and `parse` re-derives every
+    /// boundary from the program and rejects any contradiction.
+    pub checkpoints: Option<CheckpointTable>,
     /// SHA-256 of the exact reconstructed source.
     pub source_sha256: [u8; 32],
     /// Exact reconstructed source length.
@@ -199,6 +209,9 @@ impl Descriptor {
         if self.seek_directory {
             bits |= crate::container::header::FEATURE_SEEK_DIRECTORY;
         }
+        if self.checkpoints.is_some() {
+            bits |= crate::container::header::FEATURE_CHECKPOINTS;
+        }
         bits
     }
 
@@ -214,6 +227,11 @@ impl Descriptor {
         if self.seek_directory && self.observation_index.is_none() {
             return Err(Error::invalid_container(
                 "a seek directory requires an observation index",
+            ));
+        }
+        if self.checkpoints.is_some() && !self.seek_directory {
+            return Err(Error::invalid_container(
+                "a checkpoint requires a seek directory to locate it",
             ));
         }
 
@@ -290,6 +308,22 @@ impl Descriptor {
             cost.index = payload.len() as u64 + RECORD_OVERHEAD as u64;
             pending.push(PendingRecord::new(
                 RecordTag::ObservationIndex,
+                FLAG_OPTIONAL,
+                payload,
+            ));
+        }
+
+        // CHECKPOINT (optional, advisory). Written with the optional flag so a
+        // decoder that ignores it still fully materializes. The table was
+        // provided by the caller (built from the program); its bytes are charged
+        // to `cost.checkpoints`, not to `cost.index`.
+        let mut checkpoint_records: u64 = 0;
+        if let Some(checkpoint) = &self.checkpoints {
+            let payload = checkpoint.encode()?;
+            checkpoint_records = 1;
+            cost.checkpoints = payload.len() as u64 + RECORD_OVERHEAD as u64;
+            pending.push(PendingRecord::new(
+                RecordTag::Checkpoint,
                 FLAG_OPTIONAL,
                 payload,
             ));
@@ -405,8 +439,8 @@ impl Descriptor {
         // `cost.directory` instead, so subtract their counts here to keep
         // `total()` exactly the serialized length (every category stays a real
         // byte).
-        cost.record_framing =
-            RECORD_OVERHEAD as u64 * (u64::from(total_records) - index_records - directory_records);
+        cost.record_framing = RECORD_OVERHEAD as u64
+            * (u64::from(total_records) - index_records - directory_records - checkpoint_records);
 
         debug_assert_eq!(cost.total(), out.len() as u64);
         Ok((out, cost))
@@ -453,6 +487,9 @@ impl Descriptor {
         let mut index_records: u64 = 0;
         let mut directory_records: u64 = 0;
         let mut seek_directory: Option<SeekDirectory> = None;
+        let mut checkpoint_records: u64 = 0;
+        let mut checkpoints: Option<CheckpointTable> = None;
+        let mut graph_payload: Vec<u8> = Vec::new();
         let mut sites: Vec<RecordSite> = Vec::new();
 
         while let Some(rec) = reader.next_record()? {
@@ -577,6 +614,7 @@ impl Descriptor {
                     }
                     let p = Program::decode(&rec.payload, limits)?;
                     cost.graph = rec.payload.len() as u64;
+                    graph_payload = rec.payload.clone();
                     program = Some(p);
                 }
                 Some(RecordTag::ObservationIndex) => {
@@ -650,8 +688,22 @@ impl Descriptor {
                     cost.trailer = rec.payload.len() as u64;
                     saw_trailer = true;
                 }
+                Some(RecordTag::Checkpoint) => {
+                    if checkpoints.is_some() {
+                        return Err(Error::invalid_container("duplicate CHECKPOINT record"));
+                    }
+                    if !rec.is_optional() {
+                        return Err(Error::invalid_container(
+                            "CHECKPOINT record must carry FLAG_OPTIONAL",
+                        ));
+                    }
+                    let cp = CheckpointTable::decode(&rec.payload, limits)?;
+                    cost.checkpoints = rec.payload.len() as u64 + RECORD_OVERHEAD as u64;
+                    checkpoint_records = 1;
+                    checkpoints = Some(cp);
+                }
                 // Phase 2+ mandatory records have no meaning in this universe.
-                Some(RecordTag::Residual) | Some(RecordTag::Checkpoint) => {
+                Some(RecordTag::Residual) => {
                     if rec.is_optional() {
                         // Explicitly optional and unknown to this universe: skip.
                     } else {
@@ -744,11 +796,25 @@ impl Descriptor {
             dir.validate(&sites, bytes.len() as u64, limits)?;
         }
 
+        // The checkpoint is advisory too: its boundaries must be re-derivable
+        // from the authoritative program (and bound to the GRAPH record), or it
+        // is rejected. It is never authority.
+        if let Some(cp) = &checkpoints {
+            cp.validate(
+                &program,
+                &graph_payload,
+                source_len,
+                &object_lens,
+                &channel_lens,
+                limits,
+            )?;
+        }
+
         // As in `serialize`, the optional index and directory records' framing is
         // charged to `cost.index`/`cost.directory`, so exclude their counts from
         // the framing total.
-        cost.record_framing =
-            RECORD_OVERHEAD as u64 * (records_seen as u64 - index_records - directory_records);
+        cost.record_framing = RECORD_OVERHEAD as u64
+            * (records_seen as u64 - index_records - directory_records - checkpoint_records);
 
         Ok(ParsedDescriptor {
             descriptor: Descriptor {
@@ -761,6 +827,7 @@ impl Descriptor {
                 program,
                 observation_index,
                 seek_directory: seek_directory.is_some(),
+                checkpoints,
                 source_sha256,
                 source_len,
             },
@@ -788,6 +855,7 @@ mod tests {
             program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
             observation_index: None,
             seek_directory: false,
+            checkpoints: None,
             source_sha256: sha256(source),
             source_len: source.len() as u64,
         }
@@ -1208,6 +1276,199 @@ mod tests {
                 .unwrap_err()
                 .class(),
             crate::ErrorClass::InvalidContainer
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase 13.4 — the optional CHECKPOINT record.
+    // -----------------------------------------------------------------------
+
+    /// The seekable descriptor plus a consistent checkpoint over its program.
+    fn checkpointed_descriptor() -> Descriptor {
+        let mut d = seekable_descriptor();
+        let object_lens: Vec<u64> = d.objects.iter().map(|o| o.len()).collect();
+        let channel_lens: Vec<u64> = d.channels.iter().map(|c| c.decoded_length).collect();
+        let table = CheckpointTable::from_program(
+            &d.program,
+            &object_lens,
+            &channel_lens,
+            d.source_len,
+            Limits::DEFAULT,
+        )
+        .unwrap();
+        d.checkpoints = Some(table);
+        d
+    }
+
+    /// Rebuild a descriptor's bytes after mutating its decoded checkpoint payload,
+    /// recomputing the record CRC. The entry count (and so the record length) is
+    /// unchanged, so the framing stays consistent; the result is a CRC-valid but
+    /// potentially lying checkpoint.
+    fn rebuild_with_checkpoint(
+        bytes: &[u8],
+        mut mutate: impl FnMut(&mut CheckpointTable),
+    ) -> Vec<u8> {
+        use crate::container::record::{RecordReader, write_record};
+        let header = &bytes[0..HEADER_LEN];
+        let mut reader = RecordReader::new(bytes, HEADER_LEN, Limits::DEFAULT);
+        let mut records = Vec::new();
+        while let Some(r) = reader.next_record().unwrap() {
+            records.push(r);
+        }
+        let mut out = header.to_vec();
+        for r in &records {
+            if r.tag == RecordTag::Checkpoint as u8 {
+                let mut cp = CheckpointTable::decode(&r.payload, Limits::DEFAULT).unwrap();
+                mutate(&mut cp);
+                write_record(&mut out, r.tag, r.flags, &cp.encode().unwrap()).unwrap();
+            } else {
+                write_record(&mut out, r.tag, r.flags, &r.payload).unwrap();
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn checkpoint_roundtrips_materializes_and_charges() {
+        let d = checkpointed_descriptor();
+        assert_eq!(
+            d.optional_features(),
+            crate::container::header::FEATURE_OBSERVATION_INDEX
+                | crate::container::header::FEATURE_SEEK_DIRECTORY
+                | crate::container::header::FEATURE_CHECKPOINTS
+        );
+        let (bytes, cost) = d.serialize().unwrap();
+        assert_eq!(cost.total(), bytes.len() as u64, "cost must be the length");
+        assert!(
+            cost.checkpoints > 0,
+            "the checkpoint payload + framing is charged"
+        );
+
+        let parsed = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap();
+        assert_eq!(
+            parsed.descriptor, d,
+            "checkpointed descriptor must round-trip"
+        );
+        assert!(parsed.descriptor.checkpoints.is_some());
+        assert_eq!(parsed.cost.total(), bytes.len() as u64);
+        assert_eq!(parsed.cost.checkpoints, cost.checkpoints);
+
+        // The advisory checkpoint cannot change the materialized bytes.
+        let out = crate::materialize::decode_to_bytes(&bytes, Limits::DEFAULT)
+            .unwrap()
+            .0;
+        assert_eq!(out, b"abcde");
+    }
+
+    #[test]
+    fn checkpoint_without_directory_is_rejected() {
+        let mut d = checkpointed_descriptor();
+        d.seek_directory = false;
+        assert_eq!(
+            d.serialize().unwrap_err().class(),
+            crate::ErrorClass::InvalidContainer
+        );
+    }
+
+    #[test]
+    fn absent_checkpoint_has_no_cost_and_no_feature_bit() {
+        let d = seekable_descriptor();
+        assert!(d.checkpoints.is_none());
+        let (bytes, cost) = d.serialize().unwrap();
+        assert_eq!(cost.checkpoints, 0);
+        assert_eq!(cost.total(), bytes.len() as u64);
+        assert_eq!(
+            d.optional_features() & crate::container::header::FEATURE_CHECKPOINTS,
+            0
+        );
+    }
+
+    #[test]
+    fn corrupt_or_non_optional_checkpoint_is_rejected() {
+        let (mut bytes, _) = checkpointed_descriptor().serialize().unwrap();
+        // Flip a byte inside the checkpoint payload; its record CRC32C must catch it.
+        let mut reader =
+            crate::container::record::RecordReader::new(&bytes, HEADER_LEN, Limits::DEFAULT);
+        let mut at = None;
+        loop {
+            let p = reader.position();
+            match reader.next_record().unwrap() {
+                Some(r) if r.tag == RecordTag::Checkpoint as u8 => {
+                    at = Some(p + 8);
+                    break;
+                }
+                Some(_) => {}
+                None => break,
+            }
+        }
+        bytes[at.expect("a checkpoint record")] ^= 0x01;
+        assert_eq!(
+            Descriptor::parse(&bytes, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::InvalidContainer
+        );
+
+        // A checkpoint record that does not carry FLAG_OPTIONAL would strand an
+        // older decoder, so this build rejects it too.
+        let (bytes, _) = checkpointed_descriptor().serialize().unwrap();
+        let mut reader =
+            crate::container::record::RecordReader::new(&bytes, HEADER_LEN, Limits::DEFAULT);
+        let mut records = Vec::new();
+        while let Some(r) = reader.next_record().unwrap() {
+            records.push(r);
+        }
+        let mut out = bytes[0..HEADER_LEN].to_vec();
+        for r in &records {
+            let flags = if r.tag == RecordTag::Checkpoint as u8 {
+                0
+            } else {
+                r.flags
+            };
+            crate::container::record::write_record(&mut out, r.tag, flags, &r.payload).unwrap();
+        }
+        assert_eq!(
+            Descriptor::parse(&out, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::InvalidContainer
+        );
+    }
+
+    #[test]
+    fn lying_checkpoint_is_rejected_on_parse() {
+        let (bytes, _) = checkpointed_descriptor().serialize().unwrap();
+        Descriptor::parse(&bytes, Limits::DEFAULT).unwrap();
+
+        // A boundary whose length contradicts the program (internally consistent).
+        let lying = rebuild_with_checkpoint(&bytes, |cp| {
+            cp.entries[0].out_len = 4;
+            cp.entries[1].out_start = 4;
+            cp.entries[1].out_len = 1;
+        });
+        assert_eq!(
+            Descriptor::parse(&lying, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::CoverageViolation
+        );
+
+        // A checkpoint not bound to this GRAPH record.
+        let lying = rebuild_with_checkpoint(&bytes, |cp| cp.graph_crc32c ^= 0xFFFF_FFFF);
+        assert_eq!(
+            Descriptor::parse(&lying, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::InvalidContainer
+        );
+
+        // A checkpoint that declares a different source length.
+        let lying = rebuild_with_checkpoint(&bytes, |cp| cp.source_len += 1);
+        assert_eq!(
+            Descriptor::parse(&lying, Limits::DEFAULT)
+                .unwrap_err()
+                .class(),
+            crate::ErrorClass::IntegrityMismatch
         );
     }
 }

@@ -1,0 +1,20 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-real100-frontier-8f10d00",
+  "phase": "real100-v1 frontier court (frozen architecture / frozen corpus)",
+  "utc_date": "2026-10-07",
+  "git_commit": "8f10d00c1f6ce8aecae8359a33c9d9cee39726a7",
+  "git_short": "8f10d00",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline",
+  "corpus": "real100-v1",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "documents": 100,
+  "schedule_generator": "tools/fixtures/real100-schedule.py",
+  "aggregator": "tools/fixtures/real100-frontier.py",
+  "court": "tools/real100-court.sh",
+  "lanes": {"v": "VOLE (frozen, auto encoder)", "a1": "SQLite+FTS5, source-retaining", "a0": "direct tooling (Poppler/pdfinfo; stdlib zipfile+XML)"},
+  "answered": {"v": 399, "a1": 506, "a0": 508},
+  "declined": {"v": 301, "a1": 194, "a0": 192},
+  "exact": {"v": "97/100", "a1": "98/100", "a0": "100/100"},
+  "tuning": "none — the corpus and the op schedule were frozen before this court; no result fed selection or tuning"
+}

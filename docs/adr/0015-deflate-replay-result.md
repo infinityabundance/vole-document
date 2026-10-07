@@ -161,7 +161,7 @@ independent review's evidence.
 The win therefore requires **both** conjuncts simultaneously: the plaintext must
 be shared across streams **and** at least one of its appearances must be
 large/weakly coded. This boundary is characterized on synthetic fixtures, not by
-a population (see also `docs/evidence/phase6-skeptic-review.md`).
+a population (see also `docs/reviews/phase6-skeptic-review.md`).
 
 ## Consequences
 
@@ -240,7 +240,7 @@ not produced by the tested transformers**:
 
 The Phase-6 win is real and byte-exact; what is not established is that a real
 producer *creates* the region. That gap motivates Phase 7.2 (nested content
-proceduralization). See `docs/evidence/phase7-skeptic-review.md`.
+proceduralization). See `docs/reviews/phase7-skeptic-review.md`.
 
 ## References
 

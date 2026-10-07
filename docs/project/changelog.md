@@ -2,6 +2,53 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [Unreleased] — Phase 13: closing the remaining proposals and the `N5` gate
+
+Phase 13 closes the Phase-12 `PROPOSED` items and the last open skeptic gate.
+Every subphase is measured with the same exactness invariant
+(`materialize(descriptor) == original_bytes`); the wire is unchanged (`dra-8`,
+`FORMAT_MINOR` do not move) and every negative result is recorded.
+
+### Added
+
+- **ODT adapter** (`src/adapter/odt.rs`, feature `odt`) — a bounded OpenDocument
+  (ODF) inverse over the shared ZIP + bounded-XML layers. Resolves the main content
+  part semantically from `META-INF/manifest.xml` (never a hardcoded path) and reuses
+  the ZIP layer but **not** the OPC graph (ODF is not OPC). Byte-exact and queryable
+  after source **and** descriptor deletion in a fresh process; typed declines on a
+  missing/malformed manifest with exactness preserved (ADR-0038).
+- **Optional `CHECKPOINT` record** (`src/container/checkpoint.rs`, `RecordTag`
+  `0x60`, ignorable) — validate-or-decline, falls back to the observation index
+  (ADR-0039, recorded negative).
+
+### Measured
+
+- **13.1** PDF `/Length`/revision as a *size* mechanism: byte-exact, **0 wins** vs
+  the ladder and vs generic (ADR-0036).
+- **13.2** PDF `PDF_COS_TEMPLATE` grammar/templates: byte-exact, a scoped VOLE-ladder
+  win (4/28 files) but **0 wins vs generic** (ADR-0037).
+- **13.3** ODT adapter: **adopted** (ADR-0038).
+- **13.4** Byte-level checkpoints: byte-exact and advisory, but **redundant with the
+  observation index** (16 B/op vs 9 B/op; +259/+439/+1,159 B per byte-range query,
+  identical op work) — recorded negative (ADR-0039).
+- **13.5** Gate `N5` (package-index-only): the literal mechanical control
+  (`zipfile.read`/`unzip -p` + byte substring) answers **0/72** structural selectors
+  while the field answers **72/72** — `N5` **falsified**, gate closed
+  (`2026-10-07-phase13-n5-21948bd`).
+
+### Fixed
+
+- Stale documentation reconciled: the `real100-v1` corpora caveat, the
+  ODT-is-ODF-not-OPC wording, the Phase-13.3 results section, and exact receipt ids.
+- Default-feature `cargo clippy --all-targets -- -D warnings` re-verified clean (the
+  `package`-only items in `src/field/document_format.rs` are feature-gated).
+
+### Reproducibility
+
+- `compose.yaml` OOM containment is now machine-checked: `tools/check-compose-caps.sh`
+  fails if any service lacks `mem_limit == memswap_limit` + `pids_limit`, wired into
+  `tools/check-docs.sh` and a CI `integrity` job.
+
 ## [0.1.0-alpha.16] — Phase 12: universal multi-format document field
 
 Phase 12 makes the persistent procedural field **format-universal**. PDF, DOCX and
@@ -106,13 +153,13 @@ The courts are deliberately mixed; every loss, tie and negative below is recorde
 ### Notes
 
 - An independent adversarial review
-  ([`docs/reviews/phase-12-skeptic-review.md`](docs/reviews/phase-12-skeptic-review.md))
+  ([`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md))
   re-checked every headline; its corrections and amendments are applied — the
   security class tally, the crossover/store scoping, the withdrawal of the
   unmeasured FTS5 claim, the now-run ablation ladder, the sealed PDF no-regression /
   reuse-controls / FTS5 / demo receipts, and the default-feature clippy fix. The
   authoritative results are
-  [`docs/phases/phase-12-results.md`](docs/phases/phase-12-results.md).
+  [`docs/phases/phase-12-results.md`](../phases/phase-12-results.md).
 
 ## [0.1.0-alpha.15] — docs/status tables
 
@@ -305,7 +352,7 @@ decoder, or feature-bit change.
 - **Phase 10.2 — `FINDINGS.md` + ADR-0023 (top-level consolidated decision).**
   One authoritative document stating what was built, what was measured, against
   which baseline, what won, what lost, and why — every claim linked to a sealed
-  receipt and naming its baseline. [`FINDINGS.md`](FINDINGS.md) supersedes the
+  receipt and naming its baseline. [`FINDINGS.md`](findings.md) supersedes the
   per-phase narratives. ADR-0023 records the verdict: **the current VOLE
   representation stack does not beat purpose-built baselines on any measured
   axis; the durable results are byte-exactness, an auditable representation, and

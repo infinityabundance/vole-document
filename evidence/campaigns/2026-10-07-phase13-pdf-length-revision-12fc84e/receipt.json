@@ -1,0 +1,31 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-phase13-pdf-length-revision-12fc84e",
+  "phase": "13.1 — PDF /Length + revision proceduralization as a size mechanism",
+  "utc_date": "2026-10-07T05:12:15Z",
+  "git_commit": "12fc84e5e285dd5775d0b056025f61330c7de066",
+  "git_short": "12fc84e",
+  "git_dirty_tracked": "7",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "baseline (FROM the pinned dev toolchain; adds gzip/zstd/xz/brotli/jq)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "7ec7c1ab7d371947c320f1393bdd3f3668c9712e64090c6e6df98efb113a7d55",
+  "binary_sha256": "5826b58acf1fe41f05b8408b17e119a46f9a3ad6bcc8523983795ccab43babd9",
+  "arch": "x86_64",
+  "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor",
+  "oracles": {
+    "gzip": "gzip 1.12",
+    "zstd": "*** Zstandard CLI (64-bit) v1.5.4, by Yann Collet ***",
+    "xz": "xz (XZ Utils) 5.4.1",
+    "brotli": "brotli 1.0.9",
+    "jq": "jq-1.6"
+  },
+  "corpus_files": 28,
+  "hypotheses": {
+    "H1_byte_exact": "every proposed file round-trips byte-exactly",
+    "H2_vs_ladder": "0 wins vs the current VOLE ladder (expected loss)",
+    "H3_vs_generic": "0 wins vs the best generic compressor (expected loss)",
+    "H4_declines": "declines on xref-stream and non-PDF inputs"
+  },
+  "verdict": "PASS"
+}

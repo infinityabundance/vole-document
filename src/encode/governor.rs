@@ -54,7 +54,7 @@ pub const EPSILON_PERMILLE: u64 = 5;
 /// Advisory local-context window reported by a diagnostic.
 pub const LOCAL_CONTEXT_BYTES: u64 = 4096;
 /// Maximum prefix length of the fixed family order (`0..=DEPTH_MAX`).
-pub const DEPTH_MAX: u8 = 9;
+pub const DEPTH_MAX: u8 = 11;
 
 /// Half-open byte range `[start, start+len)` of the source a diagnostic describes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -347,6 +347,8 @@ const fn family_depth(kind: CandidateKind) -> u8 {
         CandidateKind::PdfDeflateReplay => 7,
         CandidateKind::PdfDeflateReplayRans => 8,
         CandidateKind::PdfDeflateReplayRansIndexed => 9,
+        CandidateKind::PdfLengthRevision => 10,
+        CandidateKind::PdfCosTemplate => 11,
     }
 }
 
@@ -469,6 +471,18 @@ pub fn propose_configured(
         out.push(c);
     }
 
+    if cfg.depth >= family_depth(CandidateKind::PdfLengthRevision)
+        && let Some(c) = crate::adapter::pdf::propose_pdf_length_revision(input, limits)?
+    {
+        out.push(c);
+    }
+
+    if cfg.depth >= family_depth(CandidateKind::PdfCosTemplate)
+        && let Some(c) = crate::adapter::pdf::propose_pdf_cos_template(input, limits)?
+    {
+        out.push(c);
+    }
+
     Ok(out)
 }
 
@@ -513,6 +527,7 @@ fn propose_byte_rans_scaled(
         program: Program::new(vec![Op::DecodeChannel { channel_id: 0 }]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };
@@ -604,6 +619,7 @@ fn propose_channels_scaled(
         program,
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };
@@ -805,6 +821,8 @@ fn ledger(
             l[CODEC] += codec.saturating_sub(order_payload + lexical_payload);
         }
         CandidateKind::PdfLayout => l[STRUCT] += graph,
+        CandidateKind::PdfLengthRevision => l[STRUCT] += graph,
+        CandidateKind::PdfCosTemplate => l[STRUCT] += graph,
         CandidateKind::PdfLayoutRans => {
             l[CODEC] += codec;
             l[STRUCT] += graph;

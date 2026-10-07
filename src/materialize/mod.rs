@@ -181,6 +181,7 @@ mod tests {
             program: crate::dra::Program::new(vec![Op::EmitObject { object_id: 0 }]),
             observation_index: None,
             seek_directory: false,
+            checkpoints: None,
             source_sha256: sha256(source),
             source_len: source.len() as u64,
         }

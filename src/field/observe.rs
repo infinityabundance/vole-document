@@ -32,6 +32,10 @@ use crate::adapter::docx::wml::StoryModel;
 use crate::adapter::docx::{DocxExtractProfile, DocxModel, DocxPartRef, DocxStory, story_params};
 #[cfg(feature = "epub")]
 use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
+#[cfg(feature = "odt")]
+use crate::adapter::odt::{
+    Block as OdtBlock, ContentModel as OdtContentModel, OdtExtractProfile, OdtModel,
+};
 use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, ReuseStats, SourceServer};
@@ -40,6 +44,8 @@ use crate::field::document_format::DocumentFormat;
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "odt")]
+use crate::field::index::SEL_ODT_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::{
@@ -253,6 +259,66 @@ pub enum Selector {
         /// The reading profile identity.
         profile: EpubExtractProfile,
     },
+    /// An ODT (ODF) package part by `manifest:full-path`, resolved through the ODF
+    /// manifest (Phase 13.3). Metadata reports the declared media type and physical
+    /// ordinal; `ExactBytes`/`DecodedBytes` resolve to the member span. Never a fetch.
+    #[cfg(feature = "odt")]
+    OdtPart(String),
+    /// A body-level OpenDocument paragraph (`text:p`), by 0-based index among
+    /// paragraphs (headings excluded).
+    #[cfg(feature = "odt")]
+    OdtParagraph {
+        /// The paragraph index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdtExtractProfile,
+    },
+    /// A body-level OpenDocument heading (`text:h`), by 0-based index among
+    /// headings.
+    #[cfg(feature = "odt")]
+    OdtHeading {
+        /// The heading index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdtExtractProfile,
+    },
+    /// A top-level OpenDocument table (`table:table`), by 0-based index.
+    #[cfg(feature = "odt")]
+    OdtTable {
+        /// The table index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdtExtractProfile,
+    },
+    /// A table cell of an OpenDocument table, by **physical** `(table, row, col)`
+    /// position (spans are reported, never projected).
+    #[cfg(feature = "odt")]
+    OdtCell {
+        /// The 0-based table index.
+        table: u32,
+        /// The 0-based row index.
+        row: u32,
+        /// The 0-based physical cell index within the row.
+        col: u32,
+        /// The extraction profile identity.
+        profile: OdtExtractProfile,
+    },
+    /// A top-level OpenDocument list (`text:list`), by 0-based index.
+    #[cfg(feature = "odt")]
+    OdtList {
+        /// The list index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdtExtractProfile,
+    },
+    /// A text search over the OpenDocument blocks, scoped by the extraction profile.
+    #[cfg(feature = "odt")]
+    OdtFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The extraction profile identity.
+        profile: OdtExtractProfile,
+    },
 }
 
 impl Selector {
@@ -381,6 +447,38 @@ impl Selector {
                 "epub-find:{index}:{pattern};profile={}",
                 profile.fingerprint()
             ),
+            #[cfg(feature = "odt")]
+            Selector::OdtPart(name) => format!("odt-part:{name}"),
+            #[cfg(feature = "odt")]
+            Selector::OdtParagraph { index, profile } => {
+                format!("odt-paragraph:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "odt")]
+            Selector::OdtHeading { index, profile } => {
+                format!("odt-heading:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "odt")]
+            Selector::OdtTable { index, profile } => {
+                format!("odt-table:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "odt")]
+            Selector::OdtCell {
+                table,
+                row,
+                col,
+                profile,
+            } => format!(
+                "odt-cell:{table}:{row}:{col};profile={}",
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "odt")]
+            Selector::OdtList { index, profile } => {
+                format!("odt-list:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "odt")]
+            Selector::OdtFind { pattern, profile } => {
+                format!("odt-find:{pattern};profile={}", profile.fingerprint())
+            }
         }
     }
 
@@ -1366,7 +1464,9 @@ impl<S: SeedStore> Ctx<'_, S> {
             | NodeKind::DocxModel
             | NodeKind::DocxStory
             | NodeKind::EpubModel
-            | NodeKind::EpubContent => {
+            | NodeKind::EpubContent
+            | NodeKind::OdtModel
+            | NodeKind::OdtContent => {
                 self.stats.xml_parses = self.stats.xml_parses.saturating_add(1);
             }
             _ => {}
@@ -1610,6 +1710,40 @@ impl<S: SeedStore> Ctx<'_, S> {
                 },
                 R::Text,
             ) => self.epub_find(req, *index, pattern, profile),
+            #[cfg(feature = "odt")]
+            (Selector::OdtPart(_), R::Metadata | R::ExactBytes | R::DecodedBytes) => {
+                self.odt_part(req)
+            }
+            #[cfg(feature = "odt")]
+            (Selector::OdtParagraph { index, profile }, R::Text | R::Metadata) => {
+                self.odt_paragraph(req, *index, profile)
+            }
+            #[cfg(feature = "odt")]
+            (Selector::OdtHeading { index, profile }, R::Text | R::Metadata) => {
+                self.odt_heading(req, *index, profile)
+            }
+            #[cfg(feature = "odt")]
+            (Selector::OdtTable { index, profile }, R::Text | R::Metadata) => {
+                self.odt_table(req, *index, profile)
+            }
+            #[cfg(feature = "odt")]
+            (
+                Selector::OdtCell {
+                    table,
+                    row,
+                    col,
+                    profile,
+                },
+                R::Text | R::Metadata,
+            ) => self.odt_cell(req, *table, *row, *col, profile),
+            #[cfg(feature = "odt")]
+            (Selector::OdtList { index, profile }, R::Text | R::Metadata) => {
+                self.odt_list(req, *index, profile)
+            }
+            #[cfg(feature = "odt")]
+            (Selector::OdtFind { pattern, profile }, R::Text) => {
+                self.odt_find(req, pattern, profile)
+            }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
                 req.selector.canonical(),
@@ -3450,6 +3584,355 @@ impl<S: SeedStore> Ctx<'_, S> {
 }
 
 // ---------------------------------------------------------------------------
+// ODT (OpenDocument Text) observations (Phase 13.3)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "odt")]
+type OdtContentView = (
+    OdtContentModel,
+    crate::adapter::odt::PartRef,
+    Option<(u64, u64)>,
+    Vec<NodeId>,
+);
+
+#[cfg(feature = "odt")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn odt_model(&mut self) -> Result<OdtModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_ODT_MODEL, 0), "ODT model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        OdtModel::decode(&bytes)
+    }
+
+    fn odt_member_span(&mut self, ordinal: Option<u32>) -> Option<(u64, u64)> {
+        let o = ordinal?;
+        self.lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, o))
+            .ok()?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)))
+    }
+
+    fn odt_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Resolve the main content part to its parsed [`OdtContentModel`], parsing
+    /// **only** that part and persisting the derived node in the disposable cache.
+    fn odt_content_view(&mut self, profile: &OdtExtractProfile) -> Result<OdtContentView> {
+        let model = self.odt_model()?;
+        let part = model.content.clone().ok_or_else(|| {
+            Error::invalid_package_structure(
+                "ODF package has no resolvable OpenDocument content part",
+            )
+        })?;
+        if part.ordinal == u32::MAX {
+            return Err(Error::invalid_package_structure(
+                "ODF content part does not resolve to a package member",
+            ));
+        }
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "ODT content decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::OdtContent,
+            self.limits.max_output_bytes,
+            crate::adapter::odt::content_params(part.ordinal, &part.name, profile),
+            vec![dec.node_id],
+            "odt:content",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let cm = OdtContentModel::decode(&bytes)?;
+        let span = self.odt_member_span(Some(part.ordinal));
+        Ok((cm, part, span, vec![id, dec.node_id]))
+    }
+
+    /// An ODT (ODF) package part by `manifest:full-path`.
+    fn odt_part(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let name = match &req.selector {
+            Selector::OdtPart(n) => n.clone(),
+            _ => return Err(Error::internal_invariant("odt_part: wrong selector")),
+        };
+        let model = self.odt_model()?;
+        let entry = model
+            .manifest
+            .iter()
+            .find(|e| e.full_path == name)
+            .cloned()
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!("ODF manifest declares no part {name:?}"))
+            })?;
+        if entry.ordinal == u32::MAX {
+            return Err(Error::invalid_package_structure(format!(
+                "ODF manifest part {name:?} does not resolve to a package member"
+            )));
+        }
+        let provenance = format!(
+            "odt;part={};ordinal={};media_type={}",
+            entry.full_path, entry.ordinal, entry.media_type
+        );
+        match req.representation {
+            Representation::Metadata => {
+                let json = format!(
+                    "{{\"part\":\"{}\",\"ordinal\":{},\"media_type\":\"{}\",\"version\":{}}}",
+                    json_escape(&entry.full_path),
+                    entry.ordinal,
+                    json_escape(&entry.media_type),
+                    opt_str_json(entry.version.as_deref()),
+                );
+                Ok(self.odt_answer(req, AnswerValue::Json(json), provenance, None, Vec::new()))
+            }
+            Representation::ExactBytes => self.indexed_exact(
+                req,
+                SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, entry.ordinal),
+                "ODT part",
+            ),
+            Representation::DecodedBytes => self.member_decoded(req, entry.ordinal),
+            _ => Err(unsupported_common(req)),
+        }
+    }
+
+    fn odt_paragraph(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odt_content_view(profile)?;
+        let p = m
+            .paragraphs()
+            .find(|p| !p.is_heading() && p.index == index)
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!("ODT content has no paragraph {index}"))
+            })?;
+        let text = p.text.clone();
+        let style = p.style_id.clone();
+        let runs = p.runs.len();
+        let provenance = format!(
+            "odt;part={};paragraph={index};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"part\":\"{}\",\"paragraph\":{index},\"style\":{},\"runs\":{},\"text_len\":{}}}",
+                json_escape(&part.name),
+                opt_str_json(style.as_deref()),
+                runs,
+                text.len()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odt_answer(req, value, provenance, span, deps))
+    }
+
+    fn odt_heading(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odt_content_view(profile)?;
+        let h = m.headings().find(|h| h.index == index).ok_or_else(|| {
+            Error::unsupported_feature(format!("ODT content has no heading {index}"))
+        })?;
+        let text = h.text.clone();
+        let level = h.heading_level;
+        let style = h.style_id.clone();
+        let provenance = format!(
+            "odt;part={};heading={index};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"part\":\"{}\",\"heading\":{index},\"level\":{},\"style\":{},\"text_len\":{}}}",
+                json_escape(&part.name),
+                opt_u8_json(level),
+                opt_str_json(style.as_deref()),
+                text.len()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odt_answer(req, value, provenance, span, deps))
+    }
+
+    fn odt_table(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odt_content_view(profile)?;
+        let t = m.tables().find(|t| t.index == index).ok_or_else(|| {
+            Error::unsupported_feature(format!("ODT content has no table {index}"))
+        })?;
+        let text = t.text();
+        let rows = t.rows.len();
+        let cells: Vec<usize> = t.rows.iter().map(|r| r.cells.len()).collect();
+        let provenance = format!(
+            "odt;part={};table={index};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => {
+                let dims = cells
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                AnswerValue::Json(format!(
+                    "{{\"part\":\"{}\",\"table\":{index},\"rows\":{rows},\"cells_per_row\":[{dims}],\"profile\":\"{}\"}}",
+                    json_escape(&part.name),
+                    profile.fingerprint()
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odt_answer(req, value, provenance, span, deps))
+    }
+
+    fn odt_cell(
+        &mut self,
+        req: &ObserveRequest,
+        table: u32,
+        row: u32,
+        col: u32,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odt_content_view(profile)?;
+        let t = m.tables().find(|t| t.index == table).ok_or_else(|| {
+            Error::unsupported_feature(format!("ODT content has no table {table}"))
+        })?;
+        let r = t.rows.get(row as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("ODT table {table} has no row {row}"))
+        })?;
+        let c = r.cells.iter().find(|c| c.grid_col == col).ok_or_else(|| {
+            Error::unsupported_feature(format!("ODT table {table} row {row} has no cell {col}"))
+        })?;
+        let text = c.text.clone();
+        let col_span = c.col_span;
+        let row_span = c.row_span;
+        let covered = c.covered;
+        let provenance = format!(
+            "odt;part={};table={table};row={row};cell={col};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"part\":\"{}\",\"table\":{},\"row\":{},\"col\":{},",
+                    "\"cols_spanned\":{},\"rows_spanned\":{},",
+                    "\"covered\":{},\"text_len\":{},\"profile\":\"{}\"}}"
+                ),
+                json_escape(&part.name),
+                table,
+                row,
+                col,
+                col_span,
+                row_span,
+                covered,
+                text.len(),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odt_answer(req, value, provenance, span, deps))
+    }
+
+    fn odt_list(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odt_content_view(profile)?;
+        let l = m.lists().find(|l| l.index == index).ok_or_else(|| {
+            Error::unsupported_feature(format!("ODT content has no list {index}"))
+        })?;
+        let text = l.text();
+        let items = l.items.len();
+        let provenance = format!(
+            "odt;part={};list={index};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"part\":\"{}\",\"list\":{index},\"items\":{items},\"profile\":\"{}\"}}",
+                json_escape(&part.name),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odt_answer(req, value, provenance, span, deps))
+    }
+
+    fn odt_find(
+        &mut self,
+        req: &ObserveRequest,
+        pattern: &str,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odt_content_view(profile)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for (i, b) in m.blocks.iter().enumerate() {
+            let t = b.text();
+            if t.contains(pattern) {
+                estimated = estimated.saturating_add(t.len() as u64 + 48);
+                if estimated > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "ODT find exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                items.push(format!(
+                    "{{\"block\":{i},\"text\":\"{}\"}}",
+                    json_escape(&t)
+                ));
+            }
+        }
+        let provenance = format!("odt;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.odt_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Common (format-neutral) observations (Phase 12.7)
 // ---------------------------------------------------------------------------
 
@@ -3485,6 +3968,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Pdf => self.common_pdf(req)?,
             DocumentFormat::Docx => self.common_docx(req)?,
             DocumentFormat::Epub => self.common_epub(req)?,
+            DocumentFormat::Odt => self.common_odt(req)?,
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -3775,6 +4259,13 @@ impl<S: SeedStore> Ctx<'_, S> {
         ))
     }
 
+    #[cfg(not(feature = "odt"))]
+    fn common_odt(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "ODT observations require a build with the odt feature",
+        ))
+    }
+
     #[cfg(feature = "epub")]
     fn epub_common_text(
         &mut self,
@@ -4060,9 +4551,215 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// ODT common observations (Phase 13.3)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "odt")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn common_odt(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let profile = OdtExtractProfile::DEFAULT;
+        match &req.selector {
+            Selector::Metadata => self.odt_common_metadata(req, &profile),
+            Selector::Text => self.odt_content_text(req, &profile),
+            Selector::Heading(i) => self.odt_common_heading(req, *i, &profile),
+            Selector::Block(i) => self.odt_common_block(req, *i, &profile),
+            Selector::Table(i) => self.odt_table(req, *i, &profile),
+            Selector::Cell { table, row, col } => self.odt_cell(req, *table, *row, *col, &profile),
+            Selector::Resource(i) => self.odt_common_resource(req, *i, &profile),
+            Selector::Link(i) => self.odt_common_link(req, *i, &profile),
+            Selector::SearchMatch(p) => self.odt_find(req, p, &profile),
+            other => Err(Error::unsupported_feature(format!(
+                "ODT does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn odt_content_text(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odt_content_view(profile)?;
+        let provenance = format!("odt;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.odt_answer(req, AnswerValue::Text(m.text()), provenance, span, deps))
+    }
+
+    fn odt_common_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let model = self.odt_model()?;
+        let part = model.content.as_ref().ok_or_else(|| {
+            Error::invalid_package_structure(
+                "ODF package has no resolvable OpenDocument content part",
+            )
+        })?;
+        let (m, _part, span, deps) = self.odt_content_view(profile)?;
+        let json = format!(
+            concat!(
+                "{{",
+                "\"format\":\"odt\",",
+                "\"part\":\"{}\",",
+                "\"ordinal\":{},",
+                "\"media_type\":{},",
+                "\"root\":\"{}\",",
+                "\"manifest_entries\":{},",
+                "\"blocks\":{},",
+                "\"paragraphs\":{},",
+                "\"headings\":{},",
+                "\"tables\":{},",
+                "\"lists\":{},",
+                "\"hyperlinks\":{},",
+                "\"bookmarks\":{},",
+                "\"notes\":{},",
+                "\"resources\":{},",
+                "\"sections\":{},",
+                "\"profile\":\"{}\"",
+                "}}"
+            ),
+            json_escape(&part.name),
+            part.ordinal,
+            opt_str_json(part.media_type.as_deref()),
+            json_escape(&m.root_local),
+            model.manifest.len(),
+            m.blocks.len(),
+            m.paragraphs().filter(|p| !p.is_heading()).count(),
+            m.headings().count(),
+            m.tables().count(),
+            m.lists().count(),
+            m.hyperlinks.len(),
+            m.bookmarks.len(),
+            m.notes.len(),
+            m.resources.len(),
+            m.sections.len(),
+            profile.fingerprint(),
+        );
+        let provenance = format!("odt;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.odt_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    fn odt_common_heading(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odt_content_view(profile)?;
+        let h = m.headings().nth(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("ODT content has no common heading {ordinal}"))
+        })?;
+        let text = h.text.clone();
+        let level = h.heading_level;
+        let index = h.index;
+        let style = h.style_id.clone();
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"part\":\"{}\",\"heading\":{ordinal},\"index\":{index},\"level\":{},\"style\":{},\"text_len\":{}}}",
+                json_escape(&part.name),
+                opt_u8_json(level),
+                opt_str_json(style.as_deref()),
+                text.len()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        let provenance = format!(
+            "odt;part={};heading={ordinal};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        Ok(self.odt_answer(req, value, provenance, span, deps))
+    }
+
+    fn odt_common_block(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odt_content_view(profile)?;
+        let b = m.blocks.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("ODT content has no block {ordinal}"))
+        })?;
+        let (kind, text) = match b {
+            OdtBlock::Paragraph(p) => ("paragraph", p.text.clone()),
+            OdtBlock::Table(t) => ("table", t.text()),
+            OdtBlock::List(l) => ("list", l.text()),
+        };
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"part\":\"{}\",\"block\":{ordinal},\"kind\":\"{kind}\",\"text_len\":{}}}",
+                json_escape(&part.name),
+                text.len()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        let provenance = format!(
+            "odt;part={};block={ordinal};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        Ok(self.odt_answer(req, value, provenance, span, deps))
+    }
+
+    fn odt_common_resource(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odt_content_view(profile)?;
+        let r = m.resources.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("ODT content has no resource {ordinal}"))
+        })?;
+        let json = format!(
+            "{{\"part\":\"{}\",\"resource\":{ordinal},\"href\":\"{}\",\"member\":{},\"external\":{}}}",
+            json_escape(&part.name),
+            json_escape(&r.href),
+            opt_str_json(r.member.as_deref()),
+            r.external,
+        );
+        let provenance = format!(
+            "odt;part={};resource={ordinal};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        Ok(self.odt_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    fn odt_common_link(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &OdtExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odt_content_view(profile)?;
+        let l = m.hyperlinks.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("ODT content has no hyperlink {ordinal}"))
+        })?;
+        let json = format!(
+            "{{\"part\":\"{}\",\"link\":{ordinal},\"text\":\"{}\",\"href\":\"{}\",\"external\":{}}}",
+            json_escape(&part.name),
+            json_escape(&l.text),
+            json_escape(&l.href),
+            l.external,
+        );
+        let provenance = format!(
+            "odt;part={};link={ordinal};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        Ok(self.odt_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+}
+
 /// The standard `unsupported observation` error for a common pair that reached a
 /// representation the capability guard admitted but the adapter does not serve.
-#[cfg(any(feature = "docx", feature = "epub"))]
+#[cfg(any(feature = "docx", feature = "epub", feature = "odt"))]
 fn unsupported_common(req: &ObserveRequest) -> Error {
     Error::unsupported_feature(format!(
         "unsupported observation: selector {} with representation {}",
@@ -4172,6 +4869,7 @@ mod tests {
             program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
             observation_index: None,
             seek_directory: false,
+            checkpoints: None,
             source_sha256: crate::integrity::sha256(source),
             source_len: source.len() as u64,
         };

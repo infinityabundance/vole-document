@@ -112,6 +112,17 @@ const EPUB_NATIVE: &[&str] = &[
     "epub-find",
     "member",
 ];
+const ODT_NATIVE: &[&str] = &[
+    "odt-part",
+    "odt-paragraph",
+    "odt-heading",
+    "odt-table",
+    "odt-cell",
+    "odt-list",
+    "odt-find",
+    "package-part",
+    "member",
+];
 const PDF_NATIVE: &[&str] = &[
     "document",
     "object",
@@ -189,6 +200,21 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 epub_profiles(),
                 EPUB_NATIVE.to_vec(),
             ),
+            DocumentFormat::Odt => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("heading", COMMON_TEXT_META),
+                    caps("block", COMMON_TEXT_META),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("resource", COMMON_RESOURCE),
+                    caps("link", COMMON_METADATA),
+                    caps("search-match", SEARCH),
+                ],
+                odt_profiles(),
+                ODT_NATIVE.to_vec(),
+            ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };
     Capabilities {
@@ -215,6 +241,15 @@ fn epub_profiles() -> Vec<String> {
 }
 #[cfg(not(feature = "epub"))]
 fn epub_profiles() -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(feature = "odt")]
+fn odt_profiles() -> Vec<String> {
+    vec![crate::adapter::odt::OdtExtractProfile::DEFAULT.fingerprint()]
+}
+#[cfg(not(feature = "odt"))]
+fn odt_profiles() -> Vec<String> {
     Vec::new()
 }
 

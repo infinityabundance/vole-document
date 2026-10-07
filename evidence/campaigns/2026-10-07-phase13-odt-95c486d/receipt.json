@@ -1,0 +1,28 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-phase13-odt-95c486d",
+  "phase": "13.3 — ODT (OpenDocument Text) adapter over the ZIP + bounded-XML layers",
+  "utc_date": "2026-10-07T05:51:55Z",
+  "git_commit": "95c486d990378d067f044740b046f371dd3ad1a0",
+  "git_short": "95c486d",
+  "git_dirty_tracked": "0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "dev",
+  "service_image_id": "sha256:652fbf80bd6631f9a80df84589bc1227e374a576d5267c343b87471b911415c8",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "7ec7c1ab7d371947c320f1393bdd3f3668c9712e64090c6e6df98efb113a7d55",
+  "arch": "x86_64",
+  "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor",
+  "oracles": {},
+  "env_semantics": {
+    "CARGO_TERM_COLOR": "never"
+  },
+  "hypotheses": {
+    "H1_byte_exact": "materialize(field) == original_bytes (length + SHA-256 + cmp), incl. after source+descriptor deletion in a fresh process",
+    "H2_queryable": "common + native ODT selectors resolve with format=odt;common;<native> provenance",
+    "H3_profiles": "Final vs Original tracked changes differ and the profile identity is recorded",
+    "H4_fail_closed": "missing/malformed META-INF/manifest.xml is a typed decline that preserves exactness"
+  },
+  "tests": {"integration": 9, "integration_passed": 9, "in_file": 6, "in_file_passed": 6},
+  "verdict": "PASS"
+}

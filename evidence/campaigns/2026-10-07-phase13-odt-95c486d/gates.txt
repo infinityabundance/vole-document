@@ -1,0 +1,43 @@
+# Phase 13.3 — gates (branch phase13, commit 95c486d, working tree dirty 0)
+
+## Full gate
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all && \
+  cargo clippy --all-targets --all-features -- -D warnings && \
+  cargo clippy -- -D warnings && \
+  cargo test --all-features --locked && \
+  cargo test --no-default-features && sh tools/check-docs.sh'
+# -> exit 0. Full transcript: raw/gate.txt (committed verbatim, 1529 lines).
+#    cargo fmt --all: clean (no reformat).
+#    clippy --all-targets --all-features -D warnings: 0 warnings.
+#    clippy -- -D warnings (default features): 0 warnings.
+#    cargo test --all-features --locked: 704 passed, 0 failed
+#      (lib 425 passed, 1 ignored; all integration/doc targets 0 failed).
+#    cargo test --no-default-features: 316 passed, 0 failed.
+#    sh tools/check-docs.sh: all documentation checks passed (README 211 lines;
+#      ADR numbers unique; every ADR-NNNN reference resolves; 399 links resolve).
+
+## New tests
+#   tests/odt_adapter.rs — 9 tests, all pass under --all-features:
+#     detection_and_capabilities_are_byte_based
+#     headings_paragraphs_table_cell_and_links_resolve
+#     tracked_changes_profiles_differ_as_specified
+#     provenance_carries_format_part_and_profile
+#     exact_materialization_is_byte_identical
+#     removal_then_fresh_process_is_queryable_and_exact
+#     missing_manifest_declines_typed_and_keeps_exactness
+#     malformed_manifest_declines_typed_and_keeps_exactness
+#     progressive_inversion_reuses_persisted_state_after_restart
+#   src/adapter/odt.rs (in-file) — 6 tests:
+#     profile_roundtrips_and_fingerprints, content_params_roundtrip,
+#     model_roundtrip, absolute_uri_detection,
+#     content_parses_tracked_changes_headings_and_tables, wrong_root_is_declined
+
+## Adjusted tests
+#   tests/property.rs — the scaled `Limits` literal gained the three new ODT caps
+#   (max_odt_manifest_entries/max_odt_blocks/max_odt_notes).
+
+## Court
+docker compose run --rm --no-TTY dev sh -c 'cargo test --all-features --test odt_adapter'
+# -> test result: ok. 9 passed; 0 failed; 0 ignored.
+docker compose run --rm --no-TTY dev sh -c 'cargo test --all-features --lib odt'
+# -> test result: ok. 6 passed; 0 failed; 0 ignored (420 filtered out).
