@@ -1,7 +1,11 @@
 # Phase 13 — Closing the remaining proposals and the last open gate
 
-Branch: `phase13`. Base: `main` @ `13efaf3` (`v0.1.0-alpha.16`, Phase 12).
-Status: **IN PROGRESS**.
+Branch: `phase13` (merged to `main` as `v0.1.0-alpha.17`). Base: `main` @ `13efaf3`
+(`v0.1.0-alpha.16`, Phase 12).
+Status: **COMPLETE** (except the independent-review gate — see
+[phase-13-skeptic-review.md](../reviews/phase-13-skeptic-review.md): the mandated
+independent skeptic subagent was canceled, so that gate is only partially met and
+is recorded, not claimed).
 
 Phase 13 exists because Phase 12's own ledger still carries unmeasured `PROPOSED`
 items and one open acceptance gate. It closes them honestly — measuring each, and

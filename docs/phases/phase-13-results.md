@@ -52,6 +52,14 @@ The last unmeasured PDF structural idea is therefore measured and **closed as a
 recorded negative**; the candidate stays available as a forced ablation lane and
 is never the auto winner.
 
+**Amendment (13.6 skeptic pass, F1).** The campaign's aggregate totals are **not
+comparable across file sets**: `new_total` (920,497 B) sums only the 21 *proposed*
+files, while `ladder_total_excl` (17,807,789 B) and `generic_total` (5,833,194 B)
+sum all **28** (including the 33.6 MB `large.pdf` decline). They must not be
+quoted as a size ratio. The per-file verdicts — every proposed file loses to the
+ladder and to generic — are correct and unchanged; the campaign is not rewritten.
+The same aggregate-file-set mismatch holds in 13.2's `summary.json`.
+
 ## PDF COS grammar/templates (13.2)
 
 **Question.** Can a small grammar over the PDF **COS layer** — repeated

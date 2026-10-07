@@ -2,7 +2,7 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
-## [Unreleased] — Phase 13: closing the remaining proposals and the `N5` gate
+## [0.1.0-alpha.17] — Phase 13: closing the remaining proposals and the `N5` gate
 
 Phase 13 closes the Phase-12 `PROPOSED` items and the last open skeptic gate.
 Every subphase is measured with the same exactness invariant
@@ -48,6 +48,29 @@ Every subphase is measured with the same exactness invariant
 - `compose.yaml` OOM containment is now machine-checked: `tools/check-compose-caps.sh`
   fails if any service lacks `mem_limit == memswap_limit` + `pids_limit`, wired into
   `tools/check-docs.sh` and a CI `integrity` job.
+
+### Corpus
+
+- **`real100-v1`** — a frozen 100-document NASA/NIST corpus (60 PDF / 15 DOCX /
+  25 EPUB), selected independently of VOLE performance and frozen by SHA-256.
+  Document bytes are fetched on demand and are not committed; the manifest,
+  `SHA256SUMS` and byte lengths are.
+- **First frontier court** over the frozen corpus, with the frozen architecture
+  and no tuning: `tools/real100-court.sh` maps VOLE vs a source-retaining
+  SQLite+FTS5 baseline vs direct tooling. Mixed result — VOLE wins repeated
+  observations and DOCX tables/metadata; it loses cold one-shot lookups *and* two
+  structural regions: real EPUB content (the bounded-XML policy forbids the XHTML
+  `DOCTYPE` these files carry — 62 declines) and >100 MiB PDFs (encode OOM/timeout
+  under the lane cap). Exactness: VOLE 97/100, SQLite/FTS 98/100, direct 100/100.
+  Report: `docs/evidence/real100-frontier-report.md`.
+
+### Review
+
+- Phase-13 adversarial review (`docs/reviews/phase-13-skeptic-review.md`): the
+  13.1/13.2 aggregate totals are **not comparable across file sets** and must not
+  be quoted as a size ratio (per-file verdicts unchanged). The independent-review
+  gate is **partial**: the mandated independent skeptic was canceled, so the review
+  is an in-session pass by the author's reasoning path and is recorded as such.
 
 ## [0.1.0-alpha.16] — Phase 12: universal multi-format document field
 

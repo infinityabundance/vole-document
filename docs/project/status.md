@@ -148,7 +148,8 @@ byte-exact, 0 regressions). An independent adversarial review
 security class tally, the unmeasured FTS5 claim, the un-run ablation ladder, the
 missing PDF/reuse/demo receipts, and a default-feature clippy failure.
 
-Phase 13 (branch `phase13`) is **in progress** and closes the remaining Phase-12
+Phase 13 (branch `phase13`, merged to `main` as `v0.1.0-alpha.17` via PR #1) closes
+the remaining Phase-12
 `PROPOSED` items plus the last open gate: a PDF `/Length`/revision *size* court
 (**13.1 measured — recorded negative, ADR-0036**), a PDF COS grammar/template
 court (**13.2 measured — mixed, ADR-0037**), an ODT adapter over the ZIP layer
