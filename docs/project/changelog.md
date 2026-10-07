@@ -2,6 +2,83 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.20] — Phase 15: performance programme (staging)
+
+Phase 15 repairs the performance *measurement* first, then measures whether the
+lifetime economic frontier can be earned. Branch `phase15` (staging); base
+`main` @ `c6977cd` (`v0.1.0-alpha.19`). Results:
+[phase-15-results.md](../phases/phase-15-results.md); ADRs 0042–0048.
+
+### Added
+
+- **Packed seed store** (`--packed`): an optional, immutable, segmented `fieldpack`
+  backend for the seed namespace (`NodeId -> (segment, offset, len)`); identity is
+  unchanged, so field ids are unchanged (ADR-0043).
+- **Resident session** (`DocumentFieldSession` + `observe-batch`): many observations
+  in one process, one JSON answer per line (ADR-0042).
+- **Bounded parallel ingest** (non-default feature `parallel`, `--workers N`) —
+  a bounded Rayon pool over the independent ingest sites (ADR-0044).
+- **DEFLATE ablation harness** (feature `deflate-ablation`; deps `zlib-rs`,
+  `zune-inflate`; `examples/deflate_ablation.rs`) and `miniz-simd`, plus the
+  `memmem-scan` `memchr::memmem::Finder` replacement for the PDF `find_endstream`
+  scan (ADR-0045).
+- **Adaptive promotion** (`--promote[=BYTES]`) — opt-in, default-off, never on the
+  exactness path (ADR-0046).
+
+### Measured
+
+- **15.1 Court repair.** The frozen `real100-v1` court re-run on the **release**
+  binary with the storage universes split: VOLE 455 answered/245 declined, a1
+  506/194, a0 508/192; `materialize --exact` 97/100 (v), 98/100 (a1), 100/100 (a0).
+  Storage: persistent `2,667,668,262 B`, descriptor `1,704,524,849 B`, A1 db
+  `2,891,784,192 B`. VOLE holds `pdf`/`text_repeat` and `docx`/`table`; everything
+  else loses to SQLite/FTS, `exact` loses to the source file. Campaign
+  `2026-10-07-real100-release-baseline-866f489`.
+- **15.3 Packed store (win).** Persistent bytes `0.719x`, file count `0.009x`
+  (111x fewer), latency parity; field id identical 12/12, byte-exact 12/12 both
+  (`2026-10-07-phase15-packed-8c195e8`).
+- **15.5 DEFLATE ablation (recommendation).** `zlib-rs` **1.58x** GB/s at 1.00x RSS,
+  byte-identical — **meets** the pre-registered bar and is the recommended backend
+  swap (not yet adopted); `miniz-simd` (1.11x) enabled as a free, output-preserving
+  change (`2026-10-07-phase15-deflate-e676166`).
+- **15.4 Parallel ingest (determinism positive).** Median speedup `1.00x` at 2/4/8,
+  `0.99x` at 16; field id identical across every worker count 10/10 and
+  `materialize --exact` == source 10/10 (`2026-10-07-phase15-workers-122c026`).
+
+### Recorded negatives
+
+- **15.2 Residency (negative/partial).** The resident lane wins only below ~1 MiB;
+  the cold lane is faster at 1–100 MiB (aggregate `text_repeat` cold 7 ms vs
+  resident 9 ms), because the cold path's `narrow_probe` short-circuit is lost
+  above ~1 MiB (`2026-10-07-real100-release-resident-78f7ea8`; ADR-0042).
+- **15.6 Adaptive promotion (negative).** All three pre-registered falsifiers fire;
+  promoted bytes cut durable bytes **0.0%** (bar 20%); `sq_full` fastest at every
+  depth; mechanism ships opt-in/default-off (`2026-10-07-phase15-diversity-4786f8e`,
+  `…-revision-4786f8e`; ADR-0046).
+- **15.7 Durable cross-root derivations (negative; `N3` violated).** Cross-member
+  derived reuse **0 nodes**; post-`cache --clear` reuse above the floor **0**; only
+  representation identity is shared; no Rust change was made
+  (`2026-10-07-phase15-crossroot-7429d61`; ADR-0047).
+- **15.1 Large PDFs.** 3 of 5 `>100 MiB` documents still fail at `encode`
+  (`nasa-pdf-0001` OOM rc 137; `0002`/`0003` timeout rc 124); 2 succeed (`0020`,
+  `0024`). The Phase-14 bound is unchanged (ADR-0041). `perf` is absent from the
+  lane, so no perf-class counters are claimed.
+
+### Deferred
+
+- **15.8 CUDA batch lane** is **not measured**: the bandwidth gate is unopened, the
+  pinned Docker lanes on this host cannot see the GPU (no NVIDIA runtime
+  registered; `docker info` lists only `runc`), `nvCOMP` is proprietary and not on
+  the `deny.toml` allow-list, and the repo requires Docker-reproducible evidence.
+  An explicit, reasoned deferral (ADR-0048;
+  `research/subagents/phase-15/design-15.8-cuda.md`).
+
+### Fixed
+
+- Stale documentation reconciled: `README.md` `## Current status` (previously
+  `alpha.16` / "Phase 13 in progress") and the `docs/project/status.md` release
+  line.
+
 ## [0.1.0-alpha.19] — Phase 14: large-PDF encode bound (partial fix)
 
 The `real100-v1` frontier court's second failure region: encoding the largest PDFs
