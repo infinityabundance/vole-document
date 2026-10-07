@@ -128,6 +128,6 @@ records a query needs. The design was frozen in
 - Receipt `evidence/campaigns/2026-10-05-phase8-seek-08de2a9/`
   (`seekable.jsonl`, `seekable-report.md`, `seekable-environment.json`)
 - `docs/evidence/phase8-seek-report.md`,
-  `docs/evidence/phase8-skeptic-review.md`
+  `docs/reviews/phase8-skeptic-review.md`
 - ADR-0018: partial materialization (the decode-CPU precursor);
   ADR-0017: generic lossless compressors are the whole-file comparator

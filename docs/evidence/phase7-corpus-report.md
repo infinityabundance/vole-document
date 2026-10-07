@@ -280,7 +280,7 @@ round-trip exact.
 > baseline with no LZ, so the −24,137 B delta is a win over an order-0 lane on
 > repeated identical bytes. It is **not** evidence that a real authoring application
 > produces the shared-plaintext win region. See
-> `docs/evidence/phase7b-skeptic-review.md`.
+> `docs/reviews/phase7b-skeptic-review.md`.
 
 **What the court actually shows.** Cairo emits six byte-identical page content
 streams for a repeated page; the shared-channel lane stores that plaintext once and
@@ -299,7 +299,7 @@ identical page (a legitimate pattern, and our deterministic input); it is **not*
 population claim and does not show that arbitrary real-world authoring output wins.
 The independent review shows the repeated page here is also byte-identical in its
 compressed form, so the region is a generic repeated-bytes one that LZ compresses far
-better (see `docs/evidence/phase7b-skeptic-review.md`). Complete cost remains
+better (see `docs/reviews/phase7b-skeptic-review.md`). Complete cost remains
 authoritative, and the shared-plaintext geometry is necessary but not sufficient
 (ReportLab and pdfTeX prove it). No candidate changed.
 

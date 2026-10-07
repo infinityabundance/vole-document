@@ -131,3 +131,20 @@ documentation checker [`tools/check-docs.sh`](../../tools/check-docs.sh) enforce
 that all internal Markdown links resolve, that required docs exist, that ADR
 references resolve and numbers are unique, that no root-level reader doc other
 than `README.md` exists, and that `README.md` is ≤ 300 lines.
+
+### Update log
+
+- Commit 1 (`docs(layout)`): the moves above, the index
+  ([docs/README.md](../README.md)), and this ledger. All internal Markdown links
+  repointed.
+- Commit 3 (`docs(editorial)`): the `docs/architecture/*`, `docs/formats/*`,
+  `docs/reference/cli.md`, `docs/reference/format-support.md` and
+  `docs/project/roadmap.md` documents created; `docs/project/findings.md`
+  restructured into canonical sections. Stale code-span references to the moved
+  skeptic reviews in living docs (status, conformance, ADRs 0015/0019/0021, two
+  measurement reports) updated to `docs/reviews/`. Recorded history
+  (`docs/project/changelog.md`) is left as written; its hyperlinks were already
+  repointed in commit 1.
+- Commit 4 (`docs(validation)`): [docs/evidence/README.md](../evidence/README.md)
+  and [`tools/check-docs.sh`](../../tools/check-docs.sh) added, and the checks made
+  to pass.

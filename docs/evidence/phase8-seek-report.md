@@ -102,4 +102,4 @@ mid/late queries on one locally generated 33.8 MB PDF, alongside CPU and RSS
 reductions. It is **not** a general random-access-I/O win: a purpose-built
 seekable/blocked format reads 2.6–30× less for the same late query, and it loses
 at the start and early queries. No population claim. ADR-0019;
-`docs/evidence/phase8-skeptic-review.md`.
+`docs/reviews/phase8-skeptic-review.md`.
