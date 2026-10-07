@@ -1,0 +1,4058 @@
+{
+  "campaign": "real100-frontier",
+  "corpus": "real100-v1/documents",
+  "documents": [
+    {
+      "agency": "nasa",
+      "byte_len": 4341936,
+      "cross_format_family_id": "cf-nasa-ebook-01",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0001",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0001.epub",
+      "sha256": "109cb7a0b00ac70cd8072ccc70a51b1c41c9f8fe445872d3da27a89a7f234f65",
+      "size_class": "1-10MiB",
+      "structural_tags": "multi-chapter;reference-heavy;unusual;image-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 18929328,
+      "cross_format_family_id": "cf-nasa-ebook-02",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0002",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0002.epub",
+      "sha256": "4d4014695e8d8981fc54327c6f9a82dcc5361f1d0f75c22c26b19558eb052ab5",
+      "size_class": "10-50MiB",
+      "structural_tags": "multi-chapter;image-heavy;nav-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 3492358,
+      "cross_format_family_id": "cf-nasa-ebook-03",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0003",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0003.epub",
+      "sha256": "674adf9b2f10a4f298c9c38530e4217ae6e901dc3c58546f3ad7fd14513dd4f3",
+      "size_class": "1-10MiB",
+      "structural_tags": "simple;nav-heavy;multi-chapter;image-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 4788734,
+      "cross_format_family_id": "cf-nasa-ebook-04",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0004",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0004.epub",
+      "sha256": "4094e8bfdaa827af0701299bf0c70ab75af850e675bd4ac49038d53a4ef1300b",
+      "size_class": "1-10MiB",
+      "structural_tags": "simple;nav-heavy;multi-chapter;image-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 4858060,
+      "cross_format_family_id": "cf-nasa-ebook-05",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0005",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0005.epub",
+      "sha256": "d5515b24d11ad3f0267d94e824ebf3c969926693484910f3a8e7989b81c52d28",
+      "size_class": "1-10MiB",
+      "structural_tags": "simple;nav-heavy;multi-chapter;image-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 10867010,
+      "cross_format_family_id": "cf-nasa-ebook-06",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0006",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0006.epub",
+      "sha256": "ddfd2b3c5e17fa666e10995c06ea7ae837a984e2c14cfc70c6735d9ed5eb7bf4",
+      "size_class": "10-50MiB",
+      "structural_tags": "multi-chapter;image-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 46837603,
+      "cross_format_family_id": "cf-nasa-ebook-07",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0007",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0007.epub",
+      "sha256": "d33bba3c35d50e70e111cbd310220cf89bda4a83a81e7c77af44f98caac951f4",
+      "size_class": "10-50MiB",
+      "structural_tags": "image-heavy;unusual;multi-chapter"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 25400776,
+      "cross_format_family_id": "cf-nasa-ebook-08",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0008",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0008.epub",
+      "sha256": "47a77099b80e14648bb8bff272a65545fe2d3d4533dbcb9901dd070d0df67e1a",
+      "size_class": "10-50MiB",
+      "structural_tags": "image-heavy;unusual;multi-chapter"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 39526816,
+      "cross_format_family_id": "cf-nasa-ebook-09",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0009",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0009.epub",
+      "sha256": "c21e1272f4527d2ee5592261d09dfcee2bd672f8c6e6cf76519855b5f1a5aa0b",
+      "size_class": "10-50MiB",
+      "structural_tags": "image-heavy;unusual;multi-chapter"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 45000233,
+      "cross_format_family_id": "cf-nasa-ebook-10",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0010",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0010.epub",
+      "sha256": "b2c59febe27ebe0062e77905c4d432d24f5fac7f5ea0718ad3bb43d217c38437",
+      "size_class": "10-50MiB",
+      "structural_tags": "multi-chapter;image-heavy;nav-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 10383142,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0011",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0011.epub",
+      "sha256": "6f763afa6b512da75141ec7e5dcab83f5020fe1c9fd42b16837abbbb3f671782",
+      "size_class": "1-10MiB",
+      "structural_tags": "multi-chapter;reference-heavy;image-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 33373737,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0012",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0012.epub",
+      "sha256": "386322de44e16e82538cdfb45a4320347b8f91ebc382996d43e1c9ee9a385e23",
+      "size_class": "10-50MiB",
+      "structural_tags": "multi-chapter;image-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 5154672,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0013",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0013.epub",
+      "sha256": "d912e541dd943887de54caafa0a49284cb167ffa09f31a4fae26d473d82ed5e6",
+      "size_class": "1-10MiB",
+      "structural_tags": "simple;nav-heavy;multi-chapter;image-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 3761566,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0014",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0014.epub",
+      "sha256": "10e7bf7596627a04736c3d554326d20f536895380a33912979fb958cfc4e885c",
+      "size_class": "1-10MiB",
+      "structural_tags": "multi-chapter;reference-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 4970228,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nasa-epub-0015",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/epub/nasa-epub-0015.epub",
+      "sha256": "8086b6cb2694f7a048e83deaca3dea408d57dfee08cb171175df48edd2128331",
+      "size_class": "1-10MiB",
+      "structural_tags": "simple;nav-heavy;unusual;multi-chapter;image-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 4556385,
+      "cross_format_family_id": "cf-nasa-ebook-01",
+      "document_type": "EBOOK",
+      "format": "pdf",
+      "id": "nasa-pdf-eb-01",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-01.pdf",
+      "sha256": "ba0d2ef48e8f71122adcf523360f13b5eedeb8dd050543fe35a3c7970bf5a312",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 20759892,
+      "cross_format_family_id": "cf-nasa-ebook-02",
+      "document_type": "EBOOK",
+      "format": "pdf",
+      "id": "nasa-pdf-eb-02",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-02.pdf",
+      "sha256": "5325843ccc2098e1c8a8043eb52c23f7e8fdb7fc6e94e8893a5513f50fd200ef",
+      "size_class": "10-50MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 1619846,
+      "cross_format_family_id": "cf-nasa-ebook-03",
+      "document_type": "EBOOK",
+      "format": "pdf",
+      "id": "nasa-pdf-eb-03",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-03.pdf",
+      "sha256": "84c60ba8cfe09586b7b152059b74015b3bcf849fe397a4a257420707d902c060",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 3400064,
+      "cross_format_family_id": "cf-nasa-ebook-04",
+      "document_type": "EBOOK",
+      "format": "pdf",
+      "id": "nasa-pdf-eb-04",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-04.pdf",
+      "sha256": "9ffe990d3df1600794c0adf5530b6f50385ca49b8754e257765496316b76ba94",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 1500825,
+      "cross_format_family_id": "cf-nasa-ebook-05",
+      "document_type": "EBOOK",
+      "format": "pdf",
+      "id": "nasa-pdf-eb-05",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-05.pdf",
+      "sha256": "5fe046efe4e35e506023e27a9784d041e893026f19c9987591483614aea5d6b6",
+      "size_class": "1-10MiB",
+      "structural_tags": "figure-heavy;complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 5695308,
+      "cross_format_family_id": "cf-nasa-ebook-06",
+      "document_type": "EBOOK",
+      "format": "pdf",
+      "id": "nasa-pdf-eb-06",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-06.pdf",
+      "sha256": "fb66c37327685198d5a96a85b71dfcd39191e1a5d1b09e02476d83abc3e9e8d6",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 40758835,
+      "cross_format_family_id": "cf-nasa-ebook-07",
+      "document_type": "EBOOK",
+      "format": "pdf",
+      "id": "nasa-pdf-eb-07",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-07.pdf",
+      "sha256": "8e622ca8f6d1ba0cf809549bddfee69e6754c3a3480d151c1fb54baf49b09be0",
+      "size_class": "10-50MiB",
+      "structural_tags": "figure-heavy;complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 35352230,
+      "cross_format_family_id": "cf-nasa-ebook-08",
+      "document_type": "EBOOK",
+      "format": "pdf",
+      "id": "nasa-pdf-eb-08",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-08.pdf",
+      "sha256": "390c0e2742a6bc79d976f63be9e9ab8ba1ec2806f1411533cf05ec5fafef75a4",
+      "size_class": "10-50MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 11308153,
+      "cross_format_family_id": "cf-nasa-ebook-09",
+      "document_type": "EBOOK",
+      "format": "pdf",
+      "id": "nasa-pdf-eb-09",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-09.pdf",
+      "sha256": "89607e2958a2cc054caf605757b0ab127129204629b1302653e4732b2b839100",
+      "size_class": "10-50MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 16903230,
+      "cross_format_family_id": "cf-nasa-ebook-10",
+      "document_type": "EBOOK",
+      "format": "pdf",
+      "id": "nasa-pdf-eb-10",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-eb-10.pdf",
+      "sha256": "6cc7614530fc053e35e754d839c39da3786a441e9576ea0e409a8f60dd30aa34",
+      "size_class": "10-50MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 408854600,
+      "cross_format_family_id": "",
+      "document_type": "NACA",
+      "format": "pdf",
+      "id": "nasa-pdf-0001",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0001.pdf",
+      "sha256": "47a0cab1fa35a7be3b6433c9c203f42351ce43b5b807bb2b435c46c43756789e",
+      "size_class": ">100MiB",
+      "structural_tags": "scanned;legacy-image;figure-heavy;complex-xref;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 308803168,
+      "cross_format_family_id": "",
+      "document_type": "NACA",
+      "format": "pdf",
+      "id": "nasa-pdf-0002",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0002.pdf",
+      "sha256": "8b2b4b922ea93690363a18fed4f3ff493332495ab93d02e4926305f00edccd34",
+      "size_class": ">100MiB",
+      "structural_tags": "scanned;legacy-image;center:langley;figure-heavy;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 217666672,
+      "cross_format_family_id": "",
+      "document_type": "NACA",
+      "format": "pdf",
+      "id": "nasa-pdf-0003",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0003.pdf",
+      "sha256": "8698c15e76b3ef60b8f87ca9063d9379f83062419886e98d4509b2fb1d023e4d",
+      "size_class": ">100MiB",
+      "structural_tags": "scanned;legacy-image;center:langley;figure-heavy;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 76979396,
+      "cross_format_family_id": "",
+      "document_type": "NACA",
+      "format": "pdf",
+      "id": "nasa-pdf-0004",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0004.pdf",
+      "sha256": "3828b07a0cca2d6b839c478d181df3d8a4f9f655aaed55571189e354915337fb",
+      "size_class": "50-100MiB",
+      "structural_tags": "scanned;legacy-image;multi-column;figure-heavy;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 62023430,
+      "cross_format_family_id": "",
+      "document_type": "NACA",
+      "format": "pdf",
+      "id": "nasa-pdf-0005",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0005.pdf",
+      "sha256": "8c769e0426ba0cb34838b06bb4e0966cb4f80862c1d285cfd1d35fa9d4e57f11",
+      "size_class": "50-100MiB",
+      "structural_tags": "scanned;legacy-image;figure-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 20038953,
+      "cross_format_family_id": "",
+      "document_type": "TR",
+      "format": "pdf",
+      "id": "nasa-pdf-0006",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0006.pdf",
+      "sha256": "70461f2b6d9966db82663b2f028a37c2c6a57168110ae29ee04622ab4c1a46d4",
+      "size_class": "10-50MiB",
+      "structural_tags": "figure-heavy;table-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 10034634,
+      "cross_format_family_id": "",
+      "document_type": "TR",
+      "format": "pdf",
+      "id": "nasa-pdf-0007",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0007.pdf",
+      "sha256": "7bc25af8a645e5aeb6ff9dab7a739fc705a25e5ab557ddb78676d89479d43e30",
+      "size_class": "1-10MiB",
+      "structural_tags": "figure-heavy;table-heavy;complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 5950981,
+      "cross_format_family_id": "",
+      "document_type": "TR",
+      "format": "pdf",
+      "id": "nasa-pdf-0008",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0008.pdf",
+      "sha256": "dabf538e7e394ef4124cd4fec5c350c86c92c1a6d36ebd500595f80f39a40dd1",
+      "size_class": "1-10MiB",
+      "structural_tags": "figure-heavy;table-heavy;equation-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 2856201,
+      "cross_format_family_id": "",
+      "document_type": "TR",
+      "format": "pdf",
+      "id": "nasa-pdf-0009",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0009.pdf",
+      "sha256": "a0f59f33d713f5b95d82a670a84682f1c34e4527303c5c0d3b9f415090269c37",
+      "size_class": "1-10MiB",
+      "structural_tags": "figure-heavy;table-heavy;equation-heavy;center:headquarters;scanned"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 2168794,
+      "cross_format_family_id": "",
+      "document_type": "TR",
+      "format": "pdf",
+      "id": "nasa-pdf-0010",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0010.pdf",
+      "sha256": "8ccc1888411c3d7c0ea74b9fb73b03e4df59eda3207ce131f7ed368adcce5730",
+      "size_class": "1-10MiB",
+      "structural_tags": "figure-heavy;table-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 2362332,
+      "cross_format_family_id": "",
+      "document_type": "TR",
+      "format": "pdf",
+      "id": "nasa-pdf-0011",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0011.pdf",
+      "sha256": "ea4b3df16c79e7fb12d5ee01c12a0a7c7b328d301b9566ceb03fc23867eeca1c",
+      "size_class": "1-10MiB",
+      "structural_tags": "figure-heavy;table-heavy;equation-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 75821728,
+      "cross_format_family_id": "",
+      "document_type": "CR",
+      "format": "pdf",
+      "id": "nasa-pdf-0012",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0012.pdf",
+      "sha256": "425198fb9093a8906be1d9613f675be9586636a6c20bd831c1020add1dd6d569",
+      "size_class": "50-100MiB",
+      "structural_tags": "scanned;legacy-image;table-heavy;figure-heavy;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 88486956,
+      "cross_format_family_id": "",
+      "document_type": "TM",
+      "format": "pdf",
+      "id": "nasa-pdf-0013",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0013.pdf",
+      "sha256": "887f8fc43d66607457beec64f0543db0821045080efcb00e44c27830947dee3c",
+      "size_class": "50-100MiB",
+      "structural_tags": "scanned;legacy-image;figure-heavy;complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 65416915,
+      "cross_format_family_id": "",
+      "document_type": "TM",
+      "format": "pdf",
+      "id": "nasa-pdf-0014",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0014.pdf",
+      "sha256": "f7b5c474376d9adfaae21b7c7dbe52190e4a0e1f454a1d55e3454923c9d818ac",
+      "size_class": "50-100MiB",
+      "structural_tags": "scanned;legacy-image;center:johnson;figure-heavy;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 44435035,
+      "cross_format_family_id": "",
+      "document_type": "TM",
+      "format": "pdf",
+      "id": "nasa-pdf-0015",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0015.pdf",
+      "sha256": "e95440cf947f462ed740de480bc4de2b183ee34362774787b3e4dac1a61bd8b4",
+      "size_class": "10-50MiB",
+      "structural_tags": "scanned;legacy-image;center:glenn;figure-heavy;complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 22463534,
+      "cross_format_family_id": "",
+      "document_type": "CR",
+      "format": "pdf",
+      "id": "nasa-pdf-0016",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0016.pdf",
+      "sha256": "ae6cd7312e76cdb26d7e2115fc2fcfdc7cbdd31498e8d4e62ca4b2467c745c40",
+      "size_class": "10-50MiB",
+      "structural_tags": "scanned;legacy-image;equation-heavy;figure-heavy;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 15160566,
+      "cross_format_family_id": "",
+      "document_type": "CR",
+      "format": "pdf",
+      "id": "nasa-pdf-0017",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0017.pdf",
+      "sha256": "21ee04622c76ebf57bb556288270aa50302318cade9434ca1f0c9281482f0144",
+      "size_class": "10-50MiB",
+      "structural_tags": "table-heavy;appendix-heavy;reference-heavy;center:marshall;scanned;figure-heavy;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 5063820,
+      "cross_format_family_id": "",
+      "document_type": "CR",
+      "format": "pdf",
+      "id": "nasa-pdf-0018",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0018.pdf",
+      "sha256": "0190e79bc3cdfb05944dbacee57b173d368fa1e47a1f8540408acf170f1c66be",
+      "size_class": "1-10MiB",
+      "structural_tags": "table-heavy;center:jet;scanned;figure-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 80563700,
+      "cross_format_family_id": "",
+      "document_type": "CONFERENCE",
+      "format": "pdf",
+      "id": "nasa-pdf-0019",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0019.pdf",
+      "sha256": "9c2f54df6b48c9f264a516cd1b5ae75ee4a3005f2023f885352c0f6766dbfd80",
+      "size_class": "50-100MiB",
+      "structural_tags": "multi-column;figure-heavy;center:goddard;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 178050443,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "pdf",
+      "id": "nasa-pdf-0020",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0020.pdf",
+      "sha256": "d1da42a6517c1d3894bc34c9b78aac2d84966bd051c38fcc68f3ca9bcbd74b89",
+      "size_class": ">100MiB",
+      "structural_tags": "appendix-heavy;reference-heavy;born-digital;center:headquarters;figure-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 36404840,
+      "cross_format_family_id": "",
+      "document_type": "TM",
+      "format": "pdf",
+      "id": "nasa-pdf-0021",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0021.pdf",
+      "sha256": "d3bd12c2db70c99e7b2ac6340073915818ee8102e64e75d4129736fbb83ccc92",
+      "size_class": "10-50MiB",
+      "structural_tags": "table-heavy;center:marshall;figure-heavy;complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 19174500,
+      "cross_format_family_id": "",
+      "document_type": "TM",
+      "format": "pdf",
+      "id": "nasa-pdf-0022",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0022.pdf",
+      "sha256": "b3bf83df2cdd0d187035e1d7c8e337f83307d6fe79a6bf4293e4299ba34be67b",
+      "size_class": "10-50MiB",
+      "structural_tags": "table-heavy;equation-heavy;multi-column;center:glenn;scanned;figure-heavy;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 7527570,
+      "cross_format_family_id": "",
+      "document_type": "TM",
+      "format": "pdf",
+      "id": "nasa-pdf-0023",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0023.pdf",
+      "sha256": "9f1988a93bbbfa44efcf654734fb352dcfa07cf8d151906dac6302dbddf32baa",
+      "size_class": "1-10MiB",
+      "structural_tags": "table-heavy;center:langley;scanned;figure-heavy"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 168513117,
+      "cross_format_family_id": "",
+      "document_type": "CONFERENCE",
+      "format": "pdf",
+      "id": "nasa-pdf-0024",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0024.pdf",
+      "sha256": "963b3ac46c2a57f265fe307b564e99027a1e29c6089d7c4408d7d7c736957dbd",
+      "size_class": ">100MiB",
+      "structural_tags": "multi-column;figure-heavy;equation-heavy;center:glenn;scanned;complex-xref;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 74202114,
+      "cross_format_family_id": "",
+      "document_type": "CONFERENCE",
+      "format": "pdf",
+      "id": "nasa-pdf-0025",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0025.pdf",
+      "sha256": "56db323e1ec2ab4f09c959c784405520b849689daae471e11304cfc336b7c401",
+      "size_class": "50-100MiB",
+      "structural_tags": "multi-column;figure-heavy;equation-heavy;center:glenn;scanned;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 22191482,
+      "cross_format_family_id": "",
+      "document_type": "CONFERENCE",
+      "format": "pdf",
+      "id": "nasa-pdf-0026",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0026.pdf",
+      "sha256": "1edc5e82ce9259055a4e6a3edd50fc342f7f460199d720c17c64b1d29463f130",
+      "size_class": "10-50MiB",
+      "structural_tags": "multi-column;figure-heavy;center:ames"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 8936698,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "pdf",
+      "id": "nasa-pdf-0027",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0027.pdf",
+      "sha256": "2ebf1107089417d1b31d79e2cfbd7e742194a0647edb18503ad45e87319bf02b",
+      "size_class": "1-10MiB",
+      "structural_tags": "appendix-heavy;reference-heavy;born-digital;center:headquarters;complex-xref;very-large"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 525391,
+      "cross_format_family_id": "",
+      "document_type": "CR",
+      "format": "pdf",
+      "id": "nasa-pdf-0028",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0028.pdf",
+      "sha256": "4b6d1c02445bc4662abaa29cb1a47d423f9dbc953a3e10a37f8d87fb22076130",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "table-heavy;center:langley"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 54750188,
+      "cross_format_family_id": "",
+      "document_type": "TM",
+      "format": "pdf",
+      "id": "nasa-pdf-0029",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0029.pdf",
+      "sha256": "40d0ea74fe34c35dc9448fd99fe3aff8090750f284630270973c9eef1a1e62e5",
+      "size_class": "50-100MiB",
+      "structural_tags": "table-heavy;center:ames;figure-heavy;complex-xref"
+    },
+    {
+      "agency": "nasa",
+      "byte_len": 9006896,
+      "cross_format_family_id": "",
+      "document_type": "TM",
+      "format": "pdf",
+      "id": "nasa-pdf-0030",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nasa/pdf/nasa-pdf-0030.pdf",
+      "sha256": "b1a3915a1d9c53b253d606a8167d1cf540fa35472043a2b0d8fbf57cb163f360",
+      "size_class": "1-10MiB",
+      "structural_tags": "table-heavy;center:glenn;complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 544047,
+      "cross_format_family_id": "cf-nist-sp800-115",
+      "document_type": "SP",
+      "format": "pdf",
+      "id": "nist-pdf-0001",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0001.pdf",
+      "sha256": "58e5ed41e5c8ca34ce14fd80b70f118f2c6d613d1647bc307edca30bcc45f063",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "figure-heavy;complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 263703,
+      "cross_format_family_id": "cf-nist-sp800-123",
+      "document_type": "SP",
+      "format": "pdf",
+      "id": "nist-pdf-0002",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0002.pdf",
+      "sha256": "182ae5d23011108fba08c3a56c5029b8a26a428480ae38ac61877f6f3365db41",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 826897,
+      "cross_format_family_id": "cf-nist-sp800-30r1",
+      "document_type": "SP",
+      "format": "pdf",
+      "id": "nist-pdf-0003",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0003.pdf",
+      "sha256": "f214087f0bdb35932a28c16eb93932a33c67a6edfb5e6f1638866bd201c98e04",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 1105061,
+      "cross_format_family_id": "cf-nist-sp800-144",
+      "document_type": "SP",
+      "format": "pdf",
+      "id": "nist-pdf-0004",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0004.pdf",
+      "sha256": "47f0fdf31f4f2b37fb2a8fa0bf77235aad0b3daa74a6397603a619a839500a42",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 1313448,
+      "cross_format_family_id": "cf-nist-sp800-18r2",
+      "document_type": "SP",
+      "format": "pdf",
+      "id": "nist-pdf-0005",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0005.pdf",
+      "sha256": "640f9124469f285fc39dbeffd59708c84043d1a6b64cc87988f31e7e98942371",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 13231497,
+      "cross_format_family_id": "",
+      "document_type": "NISTIR",
+      "format": "pdf",
+      "id": "nist-pdf-0006",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0006.pdf",
+      "sha256": "e537d22762bb5cc18530e1643b30da2b1713888d96be19939d0a08f41571dba7",
+      "size_class": "10-50MiB",
+      "structural_tags": "figure-heavy;complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 554788,
+      "cross_format_family_id": "",
+      "document_type": "NISTIR",
+      "format": "pdf",
+      "id": "nist-pdf-0007",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0007.pdf",
+      "sha256": "c2c2e3cfd765f039e98b3486bb5fabe87af2dd7277265746f7ad1cee0ebddbe2",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 2486118,
+      "cross_format_family_id": "",
+      "document_type": "NISTIR",
+      "format": "pdf",
+      "id": "nist-pdf-0008",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0008.pdf",
+      "sha256": "a4df1552e1241cfa581e5e2b4005a72591314620fc955648aae0b0a73e717265",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 3084796,
+      "cross_format_family_id": "",
+      "document_type": "NISTIR",
+      "format": "pdf",
+      "id": "nist-pdf-0009",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0009.pdf",
+      "sha256": "46afb33b5c52ca6c17ae1d6d6f8f9438227a73d3ae09e4463d2edf4f29f649a1",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 5701173,
+      "cross_format_family_id": "",
+      "document_type": "TN",
+      "format": "pdf",
+      "id": "nist-pdf-0010",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0010.pdf",
+      "sha256": "f590b7b1c1699ce8d48f7cf533d6a2f515c54490a30f08e75b42f794dffa42cd",
+      "size_class": "1-10MiB",
+      "structural_tags": "figure-heavy;complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 86574651,
+      "cross_format_family_id": "",
+      "document_type": "TN",
+      "format": "pdf",
+      "id": "nist-pdf-0011",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0011.pdf",
+      "sha256": "a7f04b4ddead132c3bd58f8d9ecb7feecb9fc2896a51b146b4dfb2bbc93fefae",
+      "size_class": "50-100MiB",
+      "structural_tags": "figure-heavy;complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 2918306,
+      "cross_format_family_id": "",
+      "document_type": "TN",
+      "format": "pdf",
+      "id": "nist-pdf-0012",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0012.pdf",
+      "sha256": "0cb9356a86d3882f19b26d8f212239413f649d41ab2ba9e40f710e97f55c21e3",
+      "size_class": "1-10MiB",
+      "structural_tags": "figure-heavy;complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 77578129,
+      "cross_format_family_id": "",
+      "document_type": "HANDBOOK",
+      "format": "pdf",
+      "id": "nist-pdf-0013",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0013.pdf",
+      "sha256": "419b1501115086972ddfcb9accdc49dca0b8a27c3af8aa5d648b21d30229e34d",
+      "size_class": "50-100MiB",
+      "structural_tags": "scanned;complex-xref;very-large"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 6071591,
+      "cross_format_family_id": "",
+      "document_type": "HANDBOOK",
+      "format": "pdf",
+      "id": "nist-pdf-0014",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0014.pdf",
+      "sha256": "21d2901d7143fc91a52b9df8b2fdaca9f6c144f3090083275bc93385ca218db4",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref;very-large"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 9647192,
+      "cross_format_family_id": "",
+      "document_type": "HANDBOOK",
+      "format": "pdf",
+      "id": "nist-pdf-0015",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0015.pdf",
+      "sha256": "7b4706b4c9833831c6fbec12729961212dbe87df0685644a3a20d6a4a0276673",
+      "size_class": "1-10MiB",
+      "structural_tags": "figure-heavy;complex-xref;very-large"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 310627,
+      "cross_format_family_id": "",
+      "document_type": "FIPS",
+      "format": "pdf",
+      "id": "nist-pdf-0016",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0016.pdf",
+      "sha256": "942a4f929dfbd2b4af2e4e03df7f6e6377054346afd9bee346ed0ebac5db384b",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 1466246,
+      "cross_format_family_id": "cf-nist-fips140-2",
+      "document_type": "FIPS",
+      "format": "pdf",
+      "id": "nist-pdf-0017",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0017.pdf",
+      "sha256": "0df0fdd676df643874adfbbf767b8508af3cc6520aff5cfef7d39428e1c63cd4",
+      "size_class": "1-10MiB",
+      "structural_tags": "figure-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 1518858,
+      "cross_format_family_id": "",
+      "document_type": "OTHER",
+      "format": "pdf",
+      "id": "nist-pdf-0018",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0018.pdf",
+      "sha256": "3c31f46fee98cac0c4323453e5109291a213b4de7fef8c058af9bf67f717433c",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 1946127,
+      "cross_format_family_id": "",
+      "document_type": "OTHER",
+      "format": "pdf",
+      "id": "nist-pdf-0019",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0019.pdf",
+      "sha256": "7576edb531d9848825814ee88e28b1795d3a84b435b4b797d3670eafdc4a89f1",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 1174643,
+      "cross_format_family_id": "",
+      "document_type": "OTHER",
+      "format": "pdf",
+      "id": "nist-pdf-0020",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "page:1",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "supported": false,
+          "workload": "heading"
+        },
+        {
+          "supported": false,
+          "workload": "table"
+        },
+        {
+          "supported": false,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/pdf/nist-pdf-0020.pdf",
+      "sha256": "6e73620ab6b64e90ef2c04bf0e0d6246185a2f4b1b13cab0df494496cff89b6a",
+      "size_class": "1-10MiB",
+      "structural_tags": "complex-xref"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 2286200,
+      "cross_format_family_id": "cf-nist-sp800-18r2",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0001",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0001.docx",
+      "sha256": "47885ad3f525df8ed56c18d9cce06c510babbc5440dcf823a9a13d08017151f4",
+      "size_class": "1-10MiB",
+      "structural_tags": "form;unusual;list-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 2241851,
+      "cross_format_family_id": "cf-nist-sp800-18r2",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0002",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0002.docx",
+      "sha256": "ba74e785e9780fb77c295b0830c1cd7dce93765c5086ea08a56b133153fe330c",
+      "size_class": "1-10MiB",
+      "structural_tags": "form;unusual;list-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 2267651,
+      "cross_format_family_id": "cf-nist-sp800-18r2",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0003",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0003.docx",
+      "sha256": "6960559df6108873b6fef4f4d30f6b2dbc1bac5da7e9f76fbe9376dee2148fe0",
+      "size_class": "1-10MiB",
+      "structural_tags": "deep-headings;procedure-heavy;list-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 2258240,
+      "cross_format_family_id": "cf-nist-sp800-18r2",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0004",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0004.docx",
+      "sha256": "5773efff6a47f1f95663c7182e3ee0d9f0eaf5fc7c699e488467945a11a634f2",
+      "size_class": "1-10MiB",
+      "structural_tags": "form;unusual;list-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 57045,
+      "cross_format_family_id": "cf-nist-sp800-34r1",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0005",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0005.docx",
+      "sha256": "c429c2b93397b318fa14c9718afb564f9162913e1a71a0d964849a5b862a996d",
+      "size_class": "<100KiB",
+      "structural_tags": "form;unusual;table-heavy;list-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 56935,
+      "cross_format_family_id": "cf-nist-sp800-34r1",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0006",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0006.docx",
+      "sha256": "345fa5f2eb4d47d2433e409cf6c0bbef7256be00d475cb337efdfd19194e90dd",
+      "size_class": "<100KiB",
+      "structural_tags": "form;unusual;table-heavy;list-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 42191,
+      "cross_format_family_id": "cf-nist-sp800-34r1",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0007",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0007.docx",
+      "sha256": "34ce81fe417d491b479de92465b5c2673378f6987423d68c649ada1ed84b3522",
+      "size_class": "<100KiB",
+      "structural_tags": "form;unusual;table-heavy;list-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 28783,
+      "cross_format_family_id": "cf-nist-sp800-34r1",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0008",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0008.docx",
+      "sha256": "3fe358f1cf866c3a6208692517e1705b86581c08bfba49000b95998bc0b581a0",
+      "size_class": "<100KiB",
+      "structural_tags": "form;unusual;procedure-heavy;table-heavy;list-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 152516,
+      "cross_format_family_id": "cf-nist-sp800-53r5",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0009",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0009.docx",
+      "sha256": "b90eb95de2c2dfcc5e91615f479ae55450d1a44ad87d4d666c3bc53c169e4ef9",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "form;unusual;index;table-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 67602,
+      "cross_format_family_id": "cf-nist-sp800-88r1",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0010",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0010.docx",
+      "sha256": "e5c942418df434e8a27b9b6025394e5dea2418d801258592b5187cbba1ca0e00",
+      "size_class": "<100KiB",
+      "structural_tags": "form;unusual"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 162933,
+      "cross_format_family_id": "cf-nist-sp800-218",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0011",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0011.docx",
+      "sha256": "517d0db2b62df0b6a6b24004fe6dfb0c8a26bd1713178efd799beb8b69781c17",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "table-heavy;deep-headings;list-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 154292,
+      "cross_format_family_id": "cf-nist-sp800-218",
+      "document_type": "SP",
+      "format": "docx",
+      "id": "nist-docx-0012",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0012.docx",
+      "sha256": "4f4a2aa689ed2c0f5a6cf6e718b773e980b066327dfa524c8198e92f61ef7a6c",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "table-heavy;list-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 25400,
+      "cross_format_family_id": "",
+      "document_type": "OTHER",
+      "format": "docx",
+      "id": "nist-docx-0013",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0013.docx",
+      "sha256": "83006470c9d578a73cab4b49e4b8069ed10745a8f280fe3fbf2be65ec94da26d",
+      "size_class": "<100KiB",
+      "structural_tags": "form;unusual;table-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 948422,
+      "cross_format_family_id": "",
+      "document_type": "OTHER",
+      "format": "docx",
+      "id": "nist-docx-0014",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0014.docx",
+      "sha256": "f3160b5c856c9f324de83c22dcc733b28874ae896413f5e8342a65c975026c2f",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "table-heavy;image-heavy;deep-headings;list-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 1568485,
+      "cross_format_family_id": "",
+      "document_type": "OTHER",
+      "format": "docx",
+      "id": "nist-docx-0015",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/docx/nist-docx-0015.docx",
+      "sha256": "882f437d4398f1a2d17596cdb8190f876b61c4c39f275938ab20a49274747d97",
+      "size_class": "1-10MiB",
+      "structural_tags": "image-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 168431,
+      "cross_format_family_id": "cf-nist-sp800-115",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nist-epub-0001",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/epub/nist-epub-0001.epub",
+      "sha256": "b6bdb557a0d7bdac3bd579ade42520f6bf89ffe319a52ebc8b786bff59a06064",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "unusual;table-heavy;reference-heavy;figure-heavy;multi-chapter"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 116651,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nist-epub-0002",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/epub/nist-epub-0002.epub",
+      "sha256": "05715f15ab4c1c98ff92b0d63c297e357658ab59afccae387a494be10b8e94cc",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "reference-heavy;figure-heavy;multi-chapter"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 89755,
+      "cross_format_family_id": "cf-nist-sp800-123",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nist-epub-0003",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/epub/nist-epub-0003.epub",
+      "sha256": "d7c59053c31dc8cd169c1d3aee746193681275cbae353695d742db0ffa7cb7c9",
+      "size_class": "<100KiB",
+      "structural_tags": "simple;nav-heavy;multi-chapter"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 336417,
+      "cross_format_family_id": "cf-nist-sp800-30r1",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nist-epub-0004",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/epub/nist-epub-0004.epub",
+      "sha256": "88fb61a08197d01ea178a4456f0e61363c06d3b8c9d847655505723b24984e28",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "reference-heavy;figure-heavy;multi-chapter"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 274801,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nist-epub-0005",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/epub/nist-epub-0005.epub",
+      "sha256": "f1339bccd75e3102ea5f978d26102012661fdf48ed3a34e05994d74185f49731",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "simple;nav-heavy;multi-chapter"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 105867,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nist-epub-0006",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/epub/nist-epub-0006.epub",
+      "sha256": "a3472bf6093135d5e5d5aa4cdc6a555448df77c14867b1d02a4c007f3e800def",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "reference-heavy;figure-heavy;multi-chapter"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 145523,
+      "cross_format_family_id": "cf-nist-sp800-144",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nist-epub-0007",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/epub/nist-epub-0007.epub",
+      "sha256": "3f53159c643ecc5df4919f4dc403f643660d59c8f548485a2bb7bdec7932790a",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "reference-heavy;figure-heavy;multi-chapter"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 35841,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nist-epub-0008",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/epub/nist-epub-0008.epub",
+      "sha256": "42707b70a478a289a35146af3fb0d7ace341dae804625a160728d7589e126437",
+      "size_class": "<100KiB",
+      "structural_tags": "simple;nav-heavy"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 1237255,
+      "cross_format_family_id": "",
+      "document_type": "SP",
+      "format": "epub",
+      "id": "nist-epub-0009",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/epub/nist-epub-0009.epub",
+      "sha256": "1901af80bc4552842315f686062fcbd67b7534a912a3f66e2e18cff7200db475",
+      "size_class": "1-10MiB",
+      "structural_tags": "reference-heavy;figure-heavy;multi-chapter"
+    },
+    {
+      "agency": "nist",
+      "byte_len": 119715,
+      "cross_format_family_id": "cf-nist-fips140-2",
+      "document_type": "FIPS",
+      "format": "epub",
+      "id": "nist-epub-0010",
+      "ops": [
+        {
+          "kind": "text",
+          "selector": "block:0",
+          "supported": true,
+          "workload": "text_once"
+        },
+        {
+          "kind": "text",
+          "selector": "heading:0",
+          "supported": true,
+          "workload": "heading"
+        },
+        {
+          "kind": "text",
+          "selector": "table:0",
+          "supported": true,
+          "workload": "table"
+        },
+        {
+          "kind": "metadata",
+          "selector": "resource:0",
+          "supported": true,
+          "workload": "resource"
+        },
+        {
+          "kind": "metadata",
+          "selector": "metadata",
+          "supported": true,
+          "workload": "metadata"
+        }
+      ],
+      "path": "real100-v1/documents/nist/epub/nist-epub-0010.epub",
+      "sha256": "a887d24b81ed8afd8db88cb361e7534730d48595b512430a49022f2e0e7af144",
+      "size_class": "100KiB-1MiB",
+      "structural_tags": "figure-heavy;reference-heavy;table-heavy;multi-chapter"
+    }
+  ],
+  "manifest": "real100-v1/manifest.tsv",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "repeat_n": 5,
+  "workloads": [
+    "text_once",
+    "heading",
+    "table",
+    "resource",
+    "metadata",
+    "text_repeat",
+    "exact"
+  ]
+}

@@ -2,6 +2,36 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.18] — Phase 13.7: benign `DOCTYPE` (real-corpus EPUB fix)
+
+The `real100-v1` frontier court found that the frozen EPUB adapter declined **all**
+content observations on real books — every NASA EPUB has spine content documents
+carrying the standard XHTML `<!DOCTYPE …>`, which the bounded-XML policy refused
+outright. 13.7 splits the policy (ADR-0040).
+
+### Fixed
+
+- **Benign `DOCTYPE` accepted, internal subsets still refused.** A declaration
+  without an internal subset (bare, or with a `PUBLIC`/`SYSTEM` identifier) is
+  accepted and ignored; a declaration with a subset (`[…]`) is refused. Entities
+  are never resolved and the external identifier is never fetched, so the no-DTD
+  property is preserved; hostile fixtures (internal subsets) still decline.
+  Parse-side only: no decoder behavior, no wire change.
+- **Real EPUB content parses.** Re-running the frozen frontcourt over `real100-v1`
+  (campaign `2026-10-07-real100-frontier-c14e06f`), the VOLE EPUB declines fall
+  **62 → 6** and VOLE ops answered rise **399 → 455**. The residual 6 are
+  non-DOCTYPE (a bare `&` in an attribute; an EPUB with no level-0 heading).
+- Removed the dead, wire-neutral `max_xml_doctype` limit.
+
+### Review
+
+- An **independent adversarial subagent** pass was run and recorded
+  (`docs/reviews/phase-13-skeptic-review.md`, `research/subagents/phase-13/`). It
+  confirmed 13.1–13.5 and the `real100-v1` numbers, could not break 13.7's
+  security property, and overstated/falsified four items — all corrected (the
+  13.7 motivating wording, the 13.7 effect, a factually wrong sentence about the
+  largest successful PDF descriptor, and under-disclosed A1/storage facts).
+
 ## [0.1.0-alpha.17] — Phase 13: closing the remaining proposals and the `N5` gate
 
 Phase 13 closes the Phase-12 `PROPOSED` items and the last open skeptic gate.

@@ -117,6 +117,29 @@ By format (VOLE's region narrows sharply for EPUB):
 The measured region where the field pays for itself is narrow and specific:
 **repeated, varied observations of the same document where its native structure
 is parseable and the document is not a huge opaque binary.** Outside that region
-the honest comparisons win — a prebuilt relational/FTS cache for cold lookups and
+region the honest comparisons win — a prebuilt relational/FTS cache for cold lookups and
 one-shot structure, direct tooling for raw extraction and exact copies. The two
 failure regions above are the concrete engineering backlog the map produced.
+
+## Post-fix update (13.7 — benign `DOCTYPE`)
+
+The EPUB-content region above was the first backlog item and is now fixed (13.7,
+ADR-0040: a `DOCTYPE` without an internal subset is accepted and ignored). The
+court was re-run on the fixed binary over the same frozen corpus
+(`evidence/campaigns/2026-10-07-real100-frontier-c14e06f/`):
+
+| metric | pre-fix (`8f10d00`) | post-fix (`c14e06f`) |
+|---|---:|---:|
+| VOLE ops answered | 399 | **455** |
+| VOLE ops declined | 301 | **245** |
+| VOLE EPUB declines | 62 | **6** |
+| VOLE exact | 97/100 | 97/100 |
+
+The fix converts the rc-19 DOCTYPE refusals into **answered** observations, which
+confirms the finding and the remedy. It does **not** make VOLE win those cells:
+with the EPUB surfaces now answering, the map shows VOLE **losing** EPUB
+`heading`/`table`/`resource`/`metadata` to SQLite/FTS (the pre-fix overall
+"repeated text / table" wins were an artifact of the smaller answered set and are
+gone). The 6 residual EPUB declines are non-DOCTYPE (a bare `&` in an attribute;
+an EPUB with no level-0 heading). So the honest post-fix reading is unchanged in
+direction: VOLE's region stays narrow, now measured over a fuller answered set.
