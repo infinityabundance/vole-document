@@ -7,8 +7,8 @@
 #   * generic compressors: gzip -9, zstd -19 --long=27, xz -9e, brotli -q 11;
 #   * VOLE lanes: RAW, RLE, BYTE_RANS, every forced structural kind
 #     (pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans,
-#      pdf-deflate-replay, pdf-deflate-replay-rans) and the unforced auto winner
-#     (complete serialized `.voldoc` size).
+#      pdf-length-revision, pdf-deflate-replay, pdf-deflate-replay-rans) and the
+#     unforced auto winner (complete serialized `.voldoc` size).
 #
 # Honesty rules:
 #   * Every generic result is round-trip verified (`<decompress> | cmp` against
@@ -186,6 +186,7 @@ for _f in "$@"; do
     _chans=$(run_force "$_file" pdf-channels)
     _layout=$(run_force "$_file" pdf-layout)
     _layoutrans=$(run_force "$_file" pdf-layout-rans)
+    _lenrev=$(run_force "$_file" pdf-length-revision)
     _deflate=$(run_force "$_file" pdf-deflate-replay)
     _deflaterans=$(run_force "$_file" pdf-deflate-replay-rans)
 
@@ -197,15 +198,16 @@ for _f in "$@"; do
     consider PDF_CHANNELS "$_chans"
     consider PDF_LAYOUT "$_layout"
     consider PDF_LAYOUT_RANS "$_layoutrans"
+    consider PDF_LENGTH_REVISION "$_lenrev"
     consider PDF_DEFLATE_REPLAY "$_deflate"
     consider PDF_DEFLATE_REPLAY_RANS "$_deflaterans"
     consider AUTO "$_auto_len"
     if [ -z "$_best_val" ]; then _best_val=null; _best_name=null; fi
 
-    printf '{"corpus":"%s","file":"%s","source_len":%s,"gzip9":%s,"zstd19":%s,"xz9e":%s,"brotli11":%s,"raw":%s,"rle":%s,"byte_rans":%s,"pdf_physical":%s,"pdf_channels":%s,"pdf_layout":%s,"pdf_layout_rans":%s,"deflate_replay":%s,"deflate_replay_rans":%s,"auto_candidate":"%s","auto_len":%s,"best_vole":%s,"best_vole_lane":"%s","verify_ok":%s,"roundtrip_ok":%s}\n' \
+    printf '{"corpus":"%s","file":"%s","source_len":%s,"gzip9":%s,"zstd19":%s,"xz9e":%s,"brotli11":%s,"raw":%s,"rle":%s,"byte_rans":%s,"pdf_physical":%s,"pdf_channels":%s,"pdf_layout":%s,"pdf_layout_rans":%s,"pdf_length_revision":%s,"deflate_replay":%s,"deflate_replay_rans":%s,"auto_candidate":"%s","auto_len":%s,"best_vole":%s,"best_vole_lane":"%s","verify_ok":%s,"roundtrip_ok":%s}\n' \
       "$CORPUS" "$_disp" "$_src" "$_gzip" "$_zstd" "$_xz" "$_brotli" \
       "$_raw" "$_rle" "$_byte_rans" "$_phys" "$_chans" "$_layout" "$_layoutrans" \
-      "$_deflate" "$_deflaterans" "$_auto_cand" "$_auto_len" "$_best_val" "$_best_name" \
+      "$_lenrev" "$_deflate" "$_deflaterans" "$_auto_cand" "$_auto_len" "$_best_val" "$_best_name" \
       "$_verify" "$_rt" >> "$ROWS"
 
     printf '%-40s src=%-8s gzip=%-8s zstd=%-8s xz=%-8s brotli=%-8s byte_rans=%-8s best_vole=%-8s(%s)\n' \

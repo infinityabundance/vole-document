@@ -9,6 +9,7 @@ pub mod channels;
 pub mod cos;
 pub mod large;
 pub mod layout;
+pub mod length_revision;
 pub mod lexer;
 pub mod physical;
 pub mod samples;
@@ -28,6 +29,7 @@ pub use large::large_pdf;
 #[cfg(feature = "rans")]
 pub use layout::propose_pdf_layout_rans;
 pub use layout::{build_layout_plan, propose_pdf_layout};
+pub use length_revision::{build_length_revision_plan, propose_pdf_length_revision};
 pub use lexer::{LexIssue, LexResult, lex};
 pub use physical::{
     LengthSource, ObjRole, PdfObjectSpan, PdfPhysical, PdfStreamSpan, PhysicalKind, PhysicalSpan,

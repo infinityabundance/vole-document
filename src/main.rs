@@ -117,7 +117,7 @@ const USAGE_TAIL: &str = "\
 
 KIND (for encode --force): raw | rle | byte-rans | pdf-physical | pdf-channels |
     pdf-layout | pdf-layout-rans | pdf-deflate-replay | pdf-deflate-replay-rans |
-    pdf-deflate-replay-rans-indexed
+    pdf-deflate-replay-rans-indexed | pdf-length-revision
     Forces the complete-cost court to consider only that candidate family, for
     honest per-mechanism ablation. Fails when the input does not propose it.
 
@@ -348,8 +348,9 @@ fn parse_force_kind(s: &str) -> Result<CandidateKind> {
         "pdf-deflate-replay" => Ok(CandidateKind::PdfDeflateReplay),
         "pdf-deflate-replay-rans" => Ok(CandidateKind::PdfDeflateReplayRans),
         "pdf-deflate-replay-rans-indexed" => Ok(CandidateKind::PdfDeflateReplayRansIndexed),
+        "pdf-length-revision" => Ok(CandidateKind::PdfLengthRevision),
         other => Err(Error::usage(format!(
-            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans, pdf-deflate-replay, pdf-deflate-replay-rans, pdf-deflate-replay-rans-indexed"
+            "unknown --force kind {other:?}; expected one of raw, rle, byte-rans, pdf-physical, pdf-channels, pdf-layout, pdf-layout-rans, pdf-deflate-replay, pdf-deflate-replay-rans, pdf-deflate-replay-rans-indexed, pdf-length-revision"
         ))),
     }
 }

@@ -1,0 +1,16 @@
+{
+  "files": 28,
+  "declined": 7,
+  "proposed": 21,
+  "wins_vs_ladder": 0,
+  "ties_vs_ladder": 0,
+  "losses_vs_ladder": 21,
+  "wins_vs_generic": 0,
+  "ties_vs_generic": 0,
+  "losses_vs_generic": 21,
+  "lowers_ladder_count": 0,
+  "ladder_total_excl": 17807789,
+  "best_vole_total_incl": 17807789,
+  "new_total": 920497,
+  "generic_total": 5833194
+}

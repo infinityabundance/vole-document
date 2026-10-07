@@ -465,7 +465,7 @@ fn push_pack_literal(
 /// [`PackItem::Mark`] or [`PackItem::Emit`], empty pushes are ignored, and the
 /// combined length must remain expressible as a `u32`. Returns `false` (so the
 /// caller declines) when no safe item shape exists.
-fn push_literal(items: &mut Vec<PackItem>, data: &mut Vec<u8>, bytes: &[u8]) -> bool {
+pub(crate) fn push_literal(items: &mut Vec<PackItem>, data: &mut Vec<u8>, bytes: &[u8]) -> bool {
     if bytes.is_empty() {
         return true;
     }
@@ -533,7 +533,7 @@ fn predict_startxref(
 
 /// One ordered slice of a classic `xref` section: either literal bytes or a
 /// 20-byte entry whose offset field may be regenerated.
-enum XrefPiece {
+pub(crate) enum XrefPiece {
     /// Verbatim bytes `[start, start + len)` of the section.
     Literal { start: usize, len: usize },
     /// A 20-byte entry `[start, start + 20)`.
@@ -557,7 +557,7 @@ enum XrefPiece {
 /// each followed by exactly `count` 20-byte entries of the shape
 /// `10-digit-offset SP 5-digit-generation SP status 2-byte-EOL`. The two EOL
 /// bytes may be `CR LF`, `LF CR`, `SP LF`, or `SP CR`.
-fn parse_classic_xref(bytes: &[u8]) -> Option<Vec<XrefPiece>> {
+pub(crate) fn parse_classic_xref(bytes: &[u8]) -> Option<Vec<XrefPiece>> {
     if !bytes.starts_with(b"xref") {
         return None;
     }
@@ -670,7 +670,7 @@ fn parse_uint_at(bytes: &[u8], at: usize) -> Option<(u64, usize)> {
 }
 
 /// Parse an all-digit slice as a non-negative decimal integer.
-fn parse_digits(digits: &[u8]) -> Option<u64> {
+pub(crate) fn parse_digits(digits: &[u8]) -> Option<u64> {
     if digits.is_empty() {
         return None;
     }

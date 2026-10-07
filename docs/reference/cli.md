@@ -33,7 +33,7 @@ vole-document capabilities [ROOT]
 ```text
 raw | rle | byte-rans | pdf-physical | pdf-channels | pdf-layout |
 pdf-layout-rans | pdf-deflate-replay | pdf-deflate-replay-rans |
-pdf-deflate-replay-rans-indexed
+pdf-deflate-replay-rans-indexed | pdf-length-revision
 ```
 
 ## Partial views (`rans`)

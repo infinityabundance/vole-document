@@ -149,10 +149,12 @@ security class tally, the unmeasured FTS5 claim, the un-run ablation ladder, the
 missing PDF/reuse/demo receipts, and a default-feature clippy failure.
 
 Phase 13 (branch `phase13`) is **in progress** and closes the remaining Phase-12
-`PROPOSED` items plus the last open gate: a PDF `/Length`/revision *size* court, a
-PDF grammar/template court, an ODT adapter over the ZIP/OPC layers, byte-level
-partial-materialization checkpoints, and the `N5` package-index-only gate. Plan:
-[`docs/phases/phase-13-plan.md`](../phases/phase-13-plan.md).
+`PROPOSED` items plus the last open gate: a PDF `/Length`/revision *size* court
+(**13.1 measured — recorded negative, ADR-0036**), a PDF grammar/template court,
+an ODT adapter over the ZIP/OPC layers, byte-level partial-materialization
+checkpoints, and the `N5` package-index-only gate. Plan:
+[`docs/phases/phase-13-plan.md`](../phases/phase-13-plan.md), results:
+[`docs/phases/phase-13-results.md`](../phases/phase-13-results.md).
 
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED` / `SUPERSEDED` / `PARTLY DELIVERED`).
@@ -190,7 +192,7 @@ partial-materialization checkpoints, and the `N5` package-index-only gate. Plan:
 | PDF layout on packed framing (layout-v2, coalesced) | 5.7 | RECORDED (beats RAW at scale, rejected vs `BYTE_RANS`) | campaign `2026-10-05-phase5-4521778`; packed+coalesced layout beats RAW on `many.pdf` (10,069 vs 10,215), but the residual data object is stored literally so it loses to `BYTE_RANS` (5,181) and is never the auto winner (ADR-0012) |
 | `PACKED_CHANNELS` DRA op (DRA v6) | 5.8 | IMPLEMENTED | opcode `0x09`; reconstructs from a data channel + a plan channel (serialized item table) with a declared output length validated at eval; universe → `phase5-8` |
 | PDF layout + rANS (`PDF_LAYOUT_RANS`) | 5.8 | RECORDED (rejected vs `BYTE_RANS`) | campaign `2026-10-05-phase5-8-cf8048d`; byte-exact, but head-to-head wins 0 / loses 8 / declines 3, and the A6 rung adds a plan channel + a second model that `BYTE_RANS` never pays (ADR-0013) |
-| PDF `/Length`/revision proceduralization (as a **size** mechanism) | 6+ | PROPOSED | structural compression beyond xref offsets is still unmeasured; Phase 11 persists revisions as *observation* nodes (`PdfRevision`) — recovered and queryable, but **not** a size candidate |
+| PDF `/Length`/revision proceduralization (as a **size** mechanism) | 13.1 | RECORDED (rejected on cost) | campaign `2026-10-07-phase13-pdf-length-revision-12fc84e` (ADR-0036); `PDF_LENGTH_REVISION` (`encode --force pdf-length-revision`) regenerates xref entry offsets, `startxref`/trailer `/Prev`, and each directly-sized stream's `/Length` from marked output positions with the existing positional ops (no new opcode/universe). Over 28 complete files: byte-exact **21/21 where proposed**, 7 declines (xref-stream/malformed/non-PDF/&gt;254-object), and **win 0 / tie 0 / loss 21** vs the current VOLE ladder *and* vs the best generic compressor; it never lowers the ladder (regenerating a field costs a `Mark`+`Emit` item per site, exceeding the digits removed — the ADR-0011/0012/0013 framing failure). Phase 11 persists revisions as *observation* nodes; this closes the same structure as a *size* candidate |
 | Lexer stream opacity (`stream`+EOL is an opaque span) | 6 | ADOPTED | campaign `2026-10-05-phase6-0d0bb79`; stream-data bytes are a byte-authoritative span, so `/FlateDecode` stream spans are exact and `preflate` never discovers streams; 12/12 corpus files still round-trip |
 | `DEFLATE_REPLAY` DRA op (DRA v8) | 6 | IMPLEMENTED | opcode `0x0A`; explicit `replay_codec` tag (`REPLAY_DEFLATE_PREFLATE_0_7_6`, an experimental version-coupled `preflate` layout) that fails closed on an unknown id; emits the exact raw DEFLATE bitstream from `(plaintext, corrections)` with a declared output length statically rejected above the VOLE replay-profile admission limit `min(max_output_bytes, max_replay_bytes, 2*P+1024)` before the engine runs (ADR-0016; a policy bound, not an RFC 1951 maximum) and validated at eval; plaintext/corrections bounded by `max_record_len`; `catch_unwind`-isolated; mandatory feature bit (opt-in `deflate-replay` cargo feature); universe → `phase6;…;dra-8;…+deflate-replay-preflate-0.7.6-experimental` |
 | Exact DEFLATE replay, raw plaintext (`PDF_DEFLATE_REPLAY`) | 6 | RECORDED (rejected vs `BYTE_RANS`) | campaign `2026-10-05-phase6-0d0bb79`; byte-exact, but on `flate.pdf` 56,736 vs `BYTE_RANS` 49,291 (the plaintext is nearly as large as the bitstream it replaces) |
@@ -247,8 +249,10 @@ literal coalescing: packed layout prediction now **beats RAW at scale**
 (`many.pdf` 10,069 vs 10,215) but still loses to `BYTE_RANS`, because the residual
 data object is stored literally (campaign `2026-10-05-phase5-4521778`, ADR-0012).
 PDF structural compression beyond xref offsets — `/Length`/revision
-proceduralization — remains `PROPOSED` (as a *size* mechanism; the byte-level
-cross-document axis is now measured and negative, ADR-0021/ADR-0028). Phase 2 measured only the order-0 typed byte entropy floor over an
+proceduralization — is now **measured and closed as a negative** (Phase 13.1,
+campaign `2026-10-07-phase13-pdf-length-revision-12fc84e`, ADR-0036): byte-exact
+but 0 wins vs the VOLE ladder and 0 wins vs generic compressors. The byte-level
+cross-document axis was already measured and negative (ADR-0021/ADR-0028). Phase 2 measured only the order-0 typed byte entropy floor over an
 opaque mixed corpus; Phase 4 showed that coarse lexical transposition plus
 per-channel order-0 models does not beat a monolithic order-0 channel; Phase 5
 showed that correct structural prediction does not pay while each predicted field

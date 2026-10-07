@@ -1,0 +1,32 @@
+# Phase 13.1 — gates (branch phase13, commit 12fc84e)
+
+## Full gate
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all && \
+  cargo clippy --all-targets --all-features -- -D warnings && \
+  cargo clippy -- -D warnings && \
+  cargo test --all-features --locked && \
+  cargo test --no-default-features && sh tools/check-docs.sh'
+# -> exit 0.
+#    cargo fmt --all: clean.
+#    clippy --all-targets --all-features -D warnings: 0 warnings.
+#    clippy -- -D warnings (default features): 0 warnings.
+#    cargo test --all-features --locked: lib 414 passed, 0 failed, 1 ignored;
+#      all integration/doc targets 0 failed.
+#    cargo test --no-default-features: lib 250 passed, 0 failed, 1 ignored;
+#      all integration targets 0 failed.
+#    sh tools/check-docs.sh: all documentation checks passed
+#      (README 209 lines; required docs present; ADR numbers unique; every
+#       ADR-NNNN reference resolves; 383+ internal links resolve).
+
+## New unit tests (src/adapter/pdf/length_revision.rs)
+#   5 tests: exact_on_classic_pdf, predicate_lengths_and_xref, declines_on_non_pdf,
+#   deterministic, exact_on_sample_corpus. All pass under --all-features and
+#   --no-default-features.
+
+## Court
+docker compose run --rm --no-TTY baseline sh tools/phase13-court.sh
+# -> PHASE 13.1 COURT: PASS — campaign
+#    evidence/campaigns/2026-10-07-phase13-pdf-length-revision-12fc84e
+#    28 files: 21 proposed / 21 exact / 0 inexact; 7 declined.
+#    0 wins / 0 ties / 21 losses vs the current VOLE ladder;
+#    0 wins / 0 ties / 21 losses vs the best generic compressor.

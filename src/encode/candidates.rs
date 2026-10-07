@@ -47,6 +47,9 @@ pub enum CandidateKind {
     /// the same physical scan, so narrow views can be served without walking the
     /// whole program (Phase 7.3).
     PdfDeflateReplayRansIndexed = 9,
+    /// PDF `/Length` values and revision/xref structure regenerated from marked
+    /// output positions as a *size* mechanism (Phase 13.1).
+    PdfLengthRevision = 10,
 }
 
 impl CandidateKind {
@@ -63,6 +66,7 @@ impl CandidateKind {
             CandidateKind::PdfDeflateReplay => "PDF_DEFLATE_REPLAY",
             CandidateKind::PdfDeflateReplayRans => "PDF_DEFLATE_REPLAY_RANS",
             CandidateKind::PdfDeflateReplayRansIndexed => "PDF_DEFLATE_REPLAY_RANS_INDEXED",
+            CandidateKind::PdfLengthRevision => "PDF_LENGTH_REVISION",
         }
     }
 }
@@ -127,6 +131,11 @@ pub fn propose_all(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
         crate::adapter::pdf::propose_pdf_deflate_replay_rans_indexed(input, limits)?
     {
         out.push(pdf_deflate_rans_indexed);
+    }
+    if let Some(pdf_length_revision) =
+        crate::adapter::pdf::propose_pdf_length_revision(input, limits)?
+    {
+        out.push(pdf_length_revision);
     }
     Ok(out)
 }
