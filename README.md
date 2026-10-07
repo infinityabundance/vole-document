@@ -175,7 +175,7 @@ than one object per file (ADR-0021, `docs/evidence/phase9-store-report.md`,
 | Fair-baseline / lifetime / pinned-tokenizer courts | **Measured (mixed)** | campaigns `…-lifetime-5a7edd3`, `…-llm-tokens-824faa9`; A1 preprocessed SQLite wins the narrow-query byte court (24,393 B); VOLE crosses A0 on wall on every doc but the A1 wall crossover is **absent on 3/5** documents; tokens (`bert-base-uncased`, pinned offline, hash-verified) 2 win / 2 tie / 2 loss vs page-local |
 | Immutable edit witness (declared narrow subset) | **Implemented (scoped)** | ADR-0025; `src/field/edit.rs`; shares the descriptor/root/unaffected nodes **by content id** (0 bytes read); 2 new seed nodes |
 | Finer-than-object shareable units | **Recorded — loss to CDC** | ADR-0028; `unique_bytes` lower bound loses to strongest CDC and to `tar` + `xz -9e` |
-| Partial materialization byte-level checkpoints (beyond v1) | Planned | v1 random-access `view` measured in 7.3 (ADR-0018); the seek descriptor reader landed in Phase 8 (ADR-0019) and the **Phase-11 observation engine delivered selective late materialization** (ADR-0024/0026); only literal byte-level checkpoint records remain future work |
+| Partial materialization byte-level checkpoints (beyond v1) | Planned (Phase 13) | v1 random-access `view` was measured in 7.3 (ADR-0018) and the seek reader/partial lane landed in Phase 8/11 (ADR-0019/0024), but **literal byte-level checkpoint records** were never built; Phase 13 implements and measures them |
 
 "Implemented" means the mechanism exists and is tested. "Measured" means there is
 a sealed campaign under `evidence/`. The Phase-1 core establishes exactness,
