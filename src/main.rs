@@ -84,7 +84,7 @@ const USAGE_STORE: &str = "";
 /// The field observation verbs are advertised only when the field is built in.
 #[cfg(feature = "field")]
 const USAGE_FIELD: &str = "\
-    vole-document field-ingest INPUT.voldoc --store DIR [--entropyfs | --packed]
+    vole-document field-ingest INPUT.voldoc --store DIR [--workers N] [--entropyfs | --packed]
     vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs | --packed]
     vole-document observe --store DIR --field HEX [--entropyfs | --packed] (--page N | --object N | --stream N |
         --revision N | --byte-range A..B | --metadata | --doc-text | --heading N |
@@ -103,6 +103,8 @@ const USAGE_FIELD: &str = "\
     vole-document cache  --store DIR [--clear] [--entropyfs | --packed]
     vole-document field-store-stats --store DIR [--entropyfs | --packed]
     (--entropyfs needs a build with the entropyfs-store feature)
+    (--workers N parallelizes independently decodable ingest work; needs the
+     `parallel` feature; absent or 1 is serial, 0 is available_parallelism)
     (--packed replaces the seed/ namespace with fieldpack/; mutually exclusive
      with --entropyfs; observe-batch does not support it)
 ";
@@ -1448,6 +1450,10 @@ struct FieldArgs {
     requests: Option<PathBuf>,
     /// `observe-batch`: repeat every request line this many times (>= 1).
     repeat: Option<u32>,
+    /// `field-ingest`: the bounded worker-pool size (`--workers N`). Absent or `1`
+    /// is serial; `0` is `available_parallelism`; `N > 1` is exactly `N` threads.
+    /// Only honored by a build with the `parallel` feature.
+    workers: Option<u32>,
     analyze: bool,
     json: bool,
     no_cache: bool,
@@ -1622,6 +1628,12 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                     "--requests",
                     inline,
                 )?));
+            }
+            "--workers" => {
+                out.workers = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--workers", inline)?,
+                    "--workers",
+                )?);
             }
             "--repeat" => {
                 out.repeat = Some(parse_field_u32(
@@ -1919,13 +1931,14 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
         .store
         .as_deref()
         .ok_or_else(|| Error::usage("field-ingest requires --store DIR"))?;
+    let pool = build_worker_pool(out.workers)?;
     let bytes = fs::read(input)?;
     let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
     // Universal ingest: detect the format from bytes and invert with the right
     // adapter. Without the `package` feature only the PDF/opaque lane exists.
     #[cfg(feature = "package")]
     {
-        match field_ingest::ingest(&mut store, &bytes, limits)? {
+        match field_ingest::ingest_with(&mut store, &bytes, limits, pool.as_ref())? {
             field_ingest::IngestOutcome::Package(r) => {
                 store.sync()?;
                 print_package_ingest(&r);
@@ -1939,10 +1952,52 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
     }
     #[cfg(not(feature = "package"))]
     {
-        let r = field_ingest::ingest_pdf(&mut store, &bytes, limits)?;
+        let r = field_ingest::ingest_pdf_with(&mut store, &bytes, limits, pool.as_ref())?;
         store.sync()?;
         print_pdf_ingest(&r);
         Ok(())
+    }
+}
+
+/// The hard upper bound on `--workers`, so the pool stays bounded.
+#[cfg(feature = "parallel")]
+const MAX_WORKERS: u32 = 128;
+
+/// Build the optional worker pool from `--workers`. Absent or `1` is serial;
+/// `0` resolves to `available_parallelism` (logged on stderr, clamped to the
+/// bound); `N > 1` is exactly `N`. Without the `parallel` feature any non-serial
+/// value is a typed usage error, never a silent serial fallback.
+#[cfg(all(feature = "field", feature = "parallel"))]
+fn build_worker_pool(workers: Option<u32>) -> Result<Option<vole_document::parallel::WorkerPool>> {
+    let n = match workers {
+        None => return Ok(None),
+        Some(0) => std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1)
+            .min(MAX_WORKERS as usize),
+        Some(n) => {
+            if n > MAX_WORKERS {
+                return Err(Error::usage(format!(
+                    "--workers must be at most {MAX_WORKERS}"
+                )));
+            }
+            n as usize
+        }
+    };
+    if n <= 1 {
+        return Ok(None);
+    }
+    eprintln!("field-ingest: using {n} workers");
+    Ok(Some(vole_document::parallel::WorkerPool::new(n)?))
+}
+
+#[cfg(all(feature = "field", not(feature = "parallel")))]
+fn build_worker_pool(workers: Option<u32>) -> Result<Option<vole_document::parallel::WorkerPool>> {
+    match workers {
+        None | Some(1) => Ok(None),
+        Some(_) => Err(Error::usage(
+            "--workers requires a build compiled with the `parallel` feature",
+        )),
     }
 }
 
@@ -2186,7 +2241,12 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
         Some(p) if p != Path::new("-") => Box::new(BufReader::new(File::open(p)?)),
         _ => Box::new(BufReader::new(std::io::stdin())),
     };
-    let mut failed = false;
+    // A typed decline is a legitimate *answer* for an observation a document does
+    // not have (e.g. a table in a document with none): it is reported on that
+    // request's JSON line, not as a session failure. The batch exits non-zero only
+    // when it answered nothing at all, so a lane-level rc keeps its meaning.
+    let mut answered = 0usize;
+    let mut declined = 0usize;
     for (i, line) in reader.lines().enumerate() {
         let line = line?;
         let line = line.trim();
@@ -2210,10 +2270,11 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
         for _ in 0..repeat {
             match session.observe(&req, limits) {
                 Ok((answer, stats, field)) => {
+                    answered += 1;
                     println!("{}", field_answer_json(&answer, &stats, &field))
                 }
                 Err(e) => {
-                    failed = true;
+                    declined += 1;
                     eprintln!("observe-batch: request {i}: {e}");
                     println!(
                         "{{\"request\":{i},\"error\":{},\"message\":\"{}\"}}",
@@ -2225,9 +2286,9 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
         }
     }
     session.sync()?;
-    if failed {
+    if answered == 0 && declined > 0 {
         return Err(Error::internal_invariant(
-            "observe-batch: one or more requests failed",
+            "observe-batch: no request was answered",
         ));
     }
     Ok(())
