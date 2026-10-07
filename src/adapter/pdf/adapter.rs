@@ -64,7 +64,19 @@ pub fn propose_pdf(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
         Ok(p) => p,
         Err(_) => return Ok(None),
     };
-    if !is_validated_pdf(&physical) {
+    propose_pdf_with(input, limits, &physical)
+}
+
+/// [`propose_pdf`] against an already-computed physical scan. Sharing one scan
+/// across the PDF proposers removes the redundant `O(n)` re-scan that made the
+/// candidate portfolio quadratic-ish on large scanned PDFs (see
+/// `tools/phase14-*`).
+pub(crate) fn propose_pdf_with(
+    input: &[u8],
+    limits: Limits,
+    physical: &PdfPhysical,
+) -> Result<Option<Candidate>> {
+    if !is_validated_pdf(physical) {
         return Ok(None);
     }
     if physical.spans.len() as u64 > limits.max_graph_ops as u64 {
@@ -132,7 +144,21 @@ pub fn propose_pdf(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
 ///   when empty.
 #[cfg(feature = "rans")]
 pub fn propose_pdf_channels(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
-    if !detect(input, limits) {
+    let physical = match scan(input, limits) {
+        Ok(p) => p,
+        Err(_) => return Ok(None),
+    };
+    propose_pdf_channels_with(input, limits, &physical)
+}
+
+/// [`propose_pdf_channels`] against an already-computed physical scan.
+#[cfg(feature = "rans")]
+pub(crate) fn propose_pdf_channels_with(
+    input: &[u8],
+    limits: Limits,
+    physical: &PdfPhysical,
+) -> Result<Option<Candidate>> {
+    if !is_validated_pdf(physical) {
         return Ok(None);
     }
     let plan = match super::channels::split(input, limits)? {

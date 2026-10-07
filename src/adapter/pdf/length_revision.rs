@@ -51,7 +51,7 @@ use super::layout::{
     MAX_MARKED_OBJECTS, XrefPiece, parse_classic_xref, parse_digits, push_literal,
 };
 use super::lexer::lex;
-use super::physical::{LengthSource, ObjRole, PhysicalKind, scan};
+use super::physical::{LengthSource, ObjRole, PdfPhysical, PhysicalKind, scan};
 use super::span::{Span, SpanKind};
 
 /// Addressable positional slots (slot indices are `u8`, so `0..=255`).
@@ -105,7 +105,15 @@ pub fn build_length_revision_plan(
         Ok(p) => p,
         Err(_) => return Ok(None),
     };
+    build_length_revision_plan_with(input, limits, &physical)
+}
 
+/// [`build_length_revision_plan`] against an already-computed physical scan.
+pub(crate) fn build_length_revision_plan_with(
+    input: &[u8],
+    limits: Limits,
+    physical: &PdfPhysical,
+) -> Result<Option<LengthRevisionPlan>> {
     // Preconditions: classic cross-reference table, no xref stream, bounded
     // object count (object slots are indices `0..n_obj`).
     if !physical
@@ -276,7 +284,7 @@ pub fn build_length_revision_plan(
     }
 
     // 5. `/Length` fields of directly-sized streams: (field_start, width, value).
-    let length_fields = collect_length_fields(input, &spans, &physical);
+    let length_fields = collect_length_fields(input, &spans, physical);
     let mut length_literal = length_fields.len();
 
     // Forbid a length mark anywhere inside a fixed-width emitted field (an xref
@@ -375,7 +383,20 @@ pub fn build_length_revision_plan(
 /// through the normative decoder (serialize → parse → materialize →
 /// byte-compare); an inexact program declines rather than being emitted.
 pub fn propose_pdf_length_revision(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
-    let plan = match build_length_revision_plan(input, limits)? {
+    let physical = match scan(input, limits) {
+        Ok(p) => p,
+        Err(_) => return Ok(None),
+    };
+    propose_pdf_length_revision_with(input, limits, &physical)
+}
+
+/// [`propose_pdf_length_revision`] against an already-computed physical scan.
+pub(crate) fn propose_pdf_length_revision_with(
+    input: &[u8],
+    limits: Limits,
+    physical: &PdfPhysical,
+) -> Result<Option<Candidate>> {
+    let plan = match build_length_revision_plan_with(input, limits, physical)? {
         Some(p) => p,
         None => return Ok(None),
     };

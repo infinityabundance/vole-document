@@ -45,6 +45,7 @@ the written rationale that must survive chat history.
 | [0038](0038-odt-adapter-scope.md) | ODT adapter scope: ODF package, semantic content-part discovery, bounded OpenDocument subset, versioned profile; exactness is not conformance | Accepted (Phase 13.3) |
 | [0039](0039-partial-materialization-checkpoints.md) | Byte-level partial-materialization checkpoints are byte-exact and advisory but redundant with the observation index and do not pay their framing (0 wins; +259 to +1,159 B per byte-range query) | Accepted — recorded negative result (Phase 13.4) |
 | [0040](0040-benign-doctype.md) | A benign `DOCTYPE` (no internal subset) is accepted and ignored in the bounded-XML policy; a declaration with an internal subset is still refused | Accepted (Phase 13.7) |
+| [0041](0041-large-pdf-encode-bound.md) | Share one PDF physical scan across the candidate portfolio + stream the court; encoder time improves ~1.75× on >100 MiB PDFs, but the ~17× peak-memory bound is recorded, not solved | Accepted — partial fix (Phase 14) |
 
 ## Adding an ADR
 

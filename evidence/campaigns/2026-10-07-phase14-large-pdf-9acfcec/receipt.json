@@ -1,0 +1,13 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-phase14-large-pdf-9acfcec",
+  "phase": "14 — large-PDF encode bound (partial fix: shared scan + streaming court)",
+  "utc_date": "2026-10-07T12:58:00Z",
+  "git_commit": "9acfcec09c05eeaeaadbbc5f94ce7be69391cd72",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline",
+  "corpus": "real100-v1",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "court": "tools/phase14-large-pdf-court.sh",
+  "adr": "docs/adr/0041-large-pdf-encode-bound.md",
+  "note": "exact = decode round-trip byte-identical (cmp). rc 124 = 180 s timeout; 137 = SIGKILL (OOM under the lane cap). See docs/adr/0041 for before/after and the recorded memory bound."
+}

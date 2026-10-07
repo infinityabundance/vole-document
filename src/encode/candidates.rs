@@ -96,56 +96,88 @@ pub struct Candidate {
 /// This is the honest ablation surface: forcing a single kind must select from
 /// exactly the same set the unforced court would have priced.
 pub fn propose_all(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
-    let mut out = vec![Candidate {
+    let mut out = Vec::new();
+    propose_each(input, limits, |c| {
+        out.push(c);
+        Ok(())
+    })?;
+    Ok(out)
+}
+
+/// Generate the candidate set **one candidate at a time**, invoking `emit` for
+/// each. Same set, same order as [`propose_all`], but the streaming form lets the
+/// court keep only one unpriced candidate's payload resident, which bounds
+/// encoder memory on large inputs (Phase 14).
+///
+pub fn propose_each<F>(input: &[u8], limits: Limits, mut emit: F) -> Result<()>
+where
+    F: FnMut(Candidate) -> Result<()>,
+{
+    emit(Candidate {
         kind: CandidateKind::Raw,
         descriptor: opaque::propose(input, limits)?,
-    }];
+    })?;
     if let Some(rle) = propose_rle(input, limits)? {
-        out.push(rle);
+        emit(rle)?;
     }
     #[cfg(feature = "rans")]
     if let Some(byte_rans) = propose_byte_rans(input, limits)? {
-        out.push(byte_rans);
+        emit(byte_rans)?;
     }
-    if let Some(pdf) = crate::adapter::pdf::propose_pdf(input, limits)? {
-        out.push(pdf);
-    }
-    #[cfg(feature = "rans")]
-    if let Some(pdf_channels) = crate::adapter::pdf::propose_pdf_channels(input, limits)? {
-        out.push(pdf_channels);
-    }
-    if let Some(pdf_layout) = crate::adapter::pdf::propose_pdf_layout(input, limits)? {
-        out.push(pdf_layout);
-    }
-    #[cfg(feature = "rans")]
-    if let Some(pdf_layout_rans) = crate::adapter::pdf::propose_pdf_layout_rans(input, limits)? {
-        out.push(pdf_layout_rans);
+    // One PDF physical scan, shared by every scan-dependent PDF proposer: each
+    // used to re-scan, which made the portfolio ~5x one scan on large scanned
+    // PDFs (Phase 14). A failed scan declines every scan-dependent candidate.
+    let physical = crate::adapter::pdf::physical::scan(input, limits).ok();
+    if let Some(p) = physical.as_ref() {
+        if let Some(pdf) = crate::adapter::pdf::adapter::propose_pdf_with(input, limits, p)? {
+            emit(pdf)?;
+        }
+        #[cfg(feature = "rans")]
+        if let Some(pdf_channels) =
+            crate::adapter::pdf::adapter::propose_pdf_channels_with(input, limits, p)?
+        {
+            emit(pdf_channels)?;
+        }
+        if let Some(pdf_layout) =
+            crate::adapter::pdf::layout::propose_pdf_layout_with(input, limits, p)?
+        {
+            emit(pdf_layout)?;
+        }
+        #[cfg(feature = "rans")]
+        if let Some(pdf_layout_rans) =
+            crate::adapter::pdf::layout::propose_pdf_layout_rans_with(input, limits, p)?
+        {
+            emit(pdf_layout_rans)?;
+        }
     }
     #[cfg(feature = "deflate-replay")]
     if let Some(pdf_deflate) = crate::adapter::pdf::propose_pdf_deflate_replay(input, limits)? {
-        out.push(pdf_deflate);
+        emit(pdf_deflate)?;
     }
     #[cfg(all(feature = "deflate-replay", feature = "rans"))]
     if let Some(pdf_deflate_rans) =
         crate::adapter::pdf::propose_pdf_deflate_replay_rans(input, limits)?
     {
-        out.push(pdf_deflate_rans);
+        emit(pdf_deflate_rans)?;
     }
     #[cfg(all(feature = "deflate-replay", feature = "rans"))]
     if let Some(pdf_deflate_rans_indexed) =
         crate::adapter::pdf::propose_pdf_deflate_replay_rans_indexed(input, limits)?
     {
-        out.push(pdf_deflate_rans_indexed);
+        emit(pdf_deflate_rans_indexed)?;
     }
-    if let Some(pdf_length_revision) =
-        crate::adapter::pdf::propose_pdf_length_revision(input, limits)?
+    if let Some(p) = physical.as_ref()
+        && let Some(pdf_length_revision) =
+            crate::adapter::pdf::length_revision::propose_pdf_length_revision_with(
+                input, limits, p,
+            )?
     {
-        out.push(pdf_length_revision);
+        emit(pdf_length_revision)?;
     }
     if let Some(pdf_cos_template) = crate::adapter::pdf::propose_pdf_cos_template(input, limits)? {
-        out.push(pdf_cos_template);
+        emit(pdf_cos_template)?;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// Generate the bounded candidate set for `input`.
