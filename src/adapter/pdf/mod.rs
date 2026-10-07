@@ -7,6 +7,7 @@
 pub mod adapter;
 pub mod channels;
 pub mod cos;
+pub mod cos_template;
 pub mod large;
 pub mod layout;
 pub mod length_revision;
@@ -25,6 +26,7 @@ pub use cos::{
     FilterClass, LengthValue, body_as_u64, dict_filter, dict_has_length, dict_int_or_ref,
     dict_length, dict_name_value,
 };
+pub use cos_template::{build_cos_template_plan, propose_pdf_cos_template};
 pub use large::large_pdf;
 #[cfg(feature = "rans")]
 pub use layout::propose_pdf_layout_rans;

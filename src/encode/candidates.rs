@@ -50,6 +50,10 @@ pub enum CandidateKind {
     /// PDF `/Length` values and revision/xref structure regenerated from marked
     /// output positions as a *size* mechanism (Phase 13.1).
     PdfLengthRevision = 10,
+    /// PDF COS-token phrase templates: recurring structural boilerplate
+    /// (dictionary stems, object framing) stored once and instantiated by
+    /// `EMIT_OBJECT` as a *size* mechanism (Phase 13.2).
+    PdfCosTemplate = 11,
 }
 
 impl CandidateKind {
@@ -67,6 +71,7 @@ impl CandidateKind {
             CandidateKind::PdfDeflateReplayRans => "PDF_DEFLATE_REPLAY_RANS",
             CandidateKind::PdfDeflateReplayRansIndexed => "PDF_DEFLATE_REPLAY_RANS_INDEXED",
             CandidateKind::PdfLengthRevision => "PDF_LENGTH_REVISION",
+            CandidateKind::PdfCosTemplate => "PDF_COS_TEMPLATE",
         }
     }
 }
@@ -136,6 +141,9 @@ pub fn propose_all(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
         crate::adapter::pdf::propose_pdf_length_revision(input, limits)?
     {
         out.push(pdf_length_revision);
+    }
+    if let Some(pdf_cos_template) = crate::adapter::pdf::propose_pdf_cos_template(input, limits)? {
+        out.push(pdf_cos_template);
     }
     Ok(out)
 }
@@ -375,7 +383,13 @@ mod tests {
     #[test]
     fn byte_rans_wins_on_text() {
         let input = b"The quick brown fox jumps over the lazy dog. ".repeat(1500);
-        let (bytes, report) = crate::encode::encode(&input, Limits::DEFAULT).unwrap();
+        // Pin the byte-rANS lane directly rather than the auto winner: a stronger
+        // phrase-template lane (`PDF_COS_TEMPLATE`, Phase 13.2) can win the full
+        // court on a repeated phrase, so the order-0 claim is asserted by forcing
+        // the one-element court rather than by observing the auto winner.
+        let (bytes, report) =
+            crate::encode::encode_with(&input, Limits::DEFAULT, Some(CandidateKind::ByteRans))
+                .unwrap();
         assert_eq!(report.kind, CandidateKind::ByteRans);
         assert!(
             report.encoded_len < report.source_len,

@@ -8,10 +8,10 @@ prior that it may also lose, because every measured attempt so far has.
 Phase 13 closes the remaining Phase-12 proposals and the last open gate. Plan:
 [phase-13-plan.md](../phases/phase-13-plan.md).
 
-| Item | Question | Prior |
-|---|---|---|
-| PDF `/Length`/revision proceduralization as a *size* mechanism | Does persisting revision/xref structural redundancy beat the RAW/`BYTE_RANS`/generic ladders once framing is charged? (Phase 11 persists revisions as *observation* nodes only, never as a size candidate.) | Expected negative |
-| PDF grammar/templates | Can a bounded grammar/template candidate that pays its definition cost beat a whole-file order-0 lane? | Expected negative |
+| Item | Question | Prior | Outcome |
+|---|---|---|---|
+| PDF `/Length`/revision proceduralization as a *size* mechanism | Does persisting revision/xref structural redundancy beat the RAW/`BYTE_RANS`/generic ladders once framing is charged? (Phase 11 persists revisions as *observation* nodes only, never as a size candidate.) | Expected negative | **Measured 13.1 — recorded negative** (ADR-0036): byte-exact, 0 wins vs the ladder and 0 vs generic |
+| PDF grammar/templates | Can a bounded grammar/template candidate that pays its definition cost beat a whole-file order-0 lane? | Expected negative | **Measured 13.2 — mixed** (ADR-0037): byte-exact; best VOLE lane on 4/28 (+34,505 B auto-winner) but 0 wins vs generic |
 | ODT adapter | ODT is an OPC/ZIP package, so it reuses the 12.x ZIP + OPC layers with an OpenDocument content model. Does a fourth format enter exactly and queryably? | Unknown |
 | Byte-level partial-materialization checkpoints | The random-access `view`/seek lane was measured (ADR-0018/0019), but literal byte-level checkpoint records were never built. Do they pay their framing cost? | Unknown |
 | `N5` package-index-only gate | Is the small-document win reproducible by `unzip -p` + `substr` at the same boundary? The A3/A4 ladder rungs are evidence against it; the mechanical check remains open. | Evidence suggests the field adds value |

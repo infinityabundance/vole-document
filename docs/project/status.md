@@ -150,9 +150,10 @@ missing PDF/reuse/demo receipts, and a default-feature clippy failure.
 
 Phase 13 (branch `phase13`) is **in progress** and closes the remaining Phase-12
 `PROPOSED` items plus the last open gate: a PDF `/Length`/revision *size* court
-(**13.1 measured — recorded negative, ADR-0036**), a PDF grammar/template court,
-an ODT adapter over the ZIP/OPC layers, byte-level partial-materialization
-checkpoints, and the `N5` package-index-only gate. Plan:
+(**13.1 measured — recorded negative, ADR-0036**), a PDF COS grammar/template
+court (**13.2 measured — mixed, ADR-0037**), an ODT adapter over the ZIP/OPC
+layers, byte-level partial-materialization checkpoints, and the `N5`
+package-index-only gate. Plan:
 [`docs/phases/phase-13-plan.md`](../phases/phase-13-plan.md), results:
 [`docs/phases/phase-13-results.md`](../phases/phase-13-results.md).
 
@@ -203,7 +204,7 @@ checkpoints, and the `N5` package-index-only gate. Plan:
 | Complete-cost court over the generator-family corpus (`PDF_DEFLATE_REPLAY_RANS` vs `BYTE_RANS`) | 7.0b | RECORDED (measurement; **claim corrected in 7.0c**) | campaign `2026-10-05-phase7-producers-e071250`; over 4 locally generated generator files the real CLI court gives replay-rANS **win 1 / lose 3 / decline 0** (Cairo −24,137 B, 58,711 → 34,574; ReportLab −3,312 B; pdfTeX −10,663 B; LibreOffice −302,474 B). **Correction (7.0c):** the Cairo delta is a **repeated-identical-bytes harness artifact** — `tools/pdf-corpus-producers.sh` repeats one identical page six times, so Cairo's six streams are byte-identical in compressed bytes *and* plaintext; generic LZ captures ~2× more (`gzip -9` 17,382 B, `zlib -9` 17,376 B, `xz -9e` 16,852 B), and `BYTE_RANS` is a weak order-0 baseline with no LZ. The withdrawn framing is "a genuine authoring application produces the win region" / "first authoring-generator witness"; correct characterization is *our generator repeated one identical page six times and Cairo emitted six byte-identical streams — a repeated-bytes region, not the shared-plaintext-vs-distinct-compression mechanism*. All 4 auto winners `verify` + `cmp` byte-exact; no population claim; **no wire/candidate change**. Review: `docs/reviews/phase7b-skeptic-review.md` |
 | Generic-compressor baseline ladder (gzip/zstd/xz/brotli vs VOLE) | 7.0c | RECORDED (measurement; the honest comparison) | campaign `2026-10-05-phase7-baselines-7b9f662`; new opt-in `baseline` image (`debian`→`dev` pinned base `rust:1.99.0-slim-bookworm@sha256:452176c0…`, adds gzip/zstd/xz/brotli/jq) and driver `tools/baselines.sh` compare complete files over 27 corpus files (phase7 23 + producers 4) against `gzip -9`, `zstd -19 --long=27`, `xz -9e`, `brotli -q 11` (each round-trip verified lossless) and the **best VOLE lane** (minimum over auto/raw/rle/byte-rans and every forced structural kind). Result: **VOLE beats gzip/zstd/xz/brotli on 0 files**; the best generic is smaller on every file, +460,320 B in total (phase7 +410,355; producers +49,965). On `cairo-vector.pdf` the best VOLE 34,574 B is 2.07× brotli's 16,670 B; on `flate.pdf` 36,102 B is 1.91× xz's 18,884 B. Prior "wins" were relative to the weak order-0 `BYTE_RANS` lane and do not survive a generic baseline. All 27 auto winners `verify` + `cmp` byte-exact; **no wire/candidate change**. Report `docs/evidence/phase7-corpus-report.md`; full table `baseline-table.md` |
 | Nested PDF content proceduralization | 7 | PARTLY DELIVERED (observation) | "the clearest embodiment of the thesis"; Phase 11 recovered content operators + text runs + page content as **observations** (`ContentOperators`/`TextRuns`/`PageContent`, Stage-C deepening, ADR-0024/0026) — but **not** as a size mechanism, which remains unmeasured |
-| PDF grammar/templates | 8 | PROPOSED | must pay definition cost |
+| PDF grammar/templates (`PDF_COS_TEMPLATE`) | 13.2 | RECORDED (mixed: scoped VOLE-ladder win, loss vs generic) | campaign `2026-10-07-phase13-pdf-grammar-dfba2a4` (ADR-0037); a bounded COS-token n-gram phrase dictionary (`encode --force pdf-cos-template`) covered by `EMIT_OBJECT`/`INLINE` with existing ops (no new opcode/universe/feature bit). Over the same 28 complete files as 13.1: byte-exact **7/7 where proposed**, 21 declines; **win 0 / tie 4 / loss 3** vs the current ladder (the 4 ties are files where it *is* the new auto winner) and **win 4 / tie 0 / loss 3** vs the pre-existing lanes — it becomes the best VOLE lane on `cairo-vector` (34,633 → 19,411 B), `libreoffice-export`, `pdftex-doc`, `reportlab-multipage`, a **34,505 B** auto-winner gain; but **0 wins vs the best generic compressor** on all 7 (brotli/xz/zstd 2–4× smaller) and it loses to the pre-existing ladder on `large`/`flate`/`many`. A structural grammar beats an order-0 lane on repetitive syntax, not a purpose-built LZ |
 | EntropyFS store-backed form (`EntropyFsStore` adapter) | 9.2 | IMPLEMENTED (optional; not measured) | non-default feature `entropyfs-store`; a thin `ObjectStore` adapter over `entropyfs 0.7.17` `engine::Engine` (`default-features = false`) — `put → put_blob`, `get → get_blob` (whole-blob BLAKE3 gate), `get_range → read_blob_range` + a strict `offset+len <= stored_len` check, `contains`. `BlobId` is BLAKE3-256, identical to our `Id`; an `EmbeddedStore`-externalized descriptor materializes byte-exactly through it (`tests/entropyfs.rs`). `list`/`remove` decline with `UnsupportedFeature` (no per-blob delete), so mark-and-sweep GC cannot reclaim through it. Viable but **heavy** (non-optional `dsfb` + a ~40-crate tree), never required for the standalone form (ADR-0020) |
 | `ObjectStore` + `EmbeddedStore` + store-backed descriptor form | 9.1 | ADOPTED | `Id = BLAKE3-256` (archival identity stays SHA-256); `EXTERNAL_REF` (`0x80`, 40 B) + mandatory `FEATURE_EXTERNAL_OBJECTS`; `externalize`/`hydrate`; `gc` mark-and-sweep; `EmbeddedStore` (raw content-addressed directory, atomic write-then-rename `put`, strict `get_range`, per-object `remove`); `tests/store.rs`. Universe sufficed `+external-objects-v1` |
 | Three accounting universes (standalone / unique-reachable / amortized) | 9.1/9.2 | ADOPTED | `src/store/account.rs`; `store account` CLI. `S = Σ|serialize(d_i)|`, `U = Σ|serialize(e_i)| + Σ len(o)`, `A = Σ(|serialize(e_i)| + Σ len(o)/refcount(o))` with the amortized split fractional by reference count and integerized so `Σ A_i == U` exactly. `S` is the only whole-file-comparable universe (ADR-0020) |
@@ -251,7 +252,13 @@ data object is stored literally (campaign `2026-10-05-phase5-4521778`, ADR-0012)
 PDF structural compression beyond xref offsets — `/Length`/revision
 proceduralization — is now **measured and closed as a negative** (Phase 13.1,
 campaign `2026-10-07-phase13-pdf-length-revision-12fc84e`, ADR-0036): byte-exact
-but 0 wins vs the VOLE ladder and 0 wins vs generic compressors. The byte-level
+but 0 wins vs the VOLE ladder and 0 wins vs generic compressors. A bounded COS
+**grammar/template** candidate is now measured too (Phase 13.2, campaign
+`2026-10-07-phase13-pdf-grammar-dfba2a4`, ADR-0037): byte-exact, and it becomes
+the **best VOLE lane** on 4/28 files (a 34,505 B auto-winner gain, beating
+`BYTE_RANS` and `PDF_DEFLATE_REPLAY_RANS` on real authoring output) — but it
+never beats the best generic compressor on any file it proposes and loses on 3
+more, so the top-level verdict is unchanged. The byte-level
 cross-document axis was already measured and negative (ADR-0021/ADR-0028). Phase 2 measured only the order-0 typed byte entropy floor over an
 opaque mixed corpus; Phase 4 showed that coarse lexical transposition plus
 per-channel order-0 models does not beat a monolithic order-0 channel; Phase 5
@@ -260,9 +267,11 @@ still needs its own framed DRA op; Phase 5.7 showed that packing that framing
 makes prediction beat RAW at scale; and Phase 5.8 composed prediction with
 entropy coding of the residual (`PACKED_CHANNELS`, DRA v6) yet still does not beat
 a monolithic order-0 channel, because the plan channel and a second model are
-added metadata the monolithic lane never pays. Those four results converge on a
-scoped negative: at the tested scale, proceduralizing *plain* PDF syntax does not
-beat a whole-file order-0 rANS lane. Phase 6 attacks a **different layer** — bytes
+added metadata the monolithic lane never pays. Those four results, with Phase
+13.1's positional negative and Phase 13.2's phrase-grammar result, converge on a
+scoped conclusion: at the tested scale, proceduralizing *plain* PDF syntax can
+tie or beat a whole-file order-0 rANS lane on repetitive syntax, but never beats
+a purpose-built generic compressor. Phase 6 attacks a **different layer** — bytes
 the producer has already entropy-coded — and records the first positive: exact
 DEFLATE replay of *shared* plaintext that also has a *large/weakly-coded*
 appearance beats `BYTE_RANS` (campaign `2026-10-05-phase6-0d0bb79`, ADR-0015).

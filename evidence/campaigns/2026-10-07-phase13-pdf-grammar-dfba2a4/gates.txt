@@ -1,0 +1,41 @@
+# Phase 13.2 — gates (branch phase13, commit dfba2a4, working tree dirty 5)
+
+## Full gate
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all && \
+  cargo clippy --all-targets --all-features -- -D warnings && \
+  cargo clippy -- -D warnings && \
+  cargo test --all-features --locked && \
+  cargo test --no-default-features && sh tools/check-docs.sh'
+# -> exit 0. Full transcript: raw/gate.txt (committed verbatim, 1504 lines).
+#    cargo fmt --all: clean.
+#    clippy --all-targets --all-features -D warnings: 0 warnings.
+#    clippy -- -D warnings (default features): 0 warnings.
+#    cargo test --all-features --locked: lib 419 passed, 0 failed, 1 ignored;
+#      all integration/doc targets 0 failed (80 "test result: ok" lines).
+#    cargo test --no-default-features: lib 255 passed, 0 failed, 1 ignored;
+#      all integration targets 0 failed.
+#    sh tools/check-docs.sh: all documentation checks passed (README 209 lines;
+#      ADR numbers unique; every ADR-NNNN reference resolves; 390 links resolve).
+
+## New unit tests (src/adapter/pdf/cos_template.rs)
+#   5 tests: exact_on_repetitive_pdf, exact_on_sample_corpus,
+#   declines_on_non_pdf_and_empty, deterministic,
+#   declines_when_no_template_fits_the_op_bound. All pass under --all-features
+#   and --no-default-features.
+
+## Adjusted tests (auto-winner assertions coupled to the portfolio)
+#   src/encode/candidates.rs: byte_rans_wins_on_text now forces the BYTE_RANS
+#     lane (a phrase template can win the full court on repeated text).
+#   tests/entropy.rs: low_entropy_text_wins_and_is_exact now forces BYTE_RANS via
+#     a new exact_roundtrip_forced helper, for the same reason.
+#   src/encode/governor.rs: DEPTH_MAX 10 -> 11 so propose_configured(DEFAULT)
+#     still equals propose_all (config_default_matches_propose_all passes).
+
+## Court
+docker compose run --rm --no-TTY baseline sh tools/phase13-2-court.sh
+# -> PHASE 13.2 COURT: PASS — campaign
+#    evidence/campaigns/2026-10-07-phase13-pdf-grammar-dfba2a4
+#    28 files: 7 proposed / 7 exact / 0 inexact; 21 declined.
+#    0 wins / 4 ties / 3 losses vs the current VOLE ladder;
+#    4 wins / 0 ties / 3 losses vs the pre-existing lanes;
+#    0 wins / 0 ties / 7 losses vs the best generic compressor.

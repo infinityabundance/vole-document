@@ -54,7 +54,7 @@ pub const EPSILON_PERMILLE: u64 = 5;
 /// Advisory local-context window reported by a diagnostic.
 pub const LOCAL_CONTEXT_BYTES: u64 = 4096;
 /// Maximum prefix length of the fixed family order (`0..=DEPTH_MAX`).
-pub const DEPTH_MAX: u8 = 10;
+pub const DEPTH_MAX: u8 = 11;
 
 /// Half-open byte range `[start, start+len)` of the source a diagnostic describes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -348,6 +348,7 @@ const fn family_depth(kind: CandidateKind) -> u8 {
         CandidateKind::PdfDeflateReplayRans => 8,
         CandidateKind::PdfDeflateReplayRansIndexed => 9,
         CandidateKind::PdfLengthRevision => 10,
+        CandidateKind::PdfCosTemplate => 11,
     }
 }
 
@@ -472,6 +473,12 @@ pub fn propose_configured(
 
     if cfg.depth >= family_depth(CandidateKind::PdfLengthRevision)
         && let Some(c) = crate::adapter::pdf::propose_pdf_length_revision(input, limits)?
+    {
+        out.push(c);
+    }
+
+    if cfg.depth >= family_depth(CandidateKind::PdfCosTemplate)
+        && let Some(c) = crate::adapter::pdf::propose_pdf_cos_template(input, limits)?
     {
         out.push(c);
     }
@@ -813,6 +820,7 @@ fn ledger(
         }
         CandidateKind::PdfLayout => l[STRUCT] += graph,
         CandidateKind::PdfLengthRevision => l[STRUCT] += graph,
+        CandidateKind::PdfCosTemplate => l[STRUCT] += graph,
         CandidateKind::PdfLayoutRans => {
             l[CODEC] += codec;
             l[STRUCT] += graph;

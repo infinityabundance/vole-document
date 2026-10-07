@@ -1,0 +1,9 @@
+docker compose run --rm --no-TTY baseline sh tools/phase13-2-court.sh
+# inside the court:
+#   cargo build --locked --all-features
+#   target/debug/vole-document pdf-make-samples evidence/scratch/phase13-2/corpus/samples
+#   target/debug/vole-document pdf-make-large  evidence/scratch/phase13-2/corpus/large 200
+#   sh tools/baselines.sh <raw/baseline.json> evidence/scratch/phase13-2/corpus
+#   target/debug/vole-document encode --force pdf-cos-template FILE OUT.voldoc
+#   target/debug/vole-document verify OUT.voldoc
+#   target/debug/vole-document decode OUT.voldoc OUT ; cmp OUT FILE

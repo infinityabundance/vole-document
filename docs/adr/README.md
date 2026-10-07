@@ -41,6 +41,7 @@ the written rationale that must survive chat history.
 | [0034](0034-cross-document-identity-sharing.md) | Cross-document identity and sharing: state, not bytes; exact versioned content identity | Accepted (Phase 12.0) |
 | [0035](0035-phase12-lifetime-benchmark.md) | Phase-12 lifetime benchmark: pre-registered ablations, accounting boundary, go/no-go | Accepted (Phase 12.0) |
 | [0036](0036-pdf-length-revision-size.md) | PDF `/Length` + revision proceduralization is byte-exact but loses to the whole-file rANS lane and to generic compressors (0 wins over 28 files) | Accepted — recorded negative result (Phase 13.1) |
+| [0037](0037-pdf-grammar-templates.md) | A bounded COS-token phrase grammar is byte-exact and becomes the best VOLE lane on 4/28 files (34,505 B auto-winner gain) but loses to generic compressors on all 7 it proposes | Accepted — mixed (scoped VOLE-ladder positive; loss vs generic) (Phase 13.2) |
 
 ## Adding an ADR
 

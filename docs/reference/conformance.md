@@ -60,7 +60,8 @@ snapshot they are (`docs/phases/phase-12-results.md`, "Close-out gate ledger").
 court over a one-element candidate set (`KIND` in `raw`, `rle`, `byte-rans`,
 `pdf-physical`, `pdf-channels`, `pdf-layout`, `pdf-layout-rans`,
 `pdf-deflate-replay`, `pdf-deflate-replay-rans`,
-`pdf-deflate-replay-rans-indexed`). Forcing selects
+`pdf-deflate-replay-rans-indexed`, `pdf-length-revision`,
+`pdf-cos-template`). Forcing selects
 a lane; it never bypasses serialization, decoding, or the byte-compare, and a kind
 the input does not propose fails with a typed usage error (recorded as `null`), not
 a fabricated result.

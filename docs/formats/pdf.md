@@ -58,9 +58,11 @@ memory- and time-capped worker (ADR-0016). See [Security](../SECURITY.md).
 
 Whole-file size loses to generic lossless compressors (0/27). PDF↔DOCX resource
 sharing does not exist: the PDF adapter extracts no embedded resource blob.
-Structural PDF proceduralization beyond xref offsets (`/Length`/revision as a
-*size* mechanism, grammar/templates) is `PROPOSED` and unmeasured
-([Roadmap](../project/roadmap.md)).
+Structural PDF proceduralization is measured and closes the ledger's PDF
+`PROPOSED` items: `/Length`/revision ([ADR-0036](../adr/0036-pdf-length-revision-size.md))
+is a recorded negative, and a bounded COS grammar/template
+(`pdf-cos-template`, [ADR-0037](../adr/0037-pdf-grammar-templates.md)) becomes the
+best VOLE lane on 4/28 files but never beats a generic compressor.
 
 ## Relevant ADRs
 
@@ -71,7 +73,9 @@ Structural PDF proceduralization beyond xref offsets (`/Length`/revision as a
 [0012](../adr/0012-packed-framing-threshold.md),
 [0013](../adr/0013-layout-rans-not-profitable.md),
 [0015](../adr/0015-deflate-replay-result.md),
-[0016](../adr/0016-replay-resource-bound.md).
+[0016](../adr/0016-replay-resource-bound.md),
+[0036](../adr/0036-pdf-length-revision-size.md),
+[0037](../adr/0037-pdf-grammar-templates.md).
 
 ## Evidence
 
