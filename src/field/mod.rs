@@ -32,6 +32,7 @@ pub mod partial;
 pub mod plan;
 pub mod provenance;
 pub mod resource;
+pub mod session;
 pub mod share;
 
 pub use manifest::{FieldId, FieldRoot};

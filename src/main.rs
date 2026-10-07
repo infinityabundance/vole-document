@@ -91,6 +91,10 @@ const USAGE_FIELD: &str = "\
         --block N | --table N | --cell T:R:C | --resource N | --link N |
         --spine-item N | --text PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|full
+    vole-document observe-batch --store DIR --field HEX [--entropyfs]
+        [--requests FILE|-] [--repeat N]
+        (one process serving many observations: one JSON answer per line; each
+         request line is the per-observation flag grammar WITHOUT --store/--field)
     vole-document find    --store DIR --field HEX --text PATTERN [--entropyfs]
         (format-agnostic lexical search: the common SearchMatch selector)
     vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs]
@@ -246,6 +250,8 @@ fn run(args: &[String]) -> Result<()> {
         "field-edit" => cmd_field_edit(args, limits),
         #[cfg(feature = "field")]
         "observe" => cmd_field_observe(args, limits),
+        #[cfg(feature = "field")]
+        "observe-batch" => cmd_field_observe_batch(args, limits),
         #[cfg(feature = "field")]
         "find" => cmd_field_find(args, limits),
         #[cfg(feature = "field")]
@@ -1436,6 +1442,10 @@ struct FieldArgs {
     spine_item: Option<u32>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
+    /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
+    requests: Option<PathBuf>,
+    /// `observe-batch`: repeat every request line this many times (>= 1).
+    repeat: Option<u32>,
     analyze: bool,
     json: bool,
     no_cache: bool,
@@ -1595,6 +1605,20 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                     "--content",
                     inline,
                 )?));
+            }
+            "--requests" => {
+                out.requests = Some(PathBuf::from(field_arg_value(
+                    args,
+                    &mut i,
+                    "--requests",
+                    inline,
+                )?));
+            }
+            "--repeat" => {
+                out.repeat = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--repeat", inline)?,
+                    "--repeat",
+                )?);
             }
             other if !other.starts_with("--") => {
                 out.positional.push(other.to_string());
@@ -2094,6 +2118,90 @@ fn cmd_field_observe(args: &[String], limits: Limits) -> Result<()> {
     let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
     store.sync()?;
     println!("{}", field_answer_json(&answer, &stats, &field));
+    Ok(())
+}
+
+/// `observe-batch --store DIR --field HEX [--entropyfs] [--requests FILE|-] [--repeat N]`:
+///
+/// Open the store and field once and serve many observations in one process,
+/// printing one `field_answer_json` line per observation. Each non-empty,
+/// non-`#` request line is a full per-observation argument list **without**
+/// `--store`/`--field` (which are session-level), parsed through the same
+/// [`parse_field_args`] grammar as `observe`.
+#[cfg(feature = "field")]
+fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+    use vole_document::field::session::{
+        DEFAULT_MODEL_MEMO_BYTES, DocumentFieldSession, SessionOptions,
+    };
+
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("observe-batch requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("observe-batch requires --field HEX"))?;
+    let repeat = out.repeat.unwrap_or(1).max(1);
+    let mut session = DocumentFieldSession::open(
+        store_dir,
+        field_hex,
+        SessionOptions {
+            entropyfs: out.entropyfs,
+            model_memo_bytes: DEFAULT_MODEL_MEMO_BYTES,
+        },
+    )?;
+    let reader: Box<dyn BufRead> = match out.requests.as_deref() {
+        Some(p) if p != Path::new("-") => Box::new(BufReader::new(File::open(p)?)),
+        _ => Box::new(BufReader::new(std::io::stdin())),
+    };
+    let mut failed = false;
+    for (i, line) in reader.lines().enumerate() {
+        let line = line?;
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut la = vec!["vole-document".to_string(), "observe".to_string()];
+        la.extend(line.split_whitespace().map(str::to_string));
+        let lo = parse_field_args(&la)?;
+        if lo.store.is_some() || lo.field.is_some() {
+            return Err(Error::usage(
+                "observe-batch: --store/--field are session-level; remove them from a request line",
+            ));
+        }
+        let selector = field_selector(&lo)?;
+        let kind = lo
+            .kind
+            .as_deref()
+            .ok_or_else(|| Error::usage("observe-batch: each request needs --kind KIND"))?;
+        let req = observe_request(&lo, selector, field_representation(kind)?);
+        for _ in 0..repeat {
+            match session.observe(&req, limits) {
+                Ok((answer, stats, field)) => {
+                    println!("{}", field_answer_json(&answer, &stats, &field))
+                }
+                Err(e) => {
+                    failed = true;
+                    eprintln!("observe-batch: request {i}: {e}");
+                    println!(
+                        "{{\"request\":{i},\"error\":{},\"message\":\"{}\"}}",
+                        e.exit_code(),
+                        json_escape(&e.to_string())
+                    );
+                }
+            }
+        }
+    }
+    session.sync()?;
+    if failed {
+        return Err(Error::internal_invariant(
+            "observe-batch: one or more requests failed",
+        ));
+    }
     Ok(())
 }
 
