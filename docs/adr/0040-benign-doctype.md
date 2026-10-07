@@ -40,9 +40,14 @@ The distinction that was missing: a `DOCTYPE` is dangerous only when it can
 
 ## Consequences
 
-- **Real EPUB content parses.** On `real100-v1` the frozen adapter answers
-  `block`/`heading`/`doc-text` on the NASA EPUBs (previously 62 typed declines);
-  re-measured in the frontier court (see the receipt below).
+- **Real EPUB content parses (most content selectors).** On `real100-v1` the
+  post-13.7 adapter answers the previously rc-19 DOCTYPE content observations on
+  the NASA EPUBs (62 of VOLE's 301 frontier declines were this DOCTYPE refusal);
+  re-measured in the sealed frontier court (see the receipt under References).
+  This does **not** close EPUB content: residual, non-DOCTYPE declines remain —
+  e.g. a bare `&` in an attribute is still rc 19, and an EPUB with no level-0
+  heading is a typed rc 6 decline. The fix converts the DOCTYPE-refusal declines;
+  it does not make every content selector answer.
 - **The hostile cases still decline.** Both hostile fixtures use an internal
   subset (`docx_doctype.docx`: `<!DOCTYPE w:document [<!ENTITY x "boom">]>`;
   `epub_doctype_xhtml.epub`: `<!DOCTYPE html [<!ENTITY e "x">]>`), so the security
@@ -53,7 +58,13 @@ The distinction that was missing: a `DOCTYPE` is dangerous only when it can
   `InvalidXmlStructure`).
 - **Honest limits.** A `DOCTYPE` whose external identifier points at a *local*
   resource is still not fetched, so a document that relies on a *locally-defined*
-  entity in the body will fail closed (unchanged). The heuristic (bit `[`) is
+  entity in the body cannot be reconstructed from it. Note the precise behavior:
+  an unknown named entity resolves to **empty text** via `entity_ref_text` (it is
+  not, as an earlier draft of this ADR said, a decline) — so a document relying on
+  a locally-defined entity now silently **omits** that content rather than failing
+  the observation. This path is newly reachable because the declaration is no
+  longer refused; it is recorded here as a known derived-state limitation, not an
+  exactness gap (the exact bytes are untouched). The heuristic (bit `[`) is
   deliberately conservative: any internal subset refuses, even a subset that
   declares no entities.
 
@@ -65,5 +76,9 @@ The distinction that was missing: a `DOCTYPE` is dangerous only when it can
   arms)
 - `tests/epub_adapter.rs`, `tests/opc_core.rs`,
   `tests/fixtures/phase12-hostile/` (unchanged hostile expectations)
+- Sealed frontier-court receipt:
+  `evidence/campaigns/2026-10-07-real100-frontier-c14e06f/` (re-run over the frozen
+  `real100-v1` corpus with the 13.7 binary; follow-up commits are doc/limit/test
+  only and behavior-neutral). The dead `max_xml_doctype` limit was removed.
 - ADR-0029/0030/0031 (the DOCX/EPUB/package adapters whose XML policy this amends);
   `docs/evidence/real100-frontier-report.md` (the finding)
