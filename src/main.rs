@@ -86,12 +86,12 @@ const USAGE_STORE: &str = "";
 const USAGE_FIELD: &str = "\
     vole-document field-ingest INPUT.voldoc --store DIR [--workers N] [--entropyfs | --packed]
     vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs | --packed]
-    vole-document observe --store DIR --field HEX [--entropyfs | --packed] (--page N | --object N | --stream N |
+    vole-document observe --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]] (--page N | --object N | --stream N |
         --revision N | --byte-range A..B | --metadata | --doc-text | --heading N |
         --block N | --table N | --cell T:R:C | --resource N | --link N |
         --spine-item N | --text PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|full
-    vole-document observe-batch --store DIR --field HEX [--entropyfs]
+    vole-document observe-batch --store DIR --field HEX [--entropyfs] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
         (one process serving many observations: one JSON answer per line; each
          request line is the per-observation flag grammar WITHOUT --store/--field)
@@ -107,6 +107,8 @@ const USAGE_FIELD: &str = "\
      `parallel` feature; absent or 1 is serial, 0 is available_parallelism)
     (--packed replaces the seed/ namespace with fieldpack/; mutually exclusive
      with --entropyfs; observe-batch does not support it)
+    (--promote[=BYTES] opts into a durable, byte-budgeted promotion layer over the
+     reused intermediates (Phase 15.6); off by default and never on the exactness path)
 ";
 #[cfg(not(feature = "field"))]
 const USAGE_FIELD: &str = "";
@@ -1461,6 +1463,11 @@ struct FieldArgs {
     /// `--packed`: serve seeds from `fieldpack/` segments instead of `seed/`
     /// (mutually exclusive with `--entropyfs`).
     packed: bool,
+    /// `--promote[=BYTES]`: opt-in durable promotion of reused intermediates
+    /// (Phase 15.6). Off by default.
+    promote: bool,
+    /// `--promote=BYTES`: the durable promoted-store byte budget (Phase 15.6).
+    promote_bytes: Option<u64>,
     positional: Vec<String>,
 }
 
@@ -1508,6 +1515,13 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--exact" => i += 1,
             "--no-cache" => {
                 out.no_cache = true;
+                i += 1;
+            }
+            "--promote" => {
+                out.promote = true;
+                if let Some(v) = inline {
+                    out.promote_bytes = Some(parse_promote_bytes(v)?);
+                }
                 i += 1;
             }
             "--entropyfs" => {
@@ -1779,6 +1793,32 @@ fn observe_request(
     let mut req = ObserveRequest::new(selector, representation);
     req.use_cache = !out.no_cache;
     req
+}
+
+/// `--promote=BYTES`: a positive byte budget for the durable promoted store.
+#[cfg(feature = "field")]
+fn parse_promote_bytes(value: &str) -> Result<u64> {
+    let n: u64 = value
+        .parse()
+        .map_err(|_| Error::usage(format!("--promote value {value:?} is not a byte count")))?;
+    if n == 0 {
+        return Err(Error::usage("--promote budget must be greater than zero"));
+    }
+    Ok(n)
+}
+
+/// The promotion policy selected by `--promote[=BYTES]` (disabled by default).
+#[cfg(feature = "field")]
+fn field_promote_policy(out: &FieldArgs) -> vole_document::field::promote::PromotePolicy {
+    use vole_document::field::promote::{DEFAULT_PROMOTE_BUDGET_BYTES, PromotePolicy};
+    if !out.promote {
+        return PromotePolicy::default();
+    }
+    PromotePolicy {
+        enabled: true,
+        budget_bytes: out.promote_bytes.unwrap_or(DEFAULT_PROMOTE_BUDGET_BYTES),
+        ..PromotePolicy::default()
+    }
 }
 
 #[cfg(feature = "field")]
@@ -2191,6 +2231,7 @@ fn cmd_field_observe(args: &[String], limits: Limits) -> Result<()> {
         .ok_or_else(|| Error::usage("observe requires --kind KIND"))?;
     let representation = field_representation(kind)?;
     let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
+    store.set_promote(field_promote_policy(&out));
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, selector, representation);
     let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
@@ -2235,6 +2276,7 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
         SessionOptions {
             entropyfs: out.entropyfs,
             model_memo_bytes: DEFAULT_MODEL_MEMO_BYTES,
+            promote: field_promote_policy(&out),
         },
     )?;
     let reader: Box<dyn BufRead> = match out.requests.as_deref() {
@@ -2310,6 +2352,7 @@ fn cmd_field_find(args: &[String], limits: Limits) -> Result<()> {
         .clone()
         .ok_or_else(|| Error::usage("find requires --text PATTERN"))?;
     let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
+    store.set_promote(field_promote_policy(&out));
     let id = FieldId::from_hex(field_hex)?;
     // Format-agnostic lexical find: the common `SearchMatch` selector dispatches
     // through the detected format's adapter (Phase 12.7).
@@ -2338,6 +2381,7 @@ fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
         .ok_or_else(|| Error::usage("explain requires --kind KIND"))?;
     let representation = field_representation(kind)?;
     let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
+    store.set_promote(field_promote_policy(&out));
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, selector, representation);
     if out.analyze {
@@ -2450,6 +2494,7 @@ fn cmd_field_preview(args: &[String], limits: Limits) -> Result<()> {
         .ok_or_else(|| Error::usage("preview requires --page N"))?;
     let as_json = out.json;
     let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
+    store.set_promote(field_promote_policy(&out));
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, Selector::Page(page), Representation::Preview);
     let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;

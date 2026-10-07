@@ -43,7 +43,7 @@ use crate::adapter::odt::{
 };
 use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
-use crate::field::dag::{self, EvalBudget, ReuseStats, SourceServer};
+use crate::field::dag::{self, EvalBudget, OutputCache, ReuseStats, SourceServer};
 use crate::field::document_format::DocumentFormat;
 #[cfg(feature = "docx")]
 use crate::field::index::SEL_DOCX_MODEL;
@@ -61,6 +61,7 @@ use crate::field::ingest;
 use crate::field::manifest::FieldRoot;
 use crate::field::node::{NodeKind, SeedNode, read_u32_params, span_params, u32_params};
 use crate::field::partial::{PartialDescriptor, PartialLoad};
+use crate::field::promote::GovernedCache;
 use crate::field::{Field, FieldId, FieldStore, SeedSubstrate};
 use crate::limits::Limits;
 use crate::store::{Id, IoSnapshot, NodeId, SeedStore};
@@ -1356,7 +1357,14 @@ fn observe_with_stores_pre<'a, S: SeedStore>(
         max_nodes: req.budget.max_nodes,
         ..EvalBudget::default()
     };
-    let cache = DerivedCache::open(store.root().join("cache"))?;
+    // Opt-in durable promotion (Phase 15.6): with `--promote` the cache becomes a
+    // `GovernedCache` (durable `promoted/` first, disposable `cache/` second).
+    // Off by default, so every existing court is byte-identical.
+    let cache: Box<dyn OutputCache> = if req.use_cache && store.promote_policy().enabled {
+        Box::new(GovernedCache::open(store.root(), store.governor())?)
+    } else {
+        Box::new(DerivedCache::open(store.root().join("cache"))?)
+    };
     let field_id = view.id;
     let mut ctx = Ctx {
         store,
@@ -1535,7 +1543,7 @@ struct Ctx<'a, S: SeedStore> {
     budget: EvalBudget,
     stats: ObserveStats,
     use_cache: bool,
-    cache: DerivedCache,
+    cache: Box<dyn OutputCache>,
     reuse: ReuseStats,
     /// Resident typed-model memo (Phase 15.2); consulted only when `use_cache`.
     models: ModelMemo,
@@ -1629,7 +1637,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             dag::materialize_node_cached_with(
                 self.source,
                 &self.seeds,
-                &mut self.cache,
+                &mut *self.cache,
                 node,
                 self.limits,
                 &mut self.budget,

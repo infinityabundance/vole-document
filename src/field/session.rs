@@ -11,6 +11,7 @@ use crate::limits::Limits;
 use crate::store::IoSnapshot;
 
 use super::observe::{ModelMemo, ObserveRequest, ObserveStats, observe_with_field_memo};
+use super::promote::PromotePolicy;
 use super::provenance::FieldAnswer;
 use super::{Field, FieldId, FieldStore};
 
@@ -24,6 +25,8 @@ pub struct SessionOptions {
     pub entropyfs: bool,
     /// In-memory typed-model memo budget; `0` disables the memo.
     pub model_memo_bytes: u64,
+    /// Opt-in durable promotion policy (Phase 15.6); disabled by default.
+    pub promote: PromotePolicy,
 }
 
 impl Default for SessionOptions {
@@ -31,6 +34,7 @@ impl Default for SessionOptions {
         SessionOptions {
             entropyfs: false,
             model_memo_bytes: DEFAULT_MODEL_MEMO_BYTES,
+            promote: PromotePolicy::default(),
         }
     }
 }
@@ -59,7 +63,7 @@ impl DocumentFieldSession {
     /// BLAKE3, descriptor read + Id::of BLAKE3 + Descriptor::parse, and the
     /// FieldId hex parse exactly once.
     pub fn open(store_dir: &Path, field_hex: &str, opts: SessionOptions) -> Result<Self> {
-        let store = if opts.entropyfs {
+        let mut store = if opts.entropyfs {
             #[cfg(feature = "entropyfs-store")]
             {
                 FieldStore::open_entropyfs(store_dir)?
@@ -73,6 +77,7 @@ impl DocumentFieldSession {
         } else {
             FieldStore::open(store_dir)?
         };
+        store.set_promote(opts.promote);
         let field_id = FieldId::from_hex(field_hex)?;
         let field = Field::open(&store, &field_id, Limits::DEFAULT)?;
         let open_io = field.open_io();

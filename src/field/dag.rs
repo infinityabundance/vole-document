@@ -172,6 +172,37 @@ fn serve_source_range(
     Ok(served.bytes)
 }
 
+/// Which cache event a [`CacheNote`] reports (Phase 15.6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CacheEffect {
+    /// The node was served whole from the cache (its subtree was not traversed).
+    Hit,
+    /// The node's freshly computed output was written to the cache.
+    Stored,
+}
+
+/// A non-authoritative, best-effort cache event (Phase 15.6).
+///
+/// It never affects output bytes and is never consulted by
+/// `materialize`/`decode`/`verify`; a cache implementation may ignore it
+/// entirely. `wall_micros` is reserved for a measured per-node cost — the current
+/// call sites pass `0`, and the promotion policy falls back to a deterministic
+/// `bytes x kind_weight` estimate rather than a wall-clock reading (which would
+/// make promotion decisions irreproducible).
+#[derive(Debug, Clone, Copy)]
+pub struct CacheNote<'a> {
+    /// Whether the node was a hit or was just stored.
+    pub effect: CacheEffect,
+    /// What the node computes (drives the promotion cost weight).
+    pub kind: NodeKind,
+    /// The content-addressed node id.
+    pub id: &'a NodeId,
+    /// The node output length in bytes.
+    pub bytes: u64,
+    /// Reserved measured cost; `0` at the current call sites.
+    pub wall_micros: u64,
+}
+
 /// A node-output cache keyed by [`NodeId`]. Because a node's id binds its full
 /// dependency closure, an unchanged closure hits and a changed dependency misses;
 /// there is no invalidation pass (ADR-0025).
@@ -186,6 +217,11 @@ pub trait OutputCache {
     /// Store a node output. Best-effort: a `put` error does not fail the
     /// materialization.
     fn put(&mut self, id: &NodeId, bytes: &[u8]) -> Result<()>;
+    /// Phase 15.6. Advisory, best-effort reuse/store event, reported for every
+    /// cache hit and store. The default is a no-op, so `NoCache` and
+    /// `DerivedCache` are byte-identical to a build without this method; it is
+    /// never on the exactness path and can never change an output.
+    fn note(&mut self, _note: CacheNote<'_>) {}
 }
 
 /// A cache that stores nothing; used by the backward-compatible
@@ -367,6 +403,13 @@ fn materialize_inner(
     {
         reuse.nodes_reused = reuse.nodes_reused.saturating_add(1);
         budget.charge_bytes(bytes.len() as u64)?;
+        cache.note(CacheNote {
+            effect: CacheEffect::Hit,
+            kind: node.kind,
+            id: &id,
+            bytes: bytes.len() as u64,
+            wall_micros: 0,
+        });
         return Ok(bytes);
     }
 
@@ -779,6 +822,13 @@ fn materialize_inner(
     // Best-effort persistence: a cache write failure never fails the observation.
     if cache.put(&id, &out).is_ok() {
         reuse.cache_bytes_written = reuse.cache_bytes_written.saturating_add(out.len() as u64);
+        cache.note(CacheNote {
+            effect: CacheEffect::Stored,
+            kind: node.kind,
+            id: &id,
+            bytes: out.len() as u64,
+            wall_micros: 0,
+        });
     }
     Ok(out)
 }

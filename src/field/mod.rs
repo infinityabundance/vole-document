@@ -30,6 +30,7 @@ pub mod observe;
 pub mod opc;
 pub mod partial;
 pub mod plan;
+pub mod promote;
 pub mod provenance;
 pub mod resource;
 pub mod session;
@@ -287,6 +288,7 @@ impl BlobBackend {
 ///   fieldpack/seg-N.pack      canonical seed nodes, packed (PackedSeedStore)
 ///   index/<64-hex>            hierarchical index nodes (11.3)
 ///   cache/                    derived observation cache (11.8)
+///   promoted/                 opt-in durable promoted intermediates (15.6)
 /// ```
 ///
 /// A packed store ([`FieldStore::open_packed`]) replaces the `seed/` namespace
@@ -320,6 +322,10 @@ pub struct FieldStore {
     backend: BlobBackend,
     seeds: SeedSubstrate,
     io: IoCounters,
+    /// Opt-in durable promotion policy (Phase 15.6); disabled by default.
+    promote: promote::PromotePolicy,
+    /// The shared promotion governor for this store handle (Phase 15.6).
+    governor: promote::Governor,
 }
 
 impl std::fmt::Debug for FieldStore {
@@ -348,6 +354,8 @@ impl FieldStore {
             backend: BlobBackend::Fs,
             seeds,
             io,
+            promote: promote::PromotePolicy::default(),
+            governor: promote::Governor::default(),
         })
     }
 
@@ -386,6 +394,8 @@ impl FieldStore {
             backend: BlobBackend::EntropyFs(engine),
             seeds,
             io,
+            promote: promote::PromotePolicy::default(),
+            governor: promote::Governor::default(),
         })
     }
 
@@ -412,6 +422,8 @@ impl FieldStore {
             backend: BlobBackend::Fs,
             seeds,
             io,
+            promote: promote::PromotePolicy::default(),
+            governor: promote::Governor::default(),
         })
     }
 
@@ -458,6 +470,33 @@ impl FieldStore {
     /// remain correct by recomputation (ADR-0027).
     pub fn cache(&self) -> Result<cache::DerivedCache> {
         cache::DerivedCache::open(self.root.join("cache"))
+    }
+
+    /// Set the opt-in durable promotion policy (Phase 15.6). The default is
+    /// [`promote::PromotePolicy::default`] (disabled), so every existing path is
+    /// byte-identical until a caller explicitly enables it.
+    pub fn set_promote(&mut self, policy: promote::PromotePolicy) {
+        // The governor the observation cache actually reads holds its own copy of
+        // the policy; keep the two in sync or an opt-in has no effect.
+        self.governor.set_policy(policy);
+        self.promote = policy;
+    }
+
+    /// The active promotion policy (disabled by default).
+    pub fn promote_policy(&self) -> promote::PromotePolicy {
+        self.promote
+    }
+
+    /// The shared promotion governor (Phase 15.6), cloned for a governed cache.
+    pub(crate) fn governor(&self) -> promote::Governor {
+        self.governor.clone()
+    }
+
+    /// Open the durable promoted store (Phase 15.6) under this store's
+    /// `promoted/` directory. Never normative and never consulted by
+    /// `materialize --exact`.
+    pub fn promoted(&self) -> Result<promote::PromotedStore> {
+        promote::PromotedStore::open(self.root.join("promoted"))
     }
 
     /// Make every acknowledged write power-durable before the handle is dropped.
@@ -828,6 +867,63 @@ mod tests {
         let m = store.get_field(&id1).unwrap();
         assert_eq!(m.content_id(), id1);
         assert_eq!(store.list_fields().unwrap(), vec![id1]);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn promotion_is_a_noop_by_default() {
+        use crate::field::observe::{self, ObserveRequest, Representation, Selector};
+        let root = temp_root("promote-off");
+        let mut store = FieldStore::open(&root).unwrap();
+        let id = store.ingest(&tiny_descriptor(), Limits::DEFAULT).unwrap();
+        let req = ObserveRequest::new(
+            Selector::ByteRange { offset: 4, len: 5 },
+            Representation::ExactBytes,
+        );
+        let (a1, _, _) = observe::observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+        let (a2, _, _) = observe::observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+        assert_eq!(a1, a2);
+        // With promotion off, the durable namespace is never even created.
+        assert!(!root.join("promoted").exists(), "promotion must be opt-in");
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn promotion_preserves_the_answer_and_the_durable_store_serves_it() {
+        use crate::field::observe::{self, ObserveRequest, Representation, Selector};
+        use crate::field::promote::PromotePolicy;
+        let root = temp_root("promote-on");
+        let mut store = FieldStore::open(&root).unwrap();
+        // A forcing policy: one reuse event is enough and rent is zero.
+        store.set_promote(PromotePolicy {
+            enabled: true,
+            min_hits: 1,
+            rent_per_byte: 0,
+            ..PromotePolicy::default()
+        });
+        let id = store.ingest(&tiny_descriptor(), Limits::DEFAULT).unwrap();
+        let req = ObserveRequest::new(
+            Selector::ByteRange { offset: 4, len: 5 },
+            Representation::ExactBytes,
+        );
+        let (cold, _, _) = observe::observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+        let (warm, _, _) = observe::observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+        assert_eq!(cold, warm, "promotion must not change the answer");
+        // The second observation's reuse promoted the source-slice node durably.
+        let promoted = store.promoted().unwrap();
+        let ob = promoted.output_bytes().unwrap();
+        assert!(
+            ob > 0,
+            "the reused node must be in the durable store (output_bytes={ob}, promoted_dir_exists={})",
+            root.join("promoted").exists()
+        );
+        // Drop the disposable cache: only the durable store can serve it now.
+        crate::field::cache::DerivedCache::open(root.join("cache"))
+            .unwrap()
+            .clear()
+            .unwrap();
+        let (after, _, _) = observe::observe(&mut store, &id, &req, Limits::DEFAULT).unwrap();
+        assert_eq!(cold, after, "the promoted store must yield the same answer");
         fs::remove_dir_all(&root).ok();
     }
 }
