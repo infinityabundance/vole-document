@@ -182,6 +182,29 @@ services:
       - cargo-target:/work/target
     command: ["sh", "-c", "python3 --version; sqlite3 --version; pdftotext -v"]
 
+  # real100-v1 corpus-acquisition harness. Minimal network-capable stage on the
+  # pinned `debian:bookworm-slim` digest (same as `tools`): curl + python3 only.
+  # Capped like the other lanes; a runaway download or zip bomb dies inside the
+  # container. Network must be host-mode for the restricted sandbox's egress, and
+  # every fetch is content-addressed afterwards, so the network is never trusted
+  # for exactness — only the recorded SHA-256/byte length are.
+  realcorpus:
+    build:
+      context: .
+      target: realcorpus
+    image: vole-document/realcorpus:bookworm
+    network_mode: host
+    working_dir: /work
+    mem_limit: 2g
+    memswap_limit: 2g
+    pids_limit: 1024
+    cpus: 2
+    environment:
+      LC_ALL: C
+    volumes:
+      - .:/work
+    command: ["sh", "-c", "curl --version | head -1; python3 --version"]
+
   # Phase-11.13 LLM working-set *token* court (opt-in; never part of a fast
   # gate). Same pinned base digest as `dev`/`baseline`, plus Poppler (`pdftotext`
   # for B0/B1), `jq`, and a pinned HuggingFace `tokenizers` runtime. Runs

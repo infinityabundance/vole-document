@@ -218,6 +218,31 @@ RUN apt-get update \
 WORKDIR /work
 
 # ---------------------------------------------------------------------------
+# real100-v1 corpus-acquisition harness. A pinned, network-capable stage on the
+# same `debian:bookworm-slim` digest as `tools` (never the host). It carries:
+#   * `curl` + `ca-certificates` — HTTPS download with redirects and retries;
+#   * `python3` (stdlib only) — provenance, hashing, OPC (ZIP) inspection;
+#   * `poppler-utils` + `qpdf` — the *structural probe* (page count, extracted
+#     text length, image/font inventory, object streams, xref streams) used to
+#     assign grounded `structural_tags`. These are read-only inspectors of the
+#     downloaded bytes; they never validate or transform a document, and no
+#     codec result is consulted.
+# The image stays small and, like every lane, is hard-capped in compose.yaml.
+# ---------------------------------------------------------------------------
+FROM ${BASE_TOOLS} AS realcorpus
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      curl \
+      ca-certificates \
+      python3 \
+      coreutils \
+      poppler-utils \
+      qpdf \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
+
+# ---------------------------------------------------------------------------
 # Phase-11.13 LLM working-set *token* court (priority #8). Derives from the
 # pinned `dev` toolchain (same base digest as `dev`/`baseline`, so rustc/cargo
 # match the measurement binary) and adds the two things the token court needs

@@ -1,0 +1,447 @@
+# pilot — real100-v1 corpus manifest (generated; do not edit by hand)
+# Canonical store is manifest.tsv; this TOML is a view of it.
+# Regenerate with: tools/realcorpus/verify.sh --write-manifests
+schema_version = 1
+corpus = "pilot"
+generated_utc = "2026-10-07T06:23:20Z"
+
+[[document]]
+id = "nist-pdf-0001"
+agency = "nist"
+title = "Standards for Security Categorization of Federal Information and Information Systems"
+publication_id = "NIST FIPS 199"
+format = "pdf"
+source_url = "https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.199.pdf"
+landing_page = "https://csrc.nist.gov/pubs/fips/199/final"
+retrieved_utc = "2026-10-07T06:16:56Z"
+sha256 = "73d19f05f71e30f378050f178aa3943c38790bbae56c07f2b5708c5a1a90242f"
+byte_len = 80356
+publication_year = 2004
+publication_family = "FIPS"
+document_type = "Standard"
+producer_or_origin_if_known = "NIST"
+size_class = "<100KiB"
+structural_tags = ["table-heavy", "born-digital", "simple", "complex-xref"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nasa-pdf-0001"
+agency = "nasa"
+title = "Summary of NACA Research on Afterburners for Turbojet Engines"
+publication_id = "NACA-RM-E55L12"
+format = "pdf"
+source_url = "https://ntrs.nasa.gov/api/citations/19640056668/downloads/19640056668.pdf"
+landing_page = "https://ntrs.nasa.gov/citations/19640056668"
+retrieved_utc = "2026-10-07T06:21:21Z"
+sha256 = "3cd2ecf542e453570fdae7125fee11f3b9124e1b075d0d0ba52b923a8323eacd"
+byte_len = 28003279
+publication_year = 1956
+publication_family = "NACA"
+document_type = "NACA"
+producer_or_origin_if_known = "NASA/NACA (Legacy CDMS)"
+size_class = "10-50MiB"
+structural_tags = ["scanned", "legacy-image", "figure-heavy", "center:headquarters", "complex-xref"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nasa-pdf-0002"
+agency = "nasa"
+title = "Full-Scale Wind-Tunnel Investigation of a Flexible-Wing Manned Test Vehicle"
+publication_id = "NASA-TN-D-1946"
+format = "pdf"
+source_url = "https://ntrs.nasa.gov/api/citations/19630009859/downloads/19630009859.pdf"
+landing_page = "https://ntrs.nasa.gov/citations/19630009859"
+retrieved_utc = "2026-10-07T06:21:24Z"
+sha256 = "7bc25af8a645e5aeb6ff9dab7a739fc705a25e5ab557ddb78676d89479d43e30"
+byte_len = 10034634
+publication_year = 1963
+publication_family = "TN"
+document_type = "TN"
+producer_or_origin_if_known = "NASA (Legacy CDMS)"
+size_class = "1-10MiB"
+structural_tags = ["figure-heavy", "table-heavy", "complex-xref"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nasa-pdf-0003"
+agency = "nasa"
+title = "NASA Aerodynamics Program"
+publication_id = "NASA-TM-4368"
+format = "pdf"
+source_url = "https://ntrs.nasa.gov/api/citations/19920015435/downloads/19920015435.pdf"
+landing_page = "https://ntrs.nasa.gov/citations/19920015435"
+retrieved_utc = "2026-10-07T06:21:39Z"
+sha256 = "433259bf4e712381c36d8c5f741b8a977b246558834cb0c1d5dc5967cc7d82c2"
+byte_len = 116881125
+publication_year = 1992
+publication_family = "TM"
+document_type = "TM"
+producer_or_origin_if_known = "NASA (Legacy CDMS)"
+size_class = ">100MiB"
+structural_tags = ["table-heavy", "figure-heavy", "very-large"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nasa-pdf-0004"
+agency = "nasa"
+title = "Research on Hazardous States of Awareness and Physiological Factors in Aerospace Operations"
+publication_id = "NASA/TM-2002-211444"
+format = "pdf"
+source_url = "https://ntrs.nasa.gov/api/citations/20020039536/downloads/20020039536.pdf"
+landing_page = "https://ntrs.nasa.gov/citations/20020039536"
+retrieved_utc = "2026-10-07T06:21:47Z"
+sha256 = "9f1988a93bbbfa44efcf654734fb352dcfa07cf8d151906dac6302dbddf32baa"
+byte_len = 7527570
+publication_year = 2002
+publication_family = "TM"
+document_type = "TM"
+producer_or_origin_if_known = "NASA Langley Research Center"
+size_class = "1-10MiB"
+structural_tags = ["table-heavy", "reference-heavy", "center:langley", "figure-heavy"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nasa-pdf-0005"
+agency = "nasa"
+title = "Boeing Smart Rotor Full-scale Wind Tunnel Test Data Report"
+publication_id = "NASA/TM-2016-216048"
+format = "pdf"
+source_url = "https://ntrs.nasa.gov/api/citations/20160003515/downloads/20160003515.pdf"
+landing_page = "https://ntrs.nasa.gov/citations/20160003515"
+retrieved_utc = "2026-10-07T06:21:49Z"
+sha256 = "4c6b8d74b7c15103340c2306464bab353cfcdd4714bb26bff43785028c3859fb"
+byte_len = 3182235
+publication_year = 2016
+publication_family = "TM"
+document_type = "TM"
+producer_or_origin_if_known = "NASA Ames Research Center"
+size_class = "1-10MiB"
+structural_tags = ["table-heavy", "figure-heavy", "center:ames", "complex-xref", "very-large"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nasa-pdf-0006"
+agency = "nasa"
+title = "NASA Systems Engineering Handbook"
+publication_id = "NASA/SP-2007-6105 Rev1"
+format = "pdf"
+source_url = "https://ntrs.nasa.gov/api/citations/20080008301/downloads/20080008301.pdf"
+landing_page = "https://ntrs.nasa.gov/citations/20080008301"
+retrieved_utc = "2026-10-07T06:21:52Z"
+sha256 = "2ebf1107089417d1b31d79e2cfbd7e742194a0647edb18503ad45e87319bf02b"
+byte_len = 8936698
+publication_year = 2007
+publication_family = "SP"
+document_type = "HANDBOOK"
+producer_or_origin_if_known = "NASA Headquarters"
+size_class = "1-10MiB"
+structural_tags = ["born-digital", "reference-heavy", "appendix-heavy", "center:headquarters", "complex-xref", "very-large"]
+cross_format_family_id = ""
+revision_family_id = "rev-nasa-se-handbook-6105"
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nasa-epub-0001"
+agency = "nasa"
+title = "Economic Development of Low Earth Orbit"
+publication_id = "NASA eBook"
+format = "epub"
+source_url = "https://www.nasa.gov/wp-content/uploads/2023/08/economic-development-of-low-earth-orbit-ebook_0.epub"
+landing_page = "https://www.nasa.gov/ebooks/economic-development-of-low-earth-orbit/"
+retrieved_utc = "2026-10-07T06:21:54Z"
+sha256 = "da8e4908cfb83208dad63235e8fd0a2dd5afbbe72b48ca16a3742e5ac88b5a2e"
+byte_len = 1703705
+publication_year = 2016
+publication_family = "HISTORY"
+document_type = "BOOK"
+producer_or_origin_if_known = "NASA"
+size_class = "1-10MiB"
+structural_tags = ["multi-chapter", "reference-heavy"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nasa-epub-0002"
+agency = "nasa"
+title = "Earth as Art"
+publication_id = "NASA eBook"
+format = "epub"
+source_url = "https://www.nasa.gov/wp-content/uploads/2023/08/2018_earth_as_art-nasa.epub"
+landing_page = "https://www.nasa.gov/ebooks/earth-as-art/"
+retrieved_utc = "2026-10-07T06:22:00Z"
+sha256 = "c21e1272f4527d2ee5592261d09dfcee2bd672f8c6e6cf76519855b5f1a5aa0b"
+byte_len = 39526816
+publication_year = 2018
+publication_family = "PHOTO"
+document_type = "BOOK"
+producer_or_origin_if_known = "NASA"
+size_class = "10-50MiB"
+structural_tags = ["image-heavy", "multi-chapter"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nasa-epub-0003"
+agency = "nasa"
+title = "A Researcher's Guide to: Fluid Physics"
+publication_id = "NASA ISS Researcher's Guide"
+format = "epub"
+source_url = "https://www.nasa.gov/wp-content/uploads/2019/10/iss-fluid-physics-2020.epub"
+landing_page = "https://www.nasa.gov/science-research/for-researchers/a-researchers-guide-to-fluid-physics/"
+retrieved_utc = "2026-10-07T06:22:02Z"
+sha256 = "4059489ed3f11e25753e53218e7d5bb99a3a42d222c94e825c9fd915d1298e63"
+byte_len = 3747808
+publication_year = 2020
+publication_family = "RESEARCH"
+document_type = "GUIDE"
+producer_or_origin_if_known = "NASA"
+size_class = "1-10MiB"
+structural_tags = ["simple", "nav-heavy", "multi-chapter", "image-heavy"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nasa-epub-0004"
+agency = "nasa"
+title = "Earth at Night"
+publication_id = "NASA eBook"
+format = "epub"
+source_url = "https://www.nasa.gov/wp-content/uploads/2019/11/earth_at_night-ebook.epub"
+landing_page = "https://www.nasa.gov/ebooks/earth-at-night/"
+retrieved_utc = "2026-10-07T06:22:15Z"
+sha256 = "d33bba3c35d50e70e111cbd310220cf89bda4a83a81e7c77af44f98caac951f4"
+byte_len = 46837603
+publication_year = 2019
+publication_family = "PHOTO"
+document_type = "BOOK"
+producer_or_origin_if_known = "NASA"
+size_class = "10-50MiB"
+structural_tags = ["image-heavy", "unusual", "multi-chapter"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nist-pdf-0002"
+agency = "nist"
+title = "Security and Privacy Controls for Information Systems and Organizations"
+publication_id = "NIST SP 800-53 Rev. 5"
+format = "pdf"
+source_url = "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-53r5.pdf"
+landing_page = "https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final"
+retrieved_utc = "2026-10-07T06:22:18Z"
+sha256 = "fc63bcd61715d0181dd8e85998b1e6201ae3515fc6626102101cab1841e11ec6"
+byte_len = 6073678
+publication_year = 2020
+publication_family = "SP"
+document_type = "SP"
+producer_or_origin_if_known = "NIST"
+size_class = "1-10MiB"
+structural_tags = ["table-heavy", "appendix-heavy", "reference-heavy", "figure-heavy", "complex-xref", "very-large"]
+cross_format_family_id = ""
+revision_family_id = "rev-nist-sp800-53"
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nist-pdf-0003"
+agency = "nist"
+title = "Guide for Developing Security Plans for Federal Information Systems"
+publication_id = "NIST SP 800-18 Rev. 2"
+format = "pdf"
+source_url = "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-18r2.pdf"
+landing_page = "https://csrc.nist.gov/pubs/sp/800/18/r2/final"
+retrieved_utc = "2026-10-07T06:22:19Z"
+sha256 = "640f9124469f285fc39dbeffd59708c84043d1a6b64cc87988f31e7e98942371"
+byte_len = 1313448
+publication_year = 2025
+publication_family = "SP"
+document_type = "SP"
+producer_or_origin_if_known = "NIST"
+size_class = "1-10MiB"
+structural_tags = ["born-digital", "reference-heavy", "complex-xref"]
+cross_format_family_id = "cf-nist-sp800-18r2"
+revision_family_id = "rev-nist-sp800-18"
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nist-pdf-0004"
+agency = "nist"
+title = "Technical Guide to Information Security Testing and Assessment"
+publication_id = "NIST SP 800-115"
+format = "pdf"
+source_url = "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-115.pdf"
+landing_page = "https://csrc.nist.gov/pubs/sp/800/115/final"
+retrieved_utc = "2026-10-07T06:22:20Z"
+sha256 = "58e5ed41e5c8ca34ce14fd80b70f118f2c6d613d1647bc307edca30bcc45f063"
+byte_len = 544047
+publication_year = 2008
+publication_family = "OTHER"
+document_type = "SP"
+producer_or_origin_if_known = "NIST"
+size_class = "100KiB-1MiB"
+structural_tags = ["table-heavy", "figure-heavy", "complex-xref"]
+cross_format_family_id = "cf-nist-sp800-115"
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nist-pdf-0005"
+agency = "nist"
+title = "NIST Technical Note 2161 (Engineering Laboratory)"
+publication_id = "NIST TN 2161"
+format = "pdf"
+source_url = "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2161.pdf"
+landing_page = "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2161.pdf"
+retrieved_utc = "2026-10-07T06:22:22Z"
+sha256 = "f590b7b1c1699ce8d48f7cf533d6a2f515c54490a30f08e75b42f794dffa42cd"
+byte_len = 5701173
+publication_year = 2020
+publication_family = "TN"
+document_type = "TN"
+producer_or_origin_if_known = "NIST"
+size_class = "1-10MiB"
+structural_tags = ["equation-heavy", "figure-heavy", "complex-xref"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nist-pdf-0006"
+agency = "nist"
+title = "Specifications, Tolerances, and Other Technical Requirements for Weighing and Measuring Devices"
+publication_id = "NIST Handbook 44 (2024)"
+format = "pdf"
+source_url = "https://nvlpubs.nist.gov/nistpubs/hb/2024/NIST.HB.44-2024.pdf"
+landing_page = "https://www.nist.gov/pml/owm/nist-handbook-44"
+retrieved_utc = "2026-10-07T06:22:32Z"
+sha256 = "419b1501115086972ddfcb9accdc49dca0b8a27c3af8aa5d648b21d30229e34d"
+byte_len = 77578129
+publication_year = 2024
+publication_family = "HANDBOOK"
+document_type = "HANDBOOK"
+producer_or_origin_if_known = "NIST"
+size_class = "50-100MiB"
+structural_tags = ["very-large", "table-heavy", "appendix-heavy", "complex-xref"]
+cross_format_family_id = ""
+revision_family_id = "rev-nist-hb44"
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nist-docx-0001"
+agency = "nist"
+title = "SP 800-18 Rev. 2 System Security Plan Outline Example"
+publication_id = "NIST SP 800-18 Rev. 2 (supporting file)"
+format = "docx"
+source_url = "https://csrc.nist.gov/files/pubs/sp/800/18/r2/ipd/docs/sp800-18r2_system_security_plan_outline_example.docx"
+landing_page = "https://csrc.nist.gov/pubs/sp/800/18/r2/final"
+retrieved_utc = "2026-10-07T06:22:33Z"
+sha256 = "47885ad3f525df8ed56c18d9cce06c510babbc5440dcf823a9a13d08017151f4"
+byte_len = 2286200
+publication_year = 2025
+publication_family = "SP"
+document_type = "SP"
+producer_or_origin_if_known = "NIST"
+size_class = "1-10MiB"
+structural_tags = ["form", "table-heavy", "deep-headings", "list-heavy"]
+cross_format_family_id = "cf-nist-sp800-18r2"
+revision_family_id = "rev-nist-sp800-18"
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nist-docx-0002"
+agency = "nist"
+title = "SP 800-34 Rev. 1 Contingency Planning Template (High-Impact System)"
+publication_id = "NIST SP 800-34 Rev. 1 (supporting file)"
+format = "docx"
+source_url = "https://csrc.nist.gov/files/pubs/sp/800/34/r1/upd1/final/docs/sp800-34-rev1_cp_template_high_impact_system.docx"
+landing_page = "https://csrc.nist.gov/pubs/sp/800/34/r1/upd1/final"
+retrieved_utc = "2026-10-07T06:22:34Z"
+sha256 = "c429c2b93397b318fa14c9718afb564f9162913e1a71a0d964849a5b862a996d"
+byte_len = 57045
+publication_year = 2010
+publication_family = "SP"
+document_type = "SP"
+producer_or_origin_if_known = "NIST"
+size_class = "<100KiB"
+structural_tags = ["form", "table-heavy", "list-heavy"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nist-epub-0001"
+agency = "nist"
+title = "Technical Guide to Information Security Testing and Assessment"
+publication_id = "NIST SP 800-115 (EPUB)"
+format = "epub"
+source_url = "https://csrc.nist.gov/publications/nistpubs/800-115/sp800_115.epub"
+landing_page = "https://csrc.nist.gov/pubs/sp/800/115/final"
+retrieved_utc = "2026-10-07T06:22:35Z"
+sha256 = "b6bdb557a0d7bdac3bd579ade42520f6bf89ffe319a52ebc8b786bff59a06064"
+byte_len = 168431
+publication_year = 2008
+publication_family = "SP"
+document_type = "SP"
+producer_or_origin_if_known = "NIST"
+size_class = "100KiB-1MiB"
+structural_tags = ["simple", "table-heavy", "multi-chapter"]
+cross_format_family_id = "cf-nist-sp800-115"
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+
+[[document]]
+id = "nist-epub-0002"
+agency = "nist"
+title = "The NIST Definition of Cloud Computing"
+publication_id = "NIST SP 800-145 (EPUB)"
+format = "epub"
+source_url = "https://csrc.nist.gov/publications/nistpubs/800-145/sp800_145.epub"
+landing_page = "https://csrc.nist.gov/pubs/sp/800/145/final"
+retrieved_utc = "2026-10-07T06:22:36Z"
+sha256 = "42707b70a478a289a35146af3fb0d7ace341dae804625a160728d7589e126437"
+byte_len = 35841
+publication_year = 2011
+publication_family = "SP"
+document_type = "SP"
+producer_or_origin_if_known = "NIST"
+size_class = "<100KiB"
+structural_tags = ["simple"]
+cross_format_family_id = ""
+revision_family_id = ""
+rights_status = "US-Gov-Public-Domain"
+redistributable = true
+

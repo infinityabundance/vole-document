@@ -1,0 +1,128 @@
+corpus: real100-v1/pilot
+documents in manifest: 20
+  nasa  epub  4
+  nasa  pdf   6
+  nist  docx  2
+  nist  epub  2
+  nist  pdf   6
+
+== composition ==
+  gate                                     target        now  status
+  NASA PDF                                 40-40           6  PARTIAL
+  NASA EPUB                                15-15           4  PARTIAL
+  NIST PDF                                 20-20           6  PARTIAL
+  NIST DOCX                                15-15           2  PARTIAL
+  NIST EPUB                                10-10           2  PARTIAL
+  NASA total                               55-55          10  PARTIAL
+  NIST total                               45-45          10  PARTIAL
+  PDF total                                60-60          12  PARTIAL
+  DOCX total                               15-15           2  PARTIAL
+  EPUB total                               25-25           6  PARTIAL
+
+== nasa-era ==
+  gate                                     target        now  status
+  pre-1960                                 5-5             1  PARTIAL
+  1960-1979                                7-7             1  PARTIAL
+  1980-1999                                8-8             1  PARTIAL
+  2000-2014                                8-8             2  PARTIAL
+  2015-2024                                8-8             1  PARTIAL
+  2025-2026                                4-4             0  FAIL
+
+== nasa-center ==
+  gate                                     target        now  status
+  distinct centers (>=4, none >40%)        4               3  PARTIAL
+  max single-center share <=40%            =0              0  PASS
+
+== nasa-doctype ==
+  gate                                     target        now  status
+  TM                                       8-10            3  PARTIAL
+  TR                                       8-10            1  PARTIAL
+  CR                                       5-7             0  FAIL
+  conference/research                      4-6             0  FAIL
+  handbook/reference                       3-5             1  PARTIAL
+  NACA/early                               5               1  PARTIAL
+
+== nasa-struct ==
+  gate                                     target        now  status
+  scanned/legacy-image                     8               1  PARTIAL
+  table-heavy                              8               4  PARTIAL
+  figure-heavy                             8               5  PARTIAL
+  equation-heavy                           6               0  FAIL
+  multi-column                             5               0  FAIL
+  appendix/reference-heavy                 5               2  PARTIAL
+  very large                               3               3  PASS
+  simple born-digital                      4               1  PARTIAL
+
+== nasa-epub ==
+  gate                                     target        now  status
+  long multi-chapter                       4               4  PASS
+  image-heavy                              3               3  PASS
+  reference/footnote-heavy                 2               1  PARTIAL
+  simple                                   2               1  PARTIAL
+  nav-heavy                                2               1  PARTIAL
+  unusual/large                            2               1  PARTIAL
+
+== nist-pdf ==
+  gate                                     target        now  status
+  SP                                       5               2  PARTIAL
+  NISTIR                                   4               0  FAIL
+  Handbooks                                3               1  PARTIAL
+  TN                                       3               1  PARTIAL
+  FIPS                                     2               1  PARTIAL
+  other                                    3               1  PARTIAL
+
+== nist-docx ==
+  gate                                     target        now  status
+  table-heavy                              3               2  PARTIAL
+  procedure-heavy                          2               0  FAIL
+  deep headings                            2               1  PARTIAL
+  forms                                    2               2  PASS
+  glossary/index                           2               0  FAIL
+  image-heavy                              2               0  FAIL
+  list-heavy                               1               2  PASS
+  long regulatory                          1               0  FAIL
+
+== nist-epub ==
+  gate                                     target        now  status
+  long                                     3               1  PARTIAL
+  table-heavy                              2               1  PARTIAL
+  figure-heavy                             2               0  FAIL
+  reference-heavy                          1               0  FAIL
+  simple                                   1               2  PASS
+  unusual                                  1               0  FAIL
+
+== cross-format ==
+  gate                                     target        now  status
+  NASA PDF<->EPUB (10-12)                  10-12           0  FAIL
+  NIST PDF<->DOCX (8-10)                   8-10            1  PARTIAL
+  NIST PDF<->EPUB (>=5)                    5               1  PARTIAL
+
+== revision ==
+  gate                                     target        now  status
+  docs in revision/publication families (15-20) 15-20           5  PARTIAL
+
+== size ==
+  gate                                     target        now  status
+  <100KiB                                  10-10           3  PARTIAL
+  100KiB-1MiB                              20-20           2  PARTIAL
+  1-10MiB                                  30-30          10  PARTIAL
+  10-50MiB                                 20-20           3  PARTIAL
+  50-100MiB                                10-10           1  PARTIAL
+  >100MiB                                  5-5             1  PARTIAL
+
+== corpus-min ==
+  gate                                     target        now  status
+  tables (>=25)                            25             11  PARTIAL
+  figure/resource-heavy (>=25)             25             11  PARTIAL
+  equations (>=15)                         15              1  PARTIAL
+  appendix/reference-heavy (>=15)          15              6  PARTIAL
+  scanned PDFs (>=10)                      10              1  PARTIAL
+  complex/object-stream PDFs (>=10)        10             10  PASS
+  multi-column (>=8)                       8               0  FAIL
+  rich DOCX (>=8)                          8               2  PARTIAL
+  unusual DOCX (>=6)                       6               0  FAIL
+  substantial-spine EPUBs (>=8)            8               5  PARTIAL
+  image-heavy EPUBs (>=6)                  6               3  PARTIAL
+  files >100MiB (>=5)                      5               1  PARTIAL
+
+summary: 8 PASS  56 PARTIAL  16 FAIL  (of 80 gates)

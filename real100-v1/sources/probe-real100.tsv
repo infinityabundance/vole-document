@@ -1,0 +1,99 @@
+path	format	pages	bytes	text_chars	images	fonts	objstm	xref_stream	encrypted	zip_members	media_files	spine	nav	tables	headings	max_heading	list_items	text_chars2	suggested_tags
+real100-v1/documents/nasa/epub/nasa-epub-0001.epub	epub		10383142							153	81	33	no					627286	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0002.epub	epub		4341936							104	41	27	no					720734	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0003.epub	epub		3761566							57	12	25	no					626977	multi-chapter
+real100-v1/documents/nasa/epub/nasa-epub-0004.epub	epub		19172439							195	93	72	no					788381	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0005.epub	epub		39526816							265	163	91	no					54511	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0006.epub	epub		46837603							342	205	96	no					110004	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0007.epub	epub		25400776							270	163	88	no					63976	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0008.epub	epub		4788734							62	22	20	no					66471	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0009.epub	epub		3492358							64	22	19	no					65144	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0010.epub	epub		4858060							68	29	20	no					89211	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0011.epub	epub		5154672							82	43	19	no					75393	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0012.epub	epub		33373737							112	77	17	no					255198	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0013.epub	epub		10867010							151	89	27	no					383726	multi-chapter;image-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0014.epub	epub		45000233							195	159	18	yes					553608	multi-chapter;image-heavy;nav-heavy
+real100-v1/documents/nasa/epub/nasa-epub-0015.epub	epub		1703705							51	13	11	no					309829	multi-chapter
+real100-v1/documents/nasa/pdf/nasa-pdf-0001.pdf	pdf	73	10034634	55514	73	47	yes	yes											figure-heavy;complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-0002.pdf	pdf	202	28003279	257667	202	1172	yes	yes											scanned;figure-heavy;complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-0003.pdf	pdf	42	18461171	56037	42	12	no	no											figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0004.pdf	pdf	41	4675508	49650	41	232	no	no											scanned;figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0005.pdf	pdf	12	818826	852	12	12	no	no											figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0006.pdf	pdf	632	44849357	842509	632	24	no	no											scanned;figure-heavy;very-large
+real100-v1/documents/nasa/pdf/nasa-pdf-0007.pdf	pdf	26	1006102	29679	26	12	no	no											figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0008.pdf	pdf	42	2362332	70676	42	12	no	no											figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0009.pdf	pdf	12	513563	14525	12	11	no	no											figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0010.pdf	pdf	36	2168794	27481	36	11	no	no											figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0011.pdf	pdf	76	20038953	64163	76	12	no	no											figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0012.pdf	pdf	77	3149077	125013	96	191	no	no											scanned;figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0013.pdf	pdf	9	3537659	14624	26	18	yes	yes											figure-heavy;complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-0014.pdf	pdf	61	4441048	53402	70	337	yes	yes											figure-heavy;complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-0015.pdf	pdf	24	985623	41248	81	93	no	no											scanned;figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0016.pdf	pdf	681	26546925	611499	681	3	no	no											figure-heavy;very-large
+real100-v1/documents/nasa/pdf/nasa-pdf-0017.pdf	pdf	107	4772000	161624	107	12	no	no											figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0018.pdf	pdf	176	178050443	464248	176	12	no	no											figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0019.pdf	pdf	2000	168513117	1101105	6299	8261	yes	yes											scanned;figure-heavy;complex-xref;very-large
+real100-v1/documents/nasa/pdf/nasa-pdf-0020.pdf	pdf	157	7847595	281432	157	12	no	no											scanned;figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0021.pdf	pdf	22	1287148	53891	22	12	no	no											scanned;figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0022.pdf	pdf	32	2234059	96162	32	12	no	no											scanned;figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0023.pdf	pdf	77	22191482	170687	77	385	no	no											figure-heavy
+real100-v1/documents/nasa/pdf/nasa-pdf-0024.pdf	pdf	640	74202114	0	640	0	no	no											scanned;figure-heavy;very-large
+real100-v1/documents/nasa/pdf/nasa-pdf-0025.pdf	pdf	360	8936698	1108564	28	288	yes	yes											complex-xref;very-large
+real100-v1/documents/nasa/pdf/nasa-pdf-0026.pdf	pdf	34	9006896	43019	32	12	yes	yes											complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-0027.pdf	pdf	14	647280	18463	8	18	yes	yes											complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-0028.pdf	pdf	47	3454054	62294	6	31	yes	yes											complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-01.pdf	pdf	407	4556385	790348	25	90	yes	yes											complex-xref;very-large
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-02.pdf	pdf	50	1619846	68238	45	19	yes	yes											complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-03.pdf	pdf	172	11308153	54639	82	107	yes	yes											complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-04.pdf	pdf	364	8471187	666370	140	291	yes	yes											complex-xref;very-large
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-05.pdf	pdf	275	5695308	428914	105	38	yes	yes											complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-06.pdf	pdf	236	16903230	563779	186	52	yes	yes											complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-07.pdf	pdf	200	40758835	124350	1274	54	yes	yes											figure-heavy;complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-08.pdf	pdf	178	35352230	64021	102	35	yes	yes											complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-09.pdf	pdf	393	9158814	819690	91	71	yes	yes											complex-xref;very-large
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-10.pdf	pdf	144	2898358	316276	14	42	yes	yes											complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-11.pdf	pdf	50	3400064	71825	40	21	yes	yes											complex-xref
+real100-v1/documents/nasa/pdf/nasa-pdf-eb-12.pdf	pdf	56	1500825	88108	65	15	yes	yes											figure-heavy;complex-xref
+real100-v1/documents/nist/docx/nist-docx-0001.docx	docx		2286200							45	1			0	1	1	74	10669	list-heavy
+real100-v1/documents/nist/docx/nist-docx-0002.docx	docx		2241851							40	0			0	18	2	39	11759	list-heavy
+real100-v1/documents/nist/docx/nist-docx-0003.docx	docx		2267651							43	1			0	16	1	86	20775	list-heavy
+real100-v1/documents/nist/docx/nist-docx-0004.docx	docx		2258240							41	1			0	17	2	59	11836	list-heavy
+real100-v1/documents/nist/docx/nist-docx-0005.docx	docx		57045							13	0			4	0	0	71	30404	table-heavy;list-heavy
+real100-v1/documents/nist/docx/nist-docx-0006.docx	docx		56935							13	0			4	0	0	68	28840	table-heavy;list-heavy
+real100-v1/documents/nist/docx/nist-docx-0007.docx	docx		42191							13	0			4	0	0	37	25437	table-heavy;list-heavy
+real100-v1/documents/nist/docx/nist-docx-0008.docx	docx		28783							13	0			5	0	0	16	8205	table-heavy;list-heavy
+real100-v1/documents/nist/docx/nist-docx-0009.docx	docx		152516							27	0			21	0	0	0	42954	table-heavy
+real100-v1/documents/nist/docx/nist-docx-0010.docx	docx		67602							22	1			0	0	0	0	744	
+real100-v1/documents/nist/docx/nist-docx-0011.docx	docx		162933							35	0			4	5	6	18	77287	table-heavy;deep-headings;list-heavy
+real100-v1/documents/nist/docx/nist-docx-0012.docx	docx		154292							43	0			2	2	1	16	65566	list-heavy
+real100-v1/documents/nist/docx/nist-docx-0013.docx	docx		25400							18	0			4	0	0	0	2261	table-heavy
+real100-v1/documents/nist/epub/nist-epub-0001.epub	epub		168431							33	4	21	no					209688	multi-chapter
+real100-v1/documents/nist/epub/nist-epub-0002.epub	epub		116651							29	2	19	no					146800	multi-chapter
+real100-v1/documents/nist/epub/nist-epub-0003.epub	epub		89755							24	2	15	no					121781	multi-chapter
+real100-v1/documents/nist/epub/nist-epub-0004.epub	epub		336417							70	8	54	no					259297	multi-chapter
+real100-v1/documents/nist/epub/nist-epub-0005.epub	epub		274801							33	12	13	no					91959	multi-chapter
+real100-v1/documents/nist/epub/nist-epub-0006.epub	epub		105867							27	6	13	no					42146	multi-chapter
+real100-v1/documents/nist/epub/nist-epub-0007.epub	epub		145523							26	3	15	no					199300	multi-chapter
+real100-v1/documents/nist/epub/nist-epub-0008.epub	epub		35841							16	2	7	no					10513	
+real100-v1/documents/nist/epub/nist-epub-0009.epub	epub		1237255							47	19	20	no					189092	multi-chapter
+real100-v1/documents/nist/epub/nist-epub-0010.epub	epub		672971							39	14	17	no					109739	multi-chapter
+real100-v1/documents/nist/pdf/nist-pdf-0001.pdf	pdf	492	6073678	1351530	996	13	yes	yes											figure-heavy;complex-xref;very-large
+real100-v1/documents/nist/pdf/nist-pdf-0002.pdf	pdf	76	1599268	128216	17	15	yes	yes											complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0003.pdf	pdf	120	1593213	223016	88	11	yes	yes											complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0004.pdf	pdf	59	966908	131882	18	9	yes	yes											complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0005.pdf	pdf	70	1313448	134656	42	11	yes	yes											complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0006.pdf	pdf	31	13231497	47882	62	18	yes	yes											figure-heavy;complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0007.pdf	pdf	37	554788	69186	7	10	yes	yes											complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0008.pdf	pdf	75	2486118	179058	26	19	yes	yes											complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0009.pdf	pdf	62	3084796	139756	41	19	yes	yes											complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0010.pdf	pdf	88	5701173	102892	2374	17	yes	yes											figure-heavy;complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0011.pdf	pdf	286	86574651	241814	9530	48	yes	yes											figure-heavy;complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0012.pdf	pdf	76	2918306	110445	143	16	yes	yes											figure-heavy;complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0013.pdf	pdf	573	77578129	1289288	10	1679	yes	yes											scanned;complex-xref;very-large
+real100-v1/documents/nist/pdf/nist-pdf-0014.pdf	pdf	569	6071591	1320478	7	624	yes	yes											complex-xref;very-large
+real100-v1/documents/nist/pdf/nist-pdf-0015.pdf	pdf	334	9647192	745711	2197	28	yes	yes											figure-heavy;complex-xref;very-large
+real100-v1/documents/nist/pdf/nist-pdf-0016.pdf	pdf	11	310627	16425	2	7	yes	yes											complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0017.pdf	pdf	36	833315	40846	1	18	yes	yes											complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0018.pdf	pdf	32	1518858	58878	22	9	yes	yes											complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0019.pdf	pdf	48	1946127	90349	18	6	yes	yes											complex-xref
+real100-v1/documents/nist/pdf/nist-pdf-0020.pdf	pdf	64	1174643	136741	51	13	yes	yes											complex-xref

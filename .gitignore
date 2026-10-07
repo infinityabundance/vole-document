@@ -51,3 +51,10 @@ __pycache__/
 /evidence/corpus/phase7-producers/**/*.aux
 /evidence/corpus/phase7-producers/**/*.log
 /evidence/corpus/phase7-producers/**/loprofile/
+
+# real100-v1 (real NASA/NIST corpus): redistributable=false rows keep their
+# bytes out of the repository and are fetched on demand into this cache. The
+# committed corpus lives under real100-v1/documents/ and is not ignored.
+/real100-v1/.cache/
+/real100-v1/documents/
+/real100-v1/pilot/documents/
