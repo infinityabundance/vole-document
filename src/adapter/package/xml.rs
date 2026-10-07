@@ -6,8 +6,11 @@
 //! (research E §2 / I §2–§4):
 //!
 //! * `quick-xml` with `default-features = false` (UTF-8 only, no `encoding_rs`),
-//! * a hard refusal of `<!DOCTYPE` (no DTD, no internal/external entity expansion,
-//!   so no XXE and no billion-laughs), and
+//! * a policy on `<!DOCTYPE`: a **benign** declaration (bare, or with a
+//!   PUBLIC/SYSTEM external identifier) is accepted and ignored — entities are
+//!   never resolved and the external identifier is never fetched — while a
+//!   declaration carrying an **internal subset** (`[…]`, where entities are
+//!   declared) is refused, so no XXE and no billion-laughs, and
 //! * explicit depth / event / node / attribute / text / size bounds supplied by
 //!   [`crate::limits::Limits`].
 //!
@@ -47,7 +50,25 @@ pub(crate) fn xml_err(e: quick_xml::Error) -> Error {
 
 /// The typed error for a forbidden `<!DOCTYPE`.
 pub(crate) fn doctype_declined() -> Error {
-    Error::invalid_xml_structure("DOCTYPE is forbidden in a package part")
+    Error::invalid_xml_structure("DOCTYPE with an internal subset is forbidden in a package part")
+}
+
+/// Accept-and-ignore a **benign** `<!DOCTYPE …>` declaration, or refuse one that
+/// carries an internal subset.
+///
+/// Real XHTML/EPUB content documents and many WordprocessingML parts begin with
+/// `<!DOCTYPE html>` or `<!DOCTYPE html PUBLIC "…" "…">`. Those declarations
+/// declare no entities and reference no local resources we would act on, so they
+/// are inert: we drop the declaration and never resolve entities or fetch the
+/// external identifier. A declaration with an **internal subset** (`[ … ]`)
+/// *can* declare entities (billion-laughs) or external ones (XXE), so it is
+/// refused outright. This keeps the no-DTD security property while letting real
+/// documents parse.
+pub(crate) fn accept_doctype(raw: &str) -> Result<()> {
+    if raw.as_bytes().contains(&b'[') {
+        return Err(doctype_declined());
+    }
+    Ok(())
 }
 
 /// Read an element's attributes once, bounded by `max_xml_attrs_per_element`,

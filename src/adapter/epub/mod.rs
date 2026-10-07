@@ -33,7 +33,7 @@ use quick_xml::Reader;
 use quick_xml::events::{BytesStart, Event};
 
 use crate::adapter::package::xml::{
-    XmlState, attr_of, doctype_declined, harden_xml, read_attrs, xml_err,
+    XmlState, accept_doctype, attr_of, harden_xml, read_attrs, xml_err,
 };
 use crate::adapter::package::zip::{ZipMember, ZipPhysical, scan};
 use crate::error::{Error, Result};
@@ -840,7 +840,7 @@ fn parse_container(
         st.event(limits)?;
         match ev {
             Event::Eof => break,
-            Event::DocType(_) => return Err(doctype_declined()),
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
             Event::Start(e) => {
                 st.open(limits)?;
                 let local = e.name().local_name().as_ref().to_string();
@@ -1045,7 +1045,7 @@ fn parse_package(
         st.event(limits)?;
         match ev {
             Event::Eof => break,
-            Event::DocType(_) => return Err(doctype_declined()),
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
             Event::Start(e) => {
                 st.open(limits)?;
                 let local = e.name().local_name().as_ref().to_string();
@@ -1315,7 +1315,7 @@ pub fn parse_nav_document(xml: &[u8], base_dir: &str, limits: Limits) -> Result<
         st.event(limits)?;
         match ev {
             Event::Eof => break,
-            Event::DocType(_) => return Err(doctype_declined()),
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
             Event::Start(e) | Event::Empty(e) => {
                 st.leaf(limits)?;
                 nodes = nodes.saturating_add(1);

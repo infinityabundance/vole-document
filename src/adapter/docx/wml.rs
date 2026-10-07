@@ -22,6 +22,8 @@ use quick_xml::events::{BytesStart, Event};
 use crate::error::{Error, Result};
 use crate::limits::Limits;
 
+use crate::adapter::package::xml::accept_doctype;
+
 use super::{
     ByteReader, DocxExtractProfile, DocxStory, FieldMode, StyleTable, put_opt_str, put_str, put_u32,
 };
@@ -387,7 +389,7 @@ pub fn parse_styles(bytes: &[u8], limits: Limits) -> Result<StyleTable> {
         st.event(limits)?;
         match ev {
             Event::Eof => break,
-            Event::DocType(_) => return Err(doctype_declined()),
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
             Event::Start(e) => {
                 st.open(limits)?;
                 handle_style_element(&e, limits, &mut raw, &mut cur)?;
@@ -504,7 +506,7 @@ pub fn parse_story(
         p.budget.event(limits)?;
         match ev {
             Event::Eof => break,
-            Event::DocType(_) => return Err(doctype_declined()),
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
             Event::Start(e) => {
                 if !saw_root {
                     p.check_root(&e)?;
@@ -1091,10 +1093,6 @@ fn xml_err(e: quick_xml::Error) -> Error {
     Error::invalid_xml_structure(format!("malformed XML: {e}"))
 }
 
-fn doctype_declined() -> Error {
-    Error::invalid_xml_structure("DOCTYPE is forbidden in a WordprocessingML part")
-}
-
 fn local_name(e: &BytesStart<'_>) -> String {
     e.name().local_name().as_ref().to_string()
 }
@@ -1222,9 +1220,21 @@ mod tests {
     }
 
     #[test]
-    fn doctype_declines() {
+    fn doctype_policy() {
+        // A benign declaration (no internal subset) is accepted and ignored: real
+        // WordprocessingML/XHTML parts may carry one.
+        parse_story(
+            b"<!DOCTYPE w:document><w:document xmlns:w=\"y\"/>",
+            "/w",
+            DocxStory::Main,
+            &DocxExtractProfile::DEFAULT,
+            None,
+            Limits::DEFAULT,
+        )
+        .expect("benign DOCTYPE is accepted");
+        // A declaration with an internal subset can declare entities, so it is refused.
         let e = parse_story(
-            b"<!DOCTYPE x><w:document xmlns:w=\"y\"/>",
+            b"<!DOCTYPE w:document [<!ENTITY x \"boom\">]><w:document xmlns:w=\"y\"/>",
             "/w",
             DocxStory::Main,
             &DocxExtractProfile::DEFAULT,

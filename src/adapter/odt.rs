@@ -24,7 +24,7 @@ use quick_xml::Reader;
 use quick_xml::events::{BytesStart, Event};
 
 use crate::adapter::package::xml::{
-    XmlState, attr_of, doctype_declined, harden_xml, read_attrs, xml_err,
+    XmlState, accept_doctype, attr_of, harden_xml, read_attrs, xml_err,
 };
 use crate::adapter::package::zip::{ZipMember, ZipPhysical, scan};
 use crate::error::{Error, Result};
@@ -1029,7 +1029,7 @@ fn parse_manifest(
         st.event(limits)?;
         match ev {
             Event::Eof => break,
-            Event::DocType(_) => return Err(doctype_declined()),
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
             Event::Start(e) => {
                 st.open(limits)?;
                 manifest_element(&e, limits, lookup, issues, &mut saw_root, &mut out)?;
@@ -1151,7 +1151,7 @@ pub fn parse_content(
         }
         match ev {
             Event::Eof => break,
-            Event::DocType(_) => return Err(doctype_declined()),
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
             Event::Start(e) => {
                 if !saw_root {
                     p.check_root(&e)?;
@@ -1226,7 +1226,7 @@ fn collect_changed_regions(xml: &[u8], limits: Limits) -> Result<BTreeMap<String
         st.event(limits)?;
         match ev {
             Event::Eof => break,
-            Event::DocType(_) => return Err(doctype_declined()),
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
             Event::Start(e) => {
                 st.open(limits)?;
                 let local = e.name().local_name().as_ref().to_string();

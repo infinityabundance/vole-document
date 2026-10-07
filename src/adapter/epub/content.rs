@@ -37,7 +37,7 @@ use crate::limits::Limits;
 use crate::adapter::package::xml::{XmlState, read_attrs_qualified};
 
 use super::{
-    BinReader, EpubExtractProfile, classify_href, corrupt, doctype_declined, entity_ref_text,
+    BinReader, EpubExtractProfile, accept_doctype, classify_href, corrupt, entity_ref_text,
     harden_xml, put_opt_str, put_str, put_u32, read_strs, xml_err,
 };
 
@@ -1048,7 +1048,7 @@ pub fn parse_content(xml: &[u8], base_dir: &str, limits: Limits) -> Result<Conte
         p.st.event(limits)?;
         match ev {
             Event::Eof => break,
-            Event::DocType(_) => return Err(doctype_declined()),
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
             Event::Start(e) => {
                 p.st.open(limits)?;
                 p.bump_node()?;
@@ -1176,8 +1176,16 @@ mod tests {
     }
 
     #[test]
-    fn doctype_is_declined() {
-        let bad = b"<!DOCTYPE html><html><body><p>x</p></body></html>";
+    fn doctype_policy() {
+        // A benign XHTML declaration is accepted (real EPUB content documents carry one).
+        let ok = parse_content(
+            b"<!DOCTYPE html><html><body><p>x</p></body></html>",
+            "",
+            Limits::DEFAULT,
+        );
+        assert!(ok.is_ok(), "benign DOCTYPE must parse");
+        // A declaration with an internal subset can declare entities, so it is refused.
+        let bad = b"<!DOCTYPE html [<!ENTITY e \"x\">]><html><body><p>x</p></body></html>";
         assert_eq!(
             parse_content(bad, "", Limits::DEFAULT).unwrap_err().class(),
             crate::ErrorClass::InvalidXmlStructure
