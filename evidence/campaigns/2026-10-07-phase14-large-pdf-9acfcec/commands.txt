@@ -1,0 +1,2 @@
+docker compose run --rm --no-TTY dev          sh -c 'cargo build --locked --all-features'
+docker compose run --rm --no-TTY doc-baseline bash tools/phase14-large-pdf-court.sh

@@ -32,11 +32,37 @@ pub struct CourtResult {
 /// Deterministic tie-breaking: lower complete cost, then lower reconstruction
 /// work, then lower [`CandidateKind`] ordinal.
 pub fn run(input: &[u8], candidates: Vec<Candidate>, limits: Limits) -> Result<CourtResult> {
-    let mut best: Option<(u64, usize, CandidateKind, Vec<u8>, CostBreakdown)> = None;
-    let mut evaluated: u32 = 0;
-
+    let mut court = Court::new();
     for c in candidates {
-        evaluated += 1;
+        court.offer(input, c, limits)?;
+    }
+    court.finish()
+}
+
+/// Incremental complete-cost court.
+///
+/// [`Court::offer`] serializes, decode-round-trips, and prices **one** candidate,
+/// keeping only the current best. A streaming caller (see
+/// [`crate::encode::candidates::propose_each`]) therefore holds at most one
+/// unpriced candidate's payload at a time instead of the whole portfolio, which
+/// bounds encoder memory on large inputs.
+pub struct Court {
+    best: Option<(u64, usize, CandidateKind, Vec<u8>, CostBreakdown)>,
+    evaluated: u32,
+}
+
+impl Court {
+    /// An empty court.
+    pub fn new() -> Self {
+        Court {
+            best: None,
+            evaluated: 0,
+        }
+    }
+
+    /// Price one candidate and retain it only if it beats the current best.
+    pub fn offer(&mut self, input: &[u8], c: Candidate, limits: Limits) -> Result<()> {
+        self.evaluated += 1;
         let (bytes, cost) = c.descriptor.serialize()?;
 
         // Decode-before-commit: the normative decoder must reproduce the source.
@@ -53,24 +79,35 @@ pub fn run(input: &[u8], candidates: Vec<Candidate>, limits: Limits) -> Result<C
         debug_assert_eq!(total, bytes.len() as u64);
         let work = c.descriptor.program.ops.len();
         let key = (total, work, c.kind);
-        let replace = match &best {
+        let replace = match &self.best {
             None => true,
             Some((bt, bw, bk, ..)) => key < (*bt, *bw, *bk),
         };
         if replace {
-            best = Some((total, work, c.kind, bytes, cost));
+            self.best = Some((total, work, c.kind, bytes, cost));
         }
+        Ok(())
     }
 
-    let (_, work, kind, bytes, cost) =
-        best.ok_or_else(|| Error::internal_invariant("no candidates were evaluated"))?;
-    Ok(CourtResult {
-        kind,
-        bytes,
-        cost,
-        candidates_evaluated: evaluated,
-        graph_ops: work,
-    })
+    /// The winning candidate.
+    pub fn finish(self) -> Result<CourtResult> {
+        let (_, work, kind, bytes, cost) = self
+            .best
+            .ok_or_else(|| Error::internal_invariant("no candidates were evaluated"))?;
+        Ok(CourtResult {
+            kind,
+            bytes,
+            cost,
+            candidates_evaluated: self.evaluated,
+            graph_ops: work,
+        })
+    }
+}
+
+impl Default for Court {
+    fn default() -> Self {
+        Court::new()
+    }
 }
 
 #[cfg(test)]

@@ -2,6 +2,38 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.19] — Phase 14: large-PDF encode bound (partial fix)
+
+The `real100-v1` frontier court's second failure region: encoding the largest PDFs
+(168–409 MB) timed out or was OOM-killed under the 6 GiB lane. Phase 14 narrowed
+it and improved the encoder, but did **not** solve the memory bound (ADR-0041).
+
+### Changed
+
+- **One shared PDF physical scan across the candidate portfolio.** Each PDF
+  proposer used to re-scan; `propose_each` now scans once and passes `&PdfPhysical`
+  to `*_with` variants. `lookup_body` becomes a `HashMap` index (was
+  `O(streams x bodies)`) and dict matching becomes a one-pass stack table (was
+  `O(spans)` per `<<`).
+- **Streaming court.** `court::Court` prices candidates one at a time; encoder
+  memory no longer holds every candidate payload at once.
+
+### Measured (frozen architecture, `real100-v1`, all-features, 6 GiB lane)
+
+- `nasa-pdf-0003` (217 MB): **395 s -> 236 s**, byte-exact (`BYTE_RANS`).
+- `nasa-pdf-0002` (308 MB): **180 s timeout -> 276 s completed**, byte-exact.
+- `nasa-pdf-0024` (169 MB) 39 s (`PDF_CHANNELS`), `nasa-pdf-0020` (178 MB) 16 s
+  (`PDF_COS_TEMPLATE`), both byte-exact.
+- `nasa-pdf-0001` (409 MB): **still OOM-killed** (peak 6.28 GiB > 6 GiB).
+
+### Recorded negative
+
+- **The peak-memory bound is unchanged (~17x input).** The still-failing document
+  is unchanged, and the improvements are encoder-side only (no wire/decoder
+  change). The next step — attributing the ~17x peak to a specific generator — is
+  recorded in ADR-0041, not done. The court's own gates are not crossed (236 s
+  still exceeds its 180 s op budget).
+
 ## [0.1.0-alpha.18] — Phase 13.7: benign `DOCTYPE` (real-corpus EPUB fix)
 
 The `real100-v1` frontier court found that the frozen EPUB adapter declined **all**

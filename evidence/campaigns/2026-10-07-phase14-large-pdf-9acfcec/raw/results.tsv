@@ -1,0 +1,6 @@
+id	source_bytes	wall_ms	peak_rss_kb	rc	candidate	exact
+nasa-pdf-0001	408854600	3300	6281148	137		no
+nasa-pdf-0002	308803168	276390	5355072	0	"candidate":"BYTE_RANS"	yes
+nasa-pdf-0003	217666672	236250	3757704	0	"candidate":"BYTE_RANS"	yes
+nasa-pdf-0020	178050443	15560	3118560	0	"candidate":"PDF_COS_TEMPLATE"	yes
+nasa-pdf-0024	168513117	38680	2954884	0	"candidate":"PDF_CHANNELS"	yes

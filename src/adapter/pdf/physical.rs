@@ -219,13 +219,18 @@ pub fn scan(input: &[u8], limits: Limits) -> Result<PdfPhysical> {
     let declared_len = input.len() as u64;
     let lexed = lex(input, limits)?;
     let spans = lexed.spans.spans;
+    let dm = DictMatch::build(&spans);
 
     // A prior pass resolves object body ranges, so an indirect `/Length` can be
     // resolved even when the target object appears later in the file.
     let obj_bodies = collect_bodies(input, &spans);
-    let mut state = ScanState::new(limits, obj_bodies);
+    let body_index = build_body_index(&obj_bodies);
+    let mut state = ScanState::new(limits, body_index);
+    let t_loop = std::time::Instant::now();
+    let mut niter: u64 = 0;
     let mut i = 0usize;
     while i < spans.len() {
+        niter += 1;
         let sp = spans[i];
         let bytes = bytes_of(input, sp);
 
@@ -257,13 +262,13 @@ pub fn scan(input: &[u8], limits: Limits) -> Result<PdfPhysical> {
                     continue;
                 }
             } else if bytes == b"xref" {
-                i = state.emit_xref(input, &spans, i)?;
+                i = state.emit_xref(input, &spans, i, &dm)?;
                 continue;
             } else if bytes == b"trailer" {
-                i = state.emit_trailer(&spans, i)?;
+                i = state.emit_trailer(&spans, i, &dm)?;
                 continue;
             } else if let Some((number, generation)) = obj_header_at(input, &spans, i) {
-                i = state.emit_object(input, &spans, i, number, generation)?;
+                i = state.emit_object(input, &spans, i, number, generation, &dm)?;
                 continue;
             }
         }
@@ -278,7 +283,15 @@ pub fn scan(input: &[u8], limits: Limits) -> Result<PdfPhysical> {
         i += 1;
     }
 
-    let physical = state.finish(input, &spans);
+    if std::env::var_os("VOLE_PROPOSE_TRACE").is_some() {
+        eprintln!(
+            "[scan] loop={}ms iters={} nspans={}",
+            t_loop.elapsed().as_millis(),
+            niter,
+            spans.len()
+        );
+    }
+    let physical = state.finish(input, &spans, &dm);
     physical.validate(declared_len)?;
     Ok(physical)
 }
@@ -288,7 +301,7 @@ struct ScanState {
     builder: Builder,
     objects: Vec<PdfObjectSpan>,
     streams: Vec<PdfStreamSpan>,
-    obj_bodies: Vec<ObjBody>,
+    body_index: BodyIndex,
     startxref: Vec<(u64, u64)>,
     eofs: Vec<u64>,
     trailer_dicts: Vec<(u64, u64)>,
@@ -296,12 +309,12 @@ struct ScanState {
 }
 
 impl ScanState {
-    fn new(limits: Limits, obj_bodies: Vec<ObjBody>) -> Self {
+    fn new(limits: Limits, body_index: BodyIndex) -> Self {
         ScanState {
             builder: Builder::new(limits),
             objects: Vec::new(),
             streams: Vec::new(),
-            obj_bodies,
+            body_index,
             startxref: Vec::new(),
             eofs: Vec::new(),
             trailer_dicts: Vec::new(),
@@ -313,7 +326,7 @@ impl ScanState {
         self.builder.push(start, len, kind)
     }
 
-    fn finish(self, input: &[u8], spans: &[Span]) -> PdfPhysical {
+    fn finish(self, input: &[u8], spans: &[Span], dm: &DictMatch) -> PdfPhysical {
         let revisions = build_revisions(
             input,
             spans,
@@ -321,6 +334,7 @@ impl ScanState {
             &self.objects,
             &self.startxref,
             &self.trailer_dicts,
+            dm,
         );
         PdfPhysical {
             spans: self.builder.spans,
@@ -342,10 +356,11 @@ impl ScanState {
         i: usize,
         number: u64,
         generation: u64,
+        dm: &DictMatch,
     ) -> Result<usize> {
         let obj_header_start = spans[i].start;
         let obj_kw_end = spans[i + 4].start + spans[i + 4].len;
-        let role = leading_dict_role(input, spans, i + 5);
+        let role = leading_dict_role(dm, input, spans, i + 5);
         self.push(
             obj_header_start,
             obj_kw_end - obj_header_start,
@@ -365,7 +380,7 @@ impl ScanState {
             }
             if stream.is_none()
                 && regular_eq(input, spans[j], b"stream")
-                && let Some(rs) = resolve_stream(input, spans, j, &self.obj_bodies, i + 5)
+                && let Some(rs) = resolve_stream(input, spans, j, &self.body_index, i + 5, dm)
             {
                 j = rs.endstream + 1;
                 stream = Some(rs);
@@ -432,7 +447,13 @@ impl ScanState {
 
     /// Emit a classic `xref` section, stopping at the following `trailer`,
     /// `startxref`, or `%%EOF`. Returns the next lexeme index.
-    fn emit_xref(&mut self, input: &[u8], spans: &[Span], i: usize) -> Result<usize> {
+    fn emit_xref(
+        &mut self,
+        input: &[u8],
+        spans: &[Span],
+        i: usize,
+        dm: &DictMatch,
+    ) -> Result<usize> {
         let start = spans[i].start;
         let mut end_idx = spans.len();
         for (k, sp) in spans.iter().enumerate().skip(i + 1) {
@@ -457,7 +478,7 @@ impl ScanState {
         }
 
         if end_idx < spans.len() && regular_eq(input, spans[end_idx], b"trailer") {
-            self.emit_trailer(spans, end_idx)
+            self.emit_trailer(spans, end_idx, dm)
         } else {
             Ok(end_idx)
         }
@@ -465,7 +486,7 @@ impl ScanState {
 
     /// Emit a `trailer` keyword plus its first dictionary, if any. Returns the
     /// next lexeme index.
-    fn emit_trailer(&mut self, spans: &[Span], t: usize) -> Result<usize> {
+    fn emit_trailer(&mut self, spans: &[Span], t: usize, dm: &DictMatch) -> Result<usize> {
         let start = spans[t].start;
         let mut end = spans[t].start + spans[t].len;
         let mut next = t + 1;
@@ -476,7 +497,7 @@ impl ScanState {
         };
         if dict_idx < spans.len()
             && spans[dict_idx].kind == SpanKind::DictOpen
-            && let Some(close) = matching_dict_close(spans, dict_idx)
+            && let Some(close) = dm.matching(dict_idx)
         {
             let lo = spans[dict_idx].start;
             let hi = spans[close].start + spans[close].len;
@@ -608,24 +629,43 @@ fn find_regular(input: &[u8], spans: &[Span], from: usize, keyword: &[u8]) -> Op
 }
 
 /// Index of the `>>` matching the `<<` at `open`, honouring nesting.
-fn matching_dict_close(spans: &[Span], open: usize) -> Option<usize> {
-    let mut depth: u64 = 0;
-    for (k, sp) in spans.iter().enumerate().skip(open) {
-        match sp.kind {
-            SpanKind::DictOpen => depth = depth.saturating_add(1),
-            SpanKind::DictClose => {
-                if depth == 0 {
-                    return None;
+/// Precomputed `<<`→`>>` matching over the lexed spans.
+///
+/// The physical scan asks for a dictionary's matching close once per indirect
+/// object (and per `trailer`). Computing it by a forward scan from each `<<` is
+/// `O(spans)` per call; image/binary payloads contain many stray `<<` with no
+/// nearby `>>`, which makes the whole scan quadratic on large scanned PDFs. One
+/// stack pass builds the full matching in `O(spans)`, so each query is `O(1)`
+/// and the result is identical (first balanced close, `None` if unbalanced).
+struct DictMatch {
+    close: Vec<u32>,
+}
+
+impl DictMatch {
+    fn build(spans: &[Span]) -> Self {
+        let mut close = vec![u32::MAX; spans.len()];
+        let mut stack: Vec<u32> = Vec::new();
+        for (k, sp) in spans.iter().enumerate() {
+            match sp.kind {
+                SpanKind::DictOpen => stack.push(k as u32),
+                SpanKind::DictClose => {
+                    if let Some(o) = stack.pop() {
+                        close[o as usize] = k as u32;
+                    }
                 }
-                depth -= 1;
-                if depth == 0 {
-                    return Some(k);
-                }
+                _ => {}
             }
-            _ => {}
+        }
+        DictMatch { close }
+    }
+
+    /// The first balanced `DictClose` for the `DictOpen` at `open`, or `None`.
+    fn matching(&self, open: usize) -> Option<usize> {
+        match self.close.get(open).copied() {
+            Some(c) if c != u32::MAX => Some(c as usize),
+            _ => None,
         }
     }
-    None
 }
 
 /// Recognise `N G obj` starting at lexeme `i`, returning `(N, G)`.
@@ -736,11 +776,21 @@ fn find_endobj(input: &[u8], spans: &[Span], from: usize) -> Option<usize> {
 }
 
 /// Body range of object `(number, generation)`, if present.
-fn lookup_body(bodies: &[ObjBody], number: u64, generation: u64) -> Option<(u64, u64)> {
-    bodies
-        .iter()
-        .find(|b| b.number == number && b.generation == generation)
-        .map(|b| (b.body_lo, b.body_hi))
+/// `(number, generation) -> (body_lo, body_hi)`, keeping the **first** body for a
+/// repeated key (matching the linear `lookup_body` it replaces). An indirect
+/// `/Length` is resolved through this index once per stream; the linear scan was
+/// `O(streams x bodies)`, which made the physical scan quadratic on scanned PDFs
+/// whose image bytes spawn thousands of spurious objects.
+type BodyIndex = std::collections::HashMap<(u64, u64), (u64, u64)>;
+
+fn build_body_index(bodies: &[ObjBody]) -> BodyIndex {
+    let mut index = BodyIndex::with_capacity(bodies.len());
+    for b in bodies {
+        index
+            .entry((b.number, b.generation))
+            .or_insert((b.body_lo, b.body_hi));
+    }
+    index
 }
 
 /// Resolve a `stream` keyword at lexeme `s` to its exact payload span.
@@ -752,8 +802,9 @@ fn resolve_stream(
     input: &[u8],
     spans: &[Span],
     s: usize,
-    bodies: &[ObjBody],
+    body_index: &BodyIndex,
     lower: usize,
+    dm: &DictMatch,
 ) -> Option<ResolvedStream> {
     let kw_end = spans[s].start + spans[s].len;
 
@@ -761,7 +812,7 @@ fn resolve_stream(
     let mut source = LengthSource::Fallback;
     let mut filter = FilterClass::Absent;
 
-    if let Some((open, close)) = preceding_dict(spans, s, lower) {
+    if let Some((open, close)) = preceding_dict(spans, s, lower, dm) {
         let dict_lo = spans[open].start;
         let dict_hi = spans[close].start + spans[close].len;
         filter = dict_filter(input, spans, dict_lo, dict_hi);
@@ -773,7 +824,7 @@ fn resolve_stream(
                 }
             }
             Some(LengthValue::Indirect { number, generation }) => {
-                if let Some((lo, hi)) = lookup_body(bodies, number, generation)
+                if let Some(&(lo, hi)) = body_index.get(&(number, generation))
                     && let Some(n) = body_as_u64(input, spans, lo, hi)
                     && let Some(rs) = verify_direct(input, spans, kw_end, n, filter)
                 {
@@ -815,12 +866,17 @@ fn resolve_stream(
 /// The `<<...>>` dictionary immediately preceding `stream` at `s`, as
 /// `(open, close)` lexeme indices: the nearest `DictOpen` whose matching
 /// `DictClose` lies before `s`.
-fn preceding_dict(spans: &[Span], s: usize, lower: usize) -> Option<(usize, usize)> {
+fn preceding_dict(
+    spans: &[Span],
+    s: usize,
+    lower: usize,
+    dm: &DictMatch,
+) -> Option<(usize, usize)> {
     let mut j = s;
     while j > lower {
         j -= 1;
         if spans[j].kind == SpanKind::DictOpen
-            && let Some(close) = matching_dict_close(spans, j)
+            && let Some(close) = dm.matching(j)
             && close < s
         {
             return Some((j, close));
@@ -903,6 +959,7 @@ fn build_revisions(
     objects: &[PdfObjectSpan],
     startxref: &[(u64, u64)],
     trailers: &[(u64, u64)],
+    dm: &DictMatch,
 ) -> Vec<RevisionInfo> {
     let mut out = Vec::with_capacity(eofs.len());
     let mut start = 0u64;
@@ -912,7 +969,7 @@ fn build_revisions(
             .iter()
             .find(|&&(keyword, _)| keyword >= start && keyword < end)
             .map(|&(_, value)| value);
-        let prev = resolve_prev(input, spans, start, end, objects, trailers);
+        let prev = resolve_prev(input, spans, start, end, objects, trailers, dm);
         out.push(RevisionInfo {
             index: index as u32,
             start,
@@ -937,6 +994,7 @@ fn resolve_prev(
     rev_end: u64,
     objects: &[PdfObjectSpan],
     trailers: &[(u64, u64)],
+    dm: &DictMatch,
 ) -> Option<u64> {
     let trailer = trailers
         .iter()
@@ -948,7 +1006,7 @@ fn resolve_prev(
             let object = objects.iter().find(|o| {
                 o.role == ObjRole::XRefStream && o.start >= rev_start && o.start < rev_end
             })?;
-            leading_dict_range_at(input, spans, object.start)?
+            leading_dict_range_at(dm, input, spans, object.start)?
         }
     };
     match dict_int_or_ref(input, spans, dict_lo, dict_hi, b"Prev") {
@@ -964,7 +1022,7 @@ fn resolve_prev(
 /// Range `[lo, hi)` of the `<<...>>` dictionary immediately following the `obj`
 /// keyword (skipping whitespace/comments), or `None` if the next significant
 /// token is not a dict opener.
-fn leading_dict_range(spans: &[Span], after: usize) -> Option<(u64, u64)> {
+fn leading_dict_range(spans: &[Span], after: usize, dm: &DictMatch) -> Option<(u64, u64)> {
     let mut j = after;
     while j < spans.len() && matches!(spans[j].kind, SpanKind::Whitespace | SpanKind::Comment) {
         j += 1;
@@ -972,14 +1030,14 @@ fn leading_dict_range(spans: &[Span], after: usize) -> Option<(u64, u64)> {
     if j >= spans.len() || spans[j].kind != SpanKind::DictOpen {
         return None;
     }
-    let close = matching_dict_close(spans, j)?;
+    let close = dm.matching(j)?;
     Some((spans[j].start, spans[close].start + spans[close].len))
 }
 
 /// Classify an object by its leading dictionary's `/Type`. Conservative: only a
 /// simple name value yields a non-generic role.
-fn leading_dict_role(input: &[u8], spans: &[Span], after: usize) -> ObjRole {
-    let Some((lo, hi)) = leading_dict_range(spans, after) else {
+fn leading_dict_role(dm: &DictMatch, input: &[u8], spans: &[Span], after: usize) -> ObjRole {
+    let Some((lo, hi)) = leading_dict_range(spans, after, dm) else {
         return ObjRole::Generic;
     };
     match dict_name_value(input, spans, lo, hi, b"Type") {
@@ -991,13 +1049,18 @@ fn leading_dict_role(input: &[u8], spans: &[Span], after: usize) -> ObjRole {
 
 /// Range `[lo, hi)` of the leading dictionary of the object whose introducer
 /// starts at `start`, or `None` if no object introducer begins there.
-fn leading_dict_range_at(input: &[u8], spans: &[Span], start: u64) -> Option<(u64, u64)> {
+fn leading_dict_range_at(
+    dm: &DictMatch,
+    input: &[u8],
+    spans: &[Span],
+    start: u64,
+) -> Option<(u64, u64)> {
     let idx = spans.partition_point(|sp| sp.start < start);
     if idx >= spans.len() || spans[idx].start != start {
         return None;
     }
     obj_header_at(input, spans, idx)?;
-    leading_dict_range(spans, idx + 5)
+    leading_dict_range(spans, idx + 5, dm)
 }
 
 /// End offset of the span containing `offset`, if the offset lies within one.

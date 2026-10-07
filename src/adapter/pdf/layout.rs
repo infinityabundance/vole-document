@@ -45,7 +45,7 @@ use crate::entropy::{
     encode_channel,
 };
 
-use super::physical::{ObjRole, PdfObjectSpan, PhysicalKind, scan};
+use super::physical::{ObjRole, PdfObjectSpan, PdfPhysical, PhysicalKind, scan};
 
 /// Reserved slot index for the most recent classic `xref` section start.
 pub const XREF_SLOT: u8 = u8::MAX;
@@ -84,7 +84,15 @@ pub fn build_layout_plan(input: &[u8], limits: Limits) -> Result<Option<LayoutPl
         Ok(p) => p,
         Err(_) => return Ok(None),
     };
+    build_layout_plan_with(input, limits, &physical)
+}
 
+/// [`build_layout_plan`] against an already-computed physical scan.
+pub(crate) fn build_layout_plan_with(
+    input: &[u8],
+    _limits: Limits,
+    physical: &PdfPhysical,
+) -> Result<Option<LayoutPlan>> {
     // Precondition: a classic cross-reference section must exist, and no
     // cross-reference stream may be present.
     if !physical
@@ -262,7 +270,20 @@ pub fn build_layout_plan(input: &[u8], limits: Limits) -> Result<Option<LayoutPl
 /// built or the assembled program does not materialize byte-for-byte. See the
 /// module documentation for the algorithm.
 pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
-    let plan = match build_layout_plan(input, limits)? {
+    let physical = match scan(input, limits) {
+        Ok(p) => p,
+        Err(_) => return Ok(None),
+    };
+    propose_pdf_layout_with(input, limits, &physical)
+}
+
+/// [`propose_pdf_layout`] against an already-computed physical scan.
+pub(crate) fn propose_pdf_layout_with(
+    input: &[u8],
+    limits: Limits,
+    physical: &PdfPhysical,
+) -> Result<Option<Candidate>> {
+    let plan = match build_layout_plan_with(input, limits, physical)? {
         Some(p) => p,
         None => return Ok(None),
     };
@@ -334,7 +355,21 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
 /// `Ok(None)` rather than an inexact candidate.
 #[cfg(feature = "rans")]
 pub fn propose_pdf_layout_rans(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
-    let plan = match build_layout_plan(input, limits)? {
+    let physical = match scan(input, limits) {
+        Ok(p) => p,
+        Err(_) => return Ok(None),
+    };
+    propose_pdf_layout_rans_with(input, limits, &physical)
+}
+
+/// [`propose_pdf_layout_rans`] against an already-computed physical scan.
+#[cfg(feature = "rans")]
+pub(crate) fn propose_pdf_layout_rans_with(
+    input: &[u8],
+    limits: Limits,
+    physical: &PdfPhysical,
+) -> Result<Option<Candidate>> {
+    let plan = match build_layout_plan_with(input, limits, physical)? {
         Some(p) => p,
         None => return Ok(None),
     };
