@@ -1,0 +1,20 @@
+# real100-v1 frontier court — Phase 15.1 court repair, RELEASE baseline
+#
+# Measured commit 866f489 (branch phase15), clean working tree at court start.
+# `real100-court.sh` with PROFILE=release builds `--release --locked --all-features`
+# and measures `target/release/vole-document` (the build + the docx/epub preflight
+# happen inside the script, which now fails hard instead of measuring a stale binary).
+#
+# The host executed nothing: the build and every lane run inside the digest-pinned
+# `doc-baseline` compose service (mem_limit == memswap_limit == 6g, cpus: 8).
+
+docker compose run -d --name p15r1 -e PROFILE=release -e TAG=release-baseline doc-baseline bash tools/real100-court.sh
+docker wait p15r1
+docker logs p15r1
+
+# Two earlier release-tagged runs were rejected and deleted, not reported:
+#   2026-10-07-real100-release-baseline-790c4a7 — invalidated: host `cargo build`/
+#     `cargo test` ran in the `dev` lane concurrently with the court (AGENTS.md
+#     forbids host/contended measurement); the documents running inside that window
+#     show large timing outliers and the aggregate verdicts are unstable.
+#   2026-10-07-real100-release-baseline-7ee1e26 — aborted launch, empty raw/.

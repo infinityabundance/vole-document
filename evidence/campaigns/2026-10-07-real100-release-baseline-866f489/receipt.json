@@ -1,0 +1,54 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-real100-release-baseline-866f489",
+  "phase": "Phase 15.1 court repair — release-mode baseline of the frozen real100-v1 court",
+  "utc_date": "2026-10-07",
+  "measured_commit": "866f489",
+  "measured_commit_subject": "phase15.2: resident DocumentFieldSession + observe-batch (WIP, tests pending)",
+  "measured_binary": "target/release/vole-document",
+  "profile": "release",
+  "build": "cargo build --release --locked --all-features (inside the script)",
+  "tree_state": "clean at court start (git rev-parse --short HEAD = 866f489). The 15.2 additions are inert on the cold court path: the observation memo defaults to budget 0 and observe-batch is a separate command the court does not call.",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "corpus": "real100-v1",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "documents": 100,
+  "op_timeout_s": 180,
+  "repeat_n": 5,
+  "answered": { "v": 455, "a1": 506, "a0": 508 },
+  "declined": { "v": 245, "a1": 194, "a0": 192 },
+  "exact": { "v": "97/100", "a1": "98/100", "a0": "100/100" },
+  "storage_universes_bytes": {
+    "v_persistent_store": 2667668262,
+    "v_descriptor_standalone": 1704524849,
+    "a1_sqlite_db": 2891784192,
+    "note": "reported separately, never folded (ADR-0027 extended by 15.1). persistent = the field store alone after field-ingest (the standalone .voldoc may be deleted); descriptor = the optional standalone .voldoc; per-document transient = store + descriptor."
+  },
+  "large_pdf_failures": {
+    "nasa-pdf-0001": "encode OOM-killed (rc 137, 3.8 s)",
+    "nasa-pdf-0002": "encode timed out (rc 124, 180 s)",
+    "nasa-pdf-0003": "encode timed out (rc 124, 180 s)",
+    "succeeded": ["nasa-pdf-0020", "nasa-pdf-0024"],
+    "note": "this is the known Phase-14 large-PDF bound (ADR-0041); 15.1 does not change it, only measures it on the release binary"
+  },
+  "headline_verdicts": {
+    "all_text_once": "loss to SQLite/FTS",
+    "all_text_repeat": "loss — RAZOR-THIN: the aggregate cell pools tiny documents whose per-op cost is the ~5-7 ms process floor; v median 7 ms vs a1 median 6 ms, so the verdict sits at the noise floor and is not meaningful at the 'all' stratum",
+    "pdf_text_repeat": "win (VOLE)",
+    "docx_table": "win (VOLE)",
+    "everything_else": "loss to SQLite/FTS; exact reconstruction loses to the source file",
+    "measurement_stability_caveat": "the 'all/text_repeat' aggregate verdict flipped between two release runs purely from ~1 ms median movement at the process floor; by-format / by-size strata are the meaningful units"
+  },
+  "debug_reference": {
+    "campaign": "2026-10-07-real100-frontier-c14e06f",
+    "commit": "c14e06f",
+    "profile": "debug",
+    "note": "coverage (455/506/508) and exactness (97/98/100) are identical across profiles — they are deterministic. The profile comparison is confounded by the Phase-14 PDF-ingest change (c14e06f predates it), so no clean debug-vs-release attribution is claimed here."
+  },
+  "perf_counters": "not claimed: `perf` is absent from doc-baseline (strace + /usr/bin/time are present but were not wired into the frozen court); the plan says 'where the lane provides them'",
+  "rejected_runs": [
+    "2026-10-07-real100-release-baseline-790c4a7 — invalidated (host cargo build/test ran in the dev lane concurrently with the court; large timing outliers on the documents inside the build window and unstable aggregate verdicts); deleted",
+    "2026-10-07-real100-release-baseline-7ee1e26 — aborted launch, empty raw/; deleted"
+  ],
+  "tuning": "none; the corpus and schedule are frozen and nothing was selected or tuned against any measurement"
+}

@@ -16,10 +16,11 @@ import os
 import statistics
 import sys
 
-LANES = ["v", "a1", "a0"]
-LANE_NAME = {"v": "VOLE", "a1": "SQLite/FTS", "a0": "direct tooling"}
+LANES = ["v", "v_r", "a1", "a0"]
+LANE_NAME = {"v": "VOLE", "v_r": "VOLE resident", "a1": "SQLite/FTS",
+             "a0": "direct tooling"}
 WORKLOADS = ["text_once", "text_repeat", "heading", "table", "resource",
-             "metadata", "exact"]
+             "metadata", "session_mixed", "exact"]
 TIE = 0.10  # within ±10% of the fastest median is a tie
 
 
@@ -72,8 +73,8 @@ def frontier_table(ops, keyfn, title, order=None):
     g = group(ops, keyfn)
     keys = order or sorted(g)
     lines = [f"### {title}", "",
-             "| stratum | workload | VOLE | SQLite/FTS | direct tooling | fastest |",
-             "|---|---|---|---|---|---|"]
+             "| stratum | workload | VOLE | VOLE resident | SQLite/FTS | direct tooling | fastest |",
+             "|---|---|---|---|---|---|---|"]
     for k in keys:
         for w in WORKLOADS:
             cell = [r for r in g.get(k, []) if r["workload"] == w]
@@ -87,8 +88,8 @@ def frontier_table(ops, keyfn, title, order=None):
                     by_lane.setdefault(r["lane"], [])
             verdict, fastest = cell_verdict(by_lane)
             lines.append(
-                "| {} | {} | {} | {} | {} | {} |".format(
-                    k, w, verdict["v"], verdict["a1"], verdict["a0"],
+                "| {} | {} | {} | {} | {} | {} | {} |".format(
+                    k, w, verdict["v"], verdict["v_r"], verdict["a1"], verdict["a0"],
                     LANE_NAME.get(fastest, "—")))
     lines.append("")
     return "\n".join(lines)
@@ -108,7 +109,8 @@ def main(argv):
     out.append("# real100-v1 frontier map")
     out.append("")
     out.append(f"Documents measured: **{len(docs)}**. "
-               f"Lanes: VOLE (frozen), SQLite/FTS (A1), direct tooling (A0). "
+               f"Lanes: VOLE cold (v), VOLE resident (v_r, one process per batch), "
+               f"SQLite/FTS (A1), direct tooling (A0). "
                f"Tie band: ±{int(TIE*100)}% of the fastest median. "
                f"`decline` = the lane has no such observation for the format / "
                f"returned a typed error.")

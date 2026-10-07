@@ -175,7 +175,9 @@ while IFS=$'\t' read -r id agency fmt path sha blen sclass tags family; do
     timeout "$OP_TIMEOUT" "$BIN" encode "$src" "$d/v.voldoc" >"$d/encode.json" 2>"$d/encode.err"; venc_rc=$?
     t1=$(now_ms); venc=$(( t1-t0 ))
     field=""
-    ving=-1; v_ok=0
+    # Reset BOTH ingest fields: when encode fails we skip ingest entirely, and a
+    # stale `ving_rc` from the previous document would otherwise be reported.
+    ving=-1; ving_rc=-1; v_ok=0
     if [ "$venc_rc" -eq 0 ]; then
         t0=$(now_ms)
         timeout "$OP_TIMEOUT" "$BIN" field-ingest "$d/v.voldoc" --store "$d/vstore" >"$d/ingest.json" 2>"$d/ingest.err"; ving_rc=$?
@@ -220,6 +222,41 @@ while IFS=$'\t' read -r id agency fmt path sha blen sclass tags family; do
         done
         submit "$id" "$agency" "$fmt" "$sclass" "text_repeat" "$lane" "$lastrc" "$total"
     done
+
+    # ---- resident session (15.2): many observations in ONE process -------
+    # The cold `text_repeat` above pays process spawn + field open + manifest/
+    # descriptor read + BLAKE3 + parse on every one of REPEAT_N processes. The
+    # resident lane does the same REPEAT_N observations through one
+    # `observe-batch` process, so the two rows are directly comparable. The
+    # mixed-session row witnesses a heterogeneous batch (text/heading/table/
+    # resource/metadata) inside a single process; no cold or SQLite lane answers
+    # it, so it is informational, not a verdict.
+    if [ "$v_ok" -eq 1 ]; then
+        rline=$(v_argv "$fmt" text_once)
+        if [ "$rline" != DECLINE ]; then
+            printf '%s\n' "${rline#observe }" >"$d/vr.repeat.reqs"
+            t0=$(now_ms)
+            timeout "$OP_TIMEOUT" "$BIN" observe-batch --store "$d/vstore" --field "$field" \
+                --requests "$d/vr.repeat.reqs" --repeat "$REPEAT_N" >"$d/vr.repeat.jsonl" 2>"$d/vr.repeat.err"
+            RC=$?; t1=$(now_ms)
+            submit "$id" "$agency" "$fmt" "$sclass" "text_repeat" "v_r" "$RC" "$(( t1-t0 ))"
+        else
+            submit "$id" "$agency" "$fmt" "$sclass" "text_repeat" "v_r" 3 0
+        fi
+        : >"$d/vr.session.reqs"
+        for w in text_once heading table resource metadata; do
+            a=$(v_argv "$fmt" "$w"); [ "$a" = DECLINE ] && continue
+            printf '%s\n' "${a#observe }" >>"$d/vr.session.reqs"
+        done
+        t0=$(now_ms)
+        timeout "$OP_TIMEOUT" "$BIN" observe-batch --store "$d/vstore" --field "$field" \
+            --requests "$d/vr.session.reqs" >"$d/vr.session.jsonl" 2>"$d/vr.session.err"
+        RC=$?; t1=$(now_ms)
+        submit "$id" "$agency" "$fmt" "$sclass" "session_mixed" "v_r" "$RC" "$(( t1-t0 ))"
+    else
+        submit "$id" "$agency" "$fmt" "$sclass" "text_repeat"   "v_r" 3 0
+        submit "$id" "$agency" "$fmt" "$sclass" "session_mixed" "v_r" 3 0
+    fi
 
     # ---- exact reconstruction -------------------------------------------
     # V: materialize byte-exactly from the store.
