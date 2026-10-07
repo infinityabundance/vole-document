@@ -628,6 +628,70 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::OdtModel => {
+            // The canonical ODT (ODF) graph is derived on demand from the exact
+            // package source (the single dependency is the exact `PackageRoot`). It
+            // does not route through OPC (ODF has no `[Content_Types].xml`). XML
+            // parsing and all bounds live in `adapter::odt`.
+            #[cfg(feature = "odt")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("OdtModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let source = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::odt::build_odt_model(&source, limits)?
+            }
+            #[cfg(not(feature = "odt"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "ODT support is not compiled in (feature `odt`)",
+                ));
+            }
+        }
+        NodeKind::OdtContent => {
+            // The OpenDocument main part (`content.xml`) parsed into its bounded
+            // native model. Its single dependency is the decoded member node; the
+            // parse is bounded entirely inside `adapter::odt`. No script execution,
+            // no remote fetch.
+            #[cfg(feature = "odt")]
+            {
+                let (_ordinal, part_name, profile) =
+                    crate::adapter::odt::read_content_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("OdtContent has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::odt::parse_content(&bytes, &part_name, &profile, limits)?.encode()
+            }
+            #[cfg(not(feature = "odt"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "ODT support is not compiled in (feature `odt`)",
+                ));
+            }
+        }
         NodeKind::PdfStreamDecoded => {
             let dep = node
                 .deps

@@ -2,7 +2,8 @@
 
 Phase 12 makes the field format-universal across PDF, DOCX and EPUB: three
 native inverse compilers converge on one `DocumentField` with common
-observations and retained native structure. “Universal” means the observation
+observations and retained native structure. Phase 13.3 adds a fourth, ODT
+(OpenDocument). “Universal” means the observation
 vocabulary is shared, not that every format is supported.
 
 ## Three representational layers (ADR-0029)
@@ -62,6 +63,28 @@ problem preserves the exact bytes and declines only the decode.
   execution, no remote fetch.
 - Versioned `EpubExtractProfile`; exact-byte preservation and EPUB conformance
   are separate outcomes.
+
+## ODT adapter (ADR-0038)
+
+- OpenDocument (ODF) package: the mandatory stored `mimetype`
+  (`application/vnd.oasis.opendocument.text`) and `META-INF/manifest.xml`. ODF is
+  **not** OPC (no `[Content_Types].xml`, no `officeDocument` relationship), so —
+  like EPUB — the adapter reuses the ZIP layer and the shared XML policy but not
+  the OPC graph. The main content part is located **semantically** from the ODF
+  manifest (never a hardcoded `content.xml`).
+- Bounded OpenDocument content model (`office:body`/`office:text`): paragraphs,
+  headings (`text:h` + `text:outline-level`), spans, lists, tables
+  (column/row spans, covered cells), links, bookmarks, notes, images/resources,
+  tracked changes (`text:changed-region` kinds), and sections. No intrinsic pages:
+  `Page(n)` is never synthesized.
+- Versioned `OdtExtractProfile` (tracked changes Final/Original/All, notes
+  include/exclude, hidden, tabs, breaks); common vocabulary plus native
+  `odt-part`/`odt-paragraph`/`odt-heading`/`odt-table`/`odt-cell`/`odt-list`/
+  `odt-find`.
+- Progressive inversion: only the requested part is parsed, on demand, and the
+  canonical derived model is persisted and reused; exact leaves stay the 12.2
+  member raw spans. A missing/malformed manifest is a typed decline with
+  exactness preserved.
 
 ## Shared vocabulary (ADR-0031)
 

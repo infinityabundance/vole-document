@@ -15,7 +15,11 @@
 //! * **EPUB** — a valid ZIP that is an OCF container: the mandatory stored
 //!   `mimetype` member equals `application/epub+zip`, or `META-INF/container.xml`
 //!   names the OCF namespace and an OPF (`application/oebps-package+xml`) rootfile.
-//! * **Opaque** — everything else, including a ZIP that is neither DOCX nor EPUB.
+//! * **ODT** — a valid ZIP that is an OpenDocument (ODF) package: the mandatory
+//!   stored `mimetype` member is an OpenDocument *text* media type, or
+//!   `META-INF/manifest.xml` declares one.
+//! * **Opaque** — everything else, including a ZIP that matches none of the above
+//!   (or more than one — an ambiguous ZIP fails safe).
 //!
 //! The detected format is recorded in the field manifest's provenance (a
 //! machine-readable `format=<name>;` prefix, see [`DocumentFormat::from_provenance`]),
@@ -41,6 +45,12 @@ const PACKAGE_RELS_MEMBER: &[u8] = b"_rels/.rels";
 /// The `officeDocument` relationship type fragment (transitional and strict).
 #[cfg(feature = "package")]
 const OFFICE_DOCUMENT_FRAGMENT: &[u8] = b"officeDocument";
+/// The ODF package manifest member (Phase 13.3).
+#[cfg(feature = "odt")]
+const ODT_MANIFEST_MEMBER: &[u8] = b"META-INF/manifest.xml";
+/// The OpenDocument *text* media-type fragment (Phase 13.3).
+#[cfg(feature = "odt")]
+const ODT_TEXT_FRAGMENT: &[u8] = b"application/vnd.oasis.opendocument.text";
 
 /// A detected document format (the class of the field's source bytes).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,6 +61,8 @@ pub enum DocumentFormat {
     Docx,
     /// An OCF container with an EPUB package document.
     Epub,
+    /// An ODF package with an OpenDocument text content part.
+    Odt,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -62,6 +74,7 @@ impl DocumentFormat {
             DocumentFormat::Pdf => "pdf",
             DocumentFormat::Docx => "docx",
             DocumentFormat::Epub => "epub",
+            DocumentFormat::Odt => "odt",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -72,6 +85,7 @@ impl DocumentFormat {
             DocumentFormat::Pdf => "pdf",
             DocumentFormat::Docx => "docx",
             DocumentFormat::Epub => "epub",
+            DocumentFormat::Odt => "odt",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -82,6 +96,7 @@ impl DocumentFormat {
             DocumentFormat::Pdf | DocumentFormat::Opaque => true,
             DocumentFormat::Docx => cfg!(feature = "docx"),
             DocumentFormat::Epub => cfg!(feature = "epub"),
+            DocumentFormat::Odt => cfg!(feature = "odt"),
         }
     }
 
@@ -102,6 +117,7 @@ impl DocumentFormat {
             "pdf" => Some(DocumentFormat::Pdf),
             "docx" => Some(DocumentFormat::Docx),
             "epub" => Some(DocumentFormat::Epub),
+            "odt" => Some(DocumentFormat::Odt),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -158,12 +174,25 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
             .as_deref()
             .is_some_and(|r| contains(r, OFFICE_DOCUMENT_FRAGMENT));
 
-    match (is_docx, is_epub) {
-        // Ambiguous: both native signatures present. Fail safe, never guess.
-        (true, true) => None,
-        (true, false) => Some(DocumentFormat::Docx),
-        (false, true) => Some(DocumentFormat::Epub),
-        (false, false) => None,
+    // ODT: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
+    // declares an OpenDocument text media type.
+    #[cfg(feature = "odt")]
+    let is_odt = mimetype
+        .as_deref()
+        .is_some_and(|m| contains(m, ODT_TEXT_FRAGMENT))
+        || member_decoded(&physical, source, ODT_MANIFEST_MEMBER, limits)
+            .as_deref()
+            .is_some_and(|m| contains(m, ODT_TEXT_FRAGMENT));
+    #[cfg(not(feature = "odt"))]
+    let is_odt = false;
+
+    // A ZIP matching more than one native signature is ambiguous: fail safe.
+    let matches = [is_docx, is_epub, is_odt].iter().filter(|b| **b).count();
+    match matches {
+        1 if is_docx => Some(DocumentFormat::Docx),
+        1 if is_epub => Some(DocumentFormat::Epub),
+        1 if is_odt => Some(DocumentFormat::Odt),
+        _ => None,
     }
 }
 

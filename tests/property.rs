@@ -428,6 +428,9 @@ fn limits_never_change_reconstructed_bytes() {
         max_epub_nav_depth: 1 << 12,
         max_epub_fallback_chain: 1 << 10,
         max_xhtml_nodes: 1 << 30,
+        max_odt_manifest_entries: 1 << 24,
+        max_odt_blocks: 1 << 24,
+        max_odt_notes: 1 << 24,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

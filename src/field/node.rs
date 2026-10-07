@@ -89,6 +89,16 @@ pub enum NodeKind {
     /// share one node id (and one persisted blob) with no second identity scheme.
     /// Exact (a resource's bytes are the source bytes).
     ResourceBlob = 0x16,
+    /// The canonical ODT (ODF) discovery model: `mimetype` conformance facts and the
+    /// parsed `META-INF/manifest.xml` file entries with the main content part resolved
+    /// semantically, derived on demand from the exact package source. Derived, never
+    /// exact (Phase 13.3).
+    OdtModel = 0x17,
+    /// The OpenDocument main part (`content.xml`, `office:text`) parsed into its
+    /// bounded native content model (paragraphs/headings/spans/lists/tables/links/
+    /// bookmarks/notes/resources/tracked changes/sections), honoring a declared
+    /// extraction profile. Derived, never exact (Phase 13.3).
+    OdtContent = 0x18,
 }
 
 impl NodeKind {
@@ -117,6 +127,8 @@ impl NodeKind {
             0x14 => NodeKind::EpubModel,
             0x15 => NodeKind::EpubContent,
             0x16 => NodeKind::ResourceBlob,
+            0x17 => NodeKind::OdtModel,
+            0x18 => NodeKind::OdtContent,
             _ => return None,
         })
     }
@@ -146,6 +158,8 @@ impl NodeKind {
             NodeKind::EpubModel => "EpubModel",
             NodeKind::EpubContent => "EpubContent",
             NodeKind::ResourceBlob => "ResourceBlob",
+            NodeKind::OdtModel => "OdtModel",
+            NodeKind::OdtContent => "OdtContent",
         }
     }
 

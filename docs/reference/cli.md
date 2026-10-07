@@ -6,7 +6,7 @@ bytes, never from the file extension or a flag.
 
 Feature-gated command groups appear only when built in: the entropy stack
 (`rans`, default), the object store (`store`, default), and the document field
-(`field`, default; DOCX/EPUB need `package,opc,docx,epub`).
+(`field`, default; DOCX/EPUB/ODT need `package,opc,docx,epub,odt`).
 
 ## Core container
 

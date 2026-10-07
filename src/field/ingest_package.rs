@@ -31,6 +31,8 @@ use crate::error::{Error, Result};
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "odt")]
+use crate::field::index::SEL_ODT_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::{
@@ -79,6 +81,8 @@ pub struct PackageIngestReport {
     pub docx_model_nodes: u64,
     /// Whether an EPUB (OCF) discovery model node was registered (feature `epub`).
     pub epub_model_nodes: u64,
+    /// Whether an ODT (ODF) discovery model node was registered (feature `odt`).
+    pub odt_model_nodes: u64,
     /// Content-addressed shared-resource blobs registered (Phase 12.8).
     pub resource_blob_nodes: u64,
     /// Resource blobs whose content id already existed in the store, i.e. bytes
@@ -195,6 +199,7 @@ pub fn ingest_package(
     let opc_model_nodes: u64;
     let docx_model_nodes: u64;
     let epub_model_nodes: u64;
+    let odt_model_nodes: u64;
     let opc_model_id: Option<NodeId>;
 
     for member in &physical.members {
@@ -396,6 +401,40 @@ pub fn ingest_package(
         epub_model_nodes = 0;
     }
 
+    // The ODT (ODF) discovery model (Phase 13.3): a single derived node that resolves
+    // the main content part semantically from `META-INF/manifest.xml` (never a
+    // hardcoded `content.xml`). It does **not** route through OPC (ODF has no
+    // `[Content_Types].xml`). It is created for any package under the feature; a
+    // non-ODT package simply declines typed when the node is first materialized.
+    // Exactness is untouched.
+    #[cfg(feature = "odt")]
+    {
+        let mut odt_model = SeedNode::new(
+            NodeKind::OdtModel,
+            limits.max_output_bytes,
+            Vec::new(),
+            vec![root_id],
+            "pkg:odt-model",
+        );
+        odt_model.limits.max_output_bytes = limits.max_output_bytes;
+        charge_node(&mut node_count)?;
+        let (odt_id, _) = put_counted(store, &odt_model, &mut share)?;
+        push_entry(
+            &mut entries,
+            IndexEntry {
+                key: SelectorKey::new(SEL_ODT_MODEL, 0),
+                out_off: 0,
+                out_len: 0,
+                node_id: odt_id,
+            },
+        )?;
+        odt_model_nodes = 1;
+    }
+    #[cfg(not(feature = "odt"))]
+    {
+        odt_model_nodes = 0;
+    }
+
     let index_before = dir_bytes(&store.root().join("index"));
     let (index_root, index_node_count) = if entries.is_empty() {
         (None, 0)
@@ -417,7 +456,7 @@ pub fn ingest_package(
         node_count,
         index_node_count,
         provenance: format!(
-            "{}id_shared={};res_shared={};field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={};resource_blobs={}",
+            "{}id_shared={};res_shared={};field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={};odt={};resource_blobs={}",
             detected_format.provenance_prefix(),
             share.nodes_id_shared,
             share.shared_resource_ids,
@@ -428,6 +467,7 @@ pub fn ingest_package(
             opc_model_nodes,
             docx_model_nodes,
             epub_model_nodes,
+            odt_model_nodes,
             share.resource_blob_nodes,
         ),
     };
@@ -448,6 +488,7 @@ pub fn ingest_package(
         opc_model_nodes,
         docx_model_nodes,
         epub_model_nodes,
+        odt_model_nodes,
         resource_blob_nodes: share.resource_blob_nodes,
         shared_resource_ids: share.shared_resource_ids,
         shared_resource_bytes: share.shared_resource_bytes,

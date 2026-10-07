@@ -253,6 +253,40 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["EpubModel", "PackageMemberRaw", "PackageMemberDecoded"]),
             will_not_materialize: kinds(&["external-targets", "whole-document"]),
         }),
+        #[cfg(feature = "odt")]
+        (Selector::OdtParagraph { .. }, R::Text | R::Metadata)
+        | (Selector::OdtHeading { .. }, R::Text | R::Metadata)
+        | (Selector::OdtTable { .. }, R::Text | R::Metadata)
+        | (Selector::OdtCell { .. }, R::Text | R::Metadata)
+        | (Selector::OdtList { .. }, R::Text | R::Metadata)
+        | (Selector::OdtFind { .. }, R::Text) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 4,
+            will_materialize: kinds(&[
+                "OdtModel",
+                "OdtContent",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-parts", "whole-document"]),
+        }),
+        #[cfg(feature = "odt")]
+        (Selector::OdtPart(_), R::Metadata) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["OdtModel"]),
+            will_not_materialize: kinds(&["other-parts", "whole-document"]),
+        }),
+        #[cfg(feature = "odt")]
+        (Selector::OdtPart(_), R::ExactBytes | R::DecodedBytes) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 3,
+            will_materialize: kinds(&["OdtModel", "PackageMemberRaw", "PackageMemberDecoded"]),
+            will_not_materialize: kinds(&["other-parts", "whole-document"]),
+        }),
         _ => Err(Error::unsupported_feature(format!(
             "unsupported observation: selector {} with representation {}",
             req.selector.canonical(),
@@ -331,6 +365,12 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Epub => &[
             "EpubModel",
             "EpubContent",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Odt => &[
+            "OdtModel",
+            "OdtContent",
             "PackageMemberDecoded",
             "PackageMemberRaw",
         ],

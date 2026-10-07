@@ -20,7 +20,7 @@ phase results.
 - [The document field](architecture/document-field.md) — persistent, queryable representation.
 - [Observations and provenance](architecture/observations-and-provenance.md) — the typed observation algebra, `EXPLAIN`, and partial materialization.
 - [Persistence and caching](architecture/persistence-and-caching.md) — the seed DAG, stores, indexes, and the derived cache.
-- [Multi-format adapters](architecture/multi-format-adapters.md) — the shared ZIP layer and the PDF/DOCX/EPUB natives.
+- [Multi-format adapters](architecture/multi-format-adapters.md) — the shared ZIP layer and the PDF/DOCX/EPUB/ODT natives.
 
 ## Formats
 
@@ -29,6 +29,7 @@ Per-format authority boundaries, native inverse representation, and exactness.
 - [PDF](formats/pdf.md)
 - [DOCX](formats/docx.md)
 - [EPUB](formats/epub.md)
+- [ODT](formats/odt.md)
 
 ## Reference
 

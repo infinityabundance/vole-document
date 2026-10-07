@@ -38,14 +38,15 @@ database style both lose, and the losses are recorded (see
 
 ```mermaid
 flowchart TD
-    A["source bytes (PDF / DOCX / EPUB)"] --> B["native inverse compiler"]
+    A["source bytes (PDF / DOCX / EPUB / ODT)"] --> B["native inverse compiler"]
     B --> C["DocumentField: seed DAG + observation index"]
     C --> D["typed observations (text, structure, bytes, ...)"]
     C --> E["materialize --exact => original bytes"]
 ```
 
 Source bytes enter a **format-native inverse compiler** (a PDF physical scanner,
-a WordprocessingML inverse, or a bounded-XHTML/OCF inverse over a shared
+a WordprocessingML inverse, a bounded-XHTML/OCF inverse, or a bounded
+OpenDocument (ODF) inverse over a shared
 byte-authoritative ZIP layer). The recovered state is persisted as a
 content-addressed **procedural seed DAG** plus a bounded **observation index**.
 Queries resolve their minimum dependency closure and materialize as late as
@@ -67,7 +68,7 @@ for observations, indexes are advisory, and the derived cache is disposable
 | Provenance | Every answer carries a typed basis, scope, dependency ids, and exact source spans. |
 | `EXPLAIN` | `explain` shows the intended plan; `explain --analyze` reports the actual work (bytes read by class, nodes executed vs reused, decodes, wall/CPU). |
 | Partial materialization | Serves one byte range, object, stream, or revision from an advisory seek `DIRECTORY` + observation index without materializing the whole document. |
-| Multi-format | One field vocabulary over PDF, DOCX and EPUB, with retained native structure and `format=…;common;…` provenance. |
+| Multi-format | One field vocabulary over PDF, DOCX, EPUB and ODT, with retained native structure and `format=…;common;…` provenance. |
 | Hostile-input contract | Typed errors, checked arithmetic, bounded resources, fail-closed unknowns; the decoder never executes document content. |
 
 ## Supported formats
@@ -77,9 +78,10 @@ for observations, indexes are advisory, and the derived cache is disposable
 | PDF | owned lexer + physical span scanner | objects, streams, revisions, page tree, `/ObjStm` | yes | `metadata`, `text`, `find` |
 | DOCX | shared byte-authoritative ZIP + OPC | WordprocessingML stories, paragraphs, runs, tables, notes, tracked changes | yes | `metadata`, `text`, `heading`, `block`, `table`, `cell`, `resource`, `link`, `find` |
 | EPUB | shared byte-authoritative ZIP + OCF | package, manifest, spine, bounded XHTML | yes | `metadata`, `text`, `heading`, `block`, `table`, `cell`, `resource`, `link`, `find` |
-| ODT, others | — | — | PROPOSED | — |
+| ODT | shared byte-authoritative ZIP + ODF | OpenDocument: paragraphs, headings, lists, tables, notes, tracked changes, sections | yes | `metadata`, `text`, `heading`, `block`, `table`, `cell`, `resource`, `link`, `find` |
+| XLSX, PPTX, others | — | — | PROPOSED | — |
 
-"Universal" means the observation vocabulary is shared across the three
+"Universal" means the observation vocabulary is shared across the four
 implemented formats, **not** that every format is supported. Details and
 capability gaps: [Format support](docs/reference/format-support.md).
 
@@ -161,13 +163,13 @@ Current limitations:
   deterministic; no population claim is made, and reflowable EPUB genuinely has
   no intrinsic pages.
 - **Partial reusability.** Cross-document durable *work* reuse is a negative, and
-  ODT and other adapters remain `PROPOSED`.
+  XLSX/PPTX and other adapters remain `PROPOSED`.
 
 ## Documentation
 
 - [Documentation index](docs/README.md) — the map.
 - [Architecture](docs/architecture/overview.md) — what the system is today.
-- [Formats](docs/formats/pdf.md) — PDF, DOCX, EPUB authority boundaries.
+- [Formats](docs/formats/pdf.md) — PDF, DOCX, EPUB, ODT authority boundaries.
 - [Specification](docs/reference/specification.md) — the `.voldoc` wire format.
 - [Conformance](docs/reference/conformance.md) — courts, invariants, fuzzing.
 - [Findings](docs/project/findings.md) — consolidated positive and negative results.

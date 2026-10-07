@@ -122,6 +122,15 @@ pub struct Limits {
     pub max_epub_fallback_chain: u32,
     /// Maximum XHTML element nodes accepted in one content/nav document (Phase 12, §4).
     pub max_xhtml_nodes: u32,
+    // The ODT/ODF caps below mirror the EPUB caps above (Phase 13.3 applies the same
+    // bounded-XML policy to the OpenDocument content model). ODT semantics are derived
+    // (`Q_gen`) only.
+    /// Maximum `file-entry` elements accepted in `META-INF/manifest.xml` (Phase 13.3).
+    pub max_odt_manifest_entries: u32,
+    /// Maximum block elements accepted in one OpenDocument content part (Phase 13.3).
+    pub max_odt_blocks: u32,
+    /// Maximum notes accepted in one OpenDocument content part (Phase 13.3).
+    pub max_odt_notes: u32,
 }
 
 impl Limits {
@@ -171,6 +180,9 @@ impl Limits {
         max_epub_nav_depth: 64,
         max_epub_fallback_chain: 32,
         max_xhtml_nodes: 1 << 24,
+        max_odt_manifest_entries: 1 << 20,
+        max_odt_blocks: 1 << 20,
+        max_odt_notes: 1 << 20,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -219,6 +231,9 @@ impl Limits {
         max_epub_nav_depth: 16,
         max_epub_fallback_chain: 8,
         max_xhtml_nodes: 1 << 16,
+        max_odt_manifest_entries: 1 << 14,
+        max_odt_blocks: 1 << 14,
+        max_odt_notes: 1 << 12,
     };
 }
 
