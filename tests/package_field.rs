@@ -34,6 +34,8 @@ use vole_document::field::explain::explain_analyze;
 use vole_document::field::index::{
     FsIndexStore, SEL_PACKAGE_MEMBER_DECODED, SEL_PACKAGE_MEMBER_RAW, SelectorKey, lookup,
 };
+#[cfg(feature = "parallel")]
+use vole_document::field::ingest_package::ingest_package_with;
 use vole_document::field::ingest_package::{PackageIngestReport, ingest_package};
 use vole_document::field::observe::{
     ObserveRequest, ObserveStats, Representation, Selector, observe,
@@ -42,6 +44,8 @@ use vole_document::field::plan::plan;
 use vole_document::field::provenance::{AnswerValue, Basis, FieldAnswer};
 use vole_document::field::{Field, FieldId, FieldStore};
 use vole_document::limits::Limits;
+#[cfg(feature = "parallel")]
+use vole_document::parallel::WorkerPool;
 use vole_document::store::NodeId;
 
 // ---------------------------------------------------------------------------
@@ -764,4 +768,56 @@ fn package_field_through_entropyfs_engine() {
     );
     assert_eq!(answer_bytes(&answer), payload);
     std::fs::remove_dir_all(&root).ok();
+}
+
+// ---------------------------------------------------------------------------
+// Parallel ingest: byte-identical to serial across worker counts
+// ---------------------------------------------------------------------------
+
+/// A 4-worker package ingest must be byte-identical to the serial ingest: the
+/// same report (node ids, share counters, field id) and the same exact source.
+/// The fixture includes duplicate stored resource blobs so the serial existence
+/// probe (which decides `nodes_id_shared`/`shared_resource_ids`) is exercised.
+#[cfg(feature = "parallel")]
+#[test]
+fn parallel_package_ingest_is_byte_identical_to_serial() {
+    let png = b"\x89PNG\r\n\x1a\nshared-resource-bytes".to_vec();
+    let entries = [
+        Entry::stored("a.txt", b"stored payload bytes"),
+        Entry::deflated("b.bin", b"deflated payload bytes, a little longer"),
+        // Two identical stored resources: the second is a content-id share.
+        Entry::stored("img1.png", &png),
+        Entry::stored("img2.png", &png),
+    ];
+    let source = build_zip(&entries);
+    let descriptor = opaque_descriptor(&source);
+
+    let serial_root = temp_dir("parallel-serial");
+    let mut serial_store = FieldStore::open(&serial_root).unwrap();
+    let serial = ingest_package(&mut serial_store, &descriptor, Limits::DEFAULT).unwrap();
+
+    let par_root = temp_dir("parallel-parallel");
+    let mut par_store = FieldStore::open(&par_root).unwrap();
+    let pool = WorkerPool::new(4).unwrap();
+    let parallel =
+        ingest_package_with(&mut par_store, &descriptor, Limits::DEFAULT, Some(&pool)).unwrap();
+
+    assert!(
+        serial == parallel,
+        "parallel package ingest must match serial"
+    );
+
+    let serial_field = Field::open(&serial_store, &serial.field, Limits::DEFAULT).unwrap();
+    let par_field = Field::open(&par_store, &parallel.field, Limits::DEFAULT).unwrap();
+    assert_eq!(
+        serial_field.materialize_exact(Limits::DEFAULT).unwrap(),
+        par_field.materialize_exact(Limits::DEFAULT).unwrap()
+    );
+    assert_eq!(
+        par_field.materialize_exact(Limits::DEFAULT).unwrap(),
+        source
+    );
+
+    std::fs::remove_dir_all(&serial_root).ok();
+    std::fs::remove_dir_all(&par_root).ok();
 }

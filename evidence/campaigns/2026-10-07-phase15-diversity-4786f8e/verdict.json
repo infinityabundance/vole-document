@@ -1,0 +1,15 @@
+{
+ "diversity_crossing_depths": [],
+ "diversity_ratio_v_on_vs_sq_adapt_pct": {
+  "1": 19.17808219178082,
+  "2": -5.555555555555555,
+  "3": 9.243697478991598,
+  "4": -8.904109589041095,
+  "5": 21.38728323699422
+ },
+ "falsifiers": {
+  "diversity_sq_adapt_within_X": true,
+  "promotion_beats_write_everything": false
+ },
+ "v_on_aux_byte_cut_pct_max": 0.0
+}

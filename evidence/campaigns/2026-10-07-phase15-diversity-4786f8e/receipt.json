@@ -1,0 +1,60 @@
+{
+ "arch": "x86_64",
+ "base_image": "vole-document/doc-baseline:1.99.0 (FROM baseline FROM dev, rust:1.99.0-slim-bookworm)",
+ "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+ "cargo_lock_sha256": "2ddb5e9645086a006f3b02b0bcf890564c5523a2c89ac03bf5fe82f9ef98d412",
+ "court": "diversity",
+ "date_utc": "2026-10-07",
+ "git_commit": "4786f8e3bdf612f99e93a6c11f52dc5c1e6e3e97",
+ "git_dirty": true,
+ "honesty": "Bounded, documented subset (small docs to bound the minimal/adaptive re-extraction cost). The verdict is read directly from verdict.json; no threshold or population was tuned to manufacture a win. A negative/neutral result is a legitimate outcome.",
+ "interpretation": "REFUTED. Falsifier 1: VOLE --promote never beat SQLite-adaptive by more than X% at any diversity depth (the crossing never occurs). Falsifier 2: the durable promoted store's bytes cut total durable bytes by far less than Z%, at equal-or-worse latency. Governed promotion did not pay on this bounded subset.",
+ "oracles": {
+  "pdfinfo": "pdfinfo version 22.12.0",
+  "python3": "Python 3.11.2",
+  "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1"
+ },
+ "phase": "15.6",
+ "promote_suffix": "",
+ "rustc": "rustc 1.99.0 (b940084d7 2026-09-28) binary: rustc commit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4 commit-date: 2026-09-28 host: x86_64-unknown-linux-gnu release: 1.99.0 LLVM version: 23.1.1",
+ "schedule_seed": 20261007,
+ "schedule_sha256": {
+  "nist-docx-0005": "f82f09e2478b202e4f554602764058cca92dc7d479fee28b45d0e6a2a296105e",
+  "nist-docx-0005.meta": "f82f09e2478b202e4f554602764058cca92dc7d479fee28b45d0e6a2a296105e",
+  "nist-epub-0008": "381016a55cc64ed61f9033fda081a07f149f4b3ae47007f9f345c6835085cdb7",
+  "nist-epub-0008.meta": "381016a55cc64ed61f9033fda081a07f149f4b3ae47007f9f345c6835085cdb7",
+  "nist-pdf-0007": "295bdf101a958484a21516c3acd6b38c4fb5eb2831d36bf94a0c31e3e639d061",
+  "nist-pdf-0007.meta": "295bdf101a958484a21516c3acd6b38c4fb5eb2831d36bf94a0c31e3e639d061"
+ },
+ "service": "doc-baseline (mem 6g, memswap 6g, pids 4096, cpus 8)",
+ "subset": {
+  "docs": [
+   "nist-docx-0005",
+   "nist-epub-0008",
+   "nist-pdf-0007"
+  ],
+  "per_type": 8,
+  "types": [
+   "text",
+   "metadata",
+   "heading",
+   "table",
+   "resource"
+  ]
+ },
+ "verdict": {
+  "diversity_crossing_depths": [],
+  "diversity_ratio_v_on_vs_sq_adapt_pct": {
+   "1": 19.17808219178082,
+   "2": -5.555555555555555,
+   "3": 9.243697478991598,
+   "4": -8.904109589041095,
+   "5": 21.38728323699422
+  },
+  "falsifiers": {
+   "diversity_sq_adapt_within_X": true,
+   "promotion_beats_write_everything": false
+  },
+  "v_on_aux_byte_cut_pct_max": 0.0
+ }
+}

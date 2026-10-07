@@ -84,21 +84,31 @@ const USAGE_STORE: &str = "";
 /// The field observation verbs are advertised only when the field is built in.
 #[cfg(feature = "field")]
 const USAGE_FIELD: &str = "\
-    vole-document field-ingest INPUT.voldoc --store DIR [--entropyfs]
-    vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs]
-    vole-document observe --store DIR --field HEX [--entropyfs] (--page N | --object N | --stream N |
+    vole-document field-ingest INPUT.voldoc --store DIR [--workers N] [--entropyfs | --packed]
+    vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs | --packed]
+    vole-document observe --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]] (--page N | --object N | --stream N |
         --revision N | --byte-range A..B | --metadata | --doc-text | --heading N |
         --block N | --table N | --cell T:R:C | --resource N | --link N |
         --spine-item N | --text PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|full
-    vole-document find    --store DIR --field HEX --text PATTERN [--entropyfs]
+    vole-document observe-batch --store DIR --field HEX [--entropyfs] [--promote[=BYTES]]
+        [--requests FILE|-] [--repeat N]
+        (one process serving many observations: one JSON answer per line; each
+         request line is the per-observation flag grammar WITHOUT --store/--field)
+    vole-document find    --store DIR --field HEX --text PATTERN [--entropyfs | --packed]
         (format-agnostic lexical search: the common SearchMatch selector)
-    vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs]
-    vole-document preview --store DIR --field HEX --page N [--json] [--entropyfs]
-    vole-document materialize --store DIR --field HEX --exact --output FILE [--entropyfs]
-    vole-document cache  --store DIR [--clear] [--entropyfs]
-    vole-document field-store-stats --store DIR [--entropyfs]
+    vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs | --packed]
+    vole-document preview --store DIR --field HEX --page N [--json] [--entropyfs | --packed]
+    vole-document materialize --store DIR --field HEX --exact --output FILE [--entropyfs | --packed]
+    vole-document cache  --store DIR [--clear] [--entropyfs | --packed]
+    vole-document field-store-stats --store DIR [--entropyfs | --packed]
     (--entropyfs needs a build with the entropyfs-store feature)
+    (--workers N parallelizes independently decodable ingest work; needs the
+     `parallel` feature; absent or 1 is serial, 0 is available_parallelism)
+    (--packed replaces the seed/ namespace with fieldpack/; mutually exclusive
+     with --entropyfs; observe-batch does not support it)
+    (--promote[=BYTES] opts into a durable, byte-budgeted promotion layer over the
+     reused intermediates (Phase 15.6); off by default and never on the exactness path)
 ";
 #[cfg(not(feature = "field"))]
 const USAGE_FIELD: &str = "";
@@ -246,6 +256,8 @@ fn run(args: &[String]) -> Result<()> {
         "field-edit" => cmd_field_edit(args, limits),
         #[cfg(feature = "field")]
         "observe" => cmd_field_observe(args, limits),
+        #[cfg(feature = "field")]
+        "observe-batch" => cmd_field_observe_batch(args, limits),
         #[cfg(feature = "field")]
         "find" => cmd_field_find(args, limits),
         #[cfg(feature = "field")]
@@ -1436,10 +1448,26 @@ struct FieldArgs {
     spine_item: Option<u32>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
+    /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
+    requests: Option<PathBuf>,
+    /// `observe-batch`: repeat every request line this many times (>= 1).
+    repeat: Option<u32>,
+    /// `field-ingest`: the bounded worker-pool size (`--workers N`). Absent or `1`
+    /// is serial; `0` is `available_parallelism`; `N > 1` is exactly `N` threads.
+    /// Only honored by a build with the `parallel` feature.
+    workers: Option<u32>,
     analyze: bool,
     json: bool,
     no_cache: bool,
     entropyfs: bool,
+    /// `--packed`: serve seeds from `fieldpack/` segments instead of `seed/`
+    /// (mutually exclusive with `--entropyfs`).
+    packed: bool,
+    /// `--promote[=BYTES]`: opt-in durable promotion of reused intermediates
+    /// (Phase 15.6). Off by default.
+    promote: bool,
+    /// `--promote=BYTES`: the durable promoted-store byte budget (Phase 15.6).
+    promote_bytes: Option<u64>,
     positional: Vec<String>,
 }
 
@@ -1489,8 +1517,19 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                 out.no_cache = true;
                 i += 1;
             }
+            "--promote" => {
+                out.promote = true;
+                if let Some(v) = inline {
+                    out.promote_bytes = Some(parse_promote_bytes(v)?);
+                }
+                i += 1;
+            }
             "--entropyfs" => {
                 out.entropyfs = true;
+                i += 1;
+            }
+            "--packed" => {
+                out.packed = true;
                 i += 1;
             }
             "--store" => {
@@ -1595,6 +1634,26 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                     "--content",
                     inline,
                 )?));
+            }
+            "--requests" => {
+                out.requests = Some(PathBuf::from(field_arg_value(
+                    args,
+                    &mut i,
+                    "--requests",
+                    inline,
+                )?));
+            }
+            "--workers" => {
+                out.workers = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--workers", inline)?,
+                    "--workers",
+                )?);
+            }
+            "--repeat" => {
+                out.repeat = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--repeat", inline)?,
+                    "--repeat",
+                )?);
             }
             other if !other.starts_with("--") => {
                 out.positional.push(other.to_string());
@@ -1736,6 +1795,32 @@ fn observe_request(
     req
 }
 
+/// `--promote=BYTES`: a positive byte budget for the durable promoted store.
+#[cfg(feature = "field")]
+fn parse_promote_bytes(value: &str) -> Result<u64> {
+    let n: u64 = value
+        .parse()
+        .map_err(|_| Error::usage(format!("--promote value {value:?} is not a byte count")))?;
+    if n == 0 {
+        return Err(Error::usage("--promote budget must be greater than zero"));
+    }
+    Ok(n)
+}
+
+/// The promotion policy selected by `--promote[=BYTES]` (disabled by default).
+#[cfg(feature = "field")]
+fn field_promote_policy(out: &FieldArgs) -> vole_document::field::promote::PromotePolicy {
+    use vole_document::field::promote::{DEFAULT_PROMOTE_BUDGET_BYTES, PromotePolicy};
+    if !out.promote {
+        return PromotePolicy::default();
+    }
+    PromotePolicy {
+        enabled: true,
+        budget_bytes: out.promote_bytes.unwrap_or(DEFAULT_PROMOTE_BUDGET_BYTES),
+        ..PromotePolicy::default()
+    }
+}
+
 #[cfg(feature = "field")]
 fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats, field: &FieldId) -> String {
     let value = match &answer.value {
@@ -1813,13 +1898,23 @@ fn field_answer_json(answer: &FieldAnswer, stats: &ObserveStats, field: &FieldId
     )
 }
 
-/// Open the field store selected by `--entropyfs` (or the filesystem default).
+/// Open the field store selected by `--entropyfs`/`--packed` (or the filesystem
+/// default).
 ///
 /// The engine-backed backend requires a build with the `entropyfs-store`
 /// feature; asking for it without that feature is a typed `UnsupportedFeature`,
-/// never a silent fallback to the filesystem backend.
+/// never a silent fallback to the filesystem backend. `--packed` and
+/// `--entropyfs` are mutually exclusive backends of the same seed seam.
 #[cfg(feature = "field")]
-fn open_field_store(store_dir: &Path, entropyfs: bool) -> Result<FieldStore> {
+fn open_field_store(store_dir: &Path, entropyfs: bool, packed: bool) -> Result<FieldStore> {
+    if entropyfs && packed {
+        return Err(Error::usage(
+            "--packed and --entropyfs are mutually exclusive seed backends",
+        ));
+    }
+    if packed {
+        return FieldStore::open_packed(store_dir);
+    }
     #[cfg(feature = "entropyfs-store")]
     if entropyfs {
         return FieldStore::open_entropyfs(store_dir);
@@ -1842,7 +1937,11 @@ fn cmd_field_store_stats(args: &[String]) -> Result<()> {
         .store
         .as_deref()
         .ok_or_else(|| Error::usage("field-store-stats requires --store DIR"))?;
-    let store = open_field_store(store_dir, out.entropyfs)?;
+    let store = open_field_store(store_dir, out.entropyfs, out.packed)?;
+    if out.packed {
+        println!("{{\"backend\":\"packed\"}}");
+        return Ok(());
+    }
     #[cfg(feature = "entropyfs-store")]
     {
         match store.engine_stats()? {
@@ -1872,13 +1971,14 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
         .store
         .as_deref()
         .ok_or_else(|| Error::usage("field-ingest requires --store DIR"))?;
+    let pool = build_worker_pool(out.workers)?;
     let bytes = fs::read(input)?;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
     // Universal ingest: detect the format from bytes and invert with the right
     // adapter. Without the `package` feature only the PDF/opaque lane exists.
     #[cfg(feature = "package")]
     {
-        match field_ingest::ingest(&mut store, &bytes, limits)? {
+        match field_ingest::ingest_with(&mut store, &bytes, limits, pool.as_ref())? {
             field_ingest::IngestOutcome::Package(r) => {
                 store.sync()?;
                 print_package_ingest(&r);
@@ -1892,10 +1992,52 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
     }
     #[cfg(not(feature = "package"))]
     {
-        let r = field_ingest::ingest_pdf(&mut store, &bytes, limits)?;
+        let r = field_ingest::ingest_pdf_with(&mut store, &bytes, limits, pool.as_ref())?;
         store.sync()?;
         print_pdf_ingest(&r);
         Ok(())
+    }
+}
+
+/// The hard upper bound on `--workers`, so the pool stays bounded.
+#[cfg(feature = "parallel")]
+const MAX_WORKERS: u32 = 128;
+
+/// Build the optional worker pool from `--workers`. Absent or `1` is serial;
+/// `0` resolves to `available_parallelism` (logged on stderr, clamped to the
+/// bound); `N > 1` is exactly `N`. Without the `parallel` feature any non-serial
+/// value is a typed usage error, never a silent serial fallback.
+#[cfg(all(feature = "field", feature = "parallel"))]
+fn build_worker_pool(workers: Option<u32>) -> Result<Option<vole_document::parallel::WorkerPool>> {
+    let n = match workers {
+        None => return Ok(None),
+        Some(0) => std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1)
+            .min(MAX_WORKERS as usize),
+        Some(n) => {
+            if n > MAX_WORKERS {
+                return Err(Error::usage(format!(
+                    "--workers must be at most {MAX_WORKERS}"
+                )));
+            }
+            n as usize
+        }
+    };
+    if n <= 1 {
+        return Ok(None);
+    }
+    eprintln!("field-ingest: using {n} workers");
+    Ok(Some(vole_document::parallel::WorkerPool::new(n)?))
+}
+
+#[cfg(all(feature = "field", not(feature = "parallel")))]
+fn build_worker_pool(workers: Option<u32>) -> Result<Option<vole_document::parallel::WorkerPool>> {
+    match workers {
+        None | Some(1) => Ok(None),
+        Some(_) => Err(Error::usage(
+            "--workers requires a build compiled with the `parallel` feature",
+        )),
     }
 }
 
@@ -2022,7 +2164,7 @@ fn cmd_field_edit(args: &[String], _limits: Limits) -> Result<()> {
         .as_deref()
         .ok_or_else(|| Error::usage("field-edit requires --content FILE"))?;
     let content = fs::read(content_path)?;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
     let id = FieldId::from_hex(field_hex)?;
     let r = field_edit::replace_page_content(&mut store, &id, page, &content)?;
     store.sync()?;
@@ -2088,12 +2230,109 @@ fn cmd_field_observe(args: &[String], limits: Limits) -> Result<()> {
         .as_deref()
         .ok_or_else(|| Error::usage("observe requires --kind KIND"))?;
     let representation = field_representation(kind)?;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
+    store.set_promote(field_promote_policy(&out));
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, selector, representation);
     let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
     store.sync()?;
     println!("{}", field_answer_json(&answer, &stats, &field));
+    Ok(())
+}
+
+/// `observe-batch --store DIR --field HEX [--entropyfs] [--requests FILE|-] [--repeat N]`:
+///
+/// Open the store and field once and serve many observations in one process,
+/// printing one `field_answer_json` line per observation. Each non-empty,
+/// non-`#` request line is a full per-observation argument list **without**
+/// `--store`/`--field` (which are session-level), parsed through the same
+/// [`parse_field_args`] grammar as `observe`.
+#[cfg(feature = "field")]
+fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+    use vole_document::field::session::{
+        DEFAULT_MODEL_MEMO_BYTES, DocumentFieldSession, SessionOptions,
+    };
+
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("observe-batch requires --store DIR"))?;
+    if out.packed {
+        return Err(Error::unsupported_feature(
+            "--packed is not supported by observe-batch; use observe (or open the store per observation)",
+        ));
+    }
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("observe-batch requires --field HEX"))?;
+    let repeat = out.repeat.unwrap_or(1).max(1);
+    let mut session = DocumentFieldSession::open(
+        store_dir,
+        field_hex,
+        SessionOptions {
+            entropyfs: out.entropyfs,
+            model_memo_bytes: DEFAULT_MODEL_MEMO_BYTES,
+            promote: field_promote_policy(&out),
+        },
+    )?;
+    let reader: Box<dyn BufRead> = match out.requests.as_deref() {
+        Some(p) if p != Path::new("-") => Box::new(BufReader::new(File::open(p)?)),
+        _ => Box::new(BufReader::new(std::io::stdin())),
+    };
+    // A typed decline is a legitimate *answer* for an observation a document does
+    // not have (e.g. a table in a document with none): it is reported on that
+    // request's JSON line, not as a session failure. The batch exits non-zero only
+    // when it answered nothing at all, so a lane-level rc keeps its meaning.
+    let mut answered = 0usize;
+    let mut declined = 0usize;
+    for (i, line) in reader.lines().enumerate() {
+        let line = line?;
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut la = vec!["vole-document".to_string(), "observe".to_string()];
+        la.extend(line.split_whitespace().map(str::to_string));
+        let lo = parse_field_args(&la)?;
+        if lo.store.is_some() || lo.field.is_some() {
+            return Err(Error::usage(
+                "observe-batch: --store/--field are session-level; remove them from a request line",
+            ));
+        }
+        let selector = field_selector(&lo)?;
+        let kind = lo
+            .kind
+            .as_deref()
+            .ok_or_else(|| Error::usage("observe-batch: each request needs --kind KIND"))?;
+        let req = observe_request(&lo, selector, field_representation(kind)?);
+        for _ in 0..repeat {
+            match session.observe(&req, limits) {
+                Ok((answer, stats, field)) => {
+                    answered += 1;
+                    println!("{}", field_answer_json(&answer, &stats, &field))
+                }
+                Err(e) => {
+                    declined += 1;
+                    eprintln!("observe-batch: request {i}: {e}");
+                    println!(
+                        "{{\"request\":{i},\"error\":{},\"message\":\"{}\"}}",
+                        e.exit_code(),
+                        json_escape(&e.to_string())
+                    );
+                }
+            }
+        }
+    }
+    session.sync()?;
+    if answered == 0 && declined > 0 {
+        return Err(Error::internal_invariant(
+            "observe-batch: no request was answered",
+        ));
+    }
     Ok(())
 }
 
@@ -2112,7 +2351,8 @@ fn cmd_field_find(args: &[String], limits: Limits) -> Result<()> {
         .text
         .clone()
         .ok_or_else(|| Error::usage("find requires --text PATTERN"))?;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
+    store.set_promote(field_promote_policy(&out));
     let id = FieldId::from_hex(field_hex)?;
     // Format-agnostic lexical find: the common `SearchMatch` selector dispatches
     // through the detected format's adapter (Phase 12.7).
@@ -2140,7 +2380,8 @@ fn cmd_field_explain(args: &[String], limits: Limits) -> Result<()> {
         .as_deref()
         .ok_or_else(|| Error::usage("explain requires --kind KIND"))?;
     let representation = field_representation(kind)?;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
+    store.set_promote(field_promote_policy(&out));
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, selector, representation);
     if out.analyze {
@@ -2252,7 +2493,8 @@ fn cmd_field_preview(args: &[String], limits: Limits) -> Result<()> {
         .page
         .ok_or_else(|| Error::usage("preview requires --page N"))?;
     let as_json = out.json;
-    let mut store = open_field_store(store_dir, out.entropyfs)?;
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
+    store.set_promote(field_promote_policy(&out));
     let id = FieldId::from_hex(field_hex)?;
     let req = observe_request(&out, Selector::Page(page), Representation::Preview);
     let (answer, stats, field) = observe(&mut store, &id, &req, limits)?;
@@ -2508,6 +2750,7 @@ fn cmd_field_cache(args: &[String]) -> Result<()> {
     let mut store_dir: Option<PathBuf> = None;
     let mut clear = false;
     let mut entropyfs = false;
+    let mut packed = false;
     let mut i = 2;
     while i < args.len() {
         let a = args[i].as_str();
@@ -2524,6 +2767,10 @@ fn cmd_field_cache(args: &[String]) -> Result<()> {
                 entropyfs = true;
                 i += 1;
             }
+            "--packed" => {
+                packed = true;
+                i += 1;
+            }
             "--store" => {
                 store_dir = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--store", inline,
@@ -2533,7 +2780,7 @@ fn cmd_field_cache(args: &[String]) -> Result<()> {
         }
     }
     let store_dir = store_dir.ok_or_else(|| Error::usage("cache requires --store DIR"))?;
-    let store = open_field_store(&store_dir, entropyfs)?;
+    let store = open_field_store(&store_dir, entropyfs, packed)?;
     let cache = DerivedCache::open(store.root().join("cache"))?;
     if clear {
         let reclaimed = cache.clear()?;
@@ -2563,7 +2810,7 @@ fn cmd_field_materialize(args: &[String], limits: Limits) -> Result<()> {
         .output
         .as_deref()
         .ok_or_else(|| Error::usage("materialize requires --output FILE"))?;
-    let store = open_field_store(store_dir, out.entropyfs)?;
+    let store = open_field_store(store_dir, out.entropyfs, out.packed)?;
     let id = FieldId::from_hex(field_hex)?;
     let field = Field::open(&store, &id, limits)?;
     let bytes = field.materialize_exact(limits)?;

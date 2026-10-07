@@ -61,6 +61,11 @@ pub mod field;
 pub mod integrity;
 pub mod limits;
 pub mod materialize;
+/// Phase 15.4: the bounded worker pool for parallel ingest. Only meaningful with
+/// the non-default `parallel` feature (which implies `field`); without it the
+/// module is a zero-sized marker and every ingest runs serially.
+#[cfg(feature = "field")]
+pub mod parallel;
 pub mod store;
 
 pub use error::{Error, ErrorClass, Result};

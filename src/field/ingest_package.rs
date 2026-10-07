@@ -24,7 +24,7 @@
 //! collapsed. Encrypted or otherwise unsupported members keep their exact raw
 //! bytes and simply have no decoded node (a typed decline on observation).
 
-use crate::adapter::package::zip::scan;
+use crate::adapter::package::zip::{ZipMember, scan};
 use crate::container::Descriptor;
 use crate::error::{Error, Result};
 #[cfg(feature = "docx")]
@@ -45,7 +45,10 @@ use crate::field::node::{NodeKind, SeedNode, object_params, span_params};
 use crate::field::resource::{is_shareable_resource, resource_blob_node};
 use crate::field::{FieldId, FieldStore, PACKAGE_UNIVERSE};
 use crate::limits::Limits;
+use crate::parallel::WorkerPool;
 use crate::store::NodeId;
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 /// General-purpose flag bit 0: the member is encrypted.
 const FLAG_ENCRYPTED: u16 = 0x0001;
@@ -126,18 +129,43 @@ fn put_counted(
     node: &SeedNode,
     counters: &mut ShareCounters,
 ) -> Result<(NodeId, bool)> {
-    let id = node.content_id();
-    let preexisting = store.seeds().contains_node(&id)?;
+    let enc = encode_seed(node);
+    let preexisting = publish_counted(store, &enc, counters)?;
+    Ok((enc.id, preexisting))
+}
+
+/// A node's canonical bytes and content id: the pure part of publishing, which
+/// touches no store and so may run on a worker.
+struct Encoded {
+    id: NodeId,
+    canonical: Vec<u8>,
+}
+
+/// Encode one node to its canonical bytes and content id. Pure and order-free.
+fn encode_seed(node: &SeedNode) -> Encoded {
     let canonical = node.encode_canonical();
-    store.seeds_mut().put_node(&canonical)?;
+    let id = NodeId::of_node(&canonical);
+    Encoded { id, canonical }
+}
+
+/// Publish an already-encoded node: the store-touching, order-dependent half.
+/// The existence probe and the write must stay serial (and in physical order) so
+/// `nodes_id_shared`/`seed_bytes_written` are identical to the serial path.
+fn publish_counted(
+    store: &mut FieldStore,
+    enc: &Encoded,
+    counters: &mut ShareCounters,
+) -> Result<bool> {
+    let preexisting = store.seeds().contains_node(&enc.id)?;
+    store.seeds_mut().put_node(&enc.canonical)?;
     if preexisting {
         counters.nodes_id_shared += 1;
     } else {
         counters.seed_bytes_written = counters
             .seed_bytes_written
-            .saturating_add(canonical.len() as u64);
+            .saturating_add(enc.canonical.len() as u64);
     }
-    Ok((id, preexisting))
+    Ok(preexisting)
 }
 
 fn push_entry(entries: &mut Vec<IndexEntry>, entry: IndexEntry) -> Result<()> {
@@ -150,6 +178,95 @@ fn push_entry(entries: &mut Vec<IndexEntry>, entry: IndexEntry) -> Result<()> {
     Ok(())
 }
 
+/// The pure, store-free encodings of one member's nodes. Every identity is a
+/// function of the member's immutable inputs, so the same member always yields
+/// the same bytes regardless of scheduling.
+struct MemberEncoded {
+    /// The exact raw leaf (the compressed/stored span).
+    raw: Encoded,
+    /// The content-addressed resource blob, for a *stored* member whose bytes are
+    /// a recognized resource (`method == 0`); `None` otherwise. Carries the blob
+    /// length for the shared-bytes counter.
+    blob: Option<(Encoded, u64)>,
+    /// The decoded member node, unless the member declined decode.
+    decoded: Option<Encoded>,
+}
+
+/// Encode one member's nodes purely: no store, no counters, no I/O. The decode
+/// decision (method/flag/length) and the resource-recognition decision are pure
+/// byte facts, so they are made here rather than in the serial merge.
+fn encode_member(source: &[u8], member: &ZipMember) -> MemberEncoded {
+    let ordinal = member.id.ordinal;
+    let (data_off, data_len) = member.data;
+
+    // The exact leaf: the member's raw compressed/stored span.
+    let mut raw = SeedNode::new(
+        NodeKind::PackageMemberRaw,
+        data_len,
+        span_params(data_off, data_len),
+        Vec::new(),
+        "pkg:member-raw",
+    );
+    raw.limits.max_output_bytes = raw.limits.max_output_bytes.max(data_len);
+    let raw = encode_seed(&raw);
+
+    // A *stored* member whose bytes carry a recognized resource signature.
+    let blob = if member.method == 0 {
+        match source.get(data_off as usize..(data_off + data_len) as usize) {
+            Some(bytes) if is_shareable_resource(bytes) => {
+                let node = resource_blob_node(bytes);
+                Some((encode_seed(&node), bytes.len() as u64))
+            }
+            _ => None,
+        }
+    } else {
+        None
+    };
+
+    // Progressive decode: register the computation now; inflate only on demand.
+    let decodable = member.method == 0 || member.method == 8;
+    let encrypted = member.flags & FLAG_ENCRYPTED != 0;
+    let decoded = if !decodable || encrypted || data_len == 0 {
+        None
+    } else {
+        // A resource-backed decoded member is content-addressed (ordinal 0, the
+        // blob as its whole input); every other decoded member keeps its per-source
+        // raw-span dependency.
+        let (decoded_params, decoded_deps) = match &blob {
+            Some((enc, _)) => (object_params(0, member.method, 0), vec![enc.id]),
+            None => (object_params(ordinal, member.method, 0), vec![raw.id]),
+        };
+        let mut node = SeedNode::new(
+            NodeKind::PackageMemberDecoded,
+            member.uncompressed_size,
+            decoded_params,
+            decoded_deps,
+            "pkg:member-decoded",
+        );
+        node.limits.max_output_bytes = node.limits.max_output_bytes.max(member.uncompressed_size);
+        Some(encode_seed(&node))
+    };
+
+    MemberEncoded { raw, blob, decoded }
+}
+
+/// Encode every member, in parallel but index-aligned with `members` (indexed
+/// `par_iter().collect()` preserves order). Pure: no store is touched.
+fn encode_members(
+    pool: Option<&WorkerPool>,
+    source: &[u8],
+    members: &[ZipMember],
+) -> Vec<MemberEncoded> {
+    let compute = |m: &ZipMember| encode_member(source, m);
+    #[cfg(feature = "parallel")]
+    if let Some(p) = pool.filter(|p| p.workers() > 1) {
+        return p.install(|| members.par_iter().map(compute).collect());
+    }
+    #[cfg(not(feature = "parallel"))]
+    let _ = pool;
+    members.iter().map(compute).collect()
+}
+
 /// Stage A (durable exact capture) + package member inversion for a ZIP source.
 ///
 /// The descriptor must parse and materialize exactly; the materialized bytes are
@@ -160,6 +277,20 @@ pub fn ingest_package(
     store: &mut FieldStore,
     descriptor_bytes: &[u8],
     limits: Limits,
+) -> Result<PackageIngestReport> {
+    ingest_package_with(store, descriptor_bytes, limits, None)
+}
+
+/// As [`ingest_package`], but with an optional bounded worker pool for the pure,
+/// order-independent member encoding. `None` is byte-for-byte the serial path;
+/// the serial merge below is what performs every store probe, write, counter
+/// update, and index append, in member order, so the pool cannot change a node
+/// id, a counter, or an index entry.
+pub fn ingest_package_with(
+    store: &mut FieldStore,
+    descriptor_bytes: &[u8],
+    limits: Limits,
+    pool: Option<&WorkerPool>,
 ) -> Result<PackageIngestReport> {
     // Stage A: exact descriptor blob and exact source. The stored blob gains a
     // minimal advisory observation-index op table when it lacks one, so narrow
@@ -202,21 +333,18 @@ pub fn ingest_package(
     let odt_model_nodes: u64;
     let opc_model_id: Option<NodeId>;
 
-    for member in &physical.members {
+    // Pure member encoding (canonical bytes + content ids) may run on the pool;
+    // every store probe, write, counter, and index append stays in the serial
+    // merge below, in member order. Indexed `par_iter().collect()` is ordered, so
+    // `encoded[i]` is member `i` whether the pool is used or not.
+    let encoded = encode_members(pool, &source, &physical.members);
+    for (member, enc) in physical.members.iter().zip(encoded.iter()) {
         let ordinal = member.id.ordinal;
         let (data_off, data_len) = member.data;
 
         // The exact leaf: the member's raw compressed/stored span.
-        let mut raw = SeedNode::new(
-            NodeKind::PackageMemberRaw,
-            data_len,
-            span_params(data_off, data_len),
-            Vec::new(),
-            "pkg:member-raw",
-        );
-        raw.limits.max_output_bytes = raw.limits.max_output_bytes.max(data_len);
         charge_node(&mut node_count)?;
-        let (raw_id, _) = put_counted(store, &raw, &mut share)?;
+        publish_counted(store, &enc.raw, &mut share)?;
         raw_nodes += 1;
         push_entry(
             &mut entries,
@@ -224,7 +352,7 @@ pub fn ingest_package(
                 key: SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, ordinal),
                 out_off: data_off,
                 out_len: data_len,
-                node_id: raw_id,
+                node_id: enc.raw.id,
             },
         )?;
 
@@ -236,54 +364,22 @@ pub fn ingest_package(
         // per-source span) so the decoded state is shared too. A DEFLATE resource
         // keeps its per-source raw leaf: its two occurrences may differ in
         // compression, so byte identity is not guaranteed.
-        let shared_blob_id = if member.method == 0 {
-            let span = source.get(data_off as usize..(data_off + data_len) as usize);
-            match span {
-                Some(bytes) if is_shareable_resource(bytes) => {
-                    let blob = resource_blob_node(bytes);
-                    let (blob_id, preexisting) = put_counted(store, &blob, &mut share)?;
-                    share.resource_blob_nodes += 1;
-                    if preexisting {
-                        share.shared_resource_ids += 1;
-                        share.shared_resource_bytes = share
-                            .shared_resource_bytes
-                            .saturating_add(bytes.len() as u64);
-                    }
-                    Some(blob_id)
-                }
-                _ => None,
+        if let Some((blob, blob_len)) = &enc.blob {
+            let preexisting = publish_counted(store, blob, &mut share)?;
+            share.resource_blob_nodes += 1;
+            if preexisting {
+                share.shared_resource_ids += 1;
+                share.shared_resource_bytes = share.shared_resource_bytes.saturating_add(*blob_len);
             }
-        } else {
-            None
-        };
+        }
 
         // Progressive decode: register the computation now; inflate only on demand.
-        let decodable = member.method == 0 || member.method == 8;
-        let encrypted = member.flags & FLAG_ENCRYPTED != 0;
-        if !decodable || encrypted || data_len == 0 {
+        let Some(decoded) = &enc.decoded else {
             declined_decodes += 1;
             continue;
-        }
-        // A resource-backed decoded member is content-addressed (ordinal 0, the
-        // blob as its whole input); every other decoded member keeps its per-source
-        // raw-span dependency.
-        let (decoded_params, decoded_deps) = match shared_blob_id {
-            Some(blob_id) => (object_params(0, member.method, 0), vec![blob_id]),
-            None => (object_params(ordinal, member.method, 0), vec![raw_id]),
         };
-        let mut decoded = SeedNode::new(
-            NodeKind::PackageMemberDecoded,
-            member.uncompressed_size,
-            decoded_params,
-            decoded_deps,
-            "pkg:member-decoded",
-        );
-        decoded.limits.max_output_bytes = decoded
-            .limits
-            .max_output_bytes
-            .max(member.uncompressed_size);
         charge_node(&mut node_count)?;
-        let (decoded_id, _) = put_counted(store, &decoded, &mut share)?;
+        publish_counted(store, decoded, &mut share)?;
         decoded_nodes += 1;
         push_entry(
             &mut entries,
@@ -291,7 +387,7 @@ pub fn ingest_package(
                 key: SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, ordinal),
                 out_off: data_off,
                 out_len: data_len,
-                node_id: decoded_id,
+                node_id: decoded.id,
             },
         )?;
     }

@@ -70,25 +70,23 @@ pub fn encode_with(
     limits: Limits,
     force: Option<CandidateKind>,
 ) -> Result<(Vec<u8>, EncodeReport)> {
-    // Stream the portfolio through the court one candidate at a time: only the
-    // current best (plus the candidate being priced) stays resident, so encoder
-    // memory is bounded even when every candidate holds a source-sized payload
-    // (Phase 14: large PDFs). Same candidate set and order as `propose_all`.
     let mut court = court::Court::new();
-    let mut matched: u32 = 0;
-    candidates::propose_each(input, limits, |c| {
-        if force.is_none_or(|k| c.kind == k) {
-            matched += 1;
-            court.offer(input, c, limits)?;
+    if let Some(kind) = force {
+        // Forced lane: build only that family (no portfolio), so e.g. `--force raw`
+        // for a runtime ingest costs one candidate, not the whole search.
+        match candidates::propose_forced(input, limits, kind)? {
+            Some(c) => court.offer(input, c, limits)?,
+            None => {
+                return Err(Error::usage(format!(
+                    "candidate {kind:?} is not proposed for this input"
+                )));
+            }
         }
-        Ok(())
-    })?;
-    if let Some(kind) = force
-        && matched == 0
-    {
-        return Err(Error::usage(format!(
-            "candidate {kind:?} is not proposed for this input"
-        )));
+    } else {
+        // Stream the portfolio through the court one candidate at a time: only the
+        // current best (plus the candidate being priced) stays resident, bounding
+        // encoder memory even when every candidate holds a source-sized payload.
+        candidates::propose_each(input, limits, |c| court.offer(input, c, limits))?;
     }
     let result = court.finish()?;
     let report = EncodeReport {

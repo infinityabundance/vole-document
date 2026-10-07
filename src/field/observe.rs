@@ -23,7 +23,12 @@
 //! An unsupported selector/representation pair is a typed
 //! [`crate::ErrorClass::UnsupportedFeature`], never a silently empty answer.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+#[cfg(feature = "docx")]
+use std::collections::HashMap;
+use std::rc::Rc;
+#[cfg(feature = "docx")]
+use std::sync::Arc;
 use std::time::Instant;
 
 #[cfg(feature = "docx")]
@@ -38,7 +43,7 @@ use crate::adapter::odt::{
 };
 use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
-use crate::field::dag::{self, EvalBudget, ReuseStats, SourceServer};
+use crate::field::dag::{self, EvalBudget, OutputCache, ReuseStats, SourceServer};
 use crate::field::document_format::DocumentFormat;
 #[cfg(feature = "docx")]
 use crate::field::index::SEL_DOCX_MODEL;
@@ -56,6 +61,7 @@ use crate::field::ingest;
 use crate::field::manifest::FieldRoot;
 use crate::field::node::{NodeKind, SeedNode, read_u32_params, span_params, u32_params};
 use crate::field::partial::{PartialDescriptor, PartialLoad};
+use crate::field::promote::GovernedCache;
 use crate::field::{Field, FieldId, FieldStore, SeedSubstrate};
 use crate::limits::Limits;
 use crate::store::{Id, IoSnapshot, NodeId, SeedStore};
@@ -759,7 +765,17 @@ pub fn observe(
                 read_mode: DescriptorReadMode::Partial,
             };
             let (seeds, istore) = open_sub_stores(store)?;
-            observe_with_stores_pre(store, view, req, limits, started, seeds, istore, carry)
+            observe_with_stores_pre(
+                store,
+                view,
+                req,
+                limits,
+                started,
+                seeds,
+                istore,
+                carry,
+                ModelMemo::default(),
+            )
         }
         // The selector resolved from the manifest + hierarchical index, but the
         // target is not cached: fall through to the normal path, reusing the
@@ -1017,6 +1033,37 @@ pub fn observe_with_field(
     observe_view(store, FieldView::from_field(field), req, limits, started)
 }
 
+/// [`observe_with_field`] with the resident typed-model memo and explicit
+/// one-time open attribution. `open_io` is attributed to this observation only
+/// (the session passes the field-open bytes on its first call, default after).
+///
+/// The field is already open, so this never runs `narrow_probe` and never opens
+/// an [`OpenedField`]: it feeds the ordinary evaluation core a Full view.
+pub(crate) fn observe_with_field_memo(
+    store: &mut FieldStore,
+    field: &Field,
+    open_io: IoSnapshot,
+    req: &ObserveRequest,
+    limits: Limits,
+    models: ModelMemo,
+) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
+    let started = Instant::now();
+    let (seeds, istore) = open_sub_stores(store)?;
+    let mut view = FieldView::from_field(field);
+    view.open_io = open_io;
+    observe_with_stores_pre(
+        store,
+        view,
+        req,
+        limits,
+        started,
+        seeds,
+        istore,
+        ProbeCarry::default(),
+        models,
+    )
+}
+
 /// A descriptor opened for one observation: the full parse, or a seek-based
 /// partial loader when the request is narrow and the descriptor carries an op
 /// table. Both expose a [`FieldView`] over the same evaluation core.
@@ -1244,7 +1291,17 @@ fn observe_view_pre<'a>(
     carry: ProbeCarry,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let (seeds, istore) = open_sub_stores(store)?;
-    observe_with_stores_pre(store, view, req, limits, started, seeds, istore, carry)
+    observe_with_stores_pre(
+        store,
+        view,
+        req,
+        limits,
+        started,
+        seeds,
+        istore,
+        carry,
+        ModelMemo::default(),
+    )
 }
 
 /// Test-only wrapper over [`observe_with_stores_pre`] with no probe state, so a
@@ -1268,6 +1325,7 @@ fn observe_with_stores<'a, S: SeedStore>(
         seeds,
         istore,
         ProbeCarry::default(),
+        ModelMemo::default(),
     )
 }
 
@@ -1284,6 +1342,7 @@ fn observe_with_stores_pre<'a, S: SeedStore>(
     seeds: CountingSeedStore<S>,
     istore: FsIndexStore,
     carry: ProbeCarry,
+    models: ModelMemo,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let ProbeCarry {
         base_io,
@@ -1298,7 +1357,14 @@ fn observe_with_stores_pre<'a, S: SeedStore>(
         max_nodes: req.budget.max_nodes,
         ..EvalBudget::default()
     };
-    let cache = DerivedCache::open(store.root().join("cache"))?;
+    // Opt-in durable promotion (Phase 15.6): with `--promote` the cache becomes a
+    // `GovernedCache` (durable `promoted/` first, disposable `cache/` second).
+    // Off by default, so every existing court is byte-identical.
+    let cache: Box<dyn OutputCache> = if req.use_cache && store.promote_policy().enabled {
+        Box::new(GovernedCache::open(store.root(), store.governor())?)
+    } else {
+        Box::new(DerivedCache::open(store.root().join("cache"))?)
+    };
     let field_id = view.id;
     let mut ctx = Ctx {
         store,
@@ -1319,6 +1385,7 @@ fn observe_with_stores_pre<'a, S: SeedStore>(
         use_cache: req.use_cache,
         cache,
         reuse: ReuseStats::default(),
+        models,
         current_id: field_id,
     };
 
@@ -1375,6 +1442,89 @@ fn observe_with_stores_pre<'a, S: SeedStore>(
     Ok((answer, stats, ctx.current_id))
 }
 
+/// In-memory, content-keyed memo of decoded typed models (Phase 15.2).
+///
+/// Keyed by the model node's `NodeId` = BLAKE3 of its canonical bytes, exactly
+/// like `DerivedCache` (`src/field/cache.rs`): an unchanged closure is a hit, a
+/// changed dependency is a miss. Disposable, off the exactness path, never
+/// consulted for `materialize_exact`.
+///
+/// # Memory bound
+///
+/// The budget is a real byte cap on the **materialized node output** length. It
+/// is a coarse clear-on-overflow rather than an LRU: the court serves one
+/// document per session, so the maps hold 1-2 models; a long-lived session over
+/// many fields grows until the budget is exceeded and then flushes. Either way
+/// the memo cannot affect any answer — a miss simply recomputes.
+#[derive(Clone, Default)]
+pub(crate) struct ModelMemo {
+    inner: Rc<RefCell<ModelMemoInner>>,
+}
+
+#[derive(Default)]
+struct ModelMemoInner {
+    /// Byte cap on materialized node output; `0` disables the memo.
+    budget: u64,
+    /// Approximate bytes currently held (costed by materialized node length).
+    /// Only the `docx` maps are costed, so this is dead when that feature is off.
+    #[cfg_attr(not(feature = "docx"), allow(dead_code))]
+    used: u64,
+    #[cfg(feature = "docx")]
+    docx: HashMap<NodeId, Arc<DocxModel>>,
+    #[cfg(feature = "docx")]
+    story: HashMap<NodeId, Arc<StoryModel>>,
+}
+
+impl ModelMemo {
+    pub(crate) fn with_budget(budget: u64) -> Self {
+        let m = ModelMemo::default();
+        m.inner.borrow_mut().budget = budget;
+        m
+    }
+
+    // cost = the materialized node output length (`bytes.len()`); a coarse flush
+    // when the budget is exceeded bounds memory without an LRU.
+    #[cfg(feature = "docx")]
+    fn get_docx(&self, id: &NodeId) -> Option<Arc<DocxModel>> {
+        self.inner.borrow().docx.get(id).cloned()
+    }
+
+    #[cfg(feature = "docx")]
+    fn put_docx(&self, id: NodeId, model: Arc<DocxModel>, cost: u64) {
+        let mut inner = self.inner.borrow_mut();
+        if inner.budget == 0 {
+            return;
+        }
+        if inner.used.saturating_add(cost) > inner.budget {
+            inner.docx.clear();
+            inner.story.clear();
+            inner.used = 0;
+        }
+        inner.used = inner.used.saturating_add(cost);
+        inner.docx.insert(id, model);
+    }
+
+    #[cfg(feature = "docx")]
+    fn get_story(&self, id: &NodeId) -> Option<Arc<StoryModel>> {
+        self.inner.borrow().story.get(id).cloned()
+    }
+
+    #[cfg(feature = "docx")]
+    fn put_story(&self, id: NodeId, model: Arc<StoryModel>, cost: u64) {
+        let mut inner = self.inner.borrow_mut();
+        if inner.budget == 0 {
+            return;
+        }
+        if inner.used.saturating_add(cost) > inner.budget {
+            inner.docx.clear();
+            inner.story.clear();
+            inner.used = 0;
+        }
+        inner.used = inner.used.saturating_add(cost);
+        inner.story.insert(id, model);
+    }
+}
+
 /// Observation execution context.
 struct Ctx<'a, S: SeedStore> {
     store: &'a mut FieldStore,
@@ -1395,8 +1545,12 @@ struct Ctx<'a, S: SeedStore> {
     budget: EvalBudget,
     stats: ObserveStats,
     use_cache: bool,
-    cache: DerivedCache,
+    cache: Box<dyn OutputCache>,
     reuse: ReuseStats,
+    /// Resident typed-model memo (Phase 15.2); consulted only when `use_cache`.
+    /// Only the `docx` model paths read it, so it is dead without that feature.
+    #[cfg_attr(not(feature = "docx"), allow(dead_code))]
+    models: ModelMemo,
     current_id: FieldId,
 }
 
@@ -1404,7 +1558,7 @@ struct Ctx<'a, S: SeedStore> {
 /// bound to (backing part, dependency ids, and the exact compressed member span).
 #[cfg(feature = "docx")]
 struct DocxStoryView {
-    model: StoryModel,
+    model: Arc<StoryModel>,
     part: DocxPartRef,
     deps: Vec<NodeId>,
     span: Option<(u64, u64)>,
@@ -1487,7 +1641,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             dag::materialize_node_cached_with(
                 self.source,
                 &self.seeds,
-                &mut self.cache,
+                &mut *self.cache,
                 node,
                 self.limits,
                 &mut self.budget,
@@ -2254,12 +2408,25 @@ impl<S: SeedStore> Ctx<'_, S> {
     // -- DOCX (Phase 12.4) --------------------------------------------------
 
     /// Materialize and decode the DOCX discovery model (derived, `Q_gen`).
+    ///
+    /// Memoised by the model node's content-addressed `NodeId` when caching is
+    /// enabled; `Arc` so every story view shares one decode.
     #[cfg(feature = "docx")]
-    fn docx_model(&mut self) -> Result<DocxModel> {
+    fn docx_model(&mut self) -> Result<Arc<DocxModel>> {
         let entry = self.require_entry(SelectorKey::new(SEL_DOCX_MODEL, 0), "DOCX model")?;
+        if self.use_cache
+            && let Some(m) = self.models.get_docx(&entry.node_id)
+        {
+            return Ok(m);
+        }
         let node = self.load(&entry.node_id)?;
         let bytes = self.materialize(&node)?;
-        DocxModel::decode(&bytes)
+        let m = Arc::new(DocxModel::decode(&bytes)?);
+        if self.use_cache {
+            self.models
+                .put_docx(entry.node_id, Arc::clone(&m), bytes.len() as u64);
+        }
+        Ok(m)
     }
 
     /// Resolve one story to its parsed [`StoryModel`], parsing **only** that
@@ -2314,8 +2481,26 @@ impl<S: SeedStore> Ctx<'_, S> {
         );
         node.limits.max_output_bytes = self.limits.max_output_bytes;
         let id = node.content_id();
-        let bytes = self.materialize(&node)?;
-        let sm = StoryModel::decode(&bytes)?;
+        // Memoise the decoded story by the story node's content-addressed `NodeId`
+        // (a pure function of the node's canonical bytes), so a repeat observation
+        // in one session skips the materialize + `StoryModel::decode`.
+        let cached = if self.use_cache {
+            self.models.get_story(&id)
+        } else {
+            None
+        };
+        let sm = match cached {
+            Some(m) => m,
+            None => {
+                let bytes = self.materialize(&node)?;
+                let m = Arc::new(StoryModel::decode(&bytes)?);
+                if self.use_cache {
+                    self.models
+                        .put_story(id, Arc::clone(&m), bytes.len() as u64);
+                }
+                m
+            }
+        };
         let mut ids = vec![id];
         ids.extend(deps);
         Ok(DocxStoryView {
@@ -5305,6 +5490,83 @@ mod tests {
         );
         assert!(page_actual.stats.deepened, "the cold page must promote");
         assert!(page_actual.stats.descriptor_bytes_read > 0);
+    }
+
+    /// The headline 15.2 gate: an observation served by a resident session must
+    /// return the **same `FieldAnswer`** as a cold, single-shot observation.
+    ///
+    /// Equivalence is defined over `FieldAnswer` (`value`, `basis`, `selector`,
+    /// `representation`, `source_span`, `provenance`, `dependency_ids`,
+    /// `integrity_scope`, `exact`) — every field deterministic and independent of
+    /// any cache. It is deliberately **not** the stats-bearing JSON envelope: the
+    /// session hoists physical reads (the one-time descriptor/manifest open), so
+    /// `ObserveStats` diverges by construction (design §0). Faking counters to
+    /// force envelope equality would be dishonest accounting.
+    #[test]
+    fn session_answers_equal_cold_process_answers() {
+        use crate::field::session::{DocumentFieldSession, SessionOptions};
+        let mut fx = Fixture::new("session-eq", true);
+        let reqs = [
+            (Selector::Page(1), Representation::Text),
+            (Selector::Page(1), Representation::Structure),
+            (Selector::Page(1), Representation::Preview),
+            (Selector::Stream(4), Representation::DecodedBytes),
+            (Selector::Metadata, Representation::Metadata),
+        ];
+        let mut session =
+            DocumentFieldSession::open(&fx.root, &fx.field.to_hex(), SessionOptions::default())
+                .unwrap();
+        for (i, (sel, rep)) in reqs.iter().enumerate() {
+            let req = ObserveRequest::new(sel.clone(), *rep);
+            let (cold, _cs, _ci) =
+                observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap();
+            let (warm, _ws, _wi) = session.observe(&req, Limits::DEFAULT).unwrap();
+            assert_eq!(cold, warm, "FieldAnswer differs for request {i}");
+        }
+    }
+
+    /// The resident session opens the descriptor (and manifest) exactly once: the
+    /// one-time open is attributed to the first observation, and every later
+    /// observation reports zero descriptor and manifest bytes.
+    #[test]
+    fn session_reads_descriptor_once() {
+        use crate::field::session::{DocumentFieldSession, SessionOptions};
+        let fx = Fixture::new("session-open-once", false);
+        // A separate open of the same field over `fx.store` gives the descriptor
+        // length the session's own one-time open must charge.
+        let field = Field::open(&fx.store, &fx.field, Limits::DEFAULT).unwrap();
+        let descriptor_len = field.descriptor_bytes().len() as u64;
+        let mut session =
+            DocumentFieldSession::open(&fx.root, &fx.field.to_hex(), SessionOptions::default())
+                .unwrap();
+        let req = ObserveRequest::new(Selector::Page(1), Representation::Text);
+        let (_, s1, _) = session.observe(&req, Limits::DEFAULT).unwrap();
+        let (_, s2, _) = session.observe(&req, Limits::DEFAULT).unwrap();
+        let (_, s3, _) = session.observe(&req, Limits::DEFAULT).unwrap();
+        assert_eq!(
+            s1.descriptor_bytes_read, descriptor_len,
+            "the first observation must carry exactly the one-time open: {s1:?}"
+        );
+        assert!(
+            s1.manifest_bytes_read > 0,
+            "the one-time open must include the manifest: {s1:?}"
+        );
+        assert_eq!(
+            s2.descriptor_bytes_read, 0,
+            "the second observation re-read the descriptor: {s2:?}"
+        );
+        assert_eq!(
+            s3.descriptor_bytes_read, 0,
+            "the third observation re-read the descriptor: {s3:?}"
+        );
+        assert_eq!(
+            s2.manifest_bytes_read, 0,
+            "the second observation re-read the manifest: {s2:?}"
+        );
+        assert_eq!(
+            s3.manifest_bytes_read, 0,
+            "the third observation re-read the manifest: {s3:?}"
+        );
     }
 
     /// A seed store that forbids enumeration and bounds fetches. Putting it on the

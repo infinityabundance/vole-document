@@ -226,7 +226,41 @@ fn post_stream_eol_len(input: &[u8], pos: usize) -> Option<usize> {
 /// physical scanner additionally re-derives the exact bounds from `/Length` when
 /// one is present. The scan is bounded by `input.len()` and returns the first
 /// such occurrence.
+///
+/// Two implementations satisfy this contract and are proven to agree for every
+/// `(input, from)` by the differential test in this module: a scalar reference
+/// scan ([`find_endstream_scalar`]) and, with the `memmem-scan` feature, a scan
+/// over a reused [`memchr::memmem::Finder`] (SIMD prefilter + two-way). The
+/// scalar loop advances one byte at a time, but `endstream` has no self-overlap
+/// (no proper prefix equals a proper suffix), so no valid match can begin inside
+/// another; `Finder::find_iter`'s non-overlapping matches therefore visit exactly
+/// the same candidate start offsets with the same right-termination rule.
+#[cfg(feature = "memmem-scan")]
 fn find_endstream(input: &[u8], from: usize) -> Option<usize> {
+    use std::sync::OnceLock;
+
+    const NEEDLE: &[u8] = b"endstream";
+    // `Finder` is `Sync` and its prefilter build is amortized across every stream
+    // in a process; the free function `memmem::find` would rebuild it per call.
+    static FINDER: OnceLock<memchr::memmem::Finder<'static>> = OnceLock::new();
+    let finder = FINDER.get_or_init(|| memchr::memmem::Finder::new(NEEDLE));
+
+    let start = from.min(input.len());
+    finder.find_iter(&input[start..]).find_map(|rel| {
+        let i = start + rel;
+        match input.get(i + NEEDLE.len()) {
+            None => Some(i),
+            Some(&b) if is_whitespace(b) || is_delimiter(b) => Some(i),
+            _ => None,
+        }
+    })
+}
+
+/// Scalar reference scan for [`find_endstream`] (same contract). Compiled as the
+/// `--no-default-features` fallback and always under `cfg(test)`, so the
+/// differential test can compare it against the SIMD scan.
+#[cfg(any(test, not(feature = "memmem-scan")))]
+fn find_endstream_scalar(input: &[u8], from: usize) -> Option<usize> {
     let needle = b"endstream";
     let mut i = from;
     while i + needle.len() <= input.len() {
@@ -242,6 +276,12 @@ fn find_endstream(input: &[u8], from: usize) -> Option<usize> {
         i += 1;
     }
     None
+}
+
+/// Without `memmem-scan`, `find_endstream` is the scalar reference scan.
+#[cfg(not(feature = "memmem-scan"))]
+fn find_endstream(input: &[u8], from: usize) -> Option<usize> {
+    find_endstream_scalar(input, from)
 }
 
 /// Consume a `(` literal string starting at `start`; returns the first offset
@@ -692,6 +732,73 @@ mod tests {
                 .validate(buf.len() as u64)
                 .expect("random cover must validate");
             assert!(r.spans.spans.len() <= buf.len());
+        }
+    }
+
+    /// The SIMD (`memmem`) scan must return exactly the same `endstream` offset as
+    /// the scalar reference for every `from`, including offsets past the input and
+    /// matches at EOF. A mismatch would change the physical span cover, so this is
+    /// the representation-safety witness for the Part-A change.
+    #[cfg(feature = "memmem-scan")]
+    #[test]
+    fn memmem_find_endstream_matches_scalar_over_a_battery() {
+        let inputs: [&[u8]; 13] = [
+            b"",
+            b"endstream",
+            b"endstreamX",
+            b"endstream ",
+            b"endstream\r\n",
+            b"xendstream",
+            b"payload endstream)) ",
+            b"endstreamendstream",
+            b"endstreamen",
+            b"end\x00stream",
+            b"aaaaendstream/",
+            b"endstream\nendstream\r\n",
+            b"stream\nendstream\nendobj",
+        ];
+        for input in inputs {
+            for from in 0..=input.len() + 2 {
+                assert_eq!(
+                    find_endstream(input, from),
+                    find_endstream_scalar(input, from),
+                    "mismatch for from={from} input={input:?}"
+                );
+            }
+        }
+    }
+
+    /// Randomized differential over token soup that is dense in `endstream`
+    /// occurrences, terminators, and near-miss prefixes.
+    #[cfg(feature = "memmem-scan")]
+    #[test]
+    fn memmem_find_endstream_matches_scalar_random() {
+        let toks: [&[u8]; 10] = [
+            b"endstream",
+            b"end",
+            b"stream",
+            b"endstreamx",
+            b"x",
+            b" ",
+            b"/",
+            b"\n",
+            b"\r",
+            b"e",
+        ];
+        let mut state: u64 = 0xDEAD_BEEF_1234_5678;
+        for _ in 0..2000 {
+            let n = (xorshift64(&mut state) % 40) as usize;
+            let mut buf: Vec<u8> = Vec::new();
+            for _ in 0..n {
+                buf.extend_from_slice(toks[(xorshift64(&mut state) as usize) % toks.len()]);
+            }
+            for from in 0..=buf.len() {
+                assert_eq!(
+                    find_endstream(&buf, from),
+                    find_endstream_scalar(&buf, from),
+                    "mismatch for from={from} buf={buf:?}"
+                );
+            }
         }
     }
 }

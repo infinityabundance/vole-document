@@ -1,0 +1,15 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-phase15-deflate-e676166",
+  "phase": "15.5 - DEFLATE decompression ablation over real100-v1 members",
+  "utc": "2026-10-07T17:03:25Z",
+  "git_commit": "e6761668cbcefbe341bce0a2d03ceefe4d82e758",
+  "git_dirty": " M tools/phase15-deflate-court.sh;?? evidence/campaigns/2026-10-07-phase15-deflate-a1a1d74/;?? evidence/campaigns/2026-10-07-phase15-deflate-e676166/;",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "2ddb5e9645086a006f3b02b0bcf890564c5523a2c89ac03bf5fe82f9ef98d412",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "limit": 0, "reps": 5,
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

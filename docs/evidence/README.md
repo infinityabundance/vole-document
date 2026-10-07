@@ -53,6 +53,14 @@ state, and the exact command line. Independent adversarial reviews live in
 | N5 | package-index-only gate | package index answers 0/72 structural selectors, field 72/72 — falsified | `phase13-n5-21948bd` | [phase-12](../reviews/phase-12-skeptic-review.md) |
 | real100 | frontier court over the frozen 100-doc NASA/NIST corpus | mixed: VOLE wins repeated observations + DOCX tables/metadata; loses cold lookups, >100 MiB PDFs. A real EPUB-content loss (XHTML `DOCTYPE`) was found and fixed (13.7) | `real100-frontier-8f10d00` | — |
 | 13.7 | benign `DOCTYPE` accepted in the bounded-XML policy (real EPUB fix) | EPUB content declines 62 → 6; ADR-0040 | `real100-frontier-c14e06f` | [phase-13](../reviews/phase-13-skeptic-review.md) |
+| 15.1 | release-mode baseline of the frozen `real100-v1` court, storage universes split | repaired: coverage/exactness identical to debug (deterministic); VOLE holds `pdf`/`text_repeat` + `docx`/`table`; 3/5 `>100 MiB` PDFs fail at `encode` | `real100-release-baseline-866f489` | — |
+| 15.2 | resident `DocumentFieldSession` + `observe-batch` vs the cold per-observation lane | NEGATIVE/partial: wins only < ~1 MiB; cold 7 ms vs resident 9 ms aggregate; mechanism = lost `narrow_probe` short-circuit | `real100-release-resident-78f7ea8` | — |
+| 15.3 | packed seed store (`fieldpack`) vs one-file-per-node | WIN (seed namespace only): persistent bytes 0.719×, file count 0.009× (111× fewer), latency parity; identity + exactness unchanged | `phase15-packed-8c195e8` | — |
+| 15.4 | bounded parallel ingest (`--workers {1..16}`) + determinism | speed-neutral (1.00× at 2/4/8; 0.99× at 16); determinism positive (field id + exact 10/10 across every count) | `phase15-workers-122c026` | — |
+| 15.5 | DEFLATE backend ablation over real `real100-v1` members | `zlib-rs` meets the bar (1.58×, RSS-neutral, byte-identical; recommended, not adopted); `miniz-simd` enabled (1.11×); `zune-inflate` disqualified (255 mismatches) | `phase15-deflate-e676166` | — |
+| 15.6 | adaptive procedural promotion (diversity frontier) | NEGATIVE: falsifier F1 — `v_on` never beats `sq_adapt` by >10% at any depth; F2 — promoted bytes cut durable bytes 0.0% | `phase15-diversity-4786f8e` | — |
+| 15.6 | adaptive procedural promotion (revision retention) | NEGATIVE: falsifier F3 — best-lane retained cross-revision work +0.3% (< 20%) | `phase15-revision-4786f8e` | — |
+| 15.7 | durable cross-root derivations (`N3` re-run, real families) | NEGATIVE: `N3` VIOLATED — cross-member derived reuse 0 nodes; only representation identity shared; no Rust change made | `phase15-crossroot-7429d61` | — |
 
 Receipt short names are the suffixes of `evidence/campaigns/2026-10-*<name>/`.
 

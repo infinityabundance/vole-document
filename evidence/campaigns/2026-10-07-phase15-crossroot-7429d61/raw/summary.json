@@ -1,0 +1,3724 @@
+{
+  "families": [
+    {
+      "cdc": {
+        "best_unique_bytes": 8899678,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-01",
+            "params": "default",
+            "total_chunks": 5,
+            "total_size": 8898321,
+            "unique_bytes": 8899678,
+            "unique_chunks": 5
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-01",
+            "params": "16",
+            "total_chunks": 36,
+            "total_size": 8898321,
+            "unique_bytes": 8901195,
+            "unique_chunks": 36
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-01",
+            "params": "12",
+            "total_chunks": 472,
+            "total_size": 8898321,
+            "unique_bytes": 8920729,
+            "unique_chunks": 472
+          }
+        ],
+        "saving": -1357,
+        "total_size": 8898321
+      },
+      "cold": {
+        "executions": 12,
+        "units": 4387321
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 2,
+          "member": "nasa-epub-0001",
+          "warm": 2
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nasa-pdf-eb-01",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nasa-ebook-01",
+      "intra": {
+        "reused": 2
+      },
+      "key": "cross_format:cf-nasa-ebook-01",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 4341936,
+          "family": "cf-nasa-ebook-01",
+          "field": "a853cccf3c674e35fc528460b5908b6550eed7ee388369db797dcf0b60b3e556",
+          "format": "epub",
+          "id": "nasa-epub-0001",
+          "index_bytes_written": 11768,
+          "key": "cross_format:cf-nasa-ebook-01",
+          "kind": "cross_format",
+          "member": "nasa-epub-0001",
+          "member_count": 104,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 18694,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 4341936,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 4556385,
+          "family": "cf-nasa-ebook-01",
+          "field": "37d586b6f50aceea4b1d260032eb65cfe944829f936b7fa05faf7db26543e198",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-01",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nasa-ebook-01",
+          "kind": "cross_format",
+          "member": "nasa-pdf-eb-01",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 255188,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 4556385,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 4387213,
+        "executed": 8,
+        "family": "cf-nasa-ebook-01",
+        "key": "cross_format:cf-nasa-ebook-01",
+        "kind": "cross_format",
+        "member": "nasa-epub-0001",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 2,
+        "t": "obs",
+        "work_units": 4387221,
+        "xml_parses": 5
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 2.2792952692542898e-05,
+      "store_bytes": 26160154,
+      "totals": {
+        "index_bytes_written": 11768,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 273882,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 8,
+        "reused": 2,
+        "units": 4387221
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 4386813,
+        "executed": 0,
+        "family": "cf-nasa-ebook-01",
+        "key": "cross_format:cf-nasa-ebook-01",
+        "kind": "cross_format",
+        "member": "nasa-epub-0001",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 5,
+        "t": "obs",
+        "work_units": 4386813,
+        "xml_parses": 5
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 39691263,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-02",
+            "params": "default",
+            "total_chunks": 19,
+            "total_size": 39689220,
+            "unique_bytes": 39691263,
+            "unique_chunks": 19
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-02",
+            "params": "16",
+            "total_chunks": 132,
+            "total_size": 39689220,
+            "unique_bytes": 39696796,
+            "unique_chunks": 132
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-02",
+            "params": "12",
+            "total_chunks": 1995,
+            "total_size": 39689220,
+            "unique_bytes": 39780355,
+            "unique_chunks": 1995
+          }
+        ],
+        "saving": -2043,
+        "total_size": 39689220
+      },
+      "cold": {
+        "executions": 12,
+        "units": 18980965
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 2,
+          "member": "nasa-epub-0002",
+          "warm": 2
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nasa-pdf-eb-02",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nasa-ebook-02",
+      "intra": {
+        "reused": 2
+      },
+      "key": "cross_format:cf-nasa-ebook-02",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 18929328,
+          "family": "cf-nasa-ebook-02",
+          "field": "1f043b250567dbe6dcdabb0c210ba343643344d18dcb203318aa186805dd4734",
+          "format": "epub",
+          "id": "nasa-epub-0002",
+          "index_bytes_written": 16388,
+          "key": "cross_format:cf-nasa-ebook-02",
+          "kind": "cross_format",
+          "member": "nasa-epub-0002",
+          "member_count": 146,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 59,
+          "seed_bytes_written": 10117156,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 18929328,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 20759892,
+          "family": "cf-nasa-ebook-02",
+          "field": "c1ce8fe54d71bb51036fd9e9c9ac1b85e0f34920329442277487c1a8dce870c2",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-02",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nasa-ebook-02",
+          "kind": "cross_format",
+          "member": "nasa-pdf-eb-02",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 109932,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 20759892,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 18980857,
+        "executed": 8,
+        "family": "cf-nasa-ebook-02",
+        "key": "cross_format:cf-nasa-ebook-02",
+        "kind": "cross_format",
+        "member": "nasa-epub-0002",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 2,
+        "t": "obs",
+        "work_units": 18980865,
+        "xml_parses": 5
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 5.268436035786378e-06,
+      "store_bytes": 58977606,
+      "totals": {
+        "index_bytes_written": 16388,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 59,
+        "seed_bytes_written": 10227088,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 8,
+        "reused": 2,
+        "units": 18980865
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 18980457,
+        "executed": 0,
+        "family": "cf-nasa-ebook-02",
+        "key": "cross_format:cf-nasa-ebook-02",
+        "kind": "cross_format",
+        "member": "nasa-epub-0002",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 5,
+        "t": "obs",
+        "work_units": 18980457,
+        "xml_parses": 5
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 5113610,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-03",
+            "params": "default",
+            "total_chunks": 6,
+            "total_size": 5112204,
+            "unique_bytes": 5113610,
+            "unique_chunks": 6
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-03",
+            "params": "16",
+            "total_chunks": 24,
+            "total_size": 5112204,
+            "unique_bytes": 5114492,
+            "unique_chunks": 24
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-03",
+            "params": "12",
+            "total_chunks": 249,
+            "total_size": 5112204,
+            "unique_bytes": 5124561,
+            "unique_chunks": 249
+          }
+        ],
+        "saving": -1406,
+        "total_size": 5112204
+      },
+      "cold": {
+        "executions": 36,
+        "units": 5189209
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 3,
+          "member": "nasa-epub-0003",
+          "warm": 3
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nasa-pdf-eb-03",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nasa-ebook-03",
+      "intra": {
+        "reused": 3
+      },
+      "key": "cross_format:cf-nasa-ebook-03",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 3492358,
+          "family": "cf-nasa-ebook-03",
+          "field": "b55e93c1703f5ae520c579eff5f567c5c6b94ceb438c9bee6d599e2849fe319c",
+          "format": "epub",
+          "id": "nasa-epub-0003",
+          "index_bytes_written": 7268,
+          "key": "cross_format:cf-nasa-ebook-03",
+          "kind": "cross_format",
+          "member": "nasa-epub-0003",
+          "member_count": 64,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 11654,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 3492358,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 1619846,
+          "family": "cf-nasa-ebook-03",
+          "field": "83afcc40f7fe165bf50254861cbccff097eb7b80e1698353bdbd9c0b8db737d7",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-03",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nasa-ebook-03",
+          "kind": "cross_format",
+          "member": "nasa-pdf-eb-03",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 46282,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 1619846,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 3566754,
+        "executed": 11,
+        "family": "cf-nasa-ebook-03",
+        "key": "cross_format:cf-nasa-ebook-03",
+        "kind": "cross_format",
+        "member": "nasa-epub-0003",
+        "member_decodes": 3,
+        "ok": true,
+        "reused": 3,
+        "t": "obs",
+        "work_units": 3566765,
+        "xml_parses": 7
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 8.98017404964803e-05,
+      "store_bytes": 9255873,
+      "totals": {
+        "index_bytes_written": 7268,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 57936,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 30,
+        "reused": 3,
+        "units": 5188743
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 3566178,
+        "executed": 0,
+        "family": "cf-nasa-ebook-03",
+        "key": "cross_format:cf-nasa-ebook-03",
+        "kind": "cross_format",
+        "member": "nasa-epub-0003",
+        "member_decodes": 3,
+        "ok": true,
+        "reused": 7,
+        "t": "obs",
+        "work_units": 3566178,
+        "xml_parses": 7
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 8190351,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-04",
+            "params": "default",
+            "total_chunks": 9,
+            "total_size": 8188798,
+            "unique_bytes": 8190351,
+            "unique_chunks": 9
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-04",
+            "params": "16",
+            "total_chunks": 24,
+            "total_size": 8188798,
+            "unique_bytes": 8191086,
+            "unique_chunks": 24
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-04",
+            "params": "12",
+            "total_chunks": 411,
+            "total_size": 8188798,
+            "unique_bytes": 8208469,
+            "unique_chunks": 411
+          }
+        ],
+        "saving": -1553,
+        "total_size": 8188798
+      },
+      "cold": {
+        "executions": 36,
+        "units": 8264226
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 3,
+          "member": "nasa-epub-0004",
+          "warm": 3
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nasa-pdf-eb-04",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nasa-ebook-04",
+      "intra": {
+        "reused": 3
+      },
+      "key": "cross_format:cf-nasa-ebook-04",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 4788734,
+          "family": "cf-nasa-ebook-04",
+          "field": "8838060359a17a03c7b530be5134258b2d1674cf135f251f244f1f3c70eca12d",
+          "format": "epub",
+          "id": "nasa-epub-0004",
+          "index_bytes_written": 7048,
+          "key": "cross_format:cf-nasa-ebook-04",
+          "kind": "cross_format",
+          "member": "nasa-epub-0004",
+          "member_count": 62,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 11302,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 4788734,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 3400064,
+          "family": "cf-nasa-ebook-04",
+          "field": "312db68c8a2e6f8126bd2f69aec9ff0e28094bacd54d7ace814b1ab7ca95bb73",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-04",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nasa-ebook-04",
+          "kind": "cross_format",
+          "member": "nasa-pdf-eb-04",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 46984,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 3400064,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 4860930,
+        "executed": 11,
+        "family": "cf-nasa-ebook-04",
+        "key": "cross_format:cf-nasa-ebook-04",
+        "kind": "cross_format",
+        "member": "nasa-epub-0004",
+        "member_decodes": 3,
+        "ok": true,
+        "reused": 3,
+        "t": "obs",
+        "work_units": 4860941,
+        "xml_parses": 7
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 5.638761573074115e-05,
+      "store_bytes": 12363206,
+      "totals": {
+        "index_bytes_written": 7048,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 58286,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 30,
+        "reused": 3,
+        "units": 8263760
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 4860354,
+        "executed": 0,
+        "family": "cf-nasa-ebook-04",
+        "key": "cross_format:cf-nasa-ebook-04",
+        "kind": "cross_format",
+        "member": "nasa-epub-0004",
+        "member_decodes": 3,
+        "ok": true,
+        "reused": 7,
+        "t": "obs",
+        "work_units": 4860354,
+        "xml_parses": 7
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 6360438,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-05",
+            "params": "default",
+            "total_chunks": 9,
+            "total_size": 6358885,
+            "unique_bytes": 6360438,
+            "unique_chunks": 9
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-05",
+            "params": "16",
+            "total_chunks": 27,
+            "total_size": 6358885,
+            "unique_bytes": 6361322,
+            "unique_chunks": 27
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-05",
+            "params": "12",
+            "total_chunks": 307,
+            "total_size": 6358885,
+            "unique_bytes": 6373856,
+            "unique_chunks": 307
+          }
+        ],
+        "saving": -1553,
+        "total_size": 6358885
+      },
+      "cold": {
+        "executions": 22,
+        "units": 6438673
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 3,
+          "member": "nasa-epub-0005",
+          "warm": 3
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nasa-pdf-eb-05",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nasa-ebook-05",
+      "intra": {
+        "reused": 3
+      },
+      "key": "cross_format:cf-nasa-ebook-05",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 4858060,
+          "family": "cf-nasa-ebook-05",
+          "field": "9f46badf0b9d1924a288f3ae1d5a3d02b9c6d8f9e17f94776d191c8aad6cebbd",
+          "format": "epub",
+          "id": "nasa-epub-0005",
+          "index_bytes_written": 7708,
+          "key": "cross_format:cf-nasa-ebook-05",
+          "kind": "cross_format",
+          "member": "nasa-epub-0005",
+          "member_count": 68,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 12358,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 4858060,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 1500825,
+          "family": "cf-nasa-ebook-05",
+          "field": "54df5134677e79bdce0b99017577e4110f95fa091f0c26e424aeab7d12520375",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-05",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nasa-ebook-05",
+          "kind": "cross_format",
+          "member": "nasa-pdf-eb-05",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 50564,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 1500825,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 4936804,
+        "executed": 11,
+        "family": "cf-nasa-ebook-05",
+        "key": "cross_format:cf-nasa-ebook-05",
+        "kind": "cross_format",
+        "member": "nasa-epub-0005",
+        "member_decodes": 3,
+        "ok": true,
+        "reused": 3,
+        "t": "obs",
+        "work_units": 4936815,
+        "xml_parses": 7
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 3.758538444179414e-05,
+      "store_bytes": 10789751,
+      "totals": {
+        "index_bytes_written": 7708,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 62922,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 16,
+        "reused": 3,
+        "units": 6438431
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 4936228,
+        "executed": 0,
+        "family": "cf-nasa-ebook-05",
+        "key": "cross_format:cf-nasa-ebook-05",
+        "kind": "cross_format",
+        "member": "nasa-epub-0005",
+        "member_decodes": 3,
+        "ok": true,
+        "reused": 7,
+        "t": "obs",
+        "work_units": 4936228,
+        "xml_parses": 7
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 16563724,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-06",
+            "params": "default",
+            "total_chunks": 6,
+            "total_size": 16562318,
+            "unique_bytes": 16563724,
+            "unique_chunks": 6
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-06",
+            "params": "16",
+            "total_chunks": 45,
+            "total_size": 16562318,
+            "unique_bytes": 16565635,
+            "unique_chunks": 45
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-06",
+            "params": "12",
+            "total_chunks": 858,
+            "total_size": 16562318,
+            "unique_bytes": 16578014,
+            "unique_chunks": 857
+          }
+        ],
+        "saving": -1406,
+        "total_size": 16562318
+      },
+      "cold": {
+        "executions": 12,
+        "units": 10902594
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 2,
+          "member": "nasa-epub-0006",
+          "warm": 2
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nasa-pdf-eb-06",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nasa-ebook-06",
+      "intra": {
+        "reused": 2
+      },
+      "key": "cross_format:cf-nasa-ebook-06",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 10867010,
+          "family": "cf-nasa-ebook-06",
+          "field": "66d84ad516b73555768edecf00fbc2e5ac8ecc15f6b1e9628e2098b226ef090d",
+          "format": "epub",
+          "id": "nasa-epub-0006",
+          "index_bytes_written": 16988,
+          "key": "cross_format:cf-nasa-ebook-06",
+          "kind": "cross_format",
+          "member": "nasa-epub-0006",
+          "member_count": 151,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 26966,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 10867010,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 5695308,
+          "family": "cf-nasa-ebook-06",
+          "field": "90600207b179d29040e06f52bcd7e0f19a3a19f117ca9121e3b732a8bff25460",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-06",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nasa-ebook-06",
+          "kind": "cross_format",
+          "member": "nasa-pdf-eb-06",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 130494,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 5695308,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 10902486,
+        "executed": 8,
+        "family": "cf-nasa-ebook-06",
+        "key": "cross_format:cf-nasa-ebook-06",
+        "kind": "cross_format",
+        "member": "nasa-epub-0006",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 2,
+        "t": "obs",
+        "work_units": 10902494,
+        "xml_parses": 5
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 9.172129128168947e-06,
+      "store_bytes": 26699459,
+      "totals": {
+        "index_bytes_written": 16988,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 157460,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 8,
+        "reused": 2,
+        "units": 10902494
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 10902086,
+        "executed": 0,
+        "family": "cf-nasa-ebook-06",
+        "key": "cross_format:cf-nasa-ebook-06",
+        "kind": "cross_format",
+        "member": "nasa-epub-0006",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 5,
+        "t": "obs",
+        "work_units": 10902086,
+        "xml_parses": 5
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 87599367,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-07",
+            "params": "default",
+            "total_chunks": 37,
+            "total_size": 87596438,
+            "unique_bytes": 87599367,
+            "unique_chunks": 37
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-07",
+            "params": "16",
+            "total_chunks": 292,
+            "total_size": 87596438,
+            "unique_bytes": 87611858,
+            "unique_chunks": 292
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-07",
+            "params": "12",
+            "total_chunks": 4302,
+            "total_size": 87596438,
+            "unique_bytes": 87777588,
+            "unique_chunks": 4301
+          }
+        ],
+        "saving": -2929,
+        "total_size": 87596438
+      },
+      "cold": {
+        "executions": 17,
+        "units": 46907086
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 3,
+          "member": "nasa-epub-0007",
+          "warm": 3
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nasa-pdf-eb-07",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nasa-ebook-07",
+      "intra": {
+        "reused": 3
+      },
+      "key": "cross_format:cf-nasa-ebook-07",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 46837603,
+          "family": "cf-nasa-ebook-07",
+          "field": "a54a02463c57306b74ad1895a2e8329ab6e95f3f81ad08646b646a2b6d77a9f9",
+          "format": "epub",
+          "id": "nasa-epub-0007",
+          "index_bytes_written": 38098,
+          "key": "cross_format:cf-nasa-ebook-07",
+          "kind": "cross_format",
+          "member": "nasa-epub-0007",
+          "member_count": 342,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 60582,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 46837603,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 40758835,
+          "family": "cf-nasa-ebook-07",
+          "field": "6a716682a0ce81092d4a7968b18b1d0d597cea0f2ec0900f782570dd7df629b4",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-07",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nasa-ebook-07",
+          "kind": "cross_format",
+          "member": "nasa-pdf-eb-07",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 480972,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 40758835,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 46906925,
+        "executed": 11,
+        "family": "cf-nasa-ebook-07",
+        "key": "cross_format:cf-nasa-ebook-07",
+        "kind": "cross_format",
+        "member": "nasa-epub-0007",
+        "member_decodes": 3,
+        "ok": true,
+        "reused": 3,
+        "t": "obs",
+        "work_units": 46906936,
+        "xml_parses": 7
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 3.19781109404238e-06,
+      "store_bytes": 118943632,
+      "totals": {
+        "index_bytes_written": 38098,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 541554,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 11,
+        "reused": 3,
+        "units": 46906936
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 46906349,
+        "executed": 0,
+        "family": "cf-nasa-ebook-07",
+        "key": "cross_format:cf-nasa-ebook-07",
+        "kind": "cross_format",
+        "member": "nasa-epub-0007",
+        "member_decodes": 3,
+        "ok": true,
+        "reused": 7,
+        "t": "obs",
+        "work_units": 46906349,
+        "xml_parses": 7
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 49268685,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-08",
+            "params": "default",
+            "total_chunks": 35,
+            "total_size": 60753006,
+            "unique_bytes": 60755835,
+            "unique_chunks": 35
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-08",
+            "params": "16",
+            "total_chunks": 175,
+            "total_size": 60753006,
+            "unique_bytes": 60597157,
+            "unique_chunks": 173
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-08",
+            "params": "12",
+            "total_chunks": 3054,
+            "total_size": 60753006,
+            "unique_bytes": 49268685,
+            "unique_chunks": 2438
+          }
+        ],
+        "saving": 11484321,
+        "total_size": 60753006
+      },
+      "cold": {
+        "executions": 12,
+        "units": 25448446
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 2,
+          "member": "nasa-epub-0008",
+          "warm": 2
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nasa-pdf-eb-08",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nasa-ebook-08",
+      "intra": {
+        "reused": 2
+      },
+      "key": "cross_format:cf-nasa-ebook-08",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 25400776,
+          "family": "cf-nasa-ebook-08",
+          "field": "40b58ca11a5f8f8c9853dcb51dfcb739c0e040d55b1e12f9265cd7c50054c64c",
+          "format": "epub",
+          "id": "nasa-epub-0008",
+          "index_bytes_written": 30128,
+          "key": "cross_format:cf-nasa-ebook-08",
+          "kind": "cross_format",
+          "member": "nasa-epub-0008",
+          "member_count": 270,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 47910,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 25400776,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 35352230,
+          "family": "cf-nasa-ebook-08",
+          "field": "873bbdfe7c0ad7b0ad4b16beb9828f6c99706198d9f131a06f1c8566b896741f",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-08",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nasa-ebook-08",
+          "kind": "cross_format",
+          "member": "nasa-pdf-eb-08",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 91228,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 35352230,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 25448338,
+        "executed": 8,
+        "family": "cf-nasa-ebook-08",
+        "key": "cross_format:cf-nasa-ebook-08",
+        "kind": "cross_format",
+        "member": "nasa-epub-0008",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 2,
+        "t": "obs",
+        "work_units": 25448346,
+        "xml_parses": 5
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 3.929513024095853e-06,
+      "store_bytes": 69664351,
+      "totals": {
+        "index_bytes_written": 30128,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 139138,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 8,
+        "reused": 2,
+        "units": 25448346
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 25447938,
+        "executed": 0,
+        "family": "cf-nasa-ebook-08",
+        "key": "cross_format:cf-nasa-ebook-08",
+        "kind": "cross_format",
+        "member": "nasa-epub-0008",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 5,
+        "t": "obs",
+        "work_units": 25447938,
+        "xml_parses": 5
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 50837259,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-09",
+            "params": "default",
+            "total_chunks": 24,
+            "total_size": 50834969,
+            "unique_bytes": 50837259,
+            "unique_chunks": 24
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-09",
+            "params": "16",
+            "total_chunks": 167,
+            "total_size": 50834969,
+            "unique_bytes": 50844264,
+            "unique_chunks": 167
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-09",
+            "params": "12",
+            "total_chunks": 2440,
+            "total_size": 50834969,
+            "unique_bytes": 50946229,
+            "unique_chunks": 2440
+          }
+        ],
+        "saving": -2290,
+        "total_size": 50834969
+      },
+      "cold": {
+        "executions": 31,
+        "units": 50824468
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 2,
+          "member": "nasa-epub-0009",
+          "warm": 2
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nasa-pdf-eb-09",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nasa-ebook-09",
+      "intra": {
+        "reused": 2
+      },
+      "key": "cross_format:cf-nasa-ebook-09",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 39526816,
+          "family": "cf-nasa-ebook-09",
+          "field": "dd32e435a3626f83f0eb2daf66ae8bdfa845514f0966283235fb257f2e9f717f",
+          "format": "epub",
+          "id": "nasa-epub-0009",
+          "index_bytes_written": 29578,
+          "key": "cross_format:cf-nasa-ebook-09",
+          "kind": "cross_format",
+          "member": "nasa-epub-0009",
+          "member_count": 265,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 47030,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 39526816,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 11308153,
+          "family": "cf-nasa-ebook-09",
+          "field": "217e1b4dc4de8fd41dc5c5c018e77e5462e7edb1cd966f8eb92264e4fcf16f8a",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-09",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nasa-ebook-09",
+          "kind": "cross_format",
+          "member": "nasa-pdf-eb-09",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 139920,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 11308153,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 39568574,
+        "executed": 8,
+        "family": "cf-nasa-ebook-09",
+        "key": "cross_format:cf-nasa-ebook-09",
+        "kind": "cross_format",
+        "member": "nasa-epub-0009",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 2,
+        "t": "obs",
+        "work_units": 39568582,
+        "xml_parses": 5
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 8.185034027311412e-06,
+      "store_bytes": 61782860,
+      "totals": {
+        "index_bytes_written": 29578,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 186950,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 27,
+        "reused": 2,
+        "units": 50824052
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 39568174,
+        "executed": 0,
+        "family": "cf-nasa-ebook-09",
+        "key": "cross_format:cf-nasa-ebook-09",
+        "kind": "cross_format",
+        "member": "nasa-epub-0009",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 5,
+        "t": "obs",
+        "work_units": 39568174,
+        "xml_parses": 5
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 61906096,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-10",
+            "params": "default",
+            "total_chunks": 31,
+            "total_size": 61903463,
+            "unique_bytes": 61906096,
+            "unique_chunks": 31
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-10",
+            "params": "16",
+            "total_chunks": 194,
+            "total_size": 61903463,
+            "unique_bytes": 61914085,
+            "unique_chunks": 194
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nasa-ebook-10",
+            "params": "12",
+            "total_chunks": 2945,
+            "total_size": 61903463,
+            "unique_bytes": 62037605,
+            "unique_chunks": 2945
+          }
+        ],
+        "saving": -2633,
+        "total_size": 61903463
+      },
+      "cold": {
+        "executions": 17,
+        "units": 45068170
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 3,
+          "member": "nasa-epub-0010",
+          "warm": 3
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nasa-pdf-eb-10",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nasa-ebook-10",
+      "intra": {
+        "reused": 3
+      },
+      "key": "cross_format:cf-nasa-ebook-10",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 45000233,
+          "family": "cf-nasa-ebook-10",
+          "field": "f76b80ef99d368ff9c63e702a6c2fadaf0752eff2d1b651f7460bbda880b39e6",
+          "format": "epub",
+          "id": "nasa-epub-0010",
+          "index_bytes_written": 21828,
+          "key": "cross_format:cf-nasa-ebook-10",
+          "kind": "cross_format",
+          "member": "nasa-epub-0010",
+          "member_count": 195,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 34710,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 45000233,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 16903230,
+          "family": "cf-nasa-ebook-10",
+          "field": "33b8585c3e920e2f1df4e1d4e71de499584eff2ee0d8ad0ae1201d00dbb30ee4",
+          "format": "pdf",
+          "id": "nasa-pdf-eb-10",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nasa-ebook-10",
+          "kind": "cross_format",
+          "member": "nasa-pdf-eb-10",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 179268,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 16903230,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 45068009,
+        "executed": 11,
+        "family": "cf-nasa-ebook-10",
+        "key": "cross_format:cf-nasa-ebook-10",
+        "kind": "cross_format",
+        "member": "nasa-epub-0010",
+        "member_decodes": 3,
+        "ok": true,
+        "reused": 3,
+        "t": "obs",
+        "work_units": 45068020,
+        "xml_parses": 7
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 3.328291341760715e-06,
+      "store_bytes": 73496747,
+      "totals": {
+        "index_bytes_written": 21828,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 213978,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 11,
+        "reused": 3,
+        "units": 45068020
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 45067433,
+        "executed": 0,
+        "family": "cf-nasa-ebook-10",
+        "key": "cross_format:cf-nasa-ebook-10",
+        "kind": "cross_format",
+        "member": "nasa-epub-0010",
+        "member_decodes": 3,
+        "ok": true,
+        "reused": 7,
+        "t": "obs",
+        "work_units": 45067433,
+        "xml_parses": 7
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 1587321,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-fips140-2",
+            "params": "default",
+            "total_chunks": 5,
+            "total_size": 1585961,
+            "unique_bytes": 1587321,
+            "unique_chunks": 5
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-fips140-2",
+            "params": "16",
+            "total_chunks": 11,
+            "total_size": 1585961,
+            "unique_bytes": 1587615,
+            "unique_chunks": 11
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-fips140-2",
+            "params": "12",
+            "total_chunks": 79,
+            "total_size": 1585961,
+            "unique_bytes": 1590657,
+            "unique_chunks": 79
+          }
+        ],
+        "saving": -1360,
+        "total_size": 1585961
+      },
+      "cold": {
+        "executions": 10,
+        "units": 145683
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 1,
+          "member": "nist-epub-0010",
+          "warm": 1
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-pdf-0017",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nist-fips140-2",
+      "intra": {
+        "reused": 1
+      },
+      "key": "cross_format:cf-nist-fips140-2",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 119715,
+          "family": "cf-nist-fips140-2",
+          "field": "db77f4c18500474c9eb23e4d39b01f0cfad73a403f3d192f8322f9b4161268fd",
+          "format": "epub",
+          "id": "nist-epub-0010",
+          "index_bytes_written": 3418,
+          "key": "cross_format:cf-nist-fips140-2",
+          "kind": "cross_format",
+          "member": "nist-epub-0010",
+          "member_count": 29,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 5494,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 119715,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 1466246,
+          "family": "cf-nist-fips140-2",
+          "field": "779c73af56e85062fe7c6b1168e6d84334cec6ef26b79ab2309c9dda3ad9943d",
+          "format": "pdf",
+          "id": "nist-pdf-0017",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nist-fips140-2",
+          "kind": "cross_format",
+          "member": "nist-pdf-0017",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 448318,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 1466246,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 134579,
+        "executed": 5,
+        "family": "cf-nist-fips140-2",
+        "key": "cross_format:cf-nist-fips140-2",
+        "kind": "cross_format",
+        "member": "nist-epub-0010",
+        "member_decodes": 1,
+        "ok": true,
+        "reused": 1,
+        "t": "obs",
+        "work_units": 134584,
+        "xml_parses": 3
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 0.0007550640774833028,
+      "store_bytes": 30337734,
+      "totals": {
+        "index_bytes_written": 3418,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 453812,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 8,
+        "reused": 1,
+        "units": 145573
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 134355,
+        "executed": 0,
+        "family": "cf-nist-fips140-2",
+        "key": "cross_format:cf-nist-fips140-2",
+        "kind": "cross_format",
+        "member": "nist-epub-0010",
+        "member_decodes": 1,
+        "ok": true,
+        "reused": 3,
+        "t": "obs",
+        "work_units": 134355,
+        "xml_parses": 3
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 713789,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-115",
+            "params": "default",
+            "total_chunks": 4,
+            "total_size": 712478,
+            "unique_bytes": 713789,
+            "unique_chunks": 4
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-115",
+            "params": "16",
+            "total_chunks": 6,
+            "total_size": 712478,
+            "unique_bytes": 713887,
+            "unique_chunks": 6
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-115",
+            "params": "12",
+            "total_chunks": 40,
+            "total_size": 712478,
+            "unique_bytes": 715403,
+            "unique_chunks": 40
+          }
+        ],
+        "saving": -1311,
+        "total_size": 712478
+      },
+      "cold": {
+        "executions": 12,
+        "units": 729146
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 1,
+          "member": "nist-epub-0001",
+          "warm": 1
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-pdf-0001",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nist-sp800-115",
+      "intra": {
+        "reused": 1
+      },
+      "key": "cross_format:cf-nist-sp800-115",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 168431,
+          "family": "cf-nist-sp800-115",
+          "field": "1566c68bf2c2af6de5dfa589205eedd9e6a59690a30c0f8f0930419917fa5255",
+          "format": "epub",
+          "id": "nist-epub-0001",
+          "index_bytes_written": 3858,
+          "key": "cross_format:cf-nist-sp800-115",
+          "kind": "cross_format",
+          "member": "nist-epub-0001",
+          "member_count": 33,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 6198,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 168431,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 544047,
+          "family": "cf-nist-sp800-115",
+          "field": "7dcc23542e1ab88f00a910bbdd73dcd28d1151e61ec1d74ae36223ed147fcf39",
+          "format": "pdf",
+          "id": "nist-pdf-0001",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nist-sp800-115",
+          "kind": "cross_format",
+          "member": "nist-pdf-0001",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 72162,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 544047,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 185055,
+        "executed": 5,
+        "family": "cf-nist-sp800-115",
+        "key": "cross_format:cf-nist-sp800-115",
+        "kind": "cross_format",
+        "member": "nist-epub-0001",
+        "member_decodes": 1,
+        "ok": true,
+        "reused": 1,
+        "t": "obs",
+        "work_units": 185060,
+        "xml_parses": 3
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 0.00019474837686828152,
+      "store_bytes": 6116049,
+      "totals": {
+        "index_bytes_written": 3858,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 78360,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 10,
+        "reused": 1,
+        "units": 729004
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 184831,
+        "executed": 0,
+        "family": "cf-nist-sp800-115",
+        "key": "cross_format:cf-nist-sp800-115",
+        "kind": "cross_format",
+        "member": "nist-epub-0001",
+        "member_decodes": 1,
+        "ok": true,
+        "reused": 3,
+        "t": "obs",
+        "work_units": 184831,
+        "xml_parses": 3
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 354769,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-123",
+            "params": "default",
+            "total_chunks": 4,
+            "total_size": 353458,
+            "unique_bytes": 354769,
+            "unique_chunks": 4
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-123",
+            "params": "16",
+            "total_chunks": 4,
+            "total_size": 353458,
+            "unique_bytes": 354769,
+            "unique_chunks": 4
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-123",
+            "params": "12",
+            "total_chunks": 22,
+            "total_size": 353458,
+            "unique_bytes": 355571,
+            "unique_chunks": 22
+          }
+        ],
+        "saving": -1311,
+        "total_size": 353458
+      },
+      "cold": {
+        "executions": 12,
+        "units": 378160
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 1,
+          "member": "nist-epub-0003",
+          "warm": 1
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-pdf-0002",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nist-sp800-123",
+      "intra": {
+        "reused": 1
+      },
+      "key": "cross_format:cf-nist-sp800-123",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 89755,
+          "family": "cf-nist-sp800-123",
+          "field": "c53ce8d4624c3159b4a2a5e75e445944bc085eeb96c36e94f363cc67170869d5",
+          "format": "epub",
+          "id": "nist-epub-0003",
+          "index_bytes_written": 2868,
+          "key": "cross_format:cf-nist-sp800-123",
+          "kind": "cross_format",
+          "member": "nist-epub-0003",
+          "member_count": 24,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 4614,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 89755,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 263703,
+          "family": "cf-nist-sp800-123",
+          "field": "8149f3458912dc14281cead4c904dc126cc96450e39115781dc6ecc0cbb4d84c",
+          "format": "pdf",
+          "id": "nist-pdf-0002",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nist-sp800-123",
+          "kind": "cross_format",
+          "member": "nist-pdf-0002",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 42384,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 263703,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 102419,
+        "executed": 5,
+        "family": "cf-nist-sp800-123",
+        "key": "cross_format:cf-nist-sp800-123",
+        "kind": "cross_format",
+        "member": "nist-epub-0003",
+        "member_decodes": 1,
+        "ok": true,
+        "reused": 1,
+        "t": "obs",
+        "work_units": 102424,
+        "xml_parses": 3
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 0.0003755024328326634,
+      "store_bytes": 4053572,
+      "totals": {
+        "index_bytes_written": 2868,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 46998,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 10,
+        "reused": 1,
+        "units": 378018
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 102195,
+        "executed": 0,
+        "family": "cf-nist-sp800-123",
+        "key": "cross_format:cf-nist-sp800-123",
+        "kind": "cross_format",
+        "member": "nist-epub-0003",
+        "member_decodes": 1,
+        "ok": true,
+        "reused": 3,
+        "t": "obs",
+        "work_units": 102195,
+        "xml_parses": 3
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 1251895,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-144",
+            "params": "default",
+            "total_chunks": 4,
+            "total_size": 1250584,
+            "unique_bytes": 1251895,
+            "unique_chunks": 4
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-144",
+            "params": "16",
+            "total_chunks": 9,
+            "total_size": 1250584,
+            "unique_bytes": 1252140,
+            "unique_chunks": 9
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-144",
+            "params": "12",
+            "total_chunks": 68,
+            "total_size": 1250584,
+            "unique_bytes": 1254777,
+            "unique_chunks": 68
+          }
+        ],
+        "saving": -1311,
+        "total_size": 1250584
+      },
+      "cold": {
+        "executions": 12,
+        "units": 1273406
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 1,
+          "member": "nist-epub-0007",
+          "warm": 1
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-pdf-0004",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nist-sp800-144",
+      "intra": {
+        "reused": 1
+      },
+      "key": "cross_format:cf-nist-sp800-144",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 145523,
+          "family": "cf-nist-sp800-144",
+          "field": "d49c2fdb277a4d713b78c7af83219cba53b2f173f58a41e307bb47b81173e297",
+          "format": "epub",
+          "id": "nist-epub-0007",
+          "index_bytes_written": 3088,
+          "key": "cross_format:cf-nist-sp800-144",
+          "kind": "cross_format",
+          "member": "nist-epub-0007",
+          "member_count": 26,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 4966,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 145523,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 1105061,
+          "family": "cf-nist-sp800-144",
+          "field": "769c7b08be5f6767a391e4843367efa24a8d8bbdf4dc12b8a26f0c310c0a806e",
+          "format": "pdf",
+          "id": "nist-pdf-0004",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nist-sp800-144",
+          "kind": "cross_format",
+          "member": "nist-pdf-0004",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 41342,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 1105061,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 159067,
+        "executed": 5,
+        "family": "cf-nist-sp800-144",
+        "key": "cross_format:cf-nist-sp800-144",
+        "kind": "cross_format",
+        "member": "nist-epub-0007",
+        "member_decodes": 1,
+        "ok": true,
+        "reused": 1,
+        "t": "obs",
+        "work_units": 159072,
+        "xml_parses": 3
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 0.00011151196083574288,
+      "store_bytes": 4727673,
+      "totals": {
+        "index_bytes_written": 3088,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 46308,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 10,
+        "reused": 1,
+        "units": 1273264
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 158843,
+        "executed": 0,
+        "family": "cf-nist-sp800-144",
+        "key": "cross_format:cf-nist-sp800-144",
+        "kind": "cross_format",
+        "member": "nist-epub-0007",
+        "member_decodes": 1,
+        "ok": true,
+        "reused": 3,
+        "t": "obs",
+        "work_units": 158843,
+        "xml_parses": 3
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 8925051,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-18r2",
+            "params": "default",
+            "total_chunks": 9,
+            "total_size": 10367390,
+            "unique_bytes": 10369568,
+            "unique_chunks": 9
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-18r2",
+            "params": "16",
+            "total_chunks": 45,
+            "total_size": 10367390,
+            "unique_bytes": 9373382,
+            "unique_chunks": 39
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-18r2",
+            "params": "12",
+            "total_chunks": 490,
+            "total_size": 10367390,
+            "unique_bytes": 8925051,
+            "unique_chunks": 418
+          }
+        ],
+        "saving": 1442339,
+        "total_size": 10367390
+      },
+      "cold": {
+        "executions": 37,
+        "units": 10453754
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0001",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0002",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0003",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0004",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-pdf-0005",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nist-sp800-18r2",
+      "intra": {
+        "reused": 0
+      },
+      "key": "cross_format:cf-nist-sp800-18r2",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 2286200,
+          "family": "cf-nist-sp800-18r2",
+          "field": "769c0e98bb967c8f6955c1d6cbae0a0dd0a22d639a7f1aa2768f02973cb53158",
+          "format": "docx",
+          "id": "nist-docx-0001",
+          "index_bytes_written": 5178,
+          "key": "cross_format:cf-nist-sp800-18r2",
+          "kind": "cross_format",
+          "member": "nist-docx-0001",
+          "member_count": 45,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 1,
+          "seed_bytes_written": 28288,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 2286200,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 2241851,
+          "family": "cf-nist-sp800-18r2",
+          "field": "1e7aacf8cbdd990c87f63b2282a6535e9d2e4c356a74408ac24affa08bf8ac72",
+          "format": "docx",
+          "id": "nist-docx-0002",
+          "index_bytes_written": 4628,
+          "key": "cross_format:cf-nist-sp800-18r2",
+          "kind": "cross_format",
+          "member": "nist-docx-0002",
+          "member_count": 40,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 7430,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 2241851,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 2267651,
+          "family": "cf-nist-sp800-18r2",
+          "field": "60064e8399876fa60d6b0c624e90cd86e5c40a6edcf18aa71d5557e23d9d456e",
+          "format": "docx",
+          "id": "nist-docx-0003",
+          "index_bytes_written": 4958,
+          "key": "cross_format:cf-nist-sp800-18r2",
+          "kind": "cross_format",
+          "member": "nist-docx-0003",
+          "member_count": 43,
+          "nodes_id_shared": 2,
+          "ok": true,
+          "resource_blob_nodes": 1,
+          "seed_bytes_written": 7852,
+          "shared_resource_bytes": 19930,
+          "shared_resource_ids": 1,
+          "source_len": 2267651,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 2258240,
+          "family": "cf-nist-sp800-18r2",
+          "field": "638b43a7bbac4023dc5d78f8c7edf3faa42ad4891abdd3394822bfcf495468a0",
+          "format": "docx",
+          "id": "nist-docx-0004",
+          "index_bytes_written": 4738,
+          "key": "cross_format:cf-nist-sp800-18r2",
+          "kind": "cross_format",
+          "member": "nist-docx-0004",
+          "member_count": 41,
+          "nodes_id_shared": 2,
+          "ok": true,
+          "resource_blob_nodes": 1,
+          "seed_bytes_written": 7500,
+          "shared_resource_bytes": 19930,
+          "shared_resource_ids": 1,
+          "source_len": 2258240,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 1313448,
+          "family": "cf-nist-sp800-18r2",
+          "field": "58beb5d9b2d1494a5ff0bfafb8bca2542550ef6578a1df17d084672749530e21",
+          "format": "pdf",
+          "id": "nist-pdf-0005",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nist-sp800-18r2",
+          "kind": "cross_format",
+          "member": "nist-pdf-0005",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 68786,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 1313448,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 5,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "heuristic",
+        "bytes_read": 1318454,
+        "executed": 5,
+        "family": "cf-nist-sp800-18r2",
+        "key": "cross_format:cf-nist-sp800-18r2",
+        "kind": "cross_format",
+        "member": "nist-pdf-0005",
+        "member_decodes": 0,
+        "ok": true,
+        "reused": 0,
+        "t": "obs",
+        "work_units": 1318459,
+        "xml_parses": 0
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 8.800666248698793e-06,
+      "store_bytes": 16760277,
+      "totals": {
+        "index_bytes_written": 19502,
+        "nodes_id_shared": 4,
+        "resource_blob_nodes": 3,
+        "seed_bytes_written": 119856,
+        "shared_resource_bytes": 39860,
+        "shared_resource_ids": 2
+      },
+      "warm": {
+        "executions": 37,
+        "reused": 0,
+        "units": 10453662
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 2307186,
+        "executed": 0,
+        "family": "cf-nist-sp800-18r2",
+        "key": "cross_format:cf-nist-sp800-18r2",
+        "kind": "cross_format",
+        "member": "nist-docx-0001",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 2,
+        "t": "obs",
+        "work_units": 2307186,
+        "xml_parses": 2
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 318538,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-218",
+            "params": "default",
+            "total_chunks": 4,
+            "total_size": 317225,
+            "unique_bytes": 318538,
+            "unique_chunks": 4
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-218",
+            "params": "16",
+            "total_chunks": 6,
+            "total_size": 317225,
+            "unique_bytes": 318632,
+            "unique_chunks": 6
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-218",
+            "params": "12",
+            "total_chunks": 17,
+            "total_size": 317225,
+            "unique_bytes": 319119,
+            "unique_chunks": 17
+          }
+        ],
+        "saving": -1313,
+        "total_size": 317225
+      },
+      "cold": {
+        "executions": 0,
+        "units": 0
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0011",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0012",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nist-sp800-218",
+      "intra": {
+        "reused": 0
+      },
+      "key": "cross_format:cf-nist-sp800-218",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 162933,
+          "family": "cf-nist-sp800-218",
+          "field": "a622bde77a1d7fdf2a5f05a34085d78530ce71fb69d76b0f003bb745ff7d5321",
+          "format": "docx",
+          "id": "nist-docx-0011",
+          "index_bytes_written": 4078,
+          "key": "cross_format:cf-nist-sp800-218",
+          "kind": "cross_format",
+          "member": "nist-docx-0011",
+          "member_count": 35,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 6550,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 162933,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 154292,
+          "family": "cf-nist-sp800-218",
+          "field": "1c63816a8a6cdd5820a5bbfa9534dbee75dca4009b3f0958698eb0d0d5bfbba8",
+          "format": "docx",
+          "id": "nist-docx-0012",
+          "index_bytes_written": 4958,
+          "key": "cross_format:cf-nist-sp800-218",
+          "kind": "cross_format",
+          "member": "nist-docx-0012",
+          "member_count": 43,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 7958,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 154292,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": null,
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": null,
+      "store_bytes": 1554931,
+      "totals": {
+        "index_bytes_written": 9036,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 14508,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 0,
+        "reused": 0,
+        "units": 0
+      },
+      "warm_fresh": null
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 1164629,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-30r1",
+            "params": "default",
+            "total_chunks": 4,
+            "total_size": 1163314,
+            "unique_bytes": 1164629,
+            "unique_chunks": 4
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-30r1",
+            "params": "16",
+            "total_chunks": 4,
+            "total_size": 1163314,
+            "unique_bytes": 1164629,
+            "unique_chunks": 4
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-30r1",
+            "params": "12",
+            "total_chunks": 68,
+            "total_size": 1163314,
+            "unique_bytes": 1167509,
+            "unique_chunks": 68
+          }
+        ],
+        "saving": -1315,
+        "total_size": 1163314
+      },
+      "cold": {
+        "executions": 26,
+        "units": 1202536
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 1,
+          "member": "nist-epub-0004",
+          "warm": 1
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-pdf-0003",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nist-sp800-30r1",
+      "intra": {
+        "reused": 1
+      },
+      "key": "cross_format:cf-nist-sp800-30r1",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 336417,
+          "family": "cf-nist-sp800-30r1",
+          "field": "d7d59b453ffc3c1472884c66dd8b9809c223b62ea5924af30d5ac46eb9a974ca",
+          "format": "epub",
+          "id": "nist-epub-0004",
+          "index_bytes_written": 7928,
+          "key": "cross_format:cf-nist-sp800-30r1",
+          "kind": "cross_format",
+          "member": "nist-epub-0004",
+          "member_count": 70,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 12710,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 336417,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 826897,
+          "family": "cf-nist-sp800-30r1",
+          "field": "cfe3e99ad0c188bf6e92c1e6e3bc1dcffc519440ac7135d3640b43887e2eda5c",
+          "format": "pdf",
+          "id": "nist-pdf-0003",
+          "index_bytes_written": null,
+          "key": "cross_format:cf-nist-sp800-30r1",
+          "kind": "cross_format",
+          "member": "nist-pdf-0003",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 67106,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 826897,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 369321,
+        "executed": 5,
+        "family": "cf-nist-sp800-30r1",
+        "key": "cross_format:cf-nist-sp800-30r1",
+        "kind": "cross_format",
+        "member": "nist-epub-0004",
+        "member_decodes": 1,
+        "ok": true,
+        "reused": 1,
+        "t": "obs",
+        "work_units": 369326,
+        "xml_parses": 3
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 0.0003043567926448772,
+      "store_bytes": 6473750,
+      "totals": {
+        "index_bytes_written": 7928,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 79816,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 24,
+        "reused": 1,
+        "units": 1202170
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 369097,
+        "executed": 0,
+        "family": "cf-nist-sp800-30r1",
+        "key": "cross_format:cf-nist-sp800-30r1",
+        "kind": "cross_format",
+        "member": "nist-epub-0004",
+        "member_decodes": 1,
+        "ok": true,
+        "reused": 3,
+        "t": "obs",
+        "work_units": 369097,
+        "xml_parses": 3
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 186757,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-34r1",
+            "params": "default",
+            "total_chunks": 6,
+            "total_size": 184954,
+            "unique_bytes": 186757,
+            "unique_chunks": 6
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-34r1",
+            "params": "16",
+            "total_chunks": 6,
+            "total_size": 184954,
+            "unique_bytes": 186757,
+            "unique_chunks": 6
+          },
+          {
+            "deterministic": true,
+            "key": "cross_format:cf-nist-sp800-34r1",
+            "params": "12",
+            "total_chunks": 15,
+            "total_size": 184954,
+            "unique_bytes": 187162,
+            "unique_chunks": 15
+          }
+        ],
+        "saving": -1803,
+        "total_size": 184954
+      },
+      "cold": {
+        "executions": 32,
+        "units": 215838
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0005",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0006",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0007",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0008",
+          "warm": 0
+        }
+      ],
+      "family_id": "cf-nist-sp800-34r1",
+      "intra": {
+        "reused": 0
+      },
+      "key": "cross_format:cf-nist-sp800-34r1",
+      "kind": "cross_format",
+      "members": [
+        {
+          "byte_len": 57045,
+          "family": "cf-nist-sp800-34r1",
+          "field": "3bc1f12e84e9cd692f3fd2ed60bb8f2b6f69871a3d2002d11f5414cc6f5a6348",
+          "format": "docx",
+          "id": "nist-docx-0005",
+          "index_bytes_written": 1658,
+          "key": "cross_format:cf-nist-sp800-34r1",
+          "kind": "cross_format",
+          "member": "nist-docx-0005",
+          "member_count": 13,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 2678,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 57045,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 56935,
+          "family": "cf-nist-sp800-34r1",
+          "field": "5aaa06590df9c1a6e89c07d92818b90da5257ae6f82c1bad0181d2c08bbb9c8a",
+          "format": "docx",
+          "id": "nist-docx-0006",
+          "index_bytes_written": 1658,
+          "key": "cross_format:cf-nist-sp800-34r1",
+          "kind": "cross_format",
+          "member": "nist-docx-0006",
+          "member_count": 13,
+          "nodes_id_shared": 6,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 2150,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 56935,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 42191,
+          "family": "cf-nist-sp800-34r1",
+          "field": "c24c54fce887a059dc3ba3e5818580896e535685137748adb198d4e3d52deebd",
+          "format": "docx",
+          "id": "nist-docx-0007",
+          "index_bytes_written": 1658,
+          "key": "cross_format:cf-nist-sp800-34r1",
+          "kind": "cross_format",
+          "member": "nist-docx-0007",
+          "member_count": 13,
+          "nodes_id_shared": 6,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 2150,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 42191,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 28783,
+          "family": "cf-nist-sp800-34r1",
+          "field": "c48f9f3c2cb86d9305b0c4acddb788bddc4f9b194a7f221a63b8aadbdf873af7",
+          "format": "docx",
+          "id": "nist-docx-0008",
+          "index_bytes_written": 1658,
+          "key": "cross_format:cf-nist-sp800-34r1",
+          "kind": "cross_format",
+          "member": "nist-docx-0008",
+          "member_count": 13,
+          "nodes_id_shared": 6,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 2150,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 28783,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 4,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 36332,
+        "executed": 8,
+        "family": "cf-nist-sp800-34r1",
+        "key": "cross_format:cf-nist-sp800-34r1",
+        "kind": "cross_format",
+        "member": "nist-docx-0008",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 0,
+        "t": "obs",
+        "work_units": 36340,
+        "xml_parses": 2
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 0.0,
+      "store_bytes": 1042434,
+      "totals": {
+        "index_bytes_written": 6632,
+        "nodes_id_shared": 18,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 9128,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 32,
+        "reused": 0,
+        "units": 215838
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 64371,
+        "executed": 0,
+        "family": "cf-nist-sp800-34r1",
+        "key": "cross_format:cf-nist-sp800-34r1",
+        "kind": "cross_format",
+        "member": "nist-docx-0005",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 2,
+        "t": "obs",
+        "work_units": 64371,
+        "xml_parses": 2
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 1778215,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-fips-140",
+            "params": "default",
+            "total_chunks": 5,
+            "total_size": 1776873,
+            "unique_bytes": 1778215,
+            "unique_chunks": 5
+          },
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-fips-140",
+            "params": "16",
+            "total_chunks": 11,
+            "total_size": 1776873,
+            "unique_bytes": 1778509,
+            "unique_chunks": 11
+          },
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-fips-140",
+            "params": "12",
+            "total_chunks": 91,
+            "total_size": 1776873,
+            "unique_bytes": 1782093,
+            "unique_chunks": 91
+          }
+        ],
+        "saving": -1342,
+        "total_size": 1776873
+      },
+      "cold": {
+        "executions": 8,
+        "units": 330889
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-pdf-0016",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-pdf-0017",
+          "warm": 0
+        }
+      ],
+      "family_id": "rev-nist-fips-140",
+      "intra": {
+        "reused": 0
+      },
+      "key": "revision:rev-nist-fips-140",
+      "kind": "revision",
+      "members": [
+        {
+          "byte_len": 310627,
+          "family": "rev-nist-fips-140",
+          "field": "59182bfccab3d493112864150f23d80e963162b9cfdef968db86509b152c4b9c",
+          "format": "pdf",
+          "id": "nist-pdf-0016",
+          "index_bytes_written": null,
+          "key": "revision:rev-nist-fips-140",
+          "kind": "revision",
+          "member": "nist-pdf-0016",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 12534,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 310627,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 1466246,
+          "family": "rev-nist-fips-140",
+          "field": "779c73af56e85062fe7c6b1168e6d84334cec6ef26b79ab2309c9dda3ad9943d",
+          "format": "pdf",
+          "id": "nist-pdf-0017",
+          "index_bytes_written": null,
+          "key": "revision:rev-nist-fips-140",
+          "kind": "revision",
+          "member": "nist-pdf-0017",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 448318,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 1466246,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "heuristic",
+        "bytes_read": 10986,
+        "executed": 3,
+        "family": "rev-nist-fips-140",
+        "key": "revision:rev-nist-fips-140",
+        "kind": "revision",
+        "member": "nist-pdf-0017",
+        "member_decodes": 0,
+        "ok": true,
+        "reused": 0,
+        "t": "obs",
+        "work_units": 10989,
+        "xml_parses": 0
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 0.00045936854957402635,
+      "store_bytes": 30898589,
+      "totals": {
+        "index_bytes_written": 0,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 460852,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 8,
+        "reused": 0,
+        "units": 330737
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "heuristic",
+        "bytes_read": 8521,
+        "executed": 0,
+        "family": "rev-nist-fips-140",
+        "key": "revision:rev-nist-fips-140",
+        "kind": "revision",
+        "member": "nist-pdf-0016",
+        "member_decodes": 0,
+        "ok": true,
+        "reused": 1,
+        "t": "obs",
+        "work_units": 8521,
+        "xml_parses": 0
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 65829248,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-hb44",
+            "params": "default",
+            "total_chunks": 24,
+            "total_size": 83649720,
+            "unique_bytes": 83651975,
+            "unique_chunks": 24
+          },
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-hb44",
+            "params": "16",
+            "total_chunks": 204,
+            "total_size": 83649720,
+            "unique_bytes": 83660797,
+            "unique_chunks": 204
+          },
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-hb44",
+            "params": "12",
+            "total_chunks": 4082,
+            "total_size": 83649720,
+            "unique_bytes": 65829248,
+            "unique_chunks": 2380
+          }
+        ],
+        "saving": 17820472,
+        "total_size": 83649720
+      },
+      "cold": {
+        "executions": 24,
+        "units": 10129848
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-pdf-0013",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-pdf-0014",
+          "warm": 0
+        }
+      ],
+      "family_id": "rev-nist-hb44",
+      "intra": {
+        "reused": 0
+      },
+      "key": "revision:rev-nist-hb44",
+      "kind": "revision",
+      "members": [
+        {
+          "byte_len": 77578129,
+          "family": "rev-nist-hb44",
+          "field": "0ded0dcd01aa38a8d6855011060eb802c1534f191bd92fe4264f9e20ad03a62d",
+          "format": "pdf",
+          "id": "nist-pdf-0013",
+          "index_bytes_written": null,
+          "key": "revision:rev-nist-hb44",
+          "kind": "revision",
+          "member": "nist-pdf-0013",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 1653522,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 77578129,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 6071591,
+          "family": "rev-nist-hb44",
+          "field": "dd4818e1fb4df2a0fbabc0497e158bbd11e79bb28cb4f6e9f3efab864b1be32c",
+          "format": "pdf",
+          "id": "nist-pdf-0014",
+          "index_bytes_written": null,
+          "key": "revision:rev-nist-hb44",
+          "kind": "revision",
+          "member": "nist-pdf-0014",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 684382,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 6071591,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "heuristic",
+        "bytes_read": 6066052,
+        "executed": 19,
+        "family": "rev-nist-hb44",
+        "key": "revision:rev-nist-hb44",
+        "kind": "revision",
+        "member": "nist-pdf-0014",
+        "member_decodes": 0,
+        "ok": true,
+        "reused": 0,
+        "t": "obs",
+        "work_units": 6066071,
+        "xml_parses": 0
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 4.02770110667011e-05,
+      "store_bytes": 136166248,
+      "totals": {
+        "index_bytes_written": 0,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 2337904,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 24,
+        "reused": 0,
+        "units": 10129440
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "heuristic",
+        "bytes_read": 14618,
+        "executed": 0,
+        "family": "rev-nist-hb44",
+        "key": "revision:rev-nist-hb44",
+        "kind": "revision",
+        "member": "nist-pdf-0013",
+        "member_decodes": 0,
+        "ok": true,
+        "reused": 1,
+        "t": "obs",
+        "work_units": 14618,
+        "xml_parses": 0
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 8925016,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-sp800-18",
+            "params": "default",
+            "total_chunks": 9,
+            "total_size": 10367390,
+            "unique_bytes": 10369533,
+            "unique_chunks": 9
+          },
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-sp800-18",
+            "params": "16",
+            "total_chunks": 45,
+            "total_size": 10367390,
+            "unique_bytes": 9373347,
+            "unique_chunks": 39
+          },
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-sp800-18",
+            "params": "12",
+            "total_chunks": 490,
+            "total_size": 10367390,
+            "unique_bytes": 8925016,
+            "unique_chunks": 418
+          }
+        ],
+        "saving": 1442374,
+        "total_size": 10367390
+      },
+      "cold": {
+        "executions": 37,
+        "units": 10453754
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0001",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0002",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0003",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0004",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-pdf-0005",
+          "warm": 0
+        }
+      ],
+      "family_id": "rev-nist-sp800-18",
+      "intra": {
+        "reused": 0
+      },
+      "key": "revision:rev-nist-sp800-18",
+      "kind": "revision",
+      "members": [
+        {
+          "byte_len": 2286200,
+          "family": "rev-nist-sp800-18",
+          "field": "769c0e98bb967c8f6955c1d6cbae0a0dd0a22d639a7f1aa2768f02973cb53158",
+          "format": "docx",
+          "id": "nist-docx-0001",
+          "index_bytes_written": 5178,
+          "key": "revision:rev-nist-sp800-18",
+          "kind": "revision",
+          "member": "nist-docx-0001",
+          "member_count": 45,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 1,
+          "seed_bytes_written": 28288,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 2286200,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 2241851,
+          "family": "rev-nist-sp800-18",
+          "field": "1e7aacf8cbdd990c87f63b2282a6535e9d2e4c356a74408ac24affa08bf8ac72",
+          "format": "docx",
+          "id": "nist-docx-0002",
+          "index_bytes_written": 4628,
+          "key": "revision:rev-nist-sp800-18",
+          "kind": "revision",
+          "member": "nist-docx-0002",
+          "member_count": 40,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 7430,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 2241851,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 2267651,
+          "family": "rev-nist-sp800-18",
+          "field": "60064e8399876fa60d6b0c624e90cd86e5c40a6edcf18aa71d5557e23d9d456e",
+          "format": "docx",
+          "id": "nist-docx-0003",
+          "index_bytes_written": 4958,
+          "key": "revision:rev-nist-sp800-18",
+          "kind": "revision",
+          "member": "nist-docx-0003",
+          "member_count": 43,
+          "nodes_id_shared": 2,
+          "ok": true,
+          "resource_blob_nodes": 1,
+          "seed_bytes_written": 7852,
+          "shared_resource_bytes": 19930,
+          "shared_resource_ids": 1,
+          "source_len": 2267651,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 2258240,
+          "family": "rev-nist-sp800-18",
+          "field": "638b43a7bbac4023dc5d78f8c7edf3faa42ad4891abdd3394822bfcf495468a0",
+          "format": "docx",
+          "id": "nist-docx-0004",
+          "index_bytes_written": 4738,
+          "key": "revision:rev-nist-sp800-18",
+          "kind": "revision",
+          "member": "nist-docx-0004",
+          "member_count": 41,
+          "nodes_id_shared": 2,
+          "ok": true,
+          "resource_blob_nodes": 1,
+          "seed_bytes_written": 7500,
+          "shared_resource_bytes": 19930,
+          "shared_resource_ids": 1,
+          "source_len": 2258240,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 1313448,
+          "family": "rev-nist-sp800-18",
+          "field": "58beb5d9b2d1494a5ff0bfafb8bca2542550ef6578a1df17d084672749530e21",
+          "format": "pdf",
+          "id": "nist-pdf-0005",
+          "index_bytes_written": null,
+          "key": "revision:rev-nist-sp800-18",
+          "kind": "revision",
+          "member": "nist-pdf-0005",
+          "member_count": null,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 68786,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 1313448,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 5,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "heuristic",
+        "bytes_read": 1318454,
+        "executed": 5,
+        "family": "rev-nist-sp800-18",
+        "key": "revision:rev-nist-sp800-18",
+        "kind": "revision",
+        "member": "nist-pdf-0005",
+        "member_decodes": 0,
+        "ok": true,
+        "reused": 0,
+        "t": "obs",
+        "work_units": 1318459,
+        "xml_parses": 0
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 8.800666248698793e-06,
+      "store_bytes": 16760277,
+      "totals": {
+        "index_bytes_written": 19502,
+        "nodes_id_shared": 4,
+        "resource_blob_nodes": 3,
+        "seed_bytes_written": 119856,
+        "shared_resource_bytes": 39860,
+        "shared_resource_ids": 2
+      },
+      "warm": {
+        "executions": 37,
+        "reused": 0,
+        "units": 10453662
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 2307186,
+        "executed": 0,
+        "family": "rev-nist-sp800-18",
+        "key": "revision:rev-nist-sp800-18",
+        "kind": "revision",
+        "member": "nist-docx-0001",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 2,
+        "t": "obs",
+        "work_units": 2307186,
+        "xml_parses": 2
+      }
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 318526,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-sp800-218",
+            "params": "default",
+            "total_chunks": 4,
+            "total_size": 317225,
+            "unique_bytes": 318526,
+            "unique_chunks": 4
+          },
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-sp800-218",
+            "params": "16",
+            "total_chunks": 6,
+            "total_size": 317225,
+            "unique_bytes": 318620,
+            "unique_chunks": 6
+          },
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-sp800-218",
+            "params": "12",
+            "total_chunks": 17,
+            "total_size": 317225,
+            "unique_bytes": 319107,
+            "unique_chunks": 17
+          }
+        ],
+        "saving": -1301,
+        "total_size": 317225
+      },
+      "cold": {
+        "executions": 0,
+        "units": 0
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0011",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0012",
+          "warm": 0
+        }
+      ],
+      "family_id": "rev-nist-sp800-218",
+      "intra": {
+        "reused": 0
+      },
+      "key": "revision:rev-nist-sp800-218",
+      "kind": "revision",
+      "members": [
+        {
+          "byte_len": 162933,
+          "family": "rev-nist-sp800-218",
+          "field": "a622bde77a1d7fdf2a5f05a34085d78530ce71fb69d76b0f003bb745ff7d5321",
+          "format": "docx",
+          "id": "nist-docx-0011",
+          "index_bytes_written": 4078,
+          "key": "revision:rev-nist-sp800-218",
+          "kind": "revision",
+          "member": "nist-docx-0011",
+          "member_count": 35,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 6550,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 162933,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 154292,
+          "family": "rev-nist-sp800-218",
+          "field": "1c63816a8a6cdd5820a5bbfa9534dbee75dca4009b3f0958698eb0d0d5bfbba8",
+          "format": "docx",
+          "id": "nist-docx-0012",
+          "index_bytes_written": 4958,
+          "key": "revision:rev-nist-sp800-218",
+          "kind": "revision",
+          "member": "nist-docx-0012",
+          "member_count": 43,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 7958,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 154292,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 2,
+      "postclear_star": null,
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": null,
+      "store_bytes": 1554931,
+      "totals": {
+        "index_bytes_written": 9036,
+        "nodes_id_shared": 0,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 14508,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 0,
+        "reused": 0,
+        "units": 0
+      },
+      "warm_fresh": null
+    },
+    {
+      "cdc": {
+        "best_unique_bytes": 186727,
+        "runs": [
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-sp800-34",
+            "params": "default",
+            "total_chunks": 6,
+            "total_size": 184954,
+            "unique_bytes": 186727,
+            "unique_chunks": 6
+          },
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-sp800-34",
+            "params": "16",
+            "total_chunks": 6,
+            "total_size": 184954,
+            "unique_bytes": 186727,
+            "unique_chunks": 6
+          },
+          {
+            "deterministic": true,
+            "key": "revision:rev-nist-sp800-34",
+            "params": "12",
+            "total_chunks": 15,
+            "total_size": 184954,
+            "unique_bytes": 187132,
+            "unique_chunks": 15
+          }
+        ],
+        "saving": -1773,
+        "total_size": 184954
+      },
+      "cold": {
+        "executions": 32,
+        "units": 215838
+      },
+      "cross_member_reused": 0,
+      "cross_members": [
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0005",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0006",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0007",
+          "warm": 0
+        },
+        {
+          "cross": 0,
+          "intra": 0,
+          "member": "nist-docx-0008",
+          "warm": 0
+        }
+      ],
+      "family_id": "rev-nist-sp800-34",
+      "intra": {
+        "reused": 0
+      },
+      "key": "revision:rev-nist-sp800-34",
+      "kind": "revision",
+      "members": [
+        {
+          "byte_len": 57045,
+          "family": "rev-nist-sp800-34",
+          "field": "3bc1f12e84e9cd692f3fd2ed60bb8f2b6f69871a3d2002d11f5414cc6f5a6348",
+          "format": "docx",
+          "id": "nist-docx-0005",
+          "index_bytes_written": 1658,
+          "key": "revision:rev-nist-sp800-34",
+          "kind": "revision",
+          "member": "nist-docx-0005",
+          "member_count": 13,
+          "nodes_id_shared": 0,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 2678,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 57045,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 56935,
+          "family": "rev-nist-sp800-34",
+          "field": "5aaa06590df9c1a6e89c07d92818b90da5257ae6f82c1bad0181d2c08bbb9c8a",
+          "format": "docx",
+          "id": "nist-docx-0006",
+          "index_bytes_written": 1658,
+          "key": "revision:rev-nist-sp800-34",
+          "kind": "revision",
+          "member": "nist-docx-0006",
+          "member_count": 13,
+          "nodes_id_shared": 6,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 2150,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 56935,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 42191,
+          "family": "rev-nist-sp800-34",
+          "field": "c24c54fce887a059dc3ba3e5818580896e535685137748adb198d4e3d52deebd",
+          "format": "docx",
+          "id": "nist-docx-0007",
+          "index_bytes_written": 1658,
+          "key": "revision:rev-nist-sp800-34",
+          "kind": "revision",
+          "member": "nist-docx-0007",
+          "member_count": 13,
+          "nodes_id_shared": 6,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 2150,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 42191,
+          "t": "ingest"
+        },
+        {
+          "byte_len": 28783,
+          "family": "rev-nist-sp800-34",
+          "field": "c48f9f3c2cb86d9305b0c4acddb788bddc4f9b194a7f221a63b8aadbdf873af7",
+          "format": "docx",
+          "id": "nist-docx-0008",
+          "index_bytes_written": 1658,
+          "key": "revision:rev-nist-sp800-34",
+          "kind": "revision",
+          "member": "nist-docx-0008",
+          "member_count": 13,
+          "nodes_id_shared": 6,
+          "ok": true,
+          "resource_blob_nodes": 0,
+          "seed_bytes_written": 2150,
+          "shared_resource_bytes": 0,
+          "shared_resource_ids": 0,
+          "source_len": 28783,
+          "t": "ingest"
+        }
+      ],
+      "members_ok": 4,
+      "postclear_star": {
+        "arm": "postclear_star",
+        "basis": "deterministically-derived",
+        "bytes_read": 36332,
+        "executed": 8,
+        "family": "rev-nist-sp800-34",
+        "key": "revision:rev-nist-sp800-34",
+        "kind": "revision",
+        "member": "nist-docx-0008",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 0,
+        "t": "obs",
+        "work_units": 36340,
+        "xml_parses": 2
+      },
+      "postclear_star_delta_above_floor": 0,
+      "retained_inverse_work_fraction": 0.0,
+      "store_bytes": 1042434,
+      "totals": {
+        "index_bytes_written": 6632,
+        "nodes_id_shared": 18,
+        "resource_blob_nodes": 0,
+        "seed_bytes_written": 9128,
+        "shared_resource_bytes": 0,
+        "shared_resource_ids": 0
+      },
+      "warm": {
+        "executions": 32,
+        "reused": 0,
+        "units": 215838
+      },
+      "warm_fresh": {
+        "arm": "warm_fresh",
+        "basis": "deterministically-derived",
+        "bytes_read": 64371,
+        "executed": 0,
+        "family": "rev-nist-sp800-34",
+        "key": "revision:rev-nist-sp800-34",
+        "kind": "revision",
+        "member": "nist-docx-0005",
+        "member_decodes": 2,
+        "ok": true,
+        "reused": 2,
+        "t": "obs",
+        "work_units": 64371,
+        "xml_parses": 2
+      }
+    }
+  ],
+  "schema": "phase15.7-crossroot/1",
+  "totals": {
+    "cdc_best_unique": 425970952,
+    "cdc_saving": 32158196,
+    "cdc_total_size": 458129148,
+    "cold_units": 257940010,
+    "cross_member_reused": 0,
+    "derived_work_avoided_units": 0,
+    "families": 23,
+    "index_bytes_written": 278300,
+    "intra_reused": 30,
+    "members": 56,
+    "members_ok": 56,
+    "nodes_id_shared": 44,
+    "postclear_star_reused": 30,
+    "retained_inverse_work_fraction": 1.5259362050889273e-05,
+    "seed_bytes_written": 15710228,
+    "shared_resource_bytes": 79720,
+    "shared_resource_ids": 4,
+    "store_bytes": 725622538,
+    "warm_fresh_reused": 85,
+    "warm_reused": 30,
+    "warm_units": 257936074
+  }
+}

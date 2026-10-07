@@ -66,18 +66,20 @@ roots.
 ## Persistent document field (`field`)
 
 ```text
-vole-document field-ingest INPUT.voldoc --store DIR [--entropyfs]
-vole-document field-edit   --store DIR --field HEX --page N --content FILE [--entropyfs]
-vole-document observe      --store DIR --field HEX (--page N | --object N | --stream N |
-    --revision N | --byte-range A..B | --metadata | --doc-text | --heading N |
-    --block N | --table N | --cell T:R:C | --resource N | --link N |
-    --spine-item N | --text PATTERN) --kind KIND [--entropyfs]
-vole-document find         --store DIR --field HEX --text PATTERN [--entropyfs]
-vole-document explain      --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs]
-vole-document preview      --store DIR --field HEX --page N [--json] [--entropyfs]
-vole-document materialize  --store DIR --field HEX --exact --output FILE [--entropyfs]
-vole-document cache        --store DIR [--clear] [--entropyfs]
-vole-document field-store-stats --store DIR [--entropyfs]
+vole-document field-ingest INPUT.voldoc --store DIR [--workers N] [--entropyfs | --packed]
+vole-document field-edit   --store DIR --field HEX --page N --content FILE [--entropyfs | --packed]
+vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
+    (--page N | --object N | --stream N | --revision N | --byte-range A..B |
+    --metadata | --doc-text | --heading N | --block N | --table N | --cell T:R:C |
+    --resource N | --link N | --spine-item N | --text PATTERN) --kind KIND
+vole-document observe-batch --store DIR --field HEX [--entropyfs] [--promote[=BYTES]]
+    [--requests FILE|-] [--repeat N]
+vole-document find         --store DIR --field HEX --text PATTERN [--entropyfs | --packed]
+vole-document explain      --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs | --packed]
+vole-document preview      --store DIR --field HEX --page N [--json] [--entropyfs | --packed]
+vole-document materialize  --store DIR --field HEX --exact --output FILE [--entropyfs | --packed]
+vole-document cache        --store DIR [--clear] [--entropyfs | --packed]
+vole-document field-store-stats --store DIR [--entropyfs | --packed]
 ```
 
 - `field-ingest` inverse-proceduralizes one `.voldoc` into a persistent field
@@ -85,12 +87,33 @@ vole-document field-store-stats --store DIR [--entropyfs]
 - `observe` / `find` / `explain` / `preview` answer typed observations with
   provenance; `--kind` is one of
   `metadata|text|structure|operators|encoded|decoded|exact|preview|full`.
+- `observe-batch` serves many observations in **one** process (one JSON answer
+  per line; each request line is the per-observation flag grammar *without*
+  `--store`/`--field`). A resident session, not a wire/decoder change
+  (ADR-0042).
 - `explain --analyze` executes the plan and reports the actual work (bytes read
   by class, nodes executed vs reused, decodes, wall/CPU).
 - `materialize --exact` reconstructs the original bytes from the field alone.
 - `cache --clear` reclaims the disposable derived cache.
+- `--workers N` parallelizes independently decodable ingest work (`N`=absent or
+  `1` is serial, `0` means `available_parallelism`); it requires the **non-default**
+  `parallel` feature, is speed-neutral on the tested corpus, and is exactly
+  deterministic across worker counts (ADR-0044).
+- `--packed` replaces the `seed/` namespace with a packed `fieldpack/` store
+  (ADR-0043); it is mutually exclusive with `--entropyfs`, and `observe-batch`
+  does not support it.
+- `--promote[=BYTES]` opts into the durable, byte-budgeted promotion layer over
+  reused intermediates (Phase 15.6). It is **off by default**, never on the
+  exactness path, and was refuted on the tested corpus (ADR-0046).
+- `--entropyfs` requires a build with the `entropyfs-store` feature.
 
-`--entropyfs` requires a build with the `entropyfs-store` feature.
+## Features relevant to the field
+
+- `parallel` (non-default) enables `--workers`; `field` implies `memmem-scan`.
+- `miniz-simd` enables `miniz_oxide`'s SIMD adler-32 path (output-preserving).
+- `deflate-ablation` builds the `examples/deflate_ablation.rs` harness and pulls
+  the candidate backends (`zlib-rs`, `zune-inflate`); it adds no decoder behavior
+  (ADR-0045).
 
 ## Fine-unit sharing (`field`)
 

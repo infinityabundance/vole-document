@@ -7,8 +7,9 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.16` (Phase 12 — universal multi-format
-document field: PDF + DOCX + EPUB). **Top-level verdict (ADR-0023, the
+**Current release:** `0.1.0-alpha.19` (Phases 13–14 — Phase-13 proposals + `N5`
+gate, the benign-`DOCTYPE` real-EPUB fix, and a partial large-PDF encode fix).
+**Top-level verdict (ADR-0023, the
 authoritative [`FINDINGS.md`](findings.md)):** the current representation stack
 does not beat purpose-built baselines on any measured axis; the durable results
 are byte-exactness, an auditable representation, and the recorded negatives; the
@@ -160,6 +161,35 @@ gate closed**). Plan:
 [`docs/phases/phase-13-plan.md`](../phases/phase-13-plan.md), results:
 [`docs/phases/phase-13-results.md`](../phases/phase-13-results.md).
 
+Phase 15 (branch `phase15`, **staging**) is a **performance programme**: it
+repairs the performance measurement first, then measures whether the economic
+frontier can be earned (ADRs 0042–0048; results
+[`docs/phases/phase-15-results.md`](../phases/phase-15-results.md)). The court is
+**repaired** — the frozen `real100-v1` court now runs on a **release** binary with
+the storage universes split (persistent store / optional standalone descriptor /
+transient ingest), and coverage/exactness are identical to the debug court
+(deterministic): VOLE 455 answered/245 declined, a1 506/194, a0 508/192;
+`materialize --exact` 97/100 (v), 98/100 (a1), 100/100 (a0); persistent
+`2,667,668,262 B`, descriptor `1,704,524,849 B`, A1 db `2,891,784,192 B`. VOLE
+holds two structural cells (`pdf`/`text_repeat`, `docx`/`table`) and loses the
+rest to SQLite/FTS; `exact` loses to the source file; 3 of 5 `>100 MiB` PDFs still
+fail at `encode` (the Phase-14 bound, ADR-0041). **Two structural wins:** the
+**packed seed store** (15.3 — persistent bytes **0.719x**, file count **0.009x**,
+latency parity, identity unchanged; ADR-0043) and **`zlib-rs` decompression**
+(15.5 — **1.58x** GB/s at 1.00x RSS, byte-identical: **meets** the pre-registered
+bar and is **recommended**, not yet adopted; ADR-0045). **Two substantive
+negatives:** **residency** (15.2 — `DocumentFieldSession`/`observe-batch` wins only
+below ~1 MiB, aggregate 7 ms cold vs 9 ms resident, because the cold path's
+`narrow_probe` short-circuit is lost above ~1 MiB; ADR-0042) and **adaptive
+promotion** (15.6 — all three pre-registered falsifiers fire, **0.0%** durable-byte
+cut; the mechanism ships opt-in/default-off; ADR-0046). **One deferral:** the
+**CUDA** batch lane (15.8) is not measured — the bandwidth gate is unopened and
+the pinned Docker lanes cannot see the GPU; ADR-0048. Also recorded negative:
+**durable cross-root derivations** (15.7 — canonical derivation identity shares no
+computed state; `N3` violated again, 0 cross-member reuse; ADR-0047). Bounded
+parallel ingest (15.4) is speed-neutral but exactly deterministic (10/10 across
+every worker count; ADR-0044).
+
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED` / `SUPERSEDED` / `PARTLY DELIVERED`).
 
@@ -238,6 +268,14 @@ gate closed**). Plan:
 | Cross-document proceduralization | 12+ | RECORDED (12.8: representation identity shared; durable **work** reuse negative, `N3`) | byte-level sharing is measured and negative (Phase 9 store: `U` loses to LZ and CDC, ADR-0021; Phase 11.14 finer-than-object units lose to CDC/`tar|xz`, ADR-0028); Phase 12 measured **state-level** sharing: one content-addressed blob shared DOCX↔EPUB, but the warm reuse fraction drops to 0.0 after `cache --clear` |
 | Non-PDF adapters (DOCX/ODT/EPUB/…) | 12 (DOCX/EPUB), 13.3 (ODT) | ADOPTED (DOCX/EPUB/ODT) | adapters over the same core; Phase 12 delivered the DOCX (WordprocessingML) and EPUB (OCF/XHTML) adapters (ADRs 0029–0035); Phase 13.3 delivered the ODT (OpenDocument/ODF) adapter over the shared ZIP + bounded-XML layers (ADR-0038); other formats (XLSX/PPTX/…) remain PROPOSED |
 | ODT (OpenDocument Text) adapter | 13.3 | ADOPTED | ADR-0038; `src/adapter/odt.rs` — an ODF package (ZIP + mandatory stored `mimetype` + `META-INF/manifest.xml`) whose main content part is resolved **semantically** from the ODF manifest (never a hardcoded `content.xml`). Bounded OpenDocument content model (paragraphs/headings/spans/lists/tables/links/bookmarks/notes/images/tracked changes/sections) with a versioned `OdtExtractProfile` (Final/Original/All, notes include/exclude, hidden, tabs, breaks); common vocabulary plus native `odt-part`/`odt-paragraph`/`odt-heading`/`odt-table`/`odt-cell`/`odt-list`/`odt-find`. No new ZIP parser; no decoder behavior. Court `tests/odt_adapter.rs` 9/9 + in-file 6/6: byte-exact (`len`+SHA-256+`cmp`) and queryable after source **and** descriptor deletion in a fresh process; missing/malformed manifest is a typed decline with exactness preserved. Receipt `evidence/campaigns/2026-10-07-phase13-odt-95c486d/` |
+| Court storage-universe split (persistent store / optional standalone descriptor / transient ingest) | 15.1 | ADOPTED (measurement) | the frozen `real100-v1` court re-run on the **release** binary with the three universes reported **separately**, never folded (ADR-0027 extended). Coverage/exactness identical to the debug court (deterministic): v 455/245, a1 506/194, a0 508/192; `materialize --exact` 97/98/100. Storage: VOLE persistent `2,667,668,262 B`, descriptor `1,704,524,849 B`, A1 db `2,891,784,192 B`. Held cells: `pdf`/`text_repeat` (win), `docx`/`table` (win); everything else loses to SQLite/FTS and `exact` loses to the source file. 3 of 5 `>100 MiB` PDFs still fail at `encode` (Phase-14 bound, ADR-0041); `perf` absent from the lane so no perf-class counters are claimed. Campaign `2026-10-07-real100-release-baseline-866f489` |
+| Packed seed store (`fieldpack` backend, `--packed`) | 15.3 | ADOPTED (seed namespace only) | ADR-0043; `NodeId -> (segment, offset, len)` with identity (`NodeId`) unchanged, so field ids are unchanged. Same descriptor into fs vs packed on a 12-document subset: persistent bytes `352,671,955 -> 253,737,799` (**0.719x**), file count `25,574 -> 237` (**0.009x**, 111x fewer), cold wall `1,555 -> 1,541 ms` (**0.991x**, parity); field id identical **12/12**, byte-exact materialize **12/12 both**. Only the **seed** namespace is packed (descriptor/manifest/index/cache stay files). Campaign `2026-10-07-phase15-packed-8c195e8` |
+| Resident `DocumentFieldSession` + `observe-batch` | 15.2 | IMPLEMENTED / RECORDED (negative) | ADR-0042; many observations in one process. NEGATIVE/partial: wins only below ~1 MiB; cold wins at `1-10MiB`/`10-50MiB`/`50-100MiB`; aggregate `text_repeat` cold **7 ms** vs resident **9 ms**. Mechanism: the cold `observe` path runs `narrow_probe` (a per-call manifest + derived-cache short-circuit returning the derived node without the full context) while `observe-batch` always evaluates the full path. Fix identified (hoist `narrow_probe` opens into the session), **not shipped**. `v_r` is the only lane that answers a heterogeneous `session_mixed` batch (informational). Campaign `2026-10-07-real100-release-resident-78f7ea8` |
+| Bounded parallel ingest (`parallel` feature, `--workers N`) | 15.4 | IMPLEMENTED (non-default; speed-neutral, determinism positive) | ADR-0044; `parallel = ["field", "dep:rayon"]`, used only when `--workers > 1`. Median speedup **1.00x at 2/4/8**, **0.99x at 16** (lane capped at `cpus: 8`; 16 oversubscribes); largest PDF ~1.11x at w4. Determinism POSITIVE: field id identical across **every** worker count **10/10** and `materialize --exact` == source **10/10**. One recorded outlier `nist-pdf-0004`. Campaign `2026-10-07-phase15-workers-122c026` |
+| DEFLATE backend ablation (`deflate-ablation`, `miniz-simd`, `memmem-scan`; deps `memchr`/`zlib-rs`/`zune-inflate`) | 15.5 | MEASURED (miniz SIMD ENABLED; zlib-rs RECOMMENDED, not adopted; zune-inflate DISQUALIFIED) | ADR-0045; real `real100-v1` members (52,498 members, 88 docs, 481 MiB compressed / 2,768 MiB decoded); adoption bar >=1.25x GB/s AND <=1.10x RSS vs `miniz_oxide` scalar. `miniz` 1.231 GB/s (ref, 0 mismatches); `miniz-simd` 1.366 (1.11x, 0 mismatches, below bar, now enabled — free/output-preserving); **`zlib-rs` 1.938 (1.58x, 0 mismatches, RSS 1.00x — MEETS the bar, recommended backend swap)**; `zune-inflate` 1.922 (1.56x) with **255 mismatches — DISQUALIFIED for incorrectness**. The scalar PDF `find_endstream` scan was replaced with a reused `memchr::memmem::Finder` (differential tests). Campaign `2026-10-07-phase15-deflate-e676166` |
+| Adaptive procedural promotion (`--promote[=BYTES]`) | 15.6 | IMPLEMENTED (opt-in, default-off) / RECORDED (negative) | ADR-0046; all three pre-registered falsifiers fire: F1 `v_on` never beats `sq_adapt` by >10% at any depth; F2 promoted bytes cut durable bytes **0.0%** (bar 20%) at equal-or-worse latency; F3 best-lane retained cross-revision work **+0.3%** (< 20%). `sq_full` fastest at every depth. Ships opt-in and default-off, never on the exactness path. Campaigns `2026-10-07-phase15-diversity-4786f8e`, `2026-10-07-phase15-revision-4786f8e` |
+| Durable cross-root derivations (canonical derived-work identity) | 15.7 | RECORDED (negative; `N3` violated; not built) | ADR-0047; 23 real families, 56/56 members, one shared `FieldStore` per family; **cross-member derived reuse 0 nodes**; post-`cache --clear` reuse above the intra-observation floor **0**; representation identity shared (44 nodes id-shared, 4 resources, `79,720 B`); borg CDC saved `32,158,196` source bytes vs **0** derived bytes. Measurement-first: **no Rust change**. Campaign `2026-10-07-phase15-crossroot-7429d61` |
+| CUDA batch lane | 15.8 | DEFERRED (not measured) | ADR-0048; the bandwidth gate is unopened; Docker on this host cannot see the GPU (no nvidia runtime registered; `docker info` lists only `runc`); `nvCOMP` is proprietary and not on the `deny.toml` allow-list; the repo requires Docker-reproducible evidence. Recorded as an explicit, reasoned deferral. Design `research/subagents/phase-15/design-15.8-cuda.md` |
 
 The PDF **physical authority** (lexer span cover, structural scanner, revision
 map, and object roles) is `ADOPTED` as of Phase 3 (campaign

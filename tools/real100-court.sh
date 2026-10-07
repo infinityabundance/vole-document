@@ -26,7 +26,7 @@ export LC_ALL=C
 
 SHA=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 STAMP=$(date -u +%Y-%m-%d)
-CAMPAIGN=evidence/campaigns/${STAMP}-real100-frontier-${SHA}
+CAMPAIGN=evidence/campaigns/${STAMP}-real100-${TAG:-frontier}-${SHA}
 RAW=$CAMPAIGN/raw
 WORK=${WORK:-evidence/scratch/real100-frontier-work}
 mkdir -p "$RAW" "$WORK"
@@ -34,15 +34,40 @@ mkdir -p "$RAW" "$WORK"
 MANIFEST=${MANIFEST:-real100-v1/manifest.tsv}
 CORPUS=${CORPUS:-real100-v1/documents}
 SCHEDULE=$RAW/schedule.json
-BIN=${VOLE_BIN:-./target/debug/vole-document}
 BASE=tools/fixtures/phase12-baseline.py
 OP_TIMEOUT=${OP_TIMEOUT:-180}
 REPEAT_N=${REPEAT_N:-5}
 LIMIT=${LIMIT:-0}   # 0 = the full frozen population; >0 caps docs (smoke / bounded run)
+# Build profile. Phase 15 repairs the court: the real100 numbers were taken on an
+# unoptimized debug binary. `PROFILE=release` builds `--release` and measures
+# `target/release/vole-document`. An explicit `BIN` overrides.
+PROFILE=${PROFILE:-debug}
+case "$PROFILE" in
+    release) BUILD_ARGS="--release --locked --all-features"; BIN=${BIN:-target/release/vole-document} ;;
+    *)       BUILD_ARGS="--locked --all-features";           BIN=${BIN:-${VOLE_BIN:-target/debug/vole-document}} ;;
+esac
 
 echo "== real100 frontier court ==" >&2
-echo "-- building all-features binary" >&2
-cargo build --locked --all-features >&2
+echo "-- building ($PROFILE) binary" >&2
+# shellcheck disable=SC2086
+if ! cargo build $BUILD_ARGS >&2; then
+    echo "real100-court: build FAILED ($BUILD_ARGS); refusing to measure" >&2
+    exit 1
+fi
+# Preflight: the adapters must be present. A stale/mis-featured binary (e.g. a
+# previous non-`--all-features` release build left in place after a failed build)
+# silently answers rc=6 for every DOCX/EPUB op; fail loudly instead.
+PREFLIGHT=""
+for cand in real100-v1/documents/nist/docx/*.docx real100-v1/documents/nasa/epub/*.epub; do
+    [ -f "$cand" ] && { PREFLIGHT="$cand"; break; }
+done
+if [ -n "$PREFLIGHT" ]; then
+    expect=$(case "$PREFLIGHT" in *.docx) echo docx ;; *) echo epub ;; esac)
+    if ! "$BIN" capabilities "$PREFLIGHT" 2>/dev/null | grep -q "\"adapter\":\"$expect\""; then
+        echo "real100-court: preflight failed — $BIN does not support $expect; refusing to measure" >&2
+        exit 1
+    fi
+fi
 
 echo "-- verifying the frozen corpus (SHA-256 + length + format)" >&2
 if ! sh tools/realcorpus/verify.sh --corpus real100-v1 >"$RAW/verify.txt" 2>&1; then
@@ -130,7 +155,7 @@ submit() { # docid agency fmt sizeclass workload lane rc wall
 }
 
 printf 'id\tagency\tfmt\tsclass\tworkload\tlane\trc\twall_ms\n' >"$RAW/ops.tsv"
-printf 'id\tagency\tfmt\tsclass\tblen\tvenc_rc\tvenc_ms\tving_rc\tving_ms\tv_bytes\ta1_build_rc\ta1_build_ms\ta1_bytes\n' >"$RAW/onetime.tsv"
+printf 'id\tagency\tfmt\tsclass\tblen\tvenc_rc\tvenc_ms\tving_rc\tving_ms\tv_desc_bytes\tv_store_bytes\tv_transient_bytes\ta1_build_rc\ta1_build_ms\ta1_bytes\n' >"$RAW/onetime.tsv"
 printf 'id\tagency\tfmt\tsclass\tv_ok\tv_rc\tv_wall\ta1_ok\ta1_rc\ta1_wall\ta0_ok\ta0_wall\n' >"$RAW/exact.tsv"
 
 # --- main loop -------------------------------------------------------------
@@ -150,7 +175,9 @@ while IFS=$'\t' read -r id agency fmt path sha blen sclass tags family; do
     timeout "$OP_TIMEOUT" "$BIN" encode "$src" "$d/v.voldoc" >"$d/encode.json" 2>"$d/encode.err"; venc_rc=$?
     t1=$(now_ms); venc=$(( t1-t0 ))
     field=""
-    ving=-1; v_ok=0
+    # Reset BOTH ingest fields: when encode fails we skip ingest entirely, and a
+    # stale `ving_rc` from the previous document would otherwise be reported.
+    ving=-1; ving_rc=-1; v_ok=0
     if [ "$venc_rc" -eq 0 ]; then
         t0=$(now_ms)
         timeout "$OP_TIMEOUT" "$BIN" field-ingest "$d/v.voldoc" --store "$d/vstore" >"$d/ingest.json" 2>"$d/ingest.err"; ving_rc=$?
@@ -164,10 +191,16 @@ while IFS=$'\t' read -r id agency fmt path sha blen sclass tags family; do
     timeout "$OP_TIMEOUT" python3 "$BASE" build --format "$fmt" --source "$src" --db "$d/a1.db" --metrics "$d/a1.build.metrics.json" >"$d/a1.build.json" 2>"$d/a1.build.err"; a1b_rc=$?
     t1=$(now_ms); a1b=$(( t1-t0 ))
 
-    vbytes=$(du -sb "$d/v.voldoc" "$d/vstore" 2>/dev/null | awk '{s+=$1} END{print s+0}')
+    # Storage universes (ADR-0027 extended): the persistent footprint the field
+    # needs after `field-ingest` (the store alone — the standalone `.voldoc` may be
+    # deleted), the optional standalone descriptor, and the transient ingest total.
+    v_desc_bytes=$(du -sb "$d/v.voldoc" 2>/dev/null | awk '{print $1+0}')
+    v_store_bytes=$(du -sb "$d/vstore" 2>/dev/null | awk '{print $1+0}')
+    v_transient_bytes=$(( v_desc_bytes + v_store_bytes ))
     a1bytes=$(du -sb "$d/a1.db" 2>/dev/null | awk '{s+=$1} END{print s+0}')
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$id" "$agency" "$fmt" "$sclass" "$blen" "$venc_rc" "$venc" "$ving_rc" "$ving" "$vbytes" "$a1b_rc" "$a1b" "$a1bytes" >>"$RAW/onetime.tsv"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$id" "$agency" "$fmt" "$sclass" "$blen" "$venc_rc" "$venc" "$ving_rc" "$ving" \
+        "$v_desc_bytes" "$v_store_bytes" "$v_transient_bytes" "$a1b_rc" "$a1b" "$a1bytes" >>"$RAW/onetime.tsv"
 
     # ---- per-op lanes -----------------------------------------------------
     for w in text_once heading table resource metadata; do
@@ -189,6 +222,41 @@ while IFS=$'\t' read -r id agency fmt path sha blen sclass tags family; do
         done
         submit "$id" "$agency" "$fmt" "$sclass" "text_repeat" "$lane" "$lastrc" "$total"
     done
+
+    # ---- resident session (15.2): many observations in ONE process -------
+    # The cold `text_repeat` above pays process spawn + field open + manifest/
+    # descriptor read + BLAKE3 + parse on every one of REPEAT_N processes. The
+    # resident lane does the same REPEAT_N observations through one
+    # `observe-batch` process, so the two rows are directly comparable. The
+    # mixed-session row witnesses a heterogeneous batch (text/heading/table/
+    # resource/metadata) inside a single process; no cold or SQLite lane answers
+    # it, so it is informational, not a verdict.
+    if [ "$v_ok" -eq 1 ]; then
+        rline=$(v_argv "$fmt" text_once)
+        if [ "$rline" != DECLINE ]; then
+            printf '%s\n' "${rline#observe }" >"$d/vr.repeat.reqs"
+            t0=$(now_ms)
+            timeout "$OP_TIMEOUT" "$BIN" observe-batch --store "$d/vstore" --field "$field" \
+                --requests "$d/vr.repeat.reqs" --repeat "$REPEAT_N" >"$d/vr.repeat.jsonl" 2>"$d/vr.repeat.err"
+            RC=$?; t1=$(now_ms)
+            submit "$id" "$agency" "$fmt" "$sclass" "text_repeat" "v_r" "$RC" "$(( t1-t0 ))"
+        else
+            submit "$id" "$agency" "$fmt" "$sclass" "text_repeat" "v_r" 3 0
+        fi
+        : >"$d/vr.session.reqs"
+        for w in text_once heading table resource metadata; do
+            a=$(v_argv "$fmt" "$w"); [ "$a" = DECLINE ] && continue
+            printf '%s\n' "${a#observe }" >>"$d/vr.session.reqs"
+        done
+        t0=$(now_ms)
+        timeout "$OP_TIMEOUT" "$BIN" observe-batch --store "$d/vstore" --field "$field" \
+            --requests "$d/vr.session.reqs" >"$d/vr.session.jsonl" 2>"$d/vr.session.err"
+        RC=$?; t1=$(now_ms)
+        submit "$id" "$agency" "$fmt" "$sclass" "session_mixed" "v_r" "$RC" "$(( t1-t0 ))"
+    else
+        submit "$id" "$agency" "$fmt" "$sclass" "text_repeat"   "v_r" 3 0
+        submit "$id" "$agency" "$fmt" "$sclass" "session_mixed" "v_r" 3 0
+    fi
 
     # ---- exact reconstruction -------------------------------------------
     # V: materialize byte-exactly from the store.

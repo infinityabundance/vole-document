@@ -1,0 +1,3 @@
+{"key": "revision:rev-nist-fips-140", "params": "default", "unique_bytes": 1778215, "total_size": 1776873, "unique_chunks": 5, "total_chunks": 5, "deterministic": true}
+{"key": "revision:rev-nist-fips-140", "params": "16", "unique_bytes": 1778509, "total_size": 1776873, "unique_chunks": 11, "total_chunks": 11, "deterministic": true}
+{"key": "revision:rev-nist-fips-140", "params": "12", "unique_bytes": 1782093, "total_size": 1776873, "unique_chunks": 91, "total_chunks": 91, "deterministic": true}

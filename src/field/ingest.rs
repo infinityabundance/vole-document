@@ -30,7 +30,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::adapter::pdf::cos::FilterClass;
 use crate::adapter::pdf::lexer::lex;
-use crate::adapter::pdf::physical::{PdfPhysical, scan};
+use crate::adapter::pdf::physical::{PdfPhysical, PdfStreamSpan, scan};
 use crate::adapter::pdf::span::{Span, SpanKind};
 use crate::container::observation::{ObservationIndex, OpEntry, SECTION_OP_TABLE};
 use crate::container::{Descriptor, ParsedDescriptor};
@@ -44,7 +44,10 @@ use crate::field::manifest::FieldRoot;
 use crate::field::node::{MAX_NODE_DEPS, NodeKind, SeedNode, object_params, u32_params};
 use crate::field::{Field, FieldId, FieldStore};
 use crate::limits::Limits;
+use crate::parallel::WorkerPool;
 use crate::store::NodeId;
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 /// Hard cap on seed nodes one ingest may add.
 pub const MAX_INGEST_NODES: u64 = 1 << 20;
@@ -119,6 +122,19 @@ pub fn ingest_pdf(
     descriptor_bytes: &[u8],
     limits: Limits,
 ) -> Result<IngestReport> {
+    ingest_pdf_with(store, descriptor_bytes, limits, None)
+}
+
+/// As [`ingest_pdf`], but with an optional bounded worker pool for the pure,
+/// order-independent Stage-B work (per-stream inflate, `/ObjStm` decode). `None`
+/// is byte-for-byte the serial path; the merge fold always runs serially in
+/// physical order, so the pool can never change a node id, a counter, or a limit.
+pub fn ingest_pdf_with(
+    store: &mut FieldStore,
+    descriptor_bytes: &[u8],
+    limits: Limits,
+    pool: Option<&WorkerPool>,
+) -> Result<IngestReport> {
     // Stage A: the exact descriptor blob, the DocumentExact root, and a manifest.
     // The stored blob gains a minimal advisory observation-index op table when it
     // lacks one, so a later narrow observation can use the seek-based partial
@@ -138,7 +154,7 @@ pub fn ingest_pdf(
     let mut acc = StageB::new(manifest.node_count);
     let scanned = match scan(&source, limits) {
         Ok(physical) => {
-            run_stage_b(store, &source, &physical, limits, &mut acc)?;
+            run_stage_b(store, &source, &physical, limits, pool, &mut acc)?;
             true
         }
         Err(_) => false,
@@ -225,17 +241,35 @@ pub fn ingest(
     descriptor_bytes: &[u8],
     limits: Limits,
 ) -> Result<IngestOutcome> {
+    ingest_with(store, descriptor_bytes, limits, None)
+}
+
+/// As [`ingest`], but with an optional bounded worker pool threaded into whichever
+/// adapter runs. `None` is byte-for-byte the serial path.
+#[cfg(feature = "package")]
+pub fn ingest_with(
+    store: &mut FieldStore,
+    descriptor_bytes: &[u8],
+    limits: Limits,
+    pool: Option<&WorkerPool>,
+) -> Result<IngestOutcome> {
     let parsed = crate::container::Descriptor::parse(descriptor_bytes, limits)?;
     let source = crate::materialize::materialize(&parsed, limits)?;
     if crate::field::document_format::is_zip(&source, limits) {
         Ok(IngestOutcome::Package(
-            crate::field::ingest_package::ingest_package(store, descriptor_bytes, limits)?,
+            crate::field::ingest_package::ingest_package_with(
+                store,
+                descriptor_bytes,
+                limits,
+                pool,
+            )?,
         ))
     } else {
-        Ok(IngestOutcome::Pdf(ingest_pdf(
+        Ok(IngestOutcome::Pdf(ingest_pdf_with(
             store,
             descriptor_bytes,
             limits,
+            pool,
         )?))
     }
 }
@@ -473,6 +507,7 @@ fn run_stage_b(
     source: &[u8],
     physical: &PdfPhysical,
     limits: Limits,
+    pool: Option<&WorkerPool>,
     acc: &mut StageB,
 ) -> Result<()> {
     // Exact indirect-object spans.
@@ -525,8 +560,12 @@ fn run_stage_b(
         })?;
     }
 
-    // Encoded stream spans, plus one eager decode for a lone Flate stream.
-    for stream in &physical.streams {
+    // Encoded stream spans, plus one eager decode for a lone Flate stream. The
+    // decoded length of every candidate is learned up front (pure, order-free);
+    // the running `MAX_TOTAL_DECODED` gate below still runs serially in stream
+    // order, so the pool can never change which streams are admitted.
+    let lengths = decode_lengths(pool, source, physical, limits);
+    for (i, stream) in physical.streams.iter().enumerate() {
         let (Some((number, generation)), Some((offset, len))) = (
             identity32(stream.object, stream.generation),
             span32(stream.data_start, stream.data_len),
@@ -557,7 +596,7 @@ fn run_stage_b(
         if stream.filter != FilterClass::FlateDecode {
             continue;
         }
-        match try_decode_len(source, stream.data_start, stream.data_len, limits) {
+        match lengths[i] {
             Some(decoded_len)
                 if acc
                     .total_decoded
@@ -585,7 +624,39 @@ fn run_stage_b(
         }
     }
 
-    recover_pages(store, source, physical, limits, acc)
+    recover_pages(store, source, physical, limits, pool, acc)
+}
+
+/// The exact decoded length of every stream, in physical order.
+///
+/// Only a lone `/FlateDecode` stream is inflated, and only to learn its length;
+/// the decoded bytes are discarded. This is a pure function of the immutable
+/// inputs, so it may run on a worker pool. Indexed `par_iter().collect()`
+/// preserves order, so `lengths[i]` is stream `i`'s length whether the pool is
+/// used or not.
+///
+/// The running `MAX_TOTAL_DECODED` gate is deliberately **not** applied here: it
+/// is replayed serially by [`run_stage_b`], in stream order.
+fn decode_lengths(
+    pool: Option<&WorkerPool>,
+    source: &[u8],
+    physical: &PdfPhysical,
+    limits: Limits,
+) -> Vec<Option<u64>> {
+    let compute = |s: &PdfStreamSpan| {
+        if s.filter == FilterClass::FlateDecode {
+            try_decode_len(source, s.data_start, s.data_len, limits)
+        } else {
+            None
+        }
+    };
+    #[cfg(feature = "parallel")]
+    if let Some(p) = pool.filter(|p| p.workers() > 1) {
+        return p.install(|| physical.streams.par_iter().map(compute).collect());
+    }
+    #[cfg(not(feature = "parallel"))]
+    let _ = pool;
+    physical.streams.iter().map(compute).collect()
 }
 
 /// Best-effort page-tree recovery: `/Root` catalog → `/Pages` → `/Kids` → `/Page`.
@@ -600,6 +671,7 @@ fn recover_pages(
     source: &[u8],
     physical: &PdfPhysical,
     limits: Limits,
+    pool: Option<&WorkerPool>,
     acc: &mut StageB,
 ) -> Result<()> {
     if physical.objects.is_empty() {
@@ -631,84 +703,54 @@ fn recover_pages(
     // Index object streams: map each contained object number to its body range
     // inside the retained decoded buffer. A stream with no decoded node is
     // skipped outright -- the bytes are never guessed at.
+    //
+    // Candidate selection is pure and cheap (no inflate); the expensive pure work
+    // (inflate, header parse, and the per-buffer lex) runs on the pool. The result
+    // is index-aligned with `physical.streams`, so the serial fold below keeps the
+    // `MAX_OBJSTM`/`MAX_OBJSTM_BYTES` caps and the `buffers`/`objstm` insertion
+    // order identical to the serial path.
+    let mut inputs: Vec<Option<ObjStmInput>> = Vec::with_capacity(physical.streams.len());
+    for stream in &physical.streams {
+        inputs.push(objstm_input(
+            source,
+            stream,
+            &decoded_by_object,
+            &obj_index,
+            &containers,
+            &spans,
+        ));
+    }
+    let precomputed = precompute_objstm(pool, source, &inputs, limits);
+
     let mut buffers: Vec<ObjStmBuf> = Vec::new();
     let mut objstm: BTreeMap<u64, Resolved> = BTreeMap::new();
     let mut total_objstm: u64 = 0;
-    for stream in &physical.streams {
+    for pre in precomputed.into_iter().flatten() {
         if buffers.len() >= MAX_OBJSTM {
             break;
         }
-        let Ok(number32) = u32::try_from(stream.object) else {
-            continue;
-        };
-        let Some(&(_node, decoded_len)) = decoded_by_object.get(&number32) else {
-            continue;
-        };
-        let Some(&idx) = obj_index.get(&stream.object) else {
-            continue;
-        };
-        let Some((is_array, lo, hi)) = containers[idx] else {
-            continue;
-        };
-        if is_array {
-            continue;
-        }
-        let win = span_window(&spans, lo, hi);
-        if top_level_name_value(source, win, lo, hi, b"Type") != Some(&b"ObjStm"[..]) {
-            continue;
-        }
-        let (Some(start), Some(end)) = (
-            usize::try_from(stream.data_start).ok(),
-            stream
-                .data_start
-                .checked_add(stream.data_len)
-                .and_then(|e| usize::try_from(e).ok()),
-        ) else {
-            continue;
-        };
-        let Some(encoded) = source.get(start..end) else {
-            continue;
-        };
-        let Ok(decoded) = crate::field::derive::inflate_zlib(encoded, decoded_len, limits) else {
-            continue;
-        };
-        if decoded.is_empty() {
-            continue;
-        }
+        let decoded = pre.decoded;
         let Some(total) = total_objstm.checked_add(decoded.len() as u64) else {
             continue;
         };
         if total > MAX_OBJSTM_BYTES {
             continue;
         }
-        let Some(n) = top_level_integer_value(source, win, lo, hi, b"N") else {
-            continue;
-        };
-        if n == 0 || n > MAX_OBJSTM_OBJECTS as u64 {
-            continue;
-        }
-        let first = top_level_integer_value(source, win, lo, hi, b"First");
-        let Some(pairs) = parse_objstm_header(&decoded, first, n as usize) else {
-            continue;
-        };
-        let Ok(decoded_lexed) = lex(&decoded, limits) else {
-            continue;
-        };
-        let buf_spans = decoded_lexed.spans.spans;
+        let len = decoded.len() as u64;
         // Per spec the pair offsets are relative to `/First` (the header end);
         // when `/First` is absent the offsets are treated as absolute.
-        let base = first.unwrap_or(0);
+        let base = pre.first.unwrap_or(0);
         let buf_index = buffers.len();
-        let len = decoded.len() as u64;
-        let mut entries: Vec<(u64, Resolved)> = Vec::with_capacity(pairs.len());
-        for (i, &(object, offset)) in pairs.iter().enumerate() {
+        let mut entries: Vec<(u64, Resolved)> = Vec::with_capacity(pre.pairs.len());
+        for (i, &(object, offset)) in pre.pairs.iter().enumerate() {
             if object == 0 {
                 continue;
             }
             let Some(body_lo) = base.checked_add(offset) else {
                 continue;
             };
-            let body_hi = pairs
+            let body_hi = pre
+                .pairs
                 .get(i + 1)
                 .and_then(|&(_, next)| base.checked_add(next))
                 .filter(|&next| next >= body_lo && next <= len)
@@ -717,7 +759,7 @@ fn recover_pages(
                 continue;
             }
             let Some((body_is_array, clo, chi)) =
-                leading_container(span_window(&buf_spans, body_lo, body_hi))
+                leading_container(span_window(&pre.spans, body_lo, body_hi))
             else {
                 continue;
             };
@@ -736,7 +778,7 @@ fn recover_pages(
         }
         buffers.push(ObjStmBuf {
             bytes: decoded,
-            spans: buf_spans,
+            spans: pre.spans,
         });
         total_objstm = total;
         for (object, resolved) in entries {
@@ -902,6 +944,108 @@ fn recover_pages(
     }
 
     Ok(())
+}
+
+/// The cheap, store-free inputs needed to inflate and parse one candidate
+/// `/ObjStm`, gathered during serial candidate selection.
+struct ObjStmInput {
+    /// Payload byte range in the source.
+    start: usize,
+    end: usize,
+    /// The exact decoded length already learned by Stage B.
+    decoded_len: u64,
+    /// The object-stream header fields read from the source dictionary.
+    first: Option<u64>,
+    n: u64,
+}
+
+/// The expensive, pure result for one `/ObjStm`: its inflated bytes, their
+/// lexical cover, the parsed header pairs, and `/First`.
+struct ObjStmPre {
+    decoded: Vec<u8>,
+    spans: Vec<Span>,
+    pairs: Vec<(u64, u64)>,
+    first: Option<u64>,
+}
+
+/// Test whether `stream` is a candidate `/ObjStm` and, if so, gather the inputs
+/// needed to inflate and parse it. Pure: no store, no counters.
+///
+/// The `/N` bound is checked here (before the inflate) rather than after it, as
+/// the serial path did; that changes only how much work a rejected stream costs,
+/// never the outcome, since a rejected stream is skipped either way.
+fn objstm_input(
+    source: &[u8],
+    stream: &PdfStreamSpan,
+    decoded_by_object: &BTreeMap<u32, (NodeId, u64)>,
+    obj_index: &BTreeMap<u64, usize>,
+    containers: &[Option<(bool, u64, u64)>],
+    spans: &[Span],
+) -> Option<ObjStmInput> {
+    let number32 = u32::try_from(stream.object).ok()?;
+    let &(_node, decoded_len) = decoded_by_object.get(&number32)?;
+    let &idx = obj_index.get(&stream.object)?;
+    let (is_array, lo, hi) = containers[idx]?;
+    if is_array {
+        return None;
+    }
+    let win = span_window(spans, lo, hi);
+    if top_level_name_value(source, win, lo, hi, b"Type") != Some(&b"ObjStm"[..]) {
+        return None;
+    }
+    let n = top_level_integer_value(source, win, lo, hi, b"N")?;
+    if n == 0 || n > MAX_OBJSTM_OBJECTS as u64 {
+        return None;
+    }
+    let start = usize::try_from(stream.data_start).ok()?;
+    let end = stream
+        .data_start
+        .checked_add(stream.data_len)
+        .and_then(|e| usize::try_from(e).ok())?;
+    let first = top_level_integer_value(source, win, lo, hi, b"First");
+    Some(ObjStmInput {
+        start,
+        end,
+        decoded_len,
+        first,
+        n,
+    })
+}
+
+/// Inflate and lex every candidate `/ObjStm`, in parallel but index-aligned with
+/// `inputs` (indexed `par_iter().collect()` preserves order). Pure: the inflated
+/// bytes are owned and no store, counter, or cache is touched. The running
+/// `MAX_OBJSTM*` caps are **not** applied here; they are replayed serially.
+fn precompute_objstm(
+    pool: Option<&WorkerPool>,
+    source: &[u8],
+    inputs: &[Option<ObjStmInput>],
+    limits: Limits,
+) -> Vec<Option<ObjStmPre>> {
+    let compute = |input: &Option<ObjStmInput>| -> Option<ObjStmPre> {
+        let input = input.as_ref()?;
+        let encoded = source.get(input.start..input.end)?;
+        let inflated = crate::field::derive::inflate_zlib(encoded, input.decoded_len, limits);
+        let decoded = inflated.ok()?;
+        if decoded.is_empty() {
+            return None;
+        }
+        let pairs = parse_objstm_header(&decoded, input.first, input.n as usize)?;
+        let lexed = lex(&decoded, limits).ok()?;
+        Some(ObjStmPre {
+            decoded,
+            spans: lexed.spans.spans,
+            pairs,
+            first: input.first,
+        })
+    };
+    #[cfg(feature = "parallel")]
+    if let Some(p) = pool.filter(|p| p.workers() > 1) {
+        return p.install(|| inputs.par_iter().map(compute).collect());
+    }
+    #[cfg(not(feature = "parallel"))]
+    let _ = pool;
+    inputs.iter().map(compute).collect()
 }
 
 /// One decoded object stream retained for byte-level page recovery.
@@ -1583,6 +1727,72 @@ mod tests {
     fn ingest(store: &mut FieldStore, pdf: &[u8]) -> IngestReport {
         let descriptor = opaque_descriptor(pdf);
         ingest_pdf(store, &descriptor, Limits::DEFAULT).unwrap()
+    }
+
+    /// Ingest `pdf` once serial and once with a `workers`-thread pool, and assert
+    /// the two runs are byte-identical: the same report (node ids, counters, field
+    /// id) and the same exact materialization as the source.
+    #[cfg(feature = "parallel")]
+    fn assert_parallel_matches_serial(label: &str, pdf: &[u8], workers: usize) {
+        use crate::parallel::WorkerPool;
+
+        let descriptor = opaque_descriptor(pdf);
+        let serial_root = temp_root(&format!("{label}-serial"));
+        let par_root = temp_root(&format!("{label}-parallel"));
+
+        let mut serial_store = FieldStore::open(&serial_root).unwrap();
+        let serial = ingest_pdf(&mut serial_store, &descriptor, Limits::DEFAULT).unwrap();
+
+        let mut par_store = FieldStore::open(&par_root).unwrap();
+        let pool = WorkerPool::new(workers).unwrap();
+        let parallel =
+            ingest_pdf_with(&mut par_store, &descriptor, Limits::DEFAULT, Some(&pool)).unwrap();
+
+        assert!(
+            serial == parallel,
+            "{label}: parallel report must match serial"
+        );
+
+        let serial_field = Field::open(&serial_store, &serial.field, Limits::DEFAULT).unwrap();
+        let par_field = Field::open(&par_store, &parallel.field, Limits::DEFAULT).unwrap();
+        let serial_bytes = serial_field.materialize_exact(Limits::DEFAULT).unwrap();
+        let par_bytes = par_field.materialize_exact(Limits::DEFAULT).unwrap();
+        assert_eq!(serial_bytes, par_bytes, "{label}: exact bytes must match");
+        assert_eq!(par_bytes, pdf, "{label}: exact bytes must equal the source");
+        assert_eq!(
+            crate::integrity::sha256(&par_bytes),
+            crate::integrity::sha256(pdf)
+        );
+
+        fs::remove_dir_all(&serial_root).ok();
+        fs::remove_dir_all(&par_root).ok();
+    }
+
+    /// The parallel path must be byte-identical to serial, for the rank-1
+    /// (per-stream inflate) and rank-2 (`/ObjStm` decode + lex) sites.
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn parallel_ingest_is_byte_identical_to_serial() {
+        assert_parallel_matches_serial("pdf", &fixture_pdf(), 4);
+        assert_parallel_matches_serial("pdf-nested", &fixture_pdf_nested_type(), 4);
+        assert_parallel_matches_serial("pdf-unfiltered", &fixture_pdf_unfiltered(), 2);
+        assert_parallel_matches_serial("pdf-objstm", &fixture_pdf_objstm(), 4);
+        assert_parallel_matches_serial("pdf-objstm-shadowed", &fixture_pdf_objstm_shadowed(), 8);
+    }
+
+    /// The rank-1 length table is exactly the serial one whatever the pool: the
+    /// indexed collect preserves physical order, which is what makes the running
+    /// `MAX_TOTAL_DECODED` gate (replayed serially in `run_stage_b`) order-safe.
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn decoded_lengths_are_identical_with_and_without_a_pool() {
+        use crate::parallel::WorkerPool;
+        let pdf = fixture_pdf_objstm();
+        let physical = scan(&pdf, Limits::DEFAULT).unwrap();
+        let serial = decode_lengths(None, &pdf, &physical, Limits::DEFAULT);
+        let pool = WorkerPool::new(4).unwrap();
+        let parallel = decode_lengths(Some(&pool), &pdf, &physical, Limits::DEFAULT);
+        assert!(serial == parallel, "length table must be pool-independent");
     }
 
     #[test]

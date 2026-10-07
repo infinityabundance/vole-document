@@ -1,0 +1,7 @@
+court: tools/phase15-revision-court.sh
+FAMILIES="rev-nist-sp800-34 rev-nist-sp800-218 rev-nist-fips-140"
+PER_TYPE=6 PROFILE=release PROMOTE_SUFFIX=""
+BIN=target/release/vole-document
+shared: encode R1 -> field-ingest into a fresh root; observe-batch stream; encode R2 -> field-ingest same root; observe-batch stream
+cold:   encode R2 -> field-ingest fresh root; observe-batch stream
+sqlite: phase12 build (R1) + phase12 build (R2 fresh) -- fair per-revision REBUILD

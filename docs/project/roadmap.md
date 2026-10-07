@@ -16,6 +16,23 @@ Phase 13 closes the remaining Phase-12 proposals and the last open gate. Plan:
 | Byte-level partial-materialization checkpoints | The random-access `view`/seek lane was measured (ADR-0018/0019), but literal byte-level checkpoint records were never built. Do they pay their framing cost? | Unknown | **Measured 13.4 — recorded negative** (ADR-0039): byte-exact and advisory (lying/corrupt checkpoints rejected, reader falls back), but the per-op table is redundant with the observation index and *larger* than the index record it replaces (+259 to +1,159 B per byte-range query, identical op work) |
 | `N5` package-index-only gate | Is the small-document win reproducible by `unzip -p` + `substr` at the same boundary? The A3/A4 ladder rungs are evidence against it; the mechanical check remains open. | Evidence suggests the field adds value | **Measured 13.5 — falsified** (gate closed): the literal mechanical control (`zipfile.read` + byte substring) answers **0/72** structural selectors while the field answers **72/72** (`2026-10-07-phase13-n5-21948bd`) |
 
+## Phase-15 outcomes
+
+Phase 15 is a performance programme: repair the measurement, then measure the
+frontier. Plan: [phase-15-plan.md](../phases/phase-15-plan.md); results:
+[phase-15-results.md](../phases/phase-15-results.md).
+
+| Item | Question | Outcome |
+|---|---|---|
+| 15.1 Court repair | Re-run the frozen `real100-v1` court on the **release** binary with the storage universes split | **Repaired** (measurement): coverage/exactness identical to the debug court (deterministic); VOLE holds `pdf`/`text_repeat` + `docx`/`table`, loses the rest; persistent `2,667,668,262 B` / descriptor `1,704,524,849 B` / A1 db `2,891,784,192 B`; 3 of 5 `>100 MiB` PDFs still fail at `encode` (`2026-10-07-real100-release-baseline-866f489`) |
+| 15.2 Resident runtime | Does a resident session + `observe-batch` beat the cold lane? | **Measured — recorded negative/partial** (ADR-0042): wins only below ~1 MiB; cold 7 ms vs resident 9 ms aggregate; mechanism = lost `narrow_probe` short-circuit |
+| 15.3 Packed seed store | Does a packed `fieldpack` backend beat one-file-per-node? | **Measured — adopted (seed namespace only)** (ADR-0043): persistent bytes 0.719×, file count 0.009×, latency parity, identity unchanged |
+| 15.4 Parallel ingest | Does a bounded worker pool speed up ingest deterministically? | **Measured — implemented, non-default** (ADR-0044): speed-neutral (1.00× at 2/4/8); determinism positive (10/10 across every worker count) |
+| 15.5 DEFLATE ablation | Which correct safe-Rust inflate is fastest? | **Measured — recommendation** (ADR-0045): `miniz-simd` enabled (1.11×); `zlib-rs` meets the bar (1.58×, RSS-neutral, byte-identical) and is recommended but **not adopted**; `zune-inflate` disqualified (255 mismatches) |
+| 15.6 Adaptive promotion | Does an adaptive promotion governor beat SQLite on diversity/revision? | **Measured — recorded negative** (ADR-0046): all three pre-registered falsifiers fire; mechanism ships opt-in/default-off |
+| 15.7 Durable cross-root derivations | Does canonical derived-work identity satisfy `N3`? | **Measured — recorded negative** (ADR-0047): `N3` violated again, 0 cross-member reuse; no Rust change made |
+| 15.8 CUDA batch lane | Does a GPU batch inflate lane pay? | **Deferred, not measured** (ADR-0048): gate unopened; the pinned Docker lanes cannot see the GPU; `nvCOMP` proprietary; Docker-only evidence required |
+
 ## Unmeasured gates
 
 - `N4` (decline-rate threshold): no pre-registered threshold exists, so it is
@@ -43,7 +60,10 @@ item 1 has since been measured (a recorded negative, ADR-0028).
 Whole-file compression (0/27, ADR-0017); seek bytes-read versus fine-block
 formats (ADR-0019); cross-document sharing at object granularity (ADR-0021) and
 finer-than-object granularity (ADR-0028); cross-document durable work reuse
-(ADR-0034, `N3`); encoder-only parametric search as a byte win (ADR-0022). See
+(ADR-0034/0035, `N3`; re-violated with canonical derivation identity in Phase
+15.7, ADR-0047); encoder-only parametric search as a byte win (ADR-0022);
+adaptive procedural promotion on the tested corpus (ADR-0046); residency as a
+repeated-observation win above ~1 MiB (ADR-0042). See
 [Findings](findings.md).
 
 ## real100-v1 corpus (frozen, 2026-10-07)

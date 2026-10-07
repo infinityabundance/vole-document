@@ -69,6 +69,21 @@ adapters need `package,opc,docx,epub,odt`. `deflate-replay` is opt-in (pulls LGP
 `cabac`). A descriptor that needs a capability the build lacks sets a mandatory
 feature bit and fails closed with `unsupported-feature` (exit 6).
 
+Phase 15 adds performance-only, non-default features that change **no** wire bytes,
+no persisted artifact, and no decoder behavior:
+
+| Feature | What it enables | Deps |
+|---|---|---|
+| `parallel` | `--workers N` bounded parallel ingest (ADR-0044) | `rayon` |
+| `memmem-scan` | SIMD `memchr::memmem::Finder` for the PDF `find_endstream` scan (implied by `field`/`package`) | `memchr` |
+| `miniz-simd` | `miniz_oxide`'s SIMD adler-32 path (output-preserving) | `simd-adler32` |
+| `deflate-ablation` | the `examples/deflate_ablation.rs` harness (measures only; ADR-0045) | `zlib-rs`, `zune-inflate` |
+
+The field CLI flags add `--workers N`, `--packed`, and `--promote[=BYTES]`, plus
+the `observe-batch` command — see the [CLI](cli.md). `--packed` and `--workers`
+are the two Phase-15 mechanisms that touch a persisted artifact or a runtime path;
+`--promote` is refuted on the tested corpus and default-off (ADR-0046).
+
 ## Not supported
 
 Containers beyond PDF/DOCX/EPUB/ODT (e.g. XLSX, PPTX) are `PROPOSED`, not
