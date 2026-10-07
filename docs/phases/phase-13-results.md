@@ -103,6 +103,50 @@ grammar beats a whole-file order-0 lane on repetitive syntax, but not a
 purpose-built generic LZ. No wire change; the candidate stays available as a
 forced lane and as the auto winner on the files where it genuinely wins.
 
+## ODT adapter (13.3)
+
+**Question.** Does a fourth format — OpenDocument Text — enter the shared field
+**exactly** and **queryably**, so that the common observation vocabulary is
+proven to generalize beyond PDF/DOCX/EPUB rather than merely asserted?
+
+**Candidate.** A bounded OpenDocument (ODF) inverse compiler over the shared
+byte-authoritative ZIP layer and the bounded-XML policy. An `.odt` is an **ODF**
+package — mandatory stored `mimetype` (an OpenDocument text media type) plus
+`META-INF/manifest.xml` — and **not** OPC: it has no `[Content_Types].xml` and no
+`officeDocument` relationship, so the main content part is discovered
+**semantically** from the ODF manifest (`content.xml` file-entry), never from a
+hardcoded path, and the adapter reuses the ZIP layer but **not** the OPC graph
+(ADR-0038). The bounded content model (`office:body`/`office:text`) covers
+paragraphs, headings, spans, lists, tables (column/row spans, covered cells),
+links, bookmarks, notes, images/resources, tracked changes, and sections; a
+versioned `OdtExtractProfile` (tracked changes Final/Original/All, notes,
+hidden, tabs, breaks) is hashed into the canonical selector. Progressive
+inversion parses only the requested part on demand and persists the derived
+model; the exact leaf stays the raw member span. Status: **ADOPTED (ADR-0038)**.
+
+**Court.** `tests/odt_adapter.rs` (pre-registered H1–H4) plus the in-file
+`src/adapter/odt.rs` tests, over a real ZIP built in-court with no external tool
+(stored `mimetype`, `META-INF/manifest.xml`, deflated `content.xml`,
+`styles.xml`, `meta.xml`, and a `Pictures/pixel.png` member). Sealed receipt:
+`evidence/campaigns/2026-10-07-phase13-odt-95c486d/`.
+
+**Outcome — adopted (ADR-0038).**
+
+| axis | result |
+| --- | --- |
+| court tests | **9/9** integration (`tests/odt_adapter.rs`) + **6/6** in-file |
+| byte-exactness | exact (`length` + SHA-256 + `cmp`); a native `odt-part` exact-bytes observation does not disturb it |
+| after source **and** descriptor deletion, fresh process | **exact**: a fresh handle on the store rematerializes identical bytes |
+| queryable | common (`metadata`, `text`, `heading`, `block`, `table`, `cell`, `resource`, `link`, `find`) + native (`odt-part`, `odt-paragraph`, `odt-heading`, `odt-table`, `odt-cell`, `odt-list`, `odt-find`) with `format=odt;common;<native>` provenance |
+| profiles | `Final` vs `Original` tracked changes differ as specified (`Base added` vs `Base gone`); fingerprint recorded |
+| fail-closed | missing/malformed manifest → typed decline (`InvalidPackageStructure` / `InvalidXmlStructure`) with exactness preserved |
+| detection | byte-based (`mimetype`/manifest media type), never a file name; a plain ZIP stays opaque |
+
+ODT is the fourth format to enter the shared field on the same terms as the
+already-adopted three: `materialize(descriptor) == original_bytes` is unchanged,
+the ODF manifest is the sole authority for part identity, and no decoder behavior
+is added (enabling `odt` never changes `.voldoc` bytes).
+
 ## Byte-level partial-materialization checkpoints (13.4)
 
 **Question.** Phase 8/11 delivered the seek `DIRECTORY`, the partial-descriptor

@@ -87,5 +87,5 @@ not an exactness gate. All measurement corpora are locally generated.
 - Phase 13.3 ODT court: `tests/odt_adapter.rs` (detection; content; profiles;
   provenance; byte-exact materialization; source + descriptor deletion in a fresh
   process; malformed/missing-manifest typed decline).
-- Campaign: `evidence/campaigns/2026-10-07-phase13-odt-<shortsha>/`.
+- Campaign: `evidence/campaigns/2026-10-07-phase13-odt-95c486d/`.
 - Results: [phase-13-results.md](../phases/phase-13-results.md).

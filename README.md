@@ -34,6 +34,81 @@ This project is neither a compressor nor a database — whole-file size and
 database style both lose, and the losses are recorded (see
 [Findings](docs/project/findings.md)).
 
+## Why this matters
+
+Document-heavy AI systems repeatedly turn the same source material into temporary working representations. A document may be parsed for ingestion, extracted into text, divided into chunks, indexed for retrieval, converted for another consumer, rendered for visual inspection, cached, and then partially reconstructed again when a later task needs different information.
+
+A typical lifetime can involve the same underlying document passing repeatedly through work such as:
+
+```text
+parse
+extract
+chunk
+index
+convert
+render
+cache
+re-read
+re-extract
+re-contextualize
+```
+
+Each representation is useful, but most captures only one view of the document and much of the computation that produced it is discarded. A later operation that needs a different view often starts again from the source or from another derived representation.
+
+VOLE-Document explores a different lifetime model:
+
+```text
+source document
+      ↓
+inverse once
+      ↓
+persistent reconstructive state
+      ↓
+observe only what this computation needs
+      ↓
+text / structure / tables / resources / provenance / exact bytes
+```
+
+The document is inverse-compiled into durable computational state rather than treated only as an opaque file to be repeatedly decoded. That state retains enough information to reconstruct the exact original bytes while also exposing narrower observations directly through the document field.
+
+This creates the possibility of carrying useful work forward across the lifetime of a document. Parsing decisions, recovered structure, provenance, package relationships, native format structure, and derived observations can become persistent state rather than transient products of a single request.
+
+The long-term question is therefore not only how cheaply a document can be stored, but how much repeated work can be avoided when the same document participates in many computations over time:
+
+```text
+traditional lifetime
+
+source
+ ├─ parse → text
+ ├─ parse → chunks
+ ├─ parse → structure
+ ├─ parse → tables
+ ├─ render → preview
+ ├─ parse → provenance
+ └─ reopen → exact source
+
+
+VOLE lifetime
+
+source
+   ↓
+persistent DocumentField
+   ├─ text
+   ├─ chunks / blocks
+   ├─ structure
+   ├─ tables
+   ├─ resources
+   ├─ provenance
+   ├─ previews
+   └─ exact source
+```
+
+This matters most for workloads that repeatedly revisit heterogeneous documents and ask different questions of them: retrieval systems, document agents, research systems, technical knowledge bases, compliance and audit workflows, and long-lived document infrastructure.
+
+The economic hypothesis is measurable: **if enough useful document computation can be retained in compact procedural state, the cumulative cost of repeated parsing, extraction, materialization, I/O, and model context can fall over the lifetime of the document.** VOLE-Document measures that hypothesis directly rather than assuming it. The repository records the regions where the field wins, ties, declines, or loses against direct tooling and persistent database baselines.
+
+Exact source closure is part of that model. A narrower observation never has to become the archival authority for the document: the persistent field can answer derived questions while retaining a verified path back to the original bytes.
+
 ## How it works
 
 ```mermaid
@@ -159,9 +234,11 @@ Current limitations:
   measured file (the representation is coarser than LZ77).
 - **Not a database.** A source-retaining SQLite+FTS5 baseline wins the
   large-document byte frontier and wall/CPU at N=1000.
-- **Self-authored corpora only.** Every corpus is locally generated and
-  deterministic; no population claim is made, and reflowable EPUB genuinely has
-  no intrinsic pages.
+- **Self-authored corpora through Phase 12.** Existing published performance
+  results through Phase 12 use self-authored corpora; no population claim is
+  made, and reflowable EPUB genuinely has no intrinsic pages. `real100-v1`
+  contains an independently published NASA/NIST corpus whose performance court
+  has not yet been run.
 - **Partial reusability.** Cross-document durable *work* reuse is a negative, and
   XLSX/PPTX and other adapters remain `PROPOSED`.
 

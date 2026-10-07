@@ -15,9 +15,9 @@ recording a negative where the mechanism loses (the project's precedent).
    ladders; record the outcome.
 2. **PDF grammar/templates** — never attempted. Measure a bounded
    grammar/template candidate that must pay its definition cost.
-3. **Non-PDF/DOCX/EPUB adapters** — ODT first (it is an OPC/ZIP package, so it
-   reuses the 12.x ZIP + OPC layers with an OpenDocument content model), then
-   record other formats as still out of scope.
+3. **Non-PDF/DOCX/EPUB adapters** — ODT first (ODF packaged in ZIP, so it
+   reuses the 12.x ZIP layer — not the OPC graph — with an OpenDocument content
+   model), then record other formats as still out of scope.
 4. **Partial-materialization byte-level checkpoint records (beyond v1)** — the
    literal checkpoints left after Phase 8/11.
 5. **Gate `N5`** (package-index-only explanation) — the only skeptic gate not
@@ -41,8 +41,8 @@ and the accounting universes (ADR-0027).
 - **13.1** PDF `/Length`/revision size-mechanism court (measure; expected
   negative) + receipt.
 - **13.2** PDF grammar/templates court (measure; expected negative) + receipt.
-- **13.3** ODT adapter over the ZIP/OPC layers (OpenDocument content model; exact
-  ODT bytes; common + native observations) + exactness/removal courts.
+- **13.3** ODT adapter over the ZIP layer (ODF, not OPC; OpenDocument content
+  model; exact ODT bytes; common + native observations) + exactness/removal courts.
 - **13.4** byte-level partial-materialization checkpoints + court.
 - **13.5** `N5` gate receipt + sweep for any other open gate.
 - **13.6** independent skeptic review + release (`v0.1.0-alpha.17`), then delete
