@@ -1,0 +1,54 @@
+# phase15-workers — worker-count sweep + determinism witness
+
+Documents: **10** (SUBSET of `real100-v1` — includes a large PDF and package formats; **not** the frozen 100-document population). `field-ingest` was run with `--workers ` in {1, 2, 4, 8, 16} after a single `encode` per document. 
+**Lane caveat:** the `doc-baseline` lane is capped at `cpus: 8`; `--workers 8` saturates it and any count above that (here 16) OVERSUBSCRIBES it, so those wall times are informational, not a clean scaling point.
+
+## Speedup curve (vs serial `--workers 1`)
+
+| workers | timed docs | median wall ms | median speedup vs 1 | note |
+|---:|---:|---:|---:|---|
+| 1 | 10 | 132 | 1.00x |  |
+| 2 | 10 | 132 | 1.00x |  |
+| 4 | 10 | 130 | 1.00x |  |
+| 8 | 10 | 136 | 1.00x | saturates the lane |
+| 16 | 10 | 134 | 0.99x | oversubscribed (> 8 cpus) |
+
+Median speedup is over documents with a successful timed run at both worker counts; `—` means no comparable pair. A value below 1.0 means the parallel run was SLOWER (recorded, not hidden).
+
+### Per document (wall ms by worker count)
+
+| id | w1 | w2 | w4 | w8 | w16 |
+|---|---:|---:|---:|---:|---:|
+| nasa-epub-0006 | 550 | 555 | 552 | 558 | 554 |
+| nasa-pdf-0029 | 5482 | 5001 | 4952 | 4987 | 4992 |
+| nist-docx-0009 | 76 | 79 | 81 | 76 | 82 |
+| nist-docx-0013 | 53 | 52 | 56 | 52 | 57 |
+| nist-docx-0015 | 125 | 125 | 124 | 134 | 126 |
+| nist-epub-0006 | 74 | 78 | 78 | 74 | 78 |
+| nist-epub-0008 | 48 | 51 | 48 | 47 | 52 |
+| nist-epub-0009 | 139 | 138 | 137 | 138 | 141 |
+| nist-pdf-0002 | 709 | 703 | 711 | 709 | 715 |
+| nist-pdf-0004 | 6000 | 14090 | 28772 | 14466 | 960 |
+
+## Determinism witness
+
+| check | pass | of |
+|---|---:|---:|
+| field id identical across every worker count | 10 | 10 |
+| `materialize --exact` == source for EVERY worker count | 10 | 10 |
+
+| id | distinct field ids | field equal | w1 | w2 | w4 | w8 | w16 | all exact |
+|---|---:|---|---|---|---|---|---|---|
+| nasa-pdf-0029 | 1 | yes | 1 | 1 | 1 | 1 | 1 | yes |
+| nasa-epub-0006 | 1 | yes | 1 | 1 | 1 | 1 | 1 | yes |
+| nist-docx-0013 | 1 | yes | 1 | 1 | 1 | 1 | 1 | yes |
+| nist-epub-0008 | 1 | yes | 1 | 1 | 1 | 1 | 1 | yes |
+| nist-docx-0009 | 1 | yes | 1 | 1 | 1 | 1 | 1 | yes |
+| nist-epub-0006 | 1 | yes | 1 | 1 | 1 | 1 | 1 | yes |
+| nist-pdf-0002 | 1 | yes | 1 | 1 | 1 | 1 | 1 | yes |
+| nist-docx-0015 | 1 | yes | 1 | 1 | 1 | 1 | 1 | yes |
+| nist-epub-0009 | 1 | yes | 1 | 1 | 1 | 1 | 1 | yes |
+| nist-pdf-0004 | 1 | yes | 1 | 1 | 1 | 1 | 1 | yes |
+
+A `1` in an `exact_*` column means that worker count's store materialized byte-identically to the manifest `sha256`/`byte_len`.
+

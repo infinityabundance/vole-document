@@ -1,0 +1,34 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-phase15-workers-122c026",
+  "phase": "15.4 — bounded parallel ingest: worker-count sweep + determinism witness",
+  "utc_date": "2026-10-07",
+  "measured_commit": "122c026",
+  "measured_commit_subject": "phase15.3: packed-store receipt — 111x fewer files, 0.72x bytes, parity latency, identity unchanged",
+  "measured_binary": "target/release/vole-document (built --all-features, so the non-default `parallel` feature is on)",
+  "profile": "release",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "corpus": "real100-v1 SUBSET: 10 documents including a 54 MB PDF and package formats (NOT the frozen 100-document population)",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "what_is_measured": "one `encode` per document, then `field-ingest --workers N` for N in {1,2,4,8,16}; wall time per N, plus a determinism witness (identical field id and byte-exact `materialize --exact` across every N)",
+  "results": {
+    "speedup_vs_serial": {
+      "w1_median_ms": 132, "w2": "1.00x", "w4": "1.00x", "w8": "1.00x", "w16": "0.99x",
+      "reading": "no measurable speedup: the parallelised stages (Flate length-probing, ObjStm precompute, package-member encode) are not the ingest bottleneck on this subset; the median document is dominated by serial store I/O and small-document fixed cost"
+    },
+    "largest_pdf": { "nasa-pdf-0029": { "w1_ms": 5482, "w4_ms": 4952, "speedup": "~1.11x" } },
+    "determinism_witness": {
+      "field_id_identical_across_all_worker_counts": "10/10",
+      "materialize_exact_equals_source_for_every_worker_count": "10/10",
+      "reading": "a genuine POSITIVE: the parallel path is exactly as deterministic as serial, which is the precondition for ever adopting it"
+    },
+    "outlier": {
+      "nist-pdf-0004": { "w1_ms": 6000, "w2_ms": 14090, "w4_ms": 28772, "w8_ms": 14466, "w16_ms": 960 },
+      "status": "unexplained; recorded, not hidden",
+      "hypothesis": "peak-RSS growth under the ObjStm precompute (the design's own stated risk: extra threads raise peak RSS against a 6g cap with zram swap), or scheduling noise; needs a dedicated investigation before parallelism could be adopted"
+    }
+  },
+  "interpretation": "Parallelism as implemented is neutral-to-negative on speed and exactly safe on identity. Adopting it would require finding the true bottleneck first (profiling), not more parallelism.",
+  "lane_caveat": "the lane is capped at cpus: 8, so --workers 8 saturates it and --workers 16 oversubscribes it; above-8 counts are informational",
+  "tuning": "none; the subset is pre-registered, the worker counts are pre-registered"
+}
