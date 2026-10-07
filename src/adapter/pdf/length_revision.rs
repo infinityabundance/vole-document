@@ -406,6 +406,7 @@ pub fn propose_pdf_length_revision(input: &[u8], limits: Limits) -> Result<Optio
         }]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };

@@ -152,6 +152,7 @@ fn hostile_f2_descriptor_fails_closed_under_small_memory_cap() {
         }]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(&[0u8; 4]),
         source_len: u64::from(declared),
     };

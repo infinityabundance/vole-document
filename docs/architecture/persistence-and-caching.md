@@ -86,11 +86,26 @@ zero bytes (H3). The fixed complete-cost court is retained.
 
 Receipt: `evidence/campaigns/2026-10-05-phase10-governor-d2b09c9/`. ADR-0022.
 
+## Byte-level partial-materialization checkpoints
+
+Phase 13.4 implemented the literal byte-level checkpoint records and measured
+them against the Phase-8 seek floor. An optional `FLAG_OPTIONAL` `CHECKPOINT`
+record (`0x60`, format `checkpoint_v1`) carries a bounded per-op output-boundary
+table bound to the `GRAPH` record; the seek reader consumes a validated
+checkpoint in place of the `OBSERVATION_INDEX` for a raw byte range, and a
+lying/corrupt/non-optional checkpoint is rejected and the reader falls back to
+the index lane. The mechanism is byte-exact and advisory, but a **recorded
+negative**: it is materially redundant with the index's own op table, so the
+checkpoint record is larger than the index it replaces and every query reads
+*more* bytes (20/40/120 objects: +259/+439/+1,159 B per byte-range query) with
+identical op work. Receipt:
+`evidence/campaigns/2026-10-07-phase13-checkpoints-9d1306a/`. ADR-0039.
+
 ## Not yet built
 
-Literal byte-level partial-materialization checkpoint records (beyond the
-measured random-access `view`/seek lane) were never built; Phase 13 implements
-and measures them (see [Roadmap](../project/roadmap.md)).
+No open byte-level partial-materialization item remains: the seek `DIRECTORY`
+(Phase 8), the observation engine (Phase 11), and the byte-level checkpoints
+(Phase 13.4) are all delivered and measured.
 
 ## Relevant ADRs
 

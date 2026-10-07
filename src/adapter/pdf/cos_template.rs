@@ -372,6 +372,7 @@ pub fn propose_pdf_cos_template(input: &[u8], limits: Limits) -> Result<Option<C
         program: Program::new(plan.ops),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };

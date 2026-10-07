@@ -51,7 +51,7 @@ document defers to that source of truth.
 | `0x30` | `MODEL` | canonical dense entropy model (see [Entropy records](#entropy-records-phase-2)) |
 | `0x40` | `ENTROPY_CHANNEL` | typed channel capsule: 33-byte header + renorm payload |
 | `0x50` | `RESIDUAL` | reserved (later) |
-| `0x60` | `CHECKPOINT` | reserved (later) |
+| `0x60` | `CHECKPOINT` | optional, advisory per-op output-boundary table, bound to the GRAPH record (Phase 13.4) |
 | `0x70` | `OBSERVATION_INDEX` | optional, advisory op/selector/digest map (Phase 7.3) |
 | `0x80` | `EXTERNAL_REF` | mandatory-when-present: `id:[u8;32]`, `len:u64` of an object held by an `ObjectStore` (Phase 9) |
 | `0xF0` | `INTEGRITY` | `sha256:[u8;32]`, `source_len:u64` |
@@ -77,7 +77,12 @@ Requirements enforced by `Descriptor::parse`:
 - no record after `TRAILER`;
 - if an `OBSERVATION_INDEX` is present, every claim it makes is re-derived from
   the program and any disagreement is rejected with `CoverageViolation`. The
-  index is **never authority**.
+  index is **never authority**;
+- at most one `CHECKPOINT`; it must carry `FLAG_OPTIONAL`, must be located by a
+  `DIRECTORY` (so `serialize` rejects a checkpoint without a seek directory), and
+  every boundary it declares is re-derived from the program and rejected on any
+  disagreement (`CoverageViolation`/`InvalidContainer`). The checkpoint is
+  **never authority**.
 
 ### `OBSERVATION_INDEX` (`0x70`, optional, Phase 7.3)
 
@@ -107,6 +112,35 @@ the record is present. Validation re-derives each `out_len` via `analyze_ops`,
 checks each dependency id is in range, and requires every selector and digest
 range to lie within `[0, total)`. Sections are independent and unknown
 `section_flags` bits or an unknown `version` fail closed.
+
+### `CHECKPOINT` (`0x60`, optional, Phase 13.4)
+
+An advisory, checked per-op output-boundary table. It is written with
+`FLAG_OPTIONAL`; a decoder that ignores it still materializes the source
+**byte-for-byte**, because the reconstruction program alone is complete. It
+carries no authority and cannot change reconstructed bytes. A checkpoint is
+locatable only through a `DIRECTORY` (its `CLASS_INDEX` gains the `CHECKPOINT`
+class), so it requires a seek directory; the header advertises the optional bit
+`FEATURE_CHECKPOINTS` (`1 << 2`) when the record is present.
+
+```text
+checkpoint_v1 :=
+    version:u8 = 1
+    kind:u8 = 1                 # OP_BOUNDARIES
+    reserved:u16 = 0
+    entry_count:u32
+    source_len:u64
+    graph_crc32c:u32            # CRC-32C of the GRAPH record payload
+    entry[entry_count]          # out_start:u64 | out_len:u64
+```
+
+All integers are little-endian. The entries are the per-op output spans in
+program order. Validation requires `entry_count == program.ops.len()`, every
+`out_len` to equal `analyze_ops`, the spans to be contiguous and to cover
+`source_len` exactly, and `graph_crc32c` to match the `GRAPH` record; a
+contradiction is rejected. The seek reader may consume a validated checkpoint in
+place of the `OBSERVATION_INDEX` for a raw byte range and otherwise falls back to
+the index lane (ADR-0039 — the mechanism is byte-exact but a recorded negative).
 
 ### `EXTERNAL_REF` (`0x80`, mandatory-when-present, Phase 9)
 

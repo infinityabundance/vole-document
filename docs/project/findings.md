@@ -54,6 +54,8 @@ negative. Details below.
 | Whole-object dedup of identical opaque files | `repeat-bin` `U = 133,048 B` — marginal vs CDC+zstd `133,863 B` | `2026-10-05-phase9-store-fdb2845` | [0021](../adr/0021-cross-document-sharing-result.md) |
 | Cross-format exactness + representation identity | all three formats byte-exact after source+descriptor deletion (removal 38/38, triplet 96/96); one blob shared DOCX↔EPUB | `2026-10-06-phase12-removal-dc4d5a3`, `…-triplet-dc4d5a3`, `…-share-e7ef693` | [0034](../adr/0034-cross-document-identity-sharing.md) |
 | Small-document lifetime frontier | beats A0 on the small-document frontier and the cold one-time comparison, on a self-authored 841 B–61 KB corpus | `2026-10-06-phase12-lifetime-ablations-06db12a` | [0035](../adr/0035-phase12-lifetime-benchmark.md) |
+| Package-index-only cannot explain the small-document win (`N5` — falsified) | package index (`unzip -p`/`zipfile.read` + byte substring) | answers **0/72** structural selectors vs the field's **72/72**; only 59/96 answers are even byte-reachable | `2026-10-07-phase13-n5-21948bd` | [0035](../adr/0035-phase12-lifetime-benchmark.md) |
+| A fourth format (ODT) enters exactly and queryably | ODF package over the shared ZIP layer (not OPC) | `len`+SHA-256+`cmp` after source **and** descriptor deletion in a fresh process; typed declines on a bad manifest | `2026-10-07-phase13-odt-95c486d` | [0038](../adr/0038-odt-adapter-scope.md) |
 
 ## Negative results
 
@@ -67,6 +69,9 @@ negative. Details below.
 | Encoder-only parametric search | fixed heuristic vs exhaustive grid | the fixed heuristic already attains the exhaustive minimum on every workload, so the search adds zero bytes | `2026-10-05-phase10-governor-d2b09c9` | [0022](../adr/0022-encoder-only-search-governance.md) |
 | Large-document lifetime frontier | source-retaining SQLite+FTS5 (A1) | A1 wins the large-document byte frontier (N=10–1000) and wall/CPU at N=1000 | `2026-10-06-phase12-lifetime-3eaf576` | [0035](../adr/0035-phase12-lifetime-benchmark.md) |
 | Partial-view memory | sequential gzip | peak RSS ~38 MB vs gzip ~1.2 MB (it is a decode-CPU win, not an allocation win) | `2026-10-05-phase7-partial-a5764c9` | [0018](../adr/0018-partial-materialization.md) |
+| PDF `/Length`/revision as a *size* mechanism | the current VOLE ladder and generic compressors | regenerating a field costs a `Mark`+`Emit` per site, more than the digits removed (0 wins / 21 losses) | `2026-10-07-phase13-pdf-length-revision-12fc84e` | [0036](../adr/0036-pdf-length-revision-size.md) |
+| PDF COS grammar/templates as a whole-file win | generic compressors | a bounded syntax grammar beats an order-0 lane but not LZ (0 wins vs brotli/xz/zstd on the 7 files where proposed) | `2026-10-07-phase13-pdf-grammar-dfba2a4` | [0037](../adr/0037-pdf-grammar-templates.md) |
+| Byte-level partial-materialization checkpoints | the observation index | the checkpoint record is redundant and *larger* than the index it replaces (16 B/op vs 9 B/op): every query reads more bytes, op work identical | `2026-10-07-phase13-checkpoints-9d1306a` | [0039](../adr/0039-partial-materialization-checkpoints.md) |
 
 Exactness is not a win in itself: byte-exactness is shared with any lossless
 compressor. It is the floor, not an advantage.

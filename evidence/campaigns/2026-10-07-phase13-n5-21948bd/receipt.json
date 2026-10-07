@@ -1,0 +1,42 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-phase13-n5-21948bd",
+  "phase": "13.5 — gate N5 (package-index-only) mechanical negative control",
+  "utc_date": "2026-10-07T09:05:20Z",
+  "git_commit": "21948bd3ef9f26421d411f58aac956c20fd210aa",
+  "git_short": "21948bd",
+  "git_dirty_tracked": "7",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline",
+  "service_image_id": "unknown",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "7ec7c1ab7d371947c320f1393bdd3f3668c9712e64090c6e6df98efb113a7d55",
+  "python3": "Python 3.11.2",
+  "arch": "x86_64",
+  "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor",
+  "corpus": "evidence/scratch/phase12-lifetime-corpus",
+  "schedule": "tools/fixtures/phase12-lifetime-schedule.json",
+  "control": "tools/fixtures/phase13-n5-control.py",
+  "hypotheses": {
+    "H1_field_answers_all": "the Phase-12 field answers every DOCX/EPUB case in the frozen 12.11 schedule",
+    "H2_package_index_cannot": "a package-index-only lane (zipfile.read + byte substring) answers only whole-source and literal-search selectors; every structural selector declines"
+  },
+  "field": {
+    "cases": 96,
+    "pass": 92,
+    "structural": { "cases": 72, "pass": 72 },
+    "exact": { "cases": 16, "pass": 12 },
+    "literal_search": { "cases": 8, "pass": 8 }
+  },
+  "package_index_lane": {
+    "cases": 96,
+    "resolvable": 16,
+    "structural": { "cases": 72, "resolvable": 0 },
+    "value_in_raw": 59
+  },
+  "known_declines": {
+    "docx_decoded_resource": 4,
+    "note": "DOCX declines resource:N --kind decoded (typed UnsupportedFeature, rc=6); pre-existing (V:declined in 12.11, a2..a11:declined in 12.11b), not a regression"
+  },
+  "verdict": "N5-FALSIFIED"
+}

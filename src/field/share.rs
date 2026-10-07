@@ -284,6 +284,7 @@ mod tests {
             program: Program::new(vec![]),
             observation_index: None,
             seek_directory: false,
+            checkpoints: None,
             source_sha256: [0u8; 32],
             source_len: 0,
         }
@@ -456,6 +457,7 @@ mod tests {
             program: Program::new(vec![crate::dra::Op::EmitObject { object_id: 0 }]),
             observation_index: None,
             seek_directory: false,
+            checkpoints: None,
             source_sha256: integrity::sha256(source),
             source_len: source.len() as u64,
         };

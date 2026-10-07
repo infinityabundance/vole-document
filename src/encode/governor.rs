@@ -527,6 +527,7 @@ fn propose_byte_rans_scaled(
         program: Program::new(vec![Op::DecodeChannel { channel_id: 0 }]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };
@@ -618,6 +619,7 @@ fn propose_channels_scaled(
         program,
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };

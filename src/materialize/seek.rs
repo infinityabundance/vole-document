@@ -39,6 +39,7 @@
 
 use std::io::{self, Read, Seek, SeekFrom};
 
+use crate::container::checkpoint::CheckpointTable;
 use crate::container::directory::{
     DirectoryEntry, SECTION_CHANNEL_LENGTHS, SECTION_LOCATORS, SeekDirectory,
 };
@@ -52,8 +53,8 @@ use crate::entropy::{CODER_ORDER0_BYTE_RANS, CODER_VERSION_1};
 use crate::error::{Error, Result};
 use crate::limits::Limits;
 use crate::materialize::observation::{
-    ObservationReport, ObservationSelector, ObservationStats, resolve_selector, select_ops,
-    selection_references, serve_selection,
+    ObservationReport, ObservationSelector, ObservationStats, OpWindow, resolve_byte_range,
+    resolve_selector, select_ops, select_ops_from_lengths, selection_references, serve_selection,
 };
 
 /// A `Read + Seek` wrapper that counts the bytes actually returned by `read` and
@@ -119,6 +120,10 @@ impl<R: Seek> Seek for CountingReader<R> {
         self.inner.seek(pos)
     }
 }
+
+/// The selection a lane yields: the resolved output range `[a, b)`, the op
+/// window to evaluate, and the referenced-object/channel flags.
+type Selection = (u64, u64, OpWindow, Vec<bool>, Vec<bool>);
 
 /// Serve one observation from a seekable `.voldoc` source by reading only the
 /// records the query needs.
@@ -191,28 +196,23 @@ pub fn materialize_observation_seeked<R: Read + Seek>(
         .collect();
     let channel_lens: Vec<u64> = dir.channel_lengths.clone();
 
-    // (b) GRAPH and OBSERVATION_INDEX (the reader learns op->output and deps
-    // only from these), plus INTEGRITY for the declared source length.
+    // (b) GRAPH and INTEGRITY are needed by every lane: the program is the
+    // authority for op selection and for validating any checkpoint, and INTEGRITY
+    // supplies the declared source length.
     let graph_site = class_entries(&dir, RecordTag::Graph)?
         .first()
         .ok_or_else(|| {
             Error::unsupported_feature("seek directory does not locate a GRAPH record")
-        })?;
-    let index_site = class_entries(&dir, RecordTag::ObservationIndex)?
-        .first()
-        .ok_or_else(|| {
-            Error::unsupported_feature("seek directory does not locate an OBSERVATION_INDEX record")
         })?;
     let integrity_site = class_entries(&dir, RecordTag::Integrity)?
         .first()
         .ok_or_else(|| {
             Error::unsupported_feature("seek directory does not locate an INTEGRITY record")
         })?;
+    let checkpoint_sites = class_entries(&dir, RecordTag::Checkpoint)?;
 
     let graph_rec = read_checked(&mut reader, graph_site, limits)?;
     let program = Program::decode(&graph_rec.payload, limits)?;
-    let index_rec = read_checked(&mut reader, index_site, limits)?;
-    let index = ObservationIndex::decode(&index_rec.payload, limits)?;
     let integrity_rec = read_checked(&mut reader, integrity_site, limits)?;
     if integrity_rec.payload.len() != 40 {
         return Err(Error::invalid_container(
@@ -236,15 +236,64 @@ pub fn materialize_observation_seeked<R: Read + Seek>(
         )));
     }
 
-    // The decisive cross-check: the index, re-derived over the *directory-derived*
-    // lengths, must reproduce the program's op table and the CRC-framed index.
-    index.validate(&program, &object_lens, &channel_lens, limits)?;
-
-    // (c) Resolve the selector and compute the minimal op set/prefix.
-    let (a, b) = resolve_selector(&index, selector, declared_len)?;
-    let window = select_ops(&program, &object_lens, &channel_lens, a, b, limits)?;
-    let (objects_used, channels_used) =
-        selection_references(&window.ops, object_entries.len(), channel_entries.len());
+    // (c) Selection. Two lanes produce the same `(range, op window, dependency
+    // set)`:
+    //   * the Phase-8 index lane reads and re-derives the OBSERVATION_INDEX;
+    //   * the checkpoint lane (Phase 13.4), usable only for a raw byte range
+    //     (the one selector that needs no index), consumes a *validated*
+    //     CHECKPOINT and reads no index record.
+    // The checkpoint is advisory: a missing, corrupt, non-optional, or lying one
+    // is ignored and the reader falls back to the index lane -- never to a
+    // guess -- so a checkpoint can neither change a served byte nor deny service.
+    let mut checkpoint_bytes: u64 = 0;
+    let mut index_bytes: u64 = 0;
+    let (a, b, window, objects_used, channels_used) = {
+        let mut via_checkpoint: Option<Selection> = None;
+        if matches!(selector, ObservationSelector::ByteRange { .. })
+            && let Some(site) = checkpoint_sites.first()
+            && let Ok(cp_rec) = read_checked(&mut reader, site, limits)
+            && cp_rec.is_optional()
+            && let Ok(cp) = CheckpointTable::decode(&cp_rec.payload, limits)
+            && cp
+                .validate(
+                    &program,
+                    &graph_rec.payload,
+                    declared_len,
+                    &object_lens,
+                    &channel_lens,
+                    limits,
+                )
+                .is_ok()
+        {
+            let (ra, rb) = resolve_byte_range(selector, declared_len)?;
+            let w = select_ops_from_lengths(&program, &cp.lengths(), ra, rb)?;
+            let (ou, cu) =
+                selection_references(&w.ops, object_entries.len(), channel_entries.len());
+            checkpoint_bytes = cp_rec.payload.len() as u64 + RECORD_OVERHEAD as u64;
+            via_checkpoint = Some((ra, rb, w, ou, cu));
+        }
+        match via_checkpoint {
+            Some((ra, rb, w, ou, cu)) => (ra, rb, w, ou, cu),
+            None => {
+                let index_site = class_entries(&dir, RecordTag::ObservationIndex)?
+                    .first()
+                    .ok_or_else(|| {
+                        Error::unsupported_feature(
+                            "seek directory does not locate an OBSERVATION_INDEX record",
+                        )
+                    })?;
+                let index_rec = read_checked(&mut reader, index_site, limits)?;
+                let index = ObservationIndex::decode(&index_rec.payload, limits)?;
+                index.validate(&program, &object_lens, &channel_lens, limits)?;
+                index_bytes = index_rec.payload.len() as u64 + RECORD_OVERHEAD as u64;
+                let (ra, rb) = resolve_selector(&index, selector, declared_len)?;
+                let w = select_ops(&program, &object_lens, &channel_lens, ra, rb, limits)?;
+                let (ou, cu) =
+                    selection_references(&w.ops, object_entries.len(), channel_entries.len());
+                (ra, rb, w, ou, cu)
+            }
+        }
+    };
 
     // (d) Read ONLY the referenced OBJECT records.
     let mut objects: Vec<Vec<u8>> = vec![Vec::new(); object_entries.len()];
@@ -300,10 +349,11 @@ pub fn materialize_observation_seeked<R: Read + Seek>(
     )?;
 
     // `descriptor_bytes_traversed` stays comparable with the Phase-7 path: graph
-    // payload + index payload (+ framing) + referenced object/channel payloads.
+    // payload + the selection lane's own record (index **or** checkpoint) + the
+    // referenced object/channel payloads.
     let descriptor_bytes_traversed = graph_rec.payload.len() as u64
-        + index_rec.payload.len() as u64
-        + RECORD_OVERHEAD as u64
+        + index_bytes
+        + checkpoint_bytes
         + served.referenced_object_bytes
         + served.referenced_channel_bytes;
 

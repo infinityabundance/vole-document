@@ -55,6 +55,13 @@ pub struct Limits {
     /// `13 * record_count` bytes, so this also caps the record count a directory
     /// can describe.
     pub max_directory_bytes: u32,
+    /// Maximum accepted size of an optional `CHECKPOINT` record payload.
+    ///
+    /// Bounds the byte-level partial-materialization checkpoint (Phase 13.4)
+    /// before allocation: a checkpoint larger than this is declined at decode
+    /// rather than trusted. A checkpoint is `20 + 16 * op_count` bytes, so this
+    /// also caps the op count a checkpoint can describe.
+    pub max_checkpoint_bytes: u32,
     // The ZIP caps below mirror the threat model and DEFAULT/STRICT values frozen
     // in `research/subagents/phase-12/I-security.md` §6 (threat ids Z1–Z15), as
     // required by plan §DEC-3/§DEC-9.
@@ -151,6 +158,7 @@ impl Limits {
         max_pdf_spans: 1 << 26,
         max_index_selectors: 1 << 20,
         max_directory_bytes: 1 << 20,
+        max_checkpoint_bytes: 1 << 20,
         max_zip_members: 1 << 20,
         max_zip_member_compressed: 1 << 34,
         max_zip_member_uncompressed: 1 << 34,
@@ -202,6 +210,7 @@ impl Limits {
         max_pdf_spans: 1 << 16,
         max_index_selectors: 1 << 16,
         max_directory_bytes: 1 << 18,
+        max_checkpoint_bytes: 1 << 18,
         max_zip_members: 1 << 16,
         max_zip_member_compressed: 1 << 26,
         max_zip_member_uncompressed: 1 << 26,

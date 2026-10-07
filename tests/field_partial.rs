@@ -179,6 +179,7 @@ fn opaque_descriptor(source: &[u8]) -> Vec<u8> {
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: vole_document::integrity::sha256(source),
         source_len: source.len() as u64,
     };
@@ -210,6 +211,7 @@ fn many_object_descriptor(objects: usize, chunk: usize) -> (Vec<u8>, Vec<u8>) {
         program,
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: vole_document::integrity::sha256(&source),
         source_len: source.len() as u64,
     };

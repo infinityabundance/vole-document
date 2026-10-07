@@ -183,6 +183,7 @@ fn identical_objects_dedup_to_one_entropyfs_blob() {
         ]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(&source),
         source_len: source.len() as u64,
     };
