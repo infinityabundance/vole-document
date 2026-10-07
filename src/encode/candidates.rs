@@ -104,6 +104,83 @@ pub fn propose_all(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
     Ok(out)
 }
 
+/// Generate exactly the candidate of `kind`, or `Ok(None)` when it does not apply.
+///
+/// This is the forced-ablation path: it produces the **same** candidate the
+/// unforced portfolio would have priced for `kind` (same proposer, same inputs)
+/// but generates no other family. So a forced lane — e.g. `--force raw` for a
+/// persistent-runtime ingest that assigns no value to the compression search —
+/// costs only that family, instead of the whole portfolio.
+#[allow(unreachable_patterns)]
+pub fn propose_forced(
+    input: &[u8],
+    limits: Limits,
+    kind: CandidateKind,
+) -> Result<Option<Candidate>> {
+    // The PDF families share one physical scan when asked for a single PDF kind.
+    match kind {
+        CandidateKind::PdfPhysical
+        | CandidateKind::PdfChannels
+        | CandidateKind::PdfLayout
+        | CandidateKind::PdfLayoutRans
+        | CandidateKind::PdfLengthRevision => {
+            let physical = match crate::adapter::pdf::physical::scan(input, limits) {
+                Ok(p) => p,
+                Err(_) => return Ok(None),
+            };
+            match kind {
+                CandidateKind::PdfPhysical => {
+                    crate::adapter::pdf::adapter::propose_pdf_with(input, limits, &physical)
+                }
+                #[cfg(feature = "rans")]
+                CandidateKind::PdfChannels => {
+                    crate::adapter::pdf::adapter::propose_pdf_channels_with(
+                        input, limits, &physical,
+                    )
+                }
+                CandidateKind::PdfLayout => {
+                    crate::adapter::pdf::layout::propose_pdf_layout_with(input, limits, &physical)
+                }
+                #[cfg(feature = "rans")]
+                CandidateKind::PdfLayoutRans => {
+                    crate::adapter::pdf::layout::propose_pdf_layout_rans_with(
+                        input, limits, &physical,
+                    )
+                }
+                CandidateKind::PdfLengthRevision => {
+                    crate::adapter::pdf::length_revision::propose_pdf_length_revision_with(
+                        input, limits, &physical,
+                    )
+                }
+                _ => Ok(None),
+            }
+        }
+        CandidateKind::Raw => Ok(Some(Candidate {
+            kind,
+            descriptor: opaque::propose(input, limits)?,
+        })),
+        CandidateKind::Rle => propose_rle(input, limits),
+        #[cfg(feature = "rans")]
+        CandidateKind::ByteRans => propose_byte_rans(input, limits),
+        #[cfg(feature = "deflate-replay")]
+        CandidateKind::PdfDeflateReplay => {
+            crate::adapter::pdf::propose_pdf_deflate_replay(input, limits)
+        }
+        #[cfg(all(feature = "deflate-replay", feature = "rans"))]
+        CandidateKind::PdfDeflateReplayRans => {
+            crate::adapter::pdf::propose_pdf_deflate_replay_rans(input, limits)
+        }
+        #[cfg(all(feature = "deflate-replay", feature = "rans"))]
+        CandidateKind::PdfDeflateReplayRansIndexed => {
+            crate::adapter::pdf::propose_pdf_deflate_replay_rans_indexed(input, limits)
+        }
+        CandidateKind::PdfCosTemplate => {
+            crate::adapter::pdf::propose_pdf_cos_template(input, limits)
+        }
+        _ => Ok(None),
+    }
+}
+
 /// Generate the candidate set **one candidate at a time**, invoking `emit` for
 /// each. Same set, same order as [`propose_all`], but the streaming form lets the
 /// court keep only one unpriced candidate's payload resident, which bounds

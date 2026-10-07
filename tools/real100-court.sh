@@ -52,7 +52,24 @@ BIN=${BIN:-$DEFAULT_BIN}
 echo "== real100 frontier court ==" >&2
 echo "-- building ($PROFILE) binary" >&2
 # shellcheck disable=SC2086
-cargo build $BUILD_ARGS >&2
+if ! cargo build $BUILD_ARGS >&2; then
+    echo "real100-court: build FAILED ($BUILD_ARGS); refusing to measure" >&2
+    exit 1
+fi
+# Preflight: the adapters must be present. A stale/mis-featured binary (e.g. a
+# previous non-`--all-features` release build left in place after a failed build)
+# silently answers rc=6 for every DOCX/EPUB op; fail loudly instead.
+PREFLIGHT=""
+for cand in real100-v1/documents/nist/docx/*.docx real100-v1/documents/nasa/epub/*.epub; do
+    [ -f "$cand" ] && { PREFLIGHT="$cand"; break; }
+done
+if [ -n "$PREFLIGHT" ]; then
+    expect=$(case "$PREFLIGHT" in *.docx) echo docx ;; *) echo epub ;; esac)
+    if ! "$BIN" capabilities "$PREFLIGHT" 2>/dev/null | grep -q "\"adapter\":\"$expect\""; then
+        echo "real100-court: preflight failed — $BIN does not support $expect; refusing to measure" >&2
+        exit 1
+    fi
+fi
 
 echo "-- verifying the frozen corpus (SHA-256 + length + format)" >&2
 if ! sh tools/realcorpus/verify.sh --corpus real100-v1 >"$RAW/verify.txt" 2>&1; then
