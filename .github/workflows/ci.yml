@@ -59,3 +59,18 @@ jobs:
         run: docker compose run --rm --no-TTY policy cargo audit
       - name: cargo deny
         run: docker compose run --rm --no-TTY policy cargo deny check
+
+  # Repository integrity: documentation links/required set/README budget and the
+  # OOM-containment audit of compose.yaml. Pure POSIX shell, so the lightest
+  # pinned lane (`tools`) runs it; no cargo, no network.
+  integrity:
+    name: docs + OOM-containment integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build pinned tools image
+        run: docker compose build tools
+      - name: compose OOM-containment audit
+        run: docker compose run --rm --no-TTY tools sh tools/check-compose-caps.sh
+      - name: documentation integrity
+        run: docker compose run --rm --no-TTY tools sh tools/check-docs.sh

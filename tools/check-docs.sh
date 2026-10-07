@@ -13,7 +13,9 @@
 #   3. every ADR reference resolves and ADR numbers are unique;
 #   4. phase/evidence links resolve (covered by the link check);
 #   5. the required documentation set exists;
-#   6. README.md is at most 300 lines.
+#   6. README.md is at most 300 lines;
+#   7. every compose.yaml service is hard-capped (OOM containment), via
+#      tools/check-compose-caps.sh.
 #
 # `research/` is gitignored and intentionally excluded.
 
@@ -128,6 +130,13 @@ for f in $md_files; do
     done
 done
 note "OK: scanned $link_count internal Markdown links"
+
+# --- 7. every compose service is hard-capped (OOM containment) -----------
+if [ -f tools/check-compose-caps.sh ]; then
+    if sh tools/check-compose-caps.sh; then :; else err "compose OOM-containment audit failed"; fi
+else
+    err "required check missing: tools/check-compose-caps.sh"
+fi
 
 if [ "$fail" -ne 0 ]; then
     printf '\ncheck-docs.sh: FAILED\n'
