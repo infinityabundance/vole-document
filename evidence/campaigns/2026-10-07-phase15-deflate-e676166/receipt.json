@@ -1,0 +1,29 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-phase15-deflate-e676166",
+  "phase": "15.5 — DEFLATE decompression ablation over the real real100-v1 members",
+  "utc_date": "2026-10-07",
+  "measured_commit": "e676166",
+  "measured_commit_subject": "phase15.5: SIMD-safe endstream scan, miniz SIMD adler, DEFLATE-ablation court",
+  "tree_state": "the measured binaries are built from src at e676166 (clean); the only dirty entries were edits to tools/phase15-deflate-court.sh made while fixing the court itself, which do not affect the measured code",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "corpus": "real100-v1 — the REAL compressed members of the frozen corpus: PDF FlateDecode zlib streams + ZIP method-8 DEFLATE members extracted from 88 documents with extractable members (52,498 members, 481 MiB compressed, 2,768 MiB decoded)",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "reps": 5,
+  "results": {
+    "miniz_scalar": { "gbps": 1.231, "vs_miniz": "reference", "mismatches": 0, "peak_rss_mib": 1493.0 },
+    "miniz_simd_adler": { "gbps": 1.366, "vs_miniz": "1.11x", "mismatches": 0, "peak_rss_mib": 1493.5, "verdict": "correct, below the 1.25x bar; free and output-preserving, so it is enabled in the shipped build" },
+    "zlib_rs": { "gbps": 1.938, "vs_miniz": "1.58x", "mismatches": 0, "peak_rss_mib": 1486.3, "verdict": "MEETS the pre-registered bar (>=1.25x, <=1.10x RSS) and is byte-identical to the reference" },
+    "zune_inflate": { "gbps": 1.922, "vs_miniz": "1.56x", "mismatches": 255, "peak_rss_mib": 1395.8, "verdict": "DISQUALIFIED — decoded 255 members differently from the reference; speed is irrelevant when the bytes differ" }
+  },
+  "correction_gate": "the reference is miniz_oxide; any candidate whose output differs is disqualified regardless of speed",
+  "interpretation": "zlib-rs is a real, correct decompression win over the shipped miniz_oxide (1.58x GB/s, RSS-neutral) and meets the pre-registered adoption bar. zune-inflate is faster but wrong on 255 members — a valuable negative. miniz_oxide's SIMD adler path is a free, correctness-preserving 1.11x and is enabled.",
+  "recommended_next_change": "swap the shipped inflate backend to zlib-rs behind the existing inflate boundary, guarded by this byte-identity witness; not done in this court (the court measures only)",
+  "part_a": "the scalar PDF `find_endstream` substring scan was replaced with a reused memchr::memmem::Finder (differential tests assert equality with the retained scalar oracle); it is not separately timed here — the end-to-end effect is material only for large/scanned PDFs",
+  "caveats": [
+    "88 of 100 documents contributed members; 12,001 members were declined (unsupported filters) and are counted, not hidden",
+    "miniz SIMD vs scalar was initially inconclusive because `cargo build` does not build examples and a shared target dir handed back the scalar example for the simd feature set; the sealed run builds each arm explicitly (--example, separate target dir) and the simd arm reports config=simd",
+    "no `perf` in the lane; the harness reports its own peak RSS and /usr/bin/time -v agrees"
+  ],
+  "tuning": "none; the corpus members and the candidate set are pre-registered; the adoption bar was fixed before measuring"
+}

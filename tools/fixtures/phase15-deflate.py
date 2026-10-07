@@ -104,7 +104,10 @@ def main(argv):
         if ref and t != REF and ref["gbps"] > 0 and r["peak_rss_kib"]:
             gr = r["gbps"] / ref["gbps"]
             rr = r["peak_rss_kib"] / ref["peak_rss_kib"]
-            bar = "yes" if (gr >= BADOPT and rr <= BADRSS) else "no"
+            correct = r["mismatches"] == 0
+            bar = "yes" if (correct and gr >= BADOPT and rr <= BADRSS) else "no"
+            if not correct:
+                bar = "no (incorrect)"
             gr_s, rr_s = f"{gr:.2f}x", f"{rr:.2f}x"
         else:
             gr_s, rr_s, bar = "reference", "reference", "—"
@@ -115,13 +118,19 @@ def main(argv):
                 r["wall_ms"], r["gbps"], gr_s, r["mismatches"], rss_mib, rr_s, bar))
     out.append("")
 
-    total_mismatch = sum(r["mismatches"] for r in rows.values())
-    if rows and total_mismatch == 0:
+    bad = [t for t, r in rows.items() if r["mismatches"] > 0]
+    good = [t for t, r in rows.items() if r["mismatches"] == 0]
+    if rows and not bad:
         out.append("**Correctness gate: PASS** — every candidate decoded the corpus "
                    "byte-identically to the miniz_oxide reference (0 mismatches).")
     else:
-        out.append(f"**Correctness gate: FAIL** — {total_mismatch} mismatched members. "
-                   "No candidate may be adopted.")
+        out.append("**Correctness gate: PARTIAL** — " + ("all candidates decoded "
+                   "byte-identically" if not bad else
+                   "these candidates DECODED DIFFERENTLY and are disqualified: " + ", ".join(bad)) +
+                   f" ({sum(r['mismatches'] for t, r in rows.items() if t in bad)} mismatched members). "
+                   "A candidate that does not reproduce the reference bytes cannot be "
+                   "adopted regardless of speed.")
+        out.append(f"Correct candidates: {', '.join(good) if good else 'none'}.")
     out.append("")
     out.append(f"Adoption bar (pre-registered): >= {BADOPT}x GB/s AND <= {BADRSS}x peak RSS "
                "vs miniz_oxide. A `yes` means a candidate MEETS the bar; it does not mean "

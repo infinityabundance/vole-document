@@ -41,19 +41,12 @@ LIMIT_ARG=""
 echo "== phase15 deflate-ablation court ==" >&2
 
 echo "-- building (scalar miniz + zlib-rs + zune-inflate)" >&2
-if ! cargo build --release --locked --features deflate-ablation >&2; then
+if ! cargo build --release --locked --features deflate-ablation --example deflate_ablation >&2; then
     echo "phase15-deflate: scalar build FAILED; refusing to measure" >&2
     exit 1
 fi
 SCALAR=target/release/examples/deflate_ablation
 [ -x "$SCALAR" ] || { echo "phase15-deflate: $SCALAR missing" >&2; exit 1; }
-
-echo "-- building (miniz SIMD adler)" >&2
-if ! cargo build --release --locked --features deflate-ablation,miniz-simd >&2; then
-    echo "phase15-deflate: simd build FAILED; refusing to measure" >&2
-    exit 1
-fi
-SIMD=target/release/examples/deflate_ablation
 
 # candidate tag -> binary; CAND defaults to TAG but the SIMD binary still takes
 # `--candidate miniz` (it reports config=simd).
@@ -66,9 +59,21 @@ run_one() { # tag bin [cand]
 }
 
 run_one miniz         "$SCALAR"
-run_one miniz-simd    "$SIMD" miniz
 run_one zlib-rs       "$SCALAR"
 run_one zune-inflate  "$SCALAR"
+
+# The SIMD-adler build is a SEPARATE target dir: cargo caches by feature set, and a
+# shared target directory was observed to hand back the scalar example unchanged
+# for the simd feature set (config stayed `scalar`), collapsing the two arms.
+echo "-- building (miniz SIMD adler, separate target dir)" >&2
+if ! CARGO_TARGET_DIR=/tmp/vole-deflate-simd cargo build --release --locked \
+        --features deflate-ablation,miniz-simd --example deflate_ablation >&2; then
+    echo "phase15-deflate: simd build FAILED; refusing to measure" >&2
+    exit 1
+fi
+SIMD=/tmp/vole-deflate-simd/release/examples/deflate_ablation
+[ -x "$SIMD" ] || { echo "phase15-deflate: $SIMD missing" >&2; exit 1; }
+run_one miniz-simd    "$SIMD" miniz
 
 printf '{\n' >"$RAW/environment.json"
 printf '  "campaign": "%s",\n' "$CAMPAIGN" >>"$RAW/environment.json"

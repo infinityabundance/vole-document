@@ -1,0 +1,1 @@
+{"candidate":"zlib-rs","config":"scalar","docs":88,"members":52498,"compressed_bytes":504430516,"decoded_bytes":2901943879,"wall_ms":1497.189,"gbps_decoded":1.9383,"correct":true,"mismatches":0,"declined":12001,"scan_failed":0,"peak_rss_kib":1521936,"first_mismatch":null}

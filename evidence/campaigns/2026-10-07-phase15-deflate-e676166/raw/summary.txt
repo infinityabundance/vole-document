@@ -1,0 +1,16 @@
+# phase15 deflate-ablation — real `real100-v1` compressed members
+
+Each candidate decodes the SAME extracted members (PDF `FlateDecode` zlib streams + ZIP method-8 DEFLATE members); every output must equal the `miniz_oxide` reference byte-for-byte (`mismatches == 0`). Wall time measures inflate only (extraction happens before timing). One candidate per process, so peak RSS is a clean per-candidate number.
+
+| candidate | config | docs | members | compressed MiB | decoded MiB | wall ms | GB/s | GB/s vs miniz | mismatches | peak RSS MiB | RSS vs miniz | meets 1.25x/1.10 bar |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| miniz | scalar | 88 | 52498 | 481.1 | 2767.5 | 2358.2 | 1.231 | reference | 0 | 1493.0 | reference | — |
+| miniz-simd | simd | 88 | 52498 | 481.1 | 2767.5 | 2123.8 | 1.366 | 1.11x | 0 | 1493.5 | 1.00x | no |
+| zlib-rs | scalar | 88 | 52498 | 481.1 | 2767.5 | 1497.2 | 1.938 | 1.58x | 0 | 1486.3 | 1.00x | yes |
+| zune-inflate | scalar | 88 | 52498 | 481.1 | 2767.5 | 1510.1 | 1.922 | 1.56x | 255 | 1395.8 | 0.93x | yes |
+
+**Correctness gate: FAIL** — 255 mismatched members. No candidate may be adopted.
+
+Adoption bar (pre-registered): >= 1.25x GB/s AND <= 1.1x peak RSS vs miniz_oxide. A `yes` means a candidate MEETS the bar; it does not mean the shipped inflater was changed — this court measures only.
+
+
