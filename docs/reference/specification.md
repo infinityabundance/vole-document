@@ -223,7 +223,7 @@ Semantics:
 - `MARK_OFFSET` (introduced in DRA version 4) records the current output position
   (a `u64`) into the named slot and emits **no** bytes (authority: **Generated**,
   zero-length). `slot` is a `u8`, so every value `0..=255` is in range; the
-  program models [`MAX_OFFSET_SLOTS`](src/dra/program.rs) = **256** slots. Slot
+  program models [`MAX_OFFSET_SLOTS`](../../src/dra/program.rs) = **256** slots. Slot
   `255` is **reserved for the most recent classic `xref` section start**; slots
   `0..=254` are available to the layout builder for indirect-object introducer
   offsets. Marking a slot does not disturb the pending `REPEAT_LAST` block.
@@ -263,7 +263,7 @@ Semantics:
   **plan entropy channel** (authority: **EntropyChannel** for both).
   `data_channel` is the index of the channel holding the literal data object;
   `plan_channel` is the index of the channel holding exactly
-  [`encode_items`](src/dra/op.rs) of the item table (the same
+  [`encode_items`](../../src/dra/op.rs) of the item table (the same
   `Literal`/`Mark`/`Emit` item codec as `PACK_SEGMENTS`); `declared_output_len`
   is the exact expected output length. Evaluation decodes both channels, runs the
   item table over the data (the data object must be consumed **exactly**), and
@@ -432,7 +432,7 @@ the renormalization payload; the total record payload length must equal
 | 33 | `payload_len` | `payload` | renormalization bytes in forward decoder-consumption order |
 
 A channel is never a bare seed: the model, decoder state, payload, and counts
-are all required to reconstruct bytes (see [`docs/adr/0006-rans-substrate.md`](docs/adr/0006-rans-substrate.md)).
+are all required to reconstruct bytes (see [`docs/adr/0006-rans-substrate.md`](../adr/0006-rans-substrate.md)).
 
 ## PDF layout candidate (Phase 5, rebuilt on packed framing in Phase 5.7, entropy-coded in Phase 5.8)
 

@@ -22,8 +22,8 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 > Compression is an implementation detail here, not the product. rANS is the
 > entropy substrate beneath the representation, never the procedural model. The
 > point is a document that remains a *queryable, reconstructible computational
-> field* rather than a re-opened file. See [`SPEC.md`](SPEC.md),
-> [`PROJECT_STATE.md`](PROJECT_STATE.md), and [`docs/`](docs/).
+> field* rather than a re-opened file. See [`SPEC.md`](docs/reference/specification.md),
+> [`PROJECT_STATE.md`](docs/project/status.md), and [`docs/`](docs/).
 
 > ### 📌 Findings
 >
@@ -48,7 +48,7 @@ pages, the same rendering, or a canonical re-save are **not** substitutes.
 > **EntropyFS (A9) a loss**. Phase 11's scoped wins still stand (warm narrow
 > observation ~99 µs / 8.4–8.9 KB overhead; lifetime wall beats raw PDF tooling
 > 5/5; exact rematerialization after source deletion), while its warm-byte claim
-> was **falsified by the independent skeptic**. Read [`FINDINGS.md`](FINDINGS.md),
+> was **falsified by the independent skeptic**. Read [`FINDINGS.md`](docs/project/findings.md),
 > [`docs/phases/phase-12-results.md`](docs/phases/phase-12-results.md), and ADRs
 > 0017–0035. No universality or "beats databases" claim is made.
 
@@ -105,7 +105,7 @@ skeptic **falsified** the original warm-byte-vs-SQLite claim
 The pre-Phase-11 consolidation still stands for the axes it covers: through
 Phase 10, the single-file representation stack did not beat purpose-built
 baselines on any measured axis ([ADR-0023](docs/adr/0023-consolidated-findings.md),
-[`FINDINGS.md`](FINDINGS.md)). Phase 11 does not overturn that; it adds a new axis
+[`FINDINGS.md`](docs/project/findings.md)). Phase 11 does not overturn that; it adds a new axis
 — a persistent procedural field — on which scoped wins are now measured. Whole-file
 size remains a recorded loss against generic lossless tools (**0/27**, ADR-0017);
 Phase 7 measured a scoped random-access **decode-CPU** win (ADR-0018); Phase 8
@@ -650,7 +650,7 @@ cost; LibreOffice shares nothing. The delta is **conditional** on repeated ident
 page content and is **not** a population claim; prior "wins" were measured against a
 weak order-0 baseline and the generic ladder (below) is the honest comparison. No
 candidate or wire format changed. Review:
-[`docs/evidence/phase7b-skeptic-review.md`](docs/evidence/phase7b-skeptic-review.md).
+[`docs/evidence/phase7b-skeptic-review.md`](docs/reviews/phase7b-skeptic-review.md).
 
 Receipt:
 [`evidence/campaigns/2026-10-05-phase7-producers-e071250/`](evidence/campaigns/2026-10-05-phase7-producers-e071250/);
@@ -682,7 +682,7 @@ Prior "wins" were relative to a weak order-0 baseline and do not survive the
 generic ladder. VOLE's byte-exact structural reconstruction is unchanged; its
 *compression* claim does not survive on this corpus. All 27 auto winners are
 `verify` + `cmp` byte-exact; no candidate or wire format changed. Review:
-[`docs/evidence/phase7b-skeptic-review.md`](docs/evidence/phase7b-skeptic-review.md).
+[`docs/evidence/phase7b-skeptic-review.md`](docs/reviews/phase7b-skeptic-review.md).
 
 Receipt:
 [`evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/`](evidence/campaigns/2026-10-05-phase7-baselines-7b9f662/)
@@ -768,7 +768,7 @@ Receipt:
 (`query-table.md`, `report.md`, `seekable.jsonl`, `seekable-table.md`,
 `seekable-report.md`); reports
 [`docs/evidence/phase8-seek-report.md`](docs/evidence/phase8-seek-report.md),
-[`docs/evidence/phase8-skeptic-review.md`](docs/evidence/phase8-skeptic-review.md);
+[`docs/evidence/phase8-skeptic-review.md`](docs/reviews/phase8-skeptic-review.md);
 drivers `tools/seek-court.sh`, `tools/seek-table.jq`,
 `tools/seekable-baselines.sh`; ADR-0019.
 

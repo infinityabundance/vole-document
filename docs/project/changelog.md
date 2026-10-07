@@ -106,13 +106,13 @@ The courts are deliberately mixed; every loss, tie and negative below is recorde
 ### Notes
 
 - An independent adversarial review
-  ([`docs/reviews/phase-12-skeptic-review.md`](docs/reviews/phase-12-skeptic-review.md))
+  ([`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md))
   re-checked every headline; its corrections and amendments are applied — the
   security class tally, the crossover/store scoping, the withdrawal of the
   unmeasured FTS5 claim, the now-run ablation ladder, the sealed PDF no-regression /
   reuse-controls / FTS5 / demo receipts, and the default-feature clippy fix. The
   authoritative results are
-  [`docs/phases/phase-12-results.md`](docs/phases/phase-12-results.md).
+  [`docs/phases/phase-12-results.md`](../phases/phase-12-results.md).
 
 ## [0.1.0-alpha.15] — docs/status tables
 
@@ -305,7 +305,7 @@ decoder, or feature-bit change.
 - **Phase 10.2 — `FINDINGS.md` + ADR-0023 (top-level consolidated decision).**
   One authoritative document stating what was built, what was measured, against
   which baseline, what won, what lost, and why — every claim linked to a sealed
-  receipt and naming its baseline. [`FINDINGS.md`](FINDINGS.md) supersedes the
+  receipt and naming its baseline. [`FINDINGS.md`](findings.md) supersedes the
   per-phase narratives. ADR-0023 records the verdict: **the current VOLE
   representation stack does not beat purpose-built baselines on any measured
   axis; the durable results are byte-exactness, an auditable representation, and

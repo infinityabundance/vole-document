@@ -96,7 +96,7 @@ their own courts (run in the same `cargo test --all-features` gate):
 
 The Phase-13 subphases (byte-level checkpoints, ODT adapter, size-mechanism
 courts, the `N5` gate) add their courts as they land; see
-[`docs/phases/phase-13-plan.md`](docs/phases/phase-13-plan.md).
+[`docs/phases/phase-13-plan.md`](../phases/phase-13-plan.md).
 
 ## Standing invariants
 

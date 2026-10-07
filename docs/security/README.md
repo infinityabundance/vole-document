@@ -1,7 +1,7 @@
 # Security notes
 
 The normative threat model and hostile-input contract live in
-[`/SECURITY.md`](../../SECURITY.md). This directory holds format- and
+[`/SECURITY.md`](../SECURITY.md). This directory holds format- and
 phase-specific security notes as they accrue.
 
 ## Phase 1 (exact core)
@@ -36,7 +36,7 @@ Properties proven by `tests/malformed.rs`:
 
 The persistent field and the Phase-12 ZIP/OPC/OCF/XML adapters extend the
 hostile-input surface. The normative contract remains
-[`/SECURITY.md`](../../SECURITY.md). The Phase-12 campaign
+[`/SECURITY.md`](../SECURITY.md). The Phase-12 campaign
 `2026-10-06-phase12-security-33f6d04` ran **315/315** court assertions over 45
 hostile fixtures (16 reject / 22 opaque-preserve-and-decline / 7 accept; every
 accepted fixture still `materialize --exact`), a 15/15 library court, and 8 new

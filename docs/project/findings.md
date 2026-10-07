@@ -1,16 +1,16 @@
 # VOLE-Document — consolidated findings
 
 **Status:** authoritative top-level summary of the VOLE-Document programme, superseding
-the per-phase narratives. Decision record: [ADR-0023](docs/adr/0023-consolidated-findings.md).
+the per-phase narratives. Decision record: [ADR-0023](../adr/0023-consolidated-findings.md).
 **Version:** `0.1.0-alpha.12` (Phase 10.2) — this document is **frozen at Phase 10.2**.
 For Phase 11 and Phase 12 see **§9** (the current release is `0.1.0-alpha.16`,
 Phase 12); the authoritative Phase-12 evidence is
-[`docs/phases/phase-12-results.md`](docs/phases/phase-12-results.md).
+[`docs/phases/phase-12-results.md`](../phases/phase-12-results.md).
 
 This document states, in one place, **what was built, what was measured, against
 which baseline, what won, what lost, and why.** Every number below is traceable to
-a sealed receipt under [`evidence/campaigns/`](evidence/campaigns/) and to an ADR
-in [`docs/adr/`](docs/adr/). Where a claim was over-stated by earlier text, the
+a sealed receipt under [`evidence/campaigns/`](../../evidence/campaigns/) and to an ADR
+in [`docs/adr/`](../adr/). Where a claim was over-stated by earlier text, the
 correction and the independent review that found it are cited in §6. Nothing here
 is a population claim; every corpus was locally generated and deterministic.
 
@@ -97,18 +97,18 @@ themselves, checked by length + SHA-256 + byte compare.
 | Axis | Baseline (what it is measured *against*) | Result | Verdict | Receipt | ADR |
 |---|---|---|---|---|---|
 | **Exactness** (all phases) | the source bytes (`length` + `SHA-256` + `byte_compare`) | every admitted input in every sealed campaign round-trips byte-exactly (e.g. 27/27 Phase 7.0c, 18/18 Phase 7.3, 18/18 Phase 8, 37/37 Phase 9, all Phase-10 workloads) | **HELD** (prime directive) | all campaigns | 0001 |
-| **Whole-file size** | best of `gzip -9`, `zstd -19 --long=27`, `xz -9e`, `brotli -q 11` (each round-trip verified) | best VOLE lane beats a generic compressor on **0/27** files; best generic smaller on every file by **+460,320 B** total | **LOSS** | `2026-10-05-phase7-baselines-7b9f662` | [0017](docs/adr/0017-generic-lossless-baselines.md) |
-| **Random-access bytes read** | **seekable/blocked** formats: bgzip (BGZF 64 KiB), `xz --block-size=64KiB/1MiB/4MiB`, pixz (16 MiB) | late query VOLE **460,713 B** loses to **fine-block** formats (BGZF **23,808 B** ~19×, xz-64KiB **15,344 B** ~30×, xz-1MiB **179,892 B** ~2.6×) but reads **less** than **coarse-block** ones (xz-4MiB **708,612 B**, pixz **2,810,832 B**) | **MIXED (loss vs fine-block)** | `2026-10-05-phase8-seek-08de2a9` (`seekable.jsonl`) | [0019](docs/adr/0019-seek-based-io.md) |
-| **Random-access bytes read** | **non-seekable sequential** gzip/zstd/xz compressed prefixes | late query VOLE 460,713 B vs gzip prefix 9,764,864 B → **12–21×** fewer bytes | **SCOPED WIN** | `2026-10-05-phase8-seek-08de2a9` | [0019](docs/adr/0019-seek-based-io.md) |
-| **Partial-view decode CPU** | sequential `gzip`/`zstd`/`xz` decoders | late queries ≈**2–5×** faster than gzip, ≈**4–13×** than xz; **never beats zstd's decoder**; RSS ~38 MB vs gzip ~1.2 MB | **SCOPED WIN (CPU only)** | `2026-10-05-phase7-partial-a5764c9` | [0018](docs/adr/0018-partial-materialization.md) |
-| **Cross-document sharing** | per-file min LZ **and** content-defined-chunk dedup (borg 1.2.4, chunker `10,15,11,127`) | unique-reachable `U = 3,369,900 B` vs per-file LZ **1,304,307 B** vs CDC-raw **771,383 B** | **ROBUST LOSS** | `2026-10-05-phase9-store-fdb2845` | [0021](docs/adr/0021-cross-document-sharing-result.md) |
-| **Encoder-only search governance** | fixed complete-cost heuristic and an exhaustive candidate grid | `fixed == exhaustive` on **every** workload; median byte benefit **0 ‰**; guided matches exhaustive on 8/8 holdout with ≤ ½ the candidates | **RECORDED NEGATIVE** | `2026-10-05-phase10-governor-d2b09c9` | [0022](docs/adr/0022-encoder-only-search-governance.md) |
+| **Whole-file size** | best of `gzip -9`, `zstd -19 --long=27`, `xz -9e`, `brotli -q 11` (each round-trip verified) | best VOLE lane beats a generic compressor on **0/27** files; best generic smaller on every file by **+460,320 B** total | **LOSS** | `2026-10-05-phase7-baselines-7b9f662` | [0017](../adr/0017-generic-lossless-baselines.md) |
+| **Random-access bytes read** | **seekable/blocked** formats: bgzip (BGZF 64 KiB), `xz --block-size=64KiB/1MiB/4MiB`, pixz (16 MiB) | late query VOLE **460,713 B** loses to **fine-block** formats (BGZF **23,808 B** ~19×, xz-64KiB **15,344 B** ~30×, xz-1MiB **179,892 B** ~2.6×) but reads **less** than **coarse-block** ones (xz-4MiB **708,612 B**, pixz **2,810,832 B**) | **MIXED (loss vs fine-block)** | `2026-10-05-phase8-seek-08de2a9` (`seekable.jsonl`) | [0019](../adr/0019-seek-based-io.md) |
+| **Random-access bytes read** | **non-seekable sequential** gzip/zstd/xz compressed prefixes | late query VOLE 460,713 B vs gzip prefix 9,764,864 B → **12–21×** fewer bytes | **SCOPED WIN** | `2026-10-05-phase8-seek-08de2a9` | [0019](../adr/0019-seek-based-io.md) |
+| **Partial-view decode CPU** | sequential `gzip`/`zstd`/`xz` decoders | late queries ≈**2–5×** faster than gzip, ≈**4–13×** than xz; **never beats zstd's decoder**; RSS ~38 MB vs gzip ~1.2 MB | **SCOPED WIN (CPU only)** | `2026-10-05-phase7-partial-a5764c9` | [0018](../adr/0018-partial-materialization.md) |
+| **Cross-document sharing** | per-file min LZ **and** content-defined-chunk dedup (borg 1.2.4, chunker `10,15,11,127`) | unique-reachable `U = 3,369,900 B` vs per-file LZ **1,304,307 B** vs CDC-raw **771,383 B** | **ROBUST LOSS** | `2026-10-05-phase9-store-fdb2845` | [0021](../adr/0021-cross-document-sharing-result.md) |
+| **Encoder-only search governance** | fixed complete-cost heuristic and an exhaustive candidate grid | `fixed == exhaustive` on **every** workload; median byte benefit **0 ‰**; guided matches exhaustive on 8/8 holdout with ≤ ½ the candidates | **RECORDED NEGATIVE** | `2026-10-05-phase10-governor-d2b09c9` | [0022](../adr/0022-encoder-only-search-governance.md) |
 
 ### 3.2 Details and receipts for each axis
 
 **Exactness.** The only normative profile is `materialize(descriptor) ==
 original_bytes`; parsing/semantic-equality/canonicalization are not substitutes.
-Confirmed by the standing invariants in [`CONFORMANCE.md`](CONFORMANCE.md) and by
+Confirmed by the standing invariants in [`CONFORMANCE.md`](../reference/conformance.md) and by
 every sealed campaign's verification triples.
 
 **Whole-file size (ADR-0017, receipt `2026-10-05-phase7-baselines-7b9f662`).** On 27
@@ -185,11 +185,11 @@ representation's shape.
 
 | Candidate | Baseline | Result | ADR |
 |---|---|---|---|
-| `PDF_CHANNELS` (Phase 4) | `BYTE_RANS` | loses (`bigtext.pdf` 46,432 vs 38,142 B) | [0010](docs/adr/0010-typed-channels-rejected.md) |
-| `PDF_LAYOUT` (Phase 5) | `BYTE_RANS` / RAW | loses on DRA framing (0/7 classic-xref files) | [0011](docs/adr/0011-layout-prediction-framing.md) |
-| layout-v2 packed (Phase 5.7) | RAW / `BYTE_RANS` | beats RAW at scale (`many.pdf` 10,069 vs 10,215) but loses to `BYTE_RANS` (5,181) | [0012](docs/adr/0012-packed-framing-threshold.md) |
-| `PDF_LAYOUT_RANS` (Phase 5.8) | `BYTE_RANS` | loses (0 win / 8 lose / 3 decline) | [0013](docs/adr/0013-layout-rans-not-profitable.md) |
-| `PDF_DEFLATE_REPLAY_RANS` (Phase 6) | `BYTE_RANS` | wins on one synthetic fixture (`flate.pdf` 36,102 vs 49,291 B) when plaintext is **both** shared **and** large/weakly coded; loses/declines on every genuinely transformed producer output | [0015](docs/adr/0015-deflate-replay-result.md) |
+| `PDF_CHANNELS` (Phase 4) | `BYTE_RANS` | loses (`bigtext.pdf` 46,432 vs 38,142 B) | [0010](../adr/0010-typed-channels-rejected.md) |
+| `PDF_LAYOUT` (Phase 5) | `BYTE_RANS` / RAW | loses on DRA framing (0/7 classic-xref files) | [0011](../adr/0011-layout-prediction-framing.md) |
+| layout-v2 packed (Phase 5.7) | RAW / `BYTE_RANS` | beats RAW at scale (`many.pdf` 10,069 vs 10,215) but loses to `BYTE_RANS` (5,181) | [0012](../adr/0012-packed-framing-threshold.md) |
+| `PDF_LAYOUT_RANS` (Phase 5.8) | `BYTE_RANS` | loses (0 win / 8 lose / 3 decline) | [0013](../adr/0013-layout-rans-not-profitable.md) |
+| `PDF_DEFLATE_REPLAY_RANS` (Phase 6) | `BYTE_RANS` | wins on one synthetic fixture (`flate.pdf` 36,102 vs 49,291 B) when plaintext is **both** shared **and** large/weakly coded; loses/declines on every genuinely transformed producer output | [0015](../adr/0015-deflate-replay-result.md) |
 
 ---
 
@@ -247,25 +247,25 @@ left untouched (corrections are prose/amendments).
 
 | Withdrawn claim | Why it was false | Review |
 |---|---|---|
-| **Phase-6 "win reproduces on qpdf transformer output"** | The "qpdf win" is a `qpdf --object-streams=preserve` **copy** of our own `hand-base2.pdf` fixture's two byte-identical raw streams (`ec028dc1…`); **99.93 %** of it is inherited. Every genuinely transformed producer output loses or declines (win 3 / lose 8 / decline 12, all 3 wins self-authored). | [`phase7-skeptic-review.md`](docs/evidence/phase7-skeptic-review.md) |
-| **Phase-7.0b "Cairo: first authoring-generator witness"** | The generator repeated **one identical page six times**, so Cairo emitted six byte-identical streams (plaintext *and* compressed bytes); generic LZ does ~2× better (gzip 17,382 B; xz-9e 16,852 B) than the 34,574 B "win", which was only vs the weak order-0 `BYTE_RANS`. | [`phase7b-skeptic-review.md`](docs/evidence/phase7b-skeptic-review.md) |
-| **Phase-6 win region = "shared **or** weakly coded"** | Each conjunct alone loses (four negative controls); the win requires shared **and** large/weakly-coded plaintext. | [`phase6-skeptic-review.md`](docs/evidence/phase6-skeptic-review.md) |
-| **Phase-6 descriptor labels: "three *shared* plaintext channels", "six stored bitstreams", "levels 0/1 almost verbatim"** | The real `PDF_DEFLATE_REPLAY_RANS` descriptor for `flate.pdf` is `streams=6 replayed=6 channels=3 objects=6`, but **only `p1` is shared** (four streams at levels 0/1/6/9; `p2`/`p3` are unique); `BYTE_RANS` **order-0-codes** the streams rather than storing them; level 1 is ~19 % of the plaintext (6,197 B), **not** verbatim (only level 0 is, 31,998 B). | [`phase6-skeptic-review.md`](docs/evidence/phase6-skeptic-review.md) |
-| **Phase-7c F1 primary metric = `descriptor_bytes_traversed + entropy_bytes_decoded` (0.41–0.46 MB)** | **Double-counts** the decoded channels: `descriptor_bytes_traversed` already includes the referenced entropy-channel payload bytes that `entropy_bytes_decoded` reports again. Superseded by **`descriptor_bytes_traversed` alone (412,161–433,694 B ≈ 0.41–0.43 MB)**, constant across offset. | [`phase7c-skeptic-review.md`](docs/evidence/phase7c-skeptic-review.md) |
-| **Phase-7.0 `correction/compressed` p50 = 0.004518** | Misattributed: 0.004518 is the `pdf-make-samples` **subset** median; the corpus-wide p50 is **0.014716**. | [`phase7-skeptic-review.md`](docs/evidence/phase7-skeptic-review.md) |
-| **Phase-8 "bytes-read win" as a general random-access-I/O result** | Holds only against **non-seekable sequential** codecs; against **fine-block** seekable/blocked formats VOLE reads **2.6–30× more** (it reads **less** than **coarse-block** ones: xz-4MiB 708,612 B, pixz 2,810,832 B). Also, the "reads only the 64-byte header, DIRECTORY, …" wording hid a ~440 KB floor. | [`phase8-skeptic-review.md`](docs/evidence/phase8-skeptic-review.md) |
-| **Phase-9 "the only win is byte-identical opaque repeats"; "a finer unit is not implied by the current set"; fixed CDC-zstd 210,836 B** | Granularity: forcing `PDF_DEFLATE_REPLAY` (a current-set candidate) wins `shared-payload` over raw CDC. Compressed-CDC is **non-deterministic** (210,835–210,840 B). The negative survives; its size is partly an artifact. | [`phase9-skeptic-review.md`](docs/evidence/phase9-skeptic-review.md) |
-| **Phase-7.3 partial "allocation" win / early boundary ≤ 1–8 MiB** | It is a decode-**CPU** win; peak RSS is a **loss** (~38 MB vs gzip ~1.2 MB); the early boundary is ≤ ~8–16 MiB. | [`phase7c-skeptic-review.md`](docs/evidence/phase7c-skeptic-review.md) |
+| **Phase-6 "win reproduces on qpdf transformer output"** | The "qpdf win" is a `qpdf --object-streams=preserve` **copy** of our own `hand-base2.pdf` fixture's two byte-identical raw streams (`ec028dc1…`); **99.93 %** of it is inherited. Every genuinely transformed producer output loses or declines (win 3 / lose 8 / decline 12, all 3 wins self-authored). | [`phase7-skeptic-review.md`](../reviews/phase7-skeptic-review.md) |
+| **Phase-7.0b "Cairo: first authoring-generator witness"** | The generator repeated **one identical page six times**, so Cairo emitted six byte-identical streams (plaintext *and* compressed bytes); generic LZ does ~2× better (gzip 17,382 B; xz-9e 16,852 B) than the 34,574 B "win", which was only vs the weak order-0 `BYTE_RANS`. | [`phase7b-skeptic-review.md`](../reviews/phase7b-skeptic-review.md) |
+| **Phase-6 win region = "shared **or** weakly coded"** | Each conjunct alone loses (four negative controls); the win requires shared **and** large/weakly-coded plaintext. | [`phase6-skeptic-review.md`](../reviews/phase6-skeptic-review.md) |
+| **Phase-6 descriptor labels: "three *shared* plaintext channels", "six stored bitstreams", "levels 0/1 almost verbatim"** | The real `PDF_DEFLATE_REPLAY_RANS` descriptor for `flate.pdf` is `streams=6 replayed=6 channels=3 objects=6`, but **only `p1` is shared** (four streams at levels 0/1/6/9; `p2`/`p3` are unique); `BYTE_RANS` **order-0-codes** the streams rather than storing them; level 1 is ~19 % of the plaintext (6,197 B), **not** verbatim (only level 0 is, 31,998 B). | [`phase6-skeptic-review.md`](../reviews/phase6-skeptic-review.md) |
+| **Phase-7c F1 primary metric = `descriptor_bytes_traversed + entropy_bytes_decoded` (0.41–0.46 MB)** | **Double-counts** the decoded channels: `descriptor_bytes_traversed` already includes the referenced entropy-channel payload bytes that `entropy_bytes_decoded` reports again. Superseded by **`descriptor_bytes_traversed` alone (412,161–433,694 B ≈ 0.41–0.43 MB)**, constant across offset. | [`phase7c-skeptic-review.md`](../reviews/phase7c-skeptic-review.md) |
+| **Phase-7.0 `correction/compressed` p50 = 0.004518** | Misattributed: 0.004518 is the `pdf-make-samples` **subset** median; the corpus-wide p50 is **0.014716**. | [`phase7-skeptic-review.md`](../reviews/phase7-skeptic-review.md) |
+| **Phase-8 "bytes-read win" as a general random-access-I/O result** | Holds only against **non-seekable sequential** codecs; against **fine-block** seekable/blocked formats VOLE reads **2.6–30× more** (it reads **less** than **coarse-block** ones: xz-4MiB 708,612 B, pixz 2,810,832 B). Also, the "reads only the 64-byte header, DIRECTORY, …" wording hid a ~440 KB floor. | [`phase8-skeptic-review.md`](../reviews/phase8-skeptic-review.md) |
+| **Phase-9 "the only win is byte-identical opaque repeats"; "a finer unit is not implied by the current set"; fixed CDC-zstd 210,836 B** | Granularity: forcing `PDF_DEFLATE_REPLAY` (a current-set candidate) wins `shared-payload` over raw CDC. Compressed-CDC is **non-deterministic** (210,835–210,840 B). The negative survives; its size is partly an artifact. | [`phase9-skeptic-review.md`](../reviews/phase9-skeptic-review.md) |
+| **Phase-7.3 partial "allocation" win / early boundary ≤ 1–8 MiB** | It is a decode-**CPU** win; peak RSS is a **loss** (~38 MB vs gzip ~1.2 MB); the early boundary is ≤ ~8–16 MiB. | [`phase7c-skeptic-review.md`](../reviews/phase7c-skeptic-review.md) |
 
-All review documents: [`phase6`](docs/evidence/phase6-skeptic-review.md),
-[`phase7`](docs/evidence/phase7-skeptic-review.md),
-[`phase7b`](docs/evidence/phase7b-skeptic-review.md),
-[`phase7c`](docs/evidence/phase7c-skeptic-review.md),
-[`phase8`](docs/evidence/phase8-skeptic-review.md),
-[`phase9`](docs/evidence/phase9-skeptic-review.md). Phase-11 and Phase-12
+All review documents: [`phase6`](../reviews/phase6-skeptic-review.md),
+[`phase7`](../reviews/phase7-skeptic-review.md),
+[`phase7b`](../reviews/phase7b-skeptic-review.md),
+[`phase7c`](../reviews/phase7c-skeptic-review.md),
+[`phase8`](../reviews/phase8-skeptic-review.md),
+[`phase9`](../reviews/phase9-skeptic-review.md). Phase-11 and Phase-12
 corrections are recorded separately in **§9** above and in their reviews:
-[`phase-11-skeptic-review.md`](docs/reviews/phase-11-skeptic-review.md),
-[`phase-12-skeptic-review.md`](docs/reviews/phase-12-skeptic-review.md).
+[`phase-11-skeptic-review.md`](../reviews/phase-11-skeptic-review.md),
+[`phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md).
 
 ---
 
@@ -281,7 +281,7 @@ Each of these is a concrete, falsifiable next step — and each carries an expli
    current store.
    **Measured (2026-10-06, Phase 11.14; ADR-0028).** Implemented and measured
    (`share-account` + `tools/field-share-court.sh`;
-   [`receipt`](evidence/campaigns/2026-10-06-phase11-share-d9f818a/)). Over 4 real
+   [`receipt`](../../evidence/campaigns/2026-10-06-phase11-share-d9f818a/)). Over 4 real
    producer documents + a byte-identical repeat + a few-bytes-changed
    near-duplicate (8 files, 337,877 B), the fine-unit unique **lower bound**
    (208,001 B) **loses to** the strongest content-defined chunking (borg
@@ -311,7 +311,7 @@ Each of these is a concrete, falsifiable next step — and each carries an expli
 ## 8. Reproducibility
 
 - **Docker only.** No `cargo`/`rustc`/tests/fuzzing/oracles ever run on the host.
-  All commands go through the pinned services in [`compose.yaml`](compose.yaml):
+  All commands go through the pinned services in [`compose.yaml`](../../compose.yaml):
   `dev` (`rust:1.99.0-slim-bookworm`, digest-pinned), `msrv` (`rust:1.89`),
   `tools`/`producers` (Debian bookworm, digest-pinned), `baseline` (dev + 
   gzip/zstd/xz/brotli/borg), `policy` (`cargo audit && cargo deny check`), `fuzz`
@@ -363,10 +363,10 @@ All of the above run inside Docker (`docker compose run --rm --no-TTY <service>
 This consolidated document is frozen at Phase 10.2 and does **not** yet cover
 Phase 11 or Phase 12. The following is inserted only so a reader does not mistake
 it for an endorsement of the Phase-12 headline; the authoritative Phase-12
-evidence is [`docs/phases/phase-12-results.md`](docs/phases/phase-12-results.md),
+evidence is [`docs/phases/phase-12-results.md`](../phases/phase-12-results.md),
 its sealed receipts under `evidence/campaigns/2026-10-06-phase12-*`, and the
 independent review
-[`docs/reviews/phase-12-skeptic-review.md`](docs/reviews/phase-12-skeptic-review.md).
+[`docs/reviews/phase-12-skeptic-review.md`](../reviews/phase-12-skeptic-review.md).
 
 **Scoped Phase-12 verdict (measured).** On a **self-authored** 12-document
 PDF/DOCX/EPUB corpus (841 B – 61 KB), the persistent procedural field (a) is
