@@ -1,0 +1,37 @@
+{
+ "arch": "x86_64",
+ "base_image": "vole-document/doc-baseline:1.99.0 (FROM baseline FROM dev, rust:1.99.0-slim-bookworm)",
+ "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+ "cargo_lock_sha256": "2ddb5e9645086a006f3b02b0bcf890564c5523a2c89ac03bf5fe82f9ef98d412",
+ "court": "revision",
+ "date_utc": "2026-10-07",
+ "facts": "family,col18 revision_family_id; members ordered by publication_year; same-format only",
+ "git_commit": "4786f8e3bdf612f99e93a6c11f52dc5c1e6e3e97",
+ "git_dirty": true,
+ "honesty": "Bounded subset of same-format revision families. The verdict is read directly from verdict.json; nothing was tuned. A negative/neutral result is a legitimate outcome.",
+ "interpretation": "REFUTED. Falsifier 3: the median retained cross-revision work is far below Y% for every lane, including VOLE --promote (durable promotion adds ~0% and its promoted store held no cross-revision bytes). Content-addressed identity did not translate into a measurable work saving on this bounded subset, matching ADR-0034's negative.",
+ "phase": "15.6",
+ "promote_suffix": "",
+ "rustc": "rustc 1.99.0 (b940084d7 2026-09-28) binary: rustc commit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4 commit-date: 2026-09-28 host: x86_64-unknown-linux-gnu release: 1.99.0 LLVM version: 23.1.1",
+ "schedule_seed": 20261007,
+ "service": "doc-baseline (mem 6g, memswap 6g, pids 4096, cpus 8)",
+ "sqlite_control": "fair per-revision REBUILD (fresh extraction each revision, charged in full). It has no content-addressed sharing opportunity, so its retained work is 0 by construction; reported as context, not as the verdict.",
+ "subset": {
+  "families": [
+   "rev-nist-sp800-34",
+   "rev-nist-sp800-218",
+   "rev-nist-fips-140"
+  ],
+  "per_type": 6
+ },
+ "verdict": {
+  "falsifiers": {
+   "revision_retained_ge_Y": false
+  },
+  "revision_retained_pct_median": {
+   "sq_rebuild": 0.0,
+   "v_off": 0.0,
+   "v_on": 0.27210884353741494
+  }
+ }
+}

@@ -1,0 +1,216 @@
+{
+ "format": "epub",
+ "k": 8,
+ "per_type": 8,
+ "requests": [
+  {
+   "arg": "--block 4 --kind text",
+   "i": 4,
+   "type": "text"
+  },
+  {
+   "arg": "--block 0 --kind text",
+   "i": 0,
+   "type": "text"
+  },
+  {
+   "arg": "--block 0 --kind text",
+   "i": 0,
+   "type": "text"
+  },
+  {
+   "arg": "--block 4 --kind text",
+   "i": 4,
+   "type": "text"
+  },
+  {
+   "arg": "--block 2 --kind text",
+   "i": 2,
+   "type": "text"
+  },
+  {
+   "arg": "--block 2 --kind text",
+   "i": 2,
+   "type": "text"
+  },
+  {
+   "arg": "--block 4 --kind text",
+   "i": 4,
+   "type": "text"
+  },
+  {
+   "arg": "--block 0 --kind text",
+   "i": 0,
+   "type": "text"
+  },
+  {
+   "arg": "--metadata --kind metadata",
+   "i": 4,
+   "type": "metadata"
+  },
+  {
+   "arg": "--metadata --kind metadata",
+   "i": 0,
+   "type": "metadata"
+  },
+  {
+   "arg": "--metadata --kind metadata",
+   "i": 0,
+   "type": "metadata"
+  },
+  {
+   "arg": "--metadata --kind metadata",
+   "i": 4,
+   "type": "metadata"
+  },
+  {
+   "arg": "--metadata --kind metadata",
+   "i": 2,
+   "type": "metadata"
+  },
+  {
+   "arg": "--metadata --kind metadata",
+   "i": 2,
+   "type": "metadata"
+  },
+  {
+   "arg": "--metadata --kind metadata",
+   "i": 4,
+   "type": "metadata"
+  },
+  {
+   "arg": "--metadata --kind metadata",
+   "i": 0,
+   "type": "metadata"
+  },
+  {
+   "arg": "--heading 4 --kind text",
+   "i": 4,
+   "type": "heading"
+  },
+  {
+   "arg": "--heading 0 --kind text",
+   "i": 0,
+   "type": "heading"
+  },
+  {
+   "arg": "--heading 0 --kind text",
+   "i": 0,
+   "type": "heading"
+  },
+  {
+   "arg": "--heading 4 --kind text",
+   "i": 4,
+   "type": "heading"
+  },
+  {
+   "arg": "--heading 2 --kind text",
+   "i": 2,
+   "type": "heading"
+  },
+  {
+   "arg": "--heading 2 --kind text",
+   "i": 2,
+   "type": "heading"
+  },
+  {
+   "arg": "--heading 4 --kind text",
+   "i": 4,
+   "type": "heading"
+  },
+  {
+   "arg": "--heading 0 --kind text",
+   "i": 0,
+   "type": "heading"
+  },
+  {
+   "arg": "--table 4 --kind text",
+   "i": 4,
+   "type": "table"
+  },
+  {
+   "arg": "--table 0 --kind text",
+   "i": 0,
+   "type": "table"
+  },
+  {
+   "arg": "--table 0 --kind text",
+   "i": 0,
+   "type": "table"
+  },
+  {
+   "arg": "--table 4 --kind text",
+   "i": 4,
+   "type": "table"
+  },
+  {
+   "arg": "--table 2 --kind text",
+   "i": 2,
+   "type": "table"
+  },
+  {
+   "arg": "--table 2 --kind text",
+   "i": 2,
+   "type": "table"
+  },
+  {
+   "arg": "--table 4 --kind text",
+   "i": 4,
+   "type": "table"
+  },
+  {
+   "arg": "--table 0 --kind text",
+   "i": 0,
+   "type": "table"
+  },
+  {
+   "arg": "--resource 4 --kind metadata",
+   "i": 4,
+   "type": "resource"
+  },
+  {
+   "arg": "--resource 0 --kind metadata",
+   "i": 0,
+   "type": "resource"
+  },
+  {
+   "arg": "--resource 0 --kind metadata",
+   "i": 0,
+   "type": "resource"
+  },
+  {
+   "arg": "--resource 4 --kind metadata",
+   "i": 4,
+   "type": "resource"
+  },
+  {
+   "arg": "--resource 2 --kind metadata",
+   "i": 2,
+   "type": "resource"
+  },
+  {
+   "arg": "--resource 2 --kind metadata",
+   "i": 2,
+   "type": "resource"
+  },
+  {
+   "arg": "--resource 4 --kind metadata",
+   "i": 4,
+   "type": "resource"
+  },
+  {
+   "arg": "--resource 0 --kind metadata",
+   "i": 0,
+   "type": "resource"
+  }
+ ],
+ "schedule_sha256": "381016a55cc64ed61f9033fda081a07f149f4b3ae47007f9f345c6835085cdb7",
+ "seed": 20261007,
+ "types": [
+  "text",
+  "metadata",
+  "heading",
+  "table",
+  "resource"
+ ]
+}

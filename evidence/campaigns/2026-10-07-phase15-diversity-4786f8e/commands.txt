@@ -1,0 +1,7 @@
+court: tools/phase15-diversity-court.sh
+DOCS="nist-docx-0005 nist-epub-0008 nist-pdf-0007"
+PER_TYPE=8 PROFILE=release PROMOTE_SUFFIX=""
+BIN=target/release/vole-document
+schedule: python3 tools/fixtures/phase15-frontier.py schedule --format F --per-type 8
+baseline: python3 tools/fixtures/phase12-baseline.py build --format F --source S --db D   (sq_full)
+lanes: v_off, v_on, sq_min, sq_full, sq_adapt

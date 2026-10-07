@@ -1,0 +1,22 @@
+# Phase 15.6 — adaptive procedural promotion: court frontier
+
+Lanes: v_off, v_on, sq_min, sq_full, sq_adapt. Falsifier thresholds: X=10%, Y=20%, Z=20% (design §5). Metric = median over documents of cumulative wall ms (ingest + prefix queries) at each diversity depth.
+
+_No diversity rows._
+
+## Revision — retained cross-revision work
+
+| family | lane | C(R2 cold) ms | C(R2 shared) ms | retained % | nodes_id_shared | shared_resource_ids | seed_nodes_reused |
+|---|---|---:|---:|---:|---:|---:|---:|
+| rev-nist-sp800-34 | VOLE (no promotion) | 84.0 | 74.0 | +11.9 | 6 | 0 | 0 |
+| rev-nist-sp800-34 | VOLE --promote | 85.0 | 80.0 | +5.9 | 6 | 0 | 0 |
+| rev-nist-sp800-34 | sq_rebuild | 58.0 | 58.0 | +0.0 | 0 | 0 | 0 |
+| rev-nist-sp800-218 | VOLE (no promotion) | 145.0 | 161.0 | -11.0 | 0 | 0 | 0 |
+| rev-nist-sp800-218 | VOLE --promote | 150.0 | 155.0 | -3.3 | 0 | 0 | 0 |
+| rev-nist-sp800-218 | sq_rebuild | 68.0 | 68.0 | +0.0 | 0 | 0 | 0 |
+| rev-nist-fips-140 | VOLE (no promotion) | 740.0 | 740.0 | +0.0 | 0 | 0 | 3 |
+| rev-nist-fips-140 | VOLE --promote | 735.0 | 733.0 | +0.3 | 0 | 0 | 3 |
+| rev-nist-fips-140 | sq_rebuild | 94.0 | 94.0 | +0.0 | 0 | 0 | 0 |
+
+Median retained: VOLE (no promotion) +0.0%, VOLE --promote +0.3%, sq_rebuild +0.0%.
+**Falsifier 3 (revision) REFUTES the retention claim:** the best lane's median retained cross-revision work is +0.3% < Y=20%.
