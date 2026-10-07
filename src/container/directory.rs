@@ -59,12 +59,13 @@ pub const CLASS_ENTRY_LEN: usize = 1 + 4 + 4;
 ///
 /// Repeating classes first, then singletons. The `DIRECTORY` tag is deliberately
 /// absent: it is always entry 0 and locatable at a constant offset.
-pub const CLASS_INDEX_TAGS: [RecordTag; 7] = [
+pub const CLASS_INDEX_TAGS: [RecordTag; 8] = [
     RecordTag::Model,
     RecordTag::EntropyChannel,
     RecordTag::Object,
     RecordTag::Graph,
     RecordTag::ObservationIndex,
+    RecordTag::Checkpoint,
     RecordTag::Integrity,
     RecordTag::Trailer,
 ];
@@ -397,6 +398,7 @@ impl SeekDirectory {
             for tag in [
                 RecordTag::Graph,
                 RecordTag::ObservationIndex,
+                RecordTag::Checkpoint,
                 RecordTag::Integrity,
                 RecordTag::Trailer,
             ] {

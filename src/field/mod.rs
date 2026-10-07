@@ -742,6 +742,7 @@ mod tests {
             program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
             observation_index: None,
             seek_directory: false,
+            checkpoints: None,
             source_sha256: crate::integrity::sha256(source),
             source_len: source.len() as u64,
         };
@@ -820,6 +821,7 @@ mod entropyfs_field_tests {
             program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
             observation_index: None,
             seek_directory: false,
+            checkpoints: None,
             source_sha256: crate::integrity::sha256(source),
             source_len: source.len() as u64,
         };

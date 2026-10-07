@@ -291,6 +291,7 @@ pub fn propose_pdf_layout(input: &[u8], limits: Limits) -> Result<Option<Candida
         }]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };
@@ -400,6 +401,7 @@ pub fn propose_pdf_layout_rans(input: &[u8], limits: Limits) -> Result<Option<Ca
         }]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(input),
         source_len: input.len() as u64,
     };

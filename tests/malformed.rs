@@ -212,6 +212,7 @@ fn repeat_expansion_is_bounded() {
         ]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(&vec![0u8; 1024]),
         source_len: 1024,
     };
@@ -239,6 +240,7 @@ fn court_rejects_inexact_candidate() {
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(b"wrong bytes"),
         source_len: b"wrong bytes".len() as u64,
     };
@@ -270,6 +272,7 @@ fn store_backed_descriptor_fails_closed_without_store() {
         program: Program::new(vec![Op::EmitObject { object_id: 0 }]),
         observation_index: None,
         seek_directory: false,
+        checkpoints: None,
         source_sha256: sha256(object),
         source_len: object.len() as u64,
     };

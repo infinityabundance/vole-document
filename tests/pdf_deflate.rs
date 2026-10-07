@@ -339,6 +339,7 @@ fn hostile_corrections_fail_closed() {
             }]),
             observation_index: None,
             seek_directory: false,
+            checkpoints: None,
             source_sha256: sha256(b"hostile placeholder source"),
             source_len: plaintext.len() as u64,
         };

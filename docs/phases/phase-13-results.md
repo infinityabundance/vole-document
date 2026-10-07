@@ -102,3 +102,51 @@ top-level verdict (ADR-0023) is therefore unchanged — a bounded structural
 grammar beats a whole-file order-0 lane on repetitive syntax, but not a
 purpose-built generic LZ. No wire change; the candidate stays available as a
 forced lane and as the auto winner on the files where it genuinely wins.
+
+## Byte-level partial-materialization checkpoints (13.4)
+
+**Question.** Phase 8/11 delivered the seek `DIRECTORY`, the partial-descriptor
+lane, and the observation engine, but literal byte-level checkpoint records were
+never built. Does a persisted per-op checkpoint table, consumed by the seek
+reader in place of the `OBSERVATION_INDEX`, reduce bytes read or CPU for a
+random-access observation? (Phase 8's measured floor makes a negative the
+expected outcome.)
+
+**Mechanism.** An optional `FLAG_OPTIONAL` `CHECKPOINT` record (`RecordTag`
+`0x60`, payload `checkpoint_v1`) carries a per-op output-boundary table
+(`out_start`/`out_len`), the declared source length, and a `graph_crc32c` binding
+to the exact `GRAPH` record. An ignorable optional header bit
+`FEATURE_CHECKPOINTS` is set; the universe string is **unchanged** (no new
+opcode/coder/limit/adapter meaning). A checkpoint requires a seek `DIRECTORY` to
+locate it; the seek reader validates it against the authoritative program
+(`Program::analyze_ops`) and, for a raw byte range only, consumes it to select
+the op window while reading **no** `OBSERVATION_INDEX`. A lying, corrupt,
+non-optional, or out-of-closure checkpoint is rejected — the full parser fails
+closed and the seek reader falls back to the Phase-8 index lane, never to a
+guess. `materialize(descriptor) == original_bytes` is unchanged.
+
+**Court.** `tests/phase13_checkpoints.rs` (pre-registered H1–H3) over the
+deterministic `pdf-make-large` corpus and the `PDF_DEFLATE_REPLAY_RANS_INDEXED`
+lane, plus the `flate.pdf` sample, measured with the internal `CountingReader`
+(`bytes_read`) and the served `ops_evaluated`. Sealed receipt:
+`evidence/campaigns/2026-10-07-phase13-checkpoints-<shortsha>/`.
+
+**Outcome — recorded negative (ADR-0039).**
+
+| axis | result |
+| --- | --- |
+| byte-exactness (where consumed) | **exact**; checkpoint lane and index lane agree byte-for-byte, `ops_evaluated` identical |
+| advisory rejection | lying/corrupt/non-optional checkpoint → full parser rejects; reader falls back to the index lane, exact bytes |
+| bytes read (20 / 40 / 120 objects) | **+259 / +439 / +1,159 B** per byte-range query (constant per descriptor) |
+| descriptor size (20 / 40 / 120 objects) | 94,754→98,984 / 189,073→197,143 / 567,382→590,812 B |
+| CPU (op work) | **identical** (no reduction) |
+
+The checkpoint is materially **redundant with the observation index**: the index
+already persists the per-op output lengths the checkpoint recomputes, at a
+narrower 9 B/op entry, so the checkpoint's 16 B/op table (plus its own record
+framing) is larger than the index record it lets the reader skip. It never
+reduces either axis, and the `GRAPH` record — the irreducible floor for any lane
+that must evaluate ops — dominates regardless. **Closed as a recorded negative**;
+the mechanism stays implemented (opt-in) so the negative is reproducible and the
+fallback discipline is tested. No cap was raised; no validate-or-decline rule was
+weakened.
