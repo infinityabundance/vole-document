@@ -204,9 +204,12 @@ not by re-materializing the document. The full CLI surface is in
 
 ## Current status
 
-Release **`0.1.0-alpha.16`** (Phase 12 — a universal multi-format document
-field over PDF + DOCX + EPUB). Phase 13 is in progress and closes the remaining
-Phase-12 proposals; see [Roadmap](docs/project/roadmap.md). Headline
+Release **`0.1.0-alpha.19`** (Phases 13–14 complete: the Phase-13 proposals and
+`N5` gate, the benign-`DOCTYPE` real-EPUB fix, and a partial large-PDF encode fix;
+see [Changelog](docs/project/changelog.md)). **Phase 15 is in progress**: a
+performance programme that repairs the performance court (release build +
+corrected storage accounting) before any architecture change; see
+[Roadmap](docs/project/roadmap.md). Headline
 measurements, each with its own results doc:
 
 1. **Exactness holds after the source is gone.** PDF, DOCX and EPUB
@@ -234,6 +237,11 @@ Current limitations:
   measured file (the representation is coarser than LZ77).
 - **Not a database.** A source-retaining SQLite+FTS5 baseline wins the
   large-document byte frontier and wall/CPU at N=1000.
+- **Measured on a debug build so far.** The `real100-v1` frontier numbers were
+taken with an **unoptimized debug binary** (`cargo build --locked --all-features`)
+and a per-query-process model; Phase 15 re-runs the frozen court on a **release**
+build with corrected persistent-storage accounting, a resident-session lane, and a
+`field-ingest` path that does not run the compression candidate search.
 - **Self-authored corpora through Phase 12; first real-corpus court run.** Published
   performance results through Phase 12 use self-authored deterministic corpora.
   `real100-v1` is a frozen 100-document NASA/NIST corpus selected independently of
