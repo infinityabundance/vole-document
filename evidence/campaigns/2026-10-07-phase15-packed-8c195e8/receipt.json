@@ -1,0 +1,31 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-phase15-packed-8c195e8",
+  "phase": "15.3 — packed seed store vs the one-file-per-node reference store",
+  "utc_date": "2026-10-07",
+  "measured_commit": "8c195e8",
+  "measured_commit_subject": "phase15.6: opt-in adaptive promotion of reusable intermediates",
+  "measured_binary": "target/release/vole-document",
+  "profile": "release",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "corpus": "real100-v1 SUBSET: one document per (format, size_class) stratum = 12 documents (NOT the frozen 100-document population)",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "what_is_measured": "the SAME descriptor is ingested twice into two independent store roots — `$d/fs` (one file per seed node) and `$d/pack --packed` (append-only fieldpack segments + an immutable per-segment index) — then persistent bytes, file count, cold-observation wall, and byte-exact materialization are compared",
+  "results": {
+    "persistent_bytes": { "fs": 352671955, "packed": 253737799, "sum_ratio": 0.719, "median_per_doc_ratio": 0.447 },
+    "file_count": { "fs": 25574, "packed": 237, "sum_ratio": 0.009, "median_per_doc_ratio": 0.037 },
+    "cold_observation_wall_ms": { "fs": 1555, "packed": 1541, "sum_ratio": 0.991, "median_per_doc_ratio": 1.000, "reading": "parity" },
+    "field_id_identical_across_backends": "12/12",
+    "byte_exact_materialize": { "fs": "yes (12/12)", "packed": "yes (12/12)" },
+    "syscall_totals_one_cold_observation_strace_c_f": { "nist-docx-0013_fs": 142, "nist-docx-0013_packed": 154, "note": "a single observation on a small document is ~parity (the packed index adds one pread); the structural win is file count and bytes, not per-call syscalls" }
+  },
+  "interpretation": "The packed seed store is a structural win that leaves semantics untouched: identical node identities and byte-exact reconstruction, 111x fewer files, 28% fewer persistent bytes, and parity cold-observation latency. It is the storage-substrate half of the Phase-15 thesis; it does not by itself reduce CPU.",
+  "limits_and_non_claims": [
+    "subset of 12 documents, selected for format/size-class spread, not the full population",
+    "packed is a SEED-namespace backend only: descriptor/manifest/index/cache stay files, so the seek-based partial lane and FieldId are unchanged",
+    "no claim that packed is universally better; latency parity is the honest reading",
+    "the `perf` counter is unavailable in doc-baseline; strace + du/find are used instead"
+  ],
+  "note_fixed_during_sealing": "an earlier run of this court recorded `bin` = the debug path while building release, because BIN resolution consulted the doc-baseline `VOLE_BIN` env var; the script now ignores VOLE_BIN under PROFILE=release (mirroring the 15.1 real100-court fix) and this sealed run measured target/release/vole-document",
+  "tuning": "none; the subset is chosen from pre-registered format/size strata, not from any measurement"
+}

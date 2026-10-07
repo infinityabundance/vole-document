@@ -1,0 +1,22 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-phase15-packed-8c195e8",
+  "phase": "15.3 — packed seed store vs one-file-per-node reference",
+  "utc": "2026-10-07T16:11:26Z",
+  "git_commit": "8c195e8ac2c8e46f12e522cfebe784ebaf8c3c4d",
+  "git_dirty": "?? evidence/campaigns/2026-10-07-phase15-packed-8c195e8/;?? tools/fixtures/phase15-packed.py;?? tools/fixtures/phase15-workers.py;?? tools/phase15-packed-court.sh;?? tools/phase15-workers-court.sh;",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "image_id": "unrecorded",
+  "rustc": "1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "1.99.0 (5f94df478 2026-08-27)",
+  "jq": "jq-1.6",
+  "strace": "6.1",
+  "cargo_lock_sha256": "21afcb76ebe8ff7ce5bf1f69dbf588514fe6cebafc8b69c7da5e965b1c6df8ee",
+  "manifest": "real100-v1/manifest.tsv",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "bin": "target/release/vole-document",
+  "profile": "release",
+  "op_timeout_s": 180,
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}
