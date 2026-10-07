@@ -51,7 +51,8 @@ state, and the exact command line. Independent adversarial reviews live in
 | 13.3 | ODT adapter | byte-exact + queryable after source + descriptor deletion, fresh process | `phase13-odt-95c486d` | — |
 | 13.4 | byte-level partial-materialization checkpoints | exact + advisory, but redundant with the index (+bytes, identical op work) | `phase13-checkpoints-9d1306a` | — |
 | N5 | package-index-only gate | package index answers 0/72 structural selectors, field 72/72 — falsified | `phase13-n5-21948bd` | [phase-12](../reviews/phase-12-skeptic-review.md) |
-| real100 | frontier court over the frozen 100-doc NASA/NIST corpus | mixed: VOLE wins repeated observations + DOCX tables/metadata; loses cold lookups, real EPUB content (DOCTYPE), >100 MiB PDFs | `real100-frontier-8f10d00` | — |
+| real100 | frontier court over the frozen 100-doc NASA/NIST corpus | mixed: VOLE wins repeated observations + DOCX tables/metadata; loses cold lookups, >100 MiB PDFs. A real EPUB-content loss (XHTML `DOCTYPE`) was found and fixed (13.7) | `real100-frontier-8f10d00` | — |
+| 13.7 | benign `DOCTYPE` accepted in the bounded-XML policy (real EPUB fix) | EPUB content declines 62 → 6; ADR-0040 | `real100-frontier-c14e06f` | [phase-13](../reviews/phase-13-skeptic-review.md) |
 
 Receipt short names are the suffixes of `evidence/campaigns/2026-10-*<name>/`.
 

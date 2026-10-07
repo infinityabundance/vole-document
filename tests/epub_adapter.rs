@@ -594,10 +594,29 @@ fn malformed_container_declines_and_keeps_exactness() {
     );
     let entries = epub_entries(Entry::stored("mimetype", MIMETYPE), bad);
     let mut fx = Fixture::from_entries("malformed", &entries);
+    // A benign `<!DOCTYPE container>` is accepted (and ignored); the container is
+    // still malformed because it has no rootfile entry, so it declines typed.
     assert_eq!(
         observe_err(
             &mut fx.store,
             &fx.report.field,
+            Selector::EpubPackage,
+            Representation::Metadata,
+        ),
+        ErrorClass::InvalidPackageStructure
+    );
+
+    // A DOCTYPE *with an internal subset* is refused outright (no DTD resolution).
+    let dtd = concat!(
+        r#"<!DOCTYPE container [<!ENTITY e "x">]>"#,
+        r#"<container><rootfiles/></container>"#
+    );
+    let dtd_entries = epub_entries(Entry::stored("mimetype", MIMETYPE), dtd);
+    let mut fx_dtd = Fixture::from_entries("malformed-dtd", &dtd_entries);
+    assert_eq!(
+        observe_err(
+            &mut fx_dtd.store,
+            &fx_dtd.report.field,
             Selector::EpubPackage,
             Representation::Metadata,
         ),

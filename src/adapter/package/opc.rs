@@ -29,7 +29,7 @@ use crate::error::{Error, Result};
 use crate::limits::Limits;
 
 use super::xml::XmlState;
-use super::xml::{attr_of, doctype_declined, harden_xml, read_attrs, xml_err};
+use super::xml::{accept_doctype, attr_of, harden_xml, read_attrs, xml_err};
 
 /// The canonical (reserved) OPC content-types part name.
 pub const CONTENT_TYPES_PART: &str = "/[Content_Types].xml";
@@ -793,7 +793,7 @@ pub fn parse_content_types(xml: &[u8], limits: Limits) -> Result<ContentTypes> {
         st.event(limits)?;
         match ev {
             Event::Eof => break,
-            Event::DocType(_) => return Err(doctype_declined()),
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
             Event::Start(e) => {
                 st.open(limits)?;
                 handle_content_types_element(&mut out, &mut items, &e, limits)?;
@@ -881,7 +881,7 @@ pub fn parse_relationships(
         st.event(limits)?;
         match ev {
             Event::Eof => break,
-            Event::DocType(_) => return Err(doctype_declined()),
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
             Event::Start(e) => {
                 st.open(limits)?;
                 handle_relationship_element(&mut out, &e, base_dir, limits)?;

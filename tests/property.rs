@@ -419,7 +419,6 @@ fn limits_never_change_reconstructed_bytes() {
         max_xml_nodes: 1 << 30,
         max_xml_attrs_per_element: 1 << 20,
         max_xml_text_bytes: 1 << 50,
-        max_xml_doctype: 0,
         max_opc_rels: 1 << 24,
         max_opc_rel_depth: 1 << 16,
         max_opc_content_types_overrides: 1 << 24,

@@ -1,0 +1,5 @@
+# real100-v1 frontier court — POST-13.7 (benign DOCTYPE accepted)
+# Measured commit c14e06f (the 13.7 XML-policy fix). The follow-up commit
+# 1c065d4 is documentation + a wire-neutral dead-limit removal only.
+docker compose run --rm --no-TTY dev          sh -c "cargo build --locked --all-features"
+docker compose run --rm --no-TTY doc-baseline bash tools/real100-court.sh

@@ -104,8 +104,6 @@ pub struct Limits {
     pub max_xml_attrs_per_element: u32,
     /// Maximum total text bytes accepted across a single XML part (Phase 12, §2).
     pub max_xml_text_bytes: u64,
-    /// Maximum number of `<!DOCTYPE` declarations accepted (Phase 12: always 0).
-    pub max_xml_doctype: u32,
     /// Maximum relationships across all `.rels` parts (Phase 12, §3).
     pub max_opc_rels: u32,
     /// Maximum internal relationship traversal depth (Phase 12 cycles, §3).
@@ -177,7 +175,6 @@ impl Limits {
         max_xml_nodes: 1 << 24,
         max_xml_attrs_per_element: 4096,
         max_xml_text_bytes: 1 << 28,
-        max_xml_doctype: 0,
         max_opc_rels: 1 << 20,
         max_opc_rel_depth: 64,
         max_opc_content_types_overrides: 1 << 20,
@@ -229,7 +226,6 @@ impl Limits {
         max_xml_nodes: 1 << 16,
         max_xml_attrs_per_element: 256,
         max_xml_text_bytes: 1 << 20,
-        max_xml_doctype: 0,
         max_opc_rels: 1 << 14,
         max_opc_rel_depth: 16,
         max_opc_content_types_overrides: 1 << 12,

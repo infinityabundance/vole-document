@@ -1,0 +1,20 @@
+{
+  "campaign": "evidence/campaigns/2026-10-07-real100-frontier-c14e06f",
+  "phase": "real100-v1 frontier court, post-13.7 (benign DOCTYPE accepted)",
+  "utc_date": "2026-10-07",
+  "measured_commit": "c14e06f",
+  "measured_commit_subject": "phase13.7: accept benign DOCTYPE in the bounded-XML policy",
+  "note": "the working tree was clean at court start; the follow-up commit 1c065d4 is docs + a wire-neutral dead-limit removal, behavior-identical",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline",
+  "corpus": "real100-v1",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "documents": 100,
+  "answered": {"v": 455, "a1": 506, "a0": 508},
+  "declined": {"v": 245, "a1": 194, "a0": 192},
+  "v_declines_by_format": {"pdf": 204, "docx": 35, "epub": 6},
+  "pre_fix_campaign": "2026-10-07-real100-frontier-8f10d00",
+  "pre_fix_declines": {"v": 301, "epub_v": 62},
+  "exact": {"v": "97/100", "a1": "98/100", "a0": "100/100"},
+  "tuning": "none; the 13.7 change is a policy fix motivated by the pre-fix court, not tuning against the population"
+}
