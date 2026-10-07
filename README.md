@@ -204,8 +204,8 @@ not by re-materializing the document. The full CLI surface is in
 
 ## Current status
 
-Release **`0.1.0-alpha.19`** (Phases 13–14 complete; see
-[Changelog](docs/project/changelog.md)). **Phase 15 (branch `phase15`, staging)** repaired the frozen `real100-v1` court (release build; storage universes reported
+Release **`0.1.0-alpha.20`** (Phases 13–15 complete; see
+[Changelog](docs/project/changelog.md)). **Phase 15** repaired the frozen `real100-v1` court (release build; storage universes reported
 separately) and measured the frontier — [Phase 15 results](docs/phases/phase-15-results.md). **Two structural wins:** `--packed` cuts persistent
 bytes to **0.719×** and file count to **0.009×** at latency parity (ADR-0043), and **`zlib-rs`** inflate is **1.58×** `miniz_oxide` at **1.00×** RSS,
 byte-identical and meeting the pre-registered bar (recommended, not adopted; ADR-0045). **Two negatives:** residency wins only below ~1 MiB

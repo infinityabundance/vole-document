@@ -2,11 +2,11 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
-## [0.1.0-alpha.20] — Phase 15: performance programme (staging)
+## [0.1.0-alpha.20] — Phase 15: performance programme
 
 Phase 15 repairs the performance *measurement* first, then measures whether the
-lifetime economic frontier can be earned. Branch `phase15` (staging); base
-`main` @ `c6977cd` (`v0.1.0-alpha.19`). Results:
+lifetime economic frontier can be earned. Released as `v0.1.0-alpha.20` from
+`phase15`; base `main` @ `c6977cd` (`v0.1.0-alpha.19`). Results:
 [phase-15-results.md](../phases/phase-15-results.md); ADRs 0042–0048.
 
 ### Added
