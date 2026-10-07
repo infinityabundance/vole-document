@@ -34,20 +34,18 @@ mkdir -p "$RAW" "$WORK"
 MANIFEST=${MANIFEST:-real100-v1/manifest.tsv}
 CORPUS=${CORPUS:-real100-v1/documents}
 SCHEDULE=$RAW/schedule.json
-BIN=${VOLE_BIN:-}
 BASE=tools/fixtures/phase12-baseline.py
 OP_TIMEOUT=${OP_TIMEOUT:-180}
 REPEAT_N=${REPEAT_N:-5}
 LIMIT=${LIMIT:-0}   # 0 = the full frozen population; >0 caps docs (smoke / bounded run)
 # Build profile. Phase 15 repairs the court: the real100 numbers were taken on an
-# unoptimized debug binary. `PROFILE=release` builds `--release` and uses
-# `target/release/vole-document`.
+# unoptimized debug binary. `PROFILE=release` builds `--release` and measures
+# `target/release/vole-document`. An explicit `BIN` overrides.
 PROFILE=${PROFILE:-debug}
 case "$PROFILE" in
-    release) BUILD_ARGS="--release --locked --all-features"; DEFAULT_BIN=target/release/vole-document ;;
-    *)       BUILD_ARGS="--locked --all-features";           DEFAULT_BIN=target/debug/vole-document ;;
+    release) BUILD_ARGS="--release --locked --all-features"; BIN=${BIN:-target/release/vole-document} ;;
+    *)       BUILD_ARGS="--locked --all-features";           BIN=${BIN:-${VOLE_BIN:-target/debug/vole-document}} ;;
 esac
-BIN=${BIN:-$DEFAULT_BIN}
 
 echo "== real100 frontier court ==" >&2
 echo "-- building ($PROFILE) binary" >&2
