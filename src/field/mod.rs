@@ -633,6 +633,47 @@ impl FieldStore {
         // authority it cannot reproduce.
         let parsed = crate::container::Descriptor::parse(descriptor_bytes, limits)?;
         let source = crate::materialize::materialize(&parsed, limits)?;
+        self.ingest_parsed(descriptor_bytes, &parsed, &source)
+    }
+
+    /// Ingest a descriptor, verifying it materializes to a caller-supplied
+    /// `source`.
+    ///
+    /// Identical to [`FieldStore::ingest`] except the materialized source is
+    /// byte-compared to `source` instead of being dropped. A direct build
+    /// (`field-build`) already holds the exact source and proved
+    /// `materialize(descriptor) == source` in the encode court; passing the
+    /// original bytes here keeps that one non-negotiable check (length + byte
+    /// equality, hence SHA-256) while letting the caller scan the source rather
+    /// than a freshly materialized copy. The authority stored is unchanged.
+    pub fn ingest_verified(
+        &mut self,
+        descriptor_bytes: &[u8],
+        source: &[u8],
+        limits: Limits,
+    ) -> Result<FieldId> {
+        let parsed = crate::container::Descriptor::parse(descriptor_bytes, limits)?;
+        let materialized = crate::materialize::materialize(&parsed, limits)?;
+        if materialized.len() != source.len() || materialized != source {
+            return Err(Error::reconstruction_mismatch(format!(
+                "descriptor materialized {} bytes that differ from the supplied {} byte source",
+                materialized.len(),
+                source.len()
+            )));
+        }
+        self.ingest_parsed(descriptor_bytes, &parsed, source)
+    }
+
+    /// Shared tail of [`FieldStore::ingest`] / [`FieldStore::ingest_verified`]:
+    /// store the parsed descriptor and an exact `DocumentExact` root node, then
+    /// write the manifest. `source` must already be the exact materialization of
+    /// `parsed` (both callers establish this).
+    fn ingest_parsed(
+        &mut self,
+        descriptor_bytes: &[u8],
+        parsed: &ParsedDescriptor,
+        source: &[u8],
+    ) -> Result<FieldId> {
         let descriptor_id = self.put_descriptor(descriptor_bytes)?;
 
         let root = SeedNode::new(

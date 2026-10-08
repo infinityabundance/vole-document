@@ -1,0 +1,81 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase18-onepass-61b11350",
+  "phase": "18.2 — eliminate the source -> authority -> source round trip in the direct build",
+  "utc": "2026-10-08T10:20:00Z",
+  "measured_commit": "61b11350c8a4d2640f403c7131b69a48895eb9c2",
+  "claim": "field-build with --profile runtime now scans the ORIGINAL input bytes for DocumentField structure while separately storing the exact RAW authority, verifying (length + byte compare, hence SHA-256) that the authority materializes to that source; materialize(descriptor) == source is unimpaired and the field answers every observation identically.",
+  "change": {
+    "where_the_redundant_pass_was": [
+      "src/field/build.rs: direct_ingest() -> ingest_with() re-materialized the source from the authority just to detect ZIP vs PDF, then dispatched",
+      "src/field/ingest.rs: ingest_pdf_with() called FieldStore::ingest (which materializes) AND field.materialize_exact() (a second materialization) only to hand the bytes to scan()",
+      "src/field/ingest_package.rs: ingest_package_with() called materialize() on the parsed observable purely to obtain the bytes to scan"
+    ],
+    "what_changed": [
+      "added FieldStore::ingest_verified(descriptor, source, limits): parse + materialize + byte-compare to the caller's source (the single remaining round trip, now a verification rather than a discard); FieldStore::ingest delegates to a shared ingest_parsed tail",
+      "split ingest_pdf_with into ingest_pdf_with (materializing, unchanged) and ingest_pdf_stage_b(source, manifest); added pub(crate) ingest_pdf_direct(observable, source) that verifies against the caller's source and scans it",
+      "split ingest_package_with into ingest_package_with (materializing, unchanged) and ingest_package_from_source(source, parsed); added pub(crate) ingest_package_direct(observable, source)",
+      "build_field_with now passes the original source and the already-enriched authority straight to the direct variants; encode + field-ingest (the non-direct CLI path) are byte-for-byte unchanged"
+    ]
+  },
+  "ab_measurement": {
+    "court": "tools/phase17-direct-field-court.sh (9 documents: pdf/docx/epub, <100KiB..10-50MiB)",
+    "lane": "doc-baseline release, single run per step (no repetition)",
+    "current_lane_unchanged_control": {"before_sum_ms": 7831, "after_sum_ms": 7895, "note": "encode + field-ingest is untouched; the two runs agree within ~0.8% single-run noise, so the A/B is fair"},
+    "direct_build": {
+      "before": {"sum_ms": 4012, "median_ms": 574, "peak_rss_median_kb": 15184,
+                 "by_format_ms": {"pdf": 2386, "epub": 1392, "docx": 234}},
+      "after":  {"sum_ms": 3769, "median_ms": 524, "peak_rss_median_kb": 10812,
+                 "by_format_ms": {"pdf": 2240, "epub": 1300, "docx": 229}},
+      "sum_ms_delta": "-6.1%",
+      "median_ms_delta": "-8.7%",
+      "peak_rss_median_delta": "-28.8%",
+      "per_doc_rss_kb": [
+        ["nist-pdf-0002", 8740, 7700], ["nist-pdf-0004", 15184, 10812], ["nasa-pdf-0007", 102160, 72956],
+        ["nist-docx-0010", 4204, 4160], ["nist-docx-0001", 24484, 19652],
+        ["nist-epub-0008", 4132, 3916], ["nist-epub-0004", 6484, 5480],
+        ["nasa-epub-0011", 94860, 64496], ["nasa-epub-0006", 99872, 78748]
+      ],
+      "honest_reading": "Wall time improves modestly; the extra source-sized materializations were cheap (a RAW literal-object decode is essentially a memcpy), so removing two of three passes saves only ~6% wall. The real, consistent win is peak RSS: the removed full-size source buffers no longer coexist, cutting peak RSS by ~20-32% on the large documents and ~29% at the median."
+    }
+  },
+  "exactness": {
+    "phase17_9_docs_before_and_after": {
+      "current_field_materialize": "9/9 length+SHA-256+cmp",
+      "direct_field_materialize": "9/9 length+SHA-256+cmp",
+      "direct_authority_decode": "9/9 length+SHA-256+cmp"
+    },
+    "phase18_contract_12_docs": {"vole_materialize_exact": "12/12", "sqlite_retained_blob": "12/12"},
+    "observations_phase17": {"total": 99, "equal": 53, "decline_equal": 46, "divergent": 0,
+                             "note": "identical counts before and after; the schedule results (raw/observe.tsv) are byte-identical between the two direct runs"},
+    "authority_bytes": {"current_sum": 35154409, "direct_sum": 35383939, "direct_over_current": 1.007,
+                        "note": "the stored authority is unchanged by the refactor (same blob, same SHA-256)"}
+  },
+  "contract_court": {
+    "court": "tools/phase18-contract-court.sh (12 docs, C0..C5)",
+    "baseline_18_1": {"vole_build_sum_ms": 11905, "sqlite_C5_build_sum_ms": 1644, "build_gap": "7.24x"},
+    "onepass2_clean": {"vole_build_sum_ms": 11689, "sqlite_C5_build_sum_ms": 1621, "build_gap": "7.21x"},
+    "delta": "-1.8% VOLE build wall; gap essentially unchanged",
+    "honest_reading": "The contract-court build gap does not move (7.24x -> 7.21x). The round trip was NOT the bottleneck there: the build wall is dominated by the descriptor encode (RAW literal object) and the with_observation_index parse+reserialize, not by the materialize passes. This is reported as measured, not as a win.",
+    "discarded_run": {"tag": "onepass", "vole_build_sum_ms": 46679, "why": "host contention (4 unrelated 43-47h containers, loadavg ~3.7/16); every single-process build wall was inflated (e.g. docx-0005 47 ms -> 858 ms) while the same binary measured ~4 MB / <10 ms afterwards. Re-run TAG=onepass2 on the same binary/commit returned to 11689 ms."}
+  },
+  "gate": {
+    "cargo_fmt_all_check": "pass",
+    "cargo_clippy_all_targets_all_features_deny_warnings": "pass",
+    "cargo_test_locked_all_features": "pass (no failures)",
+    "cargo_test_locked_no_default_features": "pass (no failures)",
+    "phase1_court_sh_in_dev": "PASS (verdict PASS, 8/8 corpus items cmp=equal)"
+  },
+  "files": {
+    "raw/phase17-before": "9-doc direct court, pre-change (build.tsv, exact.tsv, observe.tsv, subset.tsv, summary.txt)",
+    "raw/phase17-after": "9-doc direct court, post-change (same files)",
+    "raw/phase18-contract": "12-doc C0..C5 contract court, post-change (onetime.tsv=VOLE build, build.tsv=SQLite build, summary.txt, SUMMARY.md)",
+    "commands.txt": "exact command lines",
+    "environment.json": "full environment receipt"
+  },
+  "residual_risks": [
+    "The refactor adds FieldStore::ingest_verified, whose byte-compare is the ONLY whole-source check on the direct path (encode_with's court already proved materialize(descriptor)==source, so this is a redundant-in-depth guard, not the sole proof).",
+    "Wall-time results are single-run; the ~6% direct-build gain is within the range of run-to-run noise on the small documents. The RSS reduction is the robust signal.",
+    "The direct path re-derives the ZIP-vs-PDF family with document_format::is_zip(source), then the package adapter scans the same source again: two ZIP scans, exactly as the previous ingest_with+ingest_package_with pair did (no regression, but not consolidated).",
+    "The contract-court build gap remains ~7.2x; this phase does not close it. The dominant build cost (descriptor encode + observation-index reserialization) is untouched and would be the next target."
+  ]
+}

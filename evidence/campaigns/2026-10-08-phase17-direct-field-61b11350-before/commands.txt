@@ -1,0 +1,18 @@
+# Phase 17.1 direct source -> field court — command log
+# generated 2026-10-08T09:05:37Z
+docker compose run --rm --no-TTY doc-baseline bash tools/phase17-direct-field-court.sh
+IDS='nist-pdf-0002 nist-pdf-0004 nasa-pdf-0007 nist-docx-0010 nist-docx-0001 nist-epub-0008 nist-epub-0004 nasa-epub-0011 nasa-epub-0006' OP_TIMEOUT=300 PROFILE=release
+
+# current path (per document):
+target/release/vole-document encode SRC OUT.voldoc
+target/release/vole-document field-ingest OUT.voldoc --store DIR
+# direct path (per document):
+target/release/vole-document field-build SRC --store DIR --voldoc OUT.voldoc
+# exactness:
+target/release/vole-document materialize --store DIR --field FIELD --exact --output OUT   # + sha256sum + cmp
+target/release/vole-document decode DIRECT.voldoc OUT                                   # direct authority
+target/release/vole-document verify CURRENT.voldoc
+# observations (both stores, one process each):
+target/release/vole-document observe --store DIR --field FIELD <selector> --kind <rep>
+# normalization: python3 norm.py drops field id + stats; metadata also drops
+# the two descriptor-shape counters (object_count, graph_ops).

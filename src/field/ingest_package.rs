@@ -25,7 +25,7 @@
 //! bytes and simply have no decoded node (a typed decline on observation).
 
 use crate::adapter::package::zip::{ZipMember, scan};
-use crate::container::Descriptor;
+use crate::container::{Descriptor, ParsedDescriptor};
 use crate::error::{Error, Result};
 #[cfg(feature = "docx")]
 use crate::field::index::SEL_DOCX_MODEL;
@@ -299,16 +299,56 @@ pub fn ingest_package_with(
     let observable = with_observation_index(descriptor_bytes, limits)?;
     let parsed = Descriptor::parse(&observable, limits)?;
     let source = crate::materialize::materialize(&parsed, limits)?;
+    ingest_package_from_source(store, &observable, &parsed, &source, limits, pool)
+}
+
+/// Direct-build variant of [`ingest_package_with`] for the fixed-profile
+/// [`crate::field::build`] path (Phase 18.2).
+///
+/// The caller already holds the exact original `source` and the already-enriched
+/// `observable` authority blob. The authority is stored unchanged and verified to
+/// materialize to `source`; the physical scan then runs over the **original**
+/// bytes, so the source is never re-materialized for scanning. The member nodes,
+/// index, counters, and manifest are byte-identical to [`ingest_package_with`].
+pub(crate) fn ingest_package_direct(
+    store: &mut FieldStore,
+    observable: &[u8],
+    source: &[u8],
+    limits: Limits,
+    pool: Option<&WorkerPool>,
+) -> Result<PackageIngestReport> {
+    let parsed = Descriptor::parse(observable, limits)?;
+    let materialized = crate::materialize::materialize(&parsed, limits)?;
+    if materialized.len() != source.len() || materialized != source {
+        return Err(Error::reconstruction_mismatch(format!(
+            "descriptor materialized {} bytes that differ from the supplied {} byte source",
+            materialized.len(),
+            source.len()
+        )));
+    }
+    ingest_package_from_source(store, observable, &parsed, source, limits, pool)
+}
+
+/// Shared body of [`ingest_package_with`] / [`ingest_package_direct`]: `source`
+/// is the exact materialization of the authority `observable`/`parsed`.
+fn ingest_package_from_source(
+    store: &mut FieldStore,
+    observable: &[u8],
+    parsed: &ParsedDescriptor,
+    source: &[u8],
+    limits: Limits,
+    pool: Option<&WorkerPool>,
+) -> Result<PackageIngestReport> {
     let source_len = source.len() as u64;
     // Byte-based format detection (never a file name), recorded in the manifest.
-    let detected_format = crate::field::document_format::detect_document_format(&source, limits);
-    let descriptor_id = store.put_descriptor(&observable)?;
+    let detected_format = crate::field::document_format::detect_document_format(source, limits);
+    let descriptor_id = store.put_descriptor(observable)?;
 
     // The physical cover is the authority; `reemits` proves the cover is an exact
     // partition of the source, so `materialize(descriptor) == original_bytes`.
-    let physical = scan(&source, limits)?;
+    let physical = scan(source, limits)?;
     physical.validate(source_len)?;
-    physical.reemits(&source)?;
+    physical.reemits(source)?;
 
     // The package field's root is the exact whole source.
     let mut root = SeedNode::new(
@@ -337,7 +377,7 @@ pub fn ingest_package_with(
     // every store probe, write, counter, and index append stays in the serial
     // merge below, in member order. Indexed `par_iter().collect()` is ordered, so
     // `encoded[i]` is member `i` whether the pool is used or not.
-    let encoded = encode_members(pool, &source, &physical.members);
+    let encoded = encode_members(pool, source, &physical.members);
     for (member, enc) in physical.members.iter().zip(encoded.iter()) {
         let ordinal = member.id.ordinal;
         let (data_off, data_len) = member.data;

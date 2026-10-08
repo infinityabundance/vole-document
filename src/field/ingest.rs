@@ -145,16 +145,50 @@ pub fn ingest_pdf_with(
         let field = Field::open(store, &base_id, limits)?;
         (field.manifest().clone(), field.materialize_exact(limits)?)
     };
+    ingest_pdf_stage_b(store, &source, manifest, limits, pool)
+}
+
+/// Direct-build variant of [`ingest_pdf_with`] for the fixed-profile
+/// [`crate::field::build`] path (Phase 18.2).
+///
+/// The caller already holds the exact original `source` and the already-enriched
+/// `observable` authority blob, so neither is reconstructed here: Stage A stores
+/// the authority and verifies it materializes to `source`
+/// ([`FieldStore::ingest_verified`]), and Stage B scans the **original** bytes.
+/// The observations, node ids, index, and manifest are byte-identical to
+/// [`ingest_pdf_with`]; only the redundant source → authority → source round
+/// trip is removed.
+pub(crate) fn ingest_pdf_direct(
+    store: &mut FieldStore,
+    observable: &[u8],
+    source: &[u8],
+    limits: Limits,
+    pool: Option<&WorkerPool>,
+) -> Result<IngestReport> {
+    let base_id = store.ingest_verified(observable, source, limits)?;
+    let manifest = Field::open(store, &base_id, limits)?.manifest().clone();
+    ingest_pdf_stage_b(store, source, manifest, limits, pool)
+}
+
+/// Shared Stage-B/C tail: scan `source` (the exact materialization of the
+/// authority `manifest` already binds) and write the richer manifest.
+fn ingest_pdf_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+    pool: Option<&WorkerPool>,
+) -> Result<IngestReport> {
     let source_len = source.len() as u64;
     // Byte-based format detection, recorded in the manifest provenance so the
     // universal observation API can dispatch common selectors without re-reading
     // the source (Phase 12.7). Never derived from a file name.
-    let fmt = crate::field::document_format::detect_document_format(&source, limits);
+    let fmt = crate::field::document_format::detect_document_format(source, limits);
 
     let mut acc = StageB::new(manifest.node_count);
-    let scanned = match scan(&source, limits) {
+    let scanned = match scan(source, limits) {
         Ok(physical) => {
-            run_stage_b(store, &source, &physical, limits, pool, &mut acc)?;
+            run_stage_b(store, source, &physical, limits, pool, &mut acc)?;
             true
         }
         Err(_) => false,

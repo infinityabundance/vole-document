@@ -1,0 +1,34 @@
+# Phase 18.2 — eliminate the source -> authority -> source round trip in the direct build
+# campaign: evidence/campaigns/2026-10-08-phase18-onepass-61b11350
+# commit: 61b11350c8a4d2640f403c7131b69a48895eb9c2 (branch phase18; dirty tree, see environment.json)
+
+# --- A/B measurement: Phase 17.1 direct-field court, "before" (pre-change) ----
+git stash push -m phase18-onepass-ab
+docker compose run --rm --no-TTY doc-baseline sh -c 'TAG=before bash tools/phase17-direct-field-court.sh'
+git stash pop
+
+# --- A/B measurement: Phase 17.1 direct-field court, "after" (post-change) ---
+docker compose run --rm --no-TTY doc-baseline sh -c 'TAG=after bash tools/phase17-direct-field-court.sh'
+
+# --- Phase 18.1 contract court, re-run with the direct build post-change -------
+#   (first run, TAG=onepass, was discarded: the host was under heavy external
+#    contention — 4 unrelated 43-47h containers, load 3.7 — which inflated every
+#    single-process build wall; the clean re-run is TAG=onepass2.)
+docker compose run --rm --no-TTY doc-baseline sh -c 'TAG=onepass  bash tools/phase18-contract-court.sh'
+docker compose run --rm --no-TTY doc-baseline sh -c 'TAG=onepass2 bash tools/phase18-contract-court.sh'
+
+# --- unit / feature gate ------------------------------------------------------
+docker compose run --rm --no-TTY dev cargo check --all-features
+docker compose run --rm --no-TTY dev cargo check --no-default-features
+docker compose run --rm --no-TTY dev cargo test --locked --all-features --test phase17_direct_field
+docker compose run --rm --no-TTY dev cargo fmt --all --check
+docker compose run --rm --no-TTY dev cargo clippy --all-targets --all-features -- -D warnings
+docker compose run --rm --no-TTY dev cargo test --locked --all-features
+docker compose run --rm --no-TTY dev cargo test --locked --no-default-features
+docker compose run --rm --no-TTY dev sh tools/phase1-court.sh
+
+# --- environment probe (for the receipt) --------------------------------------
+docker compose run --rm --no-TTY doc-baseline sh -c 'uname -m; rustc --version; cargo --version; sqlite3 --version; python3 --version; sha256sum Cargo.lock; sha256sum target/release/vole-document'
+
+# The per-document raw lane copies are in raw/phase17-before, raw/phase17-after
+# and raw/phase18-contract (onetime.tsv = VOLE build; build.tsv = SQLite build).

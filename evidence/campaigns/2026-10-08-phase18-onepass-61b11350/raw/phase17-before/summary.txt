@@ -1,0 +1,9 @@
+rows=9 complete=9
+current sum_ms=7831 median_ms=766  direct sum_ms=4012 median_ms=574  speedup sum=1.952x median=1.334x
+peak RSS median cur=50944 KB dir=15184 KB
+authority bytes sum cur=35154409 dir=35383939 (direct/current=1.007x)
+  docx n=2 cur=285ms dir=234ms speedup=1.22x
+  epub n=4 cur=1825ms dir=1392ms speedup=1.31x
+  pdf  n=3 cur=5721ms dir=2386ms speedup=2.40x
+exactness: current 9/9  direct-field 9/9  direct-authority-decode 9/9
+observations: equal=53 decline-equal=46 divergent=0 (of 99)
