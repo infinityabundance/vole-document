@@ -169,14 +169,14 @@ The warm loss is now **diagnosed and durable**; the packed store's durability is
 ([ADR-0050](../adr/0050-sqlite-as-substrate-question.md)) is unchanged and no
 option of it is chosen.
 
-## Phase-22 programme (22.1–22.3 complete; 22.4–22.7 planned)
+## Phase-22 programme (22.1–22.4 complete; 22.5–22.7 planned)
 
 Phase 22 is the **economic programme** synthesised from an external technical
 review: it targets a better **capability/cost frontier** against the strongest
 honest competitor, in a commercially relevant workload region, with bounded
 statistics and no loss of accuracy or capability. **22.1 (the competitor
 envelope), 22.2 (the compact-index profiling gate) and 22.3.0 (the fused-execution
-measurement gate) are complete and sealed**; **22.4–22.7 remain gates/priors, not
+measurement gate) are complete and sealed**; **22.5–22.7 remain gates/priors, not
 measurements**. Plan:
 [phase-22-plan.md](../phases/phase-22-plan.md); results:
 [phase-22-results.md](../phases/phase-22-results.md),
@@ -191,7 +191,7 @@ by dependency and risk.
 | 22.1 Competitor envelope | P0 | Is there a strong competitor envelope, including an adaptive and a hybrid SQLite, before any frontier claim? | **Complete (Phase 22.1).** Six purpose-tuned SQLite configurations added, the Phase-18 baseline kept **unmodified** as the `hist` control; gate met (**no omitted capability**, durability compared explicitly). Against the tuned envelope: storage **0.762× `full` / 0.805× `adaptive`**, build **0.219× `full`** (0.194× `hist`), cold **0.812× `full`**, warm a **loss** (**1.211× `full`**, 95% CI 1.006–1.483); equivalence **1920/1920**, 0 mismatches; exactness 12/12 VOLE, 6/6 per doc per config. `2026-10-08-phase22-competitors-86d9312` |
 | 22.2 Compact query-native directory / hot-cold layout | P1 | Can warm CPU/I/O/allocation fall without storage growth or weaker integrity? | **Complete (negative, Phase 22.2).** Decisive profiling gate **first, nothing shipped**. Warm session **open 55.5 % (`Descriptor::parse` 44.7 %) + loop 44.5 %**; probe **0.4 %**; index read+verify **10.5 %** (redundancy: 493 opens / 20 files, one depth-0 root leaf re-read 24–117×). A perfect selector directory removes ≤10.6 % (≈**0.13** shift) vs court **MDE ≈0.399** → **cannot be resolved**; it would also add persistent bytes. Before/after warm court vs tuned `full` is a **NULL** (1.211 → 1.293, overlapping CIs); no layout byte changed; exactness 12/12, 0 mismatches. Left for a **higher-resolution** court: in-session verified-node memo (0 persistent bytes, still sub-MDE); split `dispatch` (32 %). `2026-10-08-phase22-2-d81689c` |
 | 22.3 Fused heterogeneous execution | P2 | Can a known batch be one dependency closure and one schedule? | **22.3.0 complete — negative (`SESSION-ALREADY-CAPTURES`, Phase 22.3).** Measurement-only gate, nothing shipped: an independent DOCX/EPUB batch executes **3.66–4.11×** more seed nodes than the shipping resident session (memo + derived cache already remove the redundancy); the only axis the session never dedupes is the **index/selector descent** (`idx_dedup` 1.00 for all 12 docs) — the **22.2 sub-MDE** candidate. A first `|U|`-based `CLEARS` was **withdrawn** (unsound metric). 22.3.1/22.3.2 not started. `2026-10-08-phase22-3-dup-ca9f29e` |
-| 22.4 Unknown-query lifetime frontier | P3 | On a hidden schedule, which system wins the cumulative lifetime frontier? | All adaptation costs charged; SQLite gets a serious adaptive strategy; prior: Phase-15 promotion **lost** |
+| 22.4 Unknown-query lifetime frontier | P3 | On a hidden schedule, which system wins the cumulative lifetime frontier? | **Complete (region split, `MIXED`).** Pre-registered hidden schedule (seed **220400**, len 24, undisclosed seeded proportions); all adaptation charged. Cumulative query ratio VOLE/`full` per equivalent observation: pooled 0.99–1.08 (**unresolved**, MDE ±0.29–0.36), **pdf 0.73–0.83 (resolved WIN)**, docx 0.88–1.00 (unresolved), **epub 1.50–1.82 (resolved LOSS)**; storage **0.468× (win)**; peak RSS **1.24–1.32 (loss)**; build unresolved. Exactness 12/12; 0 value mismatches; 102 divergent PDF page-text (by design). Seed-check (220477) reproduces the split. `2026-10-08-phase22-4-lifetime-b4225fe` |
 | 22.5 Large/remote selective materialization | P4 | Can remote byte-range reads cut bytes transferred at competitive p95? | Gate: major transfer reduction at competitive p95; competitor gets an equal remote cache/range interface |
 | 22.6 Compact structural representation | P5 | Is an existing typed node representable more compactly at equal capability? | Gate: significant full-population byte cut, no observation loss; **do not reopen** falsified dedup/ad‑promotion without a new mechanism + new falsifiable hypothesis |
 | 22.7 Agent end-to-end economic court | P6 | Does the whole document-agent workload cost ≥2× less per correct, grounded task? | Gate: ≥2× lower cost per **correct, grounded** task; correctness fixed before any token claim |
