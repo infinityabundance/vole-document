@@ -1,0 +1,4 @@
+Answer equality: cold `observe --page 1 --kind text` == resident `observe-batch` last line
+  equal: 90   mismatch: 0   skipped (decline / missing): 10
+Probe short-circuit in the resident session (observations 2..N of each batch):
+  cache-served hits (descriptor_bytes_read==0, mode==partial): 208/360

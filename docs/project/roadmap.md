@@ -24,14 +24,40 @@ frontier. Plan: [phase-15-plan.md](../phases/phase-15-plan.md); results:
 
 | Item | Question | Outcome |
 |---|---|---|
-| 15.1 Court repair | Re-run the frozen `real100-v1` court on the **release** binary with the storage universes split | **Repaired** (measurement): coverage/exactness identical to the debug court (deterministic); VOLE holds `pdf`/`text_repeat` + `docx`/`table`, loses the rest; persistent `2,667,668,262 B` / descriptor `1,704,524,849 B` / A1 db `2,891,784,192 B`; 3 of 5 `>100 MiB` PDFs still fail at `encode` (`2026-10-07-real100-release-baseline-866f489`) |
+| 15.1 Court repair | Re-run the frozen `real100-v1` court on the **release** binary with the storage universes split | **Repaired** (measurement): coverage/exactness identical to the debug court (deterministic); VOLE holds `pdf`/`text_repeat` + `docx`/`table`, loses the rest; persistent `2,667,668,262 B` / descriptor `1,704,524,849 B` / A1 db `2,891,784,192 B` (whole-population `du -sb` aggregates; the store figure is method-inflated — ADR-0049); 3 of 5 `>100 MiB` PDFs still fail at `encode` (`2026-10-07-real100-release-baseline-866f489`) |
 | 15.2 Resident runtime | Does a resident session + `observe-batch` beat the cold lane? | **Measured — recorded negative/partial** (ADR-0042): wins only below ~1 MiB; cold 7 ms vs resident 9 ms aggregate; mechanism = lost `narrow_probe` short-circuit |
-| 15.3 Packed seed store | Does a packed `fieldpack` backend beat one-file-per-node? | **Measured — adopted (seed namespace only)** (ADR-0043): persistent bytes 0.719×, file count 0.009×, latency parity, identity unchanged |
+| 15.3 Packed seed store | Does a packed `fieldpack` backend beat one-file-per-node? | **Measured — adopted (seed namespace only)** (ADR-0043, corrected by ADR-0049): file/directory count 0.009× / 111× fewer at **byte parity** (file bytes 1.007×), latency parity, identity unchanged; the earlier "persistent bytes 0.719×" was a `du -sb` directory-inode artifact |
 | 15.4 Parallel ingest | Does a bounded worker pool speed up ingest deterministically? | **Measured — implemented, non-default** (ADR-0044): speed-neutral (1.00× at 2/4/8); determinism positive (10/10 across every worker count) |
 | 15.5 DEFLATE ablation | Which correct safe-Rust inflate is fastest? | **Measured — recommendation** (ADR-0045): `miniz-simd` enabled (1.11×); `zlib-rs` meets the bar (1.58×, RSS-neutral, byte-identical) and is recommended but **not adopted**; `zune-inflate` disqualified (255 mismatches) |
 | 15.6 Adaptive promotion | Does an adaptive promotion governor beat SQLite on diversity/revision? | **Measured — recorded negative** (ADR-0046): all three pre-registered falsifiers fire; mechanism ships opt-in/default-off |
 | 15.7 Durable cross-root derivations | Does canonical derived-work identity satisfy `N3`? | **Measured — recorded negative** (ADR-0047): `N3` violated again, 0 cross-member reuse; no Rust change made |
 | 15.8 CUDA batch lane | Does a GPU batch inflate lane pay? | **Deferred, not measured** (ADR-0048): gate unopened; the pinned Docker lanes cannot see the GPU; `nvCOMP` proprietary; Docker-only evidence required |
+
+## Phase-16 outcomes
+
+Phase 16 follows Phase 15: adopt the recommended backend, finish the storage
+court, fix the large-PDF pathology, continue the residency line, and test
+whether SQLite loses under an equal capability contract. Results:
+[phase-16-results.md](../phases/phase-16-results.md); ADRs 0049–0050.
+
+| Item | Question | Outcome |
+|---|---|---|
+| 16.1 `zlib-rs` adoption | Adopt the backend 15.5 only recommended; what is the **end-to-end** effect? | **Adopted** (ADR-0045 fulfilled): one `src/field/inflate.rs` helper owns every inflate; byte-identical (**2,075 members / 17 docs**); `field-ingest` **0.917×** (~8 % faster), `encode` `0.996×` (control), peak RSS `1.000×` (`2026-10-08-phase16-zlib-ebb6636`) |
+| 16.2 Full packed court | Does `--packed` beat the A1 SQLite db on the full population? | **Court complete** (95 common-success docs; `fs`/packed field id identical 97/97). Court `2026-10-08-phase16-packed-full-0b21928`; its `du -sb` byte numbers are **superseded by 16.6** |
+| 16.3 Large-PDF encode pathology | Why do the `>100 MiB` PDFs fail at `encode`? | **Fixed** (ADR-0041 extended): `propose_rle` pre-allocated ~16× input before its decline; two streaming O(1)-memory passes. `nasa-pdf-0001` now completes byte-exactly; peak/input **17.7× → 8.9×**; **77/77** byte-identical (`.voldoc` SHA-256); `0002`/`0003` remain a **wall** limit, not memory (`2026-10-08-phase16-largepdf-ce8af8f`) |
+| 16.4 Resident session + `narrow_probe` | Does giving the session the cold path's short-circuit make residency pay? | **Recorded negative** (ADR-0042 extended): probe works (0 descriptor bytes, ~25 µs, 90/0 equality) but no class flips — cold 6 ms vs resident 9 ms; one-time full `Field::open` dominates. Lever isolated: **lazy session open** (`2026-10-08-phase16-resident-probe-5d331f2`) |
+| 16.5 Contract-equivalent court | Does SQLite lose under an **equal capability contract** (C0–C5)? | **Recorded negative for VOLE** (ADR-0050): equality at C0–C3; **VOLE declines C4/C5** (no revision surface); SQLite builds **~10×** faster, warm **~1.47×** faster, +**~3 %** bytes C0 → C4. VOLE's lone edge is storage (`2026-10-08-phase16-contract-45d2c0e`) |
+| 16.6 Storage correction | Is `du -sb` the right unit for a one-file-per-node store vs a `.db`? | **Corrected** (ADR-0049): `du -sb` counted 4096 B/dir, inflating `fs` **52 %**. File-bytes-only: `fs`/SQLite **1.377× → 0.906×**, packed/SQLite **0.921× → 0.914×**, packed/`fs` **0.669× → 1.009×**; **"VOLE is 1.377× SQLite" / "packed closes the gap" refuted**; packed's win is file/directory count (`2026-10-08-phase16-storage-correction-2978e1d`) |
+
+### Recorded open question (Phase 16)
+
+The Phase-16.5/16.6 result — **SQLite does not lose under an equal capability
+contract**, VOLE's storage edge corrects to **~0.9×**, and VOLE cannot answer
+revision lineage — raises an architectural question the user asked to **record,
+not resolve**: should the conceptual invention keep competing with SQLite, or
+**use an embedded DB as part of its physical substrate** for materialized
+observation state? **No switch is decided.** The measurements that would settle
+it are enumerated in [ADR-0050](../adr/0050-sqlite-as-substrate-question.md).
 
 ## Unmeasured gates
 

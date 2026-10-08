@@ -59,5 +59,11 @@
     "2026-10-07-real100-release-baseline-790c4a7 — invalidated (host cargo build/test ran in the dev lane concurrently with the court; large timing outliers on the documents inside the build window and unstable aggregate verdicts); deleted",
     "2026-10-07-real100-release-baseline-7ee1e26 — aborted launch, empty raw/; deleted"
   ],
-  "tuning": "none; the corpus and schedule are frozen and nothing was selected or tuned against any measurement"
+  "tuning": "none; the corpus and schedule are frozen and nothing was selected or tuned against any measurement",
+  "superseded_by": "evidence/campaigns/2026-10-08-phase16-storage-correction-2978e1d",
+  "correction": {
+    "what": "the persistent-byte figures here — storage_universes_bytes and common_success_storage.ratio_v_over_a1 = 1.3767 (2,619,707,424 / 1,902,919,680) — were measured with `du -sb`, which on this bind mount is --apparent-size and counts 4096 B per directory inode. The one-file-per-node fs store carries ~2 directories per file, so its du -sb was inflated ~52%; the single-file SQLite .db was not. No number in this receipt is deleted.",
+    "corrected": "file-bytes-only accounting (sum of regular-file st_size) gives fs/SQLite = 0.906x on the same 95 common-success documents; packed/SQLite = 0.914x and packed/fs = 1.009x from the Phase-16.2 court. Both VOLE backends are at/below SQLite on file bytes.",
+    "scope": "measurement only; no descriptor, manifest, index or wire byte changed. See the correction campaign's CORRECTION.md and ADR-0049."
+  }
 }

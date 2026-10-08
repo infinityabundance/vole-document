@@ -1,0 +1,31 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase16-contract-45d2c0e",
+  "phase": "16.5 — contract-equivalent heterogeneous-session court",
+  "utc": "2026-10-08T06:57:22Z",
+  "measured_commit": "45d2c0e287da531d224ead099c8deaa27e4b106f",
+  "tree_state": "?? evidence/campaigns/2026-10-08-phase16-contract-45d2c0e/;?? tools/fixtures/phase16-contract.py;?? tools/phase16-contract-court.sh;",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "83646f7d4e65037af61e6e5c03c8fa391cc2a005471db45781a8de65287c7440",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "sqlite3": "3.40.1",
+  "cargo_lock_sha256": "d4d2ef7670f6f2aa6ddf39c979f55dc39c17451819dcf17112b5d5169457ac06",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "op_timeout_s": 180,
+  "depths": "0 1 2 3 4 5",
+  "court": "tools/phase16-contract-court.sh",
+  "baseline": "tools/fixtures/phase16-contract.py (contract baseline + aggregator)",
+  "contracts": {
+    "C0": "value only",
+    "C1": "C0 + native coordinate",
+    "C2": "C1 + provenance class + source span",
+    "C3": "C2 + exact original closure (length + SHA-256 + cmp)",
+    "C4": "C3 + revision lineage (family/member/head)",
+    "C5": "C4 + heterogeneous batch served in one session"
+  },
+  "accounting": "persistent bytes = sum of regular-file sizes (find -printf %s) for BOTH lanes; du -sb is avoided because the bind-mounted host fs inflates directory sizes and would compare VOLE's directory store against SQLite's single file unfairly",
+  "rc_codes": "0 ok; 3 decline; 6 unsupported-feature (VOLE revision); 124 timeout; 137 SIGKILL/OOM"
+}

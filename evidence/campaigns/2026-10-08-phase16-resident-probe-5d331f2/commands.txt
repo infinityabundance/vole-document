@@ -1,0 +1,42 @@
+# Phase 16 item 4 — surgical residency experiment
+#
+# Measured commit 5d331f2 (branch phase16), dirty working tree: the two source
+# edits below are UNCOMMITTED (the orchestrator commits). The host executed
+# nothing: the release build and every measurement ran inside the digest-pinned
+# `doc-baseline` compose service (mem_limit == memswap_limit == 6g, pids_limit
+# 4096, cpus 8).
+
+# --- the seam (uncommitted at measurement time) ----------------------------
+#   M src/field/observe.rs   (probe_eligible / narrow_probe_open / narrow_probe_core,
+#                             observe_session replaces observe_with_field_memo,
+#                             open_session_index; Ctx.istore is now a borrow)
+#   M src/field/session.rs   (the session keeps one FsIndexStore open; observe()
+#                             routes through observe_session)
+
+# --- gates (dev service; see environment.json) -----------------------------
+docker compose run --rm --no-TTY dev cargo fmt --all --check
+docker compose run --rm --no-TTY dev cargo clippy --all-targets --all-features -- -D warnings
+docker compose run --rm --no-TTY dev cargo test --locked --all-features
+docker compose run --rm --no-TTY dev cargo test --locked --no-default-features
+
+# --- measurement: trimmed copy of the frozen court, same 100-doc population --
+# `tools/phase16-resident-probe-court.sh` is a COPY of the frozen
+# `tools/real100-court.sh`; the frozen court files were not modified. It keeps
+# the same corpus verification, schedule, encode + field-ingest one-time lane,
+# and the exact cold-vs-resident `text_repeat` semantics (v = REPEAT_N separate
+# cold processes; v_r = ONE observe-batch doing REPEAT_N observations). It drops
+# the lanes irrelevant to residency (A0/A1, per-op heading/table/resource/
+# metadata, exact, session_mixed) to fit one bounded run.
+docker compose run -d --name p16rp1 -e PROFILE=release -e TAG=resident-probe \
+    doc-baseline bash tools/phase16-resident-probe-court.sh
+docker wait p16rp1
+# produced: evidence/campaigns/2026-10-08-real100-resident-probe-5d331f2/raw/
+# moved (raw preserved) to: evidence/campaigns/2026-10-08-phase16-resident-probe-5d331f2/raw/
+
+# --- mechanism capture (same service) --------------------------------------
+docker compose run --rm --no-TTY doc-baseline bash tools/phase16-resident-probe-mechanism.sh
+# -> raw/mechanism.txt (session open vs per-observation on nasa-pdf-0004)
+# -> raw/answer-equality.txt (cold observe vs resident batch answer equality)
+
+# --- comparison baseline (NOT re-run; prior receipt) -----------------------
+# evidence/campaigns/2026-10-07-real100-release-resident-78f7ea8/raw/ops.tsv

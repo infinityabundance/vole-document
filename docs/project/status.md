@@ -7,9 +7,10 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.20` (Phases 13–15 — Phase-13 proposals + `N5`
-gate, the benign-`DOCTYPE` real-EPUB fix, a partial large-PDF encode fix, and the
-Phase-15 performance programme).
+**Current release:** `0.1.0-alpha.21` (Phases 13–16 — Phase-13 proposals + `N5`
+gate, the benign-`DOCTYPE` real-EPUB fix, a partial large-PDF encode fix, the
+Phase-15 performance programme, and the Phase-16 backend adoption + large-PDF
+fix + storage-accounting correction).
 **Top-level verdict (ADR-0023, the
 authoritative [`FINDINGS.md`](findings.md)):** the current representation stack
 does not beat purpose-built baselines on any measured axis; the durable results
@@ -171,12 +172,14 @@ the storage universes split (persistent store / optional standalone descriptor /
 transient ingest), and coverage/exactness are identical to the debug court
 (deterministic): VOLE 455 answered/245 declined, a1 506/194, a0 508/192;
 `materialize --exact` 97/100 (v), 98/100 (a1), 100/100 (a0); persistent
-`2,667,668,262 B`, descriptor `1,704,524,849 B`, A1 db `2,891,784,192 B`. VOLE
+`2,667,668,262 B`, descriptor `1,704,524,849 B`, A1 db `2,891,784,192 B` (the
+whole-population `du -sb` aggregates; the store figure is method-inflated, ADR-0049). VOLE
 holds two structural cells (`pdf`/`text_repeat`, `docx`/`table`) and loses the
 rest to SQLite/FTS; `exact` loses to the source file; 3 of 5 `>100 MiB` PDFs still
 fail at `encode` (the Phase-14 bound, ADR-0041). **Two structural wins:** the
-**packed seed store** (15.3 — persistent bytes **0.719x**, file count **0.009x**,
-latency parity, identity unchanged; ADR-0043) and **`zlib-rs` decompression**
+**packed seed store** (15.3 — file/directory count **0.009x** / 111x fewer at
+**byte parity**, latency parity, identity unchanged; ADR-0043, corrected by
+ADR-0049) and **`zlib-rs` decompression**
 (15.5 — **1.58x** GB/s at 1.00x RSS, byte-identical: **meets** the pre-registered
 bar and is **recommended**, not yet adopted; ADR-0045). **Two substantive
 negatives:** **residency** (15.2 — `DocumentFieldSession`/`observe-batch` wins only
@@ -190,6 +193,40 @@ the pinned Docker lanes cannot see the GPU; ADR-0048. Also recorded negative:
 computed state; `N3` violated again, 0 cross-member reuse; ADR-0047). Bounded
 parallel ingest (15.4) is speed-neutral but exactly deterministic (10/10 across
 every worker count; ADR-0044).
+
+Phase 16 (branch `phase16`, **staging**) follows Phase 15: it **adopts** the
+inflate backend Phase 15 only recommended, finishes the packed-storage court on
+the full `real100-v1` population, fixes the large-PDF encode pathology that
+court surfaced, continues the residency line, and tests whether **SQLite loses
+under an equal capability contract** (ADRs 0049–0050; results
+[`docs/phases/phase-16-results.md`](../phases/phase-16-results.md)). **`zlib-rs`
+is adopted** as the shipped inflate backend — one helper owns every inflate, RFC
+1950/1951 selected by a `Wrapper`, byte-identical (2,075 members / 17 docs;
+`tests/deflate_backend_equivalence.rs`) with a real end-to-end `field-ingest`
+**0.917×** (~8 % faster; `encode` `0.996×` is the control/noise floor, peak RSS
+`1.000×`). **The `>100 MiB` PDF encode pathology is fixed:** `propose_rle` built
+its `Vec<(u8,u64)>` (~16 B/run) *before* its `max_graph_ops` decline; two
+streaming O(1)-memory passes fix it, `nasa-pdf-0001` (409 MB) now completes
+byte-exactly (rc 0, ~40 s), peak/input **17.7× → 8.9×**, and **77/77** documents
+produce byte-identical `.voldoc` SHA-256. The **full packed court** (16.2) covers
+the real population (95 common-success documents; `fs`/packed field id
+identical 97/97). **Residency with the probe short-circuit is still NEGATIVE**
+(16.4): the probe works (observations 2..N read 0 descriptor bytes, ~25 µs,
+90/0 answer equality) but no size class flips — cold 6 ms vs resident 9 ms,
+sums 3,092 vs 3,894 ms — because the session pays a one-time full `Field::open`
+descriptor parse; the isolated lever is a **lazy session open** (recorded, out of
+scope). **The decisive negative is the contract-equivalent court** (16.5): under
+the same escalating contract (C0–C5), equality holds at C0–C3 but **VOLE
+declines C4/C5** (no revision query surface), while SQLite builds **~10×**
+faster, serves the warm session **~1.47×** faster, and costs only **~+3 %**
+persistent bytes from C0 to C4 — **SQLite does not lose under the equal
+contract** (ADR-0050 records the resulting substrate question; no switch
+decided). Finally, the **storage-accounting correction** (16.6, ADR-0049):
+`du -sb` counted 4096 B per directory inode, so the `fs` store was inflated
+**52 %**; on file bytes `fs`/SQLite is **0.906×** (was 1.377×), packed/SQLite
+**0.914×** (was 0.921×), packed/`fs` **1.009×** (was 0.669×) — the "VOLE is
+1.377× SQLite" and "packed closes the gap" headlines are refuted, and the packed
+win is file/directory **count** (3,511 vs 218,853 dirs).
 
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED` / `SUPERSEDED` / `PARTLY DELIVERED`).
@@ -269,14 +306,19 @@ every worker count; ADR-0044).
 | Cross-document proceduralization | 12+ | RECORDED (12.8: representation identity shared; durable **work** reuse negative, `N3`) | byte-level sharing is measured and negative (Phase 9 store: `U` loses to LZ and CDC, ADR-0021; Phase 11.14 finer-than-object units lose to CDC/`tar|xz`, ADR-0028); Phase 12 measured **state-level** sharing: one content-addressed blob shared DOCX↔EPUB, but the warm reuse fraction drops to 0.0 after `cache --clear` |
 | Non-PDF adapters (DOCX/ODT/EPUB/…) | 12 (DOCX/EPUB), 13.3 (ODT) | ADOPTED (DOCX/EPUB/ODT) | adapters over the same core; Phase 12 delivered the DOCX (WordprocessingML) and EPUB (OCF/XHTML) adapters (ADRs 0029–0035); Phase 13.3 delivered the ODT (OpenDocument/ODF) adapter over the shared ZIP + bounded-XML layers (ADR-0038); other formats (XLSX/PPTX/…) remain PROPOSED |
 | ODT (OpenDocument Text) adapter | 13.3 | ADOPTED | ADR-0038; `src/adapter/odt.rs` — an ODF package (ZIP + mandatory stored `mimetype` + `META-INF/manifest.xml`) whose main content part is resolved **semantically** from the ODF manifest (never a hardcoded `content.xml`). Bounded OpenDocument content model (paragraphs/headings/spans/lists/tables/links/bookmarks/notes/images/tracked changes/sections) with a versioned `OdtExtractProfile` (Final/Original/All, notes include/exclude, hidden, tabs, breaks); common vocabulary plus native `odt-part`/`odt-paragraph`/`odt-heading`/`odt-table`/`odt-cell`/`odt-list`/`odt-find`. No new ZIP parser; no decoder behavior. Court `tests/odt_adapter.rs` 9/9 + in-file 6/6: byte-exact (`len`+SHA-256+`cmp`) and queryable after source **and** descriptor deletion in a fresh process; missing/malformed manifest is a typed decline with exactness preserved. Receipt `evidence/campaigns/2026-10-07-phase13-odt-95c486d/` |
-| Court storage-universe split (persistent store / optional standalone descriptor / transient ingest) | 15.1 | ADOPTED (measurement) | the frozen `real100-v1` court re-run on the **release** binary with the three universes reported **separately**, never folded (ADR-0027 extended). Coverage/exactness identical to the debug court (deterministic): v 455/245, a1 506/194, a0 508/192; `materialize --exact` 97/98/100. Storage: VOLE persistent `2,667,668,262 B`, descriptor `1,704,524,849 B`, A1 db `2,891,784,192 B`. Held cells: `pdf`/`text_repeat` (win), `docx`/`table` (win); everything else loses to SQLite/FTS and `exact` loses to the source file. 3 of 5 `>100 MiB` PDFs still fail at `encode` (Phase-14 bound, ADR-0041); `perf` absent from the lane so no perf-class counters are claimed. Campaign `2026-10-07-real100-release-baseline-866f489` |
-| Packed seed store (`fieldpack` backend, `--packed`) | 15.3 | ADOPTED (seed namespace only) | ADR-0043; `NodeId -> (segment, offset, len)` with identity (`NodeId`) unchanged, so field ids are unchanged. Same descriptor into fs vs packed on a 12-document subset: persistent bytes `352,671,955 -> 253,737,799` (**0.719x**), file count `25,574 -> 237` (**0.009x**, 111x fewer), cold wall `1,555 -> 1,541 ms` (**0.991x**, parity); field id identical **12/12**, byte-exact materialize **12/12 both**. Only the **seed** namespace is packed (descriptor/manifest/index/cache stay files). Campaign `2026-10-07-phase15-packed-8c195e8` |
+| Court storage-universe split (persistent store / optional standalone descriptor / transient ingest) | 15.1 | ADOPTED (measurement) | the frozen `real100-v1` court re-run on the **release** binary with the three universes reported **separately**, never folded (ADR-0027 extended). Coverage/exactness identical to the debug court (deterministic): v 455/245, a1 506/194, a0 508/192; `materialize --exact` 97/98/100. Storage: VOLE persistent `2,667,668,262 B`, descriptor `1,704,524,849 B`, A1 db `2,891,784,192 B` (whole-population `du -sb` aggregates; the store figure is method-inflated — the 95-doc common-success fs/SQLite ratio is 1.377x under `du -sb` but **0.906x** on file bytes, ADR-0049). Held cells: `pdf`/`text_repeat` (win), `docx`/`table` (win); everything else loses to SQLite/FTS and `exact` loses to the source file. 3 of 5 `>100 MiB` PDFs still fail at `encode` (Phase-14 bound, ADR-0041); `perf` absent from the lane so no perf-class counters are claimed. Campaign `2026-10-07-real100-release-baseline-866f489` |
+| Packed seed store (`fieldpack` backend, `--packed`) | 15.3 | ADOPTED (seed namespace only) | ADR-0043 (corrected by ADR-0049); `NodeId -> (segment, offset, len)` with identity (`NodeId`) unchanged, so field ids are unchanged. Same descriptor into fs vs packed on a 12-document subset: file bytes `250,333,395 -> 252,046,151` (**1.007x**, byte parity; the old `du -sb` "0.719x" was a directory-inode artifact), file count `25,574 -> 237` (**0.009x**, 111x fewer), directory count `218,853 -> 3,511` (96-tree re-measurement), cold wall `1,555 -> 1,541 ms` (**0.991x**, parity); field id identical **12/12**, byte-exact materialize **12/12 both**. The surviving benefit is file/directory count (open/syscall economics), not bytes. Only the **seed** namespace is packed (descriptor/manifest/index/cache stay files). Campaign `2026-10-07-phase15-packed-8c195e8`; correction `2026-10-08-phase16-storage-correction-2978e1d` |
 | Resident `DocumentFieldSession` + `observe-batch` | 15.2 | IMPLEMENTED / RECORDED (negative) | ADR-0042; many observations in one process. NEGATIVE/partial: wins only below ~1 MiB; cold wins at `1-10MiB`/`10-50MiB`/`50-100MiB`; aggregate `text_repeat` cold **7 ms** vs resident **9 ms**. Mechanism: the cold `observe` path runs `narrow_probe` (a per-call manifest + derived-cache short-circuit returning the derived node without the full context) while `observe-batch` always evaluates the full path. Fix identified (hoist `narrow_probe` opens into the session), **not shipped**. `v_r` is the only lane that answers a heterogeneous `session_mixed` batch (informational). Campaign `2026-10-07-real100-release-resident-78f7ea8` |
 | Bounded parallel ingest (`parallel` feature, `--workers N`) | 15.4 | IMPLEMENTED (non-default; speed-neutral, determinism positive) | ADR-0044; `parallel = ["field", "dep:rayon"]`, used only when `--workers > 1`. Median speedup **1.00x at 2/4/8**, **0.99x at 16** (lane capped at `cpus: 8`; 16 oversubscribes); largest PDF ~1.11x at w4. Determinism POSITIVE: field id identical across **every** worker count **10/10** and `materialize --exact` == source **10/10**. One recorded outlier `nist-pdf-0004`. Campaign `2026-10-07-phase15-workers-122c026` |
 | DEFLATE backend ablation (`deflate-ablation`, `miniz-simd`, `memmem-scan`; deps `memchr`/`zlib-rs`/`zune-inflate`) | 15.5 | MEASURED (miniz SIMD ENABLED; zlib-rs RECOMMENDED, not adopted; zune-inflate DISQUALIFIED) | ADR-0045; real `real100-v1` members (52,498 members, 88 docs, 481 MiB compressed / 2,768 MiB decoded); adoption bar >=1.25x GB/s AND <=1.10x RSS vs `miniz_oxide` scalar. `miniz` 1.231 GB/s (ref, 0 mismatches); `miniz-simd` 1.366 (1.11x, 0 mismatches, below bar, now enabled — free/output-preserving); **`zlib-rs` 1.938 (1.58x, 0 mismatches, RSS 1.00x — MEETS the bar, recommended backend swap)**; `zune-inflate` 1.922 (1.56x) with **255 mismatches — DISQUALIFIED for incorrectness**. The scalar PDF `find_endstream` scan was replaced with a reused `memchr::memmem::Finder` (differential tests). Campaign `2026-10-07-phase15-deflate-e676166` |
 | Adaptive procedural promotion (`--promote[=BYTES]`) | 15.6 | IMPLEMENTED (opt-in, default-off) / RECORDED (negative) | ADR-0046; all three pre-registered falsifiers fire: F1 `v_on` never beats `sq_adapt` by >10% at any depth; F2 promoted bytes cut durable bytes **0.0%** (bar 20%) at equal-or-worse latency; F3 best-lane retained cross-revision work **+0.3%** (< 20%). `sq_full` fastest at every depth. Ships opt-in and default-off, never on the exactness path. Campaigns `2026-10-07-phase15-diversity-4786f8e`, `2026-10-07-phase15-revision-4786f8e` |
 | Durable cross-root derivations (canonical derived-work identity) | 15.7 | RECORDED (negative; `N3` violated; not built) | ADR-0047; 23 real families, 56/56 members, one shared `FieldStore` per family; **cross-member derived reuse 0 nodes**; post-`cache --clear` reuse above the intra-observation floor **0**; representation identity shared (44 nodes id-shared, 4 resources, `79,720 B`); borg CDC saved `32,158,196` source bytes vs **0** derived bytes. Measurement-first: **no Rust change**. Campaign `2026-10-07-phase15-crossroot-7429d61` |
 | CUDA batch lane | 15.8 | DEFERRED (not measured) | ADR-0048; the bandwidth gate is unopened; Docker on this host cannot see the GPU (no nvidia runtime registered; `docker info` lists only `runc`); `nvCOMP` is proprietary and not on the `deny.toml` allow-list; the repo requires Docker-reproducible evidence. Recorded as an explicit, reasoned deferral. Design `research/subagents/phase-15/design-15.8-cuda.md` |
+| `zlib-rs` inflate backend | 16.1 | ADOPTED | Phase 15.5 recommended it; Phase 16 adopts it. One helper `src/field/inflate.rs` owns every inflate, RFC 1950/1951 selected by a `Wrapper`; byte-identity witness `tests/deflate_backend_equivalence.rs` (**2,075 real members / 17 documents** byte-identical to the `miniz_oxide` reference); `materialize --exact` PASS on every row; field id unchanged. End-to-end medians: `encode` 2,510 → 2,500 ms (**0.996×**, control/noise floor), `field-ingest` 1,200 → 1,100 ms (**0.917×**, ~8 % faster), combined **0.970×**, peak ingest RSS **1.000×**. A length-learning preallocation regression was found and fixed (grow from 2× input). The 1.58× microbench is smaller end-to-end because inflate is a fraction of ingest. Campaign `2026-10-08-phase16-zlib-ebb6636` (ADR-0045 → adopted) |
+| Large-PDF encode memory pathology (`propose_rle`) | 16.3 | FIXED | ADR-0041 extended; `propose_rle` built `runs: Vec<(u8,u64)>` (~16 B/run, ~16× input) **before** its `max_graph_ops` decline check; fixed with two **streaming O(1)-memory** passes that materialize `ops` only once admitted. `nasa-pdf-0001` (408,854,600 B) rc 137 → **rc 0** (~40 s, byte-exact); peak/input **17.7× → 8.9×**; `nasa-pdf-0002` 5,356,860 → **2,696,872 KB**, `0003` 3,758,292 → **1,906,148 KB**; forced `rle` 6.28 GiB OOM → **401,524 KB** (declines). `0002`/`0003` still rc 124 at the 180 s budget — now a **wall** limit on `BYTE_RANS`, not memory; the budget was **not** raised. Before/after `.voldoc` SHA-256 identical **77/77**; all gates pass. Campaign `2026-10-08-phase16-largepdf-ce8af8f` |
+| Resident session + `narrow_probe` short-circuit | 16.4 | IMPLEMENTED / RECORDED (negative) | ADR-0042 extended; `narrow_probe` refactored into a shared core and `observe_session` keeps the index store open and probes with the already-open `Field` manifest. The probe works (observations 2..N: `descriptor_bytes_read = 0`, `descriptor_read_mode = partial`, ~25 µs, 208/360 hits; cold-vs-resident answer equality **90 equal / 0 mismatch**) but **no size-class verdict flips**: cold aggregate median **6.0 ms** vs resident **9.0 ms**, sums cold **3,092 ms** vs resident **3,894 ms**; resident wins only `<100KiB` and `100KiB-1MiB`. Mechanism: the session pays a one-time full `Field::open` descriptor parse (`repeat=1 == repeat=5 == 0.14 s`) while cold `narrow_probe` uses the partial-descriptor lane. Isolated lever: a **lazy session open** (recorded, out of scope). Campaign `2026-10-08-phase16-resident-probe-5d331f2` |
+| Contract-equivalent heterogeneous-session court | 16.5 | RECORDED (SQLite does not lose under the equal contract) | ADR-0050; a source-retaining SQLite baseline is forced to satisfy the same escalating contract C0–C5 (12-document subset). Equality holds at **C0–C3** (docx/epub text byte-identical; PDF page text is a heuristic projection, recorded `divergent`); both lanes reproduce the source exactly (VOLE `materialize --exact` 12/12, SQLite retained blob 12/12). **VOLE declines C4/C5** — its CLI has no revision query surface (`--revision` = `unsupported observation`). SQLite builds **~10×** faster (VOLE 20,847 ms vs SQLite C0 1,956 ms), serves the warm session **~1.47×** faster, ties on cold, and escalating C0 → C4 costs it only **~+3 %** persistent bytes with flat query cost. VOLE's sole edge is storage, corrected to ~0.9× by 16.6. Campaign `2026-10-08-phase16-contract-45d2c0e` |
+| Storage-accounting correction (file bytes vs `du -sb`) | 16.6 | ADOPTED (measurement correction) | ADR-0049; `du -sb` is `--apparent-size` and counted **4096 B per directory inode**, inflating the one-file-per-node `fs` store **52 %** (1,723,650,951 file bytes vs 2,620,072,839 `du`; 218,853 dirs) while packed (0.8 %, 3,511 dirs) and the single `.db` (0 %) were not. Corrected to sum-of-regular-file bytes: 15.3 packed/`fs` **0.719× → 1.007×**; 16.2 `fs`/SQLite **1.377× → 0.906×**, packed/SQLite **0.921× → 0.914×**, packed/`fs` **0.669× → 1.009×** (by format fs/SQLite: pdf 0.893×, docx 0.845×, epub 0.992×). **Refuted:** "VOLE is 1.377× SQLite" and "packed closes the gap" — no byte gap existed; both VOLE backends are at/below SQLite on file bytes, and the packed win is file/directory **count**. Exactness untouched (no wire/descriptor byte changed); amendment, not rewrite. Campaign `2026-10-08-phase16-storage-correction-2978e1d` |
 
 The PDF **physical authority** (lexer span cover, structural scanner, revision
 map, and object roles) is `ADOPTED` as of Phase 3 (campaign

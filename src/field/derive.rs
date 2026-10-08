@@ -19,16 +19,18 @@ use crate::limits::Limits;
 
 use super::super::adapter::pdf::lexer::lex;
 use super::super::adapter::pdf::span::SpanKind;
+use super::inflate::{self, Wrapper};
 
 /// Inflate a zlib stream with a hard bound on the decoded length.
 ///
 /// Deterministic: any conforming DEFLATE implementation yields identical bytes,
 /// so this is a legitimate reproducible materializer. The declared
-/// `expected_len` is enforced exactly.
+/// `expected_len` is enforced exactly. Backed by the shipped `zlib-rs` seam
+/// (`super::inflate`); a decode failure is a typed error, never a panic.
 pub fn inflate_zlib(encoded: &[u8], expected_len: u64, limits: Limits) -> Result<Vec<u8>> {
     let cap = usize::try_from(expected_len.min(limits.max_output_bytes)).unwrap_or(usize::MAX);
-    let decoded = miniz_oxide::inflate::decompress_to_vec_zlib_with_limit(encoded, cap)
-        .map_err(|e| Error::usage(format!("zlib inflate failed: {:?}", e.status)))?;
+    let decoded = inflate::inflate_bounded(encoded, cap, Wrapper::Zlib)
+        .map_err(|e| Error::usage(format!("zlib inflate failed: {e}")))?;
     if decoded.len() as u64 != expected_len {
         return Err(Error::reconstruction_mismatch(format!(
             "decoded stream is {} bytes but the node declared {expected_len}",
@@ -42,15 +44,14 @@ pub fn inflate_zlib(encoded: &[u8], expected_len: u64, limits: Limits) -> Result
 /// bound on the decoded length.
 ///
 /// This is the ZIP `method 8` decodable: ZIP stores bare DEFLATE, not a
-/// zlib-wrapped stream, so `decompress_to_vec_zlib_*` would reject it. Like
-/// [`inflate_zlib`], it is a deterministic pure function and the declared
-/// `expected_len` is enforced exactly.
+/// zlib-wrapped stream, so a zlib decoder would reject it. Like [`inflate_zlib`],
+/// it is a deterministic pure function and the declared `expected_len` is
+/// enforced exactly; it uses the same `zlib-rs` seam with the zlib wrapper
+/// disabled.
 pub fn inflate_raw_deflate(encoded: &[u8], expected_len: u64, limits: Limits) -> Result<Vec<u8>> {
     let cap = usize::try_from(expected_len.min(limits.max_output_bytes)).unwrap_or(usize::MAX);
-    let decoded =
-        miniz_oxide::inflate::decompress_to_vec_with_limit(encoded, cap).map_err(|e| {
-            Error::reconstruction_mismatch(format!("raw deflate inflate failed: {:?}", e.status))
-        })?;
+    let decoded = inflate::inflate_bounded(encoded, cap, Wrapper::Raw)
+        .map_err(|e| Error::reconstruction_mismatch(format!("raw deflate inflate failed: {e}")))?;
     if decoded.len() as u64 != expected_len {
         return Err(Error::reconstruction_mismatch(format!(
             "decoded member is {} bytes but the node declared {expected_len}",

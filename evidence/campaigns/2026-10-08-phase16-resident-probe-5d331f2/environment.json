@@ -1,0 +1,42 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase16-resident-probe-5d331f2",
+  "phase": "Phase 16 item 4 — surgical residency experiment (resident session gets narrow_probe's short-circuit)",
+  "utc_date": "2026-10-08",
+  "measured_commit": "5d331f2003b3c15a60f13b97ba63352afb384f1f",
+  "measured_commit_subject": "phase16.3: fix the >100 MiB PDF memory pathology (rle candidate built before its decline)",
+  "tree_state": "DIRTY at measurement: M src/field/observe.rs, M src/field/session.rs (this phase's seam, uncommitted by design); plus the new tools/ and evidence/ files listed below",
+  "package_version": "0.1.0-alpha.20",
+  "source_edits": ["src/field/observe.rs", "src/field/session.rs"],
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "built_service_image": "vole-document/doc-baseline:1.99.0",
+  "built_service_image_id": "sha256:dc17f388a49349eb39f89e30705a554a3ceaeae277a22518fd307e526c7159af",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "d4d2ef7670f6f2aa6ddf39c979f55dc39c17451819dcf17112b5d5169457ac06",
+  "arch": "x86_64",
+  "external_oracles": "none used for this measurement (the A0/A1 oracle lanes were not run)",
+  "env_vars_affecting_semantics": {
+    "PROFILE": "release",
+    "TAG": "resident-probe",
+    "REPEAT_N": "5 (default)",
+    "LIMIT": "0 (full frozen population)",
+    "OP_TIMEOUT": "180 (default)",
+    "WORK": "evidence/scratch/real100-resident-probe-work (default)"
+  },
+  "measured_binary": "target/release/vole-document",
+  "court": "tools/phase16-resident-probe-court.sh (trimmed COPY of tools/real100-court.sh; frozen files unmodified)",
+  "baseline_receipt": "evidence/campaigns/2026-10-07-real100-release-resident-78f7ea8",
+  "corpus": "real100-v1",
+  "corpus_manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "documents": 100,
+  "gates": {
+    "cargo fmt --all --check": "pass",
+    "cargo clippy --all-targets --all-features -- -D warnings": "pass",
+    "cargo test --locked --all-features": "pass (468 lib + integration, 0 failed)",
+    "cargo test --locked --no-default-features": "pass, 0 failed",
+    "session_probe_matches_narrow_probe_short_circuit": "pass",
+    "session_answers_equal_cold_process_answers": "pass",
+    "session_reads_descriptor_once": "pass"
+  }
+}

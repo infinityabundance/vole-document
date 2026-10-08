@@ -1,0 +1,24 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase16-zlib-ebb6636",
+  "phase": "16.1 — adopt zlib-rs as the shipped DEFLATE inflate backend; end-to-end impact",
+  "utc": "2026-10-08T03:36:47Z",
+  "measured_commit": "ebb663644cc12796bdc879c60e5a946e9b885745",
+  "old_ref": "ebb663644cc12796bdc879c60e5a946e9b885745",
+  "tree_state": " M Cargo.toml; M deny.toml; M src/field/derive.rs; M src/field/ingest.rs; M src/field/mod.rs; M src/field/observe.rs;?? evidence/campaigns/2026-10-08-phase16-zlib-ebb6636/;?? src/field/inflate.rs;?? tests/deflate_backend_equivalence.rs;?? tools/fixtures/phase16-zlib.py;?? tools/phase16-zlib-endtoend-court.sh;",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "d4d2ef7670f6f2aa6ddf39c979f55dc39c17451819dcf17112b5d5169457ac06",
+  "features": "docx,epub",
+  "reps": 3,
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "arms": {
+    "old": {"backend": "miniz_oxide", "binary_sha256": "259e5b9d7f0d6ca623b2e63a66ab9a42282c341438a823b5a9baae79d4c8b36d", "source": "git archive ebb663644cc12796bdc879c60e5a946e9b885745"},
+    "new": {"backend": "zlib-rs", "binary_sha256": "37605bfa9112e4fbb5bbd3ce2d20059d3a229858cdd27eef4cfbe68e0943cbd5", "source": "working tree"}
+  },
+  "correctness_gate": "every row's materialize --exact must reproduce the manifest SHA-256/byte length; both arms must yield the same field id",
+  "byte_identity_witness": "tests/deflate_backend_equivalence.rs (independent flate2/zlib-rs encoder + real real100-v1 members vs the miniz_oxide reference)",
+  "prior_microbench": "Phase 15.5 sealed at evidence/campaigns/2026-10-07-phase15-deflate-e676166: zlib-rs 1.58x GB/s, byte-identical, RSS-neutral",
+  "court": "tools/phase16-zlib-endtoend-court.sh"
+}

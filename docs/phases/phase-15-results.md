@@ -18,8 +18,10 @@ number links to a receipt under
   (ADR-0027 extended). Coverage and exactness are *identical* to the debug court
   — they are deterministic.
 - **Two structural wins, both scoped:**
-  - the **packed seed store** (15.3): persistent bytes **0.719×**, file count
-    **0.009×** (111× fewer), latency at parity, exactness and field id unchanged;
+  - the **packed seed store** (15.3): file bytes ≈**1.007×** (parity), file count
+    **0.009×** (111× fewer), latency at parity, exactness and field id unchanged —
+    the win is file/directory count, i.e. open and syscall economics, not bytes
+    (see **Correction (Phase 16.6)** below);
   - **`zlib-rs` decompression** (15.5): **1.58×** the `miniz_oxide` scalar
     inflate rate at **1.00×** RSS, byte-identical — it **meets** the pre-registered
     bar and is the recommended backend swap (recommended, not yet adopted).
@@ -59,25 +61,38 @@ split.
 
 Storage universes, reported **separately** (never folded): VOLE **persistent**
 field store `2,667,668,262 B`; VOLE optional standalone **descriptor**
-`1,704,524,849 B`; **A1** SQLite db `2,891,784,192 B`.
+`1,704,524,849 B`; **A1** SQLite db `2,891,784,192 B`. These whole-population
+aggregates are **method-inflated**: they were taken with `du -sb`, which on this
+bind mount adds each directory inode's own `st_size` (4096 B), so the
+one-file-per-node `fs` store is overstated ~52 % while the single-file `.db` is
+not. Read them only as `du`-method figures; the corrected file-bytes-only
+comparison is in **Correction (Phase 16.6)**.
 
 **These whole-population aggregates are NOT a common-success comparison.** VOLE
 failed to ingest several large documents while A1 built for them, so the raw
 totals flatter VOLE. Restricted to the **95 documents where both VOLE
-`field-ingest` and the A1 build succeeded**:
+`field-ingest` and the A1 build succeeded**, the original `du -sb` comparison was:
 
-| population | VOLE persistent | SQLite A1 db | ratio |
+| population | VOLE persistent (`du`) | SQLite A1 db (`du`) | ratio (`du`) |
 |---|---:|---:|---:|
 | common-success (95) | `2,619,707,424 B` | `1,902,919,680 B` | **1.377×** |
 | ↳ by format — EPUB | `284,912,377 B` | `254,951,424 B` | 1.118× |
 | ↳ by format — DOCX | `22,138,577 B` | `16,900,096 B` | 1.310× |
 | ↳ by format — PDF | `2,312,656,470 B` | `1,631,068,160 B` | 1.418× |
 
-On the fair population **VOLE's persistent footprint is 1.377× SQLite's** — it
-is *larger*, not smaller. The whole-population aggregate must never be read as a
-VOLE win. (A full `real100` packed-store court on this same population is the
-measurement that would show whether the packed backend closes that gap; the 15.3
-subset result below does not settle it — you cannot multiply 1.377 × 0.719.)
+**Correction (Phase 16.6).** The `1.377×` above is a `du -sb` artifact: it
+charges ~4096 B per directory inode and so counts the `fs` store's tens of
+thousands of directories that the single-file SQLite `.db` does not have. Under
+**file-bytes-only** accounting (sum of regular-file `st_size`) the same 95
+common-success documents give **VOLE fs / SQLite = 0.906×** — VOLE is *smaller*,
+not larger. The Phase-16.2 full packed court adds the packed backend on the same
+population: **packed / SQLite = 0.914×**, packed / fs = 1.009× (byte parity),
+with matching by-format figures (pdf 0.902×, docx 0.850×, epub 0.993× for
+packed / SQLite). Both VOLE backends are therefore **at or below SQLite on file
+bytes**, and the "VOLE is 1.377× SQLite" / "packed closes the gap" framing is
+refuted — there was no byte gap. Receipt
+[`2026-10-08-phase16-storage-correction-2978e1d`](../../evidence/campaigns/2026-10-08-phase16-storage-correction-2978e1d/)
+(`CORRECTION.md`; ADR-0049).
 
 **Held regions (wins).** Exactly two structural cells:
 `pdf`/`text_repeat` (VOLE win) and `docx`/`table` (VOLE win). **Everything else
@@ -149,8 +164,8 @@ corpus; no population claim.
 
 **Question.** Does an optional, immutable, segmented, offset-addressed `fieldpack`
 backend (`NodeId -> (segment, offset, len)`, identity unchanged) beat the
-one-file-per-node reference on persistent bytes, file count, and cold-observation
-latency?
+one-file-per-node reference on file bytes, file/directory count, and
+cold-observation latency?
 
 **Receipt.** [`2026-10-07-phase15-packed-8c195e8`](../../evidence/campaigns/2026-10-07-phase15-packed-8c195e8/).
 
@@ -162,9 +177,16 @@ descriptor is ingested into two store roots: filesystem vs `--packed`.
 
 | metric | fs | packed | ratio |
 | --- | ---: | ---: | ---: |
-| persistent bytes (`du -sb`) | 352,671,955 | 253,737,799 | **0.719×** |
+| file bytes (regular files only) | 250,333,395 | 252,046,151 | **1.007×** (parity; packed marginally larger) |
 | file count | 25,574 | 237 | **0.009×** (111× fewer) |
 | cold-observation wall | 1,555 ms | 1,541 ms | **0.991×** (parity) |
+
+The original `du -sb` reading (fs `352,671,955` → packed `253,737,799`,
+"**0.719×**") was a **directory-inode artifact** — see **Correction (Phase
+16.6)**. **The win is file and directory count**: `25,574 → 237` files (111×
+fewer) on this subset, and `218,853 → 3,511` directories over the 96-document
+correction re-measurement — i.e. open and syscall economics, at byte parity
+(packed is marginally *larger* in bytes, not smaller).
 
 **Correctness.** Field id identical across the two backends **12/12**;
 byte-exact `materialize --exact` **12/12 both**.

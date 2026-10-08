@@ -1,0 +1,63 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase16-storage-correction-2978e1d",
+  "phase": "16 storage-correction — file-size-only vs du -sb persistent-byte accounting",
+  "utc": "2026-10-08T08:30:00Z",
+  "measured_commit": "2978e1d74b25020e12e477fae4f5283d6f19b1fd",
+  "tree_state": "new files only: tools/phase16-storage-correction-court.sh, tools/fixtures/phase16-storage-correction.py, evidence/campaigns/2026-10-08-phase16-storage-correction-2978e1d/, evidence/scratch/phase16-storage-correction/",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "83646f7d4e65037af61e6e5c03c8fa391cc2a005471db45781a8de65287c7440",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "sqlite3": "3.40.1",
+  "cargo_lock_sha256": "d4d2ef7670f6f2aa6ddf39c979f55dc39c17451819dcf17112b5d5169457ac06",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "op_timeout_s": 180,
+  "court": "tools/phase16-storage-correction-court.sh",
+  "aggregator": "tools/fixtures/phase16-storage-correction.py",
+  "change_scope": "NEW files only. No existing court, aggregator, manifest or real100-v1 file was modified. The corrected accounting is a new court; the original phase15-*/phase16-* courts and real100-court.sh are untouched.",
+  "accounting_old": "du -sb DIR (GNU --apparent-size: sums regular-file st_size AND each directory inode's st_size)",
+  "accounting_new": "find DIR -type f -printf '%s\\n' | awk sum (regular-file st_size only; directories contribute 0)",
+  "filesystem": "ext4 bind mount; every directory inode reports st_size = 4096 B",
+  "population": {
+    "run_documents": 96,
+    "source": "union of the Phase-15.3 12-document subset and the Phase-16.2 common-success set",
+    "encode_ok": 96, "fs_ingest_ok": 96, "packed_ingest_ok": 96, "a1_build_ok": 95,
+    "common_all_fs_packed_a1": 95,
+    "note": "the 95 common-success documents are identical to those of the original 16.2 campaign; the re-run reproduces the original du -sb sums byte-for-byte"
+  },
+  "distortion_measured": {
+    "unit": "bytes; over the 96 successful store trees of this run",
+    "fs_store":     {"file_bytes": 1723650951, "du_bytes": 2620072839, "dir_overhead_bytes": 896421888, "dir_overhead_frac_of_file_bytes": 0.5201, "dirs": 218853, "bytes_per_dir": 4096},
+    "packed_store": {"file_bytes": 1738386483, "du_bytes": 1752767539, "dir_overhead_bytes": 14381056,  "dir_overhead_frac_of_file_bytes": 0.0083, "dirs": 3511,   "bytes_per_dir": 4096},
+    "a1_sqlite_db": {"file_bytes": 1902919680, "du_bytes": 1902919680, "dir_overhead_bytes": 0, "dirs": 0}
+  },
+  "corrected_phase15_3_subset": {
+    "documents": 12,
+    "old_du":  {"fs_bytes": 352671955, "packed_bytes": 253737799, "packed_over_fs": 0.7194725733},
+    "new_files": {"fs_bytes": 250333395, "packed_bytes": 252046151, "packed_over_fs": 1.0068418998}
+  },
+  "corrected_phase16_2_common": {
+    "documents": 95,
+    "overall": {
+      "old_du": {"fs_bytes": 2619707424, "packed_bytes": 1752688904, "a1_bytes": 1902919680, "fs_over_a1": 1.3766778764, "packed_over_a1": 0.9210524871, "packed_over_fs": 0.6690399424},
+      "new_files": {"fs_bytes": 1723609120, "packed_bytes": 1738340616, "a1_bytes": 1902919680, "fs_over_a1": 0.9057708206, "packed_over_a1": 0.9135123433, "packed_over_fs": 1.0085468891}
+    },
+    "by_format_new_files": {
+      "pdf":  {"fs_over_a1": 0.8929042364, "packed_over_a1": 0.9016864568, "packed_over_fs": 1.0098355680},
+      "docx": {"fs_over_a1": 0.8451105248, "packed_over_a1": 0.8499419767, "packed_over_fs": 1.0057169467},
+      "epub": {"fs_over_a1": 0.9921066415, "packed_over_a1": 0.9933831356, "packed_over_fs": 1.0012866501}
+    }
+  },
+  "baseline_15_1_reconciliation": {
+    "source": "evidence/campaigns/2026-10-07-real100-release-baseline-866f489/raw/onetime.tsv",
+    "method": "v_store_bytes = du -sb of the whole vstore directory; a1_bytes = du -sb of the .db file; SAME du -sb method as 16.2 and 15.3",
+    "common_enc_fs_a1_documents": 95,
+    "du_sums": {"v_store_bytes": 2619707424, "a1_bytes": 1902919680, "ratio": 1.3766778764},
+    "verdict": "the 1.377x figure IS du-based and therefore MOVES under file-size accounting, to 0.906x"
+  },
+  "reproduce": "docker compose run --rm --no-TTY doc-baseline sh -c 'CAMPAIGN=evidence/campaigns/2026-10-08-phase16-storage-correction-2978e1d IDS_FILE=evidence/scratch/phase16-storage-correction/union96.txt SUBSET_IDS_FILE=evidence/scratch/phase16-storage-correction/subset12.txt COMMON_IDS_FILE=evidence/scratch/phase16-storage-correction/common95.txt bash tools/phase16-storage-correction-court.sh'",
+  "rc_codes": "0 success; 124 timeout; 137 SIGKILL/OOM; -1 not run; other = tool error"
+}

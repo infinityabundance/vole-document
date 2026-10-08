@@ -1,0 +1,44 @@
+# Phase 16.3 — >100 MiB PDF memory pathology: reproduction, bisection, fix, re-measure
+#
+# All commands ran inside the capped lanes; nothing ran on the host.
+
+# --- build (pinned dev lane) ---
+docker compose run --rm --no-TTY dev cargo build --release --locked --all-features
+
+# --- step 1/2: per-candidate memory bisection (release). Save the pre-fix binary. ---
+docker compose run --rm --no-TTY doc-baseline sh -c \
+  'cp target/release/vole-document evidence/scratch/phase16-largepdf/vole-before && chown 1000:1000 evidence/scratch/phase16-largepdf/vole-before'
+docker compose run --rm --no-TTY -e VOLE_BIN=./target/release/vole-document doc-baseline \
+  bash evidence/scratch/phase16-largepdf/bisect.sh           # nasa-pdf-0024, SRC overridable
+
+# --- step 1: reproduce the three >100 MiB PDFs, true peak (600 s budget) ---
+docker compose run --rm --no-TTY -e VOLE_BIN=./evidence/scratch/phase16-largepdf/vole-before \
+  -e LABEL=before -e OP_TIMEOUT=600 doc-baseline bash evidence/scratch/phase16-largepdf/large.sh
+docker compose run --rm --no-TTY -e VOLE_BIN=./target/release/vole-document \
+  -e LABEL=after  -e OP_TIMEOUT=600 doc-baseline bash evidence/scratch/phase16-largepdf/large.sh
+
+# --- step 1: campaign-budget rcs (180 s, matches phase16-packed-full) ---
+docker compose run --rm --no-TTY -e VOLE_BIN=./evidence/scratch/phase16-largepdf/vole-before \
+  -e LABEL=before180 -e OP_TIMEOUT=180 -e ATTRIB=0 doc-baseline bash evidence/scratch/phase16-largepdf/large.sh
+docker compose run --rm --no-TTY -e VOLE_BIN=./target/release/vole-document \
+  -e LABEL=after180  -e OP_TIMEOUT=180 -e ATTRIB=0 doc-baseline bash evidence/scratch/phase16-largepdf/large.sh
+
+# --- step 3: byte-identical-output differential (before vs after) ---
+docker compose run --rm --no-TTY \
+  -e BEFORE=./evidence/scratch/phase16-largepdf/vole-before -e AFTER=./target/release/vole-document \
+  -e DOCLIST=evidence/scratch/phase16-largepdf/doclists/small.txt -e OP_TIMEOUT=600 \
+  doc-baseline bash evidence/scratch/phase16-largepdf/diff.sh
+docker compose run --rm --no-TTY \
+  -e BEFORE=./evidence/scratch/phase16-largepdf/vole-before -e AFTER=./target/release/vole-document \
+  -e DOCLIST=evidence/scratch/phase16-largepdf/doclists/large.txt -e OP_TIMEOUT=900 \
+  doc-baseline bash evidence/scratch/phase16-largepdf/diff.sh
+
+# --- step 5: gates ---
+docker compose run --rm --no-TTY dev cargo fmt --all --check
+docker compose run --rm --no-TTY dev cargo clippy --all-targets --all-features -- -D warnings
+docker compose run --rm --no-TTY dev cargo test --locked --all-features
+docker compose run --rm --no-TTY dev cargo test --locked --no-default-features
+docker compose run --rm --no-TTY dev sh tools/phase1-court.sh
+
+# Environment facts
+docker compose run --rm --no-TTY doc-baseline sh -c 'sha256sum target/release/vole-document Cargo.lock real100-v1/manifest.tsv; rustc --version; cargo --version; uname -m'

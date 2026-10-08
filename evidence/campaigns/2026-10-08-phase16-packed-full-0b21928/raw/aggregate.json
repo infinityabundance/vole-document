@@ -1,0 +1,192 @@
+{
+  "common_success_all": {
+    "by_format": {
+      "docx": {
+        "a1_bytes": 16900096,
+        "documents": 15,
+        "fs_bytes": 22138577,
+        "fs_over_a1": 1.3099675291785324,
+        "median_fs_over_a1": 1.2125964555584017,
+        "median_pack_over_a1": 0.47645089285714287,
+        "median_pack_over_fs": 0.2857727363738454,
+        "pack_bytes": 14855621,
+        "pack_over_a1": 0.8790258351195165,
+        "pack_over_fs": 0.6710287205903072
+      },
+      "epub": {
+        "a1_bytes": 254951424,
+        "documents": 23,
+        "fs_bytes": 284912377,
+        "fs_over_a1": 1.117516319500926,
+        "median_fs_over_a1": 0.9605197975852273,
+        "median_pack_over_a1": 0.7102862780393243,
+        "median_pack_over_fs": 0.8124308656404831,
+        "pack_bytes": 254255677,
+        "pack_over_a1": 0.9972710605452433,
+        "pack_over_fs": 0.8923995499149551
+      },
+      "pdf": {
+        "a1_bytes": 1631068160,
+        "documents": 57,
+        "fs_bytes": 2312656470,
+        "fs_over_a1": 1.4178784962610023,
+        "median_fs_over_a1": 1.7671805100816909,
+        "median_pack_over_a1": 0.8607721122906362,
+        "median_pack_over_fs": 0.45426883146692776,
+        "pack_bytes": 1483577606,
+        "pack_over_a1": 0.9095742547019003,
+        "pack_over_fs": 0.6415036669929625
+      }
+    },
+    "overall": {
+      "a1_bytes": 1902919680,
+      "documents": 95,
+      "fs_bytes": 2619707424,
+      "fs_over_a1": 1.3766778763883507,
+      "median_fs_over_a1": 1.3423124216992228,
+      "median_pack_over_a1": 0.8459241129823414,
+      "median_pack_over_fs": 0.48573500060986285,
+      "pack_bytes": 1752688904,
+      "pack_over_a1": 0.9210524870918356,
+      "pack_over_fs": 0.6690399423779317
+    }
+  },
+  "common_success_fs_a1": {
+    "by_format": {
+      "docx": {
+        "a1_bytes": 16900096,
+        "documents": 15,
+        "fs_bytes": 22138577,
+        "fs_over_a1": 1.3099675291785324,
+        "median_fs_over_a1": 1.2125964555584017
+      },
+      "epub": {
+        "a1_bytes": 254951424,
+        "documents": 23,
+        "fs_bytes": 284912377,
+        "fs_over_a1": 1.117516319500926,
+        "median_fs_over_a1": 0.9605197975852273
+      },
+      "pdf": {
+        "a1_bytes": 1631068160,
+        "documents": 57,
+        "fs_bytes": 2312656470,
+        "fs_over_a1": 1.4178784962610023,
+        "median_fs_over_a1": 1.7671805100816909
+      }
+    },
+    "overall": {
+      "a1_bytes": 1902919680,
+      "documents": 95,
+      "fs_bytes": 2619707424,
+      "fs_over_a1": 1.3766778763883507,
+      "median_fs_over_a1": 1.3423124216992228
+    }
+  },
+  "failures": [
+    {
+      "bad_rc": {
+        "a1_build_rc": 1
+      },
+      "byte_len": 45000233,
+      "fmt": "epub",
+      "id": "nasa-epub-0010",
+      "sclass": "10-50MiB",
+      "skipped": []
+    },
+    {
+      "bad_rc": {
+        "venc_rc": 137
+      },
+      "byte_len": 408854600,
+      "fmt": "pdf",
+      "id": "nasa-pdf-0001",
+      "sclass": ">100MiB",
+      "skipped": [
+        "ving_fs_rc",
+        "ving_pack_rc"
+      ]
+    },
+    {
+      "bad_rc": {
+        "venc_rc": 124
+      },
+      "byte_len": 308803168,
+      "fmt": "pdf",
+      "id": "nasa-pdf-0002",
+      "sclass": ">100MiB",
+      "skipped": [
+        "ving_fs_rc",
+        "ving_pack_rc"
+      ]
+    },
+    {
+      "bad_rc": {
+        "venc_rc": 124
+      },
+      "byte_len": 217666672,
+      "fmt": "pdf",
+      "id": "nasa-pdf-0003",
+      "sclass": ">100MiB",
+      "skipped": [
+        "ving_fs_rc",
+        "ving_pack_rc"
+      ]
+    },
+    {
+      "bad_rc": {
+        "a1_build_rc": 1
+      },
+      "byte_len": 35841,
+      "fmt": "epub",
+      "id": "nist-epub-0008",
+      "sclass": "<100KiB",
+      "skipped": []
+    }
+  ],
+  "populations": {
+    "a1_build_ok": 98,
+    "common_all": 95,
+    "common_fs_a1": 95,
+    "documents": 100,
+    "encode_ok": 97,
+    "field_equal": 97,
+    "fs_ingest_ok": 97,
+    "packed_ingest_ok": 97,
+    "rc_histogram": {
+      "a1_build_rc": {
+        "0": 98,
+        "1": 2
+      },
+      "venc_rc": {
+        "0": 97,
+        "124": 2,
+        "137": 1
+      },
+      "ving_fs_rc": {
+        "-1": 3,
+        "0": 97
+      },
+      "ving_pack_rc": {
+        "-1": 3,
+        "0": 97
+      }
+    }
+  },
+  "verdict": {
+    "closes_gap_packed_le_1x": true,
+    "common_success_documents": 95,
+    "fs_over_a1_sum": 1.3766778763883507,
+    "pack_over_a1_median": 0.8459241129823414,
+    "pack_over_a1_sum": 0.9210524870918356
+  },
+  "whole_population": {
+    "a1_bytes_ok_only": 2891784192,
+    "a1_documents": 98,
+    "documents": 100,
+    "fs_bytes_ok_only": 2667668262,
+    "fs_documents": 97,
+    "pack_bytes_ok_only": 1797905486,
+    "pack_documents": 97
+  }
+}

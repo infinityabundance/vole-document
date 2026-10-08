@@ -204,15 +204,9 @@ not by re-materializing the document. The full CLI surface is in
 
 ## Current status
 
-Release **`0.1.0-alpha.20`** (Phases 13–15 complete; see
-[Changelog](docs/project/changelog.md)). **Phase 15** repaired the frozen `real100-v1` court (release build; storage universes reported
-separately) and measured the frontier — [Phase 15 results](docs/phases/phase-15-results.md). **Two structural wins:** `--packed` cuts persistent
-bytes to **0.719×** and file count to **0.009×** at latency parity (ADR-0043), and **`zlib-rs`** inflate is **1.58×** `miniz_oxide` at **1.00×** RSS,
-byte-identical and meeting the pre-registered bar (recommended, not adopted; ADR-0045). **Two negatives:** residency wins only below ~1 MiB
-(7 ms cold vs 9 ms resident; ADR-0042) and adaptive promotion fails all three pre-registered falsifiers (opt-in, default-off; ADR-0046).
-**CUDA is deferred** (the bandwidth gate is unopened; the pinned Docker lanes cannot see the GPU; ADR-0048). VOLE holds `pdf`/`text_repeat` and
-`docx`/`table`, loses the rest to SQLite/FTS, and 3/5 `>100 MiB` PDFs still fail at `encode` (ADR-0041). Headline measurements, each with its
-own results doc:
+Release **`0.1.0-alpha.21`** (Phases 13–16 complete; see [Changelog](docs/project/changelog.md)). **Phase 15** repaired the frozen `real100-v1` court (release build; storage universes reported separately) and measured the frontier; **Phase 16** adopted the recommended backend, fixed the large-PDF encode pathology, and corrected the storage accounting — [Phase 16 results](docs/phases/phase-16-results.md). **`zlib-rs` is now the shipped inflate backend** (byte-identical; `field-ingest` **0.917×**, `1.00×` RSS; ADR-0045 fulfilled), and the
+**`>100 MiB` PDF encode pathology is fixed** (`nasa-pdf-0001` completes byte-exactly, peak/input **17.7× → 8.9×**, **77/77** byte-identical; ADR-0041 extended). **Storage correction:** `du -sb` counted 4096 B per directory inode, so both VOLE backends are at/below SQLite on file bytes (`fs`/SQLite **0.906×**, packed/SQLite **0.914×**, packed/`fs` **1.009×**) — the old "0.719× bytes"/"1.377×" figures were that artifact ([ADR-0049](docs/adr/0049-storage-accounting-correction.md)), and the packed win is file/directory **count**.
+**Negatives:** residency still wins only below ~1 MiB even with the `narrow_probe` short-circuit (cold 6 ms vs resident 9 ms; ADR-0042), and under an **equal capability contract** source-retaining SQLite builds **~10×** faster and is the only lane answering revision lineage — **SQLite does not lose** ([ADR-0050](docs/adr/0050-sqlite-as-substrate-question.md); an open question, no switch decided). **CUDA is deferred** (ADR-0048). VOLE holds `pdf`/`text_repeat` and `docx`/`table`, and loses the rest to SQLite/FTS. Headline measurements, each with its own results doc:
 
 1. **Exactness holds after the source is gone.** PDF, DOCX and EPUB
    rematerialize byte-for-byte (length + SHA-256 + `cmp`) after the source *and*
@@ -240,14 +234,11 @@ Current limitations:
 - **Not a database.** A source-retaining SQLite+FTS5 baseline wins the
   large-document byte frontier and wall/CPU at N=1000.
 
-- **Self-authored corpora through Phase 12; first real-corpus court run.** Published
-  performance results through Phase 12 use self-authored deterministic corpora.
-  `real100-v1` is a frozen 100-document NASA/NIST corpus selected independently of
-  VOLE performance; its Phase-15 (repaired, release-binary) frontier court is mixed
-  — VOLE wins `pdf` repeated text and `docx` tables and loses cold lookups,
-  headings, resources, metadata, exact reconstruction and >100 MiB PDFs.
-  A real EPUB-content loss (the XHTML `DOCTYPE` the policy forbade) was found and
-  fixed (13.7, ADR-0040); residual non-DOCTYPE EPUB declines remain
+- **Self-authored corpora through Phase 12; first real-corpus court run.** Published performance results through Phase 12 use self-authored deterministic corpora.
+  `real100-v1` is a frozen 100-document NASA/NIST corpus selected independently of VOLE performance; its Phase-15 (repaired, release-binary) frontier court is mixed
+  — VOLE wins `pdf` repeated text and `docx` tables and loses cold lookups, headings, resources, metadata and exact reconstruction. The `>100 MiB` PDF **encode**
+  pathology is fixed in Phase 16 (`nasa-pdf-0001` completes byte-exactly; ADR-0041 extended), though its two largest peers still exceed the **wall** op budget, not memory.
+  A real EPUB-content loss (the XHTML `DOCTYPE` the policy forbade) was found and fixed (13.7, ADR-0040); residual non-DOCTYPE EPUB declines remain
   ([frontier report](docs/evidence/real100-frontier-report.md)).
 - **Partial reusability.** Cross-document durable *work* reuse is a negative, and
   XLSX/PPTX and other adapters remain `PROPOSED`.

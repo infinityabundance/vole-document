@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.21"
 edition = "2024"
 rust-version = "1.89"
 description = "Persistent procedural document runtime: byte-exact reconstruction plus a content-addressed procedural seed DAG, queryable observations with provenance, and selective late materialization."
@@ -75,11 +75,11 @@ blake3 = { version = "=1.8.7", optional = true }
 # identical to our `Id`.
 entropyfs = { version = "=0.7.17", optional = true, default-features = false }
 
-# Phase 11: bounded, pure-Rust zlib *inflate* for decoding lone-/FlateDecode
-# stream payloads during inverse-proceduralization. Never used to produce bytes
-# (the exact representation is the DRA/replay program); only to recover decoded
-# stream state for observations. `miniz_oxide` is permissive (MIT/Apache/Zlib)
-# and has no C toolchain. Pinned exactly.
+# Phase 11: bounded, pure-Rust zlib *inflate*. Phase 16.1 adopts `zlib-rs` as the
+# **shipped** backend for the field inflate seam (both PDF zlib and ZIP raw
+# DEFLATE); `miniz_oxide` is retained only as the differential reference for the
+# `deflate-ablation` harness and the byte-identity tests. `miniz_oxide` is
+# permissive (MIT/Apache/Zlib) and has no C toolchain. Pinned exactly.
 miniz_oxide = { version = "=0.8.9", optional = true }
 
 # Phase 12: ZIP CRC-32/ISO-HDLC (the polynomial the ZIP format mandates — **not**
@@ -99,14 +99,11 @@ crc32fast = { version = "=1.5.2", optional = true }
 # own. Pinned exactly.
 memchr = { version = "=2.8.3", optional = true }
 
-# Phase 15.5: DEFLATE-decompression *ablation* candidates (feature
-# `deflate-ablation`, never `default`). These are measurement backends for
-# `examples/deflate_ablation.rs` only; they add **no** decoder behavior to the
-# exactness path (which never calls an inflater — a stream's exact leaf is its raw
-# compressed span). `zlib-rs` is `Zlib`-only (the license allowance is added to
-# `deny.toml`); `zune-inflate` is `MIT OR Apache-2.0 OR Zlib` and pure Rust. Both
-# contain internal `unsafe`, which our crate-local `unsafe_code = "forbid"` lint
-# permits (it forbids `unsafe` in *this* crate, not in a dependency). Pinned exactly.
+# Phase 15.5/16.1: `zlib-rs` (safe Rust `Inflate` API; no `unsafe` FFI in this
+# crate) is the shipped DEFLATE inflate backend for the `field` feature. It was
+# promoted from the Phase-15.5 ablation (1.58x GB/s, byte-identical, RSS-neutral:
+# `evidence/campaigns/2026-10-07-phase15-deflate-*`). `zune-inflate` remains a
+# measurement-only candidate (it was incorrect on 255 real members). Pinned.
 zlib-rs = { version = "=0.5.5", optional = true }
 zune-inflate = { version = "=0.2.54", optional = true, default-features = false, features = ["zlib", "std"] }
 
@@ -170,12 +167,14 @@ entropyfs-store = ["dep:entropyfs", "store"]
 # Never in `default`.
 dsfb-search = []
 # Phase 11: the persistent procedural document field (seed DAG + seed store +
-# observation query engine). Pulls a permissive pure-Rust zlib *inflate* to
-# recover decoded stream state; implies `store` because node identity is
-# BLAKE3-256 (domain-separated from the object `Id`). It adds **no** decoder
-# behavior: a descriptor produced with the field present decodes identically in
-# a build without it, and the field is never in the exactness path.
-field = ["dep:miniz_oxide", "store", "memmem-scan"]
+# observation query engine). Pulls the shipped permissive pure-Rust zlib *inflate*
+# (`zlib-rs`, Phase 16.1) to recover decoded stream state; implies `store` because
+# node identity is BLAKE3-256 (domain-separated from the object `Id`). It adds
+# **no** decoder behavior: a descriptor produced with the field present decodes
+# identically in a build without it, and the field is never in the exactness path.
+# `miniz_oxide` is kept reachable here only as the differential reference for the
+# inflate byte-identity tests.
+field = ["dep:miniz_oxide", "dep:zlib-rs", "store", "memmem-scan"]
 # Phase 12: the byte-authoritative ZIP physical layer shared by DOCX and EPUB.
 # Optional and **never** in `default`: it pulls a pure-Rust CRC-32 (`crc32fast`)
 # used only for `stored`-member CRC verification and derived observations. It
@@ -241,7 +240,9 @@ miniz-simd = ["miniz_oxide?/simd"]
 # Phase 15.5: the DEFLATE-decompression ablation harness (GB/s, correctness, peak
 # RSS) over the frozen `real100-v1` corpus. Non-default; it pulls the candidate
 # backends as optional deps. It adds **no** decoder behavior and changes no
-# `.voldoc` bytes — it exists only to measure inflate honestly.
+# `.voldoc` bytes — it exists only to measure inflate honestly. `zlib-rs` is
+# already implied by `field` (the shipped backend, Phase 16.1); `miniz_oxide`
+# arrives through `field` too, as the reference.
 deflate-ablation = ["field", "package", "dep:zlib-rs", "dep:zune-inflate"]
 # Later phases (declared so the feature surface is deliberate, not accidental):
 # pdf = []

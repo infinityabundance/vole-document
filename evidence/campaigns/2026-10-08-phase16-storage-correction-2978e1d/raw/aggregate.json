@@ -1,0 +1,187 @@
+{
+  "distortion": {
+    "a1": {
+      "bytes_per_dir": null,
+      "dirs": 0,
+      "du_bytes": 1902919680,
+      "file_bytes": 1902919680,
+      "overhead_bytes": 0,
+      "overhead_frac_of_files": 0.0
+    },
+    "examples": [
+      {
+        "fmt": "docx",
+        "fs_dirs": 87,
+        "fs_du": 387644,
+        "fs_files": 31292,
+        "fs_overhead": 356352,
+        "id": "nist-docx-0013",
+        "pack_dirs": 8,
+        "pack_du": 68304,
+        "pack_files": 35536,
+        "pack_overhead": 32768,
+        "src_bytes": 25400
+      },
+      {
+        "fmt": "pdf",
+        "fs_dirs": 2595,
+        "fs_du": 188918710,
+        "fs_files": 178289590,
+        "fs_overhead": 10629120,
+        "id": "nasa-pdf-0020",
+        "pack_dirs": 40,
+        "pack_du": 178607734,
+        "pack_files": 178443894,
+        "pack_overhead": 163840,
+        "src_bytes": 178050443
+      }
+    ],
+    "fs": {
+      "bytes_per_dir": 4096.0,
+      "dirs": 218853,
+      "du_bytes": 2620072839,
+      "file_bytes": 1723650951,
+      "overhead_bytes": 896421888,
+      "overhead_frac_of_files": 0.5200715884384414
+    },
+    "packed": {
+      "bytes_per_dir": 4096.0,
+      "dirs": 3511,
+      "du_bytes": 1752767539,
+      "file_bytes": 1738386483,
+      "overhead_bytes": 14381056,
+      "overhead_frac_of_files": 0.00827264600860337
+    }
+  },
+  "phase15_3_subset": {
+    "documents": 12,
+    "du": {
+      "a1_bytes": 267460608,
+      "documents": 12,
+      "fs_bytes": 352671955,
+      "fs_over_a1": 1.3185940076828062,
+      "median_fs_over_a1": 1.3471012358481005,
+      "median_pack_over_a1": 0.5626073338963964,
+      "median_pack_over_fs": 0.4468070307910452,
+      "pack_bytes": 253737799,
+      "pack_over_a1": 0.948692223865729,
+      "pack_over_fs": 0.7194725733153349
+    },
+    "files": {
+      "a1_bytes": 267460608,
+      "documents": 12,
+      "fs_bytes": 250333395,
+      "fs_over_a1": 0.9359636055265379,
+      "median_fs_over_a1": 0.5180690456081081,
+      "median_pack_over_a1": 0.5337785050675675,
+      "median_pack_over_fs": 1.0207162534627856,
+      "pack_bytes": 252046151,
+      "pack_over_a1": 0.9423673747126157,
+      "pack_over_fs": 1.0068418997792923
+    }
+  },
+  "phase16_2_common": {
+    "documents": 95,
+    "du_by_format": {
+      "docx": {
+        "a1_bytes": 16900096,
+        "documents": 15,
+        "fs_bytes": 22138577,
+        "fs_over_a1": 1.3099675291785324,
+        "median_fs_over_a1": 1.2125964555584017,
+        "median_pack_over_a1": 0.47645089285714287,
+        "median_pack_over_fs": 0.2857727363738454,
+        "pack_bytes": 14855621,
+        "pack_over_a1": 0.8790258351195165,
+        "pack_over_fs": 0.6710287205903072
+      },
+      "epub": {
+        "a1_bytes": 254951424,
+        "documents": 23,
+        "fs_bytes": 284912377,
+        "fs_over_a1": 1.117516319500926,
+        "median_fs_over_a1": 0.9605197975852273,
+        "median_pack_over_a1": 0.7102862780393243,
+        "median_pack_over_fs": 0.8124308656404831,
+        "pack_bytes": 254255677,
+        "pack_over_a1": 0.9972710605452433,
+        "pack_over_fs": 0.8923995499149551
+      },
+      "pdf": {
+        "a1_bytes": 1631068160,
+        "documents": 57,
+        "fs_bytes": 2312656470,
+        "fs_over_a1": 1.4178784962610023,
+        "median_fs_over_a1": 1.7671805100816909,
+        "median_pack_over_a1": 0.8607721122906362,
+        "median_pack_over_fs": 0.45426883146692776,
+        "pack_bytes": 1483577606,
+        "pack_over_a1": 0.9095742547019003,
+        "pack_over_fs": 0.6415036669929625
+      }
+    },
+    "du_overall": {
+      "a1_bytes": 1902919680,
+      "documents": 95,
+      "fs_bytes": 2619707424,
+      "fs_over_a1": 1.3766778763883507,
+      "median_fs_over_a1": 1.3423124216992228,
+      "median_pack_over_a1": 0.8459241129823414,
+      "median_pack_over_fs": 0.48573500060986285,
+      "pack_bytes": 1752688904,
+      "pack_over_a1": 0.9210524870918356,
+      "pack_over_fs": 0.6690399423779317
+    },
+    "files_by_format": {
+      "docx": {
+        "a1_bytes": 16900096,
+        "documents": 15,
+        "fs_bytes": 14282449,
+        "fs_over_a1": 0.8451105248159537,
+        "median_fs_over_a1": 0.2714876520553691,
+        "median_pack_over_a1": 0.2827017355285235,
+        "median_pack_over_fs": 1.0348059677297965,
+        "pack_bytes": 14364101,
+        "pack_over_a1": 0.8499419766609609,
+        "pack_over_fs": 1.0057169467225124
+      },
+      "epub": {
+        "a1_bytes": 254951424,
+        "documents": 23,
+        "fs_bytes": 252939001,
+        "fs_over_a1": 0.9921066414596688,
+        "median_fs_over_a1": 0.7050345839968153,
+        "median_pack_over_a1": 0.7064092356687898,
+        "median_pack_over_fs": 1.0021965481906794,
+        "pack_bytes": 253264445,
+        "pack_over_a1": 0.9933831356046868,
+        "pack_over_fs": 1.0012866501358564
+      },
+      "pdf": {
+        "a1_bytes": 1631068160,
+        "documents": 57,
+        "fs_bytes": 1456387670,
+        "fs_over_a1": 0.8929042364483407,
+        "median_fs_over_a1": 0.8283851766714142,
+        "median_pack_over_a1": 0.8469038648835456,
+        "median_pack_over_fs": 1.015724600670872,
+        "pack_bytes": 1470712070,
+        "pack_over_a1": 0.9016864568063176,
+        "pack_over_fs": 1.0098355680256481
+      }
+    },
+    "files_overall": {
+      "a1_bytes": 1902919680,
+      "documents": 95,
+      "fs_bytes": 1723609120,
+      "fs_over_a1": 0.9057708205529725,
+      "median_fs_over_a1": 0.8145123873508817,
+      "median_pack_over_a1": 0.8239021381578947,
+      "median_pack_over_fs": 1.015377242674999,
+      "pack_bytes": 1738340616,
+      "pack_over_a1": 0.9135123433060506,
+      "pack_over_fs": 1.0085468890997746
+    },
+    "label": "16.2 common success (fs+packed+A1)"
+  }
+}

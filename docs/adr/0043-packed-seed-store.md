@@ -7,10 +7,10 @@
 
 The persistent procedural field (ADR-0025) stores one immutable blob per seed
 node in `FsSeedStore`. On the `real100-v1` corpus a single large document can
-produce tens of thousands of nodes, which is a file-count and physical-byte
-problem for both storage and open cost. The Phase-15 plan proposed an optional
-immutable **segmented, offset-addressed** `fieldpack` backend whose identity is
-unchanged: `NodeId -> (segment, offset, len)`. Reads are safe `pread`
+produce tens of thousands of nodes, which is a file-count (open/syscall) and
+physical-layout problem for both storage and open cost. The Phase-15 plan proposed
+an optional immutable **segmented, offset-addressed** `fieldpack` backend whose
+identity is unchanged: `NodeId -> (segment, offset, len)`. Reads are safe `pread`
 (`read_exact_at`); the crate forbids `unsafe`, so there is deliberately **no
 mmap** — the win is fewer files and few large contiguous segments, not mapping.
 
@@ -27,20 +27,28 @@ descriptor / manifest / index / cache remain files.
 ## Consequences
 
 - **Measured result (receipt
-  `evidence/campaigns/2026-10-07-phase15-packed-8c195e8/`):** a focused
-  **12-document** subset (one per `(format, size_class)` stratum) with the **same**
-  descriptor ingested into both roots:
+  `evidence/campaigns/2026-10-07-phase15-packed-8c195e8/`; corrected by
+  `evidence/campaigns/2026-10-08-phase16-storage-correction-2978e1d/`, ADR-0049):**
+  a focused **12-document** subset (one per `(format, size_class)` stratum) with the
+  **same** descriptor ingested into both roots:
 
   | metric | fs | packed | ratio |
   | --- | ---: | ---: | ---: |
-  | persistent bytes (`du -sb`) | 352,671,955 | 253,737,799 | **0.719×** |
+  | file bytes (regular files only) | 250,333,395 | 252,046,151 | **1.007×** (parity; packed marginally larger) |
   | file count (`find -type f`) | 25,574 | 237 | **0.009×** (111× fewer) |
   | cold-observation wall | 1,555 ms | 1,541 ms | **0.991×** (parity) |
 
   Correctness: field id identical across backends **12/12**; byte-exact
-  `materialize --exact` **12/12 both**.
-- **The win is structural, not latency.** Packed is far smaller and emits ~111×
-  fewer files at parity latency; it does **not** claim to be faster.
+  `materialize --exact` **12/12 both**. Over the 96-document correction
+  re-measurement the directory count is `218,853 → 3,511` (**62× fewer**).
+
+  *NOTE:* the Phase-15.3 court originally reported persistent bytes with
+  `du -sb`, which counts ~4096 B per directory inode and so inflated the
+  one-file-per-node store; the apparent "0.719× persistent bytes" did not survive
+  file-bytes-only accounting (ADR-0049).
+- **The win is file/directory count and physical layout, not bytes.** Packed emits
+  ~111× fewer files (and ~62× fewer directories) at parity latency and byte
+  parity; it does **not** claim to be faster or smaller in document bytes.
 - **Scope.** Only the seed namespace is packed. The syscall summary is recorded
   (`strace -c -f`, one representative document), but the lane has `strace` and
   **not** `perf`, so no page-fault / physical-read counters are claimed.
@@ -52,4 +60,6 @@ descriptor / manifest / index / cache remain files.
 - `src/field/` (`FieldStore::open_packed`, `fieldpack`); `--packed` in
   `src/main.rs`; `docs/phases/phase-15-results.md` (15.3)
 - `evidence/campaigns/2026-10-07-phase15-packed-8c195e8/`
+- `evidence/campaigns/2026-10-08-phase16-storage-correction-2978e1d/`;
+  ADR-0049 (the `du -sb` directory-inode correction)
 - ADR-0025: the procedural seed DAG stored one blob per node
