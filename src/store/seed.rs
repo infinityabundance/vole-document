@@ -28,7 +28,7 @@
 use core::fmt;
 use std::collections::BTreeSet;
 use std::fs;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
@@ -177,15 +177,18 @@ impl SeedStore for FsSeedStore {
         let dir = path
             .parent()
             .ok_or_else(|| Error::internal_invariant("seed node path has no parent"))?;
-        fs::create_dir_all(dir)?;
-        // Atomic publish: write a sibling tmp file, fsync, rename over the target.
+        crate::store::durable::create_dir_all(dir)?;
+        // Atomic publish: write a sibling tmp file, fsync, rename over the target,
+        // then fsync the directory so the rename is durable across a power cut
+        // (Phase 23, GAP 1).
         let tmp = dir.join(format!(".{}.tmp-{}", id.to_hex(), std::process::id()));
         {
-            let mut f = fs::File::create(&tmp)?;
-            f.write_all(canonical)?;
-            f.sync_all()?;
+            let mut f = crate::store::durable::create_file(&tmp)?;
+            crate::store::durable::write_all(&mut f, &tmp, canonical)?;
+            crate::store::durable::sync_all(&f, &tmp)?;
         }
-        fs::rename(&tmp, &path)?;
+        crate::store::durable::rename(&tmp, &path)?;
+        crate::store::durable::sync_dir(dir)?;
         Ok(id)
     }
 

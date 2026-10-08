@@ -33,7 +33,6 @@
 //! * `MAX_INDEX_NODE_BYTES = 8 KiB` per node.
 
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
@@ -250,14 +249,16 @@ impl FsIndexStore {
         let dir = path
             .parent()
             .ok_or_else(|| Error::internal_invariant("index node path has no parent"))?;
-        fs::create_dir_all(dir)?;
+        crate::store::durable::create_dir_all(dir)?;
         let tmp = dir.join(format!(".{}.tmp-{}", id.to_hex(), std::process::id()));
         {
-            let mut f = fs::File::create(&tmp)?;
-            f.write_all(canonical)?;
-            f.sync_all()?;
+            let mut f = crate::store::durable::create_file(&tmp)?;
+            crate::store::durable::write_all(&mut f, &tmp, canonical)?;
+            crate::store::durable::sync_all(&f, &tmp)?;
         }
-        fs::rename(&tmp, &path)?;
+        crate::store::durable::rename(&tmp, &path)?;
+        // Phase 23, GAP 1: make the rename durable in the parent directory.
+        crate::store::durable::sync_dir(dir)?;
         Ok(id)
     }
 

@@ -33,6 +33,15 @@ use crate::error::{Error, Result};
 mod io;
 pub use io::{IoCounters, IoSnapshot};
 
+// Phase 23: directory-durability (GAP 1) and the optional barrier journal
+// (GAP 2). Used by the field store's atomic writers (seed / index / packed /
+// descriptor / manifest / cache); gated on the `field` feature for the same
+// reason they are.
+#[cfg(feature = "field")]
+pub mod durable;
+#[cfg(feature = "field")]
+pub use durable::{DirSyncPolicy, set_dir_sync_policy};
+
 #[cfg(feature = "store")]
 mod embedded;
 #[cfg(feature = "store")]

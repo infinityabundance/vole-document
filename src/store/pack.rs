@@ -98,12 +98,13 @@ use core::cmp::Ordering;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::error::{Error, Result};
 
+use super::durable;
 use super::{IoCounters, NodeId, SeedStore};
 
 /// Segment header magic.
@@ -476,16 +477,15 @@ impl PackWriter {
     fn ensure_open(&mut self) -> Result<()> {
         if self.current.is_none() {
             let path = pack_path(&self.dir, self.next_seg_id);
-            let mut f = fs::OpenOptions::new()
-                .create(true)
-                .truncate(true)
-                .read(true)
-                .write(true)
-                .open(&path)
-                .map_err(|e| {
-                    Error::io(format!("creating packed segment {}: {e}", path.display()))
-                })?;
-            f.write_all(&encode_pack_header(self.next_seg_id))?;
+            // A brand-new segment: create it, write its header, then (Phase 23,
+            // GAP 1) `fsync` the containing directory so the new entry survives a
+            // power cut. The file is opened read+write because `read_at` `pread`s
+            // the writer's own open segment.
+            let mut f = durable::create_file(&path).map_err(|e| {
+                Error::io(format!("creating packed segment {}: {e}", path.display()))
+            })?;
+            durable::write_all(&mut f, &path, &encode_pack_header(self.next_seg_id))?;
+            durable::sync_dir(&self.dir)?;
             self.current = Some(f);
             self.current_len = PACK_HEADER_LEN;
         }
@@ -697,7 +697,7 @@ impl PackedSeedStore {
     ) -> Result<Self> {
         let root = root.to_path_buf();
         let dir = root.join(PACK_DIR);
-        fs::create_dir_all(&dir)?;
+        durable::create_dir_all(&dir)?;
         let (sealed_ids, open_id) = discover(&dir)?;
         let next_seg_for_fresh = sealed_ids.last().copied().map_or(0, |m| m + 1);
         let mut sealed = Vec::with_capacity(sealed_ids.len());
@@ -714,11 +714,8 @@ impl PackedSeedStore {
                 let path = pack_path(&dir, seg_id);
                 let (entries, valid_len) = scan_open_segment(&path, seg_id)?;
                 if valid_len < fs::metadata(&path)?.len() {
-                    fs::OpenOptions::new()
-                        .read(true)
-                        .write(true)
-                        .open(&path)?
-                        .set_len(valid_len)?;
+                    let f = fs::OpenOptions::new().read(true).write(true).open(&path)?;
+                    durable::set_len(&f, &path, valid_len)?;
                 }
                 let f = fs::OpenOptions::new()
                     .read(true)
@@ -778,7 +775,7 @@ impl PackedSeedStore {
                 return Ok(());
             }
             if let Some(f) = w.current.as_ref() {
-                f.sync_all()?;
+                durable::sync_all(f, &pack_path(&w.dir, w.next_seg_id))?;
             }
             let seg_id = w.next_seg_id;
             let pending = std::mem::take(&mut w.pending);
@@ -908,6 +905,7 @@ impl PackedSeedStore {
         w.ensure_open()?;
         let body_off = w.current_len + RECORD_PREFIX;
         let sync_each = w.sync_policy == SyncPolicy::Each;
+        let seg_path = pack_path(&w.dir, w.next_seg_id);
         let mut rec = Vec::with_capacity(RECORD_PREFIX as usize + canonical.len());
         rec.extend_from_slice(&(canonical.len() as u32).to_le_bytes());
         rec.extend_from_slice(canonical);
@@ -921,15 +919,15 @@ impl PackedSeedStore {
         #[cfg(feature = "fault-inject")]
         {
             crate::fault::hit("record.before_prefix");
-            f.write_all(&rec[..RECORD_PREFIX as usize])?;
+            durable::write_all(f, &seg_path, &rec[..RECORD_PREFIX as usize])?;
             crate::fault::hit("record.after_prefix");
-            f.write_all(&rec[RECORD_PREFIX as usize..])?;
+            durable::write_all(f, &seg_path, &rec[RECORD_PREFIX as usize..])?;
             crate::fault::hit("record.after_body");
         }
         #[cfg(not(feature = "fault-inject"))]
-        f.write_all(&rec)?;
+        durable::write_all(f, &seg_path, &rec)?;
         if sync_each {
-            f.sync_data()?;
+            durable::sync_data(f, &seg_path)?;
         }
         w.current_len = body_off + canonical.len() as u64;
         w.pending.insert(id, (body_off, canonical.len() as u32));
@@ -949,7 +947,7 @@ impl PackedSeedStore {
         if let Some(f) = w.current.as_ref() {
             #[cfg(feature = "fault-inject")]
             crate::fault::hit("flush.before_sync");
-            f.sync_all()?;
+            durable::sync_all(f, &pack_path(&w.dir, w.next_seg_id))?;
             #[cfg(feature = "fault-inject")]
             crate::fault::hit("flush.after_sync");
         }
