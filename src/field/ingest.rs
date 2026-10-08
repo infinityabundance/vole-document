@@ -32,7 +32,6 @@ use crate::adapter::pdf::cos::FilterClass;
 use crate::adapter::pdf::lexer::lex;
 use crate::adapter::pdf::physical::{PdfPhysical, PdfStreamSpan, RevisionInfo, scan};
 use crate::adapter::pdf::span::{Span, SpanKind};
-use crate::container::observation::{ObservationIndex, OpEntry, SECTION_OP_TABLE};
 use crate::container::{Descriptor, ParsedDescriptor};
 use crate::error::{Error, Result};
 use crate::field::dag;
@@ -323,33 +322,14 @@ pub(crate) fn with_observation_index(bytes: &[u8], limits: Limits) -> Result<Vec
     if parsed.descriptor.observation_index.is_some() {
         return Ok(bytes.to_vec());
     }
-    let d = parsed.descriptor;
-    let object_lens: Vec<u64> = d.objects.iter().map(|o| o.len()).collect();
-    let channel_lens: Vec<u64> = d.channels.iter().map(|c| c.decoded_length).collect();
-    let per_op = match d.program.analyze_ops(&object_lens, &channel_lens, limits) {
-        Ok(v) => v,
-        Err(_) => return Ok(bytes.to_vec()),
-    };
-    let mut ops: Vec<OpEntry> = Vec::with_capacity(per_op.len());
-    for (i, len) in per_op.iter().enumerate() {
-        let Ok(out_len) = u32::try_from(*len) else {
-            return Ok(bytes.to_vec());
-        };
-        let (dep_kind, dep_id) =
-            crate::container::observation::primary_dependency(&d.program.ops[i]);
-        ops.push(OpEntry {
-            out_len,
-            dep_kind,
-            dep_id,
-        });
+    // The derivation is now a pure method on the descriptor (Phase 18.3), so the
+    // direct build can attach the same record before its single serialize pass.
+    // The fallbacks are preserved exactly: any decline (a limit breach, an op
+    // length that does not fit `u32`, a refused serialize) returns the input.
+    let enriched = parsed.descriptor.with_observation_index(limits);
+    if enriched.observation_index.is_none() {
+        return Ok(bytes.to_vec());
     }
-    let mut enriched = d;
-    enriched.observation_index = Some(ObservationIndex {
-        section_flags: SECTION_OP_TABLE,
-        ops,
-        selectors: Vec::new(),
-        digests: Vec::new(),
-    });
     match enriched.serialize() {
         Ok((out, _cost)) => Ok(out),
         Err(_) => Ok(bytes.to_vec()),

@@ -12,7 +12,9 @@ use crate::container::directory::{
     DirectoryEntry, RecordSite, SEEK_DIRECTORY_ALL_SECTIONS, SeekDirectory,
 };
 use crate::container::header::{HEADER_LEN, Header, MAGIC};
-use crate::container::observation::ObservationIndex;
+use crate::container::observation::{
+    ObservationIndex, OpEntry, SECTION_OP_TABLE, primary_dependency,
+};
 use crate::container::record::{FLAG_OPTIONAL, RECORD_OVERHEAD, RecordReader, RecordTag};
 use crate::dra::Program;
 use crate::entropy::codec::EntropyChannelDescriptor;
@@ -213,6 +215,55 @@ impl Descriptor {
             bits |= crate::container::header::FEATURE_CHECKPOINTS;
         }
         bits
+    }
+
+    /// Return this descriptor with a minimal advisory observation-index op table
+    /// attached, if it lacks one and the table is derivable from the (unchanged)
+    /// reconstruction program.
+    ///
+    /// This is the pure, container-level form of the enrichment an ingest performs
+    /// on a stored authority blob: the op table is exactly
+    /// [`Program::analyze_ops`]' per-op output lengths plus each op's
+    /// [`primary_dependency`], so it changes **no** reconstruction semantics — only
+    /// the ignorable `OBSERVATION_INDEX` record and the optional feature bit that
+    /// advertises it. It returns `self` unchanged when an index is already present,
+    /// when [`Program::analyze_ops`] declines (a limit breach), or when an op's
+    /// output length does not fit the index's `u32` field, exactly as the
+    /// byte-level fallback does. Because it never parses or serializes, a caller
+    /// that holds a [`Descriptor`] can produce the enriched, byte-identical
+    /// authority with a **single** serialize pass.
+    pub fn with_observation_index(mut self, limits: Limits) -> Self {
+        if self.observation_index.is_some() {
+            return self;
+        }
+        let object_lens: Vec<u64> = self.objects.iter().map(|o| o.len()).collect();
+        let channel_lens: Vec<u64> = self.channels.iter().map(|c| c.decoded_length).collect();
+        let per_op = match self
+            .program
+            .analyze_ops(&object_lens, &channel_lens, limits)
+        {
+            Ok(v) => v,
+            Err(_) => return self,
+        };
+        let mut ops: Vec<OpEntry> = Vec::with_capacity(per_op.len());
+        for (i, len) in per_op.iter().enumerate() {
+            let Ok(out_len) = u32::try_from(*len) else {
+                return self;
+            };
+            let (dep_kind, dep_id) = primary_dependency(&self.program.ops[i]);
+            ops.push(OpEntry {
+                out_len,
+                dep_kind,
+                dep_id,
+            });
+        }
+        self.observation_index = Some(ObservationIndex {
+            section_flags: SECTION_OP_TABLE,
+            ops,
+            selectors: Vec::new(),
+            digests: Vec::new(),
+        });
+        self
     }
 
     /// Serialize to a complete `.voldoc` byte sequence plus cost attribution.

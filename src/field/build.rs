@@ -27,13 +27,12 @@
 //! the field from one source buffer, in one process.
 
 use crate::encode::candidates::CandidateKind;
-use crate::encode::encode_with;
+use crate::encode::encode_with_observation_index;
 use crate::error::{Error, Result};
 use crate::field::FieldId;
 use crate::field::FieldStore;
 use crate::field::ingest::IngestReport;
 use crate::field::ingest::ingest_pdf_direct;
-use crate::field::ingest::with_observation_index;
 #[cfg(feature = "package")]
 use crate::field::ingest_package::{PackageIngestReport, ingest_package_direct};
 use crate::integrity::{sha256, to_hex};
@@ -152,13 +151,14 @@ pub fn build_field_with(
     profile: BuildProfile,
     pool: Option<&WorkerPool>,
 ) -> Result<DirectBuildReport> {
-    let (descriptor_bytes, encode_report) = encode_with(source, limits, Some(profile.candidate()))?;
-    // The durable authority is the descriptor plus the advisory observation-index
-    // record the ingest adds. `with_observation_index` is idempotent (it returns
-    // the input unchanged when a record is already present), so computing it here
-    // once yields exactly the blob the ingest will store, with no extra read-back.
-    let authority = with_observation_index(&descriptor_bytes, limits)?;
-    drop(descriptor_bytes);
+    // The durable authority is the descriptor *with* the advisory
+    // observation-index record. The index is attached to the descriptor before
+    // the court serializes it (Phase 18.3), so the source-sized payload is
+    // serialized once rather than twice: the bytes are identical to enriching the
+    // plain `encode` output after the fact, but the extra parse + reserialize of
+    // the whole descriptor is removed from the direct-build wall.
+    let (authority, encode_report) =
+        encode_with_observation_index(source, limits, profile.candidate())?;
     let encoded_len = authority.len() as u64;
     let descriptor_sha256 = to_hex(&sha256(&authority));
     // The direct path already holds the exact source, so hand it to the native
