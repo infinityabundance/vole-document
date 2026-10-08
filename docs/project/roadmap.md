@@ -159,6 +159,37 @@ The warm loss is now **diagnosed and durable**; the packed store's durability is
 ([ADR-0050](../adr/0050-sqlite-as-substrate-question.md)) is unchanged and no
 option of it is chosen.
 
+## Phase-22 programme (PLANNED — not started)
+
+Phase 22 is the **economic programme** synthesised from an external technical
+review: it targets a better **capability/cost frontier** against the strongest
+honest competitor, in a commercially relevant workload region, with bounded
+statistics and no loss of accuracy or capability. Plan:
+[phase-22-plan.md](../phases/phase-22-plan.md) (PLANNED); the IP/presentation
+distinction it depends on is [ADR-0056](../adr/0056-runtime-vs-research-reconstruction-programs.md).
+Nothing below is measured; each row is a **gate** and its **prior** (a VOLE win is
+not presumed likely against the record). Order is by dependency and risk.
+
+| Subphase | Review | Question | Prior / gate |
+|---|---|---|---|
+| 22.1 Competitor envelope | P0 | Is there a strong competitor envelope, including an adaptive and a hybrid SQLite, before any frontier claim? | **Runs first.** Gate: ≥1 optimized configuration per required contract, no omitted capability; Python/Poppler kept as historical control; durability contracts compared explicitly |
+| 22.2 Compact query-native directory / hot-cold layout | P1 | Can warm CPU/I/O/allocation fall without storage growth or weaker integrity? | Gate: meaningful warm reduction at equal observations/provenance; any answer change falsifies |
+| 22.3 Fused heterogeneous execution | P2 | Can a known batch be one dependency closure and one schedule? | Target **≥2×** less decoded/materialized work on overlap-rich loads; explicitly **not** adaptive promotion (ADR-0046) |
+| 22.4 Unknown-query lifetime frontier | P3 | On a hidden schedule, which system wins the cumulative lifetime frontier? | All adaptation costs charged; SQLite gets a serious adaptive strategy; prior: Phase-15 promotion **lost** |
+| 22.5 Large/remote selective materialization | P4 | Can remote byte-range reads cut bytes transferred at competitive p95? | Gate: major transfer reduction at competitive p95; competitor gets an equal remote cache/range interface |
+| 22.6 Compact structural representation | P5 | Is an existing typed node representable more compactly at equal capability? | Gate: significant full-population byte cut, no observation loss; **do not reopen** falsified dedup/ad‑promotion without a new mechanism + new falsifiable hypothesis |
+| 22.7 Agent end-to-end economic court | P6 | Does the whole document-agent workload cost ≥2× less per correct, grounded task? | Gate: ≥2× lower cost per **correct, grounded** task; correctness fixed before any token claim |
+| — XLSX/PPTX economic validation | P7 | Is XLSX/PPTX evaluated through this economic thesis? | **Phase 21's** work (21.1), judged by frontier not format count |
+
+The programme also fixes a **world-class lifetime cost model** (the physical cost
+vector — ingest/query/update time, persistent bytes, bytes read, bytes
+transferred, peak RSS, I/O request count — plus a monetary cost, both normalised
+per successful contract-equivalent answer) and states that **failed gates remain
+publishable negative results**. Explicitly **not** pursued: another generic Rayon
+pass (ADR-0044), speculative CUDA (ADR-0048), more compression candidates
+(ADR-0017), or reviving the refuted cross-root-derivation / adaptive-promotion
+results (ADR-0046/0047).
+
 ## Unmeasured gates
 
 - `N4` (decline-rate threshold): no pre-registered threshold exists, so it is
