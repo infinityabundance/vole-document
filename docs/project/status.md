@@ -7,8 +7,9 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.19` (Phases 13–14 — Phase-13 proposals + `N5`
-gate, the benign-`DOCTYPE` real-EPUB fix, and a partial large-PDF encode fix).
+**Current release:** `0.1.0-alpha.20` (Phases 13–15 — Phase-13 proposals + `N5`
+gate, the benign-`DOCTYPE` real-EPUB fix, a partial large-PDF encode fix, and the
+Phase-15 performance programme).
 **Top-level verdict (ADR-0023, the
 authoritative [`FINDINGS.md`](findings.md)):** the current representation stack
 does not beat purpose-built baselines on any measured axis; the durable results

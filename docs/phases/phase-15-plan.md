@@ -45,7 +45,7 @@ the measurement.
   reused buffers) and an `observe-batch` API; a resident court (`text_repeat` and
   a mixed session as **one** process, versus a resident SQLite connection with
   prepared statements). Receipt: resident vs cold.
-- **15.3 Packed field store.** An optional immutable segmented, mmap-able
+- **15.3 Packed field store.** An optional immutable segmented, offset-addressed
   `fieldpack` backend (identity unchanged): `NodeId -> (segment, offset, len)`;
   measure syscalls, page faults, physical reads, persistent bytes, latency vs the
   one-file-per-node reference.

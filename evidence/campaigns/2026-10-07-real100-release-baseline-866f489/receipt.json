@@ -24,6 +24,15 @@
     "a1_sqlite_db": 2891784192,
     "note": "reported separately, never folded (ADR-0027 extended by 15.1). persistent = the field store alone after field-ingest (the standalone .voldoc may be deleted); descriptor = the optional standalone .voldoc; per-document transient = store + descriptor."
   },
+  "common_success_storage": {
+    "definition": "documents where BOTH VOLE field-ingest (ving_rc == 0) and the A1 build (a1_build_rc == 0) succeeded",
+    "documents": 95,
+    "v_persistent_bytes": 2619707424,
+    "a1_db_bytes": 1902919680,
+    "ratio_v_over_a1": 1.3767,
+    "by_format_ratio_v_over_a1": { "epub": 1.1175, "docx": 1.31, "pdf": 1.4179 },
+    "note": "on the fair population VOLE's persistent footprint is 1.377x SQLite's (larger, not smaller). The whole-population aggregate (2,667,668,262 vs 2,891,784,192) flatters VOLE because VOLE failed to ingest several large documents; it must never be read as a VOLE win."
+  },
   "large_pdf_failures": {
     "nasa-pdf-0001": "encode OOM-killed (rc 137, 3.8 s)",
     "nasa-pdf-0002": "encode timed out (rc 124, 180 s)",

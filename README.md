@@ -243,8 +243,9 @@ Current limitations:
 - **Self-authored corpora through Phase 12; first real-corpus court run.** Published
   performance results through Phase 12 use self-authored deterministic corpora.
   `real100-v1` is a frozen 100-document NASA/NIST corpus selected independently of
-  VOLE performance; its first frontier court is mixed — VOLE wins repeated
-  observations and DOCX tables/metadata and loses cold lookups and >100 MiB PDFs.
+  VOLE performance; its Phase-15 (repaired, release-binary) frontier court is mixed
+  — VOLE wins `pdf` repeated text and `docx` tables and loses cold lookups,
+  headings, resources, metadata, exact reconstruction and >100 MiB PDFs.
   A real EPUB-content loss (the XHTML `DOCTYPE` the policy forbade) was found and
   fixed (13.7, ADR-0040); residual non-DOCTYPE EPUB declines remain
   ([frontier report](docs/evidence/real100-frontier-report.md)).

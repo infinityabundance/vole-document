@@ -61,6 +61,24 @@ Storage universes, reported **separately** (never folded): VOLE **persistent**
 field store `2,667,668,262 B`; VOLE optional standalone **descriptor**
 `1,704,524,849 B`; **A1** SQLite db `2,891,784,192 B`.
 
+**These whole-population aggregates are NOT a common-success comparison.** VOLE
+failed to ingest several large documents while A1 built for them, so the raw
+totals flatter VOLE. Restricted to the **95 documents where both VOLE
+`field-ingest` and the A1 build succeeded**:
+
+| population | VOLE persistent | SQLite A1 db | ratio |
+|---|---:|---:|---:|
+| common-success (95) | `2,619,707,424 B` | `1,902,919,680 B` | **1.377×** |
+| ↳ by format — EPUB | `284,912,377 B` | `254,951,424 B` | 1.118× |
+| ↳ by format — DOCX | `22,138,577 B` | `16,900,096 B` | 1.310× |
+| ↳ by format — PDF | `2,312,656,470 B` | `1,631,068,160 B` | 1.418× |
+
+On the fair population **VOLE's persistent footprint is 1.377× SQLite's** — it
+is *larger*, not smaller. The whole-population aggregate must never be read as a
+VOLE win. (A full `real100` packed-store court on this same population is the
+measurement that would show whether the packed backend closes that gap; the 15.3
+subset result below does not settle it — you cannot multiply 1.377 × 0.719.)
+
 **Held regions (wins).** Exactly two structural cells:
 `pdf`/`text_repeat` (VOLE win) and `docx`/`table` (VOLE win). **Everything else
 loses to SQLite/FTS**, and `exact` reconstruction loses to the source file.
@@ -129,7 +147,7 @@ corpus; no population claim.
 
 ## Packed seed store (15.3)
 
-**Question.** Does an optional, immutable, segmented, mmap-able `fieldpack`
+**Question.** Does an optional, immutable, segmented, offset-addressed `fieldpack`
 backend (`NodeId -> (segment, offset, len)`, identity unchanged) beat the
 one-file-per-node reference on persistent bytes, file count, and cold-observation
 latency?

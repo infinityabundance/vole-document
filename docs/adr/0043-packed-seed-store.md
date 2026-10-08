@@ -1,4 +1,4 @@
-# ADR-0043: A packed, mmap-able fieldpack backend replaces the one-file-per-node seed store (seed namespace only)
+# ADR-0043: A segmented, offset-addressed packed fieldpack backend replaces the one-file-per-node seed store (seed namespace only)
 
 - **Status:** Accepted — adopted (scoped: the seed namespace only) (Phase 15.3)
 - **Date:** 2026-10-07
@@ -9,8 +9,10 @@ The persistent procedural field (ADR-0025) stores one immutable blob per seed
 node in `FsSeedStore`. On the `real100-v1` corpus a single large document can
 produce tens of thousands of nodes, which is a file-count and physical-byte
 problem for both storage and open cost. The Phase-15 plan proposed an optional
-immutable **segmented, mmap-able** `fieldpack` backend whose identity is
-unchanged: `NodeId -> (segment, offset, len)`.
+immutable **segmented, offset-addressed** `fieldpack` backend whose identity is
+unchanged: `NodeId -> (segment, offset, len)`. Reads are safe `pread`
+(`read_exact_at`); the crate forbids `unsafe`, so there is deliberately **no
+mmap** — the win is fewer files and few large contiguous segments, not mapping.
 
 ## Decision
 
