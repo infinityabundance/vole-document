@@ -1,0 +1,5 @@
+# Phase 19.1 — repeatability court: N=10 interleaved, paired repetitions of BOTH
+# lanes at every contract depth, every sample retained. Never on the host.
+docker compose run --rm --no-TTY doc-baseline bash tools/phase19-repeat-court.sh
+# bounded / explicit population:
+docker compose run --rm --no-TTY doc-baseline sh -c 'REPS=10 IDS="nist-pdf-0017 nist-docx-0005" bash tools/phase19-repeat-court.sh'

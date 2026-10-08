@@ -1,0 +1,179 @@
+# Phase 19.1 — repeatability court (paired, interleaved, N=10)
+
+Replaces the two single-shot Phase-18.5 point estimates with paired, interleaved, repeated measurements and a bootstrap interval. Same 12-document subset, same contract depths C0–C5, same source-retaining SQLite lane (`tools/fixtures/phase18-contract-packed.py`, byte-identical), same accounting (persistent bytes = sum of regular-file sizes; never `du -sb`). Wall times are integer microseconds.
+
+- documents: **12** (nist-docx-0005, nist-docx-0008, nist-docx-0009, nist-docx-0014, nist-epub-0003, nist-epub-0006, nist-epub-0008, nist-epub-0009, nist-pdf-0002, nist-pdf-0004, nist-pdf-0016, nist-pdf-0017); depths: **C0..C5**; repetitions: **N=10**; bootstrap: **20000 resamples, seed 190019**, cluster-resampled by document; tie band **+/-10%**.
+- interleaving: odd reps VOLE-then-SQLite, even reps SQLite-then-VOLE (per-rep order in `raw/order.tsv`); a per-rep warm-up precedes each lane's timed queries so the first read of a freshly rewritten store is not timed.
+- every individual sample is retained in `raw/*_samples.tsv`; nothing is reduced to min/median at collection time.
+
+## Per-lane statistics
+
+### One-time build wall (pooled over documents x reps)
+
+| lane | depth | n | median ms | mean ms | p25 ms | p75 ms | min ms | max ms | CV |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| VOLE | all | 120 | 14.965 | 132.212 | 8.634 | 21.925 | 7.646 | 1583.846 | 295.1% |
+| SQLite | C0 | 120 | 74.416 | 137.416 | 46.699 | 202.478 | 38.635 | 490.116 | 88.0% |
+| SQLite | C1 | 120 | 72.485 | 137.471 | 47.796 | 185.053 | 37.800 | 471.481 | 88.0% |
+| SQLite | C2 | 120 | 71.901 | 138.725 | 47.066 | 195.403 | 38.094 | 446.979 | 88.2% |
+| SQLite | C3 | 120 | 71.558 | 138.190 | 46.378 | 185.015 | 37.661 | 518.175 | 88.7% |
+| SQLite | C4 | 120 | 73.451 | 136.283 | 46.243 | 185.575 | 38.210 | 397.078 | 86.4% |
+| SQLite | C5 | 120 | 74.062 | 135.604 | 46.434 | 191.509 | 38.079 | 376.951 | 85.5% |
+
+### Warm single-session wall, all observations (pooled over documents x reps)
+
+| lane | depth | n | median ms | mean ms | p25 ms | p75 ms | min ms | max ms | CV |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| VOLE | C0 | 120 | 2.196 | 2.628 | 1.468 | 3.618 | 1.037 | 6.317 | 53.4% |
+| VOLE | C1 | 120 | 2.124 | 2.626 | 1.496 | 3.615 | 1.031 | 6.235 | 53.4% |
+| VOLE | C2 | 120 | 2.252 | 2.645 | 1.456 | 3.622 | 1.043 | 6.356 | 54.6% |
+| VOLE | C3 | 120 | 2.134 | 2.619 | 1.542 | 3.712 | 1.009 | 6.546 | 53.7% |
+| VOLE | C4 | 120 | 2.123 | 2.608 | 1.559 | 3.619 | 1.056 | 6.092 | 52.7% |
+| VOLE | C5 | 120 | 2.155 | 2.615 | 1.480 | 3.633 | 1.018 | 7.347 | 54.6% |
+| SQLite | C0 | 120 | 1.919 | 2.135 | 1.731 | 2.434 | 1.589 | 3.700 | 23.4% |
+| SQLite | C1 | 120 | 2.013 | 2.150 | 1.774 | 2.466 | 1.583 | 3.572 | 22.3% |
+| SQLite | C2 | 120 | 2.021 | 2.212 | 1.827 | 2.549 | 1.619 | 3.851 | 22.5% |
+| SQLite | C3 | 120 | 2.023 | 2.206 | 1.817 | 2.530 | 1.609 | 3.665 | 22.0% |
+| SQLite | C4 | 120 | 2.138 | 2.284 | 1.901 | 2.543 | 1.675 | 3.748 | 21.7% |
+| SQLite | C5 | 120 | 2.075 | 2.264 | 1.861 | 2.555 | 1.655 | 3.639 | 21.5% |
+
+### Cold per-observation wall, summed per rep (pooled over documents x reps)
+
+| lane | depth | n | median ms | mean ms | p25 ms | p75 ms | min ms | max ms | CV |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| VOLE | C0 | 120 | 9.206 | 10.980 | 7.446 | 10.651 | 3.985 | 28.113 | 60.6% |
+| VOLE | C1 | 120 | 9.066 | 10.858 | 7.391 | 10.517 | 3.932 | 27.629 | 61.4% |
+| VOLE | C2 | 120 | 9.037 | 10.808 | 7.364 | 10.341 | 3.906 | 27.817 | 62.2% |
+| VOLE | C3 | 120 | 9.089 | 10.806 | 7.341 | 10.361 | 3.968 | 27.596 | 61.5% |
+| VOLE | C4 | 120 | 9.062 | 10.834 | 7.291 | 10.400 | 3.909 | 28.479 | 62.0% |
+| VOLE | C5 | 120 | 9.052 | 10.820 | 7.283 | 10.475 | 3.868 | 27.875 | 62.0% |
+| SQLite | C0 | 120 | 11.381 | 10.271 | 6.615 | 12.125 | 5.377 | 16.440 | 28.4% |
+| SQLite | C1 | 120 | 11.364 | 10.231 | 6.765 | 12.084 | 5.430 | 16.028 | 27.9% |
+| SQLite | C2 | 120 | 11.415 | 10.219 | 6.748 | 12.038 | 5.424 | 15.760 | 27.8% |
+| SQLite | C3 | 120 | 11.452 | 10.316 | 6.683 | 12.080 | 5.454 | 17.421 | 29.0% |
+| SQLite | C4 | 120 | 11.537 | 10.425 | 6.869 | 12.313 | 5.547 | 18.200 | 28.1% |
+| SQLite | C5 | 120 | 11.486 | 10.344 | 6.641 | 12.314 | 5.394 | 16.067 | 27.9% |
+
+Full per (document, lane, depth) statistics: `raw/per_doc_lane_depth.csv`.
+
+## Q1 — VOLE/SQLite BUILD ratio (paired per rep)
+
+| SQLite depth | docs | pooled samples | median ratio | geometric-mean ratio |
+|---|---:|---:|---:|---:|
+| C0 | 12 | 120 | 0.189 | 0.203 |
+| C1 | 12 | 120 | 0.184 | 0.203 |
+| C2 | 12 | 120 | 0.187 | 0.202 |
+| C3 | 12 | 120 | 0.183 | 0.202 |
+| C4 | 12 | 120 | 0.185 | 0.203 |
+| C5 | 12 | 120 | 0.182 | 0.203 |
+
+### Q1 headline — VOLE/SQLite build vs SQLite C5 (full contract)
+
+- documents (clusters): **12**; paired samples: **120**
+- median paired ratio: **0.182**  (95% CI 0.102..0.228)
+- geometric-mean paired ratio: **0.203**  (95% CI 0.128..0.395)
+- per-document tie band +/-10%: **11 win / 0 tie / 1 loss** (win = ratio < 0.90, VOLE favourable; loss = ratio > 1.10)
+
+| document | median ratio | samples | outcome |
+|---|---:|---:|---|
+| nist-docx-0005 | 0.167 | 10 | win |
+| nist-docx-0008 | 0.197 | 10 | win |
+| nist-docx-0009 | 0.081 | 10 | win |
+| nist-docx-0014 | 0.110 | 10 | win |
+| nist-epub-0003 | 0.155 | 10 | win |
+| nist-epub-0006 | 0.199 | 10 | win |
+| nist-epub-0008 | 0.213 | 10 | win |
+| nist-epub-0009 | 0.284 | 10 | win |
+| nist-pdf-0002 | 0.081 | 10 | win |
+| nist-pdf-0004 | 0.094 | 10 | win |
+| nist-pdf-0016 | 0.233 | 10 | win |
+| nist-pdf-0017 | 4.440 | 10 | loss |
+
+### Best-of-3 (min) vs median-of-10 — build (ratio of sums, the Phase-18 estimator)
+
+| reduction | VOLE build sum ms | SQLite C5 build sum ms | ratio |
+|---|---:|---:|---:|
+| phase-18 best-of-3 (min of first 3) | 1545.5 | 1582.6 | **0.977** |
+| this court median-of-10 | 1544.6 | 1604.4 | **0.963** |
+
+The min reduction shrinks BOTH lanes' sums; because the heavy store-write tail lives on the VOLE lane, min-of-3 is expected to flatter VOLE relative to median-of-10.
+
+## Q2 — VOLE/SQLite WARM heterogeneous-session ratio (paired per rep)
+
+| depth | docs | pooled samples | median ratio | geometric-mean ratio |
+|---|---:|---:|---:|---:|
+| C0 | 12 | 120 | 1.042 | 1.107 |
+| C1 | 12 | 120 | 1.102 | 1.096 |
+| C2 | 12 | 120 | 1.010 | 1.068 |
+| C3 | 12 | 120 | 0.999 | 1.066 |
+| C4 | 12 | 120 | 1.034 | 1.029 |
+| C5 | 12 | 120 | 1.077 | 1.032 |
+
+### Q2 headline — VOLE/SQLite warm, summed over C0..C5 per rep
+
+- documents (clusters): **12**; paired samples: **120**
+- median paired ratio: **1.077**  (95% CI 0.809..1.391)
+- geometric-mean paired ratio: **1.065**  (95% CI 0.880..1.287)
+- per-document tie band +/-10%: **5 win / 1 tie / 6 loss** (win = ratio < 0.90, VOLE favourable; loss = ratio > 1.10)
+
+| document | median ratio | samples | outcome |
+|---|---:|---:|---|
+| nist-docx-0005 | 0.709 | 10 | win |
+| nist-docx-0008 | 0.616 | 10 | win |
+| nist-docx-0009 | 0.936 | 10 | tie |
+| nist-docx-0014 | 1.428 | 10 | loss |
+| nist-epub-0003 | 1.399 | 10 | loss |
+| nist-epub-0006 | 1.258 | 10 | loss |
+| nist-epub-0008 | 0.881 | 10 | win |
+| nist-epub-0009 | 1.898 | 10 | loss |
+| nist-pdf-0002 | 0.799 | 10 | win |
+| nist-pdf-0004 | 1.320 | 10 | loss |
+| nist-pdf-0016 | 0.839 | 10 | win |
+| nist-pdf-0017 | 1.521 | 10 | loss |
+
+### Best-of-3 (min) vs median-of-10 — warm (ratio of sums, the Phase-18 estimator)
+
+| reduction | VOLE warm sum ms | SQLite warm sum ms | ratio |
+|---|---:|---:|---:|
+| phase-18 best-of-3 (min of first 3) | 183.2 | 150.4 | **1.218** |
+| this court median-of-10 | 185.9 | 155.7 | **1.194** |
+
+## Exact original closure (length + SHA-256 + byte compare)
+
+| id | fmt | VOLE ok | VOLE rc | VOLE ms | SQLite ok | SQLite rc | SQLite ms |
+|---|---|---|---:|---:|---|---:|---:|
+| nist-pdf-0002 | pdf | 1 | 0 | 4.7 | 1 | 0 | 41.5 |
+| nist-pdf-0004 | pdf | 1 | 0 | 7.0 | 1 | 0 | 27.5 |
+| nist-pdf-0016 | pdf | 1 | 0 | 4.2 | 1 | 0 | 26.6 |
+| nist-pdf-0017 | pdf | 1 | 0 | 8.5 | 1 | 0 | 26.9 |
+| nist-docx-0005 | docx | 1 | 0 | 4.3 | 1 | 0 | 36.1 |
+| nist-docx-0008 | docx | 1 | 0 | 3.2 | 1 | 0 | 26.1 |
+| nist-docx-0009 | docx | 1 | 0 | 3.8 | 1 | 0 | 26.0 |
+| nist-docx-0014 | docx | 1 | 0 | 7.4 | 1 | 0 | 27.8 |
+| nist-epub-0003 | epub | 1 | 0 | 3.6 | 1 | 0 | 26.8 |
+| nist-epub-0006 | epub | 1 | 0 | 4.8 | 1 | 0 | 27.1 |
+| nist-epub-0008 | epub | 1 | 0 | 3.4 | 1 | 0 | 31.2 |
+| nist-epub-0009 | epub | 1 | 0 | 7.8 | 1 | 0 | 29.5 |
+
+VOLE `materialize --exact --packed`: **12/12 byte-exact**. SQLite retained blob: **12/12 byte-exact**.
+
+## Answers
+
+**Q1 — is the VOLE/SQLite BUILD ratio < 1.0?**
+
+- Paired median ratio **0.182** (95% CI 0.102..0.228); geometric mean **0.203** (95% CI 0.128..0.395). Per-document: 11 win / 0 tie / 1 loss.
+- The 95% CI lies **entirely below 1.0**: on this subset VOLE builds the equal contract faster than SQLite, and the effect is not within parity at these depths.
+
+**Q2 — is the VOLE/SQLite WARM heterogeneous-session ratio > 1.0, or parity?**
+
+- Paired median ratio **1.077** (95% CI 0.809..1.391); geometric mean **1.065** (95% CI 0.880..1.287). Per-document: 5 win / 1 tie / 6 loss.
+- The 95% CI **includes 1.0**: warm latency is **indistinguishable from parity** at this sample size on this store and host — the Phase-18 1.09x is a point estimate, not a resolved loss.
+
+## Caveats and honesty
+
+- The bind-mounted host store is noisy; the per-document CVs in `raw/per_doc_lane_depth.csv` quantify that noise and are the reason the intervals are quoted at all. Wide intervals are reported as wide, not massaged.
+- Warm sessions run in the low-millisecond range, where process start-up is a material fraction of the wall; that start-up is part of BOTH lanes' measured cost and is not subtracted.
+- The previous 0.82x / 1.09x came from one run with a min-of-3 reduction; the min-of-3 vs median-of-10 rows above show how much that reduction moved each lane.
+- Sampling unit for the CI is the document (cluster bootstrap), not the doc-rep pair; a document's 10 repeated measures are correlated and are not treated as 10 independent documents.
+- recorded interleave orders: sqlite vole; vole sqlite.
+
