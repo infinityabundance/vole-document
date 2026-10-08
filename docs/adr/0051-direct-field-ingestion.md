@@ -95,7 +95,12 @@ encoder-independent facts.
 - The field's build cost drops materially (**2.04×** wall, **3.4×** lower peak
   RSS) **without** changing exactness or the observation surface. The build
   economics weakness recorded by Phase 16/ADR-0050 is reduced, not eliminated
-  (SQLite still builds faster on the contract subset).
+  [SUPERSEDED: the direct build plus batched packed-store durability
+  (ADR-0053) invert the equal-contract build position — Phase 19 measures VOLE at
+  paired median **0.182** (95% CI 0.102–0.228; ratio-of-sums ~0.96) of SQLite on
+  the same 12-document court; see `docs/phases/phase-18-results.md`,
+  `docs/phases/phase-19-results.md`, ADR-0054. At the time of this ADR SQLite did
+  still build faster than the two-step path] on the contract subset.
 - **No wire byte, descriptor byte, or decode-path behaviour changes.** The exact
   authority is an ordinary `.voldoc`; `materialize(descriptor) == original_bytes`
   is the unchanged authority.

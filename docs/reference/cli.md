@@ -67,8 +67,8 @@ roots.
 
 ```text
 vole-document field-build  INPUT --store DIR [--profile runtime] [--workers N]
-                           [--voldoc OUT.voldoc] [--entropyfs | --packed]
-vole-document field-ingest INPUT.voldoc --store DIR [--workers N] [--entropyfs | --packed]
+                           [--voldoc OUT.voldoc] [--entropyfs | --packed] [--sync=batch|each]
+vole-document field-ingest INPUT.voldoc --store DIR [--workers N] [--entropyfs | --packed] [--sync=batch|each]
 vole-document field-edit   --store DIR --field HEX --page N --content FILE [--entropyfs | --packed]
 vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
     (--page N | --object N | --stream N | --revision N | --revisions | --byte-range A..B |
@@ -124,11 +124,15 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
 
 ## Features relevant to the field
 
-- `parallel` (non-default) enables `--workers`; `field` implies `memmem-scan`.
+- `parallel` (non-default) enables `--workers`; `field` implies `memmem-scan`
+  (`memchr`).
+- The shipped inflate backend is **`zlib-rs`** (adopted in Phase 16.1; the
+  byte-identity witness is `tests/deflate_backend_equivalence.rs`), owned by one
+  helper in `src/field/inflate.rs`.
 - `miniz-simd` enables `miniz_oxide`'s SIMD adler-32 path (output-preserving).
 - `deflate-ablation` builds the `examples/deflate_ablation.rs` harness and pulls
-  the candidate backends (`zlib-rs`, `zune-inflate`); it adds no decoder behavior
-  (ADR-0045).
+  the measurement-only candidate backends (`zlib-rs`, `zune-inflate`); it adds no
+  decoder behavior (ADR-0045, fulfilled by 16.1).
 
 ## Fine-unit sharing (`field`)
 

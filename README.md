@@ -202,6 +202,14 @@ docker compose run --rm --no-TTY dev \
 not by re-materializing the document. The full CLI surface is in
 [CLI](docs/reference/cli.md).
 
+The two-step `encode` → `field-ingest` path above is the **archival** route: it
+prices the whole candidate portfolio. For **runtime** ingestion,
+`field-build INPUT --store DIR [--profile runtime] [--packed] [--sync=batch|each]`
+builds the exact authority and the field in **one process** with **no candidate
+search** (the fixed `RAW` floor) — measured ~2× faster and ~3× lower peak RSS at
+identical exactness and observations, and the path used for the full-population
+build ([ADR-0051](docs/adr/0051-direct-field-ingestion.md), Phase 19).
+
 ## Current status
 
 Release **`0.1.0-alpha.24`** (Phases 13–19 complete; see [Changelog](docs/project/changelog.md)). **Phase 15** repaired the frozen `real100-v1` court and measured the frontier; **Phase 16** adopted the recommended backend, fixed the large-PDF encode pathology, and corrected the storage accounting ([Phase 16 results](docs/phases/phase-16-results.md)); **Phase 17** added a direct source → field build path and a PDF revision-lineage surface ([Phase 17 results](docs/phases/phase-17-results.md)); **Phase 18** is a **build-cost programme** that removed unnecessary work step by step — compression search → redundant materialization → re-serialize → **per-node durability sync** — and **inverted the equal-contract build position** ([Phase 18 results](docs/phases/phase-18-results.md); [ADR-0053](docs/adr/0053-batched-packed-sync.md)); **Phase 19** is a **measurement-discipline phase** that re-read those headlines with paired, interleaved repetitions across both lanes and ran the direct build over the full frozen population ([Phase 19 results](docs/phases/phase-19-results.md); [ADR-0054](docs/adr/0054-repeatability-and-paired-measurement.md)). **`zlib-rs` is the shipped inflate backend** (byte-identical; `field-ingest` **0.917×**; ADR-0045 fulfilled) and the **`>100 MiB` PDF encode pathology is fixed** (`nasa-pdf-0001` byte-exact, peak/input **17.7× → 8.9×**; ADR-0041 extended).

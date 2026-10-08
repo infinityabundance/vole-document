@@ -47,7 +47,11 @@ flowchart TD
 2. **Inverse-proceduralize.** Recovery is progressive: a cheap eager inversion
    (objects, streams, page tree) followed by demand-driven deepening. The
    recovered computation is a bounded, non-Turing-complete program with a checked
-   coverage certificate (ADR-0005).
+   coverage certificate (ADR-0005). The runtime path has a **direct** variant
+   (`field-build --profile runtime`) that fixes the exact program to the literal
+   `RAW` floor and skips the candidate search; the observation surface is
+   unchanged because structure is re-scanned from the materialized source
+   (ADR-0051).
 3. **Persist.** The recovered state is stored as a content-addressed procedural
    seed DAG plus an advisory hierarchical observation index (ADR-0025).
 4. **Observe / materialize.** A query resolves its minimum dependency closure and

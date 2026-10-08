@@ -1,7 +1,16 @@
 # ADR-0045: DEFLATE backend ablation — enable `miniz_oxide` SIMD; `zlib-rs` meets the bar and is recommended; `zune-inflate` is disqualified
 
-- **Status:** Accepted — SIMD enabled; `zlib-rs` recommended (not yet adopted); `zune-inflate` disqualified (Phase 15.5)
+- **Status:** Accepted — SIMD enabled; `zlib-rs` recommended (Phase 15.5) and **adopted in Phase 16.1**; `zune-inflate` disqualified
 - **Date:** 2026-10-07
+
+> **Amended (Phase 16.1, ADR-0045 fulfilled).** The recommendation above was
+> taken: `zlib-rs` is now the **shipped** inflate backend, owned by one helper
+> (`src/field/inflate.rs`, RFC 1950/1951 selected by a `Wrapper`), with
+> `tests/deflate_backend_equivalence.rs` (**2,075 real members / 17 documents**)
+> as the byte-identity witness. End-to-end medians: `field-ingest` **0.917×**
+> (~8 % faster), `encode` **0.996×** (control/noise floor), peak RSS **1.000×**.
+> Receipt `evidence/campaigns/2026-10-08-phase16-zlib-ebb6636/`; see
+> [phase-16-results.md](../phases/phase-16-results.md) 16.1.
 
 ## Context
 
@@ -36,9 +45,13 @@ for every candidate. Measure over the real `real100-v1` compressed members.
   checksum hasher, never the DEFLATE bit decoder, so decoded bytes are identical;
   it is a free, output-preserving 1.11×.
 - **`zlib-rs` meets the bar and is the recommended backend swap** — byte-identical,
-  RSS-neutral, 1.58×. It is **not yet adopted**: the court measures only, and
-  swapping the shipped inflater is a separate, deliberate change guarded by this
-  byte-identity witness.
+  RSS-neutral, 1.58×. It is **not yet adopted** [SUPERSEDED: adopted as the
+  shipped inflate backend in **Phase 16.1** — `field-ingest` **0.917×**,
+  `encode` **0.996×**, peak RSS **1.000×**, byte-identity
+  `tests/deflate_backend_equivalence.rs`; see the amendment above and
+  `evidence/campaigns/2026-10-08-phase16-zlib-ebb6636/`]: the court measures only,
+  and swapping the shipped inflater is a separate, deliberate change guarded by
+  this byte-identity witness.
 - **`zune-inflate` is disqualified for incorrectness** — it decoded 255 members
   differently from the reference. A candidate that does not reproduce the
   reference bytes cannot be adopted regardless of speed.

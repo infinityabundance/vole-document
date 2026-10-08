@@ -40,6 +40,33 @@ inversion (physical spans, revisions, objects, streams, decoded streams, page
 tree, `/ObjStm`-hosted page objects); **Stage C** demand-driven deepening.
 Progressive inversion is the only implemented mode.
 
+## Building the field: search vs direct
+
+Two paths produce a field. The archival route is `encode` + `field-ingest`: it
+prices the whole candidate portfolio and stores the winner. The **direct** route
+is `field-build INPUT --profile runtime`, which fixes the exactness program to
+the literal `RAW` floor (one literal object, one `EMIT_OBJECT`;
+`candidates_evaluated == 1`) and builds the exact authority and the field in
+**one process** with **no candidate search**. The observation surface is
+unchanged because structure is re-scanned from the materialized source, not read
+from the winning program — the descriptor program is consulted only for the
+advisory observation index and the exactness check (ADR-0051). Measured ~2.04×
+faster and 3.4× lower peak RSS than the two-step path on the direct court; the
+direct path built **100/100** of the frozen `real100-v1` exactly (Phase 19.3). A
+recorded caveat: the PDF `Selector::Metadata` projection embeds the program's
+`object_count`/`graph_ops`, so it is not encoder-independent.
+
+## Resident session
+
+`DocumentFieldSession` + `observe-batch` answer many observations in one process
+(one JSON answer per line), reusing open stores, the parsed manifest, and
+caches. Residency is a **recorded negative** above ~1 MiB: the cold `observe`
+path's `narrow_probe` short-circuit returns a derived node without the full
+context, while the session pays a one-time full `Field::open` descriptor parse,
+so the cold lane wins at 1–100 MiB (aggregate cold 6 ms vs resident 9 ms;
+ADR-0042). The isolated lever is a **lazy session open** (recorded, not shipped).
+`observe-batch` serves both seed backends, including `--packed` (ADR-0053).
+
 ## Observation engine
 
 Typed selectors × representations, each answer a typed `FieldAnswer` with a
@@ -120,6 +147,12 @@ and in a fresh process (`nodes_reused = 0`). Per ADR-0035, cross-document
 [0025](../adr/0025-procedural-seed-dag.md),
 [0026](../adr/0026-observation-query-provenance.md),
 [0027](../adr/0027-cost-accounting.md),
-[0034](../adr/0034-cross-document-identity-sharing.md). Results:
+[0034](../adr/0034-cross-document-identity-sharing.md),
+[0042](../adr/0042-resident-session-negative.md),
+[0051](../adr/0051-direct-field-ingestion.md),
+[0053](../adr/0053-batched-packed-sync.md). Results:
 [phase-11-results.md](../phases/phase-11-results.md),
-[phase-12-results.md](../phases/phase-12-results.md).
+[phase-12-results.md](../phases/phase-12-results.md),
+[phase-17-results.md](../phases/phase-17-results.md),
+[phase-18-results.md](../phases/phase-18-results.md),
+[phase-19-results.md](../phases/phase-19-results.md).

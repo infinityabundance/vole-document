@@ -47,6 +47,33 @@ universe — the derived cache — is added in Phase 11 and is never folded in.
 per-blob delete, so mark-and-sweep GC cannot reclaim through it. It is viable but
 heavy and never required for the standalone form (ADR-0008/0020).
 
+## Packed seed substrate (optional)
+
+`--packed` replaces the one-file-per-node `seed/` namespace with an immutable,
+segmented, offset-addressed `fieldpack/` store: `NodeId -> (segment, offset,
+len)`. Node identity is unchanged (`NodeId = BLAKE3-256(...)`), so field ids are
+identical across backends and a packed store and a filesystem store of the same
+descriptor are interchangeable; descriptor / manifest / index / cache remain
+files. The measured win is **file/directory count** (111× fewer files, 62× fewer
+directories over the correction re-measurement), **not bytes** — regular-file
+bytes are at parity (ADR-0043, corrected by ADR-0049). Reads are safe `pread`
+(`read_exact_at`); the crate forbids `unsafe`, so there is deliberately no
+`mmap`.
+
+## Packed-store durability model
+
+The packed store is append-only and self-describing, so recovery is **prefix
+recovery**: after any crash the recovered records are exactly a prefix of the
+appended sequence, the torn tail is discarded, no partial node is ever
+observable, every fetched node is re-hashed against its id, and a sealed segment
+is never rewritten. The writer's durability policy is `SyncPolicy::Batch`
+(default) — one sync per segment, at seal and an explicit flush — or
+`SyncPolicy::Each` (one `fdatasync` per seed node, the stronger per-node
+barrier). `put_field` **flushes before publishing a manifest**, so a durable
+manifest never references a non-durable node. Batching these syncs is what
+inverted the equal-contract build position (7.08× → 0.82×); the win is deleted
+unnecessary durability syncs, **not** parallelism or a codec (ADR-0053).
+
 ## Derived cache
 
 Observation caches are disposable, off-wire, and closure-keyed. `cache --clear`
@@ -116,4 +143,7 @@ No open byte-level partial-materialization item remains: the seek `DIRECTORY`
 [0025](../adr/0025-procedural-seed-dag.md),
 [0027](../adr/0027-cost-accounting.md),
 [0028](../adr/0028-finer-than-object-sharing.md),
-[0034](../adr/0034-cross-document-identity-sharing.md).
+[0034](../adr/0034-cross-document-identity-sharing.md),
+[0043](../adr/0043-packed-seed-store.md),
+[0049](../adr/0049-storage-accounting-correction.md),
+[0053](../adr/0053-batched-packed-sync.md).
