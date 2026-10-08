@@ -1,0 +1,67 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase20-memory-7b897ba",
+  "phase": "20.2 — large-source memory architecture for the direct build",
+  "utc": "2026-10-08T13:49:28Z",
+  "measured_commit": "7b897ba23906a250f7b89ed3e7e2566ebcf56621",
+  "tree_state": " M src/encode/court.rs; M src/field/ingest_package.rs; M src/field/mod.rs; M src/materialize/mod.rs;?? evidence/campaigns/2026-10-08-phase1-7b897ba/;?? evidence/campaigns/2026-10-08-phase20-memory-7b897ba/;?? tools/fixtures/phase20-memory.py;?? tools/phase20-memory-court.sh;",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "f28aa267989144bc685f20f57cbb9bb5a89e1c23684d113bfd174e89622fe8fb",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "3e8d445fbba07863a12e2c8eef065295c5976ad43b3750ad28d28c2ae98ba694",
+  "court": "tools/phase20-memory-court.sh",
+  "build_cmd": "field-build SRC --store DIR --profile runtime --packed --sync=batch",
+  "cap": "6 GiB mem_limit, memswap_limit == mem_limit (no zram swap); NO cap was raised",
+  "rss_metric": "/usr/bin/time -v Maximum resident set size (KiB)",
+  "exactness": "materialize --exact: length + SHA-256 + cmp against the source",
+  "wire_identity": "descriptor_sha256 per source compared before/after; equality proves the .voldoc bytes are unchanged",
+  "synthetic": "deterministic repeated 1 MiB xorshift block, no PDF/ZIP magic (opaque floor)",
+  "change": {
+    "src/encode/court.rs": "Court::offer destructures the candidate and drops its (source-sized) object payload immediately after serialization, before the decode-before-commit round trip",
+    "src/materialize/mod.rs": "new pub(crate) materialize_in_place moves inline object payloads out of the parsed descriptor (take_objects) instead of cloning them; byte-identical to materialize; + regression test",
+    "src/field/mod.rs": "FieldStore::ingest_verified uses materialize_in_place, so the direct-build (PDF) exactness check pays one fewer source-sized copy",
+    "src/field/ingest_package.rs": "ingest_package_direct uses materialize_in_place, so the direct-build (DOCX/EPUB/ZIP) exactness check pays one fewer source-sized copy"
+  },
+  "results": {
+    "before": {
+      "peak_rss_model_kib_per_byte": 0.005858,
+      "asymptotic_peak_over_source": 5.998,
+      "fixed_overhead_mib": 3.4,
+      "nasa_pdf_0001_409MiB_peak_mib": 2342.2,
+      "nasa_pdf_0001_ratio": 6.007,
+      "nasa_epub_0006_10MiB_ratio": 6.316,
+      "synth_1GiB_rc": 137,
+      "synth_1GiB_peak_mib": 6113.1,
+      "synth_1GiB_fits_6GiB_cap": false,
+      "exact_count": 15,
+      "exact_total": 16
+    },
+    "after": {
+      "peak_rss_model_kib_per_byte": 0.003903,
+      "asymptotic_peak_over_source": 3.997,
+      "fixed_overhead_mib": 5.3,
+      "nasa_pdf_0001_409MiB_peak_mib": 1562.6,
+      "nasa_pdf_0001_ratio": 4.008,
+      "nasa_epub_0006_10MiB_ratio": 5.295,
+      "synth_1GiB_rc": 0,
+      "synth_1GiB_peak_mib": 4099.1,
+      "synth_1GiB_fits_6GiB_cap": true,
+      "exact_count": 16,
+      "exact_total": 16
+    },
+    "wire_identity_vs_before": {"identical": 15, "different": 0, "not_in_baseline": 1},
+    "attributes": "the peak is entirely the encode court's decode-before-commit proof: source + serialized authority + parsed inline object + reconstructed output (4 copies); Stage B (scan/index/node write) never exceeds it"
+  },
+  "baseline_method": "the 'before' numbers are the identical court run against git stash-ed src/ (raw/before_build.tsv, raw/before_summary.txt, raw/before_environment.json) — same lane, same cap, same sources",
+  "residual_floor": "4 source-sized copies on the PDF/opaque path; the package path adds a scan/member-table constant (5.3x at 10 MiB vs 4.2x for PDF). Reaching 3 copies requires a Descriptor whose objects borrow from the authority bytes (a lifetime-parameterized descriptor), which the wire format does not require; a ~1.5 GiB source is the cap boundary and a 2 GiB source would not fit.",
+  "gates": {
+    "cargo_fmt_all_check": "pass",
+    "cargo_clippy_all_targets_all_features_deny_warnings": "pass",
+    "cargo_test_locked_all_features": "pass",
+    "cargo_test_locked_no_default_features": "pass",
+    "tools_phase1_court_sh_dev": "PASS"
+  }
+}

@@ -1,0 +1,30 @@
+== Phase 20.2 large-source memory curve ==
+  sources: 16
+
+id                                src B      MiB  rc   wall ms  peak MiB  RSS/src  exact  descriptor_sha256
+-----------------------------------------------------------------------------------------------------------
+nist-docx-0013                   25,400      0.0   0         8       3.6  147.230      1  4cf961398b9b73cc
+nist-docx-0005                   57,045      0.1   0         9       3.9   71.085      1  dc47bc4f50a79766
+nist-epub-0007                  145,523      0.1   0        10       4.3   30.961      1  66eb5e8ab77a3196
+nist-epub-0005                  274,801      0.3   0        11       4.8   18.214      1  df2250977cc06b24
+nist-pdf-0003                   826,897      0.8   0        41      12.6   16.019      1  c0f21d9f5bf88d8d
+nist-pdf-0017                 1,466,246      1.4   0     1,356      19.4   13.859      1  c2c5241e0b845eda
+nasa-pdf-0010                 2,168,794      2.1   0        42      15.2    7.350      1  0ea47805d02bf90f
+nasa-pdf-0023                 7,527,570      7.2   0       113      46.0    6.402      1  7f0bac26a393e075
+nasa-epub-0006               10,867,010     10.4   0       119      65.5    6.316      1  83547c09d941bb93
+nasa-pdf-0022                19,174,500     18.3   0       469     112.7    6.161      1  7fd6ce0eb638c8e5
+nasa-pdf-0012                75,821,728     72.3   0     1,995     437.8    6.055      1  3c058396ff47f5b6
+nasa-pdf-0024               168,513,117    160.7   0     4,301     967.3    6.019      1  2ba22a48f7e4157a
+nasa-pdf-0003               217,666,672    207.6   0    82,591    1248.5    6.015      1  fae8509c171914f4
+nasa-pdf-0002               308,803,168    294.5   0    83,183    1769.9    6.010      1  33cffff71e2a7388
+nasa-pdf-0001               408,854,600    389.9   0     4,744    2342.2    6.007      1  0b2b2670ba28b282
+synth-opaque-1024m        1,073,741,824   1024.0 137     4,859    6113.1    5.970      0  
+
+Least-squares fit over sources >= 10 MiB (peak_KiB = C + k * source_bytes):
+  k = 0.0059 KiB/B  (asymptotic peak/source ratio = 5.998x)
+  C = 3.4 MiB fixed overhead
+  predicted peak for a 1 GiB source: 6.00 GiB (6146 MiB) vs 6 GiB cap -> DOES NOT FIT
+  predicted peak for a 2 GiB source: 12.00 GiB (12288 MiB) vs 6 GiB cap -> DOES NOT FIT
+
+Exactness (length + SHA-256 + cmp): 15/16
+Wire identity: no raw/wire_before.tsv baseline supplied

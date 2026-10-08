@@ -1,0 +1,40 @@
+# Phase 20.2 — per-stage RSS bisect, nasa-pdf-0001 (408,854,600 B; 1 S = 399,272 KiB = 399.9 MiB)
+#
+# Instrumented with an env-gated VOLE_MEM_TRACE that prints VmRSS/VmHWM at
+# stage boundaries; both runs are the SAME release profile in the doc-baseline
+# lane (mem_limit == memswap_limit == 6g, cpus 8).
+#
+# ---- BEFORE (commit 7b897ba, unmodified) --------------------------------
+# memtrace build.enter                             rss_kb=401836  hwm_kb=401836   (1.006 S: the fs::read source)
+# memtrace court.offer.enter                       rss_kb=801784  hwm_kb=801784   (2.008 S: + descriptor object copy)
+# memtrace court.offer.after_serialize             rss_kb=1201060 hwm_kb=1600132  (3.008 S steady; 4.008 S peak: + pending clone + out)
+# memtrace court.offer.after_parse                 rss_kb=1600404 hwm_kb=1600404  (4.008 S: + parsed objects copy)
+# memtrace court.offer.after_materialize           rss_kb=1999684 hwm_kb=2398636  (5.008 S steady; 6.007 S peak: + resolved-object clone + eval out)
+# memtrace build.after_encode                      rss_kb=801856  hwm_kb=2398636  (2.008 S: source + authority)
+# memtrace ingest_verified.after_parse             rss_kb=1201132 hwm_kb=2398636
+# memtrace ingest_verified.after_materialize       rss_kb=1600408 hwm_kb=2398636
+# memtrace ingest_pdf_direct.after_ingest_verified rss_kb=801932  hwm_kb=2398636
+# memtrace ingest_pdf_direct.after_field_open      rss_kb=801932  hwm_kb=2398636
+# memtrace build.after_ingest                      rss_kb=815828  hwm_kb=2398636
+# Maximum resident set size (kbytes): 2398636     == 2342.4 MiB == 6.007 x source
+#
+# ---- AFTER (this phase's changes) --------------------------------------
+# memtrace build.enter                             rss_kb=401932  hwm_kb=401932   (1.006 S)
+# memtrace court.offer.after_serialize             rss_kb=1201040 hwm_kb=1600040  (3.008 S steady; 4.008 S peak in serialize)
+# memtrace court.offer.after_parse                 rss_kb=1201108 hwm_kb=1600040  (3.008 S: descriptor dropped first)
+# memtrace court.offer.after_materialize           rss_kb=1201112 hwm_kb=1600064  (3.008 S steady; 4.008 S peak: objects moved, not cloned)
+# memtrace build.after_encode                      rss_kb=801836  hwm_kb=1600064  (2.008 S)
+# memtrace ingest_verified.after_parse             rss_kb=1201176 hwm_kb=1600064
+# memtrace ingest_verified.after_materialize       rss_kb=1201176 hwm_kb=1600192
+# memtrace ingest_pdf_direct.after_ingest_verified rss_kb=802040  hwm_kb=1600192
+# memtrace ingest_pdf_direct.after_field_open      rss_kb=802040  hwm_kb=1600356
+# memtrace build.after_ingest                      rss_kb=815988  hwm_kb=1600356
+# Maximum resident set size (kbytes): 1600356     == 1562.8 MiB == 4.008 x source
+#
+# Attribution: the peak is entirely the encode court's decode-before-commit
+# round trip. Stage B (scan/index/node write) never exceeds it (build.after_ingest
+# hwm unchanged from the court peak, and steady RSS after Stage A is 2 S).
+# Residual floor after this change: 4 copies = {source, serialized authority,
+# parsed inline object, reconstructed output}; reaching 3 needs a descriptor
+# whose objects borrow from the authority bytes (a lifetime-parameterized
+# Descriptor), which the wire format does not require and this phase does not do.

@@ -682,8 +682,8 @@ impl FieldStore {
         source: &[u8],
         limits: Limits,
     ) -> Result<FieldId> {
-        let parsed = crate::container::Descriptor::parse(descriptor_bytes, limits)?;
-        let materialized = crate::materialize::materialize(&parsed, limits)?;
+        let mut parsed = crate::container::Descriptor::parse(descriptor_bytes, limits)?;
+        let materialized = crate::materialize::materialize_in_place(&mut parsed, limits)?;
         if materialized.len() != source.len() || materialized != source {
             return Err(Error::reconstruction_mismatch(format!(
                 "descriptor materialized {} bytes that differ from the supplied {} byte source",

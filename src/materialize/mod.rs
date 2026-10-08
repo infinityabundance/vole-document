@@ -79,6 +79,75 @@ fn resolve_objects<R: ObjectResolver + ?Sized>(
     Ok(out)
 }
 
+/// Resolve every object, **moving** inline payloads out of `d` instead of
+/// cloning them.
+///
+/// Byte-for-byte equivalent to [`resolve_objects`] except that an
+/// [`ObjectSource::Inline`] payload is taken (leaving an empty `Vec` behind)
+/// rather than duplicated. The direct build's exactness proof holds the source,
+/// the serialized authority, the parsed descriptor, and the reconstructed
+/// output at once; cloning the source-sized inline object would add a fifth
+/// resident copy at the peak. It is safe here because the caller owns `d` and
+/// never reads its now-empty inline objects again.
+fn take_objects<R: ObjectResolver + ?Sized>(
+    d: &mut Descriptor,
+    resolver: &R,
+) -> Result<Vec<Vec<u8>>> {
+    let mut out: Vec<Vec<u8>> = Vec::with_capacity(d.objects.len());
+    for (i, src) in d.objects.iter_mut().enumerate() {
+        match src {
+            ObjectSource::Inline(bytes) => out.push(std::mem::take(bytes)),
+            ObjectSource::External { id, len } => {
+                let bytes = resolver.get(id, *len)?;
+                if bytes.len() as u64 != *len {
+                    return Err(Error::integrity_mismatch(format!(
+                        "external object {i} ({id}) has {} bytes, EXTERNAL_REF declared {len}",
+                        bytes.len()
+                    )));
+                }
+                out.push(bytes);
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Materialize the exact source bytes for a parsed descriptor, **consuming** its
+/// inline object payloads.
+///
+/// Byte-identical to [`materialize`] (same decoder, same length and SHA-256
+/// checks); it differs only in that it moves the inline object bytes rather than
+/// cloning them. A caller that owns the [`ParsedDescriptor`] and does not need
+/// its objects again pays one fewer source-sized copy at the peak. Used by the
+/// encoder court's decode-before-commit proof and by the direct-build ingest
+/// verification, both of which hold the source and the authority simultaneously.
+pub(crate) fn materialize_in_place(
+    parsed: &mut ParsedDescriptor,
+    limits: Limits,
+) -> Result<Vec<u8>> {
+    let d = &mut parsed.descriptor;
+    let channels = decode_channels(d, limits)?;
+    let objects = take_objects(d, &NullResolver)?;
+
+    let out = d.program.eval(&objects, &channels, limits)?;
+    if out.len() as u64 != d.source_len {
+        return Err(Error::reconstruction_mismatch(format!(
+            "materialized {} bytes but {} were declared",
+            out.len(),
+            d.source_len
+        )));
+    }
+    let digest = sha256(&out);
+    if digest != d.source_sha256 {
+        return Err(Error::integrity_mismatch(format!(
+            "materialized SHA-256 {} != declared {}",
+            to_hex(&digest),
+            to_hex(&d.source_sha256)
+        )));
+    }
+    Ok(out)
+}
+
 /// Materialize the exact source bytes for a parsed descriptor, resolving any
 /// external object references through `resolver`.
 ///
@@ -205,5 +274,27 @@ mod tests {
         let (bytes, _) = d.serialize().unwrap();
         let e = decode_to_bytes(&bytes, Limits::DEFAULT).unwrap_err();
         assert_eq!(e.class(), crate::ErrorClass::IntegrityMismatch);
+    }
+
+    #[test]
+    fn materialize_in_place_matches_and_empties_inline_objects() {
+        let source = b"in-place must reconstruct identical bytes".repeat(64);
+        let d = descriptor_for(&source);
+        let (bytes, _) = d.serialize().unwrap();
+
+        let mut parsed = Descriptor::parse(&bytes, Limits::DEFAULT).unwrap();
+        let out = materialize_in_place(&mut parsed, Limits::DEFAULT).unwrap();
+        assert_eq!(out, source, "in-place output must equal the source");
+        // The inline payloads were moved out (the peak-saving property).
+        assert!(
+            parsed
+                .descriptor
+                .objects
+                .iter()
+                .all(|o| o.as_inline().is_some_and(|b| b.is_empty())),
+            "in-place materialization must take, not clone, inline objects"
+        );
+        // Fail closed if reused: the descriptor can no longer name its object.
+        assert!(materialize_in_place(&mut parsed, Limits::DEFAULT).is_err());
     }
 }

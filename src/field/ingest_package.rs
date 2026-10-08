@@ -317,8 +317,8 @@ pub(crate) fn ingest_package_direct(
     limits: Limits,
     pool: Option<&WorkerPool>,
 ) -> Result<PackageIngestReport> {
-    let parsed = Descriptor::parse(observable, limits)?;
-    let materialized = crate::materialize::materialize(&parsed, limits)?;
+    let mut parsed = Descriptor::parse(observable, limits)?;
+    let materialized = crate::materialize::materialize_in_place(&mut parsed, limits)?;
     if materialized.len() != source.len() || materialized != source {
         return Err(Error::reconstruction_mismatch(format!(
             "descriptor materialized {} bytes that differ from the supplied {} byte source",

@@ -10,7 +10,7 @@ use crate::container::Descriptor;
 use crate::encode::candidates::{Candidate, CandidateKind};
 use crate::error::{Error, Result};
 use crate::limits::Limits;
-use crate::materialize::materialize;
+use crate::materialize::materialize_in_place;
 
 /// The winning candidate after the court.
 #[derive(Debug, Clone)]
@@ -63,28 +63,35 @@ impl Court {
     /// Price one candidate and retain it only if it beats the current best.
     pub fn offer(&mut self, input: &[u8], c: Candidate, limits: Limits) -> Result<()> {
         self.evaluated += 1;
-        let (bytes, cost) = c.descriptor.serialize()?;
+        let Candidate { kind, descriptor } = c;
+        let work = descriptor.program.ops.len();
+        let (bytes, cost) = descriptor.serialize()?;
+
+        // The descriptor's object payloads (a full copy of the source for the
+        // RAW floor) are no longer needed once serialized. Drop them before the
+        // decode round trip so the exactness proof holds at most the serialized
+        // authority, never the authority *and* its source-sized input copy.
+        drop(descriptor);
 
         // Decode-before-commit: the normative decoder must reproduce the source.
-        let parsed = Descriptor::parse(&bytes, limits)?;
-        let out = materialize(&parsed, limits)?;
+        let mut parsed = Descriptor::parse(&bytes, limits)?;
+        let out = materialize_in_place(&mut parsed, limits)?;
         if out != input {
             return Err(Error::reconstruction_mismatch(format!(
                 "candidate {} did not reproduce the source exactly",
-                c.kind.name()
+                kind.name()
             )));
         }
 
         let total = cost.total();
         debug_assert_eq!(total, bytes.len() as u64);
-        let work = c.descriptor.program.ops.len();
-        let key = (total, work, c.kind);
+        let key = (total, work, kind);
         let replace = match &self.best {
             None => true,
             Some((bt, bw, bk, ..)) => key < (*bt, *bw, *bk),
         };
         if replace {
-            self.best = Some((total, work, c.kind, bytes, cost));
+            self.best = Some((total, work, kind, bytes, cost));
         }
         Ok(())
     }
