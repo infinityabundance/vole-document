@@ -99,7 +99,7 @@ const USAGE_FIELD: &str = "\
     vole-document observe --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]] (--page N | --object N | --stream N |
         --revision N | --revisions | --external-lineage | --byte-range A..B | --metadata | --doc-text | --heading N |
         --block N | --table N | --cell T:R:C | --resource N | --link N |
-        --spine-item N | --text PATTERN) --kind metadata|text|structure|operators|
+        --spine-item N | --sheet N | --xlsx-cell A1 | --text PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1466,6 +1466,13 @@ struct FieldArgs {
     /// no intrinsic pages, so this is the native reading coordinate (plan DEC-5).
     #[cfg(feature = "epub")]
     spine_item: Option<u32>,
+    /// The XLSX workbook-order sheet index (`--sheet N`, Phase 21.1.1). Also used
+    /// as the sheet of an `--xlsx-cell` when both are given.
+    #[cfg(feature = "xlsx")]
+    sheet: Option<u32>,
+    /// The XLSX cell reference (`--xlsx-cell A1`, Phase 21.1.1).
+    #[cfg(feature = "xlsx")]
+    xlsx_cell: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -1690,6 +1697,17 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                     "--spine-item",
                 )?);
             }
+            #[cfg(feature = "xlsx")]
+            "--sheet" => {
+                out.sheet = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--sheet", inline)?,
+                    "--sheet",
+                )?);
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-cell" => {
+                out.xlsx_cell = Some(field_arg_value(args, &mut i, "--xlsx-cell", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -1840,6 +1858,21 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
             index: n,
             profile: vole_document::adapter::epub::EpubExtractProfile::DEFAULT,
         });
+    }
+    // XLSX: `--xlsx-cell A1` is the cell selector and consumes `--sheet N` as its
+    // sheet; `--sheet N` alone is the native sheet selector.
+    #[cfg(feature = "xlsx")]
+    {
+        let profile = vole_document::adapter::xlsx::XlsxExtractProfile::DEFAULT;
+        match (&out.xlsx_cell, out.sheet) {
+            (Some(cell), sheet) => chosen.push(Selector::XlsxCell {
+                sheet: sheet.unwrap_or(0),
+                cell: cell.clone(),
+                profile,
+            }),
+            (None, Some(index)) => chosen.push(Selector::XlsxSheet { index, profile }),
+            (None, None) => {}
+        }
     }
     match chosen.len() {
         0 => Err(Error::usage("exactly one selector flag is required")),
@@ -2290,6 +2323,7 @@ fn package_ingest_json(r: &vole_document::field::ingest_package::PackageIngestRe
             "\"opc_model_nodes\":{},",
             "\"docx_model_nodes\":{},",
             "\"epub_model_nodes\":{},",
+            "\"xlsx_model_nodes\":{},",
             "\"resource_blob_nodes\":{},",
             "\"shared_resource_ids\":{},",
             "\"shared_resource_bytes\":{},",
@@ -2312,6 +2346,7 @@ fn package_ingest_json(r: &vole_document::field::ingest_package::PackageIngestRe
         r.opc_model_nodes,
         r.docx_model_nodes,
         r.epub_model_nodes,
+        r.xlsx_model_nodes,
         r.resource_blob_nodes,
         r.shared_resource_ids,
         r.shared_resource_bytes,

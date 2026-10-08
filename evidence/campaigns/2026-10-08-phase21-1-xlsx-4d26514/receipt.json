@@ -1,0 +1,22 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase21-1-xlsx-4d26514",
+  "phase": "21.1.1 — XLSX OPC/XML surface + exact closure + model",
+  "utc": "2026-10-08T22:43:48Z",
+  "measured_commit": "4d265142d6f8f4511021a41f80ec9c8392ca22d3",
+  "tree_state": " M Cargo.toml  M src/adapter/mod.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest_package.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-08-phase21-1-xlsx-4d26514/ ?? src/adapter/xlsx.rs ?? tests/xlsx_adapter.rs ?? tools/fixtures/make-xlsx.py ?? tools/fixtures/xlsx/ ?? tools/phase21-1-xlsx-court.sh ",
+  "service": "doc-baseline",
+  "profile": "debug",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "6e299e9b8021ad9866666fdbd97a405221db45b1c3efa86dd7a32f7684d7bfe4",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "fixtures": "single.xlsx multi.xlsx",
+  "fixture_tool": "tools/fixtures/make-xlsx.py (stdlib only; no openpyxl)",
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "observations": ["metadata", "text", "table", "cell", "native xlsx-sheet", "native xlsx-cell", "native xlsx-find"],
+  "declines": "unsupported common pairs decline typed (rc 6)",
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "verdict": "PASS"
+}

@@ -205,6 +205,15 @@ docx = ["opc"]
 # spans, so enabling it never changes `.voldoc` bytes and exactness is untouched.
 # Never in `default`.
 odt = ["opc"]
+# Phase 21.1.1: the SpreadsheetML (XLSX) adapter built on the generic OPC core. It
+# discovers the workbook by the `officeDocument` relationship and its
+# SpreadsheetML content type (never a hardcoded `/xl/workbook.xml`), resolves the
+# sheet inventory from `xl/workbook.xml` + `xl/_rels/workbook.xml.rels`, and parses
+# `xl/sharedStrings.xml`, `xl/styles.xml`, and each `xl/worksheets/sheetN.xml` into
+# a bounded, canonical derived model. It adds **no** decoder behavior: an XLSX
+# source's exact leaf is still its 12.2 member raw spans, so enabling it never
+# changes `.voldoc` bytes and exactness is untouched. Never in `default`.
+xlsx = ["opc"]
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores. `quick-xml` only; adds **no** decoder behavior and is
 # never in `default` on its own (it is implied by `opc` and `epub`).

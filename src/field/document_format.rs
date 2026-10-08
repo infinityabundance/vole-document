@@ -51,6 +51,15 @@ const ODT_MANIFEST_MEMBER: &[u8] = b"META-INF/manifest.xml";
 /// The OpenDocument *text* media-type fragment (Phase 13.3).
 #[cfg(feature = "odt")]
 const ODT_TEXT_FRAGMENT: &[u8] = b"application/vnd.oasis.opendocument.text";
+/// The SpreadsheetML workbook main content-type fragment (Phase 21.1.1).
+#[cfg(feature = "xlsx")]
+const XLSX_MAIN_FRAGMENT: &[u8] = b"spreadsheetml.sheet.main+xml";
+/// The SpreadsheetML content-type namespace fragment (Phase 21.1.1).
+#[cfg(feature = "xlsx")]
+const XLSX_NS_FRAGMENT: &[u8] = b"spreadsheetml";
+/// A SpreadsheetML workbook part-target fragment (Phase 21.1.1).
+#[cfg(feature = "xlsx")]
+const XLSX_WORKBOOK_TARGET: &[u8] = b"xl/workbook.xml";
 
 /// A detected document format (the class of the field's source bytes).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,6 +72,8 @@ pub enum DocumentFormat {
     Epub,
     /// An ODF package with an OpenDocument text content part.
     Odt,
+    /// An OPC package with a SpreadsheetML workbook part.
+    Xlsx,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -75,6 +86,7 @@ impl DocumentFormat {
             DocumentFormat::Docx => "docx",
             DocumentFormat::Epub => "epub",
             DocumentFormat::Odt => "odt",
+            DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -86,6 +98,7 @@ impl DocumentFormat {
             DocumentFormat::Docx => "docx",
             DocumentFormat::Epub => "epub",
             DocumentFormat::Odt => "odt",
+            DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -97,6 +110,7 @@ impl DocumentFormat {
             DocumentFormat::Docx => cfg!(feature = "docx"),
             DocumentFormat::Epub => cfg!(feature = "epub"),
             DocumentFormat::Odt => cfg!(feature = "odt"),
+            DocumentFormat::Xlsx => cfg!(feature = "xlsx"),
         }
     }
 
@@ -118,6 +132,7 @@ impl DocumentFormat {
             "docx" => Some(DocumentFormat::Docx),
             "epub" => Some(DocumentFormat::Epub),
             "odt" => Some(DocumentFormat::Odt),
+            "xlsx" => Some(DocumentFormat::Xlsx),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -166,13 +181,36 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
     let is_epub = mimetype_ok || container_ok;
 
     // DOCX: an OPC package (`[Content_Types].xml`) whose package relationships
-    // declare an `officeDocument` part.
+    // declare an `officeDocument` part. When the `xlsx` adapter is compiled, a
+    // SpreadsheetML package is not a Word document, so the workbook is not
+    // misclassified (mutual exclusivity); without `xlsx` the legacy rule stands.
     let content_types = member_decoded(&physical, source, CONTENT_TYPES_MEMBER, limits);
     let rels = member_decoded(&physical, source, PACKAGE_RELS_MEMBER, limits);
+    #[cfg(feature = "xlsx")]
+    let is_docx = content_types
+        .as_deref()
+        .is_some_and(|ct| !contains(ct, XLSX_NS_FRAGMENT))
+        && rels
+            .as_deref()
+            .is_some_and(|r| contains(r, OFFICE_DOCUMENT_FRAGMENT));
+    #[cfg(not(feature = "xlsx"))]
     let is_docx = content_types.is_some()
         && rels
             .as_deref()
             .is_some_and(|r| contains(r, OFFICE_DOCUMENT_FRAGMENT));
+
+    // XLSX: an OPC package whose content types declare a SpreadsheetML workbook
+    // (or whose `officeDocument` relationship targets a workbook part).
+    #[cfg(feature = "xlsx")]
+    let is_xlsx = content_types.as_deref().is_some_and(|ct| {
+        contains(ct, XLSX_MAIN_FRAGMENT)
+            || (contains(ct, XLSX_NS_FRAGMENT)
+                && rels
+                    .as_deref()
+                    .is_some_and(|r| contains(r, XLSX_WORKBOOK_TARGET)))
+    });
+    #[cfg(not(feature = "xlsx"))]
+    let is_xlsx = false;
 
     // ODT: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
     // declares an OpenDocument text media type.
@@ -187,11 +225,15 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
     let is_odt = false;
 
     // A ZIP matching more than one native signature is ambiguous: fail safe.
-    let matches = [is_docx, is_epub, is_odt].iter().filter(|b| **b).count();
+    let matches = [is_docx, is_epub, is_odt, is_xlsx]
+        .iter()
+        .filter(|b| **b)
+        .count();
     match matches {
         1 if is_docx => Some(DocumentFormat::Docx),
         1 if is_epub => Some(DocumentFormat::Epub),
         1 if is_odt => Some(DocumentFormat::Odt),
+        1 if is_xlsx => Some(DocumentFormat::Xlsx),
         _ => None,
     }
 }
@@ -241,6 +283,8 @@ mod tests {
             DocumentFormat::Pdf,
             DocumentFormat::Docx,
             DocumentFormat::Epub,
+            DocumentFormat::Odt,
+            DocumentFormat::Xlsx,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

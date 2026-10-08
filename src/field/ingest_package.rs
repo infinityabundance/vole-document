@@ -35,6 +35,8 @@ use crate::field::index::SEL_EPUB_MODEL;
 use crate::field::index::SEL_ODT_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
+#[cfg(feature = "xlsx")]
+use crate::field::index::SEL_XLSX_MODEL;
 use crate::field::index::{
     FsIndexStore, IndexEntry, SEL_PACKAGE_MEMBER_DECODED, SEL_PACKAGE_MEMBER_RAW, SelectorKey,
     build, validate,
@@ -86,6 +88,9 @@ pub struct PackageIngestReport {
     pub epub_model_nodes: u64,
     /// Whether an ODT (ODF) discovery model node was registered (feature `odt`).
     pub odt_model_nodes: u64,
+    /// Whether an XLSX (SpreadsheetML) discovery model node was registered
+    /// (feature `xlsx`, Phase 21.1.1).
+    pub xlsx_model_nodes: u64,
     /// Content-addressed shared-resource blobs registered (Phase 12.8).
     pub resource_blob_nodes: u64,
     /// Resource blobs whose content id already existed in the store, i.e. bytes
@@ -371,6 +376,7 @@ fn ingest_package_from_source(
     let docx_model_nodes: u64;
     let epub_model_nodes: u64;
     let odt_model_nodes: u64;
+    let xlsx_model_nodes: u64;
     let opc_model_id: Option<NodeId>;
 
     // Pure member encoding (canonical bytes + content ids) may run on the pool;
@@ -571,6 +577,42 @@ fn ingest_package_from_source(
         odt_model_nodes = 0;
     }
 
+    // The XLSX (SpreadsheetML) discovery model (Phase 21.1.1): a single derived
+    // node that resolves the workbook part by the `officeDocument` relationship
+    // and its SpreadsheetML content type (never a hardcoded `/xl/workbook.xml`)
+    // and enumerates the worksheet parts, computed on demand from the OPC model.
+    // It is created for any package under the feature; a non-XLSX package simply
+    // declines typed when the node is first materialized. Exactness is untouched.
+    #[cfg(feature = "xlsx")]
+    {
+        let model_id = opc_model_id
+            .ok_or_else(|| Error::internal_invariant("xlsx requires the OPC model node"))?;
+        let mut xlsx_model = SeedNode::new(
+            NodeKind::XlsxModel,
+            limits.max_output_bytes,
+            Vec::new(),
+            vec![model_id],
+            "pkg:xlsx-model",
+        );
+        xlsx_model.limits.max_output_bytes = limits.max_output_bytes;
+        charge_node(&mut node_count)?;
+        let (xlsx_id, _) = put_counted(store, &xlsx_model, &mut share)?;
+        push_entry(
+            &mut entries,
+            IndexEntry {
+                key: SelectorKey::new(SEL_XLSX_MODEL, 0),
+                out_off: 0,
+                out_len: 0,
+                node_id: xlsx_id,
+            },
+        )?;
+        xlsx_model_nodes = 1;
+    }
+    #[cfg(not(feature = "xlsx"))]
+    {
+        xlsx_model_nodes = 0;
+    }
+
     let index_before = dir_bytes(&store.root().join("index"));
     let (index_root, index_node_count) = if entries.is_empty() {
         (None, 0)
@@ -592,7 +634,7 @@ fn ingest_package_from_source(
         node_count,
         index_node_count,
         provenance: format!(
-            "{}id_shared={};res_shared={};field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={};odt={};resource_blobs={}",
+            "{}id_shared={};res_shared={};field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={};odt={};xlsx={};resource_blobs={}",
             detected_format.provenance_prefix(),
             share.nodes_id_shared,
             share.shared_resource_ids,
@@ -604,6 +646,7 @@ fn ingest_package_from_source(
             docx_model_nodes,
             epub_model_nodes,
             odt_model_nodes,
+            xlsx_model_nodes,
             share.resource_blob_nodes,
         ),
     };
@@ -625,6 +668,7 @@ fn ingest_package_from_source(
         docx_model_nodes,
         epub_model_nodes,
         odt_model_nodes,
+        xlsx_model_nodes,
         resource_blob_nodes: share.resource_blob_nodes,
         shared_resource_ids: share.shared_resource_ids,
         shared_resource_bytes: share.shared_resource_bytes,

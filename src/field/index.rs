@@ -121,6 +121,14 @@ pub const SEL_REVISIONS: u8 = 13;
 /// revision's 0-based index. Its node materializes that revision's lineage JSON;
 /// the entry's span is the revision's exact source span.
 pub const SEL_REVISION_LINEAGE: u8 = 14;
+/// Selector kind: the canonical XLSX (SpreadsheetML) discovery model (Phase 21.1.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// XLSX workbook-part/styles/shared-strings/worksheet discovery as `Q_gen` derived
+/// state, computed on demand from the OPC model. The decoded workbook inventory
+/// and each worksheet's cell model are computed on demand from their decoded
+/// member nodes (no index entry of their own, mirroring `DocxStory`).
+pub const SEL_XLSX_MODEL: u8 = 15;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

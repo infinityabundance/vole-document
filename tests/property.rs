@@ -432,6 +432,10 @@ fn limits_never_change_reconstructed_bytes() {
         max_odt_manifest_entries: 1 << 24,
         max_odt_blocks: 1 << 24,
         max_odt_notes: 1 << 24,
+        max_xlsx_sheets: 1 << 12,
+        max_xlsx_cells: 1 << 30,
+        max_xlsx_shared_strings: 1 << 24,
+        max_xlsx_merges: 1 << 24,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

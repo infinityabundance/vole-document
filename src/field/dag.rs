@@ -739,6 +739,129 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::XlsxModel => {
+            // The canonical XLSX (SpreadsheetML) discovery model is derived on
+            // demand from the canonical OPC model (the single dependency). XML
+            // parsing and all bounds live in `adapter::xlsx`.
+            #[cfg(feature = "xlsx")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("XlsxModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let opc_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::xlsx::build_xlsx_model(&opc_bytes, limits)?
+            }
+            #[cfg(not(feature = "xlsx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "XLSX support is not compiled in (feature `xlsx`)",
+                ));
+            }
+        }
+        NodeKind::XlsxWorkbook => {
+            // The parsed `xl/workbook.xml` sheet inventory. Its single dependency
+            // is the decoded workbook member; the parse is bounded in
+            // `adapter::xlsx`.
+            #[cfg(feature = "xlsx")]
+            {
+                let (_ordinal, part_name) =
+                    crate::adapter::xlsx::read_workbook_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("XlsxWorkbook has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                let workbook = crate::adapter::xlsx::parse_workbook(&bytes, limits)?;
+                let _ = part_name;
+                workbook.encode()
+            }
+            #[cfg(not(feature = "xlsx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "XLSX support is not compiled in (feature `xlsx`)",
+                ));
+            }
+        }
+        NodeKind::XlsxSheet => {
+            // One worksheet parsed into its bounded cell model. Dependency 0 is
+            // the decoded worksheet member; the optional dependency 1 is the
+            // decoded shared-strings member, resolved into string cells.
+            #[cfg(feature = "xlsx")]
+            {
+                let (_ordinal, shared_ordinal, _profile, part_name, sheet_name) =
+                    crate::adapter::xlsx::read_sheet_params(&node.params)?;
+                let part_dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("XlsxSheet has no part dependency"))?;
+                let part_node = load_node(store, part_dep)?;
+                let part_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &part_node,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                let shared = match (shared_ordinal, node.deps.get(1)) {
+                    (Some(_), Some(shared_dep)) => {
+                        let shared_node = load_node(store, shared_dep)?;
+                        let shared_bytes = materialize_inner(
+                            source,
+                            store,
+                            cache,
+                            &shared_node,
+                            limits,
+                            budget,
+                            depth - 1,
+                            reuse,
+                        )?;
+                        Some(crate::adapter::xlsx::parse_shared_strings(
+                            &shared_bytes,
+                            limits,
+                        )?)
+                    }
+                    _ => None,
+                };
+                crate::adapter::xlsx::parse_worksheet(
+                    &part_bytes,
+                    &part_name,
+                    &sheet_name,
+                    shared.as_deref(),
+                    limits,
+                )?
+                .encode()
+            }
+            #[cfg(not(feature = "xlsx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "XLSX support is not compiled in (feature `xlsx`)",
+                ));
+            }
+        }
         NodeKind::PdfStreamDecoded => {
             let dep = node
                 .deps

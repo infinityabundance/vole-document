@@ -106,6 +106,20 @@ pub enum NodeKind {
     /// exact. There is one document-level node (the whole lineage) and one
     /// per-revision node.
     PdfRevisionLineage = 0x19,
+    /// The canonical XLSX (SpreadsheetML) discovery model (Phase 21.1.1): the
+    /// workbook part (resolved via the `officeDocument` relationship and its
+    /// SpreadsheetML content type), the styles and shared-strings parts, and the
+    /// discovered worksheet parts. Derived on demand from the canonical OPC model.
+    /// Derived, never exact.
+    XlsxModel = 0x1A,
+    /// The parsed `xl/workbook.xml` sheet inventory (name, sheetId, r:id, state,
+    /// document order), parsed from the decoded workbook member. Derived, never
+    /// exact (Phase 21.1.1).
+    XlsxWorkbook = 0x1B,
+    /// One worksheet part (`xl/worksheets/sheetN.xml`) parsed into its bounded cell
+    /// model, honoring a declared extraction profile and resolving shared strings
+    /// from the decoded shared-strings member. Derived, never exact (Phase 21.1.1).
+    XlsxSheet = 0x1C,
 }
 
 impl NodeKind {
@@ -137,6 +151,9 @@ impl NodeKind {
             0x17 => NodeKind::OdtModel,
             0x18 => NodeKind::OdtContent,
             0x19 => NodeKind::PdfRevisionLineage,
+            0x1A => NodeKind::XlsxModel,
+            0x1B => NodeKind::XlsxWorkbook,
+            0x1C => NodeKind::XlsxSheet,
             _ => return None,
         })
     }
@@ -169,6 +186,9 @@ impl NodeKind {
             NodeKind::OdtModel => "OdtModel",
             NodeKind::OdtContent => "OdtContent",
             NodeKind::PdfRevisionLineage => "PdfRevisionLineage",
+            NodeKind::XlsxModel => "XlsxModel",
+            NodeKind::XlsxWorkbook => "XlsxWorkbook",
+            NodeKind::XlsxSheet => "XlsxSheet",
         }
     }
 

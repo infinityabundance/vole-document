@@ -14,6 +14,8 @@ pub mod opaque;
 #[cfg(feature = "package")]
 pub mod package;
 pub mod pdf;
+#[cfg(feature = "xlsx")]
+pub mod xlsx;
 
 /// The source-format class decision for an input.
 ///

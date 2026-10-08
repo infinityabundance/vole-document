@@ -133,6 +133,14 @@ const PDF_NATIVE: &[&str] = &[
     "byte-range",
     "text-match",
 ];
+const XLSX_NATIVE: &[&str] = &[
+    "xlsx-sheet",
+    "xlsx-cell",
+    "xlsx-find",
+    "package-part",
+    "relationship",
+    "member",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -216,6 +224,17 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 odt_profiles(),
                 ODT_NATIVE.to_vec(),
             ),
+            DocumentFormat::Xlsx => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                xlsx_profiles(),
+                XLSX_NATIVE.to_vec(),
+            ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };
     Capabilities {
@@ -251,6 +270,15 @@ fn odt_profiles() -> Vec<String> {
 }
 #[cfg(not(feature = "odt"))]
 fn odt_profiles() -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(feature = "xlsx")]
+fn xlsx_profiles() -> Vec<String> {
+    vec![crate::adapter::xlsx::XlsxExtractProfile::DEFAULT.fingerprint()]
+}
+#[cfg(not(feature = "xlsx"))]
+fn xlsx_profiles() -> Vec<String> {
     Vec::new()
 }
 

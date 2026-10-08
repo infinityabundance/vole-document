@@ -136,6 +136,16 @@ pub struct Limits {
     pub max_odt_blocks: u32,
     /// Maximum notes accepted in one OpenDocument content part (Phase 13.3).
     pub max_odt_notes: u32,
+    // The XLSX/SpreadsheetML caps below bound the derived semantic model
+    // (Phase 21.1.1). XLSX semantics are derived (`Q_gen`) only.
+    /// Maximum `<sheet>` declarations accepted in one workbook (Phase 21.1.1).
+    pub max_xlsx_sheets: u32,
+    /// Maximum cells accepted in one worksheet part (Phase 21.1.1).
+    pub max_xlsx_cells: u64,
+    /// Maximum shared strings accepted in `xl/sharedStrings.xml` (Phase 21.1.1).
+    pub max_xlsx_shared_strings: u32,
+    /// Maximum merged ranges accepted in one worksheet (Phase 21.1.1).
+    pub max_xlsx_merges: u32,
 }
 
 impl Limits {
@@ -188,6 +198,10 @@ impl Limits {
         max_odt_manifest_entries: 1 << 20,
         max_odt_blocks: 1 << 20,
         max_odt_notes: 1 << 20,
+        max_xlsx_sheets: 4096,
+        max_xlsx_cells: 1 << 24,
+        max_xlsx_shared_strings: 1 << 20,
+        max_xlsx_merges: 1 << 20,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -239,6 +253,10 @@ impl Limits {
         max_odt_manifest_entries: 1 << 14,
         max_odt_blocks: 1 << 14,
         max_odt_notes: 1 << 12,
+        max_xlsx_sheets: 64,
+        max_xlsx_cells: 1 << 16,
+        max_xlsx_shared_strings: 1 << 14,
+        max_xlsx_merges: 1 << 14,
     };
 }
 

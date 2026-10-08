@@ -299,6 +299,22 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["OdtModel", "PackageMemberRaw", "PackageMemberDecoded"]),
             will_not_materialize: kinds(&["other-parts", "whole-document"]),
         }),
+        #[cfg(feature = "xlsx")]
+        (Selector::XlsxSheet { .. }, R::Text | R::Structure | R::Metadata)
+        | (Selector::XlsxCell { .. }, R::Text | R::Metadata | R::Structure | R::ExactBytes)
+        | (Selector::XlsxFind { .. }, R::Text) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 5,
+            will_materialize: kinds(&[
+                "XlsxModel",
+                "XlsxWorkbook",
+                "XlsxSheet",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-sheets", "whole-document"]),
+        }),
         _ => Err(Error::unsupported_feature(format!(
             "unsupported observation: selector {} with representation {}",
             req.selector.canonical(),
@@ -383,6 +399,13 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Odt => &[
             "OdtModel",
             "OdtContent",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Xlsx => &[
+            "XlsxModel",
+            "XlsxWorkbook",
+            "XlsxSheet",
             "PackageMemberDecoded",
             "PackageMemberRaw",
         ],

@@ -41,6 +41,10 @@ use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageD
 use crate::adapter::odt::{
     Block as OdtBlock, ContentModel as OdtContentModel, OdtExtractProfile, OdtModel,
 };
+#[cfg(feature = "xlsx")]
+use crate::adapter::xlsx::{
+    SheetModel as XlsxSheetModel, WorkbookModel as XlsxWorkbookModel, XlsxExtractProfile, XlsxModel,
+};
 use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, OutputCache, ReuseStats, SourceServer};
@@ -53,6 +57,8 @@ use crate::field::index::SEL_EPUB_MODEL;
 use crate::field::index::SEL_ODT_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
+#[cfg(feature = "xlsx")]
+use crate::field::index::SEL_XLSX_MODEL;
 use crate::field::index::{
     FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PACKAGE_MEMBER_DECODED, SEL_PACKAGE_MEMBER_RAW,
     SEL_PAGE, SEL_REVISION, SEL_REVISION_LINEAGE, SEL_REVISIONS, SEL_STREAM, SEL_STREAM_DECODED,
@@ -340,6 +346,36 @@ pub enum Selector {
         /// The extraction profile identity.
         profile: OdtExtractProfile,
     },
+    /// An XLSX worksheet by 0-based workbook-order index (Phase 21.1.1). Hidden
+    /// sheets are still addressable by index; the profile only governs whether a
+    /// whole-workbook projection includes them.
+    #[cfg(feature = "xlsx")]
+    XlsxSheet {
+        /// The 0-based workbook-order sheet index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: XlsxExtractProfile,
+    },
+    /// One XLSX cell, addressed by an A1-style reference (`B7`) and its sheet.
+    /// The stored formula and the cached result are distinct facets of the same
+    /// cell, never conflated.
+    #[cfg(feature = "xlsx")]
+    XlsxCell {
+        /// The 0-based workbook-order sheet index.
+        sheet: u32,
+        /// The cell reference (`B7`).
+        cell: String,
+        /// The extraction profile identity.
+        profile: XlsxExtractProfile,
+    },
+    /// A text search over worksheet cells, scoped by the extraction profile.
+    #[cfg(feature = "xlsx")]
+    XlsxFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The extraction profile identity.
+        profile: XlsxExtractProfile,
+    },
 }
 
 impl Selector {
@@ -501,6 +537,20 @@ impl Selector {
             #[cfg(feature = "odt")]
             Selector::OdtFind { pattern, profile } => {
                 format!("odt-find:{pattern};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxSheet { index, profile } => {
+                format!("xlsx-sheet:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxCell {
+                sheet,
+                cell,
+                profile,
+            } => format!("xlsx-cell:{sheet}:{cell};profile={}", profile.fingerprint()),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxFind { pattern, profile } => {
+                format!("xlsx-find:{pattern};profile={}", profile.fingerprint())
             }
         }
     }
@@ -1765,7 +1815,8 @@ struct DocxStoryView {
     span: Option<(u64, u64)>,
 }
 
-#[cfg(feature = "docx")]
+#[cfg(any(feature = "docx", feature = "odt"))]
+#[cfg(any(feature = "docx", feature = "odt"))]
 fn opt_u8_json(v: Option<u8>) -> String {
     match v {
         Some(n) => n.to_string(),
@@ -1773,10 +1824,18 @@ fn opt_u8_json(v: Option<u8>) -> String {
     }
 }
 
-#[cfg(feature = "docx")]
+#[cfg(any(feature = "docx", feature = "odt", feature = "xlsx"))]
 fn opt_str_json(v: Option<&str>) -> String {
     match v {
         Some(s) => format!("\"{}\"", json_escape(s)),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "xlsx")]
+fn opt_u32_json(v: Option<u32>) -> String {
+    match v {
+        Some(n) => n.to_string(),
         None => "null".to_string(),
     }
 }
@@ -1821,7 +1880,10 @@ impl<S: SeedStore> Ctx<'_, S> {
             | NodeKind::EpubModel
             | NodeKind::EpubContent
             | NodeKind::OdtModel
-            | NodeKind::OdtContent => {
+            | NodeKind::OdtContent
+            | NodeKind::XlsxModel
+            | NodeKind::XlsxWorkbook
+            | NodeKind::XlsxSheet => {
                 self.stats.xml_parses = self.stats.xml_parses.saturating_add(1);
             }
             _ => {}
@@ -2103,6 +2165,23 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "odt")]
             (Selector::OdtFind { pattern, profile }, R::Text) => {
                 self.odt_find(req, pattern, profile)
+            }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxSheet { index, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.xlsx_sheet(req, *index, profile)
+            }
+            #[cfg(feature = "xlsx")]
+            (
+                Selector::XlsxCell {
+                    sheet,
+                    cell,
+                    profile,
+                },
+                R::Text | R::Structure | R::Metadata | R::ExactBytes,
+            ) => self.xlsx_cell(req, *sheet, cell, profile),
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxFind { pattern, profile }, R::Text) => {
+                self.xlsx_find(req, pattern, profile)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -4390,6 +4469,408 @@ impl<S: SeedStore> Ctx<'_, S> {
 }
 
 // ---------------------------------------------------------------------------
+// XLSX (Phase 21.1.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "xlsx")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the XLSX discovery model (derived, `Q_gen`).
+    fn xlsx_model(&mut self) -> Result<XlsxModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_XLSX_MODEL, 0), "XLSX model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        XlsxModel::decode(&bytes)
+    }
+
+    /// Resolve the decoded workbook inventory (`xl/workbook.xml`).
+    fn xlsx_workbook(&mut self) -> Result<XlsxWorkbookModel> {
+        let model = self.xlsx_model()?;
+        let part = model.workbook.clone();
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "XLSX workbook decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::XlsxWorkbook,
+            self.limits.max_output_bytes,
+            crate::adapter::xlsx::workbook_params(part.ordinal, &part.name),
+            vec![dec.node_id],
+            "xlsx:workbook",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        XlsxWorkbookModel::decode(&bytes)
+    }
+
+    /// Resolve the worksheet part and sheet name for a 0-based workbook-order
+    /// index. Hidden sheets are still addressable by index.
+    fn xlsx_sheet_part(
+        &self,
+        model: &XlsxModel,
+        workbook: &XlsxWorkbookModel,
+        index: u32,
+    ) -> Result<(crate::adapter::xlsx::XlsxPartRef, String)> {
+        let ws = workbook
+            .sheets
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("workbook has no sheet {index}")))?;
+        if let Some(rid) = ws.rel_id.as_deref()
+            && let Some(s) = model
+                .sheets
+                .iter()
+                .find(|s| s.rel_id.as_deref() == Some(rid))
+        {
+            return Ok((s.part.clone(), ws.name.clone()));
+        }
+        let s = model
+            .sheets
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("workbook has no sheet {index}")))?;
+        Ok((s.part.clone(), ws.name.clone()))
+    }
+
+    /// Parse one worksheet into its derived [`XlsxSheetModel`], persisting the
+    /// canonical result in the disposable cache. Only that sheet's part (and the
+    /// shared-strings part) is decoded; no other worksheet is read.
+    #[allow(clippy::type_complexity)]
+    fn xlsx_sheet_view(
+        &mut self,
+        index: u32,
+        profile: &XlsxExtractProfile,
+    ) -> Result<(
+        XlsxSheetModel,
+        crate::adapter::xlsx::XlsxPartRef,
+        String,
+        Option<(u64, u64)>,
+        Vec<NodeId>,
+    )> {
+        let model = self.xlsx_model()?;
+        let workbook = self.xlsx_workbook()?;
+        let (part, sheet_name) = self.xlsx_sheet_part(&model, &workbook, index)?;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "XLSX worksheet decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut deps = vec![dec.node_id];
+        let mut shared_ordinal = None;
+        if let Some(shared) = &model.shared_strings
+            && let Ok(e) = self.require_entry(
+                SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, shared.ordinal),
+                "XLSX shared-strings decoded bytes",
+            )
+        {
+            deps.push(e.node_id);
+            shared_ordinal = Some(shared.ordinal);
+            self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        }
+        let span = self
+            .lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal))?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)));
+        let mut node = SeedNode::new(
+            NodeKind::XlsxSheet,
+            self.limits.max_output_bytes,
+            crate::adapter::xlsx::sheet_params(
+                part.ordinal,
+                &part.name,
+                &sheet_name,
+                profile,
+                shared_ordinal,
+            ),
+            deps.clone(),
+            "xlsx:sheet",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        let sheet = XlsxSheetModel::decode(&bytes)?;
+        let mut ids = vec![node.content_id()];
+        ids.extend(deps);
+        Ok((sheet, part, sheet_name, span, ids))
+    }
+
+    fn xlsx_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Workbook-order indices of the sheets a whole-workbook projection includes.
+    fn xlsx_projected_indices(
+        &self,
+        workbook: &XlsxWorkbookModel,
+        profile: &XlsxExtractProfile,
+    ) -> Vec<u32> {
+        workbook
+            .sheets
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| {
+                profile.include_hidden
+                    || matches!(s.state, crate::adapter::xlsx::SheetState::Visible)
+            })
+            .map(|(i, _)| i as u32)
+            .collect()
+    }
+
+    /// The minimal styles table, when the package carries a decoded styles part.
+    fn xlsx_styles(&mut self, model: &XlsxModel) -> Option<crate::adapter::xlsx::StylesTable> {
+        let styles = model.styles.as_ref()?;
+        let e = self
+            .require_entry(
+                SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, styles.ordinal),
+                "XLSX styles decoded bytes",
+            )
+            .ok()?;
+        let node = self.load(&e.node_id).ok()?;
+        let bytes = self.materialize(&node).ok()?;
+        crate::adapter::xlsx::parse_styles_table(&bytes, self.limits).ok()
+    }
+
+    fn xlsx_sheet(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(index, profile)?;
+        let workbook = self.xlsx_workbook()?;
+        let state = workbook
+            .sheets
+            .get(index as usize)
+            .map(|s| s.state)
+            .unwrap_or(crate::adapter::xlsx::SheetState::Visible);
+        let provenance = format!(
+            "xlsx;sheet={sheet_name};index={index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(sheet.text(profile.values)),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"state\":\"{}\",\"part\":\"{}\",",
+                    "\"ordinal\":{},\"dimension\":{},\"merges\":{},\"rows\":{},\"cells\":{},",
+                    "\"profile\":\"{}\"}}"
+                ),
+                json_escape(&sheet_name),
+                index,
+                state.name(),
+                json_escape(&part.name),
+                part.ordinal,
+                opt_str_json(sheet.dimension.as_deref()),
+                sheet.merges.len(),
+                sheet.rows.len(),
+                sheet.cell_count(),
+                profile.fingerprint()
+            )),
+            Representation::Structure => {
+                let rows = self.xlsx_rows_json(&sheet, &provenance, req)?;
+                AnswerValue::Json(format!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"rows\":[{}]}}",
+                    json_escape(&sheet_name),
+                    index,
+                    rows
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.xlsx_answer(req, value, provenance, span, deps))
+    }
+
+    fn xlsx_rows_json(
+        &mut self,
+        sheet: &XlsxSheetModel,
+        provenance: &str,
+        req: &ObserveRequest,
+    ) -> Result<String> {
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for row in &sheet.rows {
+            let mut cells: Vec<String> = Vec::new();
+            for c in &row.cells {
+                estimated =
+                    estimated.saturating_add(64 + c.value.as_deref().unwrap_or("").len() as u64);
+                if estimated > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "XLSX sheet structure exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                cells.push(format!(
+                    "{{\"ref\":\"{}\",\"col\":{},\"row\":{},\"kind\":\"{}\",\"type\":{},\"value\":{},\"formula\":{},\"style\":{}}}",
+                    json_escape(&c.reference),
+                    c.col,
+                    c.row,
+                    c.kind(),
+                    opt_str_json(c.type_tag.as_deref()),
+                    opt_str_json(c.value.as_deref()),
+                    opt_str_json(c.formula.as_deref()),
+                    opt_u32_json(c.style),
+                ));
+            }
+            out.push(format!(
+                "{{\"index\":{},\"cells\":[{}]}}",
+                row.index,
+                cells.join(",")
+            ));
+        }
+        let _ = provenance;
+        Ok(out.join(","))
+    }
+
+    fn xlsx_cell(
+        &mut self,
+        req: &ObserveRequest,
+        sheet_index: u32,
+        cell: &str,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (col, row) = crate::adapter::xlsx::a1_to_col_row(cell).ok_or_else(|| {
+            Error::usage(format!("cell reference {cell:?} is not A1-style (e.g. B7)"))
+        })?;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(sheet_index, profile)?;
+        let found = sheet.cell_at(row, col).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "sheet {sheet_index} ({sheet_name}) has no cell {cell}"
+            ))
+        })?;
+        let provenance = format!(
+            "xlsx;sheet={sheet_name};index={sheet_index};cell={cell};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                AnswerValue::Text(sheet.facet(&found, profile.values).unwrap_or_default())
+            }
+            Representation::ExactBytes => {
+                // The exact decoded-part byte span of the `<c>` element. This is a
+                // derived (decompressed) span, not a source span; the answer keeps
+                // the worksheet member's raw span for traceability.
+                let dec = self.require_entry(
+                    SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+                    "XLSX worksheet decoded bytes",
+                )?;
+                let node = self.load(&dec.node_id)?;
+                let bytes = self.materialize(&node)?;
+                let start = found.span_start as usize;
+                let end = start.saturating_add(found.span_len as usize);
+                let slice = bytes.get(start..end).unwrap_or_default().to_vec();
+                AnswerValue::Bytes(slice)
+            }
+            Representation::Metadata | Representation::Structure => {
+                let style = found.style.and_then(|s| {
+                    let model = self.xlsx_model().ok()?;
+                    let table = self.xlsx_styles(&model)?;
+                    let xf = table.cell_style(s)?;
+                    let code = table.num_fmt_code(xf.num_fmt_id).map(str::to_string);
+                    Some((xf, code))
+                });
+                let style_json = match &style {
+                    Some((xf, code)) => format!(
+                        "{{\"index\":{},\"numFmtId\":{},\"fontId\":{},\"fillId\":{},\"formatCode\":{}}}",
+                        found.style.unwrap_or(0),
+                        xf.num_fmt_id,
+                        xf.font_id,
+                        xf.fill_id,
+                        opt_str_json(code.as_deref())
+                    ),
+                    None => match found.style {
+                        Some(i) => format!("{{\"index\":{i}}}"),
+                        None => "null".to_string(),
+                    },
+                };
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                        "\"cell\":\"{}\",\"col\":{},\"row\":{},\"kind\":\"{}\",\"type\":{},",
+                        "\"value\":{},\"formula\":{},\"style\":{},\"profile\":\"{}\"}}"
+                    ),
+                    json_escape(&sheet_name),
+                    sheet_index,
+                    json_escape(&part.name),
+                    json_escape(&found.reference),
+                    found.col,
+                    found.row,
+                    found.kind(),
+                    opt_str_json(found.type_tag.as_deref()),
+                    opt_str_json(found.value.as_deref()),
+                    opt_str_json(found.formula.as_deref()),
+                    style_json,
+                    profile.fingerprint()
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.xlsx_answer(req, value, provenance, span, deps))
+    }
+
+    fn xlsx_find(
+        &mut self,
+        req: &ObserveRequest,
+        pattern: &str,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let workbook = self.xlsx_workbook()?;
+        let indices = self.xlsx_projected_indices(&workbook, profile);
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for index in indices {
+            let (sheet, _part, sheet_name, _span, _deps) = self.xlsx_sheet_view(index, profile)?;
+            for row in &sheet.rows {
+                for c in &row.cells {
+                    let Some(text) = sheet.facet(c, profile.values) else {
+                        continue;
+                    };
+                    if text.contains(pattern) {
+                        estimated = estimated.saturating_add(text.len() as u64 + 64);
+                        if estimated > req.budget.max_output_bytes {
+                            return Err(Error::resource_limit(format!(
+                                "XLSX find exceeded the {}-byte budget",
+                                req.budget.max_output_bytes
+                            )));
+                        }
+                        items.push(format!(
+                            "{{\"sheet\":\"{}\",\"index\":{},\"cell\":\"{}\",\"text\":\"{}\"}}",
+                            json_escape(&sheet_name),
+                            index,
+                            json_escape(&c.reference),
+                            json_escape(&text)
+                        ));
+                    }
+                }
+            }
+        }
+        let provenance = format!("xlsx;find;profile={}", profile.fingerprint());
+        Ok(self.xlsx_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            None,
+            Vec::new(),
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Common (format-neutral) observations (Phase 12.7)
 // ---------------------------------------------------------------------------
 
@@ -4426,6 +4907,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Docx => self.common_docx(req)?,
             DocumentFormat::Epub => self.common_epub(req)?,
             DocumentFormat::Odt => self.common_odt(req)?,
+            DocumentFormat::Xlsx => self.common_xlsx(req)?,
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -4720,6 +5202,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_odt(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "ODT observations require a build with the odt feature",
+        ))
+    }
+
+    #[cfg(not(feature = "xlsx"))]
+    fn common_xlsx(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "XLSX observations require a build with the xlsx feature",
         ))
     }
 
@@ -5214,9 +5703,193 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// XLSX common observations (Phase 21.1.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "xlsx")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn common_xlsx(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let profile = XlsxExtractProfile::DEFAULT;
+        match &req.selector {
+            Selector::Metadata => self.xlsx_common_metadata(req, &profile),
+            Selector::Text => self.xlsx_common_text(req, &profile),
+            Selector::Table(i) => self.xlsx_table(req, *i, &profile),
+            Selector::Cell { table, row, col } => {
+                self.xlsx_common_cell(req, *table, *row, *col, &profile)
+            }
+            Selector::SearchMatch(p) => self.xlsx_find(req, p, &profile),
+            other => Err(Error::unsupported_feature(format!(
+                "XLSX does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn xlsx_common_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let model = self.xlsx_model()?;
+        let workbook = self.xlsx_workbook()?;
+        let detail = workbook
+            .sheets
+            .iter()
+            .enumerate()
+            .map(|(i, s)| {
+                format!(
+                    "{{\"index\":{i},\"name\":\"{}\",\"state\":\"{}\",\"sheetId\":{}}}",
+                    json_escape(&s.name),
+                    s.state.name(),
+                    opt_u32_json(s.sheet_id),
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let names = workbook
+            .sheets
+            .iter()
+            .map(|s| format!("\"{}\"", json_escape(&s.name)))
+            .collect::<Vec<_>>()
+            .join(",");
+        let json = format!(
+            concat!(
+                "{{\"format\":\"xlsx\",\"workbook\":\"{}\",\"ordinal\":{},",
+                "\"styles\":{},\"shared_strings\":{},",
+                "\"sheets\":{},\"sheet_names\":[{}],\"sheets_detail\":[{}],\"profile\":\"{}\"}}"
+            ),
+            json_escape(&model.workbook.name),
+            model.workbook.ordinal,
+            model.styles.is_some(),
+            model.shared_strings.is_some(),
+            workbook.sheets.len(),
+            names,
+            detail,
+            profile.fingerprint()
+        );
+        let provenance = format!(
+            "xlsx;workbook={};profile={}",
+            model.workbook.name,
+            profile.fingerprint()
+        );
+        Ok(self.xlsx_answer(req, AnswerValue::Json(json), provenance, None, Vec::new()))
+    }
+
+    fn xlsx_common_text(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let workbook = self.xlsx_workbook()?;
+        let indices = self.xlsx_projected_indices(&workbook, profile);
+        let mut out = String::new();
+        let mut count: u64 = 0;
+        for index in indices {
+            let (sheet, _part, _name, _span, _deps) = self.xlsx_sheet_view(index, profile)?;
+            let text = sheet.text(profile.values);
+            if !out.is_empty() {
+                out.push('\n');
+            }
+            out.push_str(&text);
+            if out.len() as u64 > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "whole-workbook text exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            count += 1;
+        }
+        let provenance = format!("xlsx;sheets={count};profile={}", profile.fingerprint());
+        Ok(self.xlsx_answer(req, AnswerValue::Text(out), provenance, None, Vec::new()))
+    }
+
+    fn xlsx_table(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let workbook = self.xlsx_workbook()?;
+        let indices = self.xlsx_projected_indices(&workbook, profile);
+        let index = *indices.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("workbook has no projected sheet {ordinal}"))
+        })?;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(index, profile)?;
+        let provenance = format!(
+            "xlsx;sheet={sheet_name};index={index};table={ordinal};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(sheet.text(profile.values)),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"sheet\":\"{}\",\"index\":{},\"rows\":{},\"cells\":{},\"merges\":{},\"profile\":\"{}\"}}",
+                json_escape(&sheet_name),
+                index,
+                sheet.rows.len(),
+                sheet.cell_count(),
+                sheet.merges.len(),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.xlsx_answer(req, value, provenance, span, deps))
+    }
+
+    fn xlsx_common_cell(
+        &mut self,
+        req: &ObserveRequest,
+        table: u32,
+        row: u32,
+        col: u32,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let workbook = self.xlsx_workbook()?;
+        let indices = self.xlsx_projected_indices(&workbook, profile);
+        let index = *indices.get(table as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("workbook has no projected sheet {table}"))
+        })?;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(index, profile)?;
+        let reference = crate::adapter::xlsx::col_row_to_a1(col, row);
+        let found = sheet.cell_at(row, col).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "sheet {index} ({sheet_name}) has no cell {reference}"
+            ))
+        })?;
+        let provenance = format!(
+            "xlsx;sheet={sheet_name};index={index};cell={reference};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                AnswerValue::Text(sheet.facet(&found, profile.values).unwrap_or_default())
+            }
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"cell\":\"{}\",\"col\":{},\"row\":{},",
+                    "\"kind\":\"{}\",\"value\":{},\"formula\":{},\"profile\":\"{}\"}}"
+                ),
+                json_escape(&sheet_name),
+                index,
+                json_escape(&found.reference),
+                found.col,
+                found.row,
+                found.kind(),
+                opt_str_json(found.value.as_deref()),
+                opt_str_json(found.formula.as_deref()),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.xlsx_answer(req, value, provenance, span, deps))
+    }
+}
+
 /// The standard `unsupported observation` error for a common pair that reached a
 /// representation the capability guard admitted but the adapter does not serve.
-#[cfg(any(feature = "docx", feature = "epub", feature = "odt"))]
+#[cfg(any(feature = "docx", feature = "epub", feature = "odt", feature = "xlsx"))]
 fn unsupported_common(req: &ObserveRequest) -> Error {
     Error::unsupported_feature(format!(
         "unsupported observation: selector {} with representation {}",
