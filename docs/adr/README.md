@@ -54,6 +54,7 @@ the written rationale that must survive chat history.
 | [0047](0047-durable-cross-root-derivations-negative.md) | Canonical derivation identity does not share computed state: `N3` violated again (0 cross-member reuse); no `DerivationStore` built | Accepted — recorded negative (Phase 15.7) |
 | [0048](0048-cuda-lane-deferred.md) | The CUDA batch lane is deferred: the bandwidth gate is unopened and the pinned Docker lanes cannot see the GPU | Accepted — deferred, not measured (Phase 15.8) |
 | [0049](0049-storage-accounting-correction.md) | Storage receipts must state their byte-accounting method: `du -sb` counts directory inodes (4096 B each), inflating one-file-per-node stores; file-bytes-only accounting corrects the Phase-15.3/16.2 storage headlines to parity | Accepted — correction (Phase 16.6) |
+| [0050](0050-sqlite-as-substrate-question.md) | Should the document field use an embedded DB as part of its physical substrate? SQLite does not lose under an equal capability contract (16.5) and VOLE's storage edge corrects to ~0.9× (16.6); recorded as an open architectural question with the measurements that would settle it — no switch decided | Open — recorded question (Phase 16.5/16.6) |
 
 ## Adding an ADR
 

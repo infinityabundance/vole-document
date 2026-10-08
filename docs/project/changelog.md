@@ -2,6 +2,88 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.21] — Phase 16: backend adoption, large-PDF fix, and a storage-accounting correction
+
+Phase 16 follows Phase 15: it adopts the inflate backend Phase 15 only
+recommended, finishes the packed-storage court on the **full** `real100-v1`
+population, fixes the **>100 MiB PDF encode pathology** that court surfaced,
+continues the residency line, and tests whether **SQLite loses under an equal
+capability contract**. It closes with the measurement correction that removed a
+false VOLE storage advantage. Released as `v0.1.0-alpha.21` from `phase16`; base
+`main` @ `ebb6636` (`v0.1.0-alpha.20`). Results:
+[phase-16-results.md](../phases/phase-16-results.md); ADRs 0049–0050.
+
+### Changed
+
+- **`zlib-rs` adopted as the shipped DEFLATE inflate backend** (16.1). One helper
+  `src/field/inflate.rs` owns every inflate, with RFC 1950 (zlib) vs RFC 1951
+  (raw) selected by a `Wrapper`. `tests/deflate_backend_equivalence.rs` is the
+  byte-identity witness. End-to-end median `field-ingest` **0.917×** (~8 %
+  faster); `encode` **0.996×** (control/noise floor); peak RSS **1.000×**.
+- **`propose_rle` streams instead of pre-allocating** (16.3). The RLE candidate
+  built its `Vec<(u8,u64)>` (~16 B/run) *before* its `max_graph_ops` decline; it
+  now counts in **O(1) memory** and materializes ops only once admitted. Peak/
+  input on the large PDFs **17.7× → 8.9×**; no `.voldoc` byte changed.
+
+### Fixed
+
+- **The `>100 MiB` PDF encode pathology is fixed** (16.3). `nasa-pdf-0001`
+  (409 MB) now completes **byte-exactly** (rc 0, ~40 s); `nasa-pdf-0002`/`0003`
+  peak RSS roughly halve and now exceed only the **wall** op budget, not memory.
+  Before/after `.voldoc` SHA-256 identical **77/77**; all gates pass.
+
+### Measured
+
+- **16.1 `zlib-rs` end-to-end** (3-document court, one process per op):
+  `encode` 2,510 → 2,500 ms (`0.996×`); `field-ingest` 1,200 → 1,100 ms
+  (`0.917×`); combined 3,710 → 3,600 ms (`0.970×`); peak ingest RSS `1.000×`.
+  Byte-identity **2,075 members / 17 documents**, `materialize --exact` PASS on
+  every row. Campaign `2026-10-08-phase16-zlib-ebb6636`.
+- **16.2 full packed court.** Full `real100-v1`: encode 97/100, `fs` and packed
+  `field-ingest` 97/100, A1 build 98/100; field id `fs`==packed 97/97; head-to-head
+  **95** common-success documents. Failures: `nasa-pdf-0001` encode rc 137 (fixed
+  in 16.3), `0002`/`0003` rc 124, two A1 builds rc 1 (pre-existing baseline XML
+  parse errors). Campaign's `du -sb` byte numbers are **superseded by 16.6**.
+  Court `2026-10-08-phase16-packed-full-0b21928`.
+- **16.3 large-PDF fix.** `nasa-pdf-0001` rc 137 → **rc 0** (40 s, exact);
+  `0002` 5,356,860 → **2,696,872 KB**; `0003` 3,758,292 → **1,906,148 KB**;
+  forced `rle` 6.28 GiB OOM → **401,524 KB** (declines). Campaign
+  `2026-10-08-phase16-largepdf-ce8af8f`.
+- **16.5 contract-equivalent court.** Under the same escalating contract C0–C5
+  (12 documents): equality at C0–C3, **VOLE declines C4/C5** (no revision query
+  surface); SQLite builds **~10×** faster, serves the warm session **~1.47×**
+  faster, and escalating C0 → C4 costs it only **~+3 %** persistent bytes with
+  flat query cost. Campaign `2026-10-08-phase16-contract-45d2c0e`.
+
+### Recorded negatives
+
+- **16.4 residency with `narrow_probe`** (ADR-0042 extended). `narrow_probe` was
+  refactored into a shared core and `observe_session` gives the resident session
+  the short-circuit; the probe works (observations 2..N: `descriptor_bytes_read
+  = 0`, partial, ~25 µs, 208/360 hits; answer equality **90/0**), but **no size
+  class flips**: cold median **6 ms** vs resident **9 ms**, sums 3,092 vs
+  3,894 ms. Mechanism: the one-time full `Field::open` descriptor parse
+  (`repeat=1 == repeat=5 == 0.14 s`); the isolated lever is a **lazy session
+  open** (recorded, out of scope). Campaign
+  `2026-10-08-phase16-resident-probe-5d331f2`.
+- **16.5 SQLite does not lose under the equal contract** (ADR-0050). VOLE's
+  lone edge is storage, and 16.6 corrects even that to ~0.9×; the decisive depth
+  is **C4** revision lineage, which VOLE cannot answer. Recorded as an open
+  architectural question, not a switch.
+
+### Corrected
+
+- **16.6 storage accounting** (ADR-0049). `du -sb` counted **4096 B per
+  directory inode**: VOLE `fs` = 1,723,650,951 file bytes vs 2,620,072,839 `du`
+  (52 % overhead, 218,853 dirs); packed 1,738,386,483 vs 1,752,767,539 (0.8 %,
+  3,511 dirs); A1 db 0. Corrected headlines: 15.3 packed/`fs` **0.719× →
+  1.007×**; 16.2 `fs`/SQLite **1.377× → 0.906×**, packed/SQLite **0.921× →
+  0.914×**, packed/`fs` **0.669× → 1.009×**. **Refuted:** "VOLE is 1.377×
+  SQLite" and "packed closes the gap" — there was no byte gap; both VOLE
+  backends are at/below SQLite on file bytes, and the packed win is
+  file/directory **count** (3,511 vs 218,853 dirs). Campaign
+  `2026-10-08-phase16-storage-correction-2978e1d`.
+
 ## [0.1.0-alpha.20] — Phase 15: performance programme
 
 Phase 15 repairs the performance *measurement* first, then measures whether the
