@@ -3,6 +3,13 @@
 Branch `phase23`. Measured at commit `8816507` (dirty tree: the Phase-23 change
 set, recorded in the receipt). Base `main` @ `v0.1.0-alpha.26` (Phase 22).
 
+> **Corrected by [Phase 25](phase-25-results.md) (ADR-0058).** An external review
+> found two gaps this court could not see: directory *ancestry* was not made
+> durable, and the packed segment *header* was synced after its directory. Both
+> are fixed there, the model now tracks directory ancestry, the verdicts are
+> stricter (no manifest ⇒ reopen), and every cut now recovers the prefix. The
+> scope of the claim below (a model, not a real power cut) is unchanged.
+
 Phase 20.1 closed the crash story it could close — ordering, prefix-exact
 recovery, fail-closed corruption — and **named the two gaps it left open**:
 
