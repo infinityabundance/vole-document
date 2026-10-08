@@ -25,7 +25,7 @@ use vole_document::encode::candidates::CandidateKind;
 use vole_document::error::{Error, Result};
 #[cfg(feature = "field")]
 use vole_document::field::{
-    Field, FieldId, FieldStore,
+    Field, FieldId, FieldStore, build as field_build,
     cache::DerivedCache,
     capabilities as field_capabilities,
     document_format::detect_document_format,
@@ -85,6 +85,9 @@ const USAGE_STORE: &str = "";
 #[cfg(feature = "field")]
 const USAGE_FIELD: &str = "\
     vole-document field-ingest INPUT.voldoc --store DIR [--workers N] [--entropyfs | --packed]
+    vole-document field-build INPUT --store DIR [--profile runtime] [--workers N] [--voldoc OUT.voldoc] [--entropyfs | --packed]
+        (direct source -> field: one process, no candidate search; the exact
+         authority is the fixed profile's `.voldoc`, stored in the field)
     vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs | --packed]
     vole-document observe --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]] (--page N | --object N | --stream N |
         --revision N | --byte-range A..B | --metadata | --doc-text | --heading N |
@@ -252,6 +255,8 @@ fn run(args: &[String]) -> Result<()> {
         }
         #[cfg(feature = "field")]
         "field-ingest" => cmd_field_ingest(args, limits),
+        #[cfg(feature = "field")]
+        "field-build" => cmd_field_build(args, limits),
         #[cfg(feature = "field")]
         "field-edit" => cmd_field_edit(args, limits),
         #[cfg(feature = "field")]
@@ -1456,6 +1461,13 @@ struct FieldArgs {
     /// is serial; `0` is `available_parallelism`; `N > 1` is exactly `N` threads.
     /// Only honored by a build with the `parallel` feature.
     workers: Option<u32>,
+    /// `field-build`: the fixed, non-searched reconstruction profile (`--profile
+    /// NAME`). Absent means `runtime`.
+    profile: Option<String>,
+    /// `field-build`: an optional path to also write the exact `.voldoc`
+    /// authority (`--voldoc OUT.voldoc`). The field stores the authority either
+    /// way; this only makes a standalone copy for inspection/verification.
+    voldoc: Option<PathBuf>,
     analyze: bool,
     json: bool,
     no_cache: bool,
@@ -1648,6 +1660,14 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                     &field_arg_value(args, &mut i, "--workers", inline)?,
                     "--workers",
                 )?);
+            }
+            "--profile" => {
+                out.profile = Some(field_arg_value(args, &mut i, "--profile", inline)?);
+            }
+            "--voldoc" => {
+                out.voldoc = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--voldoc", inline,
+                )?));
             }
             "--repeat" => {
                 out.repeat = Some(parse_field_u32(
@@ -1999,6 +2019,81 @@ fn cmd_field_ingest(args: &[String], limits: Limits) -> Result<()> {
     }
 }
 
+/// `field-build INPUT --store DIR [--profile runtime] [--workers N]
+/// [--voldoc OUT.voldoc] [--entropyfs | --packed]`: the direct source → field
+/// path. It serializes exactly one fixed, court-proved program (no candidate
+/// search), stores it as the exact authority, and inverts it into the field —
+/// all in one process.
+#[cfg(feature = "field")]
+fn cmd_field_build(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let input = out
+        .positional
+        .first()
+        .ok_or_else(|| Error::usage("field-build requires INPUT"))?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("field-build requires --store DIR"))?;
+    let profile = match out.profile.as_deref() {
+        None => field_build::BuildProfile::Runtime,
+        Some(s) => field_build::BuildProfile::parse(s)?,
+    };
+    let pool = build_worker_pool(out.workers)?;
+    let source = fs::read(input)?;
+    if source.len() as u64 > limits.max_input_bytes {
+        return Err(Error::resource_limit(
+            "input exceeds configured input limit",
+        ));
+    }
+    let mut store = open_field_store(store_dir, out.entropyfs, out.packed)?;
+    let report =
+        field_build::build_field_with(&source, &mut store, limits, profile, pool.as_ref())?;
+    store.sync()?;
+    if let Some(path) = out.voldoc.as_deref() {
+        // Write the exact authority the field stored (read back, never a
+        // re-encode), so a later `field-ingest` reproduces this same field.
+        let field = Field::open(&store, &report.ingest.field_id(), limits)?;
+        write_atomic(path, field.descriptor_bytes())?;
+    }
+    println!("{}", direct_build_json(&report));
+    Ok(())
+}
+
+/// The `field-build` receipt line: the fixed-profile facts plus the nested
+/// ingest report (so a court can parse either the header or the ingest body).
+#[cfg(feature = "field")]
+fn direct_build_json(report: &field_build::DirectBuildReport) -> String {
+    let ingest = match &report.ingest {
+        field_build::DirectIngest::Pdf(r) => pdf_ingest_json(r),
+        #[cfg(feature = "package")]
+        field_build::DirectIngest::Package(r) => package_ingest_json(r),
+    };
+    format!(
+        concat!(
+            "{{",
+            "\"ok\":true,",
+            "\"profile\":\"{}\",",
+            "\"candidate\":\"{}\",",
+            "\"candidates_evaluated\":{},",
+            "\"source_len\":{},",
+            "\"encoded_len\":{},",
+            "\"sha256\":\"{}\",",
+            "\"descriptor_sha256\":\"{}\",",
+            "\"ingest\":{}",
+            "}}"
+        ),
+        report.profile,
+        report.candidate,
+        report.candidates_evaluated,
+        report.source_len,
+        report.encoded_len,
+        report.source_sha256,
+        report.descriptor_sha256,
+        ingest,
+    )
+}
+
 /// The hard upper bound on `--workers`, so the pool stays bounded.
 #[cfg(feature = "parallel")]
 const MAX_WORKERS: u32 = 128;
@@ -2043,11 +2138,16 @@ fn build_worker_pool(workers: Option<u32>) -> Result<Option<vole_document::paral
 
 #[cfg(feature = "field")]
 fn print_pdf_ingest(r: &field_ingest::IngestReport) {
+    println!("{}", pdf_ingest_json(r));
+}
+
+#[cfg(feature = "field")]
+fn pdf_ingest_json(r: &field_ingest::IngestReport) -> String {
     let index_root = match r.index_root {
         Some(id) => format!("\"{}\"", id.to_hex()),
         None => "null".to_string(),
     };
-    println!(
+    format!(
         concat!(
             "{{",
             "\"format\":\"{}\",",
@@ -2088,16 +2188,21 @@ fn print_pdf_ingest(r: &field_ingest::IngestReport) {
         r.shared_resource_bytes,
         r.nodes_id_shared,
         r.seed_bytes_written,
-    );
+    )
 }
 
 #[cfg(all(feature = "field", feature = "package"))]
 fn print_package_ingest(r: &vole_document::field::ingest_package::PackageIngestReport) {
+    println!("{}", package_ingest_json(r));
+}
+
+#[cfg(all(feature = "field", feature = "package"))]
+fn package_ingest_json(r: &vole_document::field::ingest_package::PackageIngestReport) -> String {
     let index_root = match r.index_root {
         Some(id) => format!("\"{}\"", id.to_hex()),
         None => "null".to_string(),
     };
-    println!(
+    format!(
         concat!(
             "{{",
             "\"format\":\"{}\",",
@@ -2142,7 +2247,7 @@ fn print_package_ingest(r: &vole_document::field::ingest_package::PackageIngestR
         r.nodes_id_shared,
         r.seed_bytes_written,
         r.index_bytes_written,
-    );
+    )
 }
 
 #[cfg(feature = "field")]

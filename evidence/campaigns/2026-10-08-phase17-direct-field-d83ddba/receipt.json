@@ -1,0 +1,83 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase17-direct-field-d83ddba",
+  "phase": "17.1 — direct source -> field ingestion (no candidate search)",
+  "utc": "2026-10-08T07:57:12Z",
+  "measured_commit": "d83ddba3141c2ea2cf82cbc5c7c8c5b14e2601dd",
+  "tree_state": " M src/field/mod.rs; M src/main.rs; ?? src/field/build.rs; ?? tests/phase17_direct_field.rs; ?? tools/phase17-direct-field-court.sh; ?? evidence/campaigns/2026-10-08-phase1-d83ddba/; ?? evidence/campaigns/2026-10-08-phase17-direct-field-d83ddba/;",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "3d03c6d018ba088a70178d248183dee5cacf9a3d5a5da49648b2420235dd4867",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "7614b636b3646ce9aa967535d4ba2a644addd6ed91e8998454eb617db78b751d",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "op_timeout_s": 300,
+  "subset": "9 documents: nist-pdf-0002 nist-pdf-0004 nasa-pdf-0007 nist-docx-0010 nist-docx-0001 nist-epub-0008 nist-epub-0004 nasa-epub-0011 nasa-epub-0006",
+  "court": "tools/phase17-direct-field-court.sh",
+  "current_path": "vole-document encode SRC OUT.voldoc && vole-document field-ingest OUT.voldoc --store DIR",
+  "direct_path": "vole-document field-build SRC --store DIR --voldoc OUT.voldoc  (--profile runtime)",
+  "fixed_profile": {
+    "name": "runtime",
+    "candidate": "RAW",
+    "candidates_evaluated": 1,
+    "program": "one literal object + one EMIT_OBJECT; no portfolio search",
+    "rationale": "the field's observations are derived by re-scanning the materialized source, not from the winning program, so a single exact, deterministic program preserves the surface without searching"
+  },
+  "results": {
+    "documents_complete": 9,
+    "documents_total": 9,
+    "wall_ms": {"current_sum": 7928, "direct_sum": 3878, "speedup_sum": 2.044, "current_median": 773, "direct_median": 558, "speedup_median": 1.385},
+    "wall_ms_by_format": {
+      "pdf": {"n": 3, "current_ms": 5805, "direct_ms": 2272, "speedup": 2.56},
+      "epub": {"n": 4, "current_ms": 1833, "direct_ms": 1368, "speedup": 1.34},
+      "docx": {"n": 2, "current_ms": 290, "direct_ms": 238, "speedup": 1.22}
+    },
+    "peak_rss_kb_median": {"current": 51792, "direct": 15228},
+    "authority_bytes_sum": {"current": 35154409, "direct": 35383939, "direct_over_current": 1.007},
+    "exactness": {
+      "current_field_materialize": "9/9 length+SHA-256+cmp",
+      "direct_field_materialize": "9/9 length+SHA-256+cmp",
+      "direct_authority_decode": "9/9 length+SHA-256+cmp"
+    },
+    "observations": {"total": 99, "equal": 53, "decline_equal": 46, "divergent": 0}
+  },
+  "per_document": {
+    "columns": "id fmt size_class src_B cur_ms dir_ms speedup cur_rss_kb dir_rss_kb cur_auth_B dir_auth_B",
+    "rows": [
+      ["nist-pdf-0002", "pdf", "100KiB-1MiB", 263703, 1417, 726, 1.952, 51792, 8708, 255769, 264184],
+      ["nist-pdf-0004", "pdf", "1-10MiB", 1105061, 2265, 673, 3.366, 24544, 15228, 1099654, 1105542],
+      ["nasa-pdf-0007", "pdf", "1-10MiB", 10034634, 2123, 873, 2.432, 103568, 101892, 9824310, 10035115],
+      ["nist-docx-0010", "docx", "<100KiB", 67602, 76, 72, 1.056, 15596, 4204, 66132, 68083],
+      ["nist-docx-0001", "docx", "1-10MiB", 2286200, 214, 166, 1.289, 23856, 23464, 2286046, 2286681],
+      ["nist-epub-0008", "epub", "<100KiB", 35841, 61, 51, 1.196, 9204, 3976, 36295, 36322],
+      ["nist-epub-0004", "epub", "100KiB-1MiB", 336417, 223, 190, 1.174, 65244, 6480, 336871, 336898],
+      ["nasa-epub-0011", "epub", "1-10MiB", 10383142, 776, 558, 1.391, 95220, 94844, 10383053, 10383623],
+      ["nasa-epub-0006", "epub", "10-50MiB", 10867010, 773, 569, 1.359, 100308, 100968, 10866279, 10867491]
+    ]
+  },
+  "known_difference": {
+    "observable": "Selector::Metadata (PDF/common) — the native 'structural descriptor' projection",
+    "fields": ["object_count", "graph_ops"],
+    "why": "this projection embeds the chosen reconstruction program's shape (descriptor object count and program op count). A fixed program reports its own (RAW: 1/1); the searched winner reports its winner's.",
+    "per_document": {
+      "nist-pdf-0002": {"current_object_count_graph_ops": "29/1346", "direct": "1/1"},
+      "nist-pdf-0004": {"current_object_count_graph_ops": "32/763", "direct": "1/1"},
+      "nasa-pdf-0007": {"current_object_count_graph_ops": "0/1", "direct": "1/1"}
+    },
+    "packages": "no difference: DOCX/EPUB common metadata is format-model derived (encoder-independent); the searched winner for a ZIP also has 1 object / 1 op",
+    "all_other_metadata_fields": "byte-identical (normalized comparison; see raw/observe.tsv)"
+  },
+  "files": {
+    "raw/build.tsv": "per-document wall ms + peak RSS (GNU time -v) + authority bytes + speedup",
+    "raw/exact.tsv": "per-document exactness: current field, direct field, direct authority (length + SHA-256 + cmp)",
+    "raw/observe.tsv": "per-document observation equality over the 11-entry schedule (raw rc + normalized equality + note)",
+    "raw/subset.tsv": "the fixed subset resolved from the manifest (id|agency|fmt|size_class|byte_len|sha256|path)",
+    "raw/summary.txt": "aggregated reading",
+    "environment.json": "full environment receipt",
+    "commands.txt": "exact command lines"
+  },
+  "rc_codes": "0 ok; 124 timeout; 137 SIGKILL/OOM",
+  "caveats": "Wall times are single-run per step (no repetition); the direct path's cost is dominated by materializing/rescanning the source, so the speedup shrinks as formats get less compressible. Exactness and observation equality are exact byte comparisons, not estimates. The field-build CLI writes the exact authority to --voldoc by reading it back from the store once (only when --voldoc is requested)."
+}
