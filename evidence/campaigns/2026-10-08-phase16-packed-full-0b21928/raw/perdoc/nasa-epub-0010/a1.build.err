@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "/work/tools/fixtures/phase12-baseline.py", line 523, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/work/tools/fixtures/phase12-baseline.py", line 492, in main
+    _doc, metrics = build(a.format, a.source, a.db)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/tools/fixtures/phase12-baseline.py", line 379, in build
+    doc = extract(fmt, source)
+          ^^^^^^^^^^^^^^^^^^^^
+  File "/work/tools/fixtures/phase12-baseline.py", line 324, in extract
+    return EXTRACTORS[fmt](source)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/tools/fixtures/phase12-baseline.py", line 226, in extract_epub
+    root = ET.fromstring(chapter)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/xml/etree/ElementTree.py", line 1338, in XML
+    parser.feed(text)
+xml.etree.ElementTree.ParseError: not well-formed (invalid token): line 26, column 324
