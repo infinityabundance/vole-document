@@ -1,0 +1,30 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase22-7-agent-ee8723b",
+  "phase": "22.7 (P6) — document-agent economic court",
+  "utc": "2026-10-08T22:01:21Z",
+  "git_commit": "ee8723bdefb74670dd6f15fdae7a788b208bb81f",
+  "git_dirty": "?? evidence/campaigns/2026-10-08-phase22-7-agent-ee8723b/;?? tools/fixtures/phase22-7-agent.py;?? tools/phase22-7-agent-court.sh;",
+  "arch": "x86_64",
+  "service": "llm-workingset",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "sqlite3": "3.40.1",
+  "python": "Python 3.11.2",
+  "poppler_pdftotext": "22.12.0",
+  "cargo_lock_sha256": "0c85ba3d11839d3c382792d23d82e60d1742fda284b7dc4aeb53c21139c31736",
+  "manifest": "real100-v1/manifest.tsv",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "cc1520ef57f8ba6ed91bb9bb345c417991459ae6c5077c27d3d1392acbcb6543",
+  "profile": "release",
+  "corpus": "real100-v1/documents",
+  "tokenizer": {
+    "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+    "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+    "runtime_present": "yes",
+    "runtime_version": "0.20.3",
+    "name": "bert-base-uncased"
+  },
+  "env_affecting_semantics": {"LC_ALL": "C", "PYTHONDONTWRITEBYTECODE": "1"}
+}

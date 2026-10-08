@@ -1,0 +1,1486 @@
+{
+ "phase": "22.7 (P6) — document-agent economic court",
+ "gate": ">=2x lower cost per correct grounded task (VOLE vs baseline)",
+ "gate_met": false,
+ "prices": {
+  "model_input_usd_per_mtok": 3.0,
+  "compute_usd_per_cpu_hour": 0.05,
+  "storage_usd_per_gib_month": 0.023,
+  "io_read_usd_per_gib": 0.0004,
+  "op_usd_per_tool_call": 2e-06,
+  "retention_months": 1.0
+ },
+ "prices_date": "2026-10-08",
+ "tokenizer": {
+  "kind": "pinned-tokenizer",
+  "name": "bert-base-uncased",
+  "implementation": "huggingface/tokenizers",
+  "implementation_version": "0.20.3",
+  "asset_path": "tools/tokenizers/bert-base-uncased.tokenizer.json",
+  "asset_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+  "asset_sha256_expected": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+  "asset_verified": true,
+  "add_special_tokens": false,
+  "vocab_size": 30522
+ },
+ "pooled": {
+  "vole": {
+   "tasks": 27,
+   "correct": 16,
+   "grounded": 16,
+   "correct_grounded": 16,
+   "tokens": 7779,
+   "tokens_cg": 5948,
+   "wall_ms": 5773.830999999999,
+   "tool_calls": 43,
+   "prep_wall_ms": 458.39694479946047,
+   "storage_bytes": 23684505.000000015,
+   "docs": 9,
+   "cost_total": 0.024016890747482693,
+   "peak_rss_kb": 36220,
+   "cost_per_correct_grounded": 0.0015010556717176683,
+   "tokens_per_correct_grounded": 486.1875
+  },
+  "baseline": {
+   "tasks": 27,
+   "correct": 27,
+   "grounded": 27,
+   "correct_grounded": 27,
+   "tokens": 9472,
+   "tokens_cg": 9472,
+   "wall_ms": 11.532012489624321,
+   "tool_calls": 54,
+   "prep_wall_ms": 916.2294350098821,
+   "storage_bytes": 2438108.000000001,
+   "docs": 9,
+   "cost_total": 0.028589110871113977,
+   "peak_rss_kb": 41968,
+   "cost_per_correct_grounded": 0.0010588559581894065,
+   "tokens_per_correct_grounded": 350.81481481481484
+  },
+  "cost_ratio_vole_over_baseline": 1.417620272245908,
+  "note": "",
+  "verdict": "VOLE loss"
+ },
+ "regions": [
+  {
+   "region": "docx",
+   "vole": {
+    "tasks": 9,
+    "correct": 7,
+    "grounded": 7,
+    "correct_grounded": 7,
+    "tokens": 2801,
+    "tokens_cg": 2469,
+    "wall_ms": 1.0610000000000002,
+    "tool_calls": 16,
+    "prep_wall_ms": 85.4444319847971,
+    "storage_bytes": 5554222.000000001,
+    "docs": 3,
+    "cost_total": 0.00855517522799272,
+    "peak_rss_kb": 33164,
+    "cost_per_correct_grounded": 0.0012221678897132457,
+    "tokens_per_correct_grounded": 400.14285714285717
+   },
+   "baseline": {
+    "tasks": 9,
+    "correct": 9,
+    "grounded": 9,
+    "correct_grounded": 9,
+    "tokens": 3111,
+    "tokens_cg": 3111,
+    "wall_ms": 2.9344429494813085,
+    "tool_calls": 18,
+    "prep_wall_ms": 33.96094590425491,
+    "storage_bytes": 148616.0,
+    "docs": 3,
+    "cost_total": 0.009372695852978528,
+    "peak_rss_kb": 39024,
+    "cost_per_correct_grounded": 0.0010414106503309475,
+    "tokens_per_correct_grounded": 345.6666666666667
+   },
+   "cost_ratio_vole_over_baseline": 1.173569608996082,
+   "note": "",
+   "verdict": "VOLE loss"
+  },
+  {
+   "region": "epub",
+   "vole": {
+    "tasks": 9,
+    "correct": 9,
+    "grounded": 9,
+    "correct_grounded": 9,
+    "tokens": 3479,
+    "tokens_cg": 3479,
+    "wall_ms": 606.401,
+    "tool_calls": 18,
+    "prep_wall_ms": 93.9135098597035,
+    "storage_bytes": 2170770.0,
+    "docs": 3,
+    "cost_total": 0.010529225393836572,
+    "peak_rss_kb": 36220,
+    "cost_per_correct_grounded": 0.001169913932648508,
+    "tokens_per_correct_grounded": 386.55555555555554
+   },
+   "baseline": {
+    "tasks": 9,
+    "correct": 9,
+    "grounded": 9,
+    "correct_grounded": 9,
+    "tokens": 3408,
+    "tokens_cg": 3408,
+    "wall_ms": 4.038473591208458,
+    "tool_calls": 18,
+    "prep_wall_ms": 77.31108611915259,
+    "storage_bytes": 923511.0000000002,
+    "docs": 3,
+    "cost_total": 0.01028091184776671,
+    "peak_rss_kb": 41968,
+    "cost_per_correct_grounded": 0.0011423235386407455,
+    "tokens_per_correct_grounded": 378.6666666666667
+   },
+   "cost_ratio_vole_over_baseline": 1.024152871821754,
+   "note": "",
+   "verdict": "VOLE loss"
+  },
+  {
+   "region": "pdf",
+   "vole": {
+    "tasks": 9,
+    "correct": 0,
+    "grounded": 0,
+    "correct_grounded": 0,
+    "tokens": 1499,
+    "tokens_cg": 0,
+    "wall_ms": 5166.369,
+    "tool_calls": 9,
+    "prep_wall_ms": 279.03900295495987,
+    "storage_bytes": 15959512.999999998,
+    "docs": 3,
+    "cost_total": 0.0049324901256533995,
+    "peak_rss_kb": 30984,
+    "cost_per_correct_grounded": null,
+    "tokens_per_correct_grounded": null
+   },
+   "baseline": {
+    "tasks": 9,
+    "correct": 9,
+    "grounded": 9,
+    "correct_grounded": 9,
+    "tokens": 2953,
+    "tokens_cg": 2953,
+    "wall_ms": 4.559095948934555,
+    "tool_calls": 18,
+    "prep_wall_ms": 804.9574029864743,
+    "storage_bytes": 1365981.0,
+    "docs": 3,
+    "cost_total": 0.00893550317036874,
+    "peak_rss_kb": 36700,
+    "cost_per_correct_grounded": 0.0009928336855965269,
+    "tokens_per_correct_grounded": 328.1111111111111
+   },
+   "cost_ratio_vole_over_baseline": null,
+   "note": "VOLE has no correct grounded task -> cost/corr+grnd is unbounded (loss)",
+   "verdict": "VOLE loss (no correct grounded task)"
+  }
+ ],
+ "per_task": [
+  {
+   "doc": "nist-pdf-0001",
+   "fmt": "pdf",
+   "unit_kind": "line",
+   "anchor": "organization-developed",
+   "expected_text": "        security requirements and vulnerabilities in organization-developed application code",
+   "expected_span": [
+    204667,
+    204759
+   ],
+   "vole": {
+    "correct": false,
+    "grounded": false,
+    "tokens": 165,
+    "wall_ms": 2684.502,
+    "tool_calls": 1,
+    "span": null,
+    "nmatches": 0,
+    "source_ref": null,
+    "answer": ""
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 324,
+    "wall_ms": 0.8859130321070552,
+    "tool_calls": 2,
+    "span": [
+     204667,
+     204759
+    ],
+    "nmatches": 1,
+    "answer": "        security requirements and vulnerabilities in organization-developed application code"
+   }
+  },
+  {
+   "doc": "nist-pdf-0001",
+   "fmt": "pdf",
+   "unit_kind": "line",
+   "anchor": "vulnerability-related",
+   "expected_text": "penetration or vulnerability-related testing. For example, organizations can conduct active wireless",
+   "expected_span": [
+    104290,
+    104390
+   ],
+   "vole": {
+    "correct": false,
+    "grounded": false,
+    "tokens": 165,
+    "wall_ms": 1.514,
+    "tool_calls": 1,
+    "span": null,
+    "nmatches": 0,
+    "source_ref": null,
+    "answer": ""
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 326,
+    "wall_ms": 0.5127469776198268,
+    "tool_calls": 2,
+    "span": [
+     104290,
+     104390
+    ],
+    "nmatches": 1,
+    "answer": "penetration or vulnerability-related testing. For example, organizations can conduct active wireless"
+   }
+  },
+  {
+   "doc": "nist-pdf-0001",
+   "fmt": "pdf",
+   "unit_kind": "line",
+   "anchor": "methodology-updating",
+   "expected_text": "methodology-updating techniques as appropriate, and update their tool kits. For example, attending",
+   "expected_span": [
+    159139,
+    159237
+   ],
+   "vole": {
+    "correct": false,
+    "grounded": false,
+    "tokens": 167,
+    "wall_ms": 1.278,
+    "tool_calls": 1,
+    "span": null,
+    "nmatches": 0,
+    "source_ref": null,
+    "answer": ""
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 330,
+    "wall_ms": 0.48359192442148924,
+    "tool_calls": 2,
+    "span": [
+     159139,
+     159237
+    ],
+    "nmatches": 1,
+    "answer": "methodology-updating techniques as appropriate, and update their tool kits. For example, attending"
+   }
+  },
+  {
+   "doc": "nist-pdf-0016",
+   "fmt": "pdf",
+   "unit_kind": "line",
+   "anchor": "cryptographic-based",
+   "expected_text": "cryptographic-based security systems to provide adequate information security for all agency",
+   "expected_span": [
+    1767,
+    1859
+   ],
+   "vole": {
+    "correct": false,
+    "grounded": false,
+    "tokens": 167,
+    "wall_ms": 278.761,
+    "tool_calls": 1,
+    "span": null,
+    "nmatches": 0,
+    "source_ref": null,
+    "answer": ""
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 322,
+    "wall_ms": 0.5251700058579445,
+    "tool_calls": 2,
+    "span": [
+     1767,
+     1859
+    ],
+    "nmatches": 1,
+    "answer": "cryptographic-based security systems to provide adequate information security for all agency"
+   }
+  },
+  {
+   "doc": "nist-pdf-0016",
+   "fmt": "pdf",
+   "unit_kind": "line",
+   "anchor": "responsibility",
+   "expected_text": "responsibility of every federal organization in providing adequate security in its computer and",
+   "expected_span": [
+    1576,
+    1671
+   ],
+   "vole": {
+    "correct": false,
+    "grounded": false,
+    "tokens": 161,
+    "wall_ms": 0.21,
+    "tool_calls": 1,
+    "span": null,
+    "nmatches": 0,
+    "source_ref": null,
+    "answer": ""
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 314,
+    "wall_ms": 0.24344399571418762,
+    "tool_calls": 2,
+    "span": [
+     1576,
+     1671
+    ],
+    "nmatches": 1,
+    "answer": "responsibility of every federal organization in providing adequate security in its computer and"
+   }
+  },
+  {
+   "doc": "nist-pdf-0016",
+   "fmt": "pdf",
+   "unit_kind": "line",
+   "anchor": "Qualifications",
+   "expected_text": "13. Qualifications. The security requirements specified in this standard are based upon",
+   "expected_span": [
+    11149,
+    11236
+   ],
+   "vole": {
+    "correct": false,
+    "grounded": false,
+    "tokens": 161,
+    "wall_ms": 0.166,
+    "tool_calls": 1,
+    "span": null,
+    "nmatches": 0,
+    "source_ref": null,
+    "answer": ""
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 315,
+    "wall_ms": 0.19627599976956844,
+    "tool_calls": 2,
+    "span": [
+     11149,
+     11236
+    ],
+    "nmatches": 1,
+    "answer": "13. Qualifications. The security requirements specified in this standard are based upon"
+   }
+  },
+  {
+   "doc": "nist-pdf-0004",
+   "fmt": "pdf",
+   "unit_kind": "line",
+   "anchor": "Infrastructure-as-a-Service",
+   "expected_text": "          Infrastructure-as-a-Service. Infrastructure-as-a-Service (IaaS) is a model of service",
+   "expected_span": [
+    36403,
+    36501
+   ],
+   "vole": {
+    "correct": false,
+    "grounded": false,
+    "tokens": 173,
+    "wall_ms": 2197.209,
+    "tool_calls": 1,
+    "span": null,
+    "nmatches": 0,
+    "source_ref": null,
+    "answer": ""
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 344,
+    "wall_ms": 0.7696259999647737,
+    "tool_calls": 2,
+    "span": [
+     36403,
+     36501
+    ],
+    "nmatches": 1,
+    "answer": "          Infrastructure-as-a-Service. Infrastructure-as-a-Service (IaaS) is a model of service"
+   }
+  },
+  {
+   "doc": "nist-pdf-0004",
+   "fmt": "pdf",
+   "unit_kind": "line",
+   "anchor": "provider-authenticated",
+   "expected_text": "resources from provider-authenticated entities and vice versa. Identity federation can be",
+   "expected_span": [
+    112908,
+    112997
+   ],
+   "vole": {
+    "correct": false,
+    "grounded": false,
+    "tokens": 167,
+    "wall_ms": 1.5,
+    "tool_calls": 1,
+    "span": null,
+    "nmatches": 0,
+    "source_ref": null,
+    "answer": ""
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 330,
+    "wall_ms": 0.497668981552124,
+    "tool_calls": 2,
+    "span": [
+     112908,
+     112997
+    ],
+    "nmatches": 1,
+    "answer": "resources from provider-authenticated entities and vice versa. Identity federation can be"
+   }
+  },
+  {
+   "doc": "nist-pdf-0004",
+   "fmt": "pdf",
+   "unit_kind": "line",
+   "anchor": "Software-as-a-Service",
+   "expected_text": "          Software-as-a-Service. Software-as-a-Service (SaaS) is a model of service delivery",
+   "expected_span": [
+    34875,
+    34970
+   ],
+   "vole": {
+    "correct": false,
+    "grounded": false,
+    "tokens": 173,
+    "wall_ms": 1.229,
+    "tool_calls": 1,
+    "span": null,
+    "nmatches": 0,
+    "source_ref": null,
+    "answer": ""
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 348,
+    "wall_ms": 0.4446590319275856,
+    "tool_calls": 2,
+    "span": [
+     34875,
+     34970
+    ],
+    "nmatches": 1,
+    "answer": "          Software-as-a-Service. Software-as-a-Service (SaaS) is a model of service delivery"
+   }
+  },
+  {
+   "doc": "nist-docx-0001",
+   "fmt": "docx",
+   "unit_kind": "paragraph",
+   "anchor": "commercial-off-the-shelf",
+   "expected_text": "Software type (e.g., commercial-off-the-shelf, open-source, internally developed)",
+   "expected_span": [
+    7760,
+    7841
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 345,
+    "wall_ms": 0.28800000000000003,
+    "tool_calls": 2,
+    "span": [
+     1949,
+     14067
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "paragraph": 68
+    },
+    "answer": "Software type (e.g., commercial-off-the-shelf, open-source, internally developed)"
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 345,
+    "wall_ms": 0.4207448801025748,
+    "tool_calls": 2,
+    "span": [
+     7760,
+     7841
+    ],
+    "nmatches": 1,
+    "answer": "Software type (e.g., commercial-off-the-shelf, open-source, internally developed)"
+   }
+  },
+  {
+   "doc": "nist-docx-0001",
+   "fmt": "docx",
+   "unit_kind": "paragraph",
+   "anchor": "responsibilities",
+   "expected_text": "Identify authorizing officials, system owners, and other key roles with system responsibilities. Include the individual’s name; system-specific and organizational role; organizational unit, department, or division; primary and alternate business phone numbers; and email address for the following key points of contact:",
+   "expected_span": [
+    2115,
+    2436
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 360,
+    "wall_ms": 0.064,
+    "tool_calls": 2,
+    "span": [
+     1949,
+     14067
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "paragraph": 20
+    },
+    "answer": "Identify authorizing officials, system owners, and other key roles with system responsibilities. Include the individual’s name; system-specific and organizational role; organizational unit, department, or division; primary and alternate business phone numbers; and email address for the following key points of contact:"
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 360,
+    "wall_ms": 0.30388706363737583,
+    "tool_calls": 2,
+    "span": [
+     2115,
+     2436
+    ],
+    "nmatches": 1,
+    "answer": "Identify authorizing officials, system owners, and other key roles with system responsibilities. Include the individual’s name; system-specific and organizational role; organizational unit, department, or division; primary and alternate business phone numbers; and email address for the following key points of contact:"
+   }
+  },
+  {
+   "doc": "nist-docx-0001",
+   "fmt": "docx",
+   "unit_kind": "paragraph",
+   "anchor": "interconnection",
+   "expected_text": "Type of agreement used for the information exchange (e.g., interconnection security agreement, memorandum of agreement, memorandum of understanding)",
+   "expected_span": [
+    9384,
+    9532
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 342,
+    "wall_ms": 0.062,
+    "tool_calls": 2,
+    "span": [
+     1949,
+     14067
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "paragraph": 86
+    },
+    "answer": "Type of agreement used for the information exchange (e.g., interconnection security agreement, memorandum of agreement, memorandum of understanding)"
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 343,
+    "wall_ms": 0.28749590273946524,
+    "tool_calls": 2,
+    "span": [
+     9384,
+     9532
+    ],
+    "nmatches": 1,
+    "answer": "Type of agreement used for the information exchange (e.g., interconnection security agreement, memorandum of agreement, memorandum of understanding)"
+   }
+  },
+  {
+   "doc": "nist-docx-0005",
+   "fmt": "docx",
+   "unit_kind": "paragraph",
+   "anchor": "interconnections",
+   "expected_text": "If the system does not have any direct interconnections, then this appendix may be removed, or the following statement may be used:",
+   "expected_span": [
+    32150,
+    32281
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 344,
+    "wall_ms": 0.378,
+    "tool_calls": 2,
+    "span": [
+     2440,
+     29973
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "paragraph": 307
+    },
+    "answer": "If the system does not have any direct interconnections, then this appendix may be removed, or the following statement may be used:\n"
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 342,
+    "wall_ms": 0.4383280174806714,
+    "tool_calls": 2,
+    "span": [
+     32150,
+     32281
+    ],
+    "nmatches": 1,
+    "answer": "If the system does not have any direct interconnections, then this appendix may be removed, or the following statement may be used:"
+   }
+  },
+  {
+   "doc": "nist-docx-0005",
+   "fmt": "docx",
+   "unit_kind": "paragraph",
+   "anchor": "well-documented",
+   "expected_text": "It is important that all recovery events be well-documented, including actions taken and problems encountered during the recovery and reconstitution effort, and lessons learned for inclusion and update to this ISCP.  It is the responsibility of each ISCP team or person to document their actions during the recovery and reconstitution effort, and to provide that documentation to the ISCP Coordinator.",
+   "expected_span": [
+    22521,
+    22922
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 389,
+    "wall_ms": 0.04,
+    "tool_calls": 2,
+    "span": [
+     2440,
+     29973
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "paragraph": 216
+    },
+    "answer": "It is important that all recovery events be well-documented, including actions taken and problems encountered during the recovery and reconstitution effort, and lessons learned for inclusion and update to this ISCP.  It is the responsibility of each ISCP team or person to document their actions during the recovery and reconstitution effort, and to provide that documentation to the ISCP Coordinator."
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 388,
+    "wall_ms": 0.28564303647726774,
+    "tool_calls": 2,
+    "span": [
+     22521,
+     22922
+    ],
+    "nmatches": 1,
+    "answer": "It is important that all recovery events be well-documented, including actions taken and problems encountered during the recovery and reconstitution effort, and lessons learned for inclusion and update to this ISCP.  It is the responsibility of each ISCP team or person to document their actions during the recovery and reconstitution effort, and to provide that documentation to the ISCP Coordinator."
+   }
+  },
+  {
+   "doc": "nist-docx-0005",
+   "fmt": "docx",
+   "unit_kind": "paragraph",
+   "anchor": "interruptions",
+   "expected_text": "Identify the activities, resources, and procedures to carry out {system name} processing requirements during prolonged interruptions to normal operations.",
+   "expected_span": [
+    6110,
+    6264
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 336,
+    "wall_ms": 0.038,
+    "tool_calls": 2,
+    "span": [
+     2440,
+     29973
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "paragraph": 78
+    },
+    "answer": "\tIdentify the activities, resources, and procedures to carry out {system name} processing requirements during prolonged interruptions to normal operations."
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 332,
+    "wall_ms": 0.28265698347240686,
+    "tool_calls": 2,
+    "span": [
+     6110,
+     6264
+    ],
+    "nmatches": 1,
+    "answer": "Identify the activities, resources, and procedures to carry out {system name} processing requirements during prolonged interruptions to normal operations."
+   }
+  },
+  {
+   "doc": "nist-docx-0013",
+   "fmt": "docx",
+   "unit_kind": "paragraph",
+   "anchor": "DepartmentEVIDENCE",
+   "expected_text": "Anywhere Police DepartmentEVIDENCE CHAIN OF CUSTODY TRACKING FORM",
+   "expected_span": [
+    0,
+    65
+   ],
+   "vole": {
+    "correct": false,
+    "grounded": false,
+    "tokens": 169,
+    "wall_ms": 0.081,
+    "tool_calls": 1,
+    "span": null,
+    "nmatches": 0,
+    "source_ref": null,
+    "answer": ""
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 322,
+    "wall_ms": 0.46527700033038855,
+    "tool_calls": 2,
+    "span": [
+     0,
+     65
+    ],
+    "nmatches": 1,
+    "answer": "Anywhere Police DepartmentEVIDENCE CHAIN OF CUSTODY TRACKING FORM"
+   }
+  },
+  {
+   "doc": "nist-docx-0013",
+   "fmt": "docx",
+   "unit_kind": "table",
+   "anchor": "Description",
+   "expected_text": "Description of Evidence | Item # | Quantity | Description of Item (Model, Serial #, Condition, Marks, Scratches)",
+   "expected_span": [
+    461,
+    573
+   ],
+   "vole": {
+    "correct": false,
+    "grounded": false,
+    "tokens": 163,
+    "wall_ms": 0.02,
+    "tool_calls": 1,
+    "span": null,
+    "nmatches": 0,
+    "source_ref": null,
+    "answer": ""
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 328,
+    "wall_ms": 0.2214940031990409,
+    "tool_calls": 2,
+    "span": [
+     461,
+     573
+    ],
+    "nmatches": 1,
+    "answer": "Description of Evidence | Item # | Quantity | Description of Item (Model, Serial #, Condition, Marks, Scratches)"
+   }
+  },
+  {
+   "doc": "nist-docx-0013",
+   "fmt": "docx",
+   "unit_kind": "paragraph",
+   "anchor": "Seized",
+   "expected_text": "Date/Time Seized: __________________Location of Seizure: ______________________",
+   "expected_span": [
+    381,
+    460
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 353,
+    "wall_ms": 0.09000000000000001,
+    "tool_calls": 2,
+    "span": [
+     2538,
+     7731
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "paragraph": 8
+    },
+    "answer": "Date/Time Seized: __________________Location of Seizure: ______________________"
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 351,
+    "wall_ms": 0.22891606204211712,
+    "tool_calls": 2,
+    "span": [
+     381,
+     460
+    ],
+    "nmatches": 1,
+    "answer": "Date/Time Seized: __________________Location of Seizure: ______________________"
+   }
+  },
+  {
+   "doc": "nist-epub-0001",
+   "fmt": "epub",
+   "unit_kind": "block",
+   "anchor": "vulnerability-related",
+   "expected_text": "Organizations can move beyond passive wireless scanning to conduct active scanning. This builds on the information collected during passive scans, and attempts to attach to discovered devices and conduct penetration or vulnerability-related testing. For example, organizations can conduct active wireless scanning on their authorized wireless devices to ensure that they meet wireless security configuration requirements—including authentication mechanisms, data encryption, and administration access if this information is not already available through other means.",
+   "expected_span": [
+    84440,
+    85008
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 403,
+    "wall_ms": 300.893,
+    "tool_calls": 2,
+    "span": [
+     75470,
+     90621
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "spine": 9,
+     "block": 63
+    },
+    "answer": "Organizations can move beyond passive wireless scanning to conduct active scanning. This builds on the information collected during passive scans, and attempts to attach to discovered devices and conduct penetration or vulnerability-related testing. For example, organizations can conduct active wireless scanning on their authorized wireless devices to ensure that they meet wireless security configuration requirements—including authentication mechanisms, data encryption, and administration access if this information is not already available through other means."
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 397,
+    "wall_ms": 0.6575059378519654,
+    "tool_calls": 2,
+    "span": [
+     84440,
+     85008
+    ],
+    "nmatches": 1,
+    "answer": "Organizations can move beyond passive wireless scanning to conduct active scanning. This builds on the information collected during passive scans, and attempts to attach to discovered devices and conduct penetration or vulnerability-related testing. For example, organizations can conduct active wireless scanning on their authorized wireless devices to ensure that they meet wireless security configuration requirements—including authentication mechanisms, data encryption, and administration access if this information is not already available through other means."
+   }
+  },
+  {
+   "doc": "nist-epub-0001",
+   "fmt": "epub",
+   "unit_kind": "block",
+   "anchor": "network-exploitable",
+   "expected_text": "For local vulnerability scanning, a scanner is installed on each host to be scanned. This is done primarily to identify host OS and application misconfigurations and vulnerabilities—both network-exploitable and locally exploitable. Local scanning is able to detect vulnerabilities with a higher level of detail than network-based scanning because local scanning usually requires both host (local) access and a root or administrative account. Some scanners also offer the capability of repairing local misconfigurations.",
+   "expected_span": [
+    70895,
+    71416
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 425,
+    "wall_ms": 1.489,
+    "tool_calls": 2,
+    "span": [
+     75470,
+     90621
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "spine": 9,
+     "block": 30
+    },
+    "answer": "For local vulnerability scanning, a scanner is installed on each host to be scanned. This is done primarily to identify host OS and application misconfigurations and vulnerabilities—both network-exploitable and locally exploitable. Local scanning is able to detect vulnerabilities with a higher level of detail than network-based scanning because local scanning usually requires both host (local) access and a root or administrative account. Some scanners also offer the capability of repairing local misconfigurations."
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 418,
+    "wall_ms": 0.6131239933893085,
+    "tool_calls": 2,
+    "span": [
+     70895,
+     71416
+    ],
+    "nmatches": 1,
+    "answer": "For local vulnerability scanning, a scanner is installed on each host to be scanned. This is done primarily to identify host OS and application misconfigurations and vulnerabilities—both network-exploitable and locally exploitable. Local scanning is able to detect vulnerabilities with a higher level of detail than network-based scanning because local scanning usually requires both host (local) access and a root or administrative account. Some scanners also offer the capability of repairing local misconfigurations."
+   }
+  },
+  {
+   "doc": "nist-epub-0001",
+   "fmt": "epub",
+   "unit_kind": "block",
+   "anchor": "telecommunications",
+   "expected_text": "Skills needed to conduct remote access testing include TCP/IP and networking knowledge; knowledge of remote access technologies and protocols; knowledge of authentication and access control methods; general knowledge of telecommunications systems and modem/PBX operations; and the ability to use scanning and security testing tools such as war dialers.",
+   "expected_span": [
+    213757,
+    214109
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 377,
+    "wall_ms": 1.716,
+    "tool_calls": 2,
+    "span": [
+     141678,
+     144364
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "spine": 17,
+     "block": 10
+    },
+    "answer": "Skills needed to conduct remote access testing include TCP/IP and networking knowledge; knowledge of remote access technologies and protocols; knowledge of authentication and access control methods; general knowledge of telecommunications systems and modem/PBX operations; and the ability to use scanning and security testing tools such as war dialers."
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 370,
+    "wall_ms": 0.5406579002737999,
+    "tool_calls": 2,
+    "span": [
+     213757,
+     214109
+    ],
+    "nmatches": 1,
+    "answer": "Skills needed to conduct remote access testing include TCP/IP and networking knowledge; knowledge of remote access technologies and protocols; knowledge of authentication and access control methods; general knowledge of telecommunications systems and modem/PBX operations; and the ability to use scanning and security testing tools such as war dialers."
+   }
+  },
+  {
+   "doc": "nist-epub-0003",
+   "fmt": "epub",
+   "unit_kind": "block",
+   "anchor": "misconfigurations",
+   "expected_text": "Vulnerability scanners are automated tools that are used to identify vulnerabilities and misconfigurations of hosts. Many vulnerability scanners also provide information about mitigating discovered vulnerabilities. Vulnerability scanners attempt to identify vulnerabilities in the hosts scanned. Vulnerability scanners can help identify out-of-date software versions, missing patches, or system upgrades, and they can validate compliance with or deviations from the organization’s security policy. To accomplish this, vulnerability scanners identify OSs, server software, and other major software applications running on hosts and match them with known vulnerabilities in their vulnerability databases.",
+   "expected_span": [
+    111529,
+    112233
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 458,
+    "wall_ms": 212.433,
+    "tool_calls": 2,
+    "span": [
+     59627,
+     71763
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "spine": 11,
+     "block": 136
+    },
+    "answer": "Vulnerability scanners are automated tools that are used to identify vulnerabilities and misconfigurations of hosts. Many vulnerability scanners also provide information about mitigating discovered vulnerabilities. Vulnerability scanners attempt to identify vulnerabilities in the hosts scanned. Vulnerability scanners can help identify out-of-date software versions, missing patches, or system upgrades, and they can validate compliance with or deviations from the organization’s security policy. To accomplish this, vulnerability scanners identify OSs, server software, and other major software applications running on hosts and match them with known vulnerabilities in their vulnerability databases."
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 449,
+    "wall_ms": 0.5491238553076982,
+    "tool_calls": 2,
+    "span": [
+     111529,
+     112233
+    ],
+    "nmatches": 1,
+    "answer": "Vulnerability scanners are automated tools that are used to identify vulnerabilities and misconfigurations of hosts. Many vulnerability scanners also provide information about mitigating discovered vulnerabilities. Vulnerability scanners attempt to identify vulnerabilities in the hosts scanned. Vulnerability scanners can help identify out-of-date software versions, missing patches, or system upgrades, and they can validate compliance with or deviations from the organization’s security policy. To accomplish this, vulnerability scanners identify OSs, server software, and other major software applications running on hosts and match them with known vulnerabilities in their vulnerability databases."
+   }
+  },
+  {
+   "doc": "nist-epub-0003",
+   "fmt": "epub",
+   "unit_kind": "block",
+   "anchor": "Defense-in-Depth",
+   "expected_text": "Defense-in-Depth—Organizations should understand that a single security mechanism is generally insufficient. Security mechanisms (defenses) need to be layered so that compromise of a single security mechanism is insufficient to compromise a host or network. No “silver bullet” exists for information system security.",
+   "expected_span": [
+    33251,
+    33573
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 379,
+    "wall_ms": 1.049,
+    "tool_calls": 2,
+    "span": [
+     26746,
+     34018
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "spine": 7,
+     "block": 38
+    },
+    "answer": "Defense-in-Depth—Organizations should understand that a single security mechanism is generally insufficient. Security mechanisms (defenses) need to be layered so that compromise of a single security mechanism is insufficient to compromise a host or network. No “silver bullet” exists for information system security."
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 372,
+    "wall_ms": 0.35474204923957586,
+    "tool_calls": 2,
+    "span": [
+     33251,
+     33573
+    ],
+    "nmatches": 1,
+    "answer": "Defense-in-Depth—Organizations should understand that a single security mechanism is generally insufficient. Security mechanisms (defenses) need to be layered so that compromise of a single security mechanism is insufficient to compromise a host or network. No “silver bullet” exists for information system security."
+   }
+  },
+  {
+   "doc": "nist-epub-0003",
+   "fmt": "epub",
+   "unit_kind": "block",
+   "anchor": "security-related",
+   "expected_text": "Monitoring system integrity, protection levels, and security-related events",
+   "expected_span": [
+    45152,
+    45227
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 332,
+    "wall_ms": 1.035,
+    "tool_calls": 2,
+    "span": [
+     34077,
+     43004
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "spine": 8,
+     "block": 82
+    },
+    "answer": "Monitoring system integrity, protection levels, and security-related events"
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 323,
+    "wall_ms": 0.3786870511248708,
+    "tool_calls": 2,
+    "span": [
+     45152,
+     45227
+    ],
+    "nmatches": 1,
+    "answer": "Monitoring system integrity, protection levels, and security-related events"
+   }
+  },
+  {
+   "doc": "nist-epub-0008",
+   "fmt": "epub",
+   "unit_kind": "block",
+   "anchor": "authoritative",
+   "expected_text": "For the authoritative PDF of this publication, visit csrc.nist.gov/publications.",
+   "expected_span": [
+    0,
+    80
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 331,
+    "wall_ms": 86.86999999999999,
+    "tool_calls": 2,
+    "span": [
+     23752,
+     24615
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "spine": 0,
+     "block": 0
+    },
+    "answer": "For the authoritative PDF of this publication, visit csrc.nist.gov/publications."
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 321,
+    "wall_ms": 0.432155909948051,
+    "tool_calls": 2,
+    "span": [
+     0,
+     80
+    ],
+    "nmatches": 1,
+    "answer": "For the authoritative PDF of this publication, visit csrc.nist.gov/publications."
+   }
+  },
+  {
+   "doc": "nist-epub-0008",
+   "fmt": "epub",
+   "unit_kind": "block",
+   "anchor": "self-service",
+   "expected_text": "On-demand self-service. A consumer can unilaterally provision computing capabilities, such as server time and network storage, as needed automatically without requiring human interaction with each service provider.",
+   "expected_span": [
+    5559,
+    5773
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 357,
+    "wall_ms": 0.5,
+    "tool_calls": 2,
+    "span": [
+     30771,
+     33766
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "spine": 6,
+     "block": 3
+    },
+    "answer": "On-demand self-service. A consumer can unilaterally provision computing capabilities, such as server time and network storage, as needed automatically without requiring human interaction with each service provider."
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 349,
+    "wall_ms": 0.23813487496227026,
+    "tool_calls": 2,
+    "span": [
+     5559,
+     5773
+    ],
+    "nmatches": 1,
+    "answer": "On-demand self-service. A consumer can unilaterally provision computing capabilities, such as server time and network storage, as needed automatically without requiring human interaction with each service provider."
+   }
+  },
+  {
+   "doc": "nist-epub-0008",
+   "fmt": "epub",
+   "unit_kind": "block",
+   "anchor": "responsible",
+   "expected_text": "NIST is responsible for developing standards and guidelines, including minimum requirements, for providing adequate information security for all agency operations and assets; but such standards and guidelines shall not apply to national security systems. This guideline is consistent with the requirements of the Office of Management and Budget (OMB) Circular A-130, Section 8b(3), “Securing Agency Information Systems,” as analyzed in A-130, Appendix IV: Analysis of Key Sections. Supplemental information is provided in A-130, Appendix III.",
+   "expected_span": [
+    3241,
+    3787
+   ],
+   "vole": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 417,
+    "wall_ms": 0.416,
+    "tool_calls": 2,
+    "span": [
+     28968,
+     30701
+    ],
+    "nmatches": 1,
+    "source_ref": {
+     "spine": 5,
+     "block": 3
+    },
+    "answer": "NIST is responsible for developing standards and guidelines, including minimum requirements, for providing adequate information security for all agency operations and assets; but such standards and guidelines shall not apply to national security systems. This guideline is consistent with the requirements of the Office of Management and Budget (OMB) Circular A-130, Section 8b(3), “Securing Agency Information Systems,” as analyzed in A-130, Appendix IV: Analysis of Key Sections. Supplemental information is provided in A-130, Appendix III."
+   },
+   "baseline": {
+    "correct": true,
+    "grounded": true,
+    "tokens": 409,
+    "wall_ms": 0.27434201911091805,
+    "tool_calls": 2,
+    "span": [
+     3241,
+     3787
+    ],
+    "nmatches": 1,
+    "answer": "NIST is responsible for developing standards and guidelines, including minimum requirements, for providing adequate information security for all agency operations and assets; but such standards and guidelines shall not apply to national security systems. This guideline is consistent with the requirements of the Office of Management and Budget (OMB) Circular A-130, Section 8b(3), “Securing Agency Information Systems,” as analyzed in A-130, Appendix IV: Analysis of Key Sections. Supplemental information is provided in A-130, Appendix III."
+   }
+  }
+ ],
+ "per_doc": [
+  {
+   "doc": "nist-pdf-0001",
+   "fmt": "pdf",
+   "path": "real100-v1/documents/nist/pdf/nist-pdf-0001.pdf",
+   "source_bytes": 544047,
+   "ref_bytes": 270114,
+   "nunits": 3065,
+   "n_tasks": 3,
+   "probe": {
+    "read_selector": "--page 1 --kind text",
+    "read_span": null,
+    "read_rc": 0
+   },
+   "vole": {
+    "rc": 0,
+    "wall_ms": 174.51195197645575,
+    "peak_rss_kb": 30312,
+    "storage_bytes": 4936401,
+    "field": "404397739289c3a5d4d28387eb9338283e17f2f468cb07a1ac687184f32f7c04"
+   },
+   "baseline": {
+    "rc": 0,
+    "wall_ms": 407.5786810135469,
+    "peak_rss_kb": 36060,
+    "storage_bytes": 667426
+   }
+  },
+  {
+   "doc": "nist-pdf-0016",
+   "fmt": "pdf",
+   "path": "real100-v1/documents/nist/pdf/nist-pdf-0016.pdf",
+   "source_bytes": 310627,
+   "ref_bytes": 22050,
+   "nunits": 296,
+   "n_tasks": 3,
+   "probe": {
+    "read_selector": "--page 1 --kind text",
+    "read_span": null,
+    "read_rc": 0
+   },
+   "vole": {
+    "rc": 0,
+    "wall_ms": 39.38347194343805,
+    "peak_rss_kb": 30356,
+    "storage_bytes": 1142985,
+    "field": "c61ea4e9c37eabb60e9ff8d8b29964128f630435664d50701c49fe2979b62616"
+   },
+   "baseline": {
+    "rc": 0,
+    "wall_ms": 44.820275041274726,
+    "peak_rss_kb": 36060,
+    "storage_bytes": 63010
+   }
+  },
+  {
+   "doc": "nist-pdf-0004",
+   "fmt": "pdf",
+   "path": "real100-v1/documents/nist/pdf/nist-pdf-0004.pdf",
+   "source_bytes": 1105061,
+   "ref_bytes": 254617,
+   "nunits": 3054,
+   "n_tasks": 3,
+   "probe": {
+    "read_selector": "--page 1 --kind text",
+    "read_span": null,
+    "read_rc": 0
+   },
+   "vole": {
+    "rc": 0,
+    "wall_ms": 65.14357903506607,
+    "peak_rss_kb": 30984,
+    "storage_bytes": 9880127,
+    "field": "84342e7ee03f713de4e4653fb8929de305bbb2a161acf4b62290afc88b22d56f"
+   },
+   "baseline": {
+    "rc": 0,
+    "wall_ms": 352.5584469316527,
+    "peak_rss_kb": 36700,
+    "storage_bytes": 635545
+   }
+  },
+  {
+   "doc": "nist-docx-0001",
+   "fmt": "docx",
+   "path": "real100-v1/documents/nist/docx/nist-docx-0001.docx",
+   "source_bytes": 2286200,
+   "ref_bytes": 12310,
+   "nunits": 123,
+   "n_tasks": 3,
+   "probe": {
+    "read_selector": "--block 0 --kind text",
+    "read_span": [
+     1949,
+     14067
+    ],
+    "read_rc": 0
+   },
+   "vole": {
+    "rc": 0,
+    "wall_ms": 41.910336003638804,
+    "peak_rss_kb": 31060,
+    "storage_bytes": 4819049,
+    "field": "cbcb25e927c88072a6f497ee8027748cc8e5e25e8973f3278f974b01e467fc4c"
+   },
+   "baseline": {
+    "rc": 0,
+    "wall_ms": 10.940160020254552,
+    "peak_rss_kb": 36976,
+    "storage_bytes": 40982
+   }
+  },
+  {
+   "doc": "nist-docx-0005",
+   "fmt": "docx",
+   "path": "real100-v1/documents/nist/docx/nist-docx-0005.docx",
+   "source_bytes": 57045,
+   "ref_bytes": 35479,
+   "nunits": 243,
+   "n_tasks": 3,
+   "probe": {
+    "read_selector": "--block 0 --kind text",
+    "read_span": [
+     2440,
+     29973
+    ],
+    "read_rc": 0
+   },
+   "vole": {
+    "rc": 0,
+    "wall_ms": 21.94501005578786,
+    "peak_rss_kb": 32180,
+    "storage_bytes": 570057,
+    "field": "60d871163df68550348c9d147c4f4634a8deef98c4b97b42afcadde2835e6f11"
+   },
+   "baseline": {
+    "rc": 0,
+    "wall_ms": 14.344990951940417,
+    "peak_rss_kb": 38000,
+    "storage_bytes": 92823
+   }
+  },
+  {
+   "doc": "nist-docx-0013",
+   "fmt": "docx",
+   "path": "real100-v1/documents/nist/docx/nist-docx-0013.docx",
+   "source_bytes": 25400,
+   "ref_bytes": 2523,
+   "nunits": 13,
+   "n_tasks": 3,
+   "probe": {
+    "read_selector": "--block 0 --kind text",
+    "read_span": [
+     2538,
+     7731
+    ],
+    "read_rc": 0
+   },
+   "vole": {
+    "rc": 0,
+    "wall_ms": 21.589085925370455,
+    "peak_rss_kb": 33164,
+    "storage_bytes": 165116,
+    "field": "701d4cd1c101b35918fcfc3df0a36a2ed7d7f89762779b9360d04ff12f05bfe4"
+   },
+   "baseline": {
+    "rc": 0,
+    "wall_ms": 8.675794932059944,
+    "peak_rss_kb": 39024,
+    "storage_bytes": 14811
+   }
+  },
+  {
+   "doc": "nist-epub-0001",
+   "fmt": "epub",
+   "path": "real100-v1/documents/nist/epub/nist-epub-0001.epub",
+   "source_bytes": 168431,
+   "ref_bytes": 237926,
+   "nunits": 1096,
+   "n_tasks": 3,
+   "probe": {
+    "read_selector": "--block 0 --kind text",
+    "read_span": [
+     46039,
+     46882
+    ],
+    "read_rc": 0
+   },
+   "vole": {
+    "rc": 0,
+    "wall_ms": 23.82534695789218,
+    "peak_rss_kb": 33176,
+    "storage_bytes": 1232513,
+    "field": "1566c68bf2c2af6de5dfa589205eedd9e6a59690a30c0f8f0930419917fa5255"
+   },
+   "baseline": {
+    "rc": 0,
+    "wall_ms": 36.73264605458826,
+    "peak_rss_kb": 39024,
+    "storage_bytes": 553318
+   }
+  },
+  {
+   "doc": "nist-epub-0003",
+   "fmt": "epub",
+   "path": "real100-v1/documents/nist/epub/nist-epub-0003.epub",
+   "source_bytes": 89755,
+   "ref_bytes": 137942,
+   "nunits": 810,
+   "n_tasks": 3,
+   "probe": {
+    "read_selector": "--block 0 --kind text",
+    "read_span": [
+     13795,
+     14551
+    ],
+    "read_rc": 0
+   },
+   "vole": {
+    "rc": 0,
+    "wall_ms": 27.28023298550397,
+    "peak_rss_kb": 35300,
+    "storage_bytes": 795344,
+    "field": "c53ce8d4624c3159b4a2a5e75e445944bc085eeb96c36e94f363cc67170869d5"
+   },
+   "baseline": {
+    "rc": 0,
+    "wall_ms": 30.223503010347486,
+    "peak_rss_kb": 41072,
+    "storage_bytes": 330454
+   }
+  },
+  {
+   "doc": "nist-epub-0008",
+   "fmt": "epub",
+   "path": "real100-v1/documents/nist/epub/nist-epub-0008.epub",
+   "source_bytes": 35841,
+   "ref_bytes": 11067,
+   "nunits": 78,
+   "n_tasks": 3,
+   "probe": {
+    "read_selector": "--block 0 --kind text",
+    "read_span": [
+     23752,
+     24615
+    ],
+    "read_rc": 0
+   },
+   "vole": {
+    "rc": 0,
+    "wall_ms": 42.80792991630733,
+    "peak_rss_kb": 36220,
+    "storage_bytes": 142913,
+    "field": "61f265ed465943daf22fdcf9ef683f1dbc0b3d92068d39e59eb6645cd7deed85"
+   },
+   "baseline": {
+    "rc": 0,
+    "wall_ms": 10.354937054216862,
+    "peak_rss_kb": 41968,
+    "storage_bytes": 39739
+   }
+  }
+ ]
+}

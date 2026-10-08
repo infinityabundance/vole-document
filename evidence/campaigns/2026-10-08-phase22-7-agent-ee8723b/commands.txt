@@ -1,0 +1,18 @@
+# Phase 22.7 (P6) — document-agent economic court
+# Commit under test: ee8723bdefb74670dd6f15fdae7a788b208bb81f (branch staging); dirty: ?? evidence/campaigns/2026-10-08-phase22-7-agent-ee8723b/;?? tools/fixtures/phase22-7-agent.py;?? tools/phase22-7-agent-court.sh;
+# Service: llm-workingset; base rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e; rustc rustc 1.99.0 (b940084d7 2026-09-28); cargo cargo 1.99.0 (5f94df478 2026-08-27); python Python 3.11.2; sqlite 3.40.1; poppler 22.12.0
+# Tokenizer asset: tools/tokenizers/bert-base-uncased.tokenizer.json sha256=ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98 (expected ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98); runtime present=yes (0.20.3)
+# ALL commands run inside the pinned, capped compose service; nothing on the host.
+#   docker compose run --rm --no-TTY llm-workingset bash tools/phase22-7-agent-court.sh
+# The court, inside the container:
+#   cargo build --release --locked --all-features            # release, all-features, locked
+#   python3 tools/fixtures/phase22-7-agent.py run --outdir evidence/campaigns/2026-10-08-phase22-7-agent-ee8723b --docs evidence/campaigns/2026-10-08-phase22-7-agent-ee8723b/raw/docs.tsv --vbin target/release/vole-document \
+#       --tokenizer tools/tokenizers/bert-base-uncased.tokenizer.json --expect-sha256 ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98 --tokname bert-base-uncased \
+#       --work evidence/scratch/phase22-7-agent-work --tasks-per-doc 3
+# Per document:
+#   $BIN field-build SRC --store DIR/vstore --profile runtime --packed   (VOLE doc-prep)
+#   $BIN observe-batch --store DIR/vstore --field FIELD --packed --requests REQ   (VOLE locate: --text A --kind text)
+#   $BIN observe-batch ... --requests REQ   (VOLE read: --page P | --block K --kind text; K from a
+#           deterministic --block metadata enumeration mapping the search coordinate to the block ordinal)
+#   python: reference extraction (pdftotext -layout / OPC XML) + SQLite units; locate = case-sensitive
+#           instr(text,?) (VOLE find is case-sensitive too); read = SELECT text,span by unit_id   (baseline)
