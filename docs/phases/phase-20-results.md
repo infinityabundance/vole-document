@@ -29,7 +29,11 @@ results are recorded, never buried. Exactness is the same invariant throughout:
   prefix-exact recovery, and the corruption fail-closed path — it does **not**
   prove durability under true power loss or a torn/lost rename, because
   `SIGKILL` does not evict the OS page cache and `write_atomic` never
-  dir-fsyncs (20.1).
+  dir-fsyncs (20.1). **Phase 23 closes and models this** (directory `fsync`,
+  default `Safe`; a barrier-log power-loss proxy) so only a **true hardware
+  power cut** remains unproven — see
+  [ADR-0057](../adr/0057-directory-fsync-and-power-loss-proxy.md) and
+  [phase-23-results.md](phase-23-results.md).
 - **Large-source memory improved by 33% and a ~1 GiB source now ingests.** The
   direct build's peak RSS fell from **5.998×** to **3.997×** source on the
   `real100-v1` span; `nasa-pdf-0001` dropped **2342 → 1563 MiB**, and a 1 GiB
@@ -133,7 +137,12 @@ fails to materialize exactly, or violates the prefix property — none occurred.
 cache survives, so the court does **not** measure loss of un-`fsync`ed records
 under true power loss. The `write_atomic` rename is never followed by a parent
 directory `fsync`, so a torn/lost rename across a real power cut is **argued,
-not measured**. Family C (deterministic abort) requires the non-default
+not measured**. **Closed by Phase 23**: every atomic publish now dir-fsyncs
+(default `DirSyncPolicy::Safe`) and a barrier-log model reconstructs the
+post-power-loss store
+([ADR-0057](../adr/0057-directory-fsync-and-power-loss-proxy.md);
+[phase-23-results.md](phase-23-results.md)); only a true hardware power cut is
+unproven. Family C (deterministic abort) requires the non-default
 `fault-inject` feature; without it family C reports as skipped.
 
 ## 20.2 Large-source memory architecture for the direct build
@@ -354,7 +363,8 @@ cannot derive, and the provenance says so (`basis=external-metadata`,
 - **Exactness is untouched throughout:** `materialize --exact` 16/16 (20.2),
   12/12 + 480 envelopes / 0 mismatches (20.3), 12/12 both lanes (20.4).
 - **Claim discipline.** The durability court's scope is stated with it
-  (ordering/prefix/fail-closed **proven**; true power loss and torn rename
-  **not proven**); the memory bound is a measured `C + k·source` with a stated
+  (ordering/prefix/fail-closed **proven**; the directory-`fsync`/torn-rename gap
+  is **closed and modelled in Phase 23**, [ADR-0057](../adr/0057-directory-fsync-and-power-loss-proxy.md),
+  leaving only a true hardware power cut unproven); the memory bound is a measured `C + k·source` with a stated
   floor and no raised cap; the warm loss is recorded durable rather than tuned
   away; and C4b is closed by a typed external layer whose basis is never exact.

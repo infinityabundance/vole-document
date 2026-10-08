@@ -169,24 +169,25 @@ The warm loss is now **diagnosed and durable**; the packed store's durability is
 ([ADR-0050](../adr/0050-sqlite-as-substrate-question.md)) is unchanged and no
 option of it is chosen.
 
-## Phase-22 programme (22.1 complete; 22.2–22.7 planned)
+## Phase-22 programme (22.1–22.2 complete; 22.3–22.7 planned)
 
 Phase 22 is the **economic programme** synthesised from an external technical
 review: it targets a better **capability/cost frontier** against the strongest
 honest competitor, in a commercially relevant workload region, with bounded
 statistics and no loss of accuracy or capability. **22.1 (the competitor
-envelope) is complete and sealed**; **22.2–22.7 remain gates/priors, not
-measurements**. Plan: [phase-22-plan.md](../phases/phase-22-plan.md); results:
+envelope) and 22.2 (the profiling gate) are complete and sealed**; **22.3–22.7
+remain gates/priors, not measurements**. Plan:
+[phase-22-plan.md](../phases/phase-22-plan.md); results:
 [phase-22-results.md](../phases/phase-22-results.md); the IP/presentation
 distinction it depends on is [ADR-0056](../adr/0056-runtime-vs-research-reconstruction-programs.md).
-Nothing below is measured beyond **22.1**; each remaining row is a **gate** and its
-**prior** (a VOLE win is not presumed likely against the record). Order is by
-dependency and risk.
+Nothing below is measured beyond **22.1–22.2**; each remaining row is a **gate**
+and its **prior** (a VOLE win is not presumed likely against the record). Order is
+by dependency and risk.
 
 | Subphase | Review | Question | Prior / gate |
 |---|---|---|---|
 | 22.1 Competitor envelope | P0 | Is there a strong competitor envelope, including an adaptive and a hybrid SQLite, before any frontier claim? | **Complete (Phase 22.1).** Six purpose-tuned SQLite configurations added, the Phase-18 baseline kept **unmodified** as the `hist` control; gate met (**no omitted capability**, durability compared explicitly). Against the tuned envelope: storage **0.762× `full` / 0.805× `adaptive`**, build **0.219× `full`** (0.194× `hist`), cold **0.812× `full`**, warm a **loss** (**1.211× `full`**, 95% CI 1.006–1.483); equivalence **1920/1920**, 0 mismatches; exactness 12/12 VOLE, 6/6 per doc per config. `2026-10-08-phase22-competitors-86d9312` |
-| 22.2 Compact query-native directory / hot-cold layout | P1 | Can warm CPU/I/O/allocation fall without storage growth or weaker integrity? | Gate: meaningful warm reduction at equal observations/provenance; any answer change falsifies |
+| 22.2 Compact query-native directory / hot-cold layout | P1 | Can warm CPU/I/O/allocation fall without storage growth or weaker integrity? | **Complete (negative, Phase 22.2).** Decisive profiling gate **first, nothing shipped**. Warm session **open 55.5 % (`Descriptor::parse` 44.7 %) + loop 44.5 %**; probe **0.4 %**; index read+verify **10.5 %** (redundancy: 493 opens / 20 files, one depth-0 root leaf re-read 24–117×). A perfect selector directory removes ≤10.6 % (≈**0.13** shift) vs court **MDE ≈0.399** → **cannot be resolved**; it would also add persistent bytes. Before/after warm court vs tuned `full` is a **NULL** (1.211 → 1.293, overlapping CIs); no layout byte changed; exactness 12/12, 0 mismatches. Left for a **higher-resolution** court: in-session verified-node memo (0 persistent bytes, still sub-MDE); split `dispatch` (32 %). `2026-10-08-phase22-2-d81689c` |
 | 22.3 Fused heterogeneous execution | P2 | Can a known batch be one dependency closure and one schedule? | Target **≥2×** less decoded/materialized work on overlap-rich loads; explicitly **not** adaptive promotion (ADR-0046) |
 | 22.4 Unknown-query lifetime frontier | P3 | On a hidden schedule, which system wins the cumulative lifetime frontier? | All adaptation costs charged; SQLite gets a serious adaptive strategy; prior: Phase-15 promotion **lost** |
 | 22.5 Large/remote selective materialization | P4 | Can remote byte-range reads cut bytes transferred at competitive p95? | Gate: major transfer reduction at competitive p95; competitor gets an equal remote cache/range interface |
@@ -202,6 +203,25 @@ publishable negative results**. Explicitly **not** pursued: another generic Rayo
 pass (ADR-0044), speculative CUDA (ADR-0048), more compression candidates
 (ADR-0017), or reviving the refuted cross-root-derivation / adaptive-promotion
 results (ADR-0046/0047).
+
+## Phase-23 outcomes
+
+Phase 23 closes the **two durability gaps Phase 20.1 named but could not measure**, by
+engineering rather than by re-assertion. Both are **complete and sealed**.
+Results: [phase-23-results.md](../phases/phase-23-results.md); decision:
+[ADR-0057](../adr/0057-directory-fsync-and-power-loss-proxy.md); the closing
+amendment to [ADR-0053](../adr/0053-batched-packed-sync.md).
+
+| Item | Question | Outcome |
+|---|---|---|
+| 23.1 Directory `fsync` (GAP 1) | Does an atomic publish make the **rename** durable, so a published manifest survives a power cut? | **Complete — adopted, default `Safe`.** Every atomic writer `fsync`s the containing directory after the rename and on new segment / index creation, through one `src/store/durable.rs` seam (`field::write_atomic`, `FsSeedStore::put_node`, `FsIndexStore::put`, packed `ensure_open`/`seal`). `--dir-sync=off` is an explicit escape hatch. Cost on the host bind mount: fs **717 → 1,400 ms** (~1.95×, one dir-`fsync` per node, ~6,800 for the doc), packed **23 → 35 ms** (~1.5×); below noise on tmpfs. Load-bearing, not decorative: with `--dir-sync=off` the model loses the whole published store 4/4 |
+| 23.2 Model-based power-loss proxy (GAP 2) | Can un-barriered bytes be shown to be the only thing lost, without a real power cut? | **Complete — 32 cases, 20 PASS / 0 FAIL / 0 CRITICAL on shipped arms; 12 CRITICAL on the counterfactual `model-drop` arms (sensitivity control); `bad_hash` 0.** Non-default `power-log` feature journals every barrier with its byte range; `tests/power_loss_proxy.rs` folds the log into a per-path model (a file survives only if its create/rename was followed by a parent `dirsync`; content truncated to the last completed barrier), reconstructs the post-power-loss store, and re-runs the Phase-20.1 invariants under Batch/Each × fs/packed, complete and cut. **Residual: a model from a barrier log, not a physical power cut** — no device write cache, journal, torn sectors, or real directory-entry loss |
+
+The **`Batch` vs `Each`** distinction is now stated precisely: under the model they
+are **equivalent for the published-manifest invariant** (flush-before-publish), and
+differ only for the **unreferenced** open-segment tail (visible at the
+`flush.before_sync` cut). The remaining honest open item is a **true hardware power
+cut**, which the pinned unprivileged lane cannot reproduce.
 
 ## Unmeasured gates
 

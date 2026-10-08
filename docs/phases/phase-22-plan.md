@@ -1,9 +1,13 @@
 # Phase 22 — Economic programme: a strong competitor, shared execution, lifetime cost
 
-> **IN PROGRESS.** Subphase **22.1 (competitor envelope) is complete and released**
-> in `v0.1.0-alpha.26` — see [phase-22-results.md](phase-22-results.md). Subphases
-> **22.2–22.7 remain planned and not started.** Everything below that is not 22.1
-> is a **target** or a **gate**, never a result. (The format programme,
+> **IN PROGRESS.** Subphases **22.1 (competitor envelope) and 22.2 (compact
+> query-native directory — profiling gate) are complete** — 22.1 was released in
+> `v0.1.0-alpha.26`, 22.2 in `v0.1.0-alpha.27` (both sealed; see
+> [phase-22-results.md](phase-22-results.md)). **22.2 shipped *nothing*
+> structurally**: the index/selector layer is 10.6 % of the warm session and
+> sub-resolution, so the phase is a **publishable negative**. Subphases
+> **22.3–22.7 remain planned and not started.** Everything below that is not 22.1
+> or 22.2 is a **target** or a **gate**, never a result. (The format programme,
 > [Phase 21](phase-21-plan.md), remains deferred and unstarted; this programme
 > runs on the already-shipped PDF/DOCX/EPUB/ODT surface, and its last format
 > subphase (P7) is **Phase 21's** work evaluated through this thesis.)
@@ -12,7 +16,8 @@
 > style. Where the review's claim could not be rendered exactly, the deviation is
 > noted in the final message to the orchestrator, not silently smoothed.
 
-Branch: `phase22` (merged as `v0.1.0-alpha.26`). Base: `main` @ `v0.1.0-alpha.25` (Phase 20).
+Branch: `phase22` (22.1; merged as `v0.1.0-alpha.26`; **22.2 measured on
+`phase23`**, released `v0.1.0-alpha.27`). Base: `main` @ `v0.1.0-alpha.25` (Phase 20).
 Predecessors (read this plan with them): [phase-20-results.md](phase-20-results.md),
 [Phase 21 plan](phase-21-plan.md), [ADR-0050](../adr/0050-sqlite-as-substrate-question.md),
 [ADR-0051](../adr/0051-direct-field-ingestion.md),
@@ -69,7 +74,7 @@ by dependency and risk, not by expected payoff.
 | Subphase | Review | Question |
 |---|---|---|
 | **22.1** | **P0** | Is there a **strong competitor envelope**, including an adaptive and a hybrid SQLite, before any frontier claim is made? |
-| **22.2** | **P1** | Can a **compact query-native directory / hot-cold layout** cut warm CPU/I/O/allocation without adding storage or weakening integrity? |
+| **22.2** | **P1** | Can a **compact query-native directory / hot-cold layout** cut warm CPU/I/O/allocation without adding storage or weakening integrity? **Complete (negative)** — index is 10.6 % and sub-MDE; nothing shipped |
 | **22.3** | **P2** | Can a heterogeneous batch be executed as **one dependency closure and one schedule**, sharing work already known to the batch? |
 | **22.4** | **P3** | On an **unknown** query schedule, which system wins the **cumulative lifetime frontier**? |
 | **22.5** | **P4** | Can bounded **remote** selective materialization reduce bytes transferred at competitive p95 latency? |
@@ -79,7 +84,15 @@ by dependency and risk, not by expected payoff.
 
 ---
 
-## 22.1 Competitor envelope (P0, next)
+## 22.1 Competitor envelope (P0) — complete
+
+**Recorded (22.1, `2026-10-08-phase22-competitors-86d9312`, released
+`v0.1.0-alpha.26`).** Six purpose-tuned SQLite configurations were added and the
+Phase-18 baseline kept unmodified as the `hist` control; **no capability gap
+remains**. Against the tuned envelope at C5: build **0.219×** `full` (0.194×
+`hist`), bytes **0.762×** `full` (0.805× `adaptive`; the old 0.53× was against a
+contract-dead FTS index), cold **0.812×**, warm a **loss** (**1.211×**, 95 % CI
+1.006–1.483). See [phase-22-results.md](phase-22-results.md).
 
 **Question.** What is the **strongest honest competitor** an expert could build
 for each required capability, before any VOLE frontier claim is made?
@@ -117,13 +130,25 @@ capability the contract demands is a missing competitor, not a win.
 
 ---
 
-## 22.2 Compact query-native directory / hot-cold layout (P1)
+## 22.2 Compact query-native directory / hot-cold layout (P1) — **complete (negative)**
 
 **Question.** `src/field/index.rs` persists hash-addressed index nodes as
 **individual files**. Can the request critical path be made materially cheaper
 without adding persistent bytes or weakening integrity checks?
 
-**Method.** Profile the full critical path —
+**Recorded (22.2, `2026-10-08-phase22-2-d81689c`).** A decisive profiling gate ran
+first and **no structural layout was shipped**. The warm session is **open 55.5 %
+(`Descriptor::parse` 44.7 %) + loop 44.5 %**; inside the loop selector resolution
+(**probe**) is **0.4 %** and index-node read+verify is **10.5 %** — and that
+10.5 % is **redundancy** (493 opens for 20 files: one immutable root leaf
+depth-0 re-read 24–117×), not lookup work. A *perfect* selector directory removes
+at most **10.6 %**, an implied shift of **~0.13** against a court **MDE ≈0.399**:
+**below resolution**. The before/after warm court vs the tuned `full` envelope is
+a **NULL** (1.211 → 1.293, overlapping CIs) with no layout byte changed. Left as
+a candidate for a future **higher-resolution** court: an **in-session
+verified-node memo** (zero persistent bytes, still sub-MDE).
+
+**Method (as originally planned).** Profile the full critical path —
 selector resolution → index-node access → verification → decoding → typed-model
 access → answer construction → serialization — for **allocations, syscalls,
 bytes read, CPU, page faults, cache misses, wall**. Then test, separately:

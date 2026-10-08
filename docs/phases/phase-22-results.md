@@ -1,13 +1,15 @@
 # Phase 22 results
 
-Branch: `phase22`. Base: `main` @ `v0.1.0-alpha.25` (Phase 20). Plan
-(PLANNED, not started at the time of writing): [phase-22-plan.md](phase-22-plan.md).
+Branch: `phase22` (22.1; released `v0.1.0-alpha.26`). **22.2 was measured on the
+`phase23` branch** and released in `v0.1.0-alpha.27`. Base: `main` @
+`v0.1.0-alpha.25` (Phase 20). Plan: [phase-22-plan.md](phase-22-plan.md).
 
 **Programme in progress.** The Phase-22 economic programme is ordered
-22.1 → 22.7 (P0–P6); **22.1 is complete and sealed**, and **22.2–22.7 are still
-planned**, not measured. Nothing below should be read as a Phase-22 frontier
-claim: 22.1 is the *competitor envelope* that must exist **before** any such
-claim is made. Every figure in 22.1 links to the sealed receipt
+22.1 → 22.7 (P0–P6); **22.1 and 22.2 are complete and sealed**, and **22.3–22.7
+are still planned**, not measured. Nothing below should be read as a Phase-22
+frontier claim: 22.1 is the *competitor envelope* that must exist **before** any
+such claim is made, and 22.2 is a **profiling gate** that decided **not** to
+build its candidate. Every figure in 22.1 links to the sealed receipt
 [`evidence/campaigns/2026-10-08-phase22-competitors-86d9312`](../../evidence/campaigns/2026-10-08-phase22-competitors-86d9312/)
 and to the frozen decision records [ADR-0053](../adr/0053-batched-packed-sync.md)
 and [ADR-0054](../adr/0054-repeatability-and-paired-measurement.md).
@@ -138,3 +140,89 @@ reported as wide.
   loss in Phase 20.3 / ADR-0054.
 - **Exactness and answer equivalence are untouched:** 12/12 VOLE exact, 6/6 per
   document per configuration, 1920/1920 envelopes byte-identical, 0 mismatches.
+
+## 22.2 Compact query-native directory — profiling gate says DO NOT BUILD
+
+**Question.** `src/field/index.rs` persists hash-addressed index nodes as
+**individual files**. Can the warm request critical path be made materially
+cheaper — without adding persistent bytes or weakening integrity checks?
+
+**Method — attribute the warm session before designing a layout.** Per the
+Phase-22 plan's own rule ("if index traversal is a small part of total work,
+don't force an index redesign merely because the phase is named after it"), the
+subphase ran a **decisive profiling gate first**, with five independent
+instruments, and shipped **no structural change**.
+
+**Receipt.**
+[`2026-10-08-phase22-2-d81689c`](../../evidence/campaigns/2026-10-08-phase22-2-d81689c/)
+(`SUMMARY.md`, `raw/profile/`, `raw/court-summary.md`, `raw/warm_samples.tsv`);
+profiler `src/field/prof.rs` (env-gated `VOLE_PROFILE_OPEN`, **off by default**),
+`tools/phase22-2-profile.sh`, `tools/phase22-2-court.sh`. Same 12-document
+subset; the SQLite lane is the Phase-22.1 tuned `full` envelope; ADR-0054
+estimator (N=100 paired, interleaved, every sample retained, bootstrap 20,000
+seed 220200). Same accounting as 22.1 (ADR-0049).
+
+**Stage attribution (12-doc packed subset, one warm session per document,
+pooled 22,219 µs):**
+
+| stage | share |
+|---|---:|
+| open (manifest + descriptor read + `Descriptor::parse`) | **55.5 %** |
+| — of which `Descriptor::parse` | **44.7 %** |
+| request loop | 44.5 % |
+| — dispatch (evaluation core) | 32.0 % |
+| — serialize (answer JSON) | 8.4 % |
+| — materialize / typed-model decode | 6.3 % |
+| — **probe (selector resolution)** | **0.4 %** |
+| index node read + BLAKE3 verify | 10.5 % |
+| index node decode | 0.1 % |
+
+**The index term is redundancy, not lookup work.** `strace -e trace=openat`
+shows **493 index-node opens for 20 distinct files** across the 12 sessions:
+`FsIndexStore` stores hash-addressed nodes as individual files, the trees are
+depth-0 (one leaf is the root), and every selector descent **re-opens, re-reads
+and re-hashes the same immutable node** (`nist-epub-0009` opens one file **117×**).
+`parse_node` is 0.1 %.
+
+**Computed headroom — below resolution.** A *perfect* offset-addressed selector
+directory removes at most the index share (**10.6 %** pooled / 10.0 % median;
+PDF 0.9–3.6 %, DOCX 4.2–15.7 %, EPUB 15.0–24.1 %), touches none of the 44.7 %
+parse, 32.0 % dispatch or 8.4 % serialize, and would **add** persistent bytes.
+Implied headline shift ≈ **0.13**. The court's **minimum detectable effect at
+N=100 is ≈ 0.399** (half-width ±0.279), so a perfect directory is **~3× below
+the MDE and cannot be credited even if built**.
+
+**Before/after (the AFTER binary is the BEFORE binary plus the off-by-default
+profiler — no wire byte, no on-disk layout, no answer change):**
+
+| run | docs | pairs | median ratio (95 % CI) | geo-mean (95 % CI) | W/T/L |
+|---|---:|---:|---|---|---|
+| BEFORE — Phase 22.1 (`2026-10-08-phase22-competitors-86d9312`) | 12 | 1200 | 1.211 (1.006–1.483) | — | — |
+| AFTER — this run | 12 | 1200 | **1.293 (1.002–1.561)** | **1.246 (1.048–1.488)** | 2 / 4 / 6 |
+
+The two runs agree within their intervals: a **NULL**. The warm position is a
+**real loss vs the tuned envelope, unchanged** — the selector layout is **not**
+the lever.
+
+**Integrity / semantics / bytes.** VOLE `materialize --exact --packed` **12/12**,
+the tuned SQLite `full` retained blob **12/12**; **480** warm answers, **0** value
+mismatches; persistent bytes VOLE **7,778,087 B** vs `full` **10,199,040 B** =
+**0.763×**, reproducing 22.1's 0.762× storage headline byte-for-byte. No layout
+byte changed.
+
+## What 22.2 established
+
+- **The index/selector layer is not the warm bottleneck.** It is **10.6 %**
+  pooled, dominated by redundant re-reads of one immutable content-addressed
+  leaf (493 opens / 20 files); selector resolution is **0.4 %**; the dominant term
+  is the one-time full **`Descriptor::parse` (44.7 %)** at field open.
+- **Nothing structural was shipped**, and the before/after warm court is a
+  **NULL** (1.211 → 1.293, overlapping CIs). The candidate cannot be resolved by
+  this court (~0.13 implied shift vs MDE ≈0.40), so building it would be
+  unjustifiable complexity — precisely the "failed gate is a publishable
+  negative" outcome the plan pre-registered.
+- **Cheapest real lever identified for later, not built:** an **in-session
+  verified-node memo** (one immutable leaf re-read 24–117×) removes most of the
+  10.6 % for **zero** persistent bytes — still sub-MDE, so a future phase with a
+  **higher-resolution court** is required before crediting it. `dispatch` (32 %)
+  is a single bucket and must be split before anything is credited against it.
