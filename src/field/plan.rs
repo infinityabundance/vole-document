@@ -100,6 +100,9 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
         }),
         (Selector::Object(_), R::ExactBytes | R::EncodedBytes) => Ok(index_plan("PdfObject")),
         (Selector::Revision(_), R::ExactBytes) => Ok(index_plan("PdfRevision")),
+        (Selector::Revisions, R::Lineage) | (Selector::Revision(_), R::Lineage) => {
+            Ok(index_plan("PdfRevisionLineage"))
+        }
         (Selector::Member(_), R::EncodedBytes) => Ok(ObservePlan {
             shape: PlanShape::IndexLookup,
             index_reads: 1,

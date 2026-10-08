@@ -1,0 +1,1 @@
+{"obs":"resource","declined":1,"value_kind":"json","value":{"path":null,"member_bytes":null,"member_sha256":null},"coord":{"format":"docx","kind":"resource","ordinal":0},"provenance":null,"exact":{"length":152516,"sha256":"b90eb95de2c2dfcc5e91615f479ae55450d1a44ad87d4d666c3bc53c169e4ef9"},"revision":{"family_id":"rev-nist-sp800-53","member_id":"nist-docx-0009","is_head":1}}

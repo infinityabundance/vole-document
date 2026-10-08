@@ -99,6 +99,13 @@ pub enum NodeKind {
     /// bookmarks/notes/resources/tracked changes/sections), honoring a declared
     /// extraction profile. Derived, never exact (Phase 13.3).
     OdtContent = 0x18,
+    /// The PDF **revision lineage** (Phase 17): a compact JSON projection of the
+    /// physical incremental revision chain (count, ordered indices, byte spans,
+    /// resolved `startxref`/`/Prev`, and per-revision object/stream membership),
+    /// computed once at ingest from the byte-authoritative scan. Derived, never
+    /// exact. There is one document-level node (the whole lineage) and one
+    /// per-revision node.
+    PdfRevisionLineage = 0x19,
 }
 
 impl NodeKind {
@@ -129,6 +136,7 @@ impl NodeKind {
             0x16 => NodeKind::ResourceBlob,
             0x17 => NodeKind::OdtModel,
             0x18 => NodeKind::OdtContent,
+            0x19 => NodeKind::PdfRevisionLineage,
             _ => return None,
         })
     }
@@ -160,6 +168,7 @@ impl NodeKind {
             NodeKind::ResourceBlob => "ResourceBlob",
             NodeKind::OdtModel => "OdtModel",
             NodeKind::OdtContent => "OdtContent",
+            NodeKind::PdfRevisionLineage => "PdfRevisionLineage",
         }
     }
 

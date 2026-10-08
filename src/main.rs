@@ -90,10 +90,10 @@ const USAGE_FIELD: &str = "\
          authority is the fixed profile's `.voldoc`, stored in the field)
     vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs | --packed]
     vole-document observe --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]] (--page N | --object N | --stream N |
-        --revision N | --byte-range A..B | --metadata | --doc-text | --heading N |
+        --revision N | --revisions | --byte-range A..B | --metadata | --doc-text | --heading N |
         --block N | --table N | --cell T:R:C | --resource N | --link N |
         --spine-item N | --text PATTERN) --kind metadata|text|structure|operators|
-        encoded|decoded|exact|preview|full
+        encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
         (one process serving many observations: one JSON answer per line; each
@@ -1436,6 +1436,8 @@ struct FieldArgs {
     object: Option<u32>,
     stream: Option<u32>,
     revision: Option<u32>,
+    /// `--revisions`: the whole PDF revision lineage (Phase 17).
+    revisions: bool,
     byte_range: Option<(u64, u64)>,
     kind: Option<String>,
     text: Option<String>,
@@ -1573,6 +1575,10 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                     &field_arg_value(args, &mut i, "--revision", inline)?,
                     "--revision",
                 )?);
+            }
+            "--revisions" => {
+                out.revisions = true;
+                i += 1;
             }
             "--byte-range" => {
                 out.byte_range = Some(parse_field_range(&field_arg_value(
@@ -1739,6 +1745,9 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
     if let Some(n) = out.revision {
         chosen.push(Selector::Revision(n));
     }
+    if out.revisions {
+        chosen.push(Selector::Revisions);
+    }
     if let Some((offset, len)) = out.byte_range {
         chosen.push(Selector::ByteRange { offset, len });
     }
@@ -1799,6 +1808,7 @@ fn field_representation(kind: &str) -> Result<Representation> {
         "decoded" => Representation::DecodedBytes,
         "exact" => Representation::ExactBytes,
         "preview" => Representation::Preview,
+        "lineage" => Representation::Lineage,
         "full" => Representation::FullDocument,
         other => return Err(Error::usage(format!("unknown --kind {other:?}"))),
     })

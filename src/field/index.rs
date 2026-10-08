@@ -110,6 +110,18 @@ pub const SEL_EPUB_MODEL: u8 = 11;
 /// state, computed on demand from the exact package source — never via OPC (ODF has
 /// no `[Content_Types].xml`).
 pub const SEL_ODT_MODEL: u8 = 12;
+/// Selector kind: the PDF **revision lineage** as a whole (Phase 17).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// PDF's incremental revision chain (count, ordered indices, byte spans,
+/// `startxref`/`/Prev`, object/stream membership) as derived state, computed once
+/// at ingest from the byte-authoritative physical scan. A field with no revision
+/// structure has no such entry, so the observation is a typed decline.
+pub const SEL_REVISIONS: u8 = 13;
+/// Selector kind: one PDF revision's lineage entry (Phase 17), keyed by the
+/// revision's 0-based index. Its node materializes that revision's lineage JSON;
+/// the entry's span is the revision's exact source span.
+pub const SEL_REVISION_LINEAGE: u8 = 14;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;
@@ -153,7 +165,8 @@ const MAX_INTERNAL_CHILDREN: usize = {
 pub struct SelectorKey {
     /// [`SEL_PAGE`], [`SEL_OBJECT`], [`SEL_STREAM`], [`SEL_STREAM_DECODED`],
     /// [`SEL_REVISION`], [`SEL_RESOURCE`], [`SEL_PACKAGE_MEMBER_RAW`],
-    /// [`SEL_PACKAGE_MEMBER_DECODED`], or [`SEL_OPC_MODEL`].
+    /// [`SEL_PACKAGE_MEMBER_DECODED`], [`SEL_OPC_MODEL`], [`SEL_REVISIONS`], or
+    /// [`SEL_REVISION_LINEAGE`].
     pub kind: u8,
     /// The page/object/stream/revision/resource number, or a package member's
     /// central-directory ordinal.

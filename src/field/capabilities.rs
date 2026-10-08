@@ -128,6 +128,7 @@ const PDF_NATIVE: &[&str] = &[
     "object",
     "stream",
     "revision",
+    "revisions",
     "page",
     "byte-range",
     "text-match",
