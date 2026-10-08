@@ -20,6 +20,9 @@ pub mod document_format;
 pub mod edit;
 pub mod explain;
 pub mod index;
+/// Phase 16.1: the single shipped DEFLATE inflate seam (`zlib-rs`). One backend
+/// serves both PDF zlib (RFC 1950) and ZIP raw DEFLATE (RFC 1951) members.
+pub(crate) mod inflate;
 pub mod ingest;
 #[cfg(feature = "package")]
 pub mod ingest_package;

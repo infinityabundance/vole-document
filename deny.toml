@@ -27,14 +27,13 @@ allow = [
     # through the optional `deflate-replay` feature. See ADR-0014 and the
     # README licensing note for the static-linking consequences.
     "LGPL-3.0-or-later",
-    # `zlib-rs` (Phase 15.5, feature `deflate-ablation`) is released under the
-    # zlib license only ("Zlib"), which is not otherwise in this list. It is a
-    # DEFLATE-ablation candidate reachable only through the non-default
-    # `deflate-ablation` feature, but `[graph] all-features = true` above makes
-    # cargo-deny check it with that feature enabled, so the allowance is required
-    # regardless. (The other Phase-15.5 deps need no entry: `memchr` is
-    # `Unlicense OR MIT` and `zune-inflate` is `MIT OR Apache-2.0 OR Zlib`, both
-    # satisfied by MIT.)
+    # `zlib-rs` (Phase 15.5 ablation; Phase 16.1 shipped backend) is released
+    # under the zlib license only ("Zlib"), which is not otherwise in this list.
+    # From Phase 16.1 it is reachable through the default `field` feature (the
+    # shipped DEFLATE inflate seam) and the `deflate-ablation` feature; the
+    # allowance is required regardless. (The other Phase-15.5 deps need no entry:
+    # `memchr` is `Unlicense OR MIT` and `zune-inflate` is
+    # `MIT OR Apache-2.0 OR Zlib`, both satisfied by MIT.)
     "Zlib",
 ]
 

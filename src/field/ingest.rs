@@ -1145,8 +1145,8 @@ impl<'a> ObjResolver<'a> {
 /// Learn a lone zlib stream's exact decoded length, or decline.
 ///
 /// The decoded length is unknown a priori, so it is learned by inflating under a
-/// hard cap rather than invented. Exceeding the cap declines (both when miniz
-/// errors and when it would silently clamp). The compressed payload is never
+/// hard cap rather than invented. Exceeding the cap declines (whether the
+/// inflater errors or would silently clamp). The compressed payload is never
 /// re-baked.
 fn try_decode_len(source: &[u8], data_start: u64, data_len: u64, limits: Limits) -> Option<u64> {
     if data_len > MAX_STREAM_DECODE {
@@ -1164,8 +1164,8 @@ fn try_decode_len(source: &[u8], data_start: u64, data_len: u64, limits: Limits)
         .min(limits.max_output_bytes)
         .checked_add(1)?;
     let cap = usize::try_from(cap_u64).ok()?;
-    let decoded = miniz_oxide::inflate::decompress_to_vec_zlib_with_limit(encoded, cap).ok()?;
-    let decoded_len = decoded.len() as u64;
+    let decoded_len =
+        super::inflate::inflate_len(encoded, cap, super::inflate::Wrapper::Zlib).ok()?;
     if decoded_len > MAX_STREAM_DECODE || decoded_len > limits.max_output_bytes {
         return None;
     }

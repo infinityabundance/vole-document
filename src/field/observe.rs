@@ -2883,11 +2883,10 @@ impl<S: SeedStore> Ctx<'_, S> {
         let encoded_node = self.load(encoded_id)?;
         let encoded = self.materialize(&encoded_node)?;
         let cap = usize::try_from(self.limits.max_output_bytes).unwrap_or(usize::MAX);
-        let decoded = miniz_oxide::inflate::decompress_to_vec_zlib_with_limit(&encoded, cap)
+        let decoded = super::inflate::inflate_bounded(&encoded, cap, super::inflate::Wrapper::Zlib)
             .map_err(|e| {
                 Error::unsupported_feature(format!(
-                    "stream {object} has no recovered decoded representation: {:?}",
-                    e.status
+                    "stream {object} has no recovered decoded representation: {e}"
                 ))
             })?;
         let node = SeedNode::new(
