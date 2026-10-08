@@ -1,0 +1,31 @@
+{
+  "purpose": "Separate the packed STORE FORMAT (unchanged) from the PROGRAM CHOICE (old two-step `encode` searches candidates; the new direct `field-build --profile runtime` fixes the runtime/RAW program). Run on two documents whose new store differs from the old 2978e1d store, using the CURRENT binary (954dbc2) with the OLD two-step commands.",
+  "method": "target/release/vole-document encode SRC d/doc.voldoc; then field-ingest d/doc.voldoc --store d/pack --packed (identical to the phase16 storage-correction court's old path)",
+  "docs": [
+    {
+      "id": "nist-docx-0005",
+      "fmt": "docx",
+      "current_encode_candidate": "BYTE_RANS",
+      "current_encode_ingest_bytes": 65713,
+      "current_encode_ingest_field": "3bc1f12e84e9cd692f3fd2ed60bb8f2b6f69871a3d2002d11f5414cc6f5a6348",
+      "old_2978e1d_bytes": 65713,
+      "old_2978e1d_field": "3bc1f12e84e9cd692f3fd2ed60bb8f2b6f69871a3d2002d11f5414cc6f5a6348",
+      "new_fieldbuild_bytes": 65901,
+      "new_fieldbuild_field": "60d871163df68550348c9d147c4f4634a8deef98c4b97b42afcadde2835e6f11",
+      "note": "current encode+ingest reproduces the OLD store BYTE-FOR-BYTE (same field id): the packed format is unchanged. The new field-build fixes RAW and stores a slightly larger field (65,901 vs 65,713)."
+    },
+    {
+      "id": "nasa-pdf-0015",
+      "fmt": "pdf",
+      "current_encode_candidate": "PDF_CHANNELS",
+      "current_encode_ingest_bytes": 41613002,
+      "current_encode_ingest_field": "056d1834a2d2d7f844bb2c8c206fde9dbc84e102c1f6fca3f9e423c432e3af28",
+      "old_2978e1d_bytes": 41604319,
+      "old_2978e1d_field": "c3454196673d9865851b50036b359e8058d8720907af48873b12e37c89e1a722",
+      "new_fieldbuild_bytes": 44744347,
+      "new_fieldbuild_field": "051bcc05b3b48adde8978a12e40cae170b30e92bfbcf16673fa16cac1f5a59cd",
+      "note": "the current search lands within 0.02% of the OLD store (8,683 B, a small program-set evolution between commits 2978e1d and 954dbc2), while the new fixed-RAW field is 7.5% larger. The dominant term is program choice, not format."
+    }
+  ],
+  "conclusion": "The new direct path trades a small persistent-storage cost for skipping the candidate search: it stores the fixed runtime/RAW program, so its packed store is >= the old searched store on every common document (aggregate +5.3% on the 96 common docs). Where both paths pick the same program the stores are byte-identical (15/96, all epub)."
+}

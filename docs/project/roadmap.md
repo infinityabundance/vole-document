@@ -115,6 +115,27 @@ metadata as an **explicit external input** and answer it as a derived observatio
 ([ADR-0052](../adr/0052-revision-lineage-surface.md)) and composes with the
 Phase-16 substrate question ([ADR-0050](../adr/0050-sqlite-as-substrate-question.md)).
 
+## Phase-19 outcomes
+
+Phase 19 is a **measurement-discipline phase**: it replaces Phase 18's two
+single-run point estimates with paired, interleaved, repeated measurements and a
+fixed-seed bootstrap interval (19.1), extends the warm lane to N=100 (19.2), and
+runs the new direct build over the full frozen `real100-v1` population (19.3).
+Results: [phase-19-results.md](../phases/phase-19-results.md);
+[ADR-0054](../adr/0054-repeatability-and-paired-measurement.md).
+
+| Item | Question | Outcome |
+|---|---|---|
+| 19.1 Repeatability court (paired, interleaved, N=10) | Is the Phase-18.5 build ratio < 1.0 and the warm ratio > 1.0, once both lanes are measured repeatedly and interleaved? | **Build established < 1.0** — paired median **0.182** (95% CI **0.102–0.228**), geometric mean 0.203 (0.128–0.395), **11 win / 0 tie / 1 loss** (`nist-pdf-0017` at 4.440×). **Correction:** the ratio-of-sums estimator reads **~0.96**, not 0.82, because one heavy document dominates VOLE's total; the move is SQLite-lane host variance (1893 → 1582 ms), VOLE's sum reproducible (1545.5 vs 1552 ms). **Warm not resolved:** paired median **1.077** (0.809–1.391, includes 1.0), 5/1/6. Best-of-3 (min) vs median-of-10: build 0.977 → 0.963, warm 1.218 → 1.194. Exactness 12/12 both. `2026-10-08-phase19-repeat-d6c8c4c` |
+| 19.2 High-N warm repeat (N=100) | Is the warm lane a resolved loss, resolved parity, or still undecided at high N? | **Not resolved under the median estimator, resolved under the geometric mean** — pooled median paired ratio **1.292** (95% CI **0.994–1.658**, includes 1.0); geometric mean **1.283** (95% CI **1.069–1.535**, excludes 1.0); pooled warm medians VOLE 2.25–2.32 ms vs SQLite 1.54–1.65 ms (~0.7 ms slower). A **modest real loss (~1.29×), not parity**; the N=10 estimate was under-sampled. Variance floor CV 5.4% (p90 9.4%); median-CI half-width ±0.332; MDE(80%) ≈0.474. Exactness 12/12; 480 envelopes, 0 mismatches. `2026-10-08-phase19-warm-6b66eab` |
+| 19.3 Direct build over the full `real100-v1` | Is the new direct build robust across the whole frozen population, and where is its next limit? | **100/100 built, 100/100 exact** (pdf 60/60, docx 15/15, epub 25/25; rc histogram all 0), recovering the three docs the old two-step path failed (`nasa-pdf-0001`/`0002`/`0003`); wall median **64 ms**; peak RSS median 30.9 MiB / max 2342 MiB — **memory, not wall, is the next binding constraint**. Cold coverage text 92/100, metadata 98/100 (typed declines). vs the old path (file-size-corrected) median **61 ms** vs 2,095 ms (paired 0.083×) but **+5.3%** bytes. **Storage is population-dependent: ~0.96× SQLite on the full population, not the 0.53× of the contract subset.** `2026-10-08-phase19-real100-direct-954dbc2` |
+
+The Phase-18 **0.82×** build and **1.09×** warm headlines are superseded as point
+estimates: the build win stands (paired median 0.18, CI below 1.0) but its size is
+estimator-dependent (~0.96× by ratio of sums), and the warm lane is a modest
+~1.29× loss that the median estimator cannot separate from 1.0 at N=100 while the
+geometric mean resolves it.
+
 ## Unmeasured gates
 
 - `N4` (decline-rate threshold): no pre-registered threshold exists, so it is
