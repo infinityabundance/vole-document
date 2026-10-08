@@ -1,0 +1,40 @@
+[vole-profile] descriptor_read_us=298 descriptor_parse_us=1896 descriptor_len=1105542
+[vole-profile] manifest_read_us=13 field_open_total_us=2221
+[vole-profile] store_open_us=9 field_open_us=2225 index_open_us=4 session_open_total_us=2238
+[vole-profile-stage] observe_us=20 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=12 materialize_us=11
+[vole-profile-stage] observe_us=44 probe_us=33 lookup_calls=1 index_nodes=2 index_read_us=13 index_parse_us=2 dispatch_us=9 materialize_us=0
+[vole-profile-stage] observe_us=5 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=3 materialize_us=0
+[vole-profile-stage] observe_us=27 probe_us=0 lookup_calls=1 index_nodes=2 index_read_us=7 index_parse_us=0 dispatch_us=25 materialize_us=7
+[vole-profile] request_loop_total_us=132 observe_dispatch_us=109 observe_calls=4 serialize_us=10
+[vole-profile] descriptor_read_us=347 descriptor_parse_us=1912 descriptor_len=1105542
+[vole-profile] manifest_read_us=10 field_open_total_us=2280
+[vole-profile] store_open_us=8 field_open_us=2284 index_open_us=4 session_open_total_us=2296
+[vole-profile-stage] observe_us=14 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=7 materialize_us=5
+[vole-profile-stage] observe_us=40 probe_us=29 lookup_calls=1 index_nodes=2 index_read_us=12 index_parse_us=2 dispatch_us=9 materialize_us=0
+[vole-profile-stage] observe_us=5 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=3 materialize_us=0
+[vole-profile-stage] observe_us=25 probe_us=0 lookup_calls=1 index_nodes=2 index_read_us=6 index_parse_us=0 dispatch_us=23 materialize_us=6
+[vole-profile] request_loop_total_us=117 observe_dispatch_us=96 observe_calls=4 serialize_us=10
+[vole-profile] descriptor_read_us=319 descriptor_parse_us=1900 descriptor_len=1105542
+[vole-profile] manifest_read_us=10 field_open_total_us=2240
+[vole-profile] store_open_us=7 field_open_us=2244 index_open_us=2 session_open_total_us=2253
+[vole-profile-stage] observe_us=18 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=11 materialize_us=7
+[vole-profile-stage] observe_us=38 probe_us=27 lookup_calls=1 index_nodes=2 index_read_us=12 index_parse_us=2 dispatch_us=8 materialize_us=0
+[vole-profile-stage] observe_us=4 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=2 materialize_us=0
+[vole-profile-stage] observe_us=25 probe_us=0 lookup_calls=1 index_nodes=2 index_read_us=7 index_parse_us=0 dispatch_us=23 materialize_us=6
+[vole-profile] request_loop_total_us=117 observe_dispatch_us=98 observe_calls=4 serialize_us=9
+[vole-profile] descriptor_read_us=246 descriptor_parse_us=1851 descriptor_len=1105542
+[vole-profile] manifest_read_us=9 field_open_total_us=2114
+[vole-profile] store_open_us=6 field_open_us=2117 index_open_us=2 session_open_total_us=2125
+[vole-profile-stage] observe_us=11 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=6 materialize_us=4
+[vole-profile-stage] observe_us=35 probe_us=25 lookup_calls=1 index_nodes=2 index_read_us=11 index_parse_us=1 dispatch_us=8 materialize_us=0
+[vole-profile-stage] observe_us=5 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=3 materialize_us=0
+[vole-profile-stage] observe_us=24 probe_us=0 lookup_calls=1 index_nodes=2 index_read_us=6 index_parse_us=0 dispatch_us=22 materialize_us=6
+[vole-profile] request_loop_total_us=106 observe_dispatch_us=88 observe_calls=4 serialize_us=9
+[vole-profile] descriptor_read_us=316 descriptor_parse_us=1876 descriptor_len=1105542
+[vole-profile] manifest_read_us=8 field_open_total_us=2210
+[vole-profile] store_open_us=8 field_open_us=2213 index_open_us=1 session_open_total_us=2222
+[vole-profile-stage] observe_us=10 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=5 materialize_us=4
+[vole-profile-stage] observe_us=35 probe_us=27 lookup_calls=1 index_nodes=2 index_read_us=11 index_parse_us=2 dispatch_us=6 materialize_us=0
+[vole-profile-stage] observe_us=4 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=3 materialize_us=0
+[vole-profile-stage] observe_us=24 probe_us=0 lookup_calls=1 index_nodes=2 index_read_us=6 index_parse_us=0 dispatch_us=22 materialize_us=6
+[vole-profile] request_loop_total_us=109 observe_dispatch_us=90 observe_calls=4 serialize_us=9

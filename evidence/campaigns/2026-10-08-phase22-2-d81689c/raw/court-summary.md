@@ -1,0 +1,250 @@
+# Phase 20.3 — warm heterogeneous-query court (per-session overhead)
+
+Builds each lane's store **once**, then repeats the WARM one-session heterogeneous query lane **N=100** times per (document, depth, lane) with an interleaved order (odd reps VOLE first, even reps SQLite first) and retains every sample. Same 12-document subset, same contract depths C0..C5, same source-retaining SQLite lane (`tools/fixtures/phase18-contract-packed.py`, byte-identical), same accounting as Phase 19.1. Wall times are integer microseconds.
+
+- documents: **12** (nist-docx-0005, nist-docx-0008, nist-docx-0009, nist-docx-0014, nist-epub-0003, nist-epub-0006, nist-epub-0008, nist-epub-0009, nist-pdf-0002, nist-pdf-0004, nist-pdf-0016, nist-pdf-0017); depths: **C0..C5**; warm repetitions: **N=100**; bootstrap: **20000 resamples, seed 220200**, cluster-resampled by document; tie band **+/-10%**.
+- interleaving: odd reps VOLE-then-SQLite, even reps SQLite-then-VOLE (per-rep order in `raw/order.tsv`); one untimed warm-up session per (document, depth, lane) precedes the timed reps, so no timed rep pays a cold-inode first touch.
+- every individual warm sample is retained in `raw/warm_samples.tsv`; nothing is reduced to min/median at collection time.
+
+## One-time builds (paid once per document, outside the warm loop)
+
+| lane | depth | n | median ms | max ms |
+|---|---|---:|---:|---:|
+| VOLE | all | 12 | 13.35 | 1413.56 |
+| SQLite | C5 | 12 | 71.23 | 374.35 |
+
+The build cost is paid ONCE here (it was the per-rep cost in Phase 19.1) and is not part of the warm ratio.
+
+## Per-lane warm statistics (pooled over documents x reps)
+
+### Warm one-session wall, every sample (pooled over documents x reps)
+
+| lane | depth | n | median ms | mean ms | p25 ms | p75 ms | min ms | max ms | CV |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| VOLE | C0 | 1200 | 2.345 | 2.753 | 1.575 | 3.732 | 1.044 | 7.383 | 51.7% |
+| VOLE | C1 | 1200 | 2.332 | 2.695 | 1.528 | 3.674 | 1.046 | 6.794 | 52.8% |
+| VOLE | C2 | 1200 | 2.352 | 2.685 | 1.525 | 3.631 | 1.032 | 7.308 | 52.5% |
+| VOLE | C3 | 1200 | 2.350 | 2.682 | 1.519 | 3.661 | 1.041 | 7.080 | 53.0% |
+| VOLE | C4 | 1200 | 2.343 | 2.677 | 1.512 | 3.665 | 1.031 | 7.004 | 53.4% |
+| VOLE | C5 | 1200 | 2.342 | 2.674 | 1.511 | 3.668 | 1.028 | 10.685 | 53.4% |
+| SQLite | C0 | 1200 | 1.797 | 1.924 | 1.525 | 2.268 | 1.295 | 4.406 | 25.1% |
+| SQLite | C1 | 1200 | 1.702 | 1.883 | 1.511 | 2.204 | 1.285 | 3.740 | 24.7% |
+| SQLite | C2 | 1200 | 1.788 | 1.951 | 1.592 | 2.210 | 1.334 | 4.117 | 23.1% |
+| SQLite | C3 | 1200 | 1.778 | 1.940 | 1.578 | 2.192 | 1.322 | 3.848 | 23.3% |
+| SQLite | C4 | 1200 | 1.849 | 2.001 | 1.644 | 2.244 | 1.423 | 5.258 | 22.6% |
+| SQLite | C5 | 1200 | 1.846 | 1.992 | 1.648 | 2.226 | 1.409 | 3.545 | 21.8% |
+
+Full per (document, lane, depth) statistics: `raw/per_doc_lane_depth.csv`.
+
+## Per-depth VOLE/SQLite warm ratio (paired per rep)
+
+VOLE's packed warm session is depth-independent (the same store and request set serve every depth); the per-depth variation is therefore the SQLite envelope's depth cost. C0 is the first-touch depth worth watching.
+
+| depth | docs | pooled pairs | median ratio | geometric-mean ratio | median-ratio 95% CI |
+|---|---:|---:|---:|---:|---|
+| C0 | 12 | 1200 | 1.324 | 1.303 | 1.051..1.611 |
+| C1 | 12 | 1200 | 1.293 | 1.295 | 1.035..1.615 |
+| C2 | 12 | 1200 | 1.316 | 1.241 | 1.000..1.551 |
+| C3 | 12 | 1200 | 1.262 | 1.245 | 0.993..1.558 |
+| C4 | 12 | 1200 | 1.228 | 1.202 | 0.964..1.530 |
+| C5 | 12 | 1200 | 1.220 | 1.205 | 0.959..1.519 |
+
+## Headline — warm heterogeneous query summed over C0..C5 per rep
+
+The Phase-19.1/18.5 headline: per rep, the whole C0..C5 depth schedule is served in ONE session per lane, and the two lanes' session totals are paired by rep index.
+
+### VOLE/SQLite warm session, C0..C5 folded per rep
+
+- documents (clusters): **12**; paired samples: **1200**
+- median paired ratio: **1.293**  (95% CI 1.002..1.561)
+- geometric-mean paired ratio: **1.246**  (95% CI 1.048..1.488)
+- pooled ratio CV (stdev/mean of the paired ratios): **31.1%**; median-CI half-width: **+/-0.279**. Resolution at this N: a true median shift smaller than ~0.279 is not separable from 1.0.
+- per-document tie band +/-10%: **2 win / 4 tie / 6 loss** (win = ratio < 0.90, VOLE favourable; loss = ratio > 1.10)
+
+| document | median ratio | samples | outcome |
+|---|---:|---:|---|
+| nist-docx-0005 | 0.842 | 100 | win |
+| nist-docx-0008 | 0.737 | 100 | win |
+| nist-docx-0009 | 1.078 | 100 | tie |
+| nist-docx-0014 | 1.572 | 100 | loss |
+| nist-epub-0003 | 1.549 | 100 | loss |
+| nist-epub-0006 | 1.480 | 100 | loss |
+| nist-epub-0008 | 1.049 | 100 | tie |
+| nist-epub-0009 | 2.127 | 100 | loss |
+| nist-pdf-0002 | 0.976 | 100 | tie |
+| nist-pdf-0004 | 1.519 | 100 | loss |
+| nist-pdf-0016 | 1.014 | 100 | tie |
+| nist-pdf-0017 | 1.753 | 100 | loss |
+
+## Variance floor and minimum detectable effect at N=100
+
+- within-cell between-rep CV (median over all (doc, depth, lane) cells): **6.8%** (p90 10.4%). This is the host bind-mount repeat noise floor at fixed document and store.
+- headline pooled paired-ratio CV: **31.1%**; median-ratio 95% CI half-width: **+/-0.279**.
+- **minimum detectable effect at this N (80% power, normal approx): ~0.399** (i.e. a true median ratio shift smaller than this is not resolvable with N=100 on this variance floor).
+
+## Exact original closure (length + SHA-256 + byte compare)
+
+| id | fmt | VOLE ok | VOLE rc | VOLE ms | SQLite ok | SQLite rc | SQLite ms |
+|---|---|---|---:|---:|---|---:|---:|
+| nist-pdf-0002 | pdf | 1 | 0 | 4.8 | 1 | 0 | 30.0 |
+| nist-pdf-0004 | pdf | 1 | 0 | 8.0 | 1 | 0 | 29.6 |
+| nist-pdf-0016 | pdf | 1 | 0 | 4.9 | 1 | 0 | 28.3 |
+| nist-pdf-0017 | pdf | 1 | 0 | 8.7 | 1 | 0 | 27.8 |
+| nist-docx-0005 | docx | 1 | 0 | 3.5 | 1 | 0 | 25.3 |
+| nist-docx-0008 | docx | 1 | 0 | 3.7 | 1 | 0 | 27.4 |
+| nist-docx-0009 | docx | 1 | 0 | 4.2 | 1 | 0 | 27.9 |
+| nist-docx-0014 | docx | 1 | 0 | 7.0 | 1 | 0 | 29.5 |
+| nist-epub-0003 | epub | 1 | 0 | 3.6 | 1 | 0 | 27.3 |
+| nist-epub-0006 | epub | 1 | 0 | 5.4 | 1 | 0 | 28.0 |
+| nist-epub-0008 | epub | 1 | 0 | 4.4 | 1 | 0 | 31.0 |
+| nist-epub-0009 | epub | 1 | 0 | 8.2 | 1 | 0 | 29.2 |
+
+VOLE `materialize --exact --packed`: **12/12 byte-exact**. SQLite retained blob: **12/12 byte-exact**.
+
+## Equivalence between lanes — warm session (untimed pass)
+
+For every document and depth, the VOLE `observe-batch` JSONL and the SQLite session JSONL of the SAME contract query are compared with the frozen Phase-18 envelope logic (`phase18-contract-packed.py::_equiv`). `raw` = byte/SHA-identity; `projected` = documented text projection; `shape` = both answer but not byte-comparable by design (metadata schema; resource reference vs member bytes; revision below C4); `observable` = the revision observation of different things; `divergent` = PDF page text heuristic; `capability` = one lane declines; `decline` = both decline.
+
+| depth | fmt | obs | raw | projected | shape | observable | divergent | capability | decline | mismatch |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| C0 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | pdf | text | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C0 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | heading | 1 | 0 | 0 | 0 | 0 | 0 | 3 | 0 |
+| C0 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | resource | 0 | 0 | 1 | 0 | 0 | 0 | 3 | 0 |
+| C0 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | pdf | text | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C1 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | heading | 1 | 0 | 0 | 0 | 0 | 0 | 3 | 0 |
+| C1 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | resource | 0 | 0 | 1 | 0 | 0 | 0 | 3 | 0 |
+| C1 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | pdf | text | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C2 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | heading | 1 | 0 | 0 | 0 | 0 | 0 | 3 | 0 |
+| C2 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | resource | 0 | 0 | 1 | 0 | 0 | 0 | 3 | 0 |
+| C2 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | pdf | text | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C3 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | heading | 1 | 0 | 0 | 0 | 0 | 0 | 3 | 0 |
+| C3 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | resource | 0 | 0 | 1 | 0 | 0 | 0 | 3 | 0 |
+| C3 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | pdf | text | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C4 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | pdf | revision | 0 | 0 | 0 | 4 | 0 | 0 | 0 | 0 |
+| C4 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | heading | 1 | 0 | 0 | 0 | 0 | 0 | 3 | 0 |
+| C4 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | resource | 0 | 0 | 1 | 0 | 0 | 0 | 3 | 0 |
+| C4 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | revision | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C4 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | revision | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C5 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | pdf | text | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C5 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | pdf | revision | 0 | 0 | 0 | 4 | 0 | 0 | 0 | 0 |
+| C5 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | heading | 1 | 0 | 0 | 0 | 0 | 0 | 3 | 0 |
+| C5 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | resource | 0 | 0 | 1 | 0 | 0 | 0 | 3 | 0 |
+| C5 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | revision | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C5 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | revision | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+
+- observations compared: **480**; **value mismatches: 0**.
+- Where the contract defines equality (`raw`/`projected`), the two lanes agree; the non-`raw` cells are the documented shape / observable / heuristic-projection distinctions, not value disagreements.
+
+## Answers
+
+**Is the warm VOLE/SQLite ratio resolved to > 1.0 (a real loss), resolved to <= 1.0 (parity or better), or still including 1.0?**
+
+- Paired median ratio **1.293** (95% CI 1.002..1.561); geometric mean **1.246** (95% CI 1.048..1.488); per-document 2 win / 4 tie / 6 loss.
+- The 95% CI lies **entirely above 1.0**: a real warm-session loss for VOLE at this N.
+
+**Exactness / equivalence.** VOLE exact closure **12/12**, SQLite **12/12** byte-exact; warm-session answers compared **480**, value mismatches **0**.
+
+## Caveats and honesty
+
+- This is a **warm-only** court: the one-time store builds are paid once and are not part of the ratio. The build win question is Phase 19.1's and is unchanged.
+- The bind-mounted host store is noisy; the between-rep CV and the quoted CI are the honest measure of that noise. If 1.0 remains inside the interval, that is reported, never massaged.
+- Warm sessions run in the low-millisecond range, where process start-up is a material fraction of the wall; that start-up is part of BOTH lanes' measured cost and is not subtracted.
+- Sampling unit for the CI is the document (cluster bootstrap), not the doc-rep pair; a document's 100 repeated measures are correlated and are not treated as 100 independent documents.
+- MDE is a normal-approximation convenience derived from the bootstrap CI half-width; it is an order-of-magnitude resolution statement, not a measured quantity.
+- recorded interleave orders: sqlite vole; vole sqlite.

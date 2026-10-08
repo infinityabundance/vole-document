@@ -482,6 +482,7 @@ pub fn build(store: &mut FsIndexStore, entries: &[IndexEntry]) -> Result<NodeId>
 /// oversized, or out-of-depth node is a typed error, never a silent empty result.
 /// Only the nodes on the `root -> internal(s) -> leaf` path are read.
 pub fn lookup(store: &FsIndexStore, root: &NodeId, key: &SelectorKey) -> Result<Vec<IndexEntry>> {
+    crate::field::prof::inc_lookup();
     lookup_impl(store, root, key)
 }
 
@@ -548,8 +549,13 @@ fn lookup_impl<R: NodeReader>(
     let mut out: Vec<IndexEntry> = Vec::new();
     let mut stack: Vec<(NodeId, Option<u8>)> = vec![(*root, None)];
     while let Some((id, expected)) = stack.pop() {
+        let t_read = crate::field::prof::start();
         let bytes = store.read_node(&id)?;
+        crate::field::prof::add_index_read(t_read);
+        crate::field::prof::inc_index_node();
+        let t_parse = crate::field::prof::start();
         let node = parse_node(&bytes)?;
+        crate::field::prof::add_index_parse(t_parse);
         if let Some(exp) = expected
             && node.depth != exp
         {

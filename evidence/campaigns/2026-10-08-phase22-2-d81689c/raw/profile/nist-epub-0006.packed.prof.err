@@ -1,0 +1,65 @@
+[vole-profile] descriptor_read_us=39 descriptor_parse_us=190 descriptor_len=106348
+[vole-profile] manifest_read_us=6 field_open_total_us=246
+[vole-profile] store_open_us=36 field_open_us=249 index_open_us=2 session_open_total_us=287
+[vole-profile-stage] observe_us=12 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=8 materialize_us=6
+[vole-profile-stage] observe_us=72 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=20 index_parse_us=1 dispatch_us=69 materialize_us=13
+[vole-profile-stage] observe_us=564 probe_us=0 lookup_calls=40 index_nodes=40 index_read_us=184 index_parse_us=1 dispatch_us=562 materialize_us=134
+[vole-profile-stage] observe_us=227 probe_us=0 lookup_calls=19 index_nodes=19 index_read_us=83 index_parse_us=0 dispatch_us=225 materialize_us=52
+[vole-profile-stage] observe_us=331 probe_us=0 lookup_calls=25 index_nodes=25 index_read_us=116 index_parse_us=0 dispatch_us=328 materialize_us=77
+[vole-profile-stage] observe_us=26 probe_us=0 lookup_calls=1 index_nodes=1 index_read_us=4 index_parse_us=0 dispatch_us=22 materialize_us=5
+[vole-profile-stage] observe_us=23 probe_us=0 lookup_calls=1 index_nodes=1 index_read_us=5 index_parse_us=0 dispatch_us=21 materialize_us=4
+[vole-profile-stage] observe_us=2 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+[vole-profile] request_loop_total_us=1490 observe_dispatch_us=1283 observe_calls=8 serialize_us=182
+[vole-profile] descriptor_read_us=39 descriptor_parse_us=201 descriptor_len=106348
+[vole-profile] manifest_read_us=8 field_open_total_us=254
+[vole-profile] store_open_us=31 field_open_us=257 index_open_us=1 session_open_total_us=289
+[vole-profile-stage] observe_us=9 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=6 materialize_us=4
+[vole-profile-stage] observe_us=75 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=22 index_parse_us=2 dispatch_us=73 materialize_us=14
+[vole-profile-stage] observe_us=551 probe_us=0 lookup_calls=40 index_nodes=40 index_read_us=171 index_parse_us=3 dispatch_us=548 materialize_us=123
+[vole-profile-stage] observe_us=261 probe_us=0 lookup_calls=19 index_nodes=19 index_read_us=100 index_parse_us=0 dispatch_us=258 materialize_us=59
+[vole-profile-stage] observe_us=304 probe_us=0 lookup_calls=25 index_nodes=25 index_read_us=110 index_parse_us=0 dispatch_us=299 materialize_us=68
+[vole-profile-stage] observe_us=25 probe_us=0 lookup_calls=1 index_nodes=1 index_read_us=5 index_parse_us=0 dispatch_us=23 materialize_us=5
+[vole-profile-stage] observe_us=27 probe_us=0 lookup_calls=1 index_nodes=1 index_read_us=6 index_parse_us=0 dispatch_us=24 materialize_us=5
+[vole-profile-stage] observe_us=2 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+[vole-profile] request_loop_total_us=1521 observe_dispatch_us=1287 observe_calls=8 serialize_us=209
+[vole-profile] descriptor_read_us=38 descriptor_parse_us=188 descriptor_len=106348
+[vole-profile] manifest_read_us=5 field_open_total_us=237
+[vole-profile] store_open_us=32 field_open_us=239 index_open_us=1 session_open_total_us=272
+[vole-profile-stage] observe_us=9 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=6 materialize_us=5
+[vole-profile-stage] observe_us=69 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=20 index_parse_us=1 dispatch_us=66 materialize_us=13
+[vole-profile-stage] observe_us=584 probe_us=0 lookup_calls=40 index_nodes=40 index_read_us=182 index_parse_us=4 dispatch_us=581 materialize_us=125
+[vole-profile-stage] observe_us=222 probe_us=0 lookup_calls=19 index_nodes=19 index_read_us=83 index_parse_us=0 dispatch_us=217 materialize_us=49
+[vole-profile-stage] observe_us=1048 probe_us=0 lookup_calls=25 index_nodes=25 index_read_us=856 index_parse_us=0 dispatch_us=1045 materialize_us=70
+[vole-profile-stage] observe_us=23 probe_us=0 lookup_calls=1 index_nodes=1 index_read_us=4 index_parse_us=0 dispatch_us=20 materialize_us=4
+[vole-profile-stage] observe_us=22 probe_us=0 lookup_calls=1 index_nodes=1 index_read_us=5 index_parse_us=0 dispatch_us=20 materialize_us=4
+[vole-profile-stage] observe_us=2 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+[vole-profile] request_loop_total_us=2244 observe_dispatch_us=2015 observe_calls=8 serialize_us=206
+[vole-profile] descriptor_read_us=38 descriptor_parse_us=190 descriptor_len=106348
+[vole-profile] manifest_read_us=4 field_open_total_us=237
+[vole-profile] store_open_us=30 field_open_us=239 index_open_us=1 session_open_total_us=270
+[vole-profile-stage] observe_us=10 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=6 materialize_us=4
+[vole-profile-stage] observe_us=68 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=20 index_parse_us=1 dispatch_us=65 materialize_us=13
+[vole-profile-stage] observe_us=553 probe_us=0 lookup_calls=40 index_nodes=40 index_read_us=173 index_parse_us=2 dispatch_us=551 materialize_us=126
+[vole-profile-stage] observe_us=225 probe_us=0 lookup_calls=19 index_nodes=19 index_read_us=86 index_parse_us=0 dispatch_us=222 materialize_us=53
+[vole-profile-stage] observe_us=300 probe_us=0 lookup_calls=25 index_nodes=25 index_read_us=110 index_parse_us=0 dispatch_us=298 materialize_us=71
+[vole-profile-stage] observe_us=20 probe_us=0 lookup_calls=1 index_nodes=1 index_read_us=4 index_parse_us=0 dispatch_us=18 materialize_us=4
+[vole-profile-stage] observe_us=22 probe_us=0 lookup_calls=1 index_nodes=1 index_read_us=5 index_parse_us=0 dispatch_us=20 materialize_us=4
+[vole-profile-stage] observe_us=2 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+[vole-profile] request_loop_total_us=1420 observe_dispatch_us=1223 observe_calls=8 serialize_us=175
+[vole-profile] descriptor_read_us=35 descriptor_parse_us=185 descriptor_len=106348
+[vole-profile] manifest_read_us=5 field_open_total_us=230
+[vole-profile] store_open_us=30 field_open_us=232 index_open_us=1 session_open_total_us=263
+[vole-profile-stage] observe_us=8 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=5 materialize_us=3
+[vole-profile-stage] observe_us=69 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=20 index_parse_us=1 dispatch_us=67 materialize_us=13
+[vole-profile-stage] observe_us=544 probe_us=0 lookup_calls=40 index_nodes=40 index_read_us=172 index_parse_us=3 dispatch_us=542 materialize_us=127
+[vole-profile-stage] observe_us=220 probe_us=0 lookup_calls=19 index_nodes=19 index_read_us=83 index_parse_us=0 dispatch_us=218 materialize_us=53
+[vole-profile-stage] observe_us=295 probe_us=0 lookup_calls=25 index_nodes=25 index_read_us=110 index_parse_us=0 dispatch_us=293 materialize_us=70
+[vole-profile-stage] observe_us=20 probe_us=0 lookup_calls=1 index_nodes=1 index_read_us=4 index_parse_us=0 dispatch_us=18 materialize_us=4
+[vole-profile-stage] observe_us=22 probe_us=0 lookup_calls=1 index_nodes=1 index_read_us=5 index_parse_us=0 dispatch_us=20 materialize_us=4
+[vole-profile-stage] observe_us=2 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+[vole-profile] request_loop_total_us=1391 observe_dispatch_us=1204 observe_calls=8 serialize_us=165

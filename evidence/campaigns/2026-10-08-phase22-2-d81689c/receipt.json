@@ -1,0 +1,73 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase22-2-d81689c",
+  "phase": "22.2 \u2014 warm one-session court vs the TUNED full SQLite envelope (stores built once, warm query repeated N times)",
+  "utc": "2026-10-08T18:33:12Z",
+  "measured_commit": "d81689c5656bff325d610a693d6f457442bfb79c",
+  "tree_state": " M src/field/index.rs; M src/field/mod.rs; M src/field/observe.rs; M src/main.rs;?? evidence/campaigns/2026-10-08-phase22-2-d81689c-smoke/;?? evidence/campaigns/2026-10-08-phase22-2-d81689c/;?? src/field/prof.rs;?? tools/fixtures/phase22-2-attribute.py;?? tools/fixtures/phase22-2-malloc-count.c;?? tools/phase22-2-court.sh;?? tools/phase22-2-profile.sh;",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "63fe7c8a0bf3bc3f9dedcec84b9c9d5bff81f30c75f716a46be2bb563c357f11",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "sqlite3": "3.40.1",
+  "cargo_lock_sha256": "72352b92554404442286ffe7d8414109cb9b383eba9612cf94eca69ffbc2dde7",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "op_timeout_s": 180,
+  "warm_reps": 100,
+  "bootstrap_resamples": 20000,
+  "bootstrap_seed": 220200,
+  "tie_band": 0.1,
+  "depths": "0 1 2 3 4 5",
+  "court": "tools/phase22-2-court.sh",
+  "aggregator": "tools/fixtures/phase20-warm.py (reuses the phase-19.1 statistics estimators)",
+  "predecessor_campaign": "",
+  "sqlite_baseline": "tools/fixtures/phase22-competitors.py config=full (the Phase-22.1 tuned envelope); answer SQL = the frozen control sql_for",
+  "design": "stores built ONCE per document per lane; warm one-session query lane repeated WARM_REPS times per (document, depth, lane); interleaved odd/even rep order; one untimed warm-up session per (document, depth, lane); every sample retained in raw/warm_samples.tsv",
+  "estimators": "per (document,lane,depth) and per (lane,depth) n/median/mean/p25/p75/min/max/CV; per paired rep VOLE/SQLite ratio; across documents median + geometric-mean paired ratio (depth-summed per rep) with a fixed-seed cluster bootstrap 95% CI over the 12 documents; per-document win/tie/loss under a +/-10% band; per-depth breakdown C0..C5",
+  "accounting": "persistent bytes = sum of regular-file sizes (find -printf %s) for BOTH lanes; du -sb is never used (bind-mount directory inflation)",
+  "exactness": "VOLE materialize --exact --packed and the SQLite retained blob, both checked against the source length + SHA-256; plus a per-observation warm-session envelope comparison via the frozen Phase-18 _equiv logic",
+  "rc_codes": "0 ok; 3 decline; 6 unsupported-feature; 124 timeout; 137 SIGKILL/OOM",
+  "profiling_gate": {
+    "court": "tools/phase22-2-profile.sh",
+    "stage_profiler": "VOLE_PROFILE_OPEN extended in src/field/prof.rs (off by default; disabled path = one getenv per process + OnceLock load per site)",
+    "alloc_counter": "tools/fixtures/phase22-2-malloc-count.c (LD_PRELOAD; the crate forbids unsafe so it cannot install a counting global allocator)",
+    "instruments": [
+      "internal stage profiler",
+      "/usr/bin/time -v (wall/user/sys/RSS/minflt/majflt)",
+      "strace -c -f",
+      "strace -e trace=openat",
+      "LD_PRELOAD malloc count",
+      "observation JSON byte classes"
+    ],
+    "subset": "12 warm-court documents, packed store (+ 3 documents against the fs backend for contrast)",
+    "reduction": "last of 5 in-process runs for stage timings; median of 5 for wall/RSS/faults"
+  },
+  "headroom": {
+    "open_share_pooled": 0.555,
+    "descriptor_parse_share_pooled": 0.447,
+    "loop_share_pooled": 0.445,
+    "probe_share_pooled": 0.004,
+    "index_read_parse_share_pooled": 0.106,
+    "index_read_parse_share_median_doc": 0.1,
+    "index_share_pdf_range": [
+      0.009,
+      0.036
+    ],
+    "index_share_docx_range": [
+      0.042,
+      0.157
+    ],
+    "index_share_epub_range": [
+      0.15,
+      0.241
+    ],
+    "index_node_reads_pooled": 493,
+    "distinct_index_nodes_pooled": 20,
+    "implied_headline_shift": 0.137,
+    "court_mde_n100": 0.399,
+    "perfect_selector_directory_resolvable": false
+  },
+  "decision": "ship NO structural change: the one-time Descriptor::parse at open (44.7% pooled) is the target; index traversal is 10.6% pooled and sub-MDE"
+}

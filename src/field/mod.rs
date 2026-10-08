@@ -35,6 +35,7 @@ pub mod observe;
 pub mod opc;
 pub mod partial;
 pub mod plan;
+pub(crate) mod prof;
 pub mod promote;
 pub mod provenance;
 pub mod resource;

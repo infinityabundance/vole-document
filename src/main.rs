@@ -2584,6 +2584,7 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
     let t_loop = std::time::Instant::now();
     let mut observe_us: u128 = 0;
     let mut observe_calls: usize = 0;
+    let mut serialize_us: u128 = 0;
     for (i, line) in reader.lines().enumerate() {
         let line = line?;
         let line = line.trim();
@@ -2614,7 +2615,11 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
             match res {
                 Ok((answer, stats, field)) => {
                     answered += 1;
-                    println!("{}", field_answer_json(&answer, &stats, &field))
+                    let t_ser = std::time::Instant::now();
+                    println!("{}", field_answer_json(&answer, &stats, &field));
+                    if prof {
+                        serialize_us += t_ser.elapsed().as_micros();
+                    }
                 }
                 Err(e) => {
                     declined += 1;
@@ -2630,10 +2635,11 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
     }
     if prof {
         eprintln!(
-            "[vole-profile] request_loop_total_us={} observe_dispatch_us={} observe_calls={}",
+            "[vole-profile] request_loop_total_us={} observe_dispatch_us={} observe_calls={} serialize_us={}",
             t_loop.elapsed().as_micros(),
             observe_us,
-            observe_calls
+            observe_calls,
+            serialize_us
         );
     }
     session.sync()?;
