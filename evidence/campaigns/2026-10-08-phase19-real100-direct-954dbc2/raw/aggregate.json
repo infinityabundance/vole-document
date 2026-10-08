@@ -1,0 +1,9 @@
+{
+  "build_fail_rc": {},
+  "build_ms_median": 64.5,
+  "build_ms_sum": 221408,
+  "build_ok": 100,
+  "documents": 100,
+  "exact_ok_of_build_ok": 100,
+  "rss_kb_max": 2398224
+}
