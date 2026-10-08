@@ -48,7 +48,9 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   [Phase 17](phases/phase-17-results.md), [Phase 18](phases/phase-18-results.md),
   [Phase 19](phases/phase-19-results.md), [Phase 20](phases/phase-20-results.md),
   [Phase 22](phases/phase-22-results.md) (economic programme — 22.1 competitor
-  envelope and 22.2 profiling gate complete, 22.3–22.7 planned),
+  envelope, 22.2 profiling gate and 22.3.0 fused-execution gate complete,
+  22.4–22.7 planned; 22.2/22.3.0 are recorded negatives in
+  [phase-22-3-results.md](phases/phase-22-3-results.md)),
   [Phase 23](phases/phase-23-results.md) (durability: directory `fsync` + a
   model-based power-loss proxy); planned (not started):
   [Phase 21](phases/phase-21-plan.md); the Phase 22 programme is pre-registered in
