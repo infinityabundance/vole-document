@@ -1,0 +1,62 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase16-resident-probe-5d331f2",
+  "phase": "Phase 16 item 4 — resident session given narrow_probe's cache-first short-circuit",
+  "headline_result": "NEGATIVE: resident+probe does NOT beat cold+probe overall or in the 50-100MiB / >100MiB strata. It wins only below ~1MiB (as before). The probe removed the per-observation cost but the session's one-time full descriptor open dominates.",
+  "seam": {
+    "file": "src/field/observe.rs",
+    "new_functions": ["probe_eligible", "narrow_probe_open", "narrow_probe_core", "observe_session", "open_session_index"],
+    "refactor": "narrow_probe is now the cold wrapper (reads the manifest + opens the index store) around narrow_probe_core; the cold observe path is otherwise unchanged.",
+    "hoisting": "observe_session probes with the manifest of the already-open Field and an FsIndexStore the session keeps open in a new field (DocumentFieldSession.index). Ctx.istore became a borrow so the eval core reuses the same open index store.",
+    "cold_path_changed": false,
+    "answer_contract": "session answer == cold answer (FieldAnswer equality); ObserveStats may differ",
+    "eligibility": "identical to narrow_probe: use_cache && store.supports_partial_descriptor() && ((Page,Text|Preview|Structure) || (Stream,DecodedBytes|Operators))"
+  },
+  "answer_equality_real_corpus": {
+    "comparison": "cold observe --page 1 --kind text vs resident observe-batch (last line of the repeated batch)",
+    "equal": 90,
+    "mismatch": 0,
+    "skipped_declines_or_missing": 10,
+    "where": "raw/answer-equality.txt"
+  },
+  "mechanism": {
+    "finding": "the resident batch cost equals the session's one-time open; extra observations add ~nothing",
+    "evidence": "raw/mechanism.txt — nasa-pdf-0004 (76,790,177-byte descriptor): observe-batch repeat=1 = 0.14 s, repeat=5 = 0.14 s; cold single observe = 0.00 s",
+    "per_observation": "resident batch observations 2..N report descriptor_bytes_read=0, descriptor_read_mode=partial, wall_micros ~24-28 us",
+    "probe_hits": "208/360 observations 2..N of the batches were cache-served short-circuits (raw/answer-equality.txt)",
+    "cause": "DocumentFieldSession::open calls Field::open, which reads AND parses the whole descriptor; the cold path's narrow_probe never opens the descriptor at all. One full parse of a tens-of-MB descriptor exceeds REPEAT_N process spawns of a probe-only process."
+  },
+  "cold_vs_resident_text_repeat": {
+    "units": "wall milliseconds; resident = one observe-batch doing REPEAT_N=5 observations; cold = 5 separate observe processes (sum). Verdict uses the frozen court rule (fastest median, +/-10% tie band). Answered docs only (rc==0).",
+    "by_size_class": {
+      "<100KiB":     { "n": 8,  "cold_v_median": 6.5, "resident_median": 1.0,   "cold_sum": 55,   "resident_sum": 9,    "cold_wins": "0/8",   "verdict": "resident" },
+      "100KiB-1MiB": { "n": 15, "cold_v_median": 7.0, "resident_median": 2.0,   "cold_sum": 119,  "resident_sum": 26,   "cold_wins": "0/15",  "verdict": "resident" },
+      "1-10MiB":     { "n": 38, "cold_v_median": 6.0, "resident_median": 8.0,   "cold_sum": 740,  "resident_sum": 350,  "cold_wins": "16/38", "verdict": "cold by median; resident by sum" },
+      "10-50MiB":    { "n": 16, "cold_v_median": 6.0, "resident_median": 41.0,  "cold_sum": 2103, "resident_sum": 790,  "cold_wins": "9/16",  "verdict": "cold by median; resident by sum (epub wins, pdf loses)" },
+      "50-100MiB":   { "n": 10, "cold_v_median": 6.0, "resident_median": 128.5, "cold_sum": 59,   "resident_sum": 1280, "cold_wins": "10/10", "verdict": "cold" },
+      ">100MiB":     { "n": 3,  "cold_v_median": 5.0, "resident_median": 370.0, "cold_sum": 16,   "resident_sum": 1439, "cold_wins": "3/3",   "verdict": "cold" }
+    },
+    "overall_answered": { "n": 90, "cold_v_median": 6.0, "resident_median": 9.0, "cold_sum": 3092, "resident_sum": 3894, "cold_wins": "38/90 (resident faster on the other 52, but cold wins the median and the sum)", "winner": "cold" },
+    "overall_all_rows": { "n": 100, "cold_v_median": 6.0, "resident_median": 9.0, "note": "matches the Phase 15.2 receipt's all-rows 7 vs 9 ms quote" }
+  },
+  "vs_previous_receipt_78f7ea8": {
+    "previous": "evidence/campaigns/2026-10-07-real100-release-resident-78f7ea8 (commit 78f7ea8)",
+    "resident_median_by_class_prev_then_new": {
+      "<100KiB": "1.5 -> 1.0",
+      "100KiB-1MiB": "2.0 -> 2.0",
+      "1-10MiB": "8.0 -> 8.0",
+      "10-50MiB": "42.5 -> 41.0",
+      "50-100MiB": "136.5 -> 128.5",
+      ">100MiB": "353.5 -> 370.0 (confounded: n 2 -> 3, phase16.3 fixed the >100MiB memory pathology)"
+    },
+    "resident_sum_by_class_prev_then_new": {
+      "1-10MiB": "363 -> 350",
+      "10-50MiB": "816 -> 790",
+      "50-100MiB": "1349 -> 1280"
+    },
+    "verdict": "the probe gives the resident lane a small improvement (~5-12% on the large-PDF strata) but flips nothing; every prior win/loss class is unchanged",
+    "caveat": "the previous receipt is commit 78f7ea8; this run is 5d331f2 (includes phase16.1/16.2/16.3). The mechanism capture (repeat=1 == repeat=5) isolates the probe's own effect and is commit-independent."
+  },
+  "identified_but_out_of_scope": "the session's eager full-descriptor open. A lazy session open (open only the manifest at session start; load the descriptor only on a probe miss) is the change that could make residency pay for large descriptors, but the user scoped this experiment to giving the session narrow_probe's short-circuit and explicitly said not to reopen the broader residency thesis.",
+  "not_modified": ["tools/real100-court.sh", "tools/fixtures/real100-frontier.py", "real100-v1/"],
+  "committed": false
+}

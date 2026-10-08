@@ -1,0 +1,13 @@
+# Isolating the session's one-time open from per-observation cost
+# doc: nasa-pdf-0004 (50-100MiB pdf), descriptor 76790177 bytes
+# cold observe --page 1 --kind text (narrow_probe, never opens the descriptor)
+# resident observe-batch (one session open = full Field::open, then probe hits)
+observe-batch repeat=1: 0.14 s
+observe-batch repeat=1: 0.14 s
+observe-batch repeat=1: 0.14 s
+observe-batch repeat=5: 0.14 s
+observe-batch repeat=5: 0.14 s
+observe-batch repeat=5: 0.14 s
+observe (cold, single): 0.00 s
+observe (cold, single): 0.00 s
+observe (cold, single): 0.00 s

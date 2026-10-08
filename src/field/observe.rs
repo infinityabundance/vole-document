@@ -772,7 +772,7 @@ pub fn observe(
                 limits,
                 started,
                 seeds,
-                istore,
+                &istore,
                 carry,
                 ModelMemo::default(),
             )
@@ -861,6 +861,40 @@ enum NarrowProbe {
     },
 }
 
+/// Whether a request is one the cache-first short-circuit serves: caching on, a
+/// backend that supports the seek-based partial descriptor, and a selector/
+/// representation whose target the manifest + index can resolve alone.
+fn probe_eligible(store: &FieldStore, req: &ObserveRequest) -> bool {
+    use Representation as R;
+    // The short-circuit is a further step of the seek-based *partial* lane: on a
+    // backend with no partial descriptor (EntropyFS) the honest label would be
+    // `full`, so leave that path unchanged.
+    req.use_cache
+        && store.supports_partial_descriptor()
+        && matches!(
+            (&req.selector, req.representation),
+            (Selector::Page(_), R::Text | R::Preview | R::Structure)
+                | (Selector::Stream(_), R::DecodedBytes | R::Operators)
+        )
+}
+
+/// The cache-first probe over a field the caller has **already opened**: the
+/// parsed `manifest` and an `istore` the caller keeps open are supplied, so the
+/// probe re-reads neither. [`narrow_probe`] is the cold-path wrapper that reads
+/// the manifest and opens the index store first.
+fn narrow_probe_open(
+    store: &FieldStore,
+    manifest: &FieldRoot,
+    istore: &FsIndexStore,
+    req: &ObserveRequest,
+) -> Result<NarrowProbe> {
+    if !probe_eligible(store, req) {
+        return Ok(NarrowProbe::NotEligible);
+    }
+    let io_before = store.io().snapshot();
+    narrow_probe_core(store, manifest, istore, io_before, req)
+}
+
 /// Resolve a narrow observation's target node from the field manifest and the
 /// hierarchical index **only** — never the descriptor — and report whether the
 /// disposable cache can serve it whole.
@@ -872,34 +906,31 @@ enum NarrowProbe {
 /// index entries back to the normal path so a cold observation pays nothing
 /// extra.
 fn narrow_probe(store: &FieldStore, id: &FieldId, req: &ObserveRequest) -> Result<NarrowProbe> {
-    use Representation as R;
-    if !req.use_cache {
+    if !probe_eligible(store, req) {
         return Ok(NarrowProbe::NotEligible);
     }
-    // The short-circuit is a further step of the seek-based *partial* lane: on a
-    // backend with no partial descriptor (EntropyFS) the honest label would be
-    // `full`, so leave that path unchanged.
-    if !store.supports_partial_descriptor() {
-        return Ok(NarrowProbe::NotEligible);
-    }
-    let cacheable = matches!(
-        (&req.selector, req.representation),
-        (Selector::Page(_), R::Text | R::Preview | R::Structure)
-            | (Selector::Stream(_), R::DecodedBytes | R::Operators)
-    );
-    if !cacheable {
-        return Ok(NarrowProbe::NotEligible);
-    }
-
     let io_before = store.io().snapshot();
     let manifest = store.get_field(id)?;
+    let istore = FsIndexStore::open_with_io(store.root(), store.io().handle())?;
+    narrow_probe_core(store, &manifest, &istore, io_before, req)
+}
+
+/// [`narrow_probe`] from an already-read manifest and open index store.
+fn narrow_probe_core(
+    store: &FieldStore,
+    manifest: &FieldRoot,
+    istore: &FsIndexStore,
+    io_before: IoSnapshot,
+    req: &ObserveRequest,
+) -> Result<NarrowProbe> {
+    use Representation as R;
     let mut prefetched = PrefetchedIndex::default();
     if !manifest.has_index() {
         // Nothing to resolve from; let the normal path produce its typed error.
         let base_io = io_before.delta(&store.io().snapshot());
         return Ok(NarrowProbe::Probed {
             hit: false,
-            manifest: Box::new(manifest),
+            manifest: Box::new(manifest.clone()),
             carry: ProbeCarry {
                 base_io,
                 prefetched,
@@ -908,7 +939,6 @@ fn narrow_probe(store: &FieldStore, id: &FieldId, req: &ObserveRequest) -> Resul
         });
     }
 
-    let istore = FsIndexStore::open_with_io(store.root(), store.io().handle())?;
     let root = NodeId::from_bytes(manifest.index_root);
     let seeds = store.seed_substrate();
 
@@ -916,7 +946,7 @@ fn narrow_probe(store: &FieldStore, id: &FieldId, req: &ObserveRequest) -> Resul
     let target: Option<(NodeId, u64)> = match (&req.selector, req.representation) {
         (Selector::Page(page), R::Text | R::Preview | R::Structure) => {
             let key = SelectorKey::new(SEL_PAGE, *page);
-            let entries = lookup(&istore, &root, &key)?;
+            let entries = lookup(istore, &root, &key)?;
             prefetched.insert(key, entries.clone());
             match entries.first() {
                 Some(entry) => {
@@ -942,10 +972,10 @@ fn narrow_probe(store: &FieldStore, id: &FieldId, req: &ObserveRequest) -> Resul
         }
         (Selector::Stream(object), R::DecodedBytes | R::Operators) => {
             let enc_key = SelectorKey::new(SEL_STREAM, *object);
-            let enc = lookup(&istore, &root, &enc_key)?;
+            let enc = lookup(istore, &root, &enc_key)?;
             prefetched.insert(enc_key, enc.clone());
             let dec_key = SelectorKey::new(SEL_STREAM_DECODED, *object);
-            let dec = lookup(&istore, &root, &dec_key)?;
+            let dec = lookup(istore, &root, &dec_key)?;
             prefetched.insert(dec_key, dec.clone());
             // The normal path requires a `SEL_STREAM` entry and, for a pure cache
             // hit, an already-registered decoded node; otherwise it would deepen
@@ -995,7 +1025,7 @@ fn narrow_probe(store: &FieldStore, id: &FieldId, req: &ObserveRequest) -> Resul
     let base_io = io_before.delta(&store.io().snapshot());
     Ok(NarrowProbe::Probed {
         hit,
-        manifest: Box::new(manifest),
+        manifest: Box::new(manifest.clone()),
         carry: ProbeCarry {
             base_io,
             prefetched,
@@ -1033,35 +1063,93 @@ pub fn observe_with_field(
     observe_view(store, FieldView::from_field(field), req, limits, started)
 }
 
-/// [`observe_with_field`] with the resident typed-model memo and explicit
-/// one-time open attribution. `open_io` is attributed to this observation only
-/// (the session passes the field-open bytes on its first call, default after).
+/// Open the index store a resident session keeps across observations, sharing
+/// the field store's I/O counters so every index read it serves is charged to
+/// the session's observations rather than a private, discarded counter set.
+pub(crate) fn open_session_index(store: &FieldStore) -> Result<FsIndexStore> {
+    FsIndexStore::open_with_io(store.root(), store.io().handle())
+}
+
+/// Observe against an already-open field for the resident
+/// [`crate::field::session::DocumentFieldSession`], with the same cache-first
+/// short-circuit the cold [`observe`] path takes.
 ///
-/// The field is already open, so this never runs `narrow_probe` and never opens
-/// an [`OpenedField`]: it feeds the ordinary evaluation core a Full view.
-pub(crate) fn observe_with_field_memo(
+/// The session hoists what the cold [`narrow_probe`] re-fetches on every call:
+/// the parsed manifest comes from the already-open `field`, and `index` is an
+/// index store kept open across observations. A fully-cached `(Page,
+/// Text|Preview|Structure)` or `(Stream, DecodedBytes|Operators)` request is
+/// therefore served without touching the descriptor. A miss or an ineligible
+/// request falls through to the ordinary evaluation core — and since the field
+/// is already open, even a miss never re-opens the descriptor. `open_io` is the
+/// session's one-time field-open cost, attributed to this observation only (the
+/// session passes it on its first call, default after).
+pub(crate) fn observe_session(
     store: &mut FieldStore,
     field: &Field,
+    index: &FsIndexStore,
     open_io: IoSnapshot,
     req: &ObserveRequest,
     limits: Limits,
     models: ModelMemo,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let started = Instant::now();
-    let (seeds, istore) = open_sub_stores(store)?;
-    let mut view = FieldView::from_field(field);
-    view.open_io = open_io;
-    observe_with_stores_pre(
-        store,
-        view,
-        req,
-        limits,
-        started,
-        seeds,
-        istore,
-        ProbeCarry::default(),
-        models,
-    )
+    match narrow_probe_open(store, field.manifest(), index, req)? {
+        // The target is served wholly from the disposable derived cache: the
+        // descriptor is never opened. The ordinary evaluation core still runs,
+        // against a trip-wire source, so the answer and every work counter are
+        // those of the normal path while `descriptor_bytes_read` excludes any
+        // fresh descriptor read.
+        NarrowProbe::Probed {
+            hit: true,
+            manifest,
+            carry,
+        } => {
+            let view = FieldView {
+                manifest: manifest.as_ref(),
+                id: field.id(),
+                open_io,
+                source: &NO_SOURCE,
+                loader: None,
+                object_count: 0,
+                graph_ops: 0,
+                read_mode: DescriptorReadMode::Partial,
+            };
+            let seeds = CountingSeedStore::new(store.seed_substrate());
+            observe_with_stores_pre(
+                store, view, req, limits, started, seeds, index, carry, models,
+            )
+        }
+        // The selector resolved from the manifest + index, but the target is not
+        // cached: continue on the resident full path, reusing the probe's
+        // already-counted bytes and resolved index entries so nothing is read
+        // twice.
+        NarrowProbe::Probed {
+            hit: false, carry, ..
+        } => {
+            let mut view = FieldView::from_field(field);
+            view.open_io = open_io;
+            let seeds = CountingSeedStore::new(store.seed_substrate());
+            observe_with_stores_pre(
+                store, view, req, limits, started, seeds, index, carry, models,
+            )
+        }
+        NarrowProbe::NotEligible => {
+            let mut view = FieldView::from_field(field);
+            view.open_io = open_io;
+            let seeds = CountingSeedStore::new(store.seed_substrate());
+            observe_with_stores_pre(
+                store,
+                view,
+                req,
+                limits,
+                started,
+                seeds,
+                index,
+                ProbeCarry::default(),
+                models,
+            )
+        }
+    }
 }
 
 /// A descriptor opened for one observation: the full parse, or a seek-based
@@ -1298,7 +1386,7 @@ fn observe_view_pre<'a>(
         limits,
         started,
         seeds,
-        istore,
+        &istore,
         carry,
         ModelMemo::default(),
     )
@@ -1323,7 +1411,7 @@ fn observe_with_stores<'a, S: SeedStore>(
         limits,
         started,
         seeds,
-        istore,
+        &istore,
         ProbeCarry::default(),
         ModelMemo::default(),
     )
@@ -1340,7 +1428,7 @@ fn observe_with_stores_pre<'a, S: SeedStore>(
     limits: Limits,
     started: Instant,
     seeds: CountingSeedStore<S>,
-    istore: FsIndexStore,
+    istore: &'a FsIndexStore,
     carry: ProbeCarry,
     models: ModelMemo,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
@@ -1536,7 +1624,7 @@ struct Ctx<'a, S: SeedStore> {
     graph_ops: usize,
     read_mode: DescriptorReadMode,
     seeds: CountingSeedStore<S>,
-    istore: FsIndexStore,
+    istore: &'a FsIndexStore,
     /// Index entries the cache-first probe already resolved, keyed by selector.
     prefetched: PrefetchedIndex,
     /// The target's cache bytes, already read and integrity-checked by the probe.
@@ -1680,7 +1768,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             Some(entries) => entries,
             None => {
                 let root = NodeId::from_bytes(self.manifest.index_root);
-                lookup(&self.istore, &root, &key)?
+                lookup(self.istore, &root, &key)?
             }
         };
         self.stats.index_nodes_read += entries.len() as u64;
@@ -5565,6 +5653,46 @@ mod tests {
         assert_eq!(
             s3.manifest_bytes_read, 0,
             "the third observation re-read the manifest: {s3:?}"
+        );
+    }
+
+    /// The resident session's hoisted probe returns the *same* `FieldAnswer` as
+    /// the cold [`narrow_probe`] short-circuit, and actually takes it: against a
+    /// warm derived cache both report `descriptor_read_mode == Partial` with no
+    /// fresh descriptor read.
+    #[test]
+    fn session_probe_matches_narrow_probe_short_circuit() {
+        use crate::field::session::{DocumentFieldSession, SessionOptions};
+        let mut fx = Fixture::new("session-probe", false);
+        let req = ObserveRequest::new(Selector::Page(1), Representation::Text);
+        // The first cold observation materializes the derived chain and writes it
+        // to the disposable cache; the second takes `narrow_probe`'s short-circuit.
+        let (warm, _, _) = observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap();
+        let (probe_answer, probe_stats, _) =
+            observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap();
+        assert_eq!(probe_answer, warm);
+        assert_eq!(
+            probe_stats.descriptor_read_mode,
+            DescriptorReadMode::Partial,
+            "the cold short-circuit did not fire: {probe_stats:?}"
+        );
+        assert_eq!(probe_stats.descriptor_bytes_read, 0, "{probe_stats:?}");
+
+        // The resident session takes the *same* short-circuit — from the manifest
+        // parsed at open and an index store kept open across observations, so a
+        // single process need not re-read either.
+        let mut session =
+            DocumentFieldSession::open(&fx.root, &fx.field.to_hex(), SessionOptions::default())
+                .unwrap();
+        let (sess_answer, sess_stats, _) = session.observe(&req, Limits::DEFAULT).unwrap();
+        assert_eq!(
+            sess_answer, probe_answer,
+            "session probe answer differs from the cold narrow_probe"
+        );
+        assert_eq!(
+            sess_stats.descriptor_read_mode,
+            DescriptorReadMode::Partial,
+            "the session did not use the probe short-circuit: {sess_stats:?}"
         );
     }
 

@@ -10,7 +10,10 @@ use crate::error::Result;
 use crate::limits::Limits;
 use crate::store::IoSnapshot;
 
-use super::observe::{ModelMemo, ObserveRequest, ObserveStats, observe_with_field_memo};
+use super::index::FsIndexStore;
+use super::observe::{
+    ModelMemo, ObserveRequest, ObserveStats, observe_session, open_session_index,
+};
 use super::promote::PromotePolicy;
 use super::provenance::FieldAnswer;
 use super::{Field, FieldId, FieldStore};
@@ -52,6 +55,9 @@ pub struct DocumentFieldSession {
     store: FieldStore,
     field: Field,
     field_id: FieldId,
+    /// The observation index store, opened **once** alongside the field and kept
+    /// open across observations so the cache-first probe never re-opens it.
+    index: FsIndexStore,
     models: ModelMemo,
     /// The one-time open cost, attributed to the first observation (so the sum
     /// over a batch is honest), then dropped.
@@ -81,10 +87,13 @@ impl DocumentFieldSession {
         let field_id = FieldId::from_hex(field_hex)?;
         let field = Field::open(&store, &field_id, Limits::DEFAULT)?;
         let open_io = field.open_io();
+        // Open the index store once; the probe path borrows it for every request.
+        let index = open_session_index(&store)?;
         Ok(Self {
             store,
             field,
             field_id,
+            index,
             models: ModelMemo::with_budget(opts.model_memo_bytes),
             pending_open_io: Some(open_io),
         })
@@ -95,17 +104,18 @@ impl DocumentFieldSession {
         self.field_id
     }
 
-    /// One observation. `&mut self.store`, `&self.field`, and a clone of the
-    /// `Rc`-based memo are three disjoint field borrows in one call expression.
+    /// One observation. `&mut self.store`, `&self.field`, `&self.index`, and a
+    /// clone of the `Rc`-based memo are disjoint field borrows in one call.
     pub fn observe(
         &mut self,
         req: &ObserveRequest,
         limits: Limits,
     ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
         let open_io = self.pending_open_io.take().unwrap_or_default();
-        observe_with_field_memo(
+        observe_session(
             &mut self.store,
             &self.field,
+            &self.index,
             open_io,
             req,
             limits,
