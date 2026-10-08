@@ -42,6 +42,13 @@ pub mod share;
 
 pub use manifest::{FieldId, FieldRoot};
 
+/// Whether the env-gated warm-session open profiler is enabled. This is
+/// measurement scaffolding only: it never changes an observation, a byte, or a
+/// decision, and the default path pays a single env lookup per open.
+pub(crate) fn warm_prof_enabled() -> bool {
+    std::env::var_os("VOLE_PROFILE_OPEN").is_some()
+}
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -776,9 +783,20 @@ impl std::fmt::Debug for Field {
 impl Field {
     /// Open a field by id, loading and verifying its descriptor.
     pub fn open(store: &FieldStore, id: &FieldId, limits: Limits) -> Result<Field> {
+        let prof = warm_prof_enabled();
+        let t0 = std::time::Instant::now();
         let io_before = store.io().snapshot();
         let manifest = store.get_field(id)?;
-        Field::open_after_manifest(store, manifest, io_before, limits)
+        let t_manifest = t0.elapsed();
+        let field = Field::open_after_manifest(store, manifest, io_before, limits)?;
+        if prof {
+            eprintln!(
+                "[vole-profile] manifest_read_us={} field_open_total_us={}",
+                t_manifest.as_micros(),
+                t0.elapsed().as_micros()
+            );
+        }
+        Ok(field)
     }
 
     /// The body of [`Field::open`] from an already-read manifest. `io_before` is
@@ -791,9 +809,20 @@ impl Field {
         io_before: IoSnapshot,
         limits: Limits,
     ) -> Result<Field> {
+        let prof = warm_prof_enabled();
+        let t0 = std::time::Instant::now();
         let descriptor_bytes = store.get_descriptor(&Id::from_bytes(manifest.descriptor_id))?;
+        let t_read = t0.elapsed();
         let open_io = io_before.delta(&store.io().snapshot());
         let mut parsed = crate::container::Descriptor::parse(&descriptor_bytes, limits)?;
+        if prof {
+            eprintln!(
+                "[vole-profile] descriptor_read_us={} descriptor_parse_us={} descriptor_len={}",
+                t_read.as_micros(),
+                t0.elapsed().as_micros().saturating_sub(t_read.as_micros()),
+                descriptor_bytes.len()
+            );
+        }
         parsed.universe_id = manifest.universe_id;
         // The manifest must agree with the descriptor it binds.
         if parsed.descriptor.source_len != manifest.source_len

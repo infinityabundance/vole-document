@@ -1,0 +1,20 @@
+[vole-profile] descriptor_read_us=520 descriptor_parse_us=2716 descriptor_len=1466727
+[vole-profile] manifest_read_us=10 field_open_total_us=3277
+[vole-profile] store_open_us=135 field_open_us=3280 index_open_us=5 session_open_total_us=3420
+[vole-profile] request_loop_total_us=215 observe_dispatch_us=183 observe_calls=4
+[vole-profile] descriptor_read_us=457 descriptor_parse_us=2589 descriptor_len=1466727
+[vole-profile] manifest_read_us=9 field_open_total_us=3064
+[vole-profile] store_open_us=131 field_open_us=3067 index_open_us=5 session_open_total_us=3203
+[vole-profile] request_loop_total_us=197 observe_dispatch_us=169 observe_calls=4
+[vole-profile] descriptor_read_us=537 descriptor_parse_us=2613 descriptor_len=1466727
+[vole-profile] manifest_read_us=9 field_open_total_us=3170
+[vole-profile] store_open_us=139 field_open_us=3173 index_open_us=5 session_open_total_us=3317
+[vole-profile] request_loop_total_us=199 observe_dispatch_us=170 observe_calls=4
+[vole-profile] descriptor_read_us=517 descriptor_parse_us=2578 descriptor_len=1466727
+[vole-profile] manifest_read_us=9 field_open_total_us=3115
+[vole-profile] store_open_us=141 field_open_us=3118 index_open_us=5 session_open_total_us=3264
+[vole-profile] request_loop_total_us=189 observe_dispatch_us=162 observe_calls=4
+[vole-profile] descriptor_read_us=447 descriptor_parse_us=2569 descriptor_len=1466727
+[vole-profile] manifest_read_us=8 field_open_total_us=3034
+[vole-profile] store_open_us=105 field_open_us=3037 index_open_us=5 session_open_total_us=3147
+[vole-profile] request_loop_total_us=178 observe_dispatch_us=155 observe_calls=4

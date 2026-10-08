@@ -2427,6 +2427,10 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
     // when it answered nothing at all, so a lane-level rc keeps its meaning.
     let mut answered = 0usize;
     let mut declined = 0usize;
+    let prof = std::env::var_os("VOLE_PROFILE_OPEN").is_some();
+    let t_loop = std::time::Instant::now();
+    let mut observe_us: u128 = 0;
+    let mut observe_calls: usize = 0;
     for (i, line) in reader.lines().enumerate() {
         let line = line?;
         let line = line.trim();
@@ -2448,7 +2452,13 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
             .ok_or_else(|| Error::usage("observe-batch: each request needs --kind KIND"))?;
         let req = observe_request(&lo, selector, field_representation(kind)?);
         for _ in 0..repeat {
-            match session.observe(&req, limits) {
+            let t_obs = std::time::Instant::now();
+            let res = session.observe(&req, limits);
+            if prof {
+                observe_us += t_obs.elapsed().as_micros();
+                observe_calls += 1;
+            }
+            match res {
                 Ok((answer, stats, field)) => {
                     answered += 1;
                     println!("{}", field_answer_json(&answer, &stats, &field))
@@ -2464,6 +2474,14 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
                 }
             }
         }
+    }
+    if prof {
+        eprintln!(
+            "[vole-profile] request_loop_total_us={} observe_dispatch_us={} observe_calls={}",
+            t_loop.elapsed().as_micros(),
+            observe_us,
+            observe_calls
+        );
     }
     session.sync()?;
     if answered == 0 && declined > 0 {

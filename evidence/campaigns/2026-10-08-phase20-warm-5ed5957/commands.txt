@@ -1,0 +1,9 @@
+# Phase 20.3 — warm heterogeneous-query court: each lane's store is built ONCE,
+# then the warm one-session query lane is repeated WARM_REPS (default 100) times
+# per (document, depth, lane), interleaved, and every sample is retained.
+# Never on the host.
+docker compose run --rm --no-TTY doc-baseline bash tools/phase20-warm-court.sh
+# bounded / explicit population:
+docker compose run --rm --no-TTY doc-baseline sh -c 'WARM_REPS=100 IDS="nist-pdf-0017 nist-docx-0005" bash tools/phase20-warm-court.sh'
+# with a before/after block against the sealed Phase-19.2 samples:
+docker compose run --rm --no-TTY doc-baseline sh -c 'PREDECESSOR=evidence/campaigns/2026-10-08-phase19-warm-6b66eab bash tools/phase20-warm-court.sh'
