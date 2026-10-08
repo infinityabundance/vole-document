@@ -7,18 +7,22 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.24` (Phases 13–19 — Phase-13 proposals + `N5`
+**Current release:** `0.1.0-alpha.25` (Phases 13–20 — Phase-13 proposals + `N5`
 gate, the benign-`DOCTYPE` real-EPUB fix, a partial large-PDF encode fix, the
 Phase-15 performance programme, the Phase-16 backend adoption + large-PDF fix +
 storage-accounting correction, the Phase-17 direct field build +
 revision-lineage surface, the Phase-18 build-cost programme whose batched
-packed-store durability inverted the equal-contract build position, and the
+packed-store durability inverted the equal-contract build position, the
 Phase-19 measurement-discipline phase that re-read that position with paired
 interleaved repetitions and ran the direct build over the full frozen
-population: build win **paired median 0.182 (95% CI 0.102–0.228, < 1.0)** vs a
+population (build win **paired median 0.182 (95% CI 0.102–0.228, < 1.0)** vs a
 ratio-of-sums **~0.96×**, warm a **modest ~1.29× loss** (marginal under the
-median, resolved under the geometric mean), and **100/100 built + 100/100 exact**
-on `real100-v1`).
+median, resolved under the geometric mean), **100/100 built + 100/100 exact** on
+`real100-v1`), and the Phase-20 hardening-and-economics phase — an **adversarial
+1,300-case crash court** (0 fail; **scope stated**: ordering/prefix/fail-closed
+proven, true power loss and torn rename not), a **33 % large-source memory cut**
+so a **~1 GiB source now fits**, the warm loss **diagnosed and recorded
+durable**, and **C4b closed by a typed external layer**).
 **Top-level verdict (ADR-0023, the
 authoritative [`FINDINGS.md`](findings.md)):** the current representation stack
 does not beat purpose-built baselines on any measured axis; the durable results
@@ -347,6 +351,49 @@ full-population VOLE bytes are **~0.96×** the SQLite `real100` db, **not** the
 **0.53×** of the 12-document contract subset. **Phase 19 changes no wire byte,
 decode path, or `encode` output.**
 
+Phase 20 (branch `phase20`) is a **hardening-and-economics phase** that attacks
+the four open problems Phase 19 left, in risk order (results
+[`docs/phases/phase-20-results.md`](../phases/phase-20-results.md)). **20.1**
+**adversarially attacks the packed store's durability** with a 1,300-case
+fault-injection court over two representative PDFs, `reps=2`, under **both**
+`SyncPolicy::Batch` and `SyncPolicy::Each`: families **A process death** 1,024,
+**B storage corruption** 236, **C deterministic in-code abort** (non-default
+`fault-inject` feature, 10 named writer points) 40. **Verdict 1,300 PASS / 0
+FAIL / 0 CRITICAL**; `bad_hash` (id-mismatched bytes served) **0**; prefix
+violations **0**; the whole-node re-hash gate rejected **212,812** nodes across
+**110** cases; corruption fails closed typed. **Scope is stated with the
+evidence:** this **proves** flush-before-publish ordering, no-partial-node,
+prefix recovery, and corruption fail-closed — it does **not** prove true power
+loss or torn rename, because `SIGKILL` does not evict the page cache (so no
+`fsync` boundary is exercised) and `write_atomic` never dir-fsyncs; `Batch` and
+`Each` give identical verdicts for that reason, which is **not** a power-safety
+proof (ADR-0053 amendment). **20.2** cuts large-source peak memory by **33 %**:
+the peak was the encode court's decode-before-commit proof holding six
+source-sized buffers; dropping a redundant copy in `Court::offer` and moving
+inline object bytes in `materialize_in_place`/`ingest_verified`/
+`ingest_package_direct` takes RSS/source **5.998× → 3.997×**, `nasa-pdf-0001`
+**2342 → 1563 MiB**, and a 1 GiB synthetic **rc 137 (OOM) @6113 MiB → rc 0
+@4099 MiB** (cap boundary ~1.0 → ~1.5 GiB; **no cap raised**). Exactness
+**16/16**; descriptor SHA-256 identical **15/15** — **no wire change**. The
+residual floor is **4 copies**; reaching 3 needs a lifetime-borrowing
+`Descriptor` (a wire-type change). **20.3** profiles the warm loss to
+`Descriptor::parse` (~**1.7 ns/B**, ≈590 MB/s) + the full `Field::open`
+(1.6–2.6 ms; ~45–50 % of a losing session) and **ships no production change,
+with proof**: a lazy/partial open cannot help this contract because
+`probe_eligible` misses the schedule's `metadata`/`revision`/docx-epub
+selectors, so the total parse cost is unchanged, and there is no redundant
+re-read or re-hash. Paired N=100 before/after is a **NULL** (median **1.292 →
+1.322**; CI half-width ±0.311; MDE ≈0.44) — the loss is **recorded durable**,
+not tuned away. **20.4** closes **C4b** with an explicit, removable
+`ExternalContext` stored **beside** the field (ADR-0055): a plain `--metadata`
+answer is byte-identical before-attach/after-attach/after-clear **12/12**,
+`materialize --exact` matches attached and removed **12/12**, the external query
+declines typed (rc 6) after clear **12/12**, and with the SAME external input
+supplied to both lanes both answer **12/12** with VOLE's tuple equal to
+SQLite's **12/12** (attach **1001 B**/**26 ms**, query **8 ms** vs SQLite's
+**19 ms**; storage 0.49×, build 7.34×, warm 1.38×). **Phase 20 changes no wire
+byte, decode path, or `encode` output.**
+
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED` / `SUPERSEDED` / `PARTLY DELIVERED`).
 
@@ -448,6 +495,10 @@ decode path, or `encode` output.**
 | Paired, interleaved repeatability court (build + warm, N=10) | 19.1 | RECORDED (measurement) | ADR-0054; same 12-document C0–C5 court, **N=10 paired reps of both lanes at every depth**, interleaved (odd reps VOLE→SQLite, even SQLite→VOLE), every sample retained; bootstrap 20,000, seed 190019, ±10% tie band; persistent bytes = regular-file sum. **Build: established < 1.0** — paired median **0.182** (95% CI **0.102–0.228**), geometric mean 0.203 (0.128–0.395), **11 win / 0 tie / 1 loss** (`nist-pdf-0017` at **4.440×**). **Correction:** the Phase-18 **ratio-of-sums** estimator reads **~0.96** here (not 0.82) because VOLE's *total* build is dominated by that one document while SQLite's is spread; the 0.82 → 0.96 move is SQLite-lane host variance (1893 → 1582 ms), VOLE's sum reproducible (1545.5 vs 1552 ms). **Warm not resolved:** paired median **1.077** (0.809–1.391, includes 1.0), geomean 1.065 (0.880–1.287), 5/1/6. Best-of-3 (min) vs median-of-10: build 0.977 → 0.963, warm 1.218 → 1.194 (≤2.4%, no material bias). Exactness 12/12 both lanes. Campaign `2026-10-08-phase19-repeat-d6c8c4c` |
 | High-N warm-only query court (N=100) | 19.2 | RECORDED (measurement) | ADR-0054; stores built **once**, warm one-session lane repeated **N=100** per (document, depth, lane), interleaved; bootstrap 20,000, seed 190102. Pooled warm medians VOLE **2.25–2.32 ms** (CV ≈53%) vs SQLite **1.54–1.65 ms** (CV ≈21–25%) — ~0.7 ms slower per session. Pooled median paired ratio **1.292** (95% CI **0.994–1.658**, includes 1.0); geometric mean **1.283** (95% CI **1.069–1.535**, excludes 1.0); per-document 2 win / 3 tie / 7 loss. Per-depth median ratio C0 1.326, C1 1.282 (both resolved losses), C2 1.259, C3 1.259, C4 1.179, C5 1.305 (C2–C5 include 1.0). Verdict: **not resolved under the median estimator, resolved under the geometric mean** — a modest real loss; the N=10 warm estimate was under-sampled. Variance floor: within-cell between-rep CV 5.4% (p90 9.4%); median-CI half-width ±0.332; MDE(80%) ≈0.474; an independent identical re-run also gave "includes 1.0". Exactness 12/12 both; 480 warm envelopes, 0 mismatches. Campaign `2026-10-08-phase19-warm-6b66eab` |
 | Direct build over the full frozen `real100-v1` | 19.3 | RECORDED (measurement, robustness) | `field-build --profile runtime --packed --sync=batch` on all 100 docs: build **100/100** (pdf 60/60, docx 15/15, epub 25/25; rc histogram all 0 — no 124 timeouts, no 137 OOMs); the OLD two-step path built 97/100 (`rc124`×2, `rc137`×1 on `nasa-pdf-0001`/`0002`/`0003`) and the direct path **recovered all three**. Wall median **64 ms**, sum 221,408 ms; slowest `nasa-pdf-0003` **87.5 s** (under the 180 s budget). Peak RSS median **30.9 MiB**, max **2342 MiB** (`nasa-pdf-0001`, a 409 MiB source ≈5.7×) — **memory, not wall, is the binding constraint** for sources ≳1 GiB. Persistent **2,829,898,049 B = 1.036×** source; 2,691 files / 4,610 dirs. **Exactness 100/100.** Cold coverage text 92/100, metadata 98/100; all declines typed (`rc 6` for `nasa-pdf-eb-*` text — no page 1; `rc 20` `InvalidPackageStructure` for `nist-docx-0011/0012`, still byte-exact). vs the old path (file-size-corrected; `du -sb` not compared): on 96 common docs median **61 ms** vs 2,095 ms (paired **0.083×**) but **+5.3%** bytes (1.830 vs 1.738 GB), 15/96 byte-identical (all epub). **Storage is population-dependent: full-population VOLE bytes are ~0.96× the SQLite `real100` db, not the 0.53× of the 12-document contract subset.** Campaign `2026-10-08-phase19-real100-direct-954dbc2` |
+| Crash / power-cut fault-injection court | 20.1 | RECORDED (adversarial durability evidence; **scope stated**) | 1,300 cases over two representative PDFs (`nist-pdf-0017`, `nist-pdf-0002`, `reps=2`) under **both** `SyncPolicy::Batch` and `SyncPolicy::Each`: families **A process death** (SIGKILL/SIGABRT delay sweep + manifest/idx-boundary kills) 1,024, **B storage corruption** (truncate `.pack`/`.idx`, bit flips, zeroed tail, dropped `.idx`) 236, **C deterministic abort** (non-default `fault-inject` feature, 10 named writer points) 40. **PASS 1300 / FAIL 0 / CRITICAL 0** (Batch 650/650, Each 650/650); `bad_hash` **0**; prefix violations **0**; whole-node re-hash gate rejected **212,812** nodes across **110** cases; corruption fails closed typed; one robustness observation (a SIGKILL inside `PackWriter::ensure_open` before the 24-byte header leaves the store unusable-but-fail-closed with no manifest, typed `IntegrityMismatch`). **Proves** flush-before-publish ordering, no partial node, prefix-exact recovery, corruption fail-closed. **Does not prove** true power loss (page cache survives SIGKILL; no `fsync` boundary exercised) or torn/lost rename (`write_atomic` never dir-fsyncs). Court `tests/crash_recovery.rs` via `tools/phase20-crash-court.sh`. Campaign `2026-10-08-phase20-crash-47acde7`; ADR-0053 amendment |
+| Large-source memory architecture | 20.2 | ADOPTED | the peak was the encode court's decode-before-commit proof holding six source-sized buffers (traced to 6.007 S); Stage B never dominates. Four files drop a redundant copy, no wire change: `Court::offer` discards the candidate descriptor after `serialize()`; `materialize_in_place`/`take_objects` **move** inline object bytes (`std::mem::take`); `ingest_verified` and `ingest_package_direct` use it. RSS/source **5.998× → 3.997×** (−33 %); `nasa-pdf-0001` **2342.2 → 1562.6 MiB**; 1 GiB synthetic **rc 137 @6113 MiB → rc 0 @4099 MiB** (cap boundary ~1.0 → ~1.5 GiB; **no cap raised**). Exactness **16/16** (15/16 before); descriptor SHA-256 identical **15/15**; package path 6.32× → 5.30× at 10 MiB; wall unchanged. Residual floor **4 copies**; reaching 3 needs a lifetime-parameterized `Descriptor` (a wire-type change). Service `doc-baseline` (6 GiB). Campaign `2026-10-08-phase20-memory-7b897ba` |
+| Warm heterogeneous query (profiled; no change shipped) | 20.3 | RECORDED (durable loss) | dominant term is `Descriptor::parse` (~**1.7 ns/B**, ≈590 MB/s) + the full `Field::open` (1.6–2.6 ms; ~45–50 % of a losing session; 58 µs for the 29 KB winner). No safe lever: a lazy/partial open cannot help *this* contract because `probe_eligible` covers only `(Page, Text|Preview|Structure)`/`(Stream, Decoded|Operators)` while the schedule also issues `metadata`/`revision(s)`/docx-epub `block`/`doc-text`/`heading`/`table`/`resource`, forcing the full parse; there is no redundant manifest/descriptor re-read or re-hash; relaxing a validation lives in `src/container/` and would weaken decoder authority (**rejected**). Paired interleaved N=100 before/after: median **1.292 → 1.322** (CI lower 0.989 → 1.008), geomean **1.283 → 1.282**, 2/3/7 both — **NULL** (CI half-width ±0.311; MDE ≈0.44; the parse removal is ≈0.3, below resolution). Only the env-gated `VOLE_PROFILE_OPEN` profiler (off by default) kept. Exactness 12/12; 480 envelopes, 0 mismatches. Campaign `2026-10-08-phase20-warm-5ed5957` |
+| `ExternalContext` — typed external/corpus lineage (C4b) | 20.4 | ADOPTED | ADR-0055; `src/field/external.rs`, stored at `<store>/external/<FieldId>` (`VOLECTX1`), **disjoint** from `descriptor/field/index/cache/seed|fieldpack` and never in the seed DAG, index, manifest, or exactness authority; removal is one `unlink`. `Selector::ExternalLineage` (`external-lineage`) answered for `--kind lineage`; `Basis::ExternalMetadata` (`is_exact() == false`); the answer reports `basis=external-metadata`, `exact=false`, empty `dependency_ids`, `integrity_scope=none`, `bytes_read=0`, `provenance=external-context;origin=…;source=…`; no context is a typed decline (`UnsupportedFeature`, rc 6). Separation: plain `--metadata` byte-identical before-attach/after-attach/after-clear **12/12**; `materialize --exact` matches attached and removed **12/12**; external query declines rc 6 after clear **12/12**. With the SAME external input supplied to BOTH lanes, both answer C4b **12/12** and VOLE's tuple equals SQLite's **12/12** — **C4b closes** under equal input. Cost: sidecar **1001 B**, attach **26 ms**, query **8 ms** vs SQLite's **19 ms**; storage 0.49×, build 7.34×, warm 1.38×. Residual: **C5b batch folding not measured**. Campaign `2026-10-08-phase20-c4b-5ab2e76` |
 
 The PDF **physical authority** (lexer span cover, structural scanner, revision
 map, and object roles) is `ADOPTED` as of Phase 3 (campaign

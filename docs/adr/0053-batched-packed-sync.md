@@ -86,3 +86,51 @@ tail and the caller appends from the recovered end).
 - `evidence/campaigns/2026-10-08-phase18-contract-packed-14a7e6f/` (the re-run
   contract court; its fixture prose is stale, the raw tables are authoritative)
 - ADR-0043 (the packed seed store); ADR-0042 (`observe-batch` residency)
+
+## Amendment (Phase 20.1) — the fault-injection evidence, with its scope
+
+The statement above that the manifest-ordering guarantee is "enforced by
+construction rather than by a power-loss test" is now backed by a **hostile
+fault-injection court**. The original decision is unchanged; this amendment adds
+the measured evidence and states exactly what it does and does not prove.
+
+**Receipt.** `evidence/campaigns/2026-10-08-phase20-crash-47acde7/` (court
+`tests/crash_recovery.rs` via `tools/phase20-crash-court.sh`; base image
+`rust:1.99.0-slim-bookworm@sha256:452176c0…`, service `dev`
+`mem_limit == memswap_limit == 8g`, `pids_limit 4096`). Two representative PDFs,
+`reps=2`.
+
+**Result — 1,300 cases, PASS 1,300 / FAIL 0 / CRITICAL 0**, under **both**
+`SyncPolicy::Batch` and `SyncPolicy::Each` (650/650 each). Three families:
+process death (`SIGKILL`/`SIGABRT` delay sweep + manifest/idx-boundary kills,
+1,024), storage corruption (truncate `.pack`/`.idx`, bit flips, zeroed tail,
+dropped `.idx`, 236), and deterministic in-code aborts at ten named writer
+points behind the non-default `fault-inject` feature (40).
+
+- `bad_hash` (id-mismatched bytes served) **0**; prefix-resolution violations
+  **0**;
+- the whole-node re-hash gate rejected **212,812** enumerated nodes across
+  **110** cases;
+- corrupted artefacts consistently **fail closed** with a typed error;
+- one robustness observation (not a correctness failure): a `SIGKILL` inside
+  `PackWriter::ensure_open`, after the `.pack` was created but before its 24-byte
+  header completed, leaves the store **unusable with no manifest**; every later
+  open fails closed with a typed `IntegrityMismatch` ("truncated header") and
+  never returns bytes.
+
+**What this proves.** Flush-before-publish ordering; no partial node ever
+fetchable; recovery is exactly a prefix; corruption fails closed — under both
+policies, across every injected boundary.
+
+**What this does not prove (scope, explicit).** `Batch` and `Each` gave an
+identical verdict distribution, which is **expected under this injection model
+and is not evidence that batching is power-safe**: `SIGKILL`/`SIGABRT`/`abort()`
+stop the process but the OS page cache survives, so **no `fsync`/`fdatasync`
+boundary is actually exercised** and the court does not measure loss of
+un-`fsync`ed records under **true power loss**. The `write_atomic` rename is
+never followed by a parent-directory `fsync`, so a **torn/lost rename** across a
+real power cut remains **argued, not measured**. Family C requires the
+non-default `fault-inject` feature.
+
+See [phase-20-results.md](../phases/phase-20-results.md) (20.1) for the full
+injection × outcome matrix.

@@ -136,6 +136,29 @@ estimator-dependent (~0.96× by ratio of sums), and the warm lane is a modest
 ~1.29× loss that the median estimator cannot separate from 1.0 at N=100 while the
 geometric mean resolves it.
 
+## Phase-20 outcomes
+
+Phase 20 is a **hardening-and-economics phase** that attacks, in risk order, the
+four open problems Phase 19 left: prove (or bound) the packed store's durability
+under faults, bound large-source memory, diagnose the warm loss, and decide C4b.
+All four plan items are now **complete and sealed**. Results:
+[phase-20-results.md](../phases/phase-20-results.md); plan:
+[phase-20-plan.md](../phases/phase-20-plan.md) (complete); ADR-0055 and the
+Phase-20.1 amendment to ADR-0053.
+
+| Item | Question | Outcome |
+|---|---|---|
+| 20.1 Crash / power-cut fault-injection court | Does the packed store hold its recovery invariants across an arbitrary crash at every durability boundary, under both sync policies, with recovery exactly a prefix? | **Complete — 1,300 PASS / 0 FAIL / 0 CRITICAL** (families A 1,024, B 236, C 40; Batch 650/650, Each 650/650); `bad_hash` **0**; prefix violations **0**; whole-node re-hash gate rejected **212,812** nodes across **110** cases; corruption fails closed typed. **Scope:** proves ordering / no-partial-node / prefix recovery / fail-closed, **not** true power loss or torn rename (page cache survives SIGKILL; `write_atomic` never dir-fsyncs). `2026-10-08-phase20-crash-47acde7` |
+| 20.2 Large-source memory architecture | Can peak memory be bounded for sources ≳1 GiB without changing exactness or the wire? | **Complete — adopted:** RSS/source **5.998× → 3.997×** (−33 %); `nasa-pdf-0001` **2342 → 1563 MiB**; 1 GiB synthetic **rc 137 @6113 MiB → rc 0 @4099 MiB** (≈1 GiB now fits, ~2 GiB headroom; cap boundary ~1.0 → ~1.5 GiB; **no cap raised**). Exactness **16/16**; descriptor SHA-256 identical **15/15**. Residual floor 4 copies (3 needs a wire-type change). `2026-10-08-phase20-memory-7b897ba` |
+| 20.3 Warm heterogeneous query | Is the ~1.29× warm loss a closeable constant or durable? | **Complete — no change shipped, with proof.** Dominant term `Descriptor::parse` (~1.7 ns/B) + full `Field::open`; no safe lever (lazy/partial open cannot help this contract; no redundant re-read; relaxing a validation would weaken decoder authority). Paired N=100 before/after is a **NULL** (median 1.292 → 1.322; CI half-width ±0.311; MDE ≈0.44). Loss recorded **durable**. `2026-10-08-phase20-warm-5ed5957` |
+| 20.4 C4b / `ExternalContext` | Can corpus/external lineage be admitted as an explicit typed layer beside the field without contaminating it? | **Complete — C4b closes** under an equal external input. Typed, removable `ExternalContext` at `<store>/external/<FieldId>`; `Basis::ExternalMetadata` (`exact=false`); plain `--metadata` byte-identical before/after attach/clear **12/12**; `materialize --exact` **12/12**; external query declines rc 6 after clear **12/12**; both lanes answer and tuples match **12/12**. ADR-0055. `2026-10-08-phase20-c4b-5ab2e76` |
+
+The warm loss is now **diagnosed and durable**; the packed store's durability is
+**adversarially attacked with its scope stated**; large sources up to ~1 GiB
+**fit**; and **C4a and C4b are both answered**. The Phase-16 substrate question
+([ADR-0050](../adr/0050-sqlite-as-substrate-question.md)) is unchanged and no
+option of it is chosen.
+
 ## Unmeasured gates
 
 - `N4` (decline-rate threshold): no pre-registered threshold exists, so it is

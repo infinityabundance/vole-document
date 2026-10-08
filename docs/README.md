@@ -42,12 +42,12 @@ Per-format authority boundaries, native inverse representation, and exactness.
 
 Frozen rationale and receipts, kept as a durable record (not rewritten).
 
-- [ADRs](adr/README.md) — every frozen decision (through ADR-0054).
+- [ADRs](adr/README.md) — every frozen decision (through ADR-0055).
 - [Phase plans and results](phases/) — the per-phase record. Recent results:
   [Phase 15](phases/phase-15-results.md), [Phase 16](phases/phase-16-results.md),
   [Phase 17](phases/phase-17-results.md), [Phase 18](phases/phase-18-results.md),
-  [Phase 19](phases/phase-19-results.md); planned (not started):
-  [Phase 20](phases/phase-20-plan.md), [Phase 21](phases/phase-21-plan.md).
+  [Phase 19](phases/phase-19-results.md), [Phase 20](phases/phase-20-results.md);
+  planned (not started): [Phase 21](phases/phase-21-plan.md).
 - [Independent reviews](reviews/) — adversarial skeptic findings.
 - [Evidence index](evidence/README.md) — campaigns and measurement reports.
 
