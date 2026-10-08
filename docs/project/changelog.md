@@ -2,6 +2,53 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.28] — Phase 25: durability corrections (directory ancestry + packed-header recovery)
+
+An external review found **two correctness gaps** in the Phase-23 durability work
+(plus a court weakness). All three were **verified in the code before fixing** and
+are closed here. Results: [phase-25-results.md](../phases/phase-25-results.md);
+decision: [ADR-0058](../adr/0058-directory-ancestry-durability-and-unpublished-segment-recovery.md).
+
+### Fixed
+
+- **Directory ancestry was not durable.** `durable::create_dir_all` created
+directories but never synced their **parent**, so an ancestor (`index/aa/`) could
+be lost across a power cut even though its child (`index/aa/bb/`) was synced —
+orphaning every node beneath it. It now creates each missing component and
+`fsync`s each new entry's parent; the store-open paths
+(`FieldStore::open`/`open_packed`/`open_entropyfs`, `FsSeedStore`, `FsIndexStore`,
+`DerivedCache`, `PromotedStore`) route through it.
+- **The packed segment header was synced after its directory.**
+`PackWriter::ensure_open` could leave a durable directory entry pointing at a
+segment with an incomplete header. It now syncs the header file **before** the
+directory; and `scan_open_segment` treats an incomplete/unparseable header on an
+**unsealed** (always unpublished) segment as **absent**, so the store **reopens
+and recovers the prefix** instead of failing closed.
+
+### Changed
+
+- **The power-loss proxy models directory creation and ancestry** (`build_model`
+folds `mkdir`; `reconstruct` prunes non-durable directories deepest-first).
+- **The verdicts are unified on the strict rule:** a no-manifest state must
+**reopen** (prefix recovery); a published manifest must be exact and serviceable.
+`lenient_verdict` is removed.
+
+### Measured
+
+- Re-sealed `2026-10-08-phase23-durability-fc63436-phase25`: **32 cases, 20 PASS /
+0 FAIL / 0 shipped-arm CRITICAL** under the **stricter** rules; 12 counterfactual
+`model-drop` CRITICAL; `bad_hash` 0. Every cut arm now **opens** — including
+`packed-batch-cut-record.after_body` and `packed-batch-cut-flush.before_sync`,
+which previously failed closed (now prefix `truncated=1`). Dir-sync cost (median
+of 3, host ext4 bind mount): fs `off` **723 → safe 1,381 ms** (~1.91×), packed
+**22 → 34 ms** (~1.55×); below noise on tmpfs.
+
+### Recorded
+
+- **Scope unchanged: the proxy is a model from a barrier log, not a real power
+cut** (no device write cache, journal, torn sectors, or real directory-entry
+loss).
+
 ## [0.1.0-alpha.27] — Phase 22.2 profiling gate + Phase 23 durability gaps closed
 
 Two review-driven increments. **Phase 22.2** is a **profiling gate that shipped

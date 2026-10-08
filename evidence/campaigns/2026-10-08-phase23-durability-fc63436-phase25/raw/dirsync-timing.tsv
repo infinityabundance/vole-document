@@ -1,0 +1,9 @@
+backend	dir_sync	filesystem	reps	median_ms	min_ms	max_ms
+fs	off	tmp	3	17	17	18
+fs	off	bind	3	723	711	743
+fs	safe	tmp	3	18	18	19
+fs	safe	bind	3	1381	1381	1409
+packed	off	tmp	3	9	9	9
+packed	off	bind	3	22	22	23
+packed	safe	tmp	3	9	9	9
+packed	safe	bind	3	34	33	37

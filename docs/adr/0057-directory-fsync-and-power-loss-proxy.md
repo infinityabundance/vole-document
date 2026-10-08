@@ -77,6 +77,28 @@ observe the loss of un-barriered bytes without a real power cut.
   hardware power cut losing a rename the kernel had not yet written, or
   reordering coalesced writes.
 
+## Correction (Phase 25) — directory ancestry + unpublished-segment recovery
+
+An external review found this ADR's barrier model and its code incomplete in two
+ways, **verified then fixed** in Phase 25
+([ADR-0058](0058-directory-ancestry-durability-and-unpublished-segment-recovery.md)):
+
+1. **Directory ancestry was not durable.** `create_dir_all` never synced the
+   *parent* of a new directory, so `index/aa/` could be lost while `index/aa/bb/`
+   was synced. `durable::create_dir_all` now syncs each new entry's parent.
+2. **The packed header was synced after the directory.** `ensure_open` synced the
+   directory before the header bytes, so a durable entry could point at an
+   incomplete header; the two cut cases below were recorded as `fail_closed`
+   (truncated header) rather than reopening. The header is now synced **first**,
+   and an unpublished segment with an incomplete header is treated as **absent**,
+   so the store **reopens and recovers the prefix**.
+
+The model also now folds `mkdir`/directory ancestry, and the verdicts are unified
+on the strict rule (no manifest ⇒ reopen). Re-sealed in Phase 25
+(`2026-10-08-phase23-durability-fc63436-phase25`): 32 cases, **0 shipped-arm
+CRITICAL** under the stricter rules, every cut reopening. The residual below (a
+model, not a real power cut) is unchanged.
+
 ## References
 
 - `src/store/durable.rs` (`DirSyncPolicy`, `sync_dir`, the barrier journal);

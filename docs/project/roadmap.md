@@ -223,6 +223,25 @@ differ only for the **unreferenced** open-segment tail (visible at the
 `flush.before_sync` cut). The remaining honest open item is a **true hardware power
 cut**, which the pinned unprivileged lane cannot reproduce.
 
+## Phase-25 outcomes
+
+Phase 25 closes **two correctness gaps** an external review found in the Phase-23
+durability work (both verified in the code first), plus a court weakness. Results:
+[phase-25-results.md](../phases/phase-25-results.md); decision:
+[ADR-0058](../adr/0058-directory-ancestry-durability-and-unpublished-segment-recovery.md).
+
+| Item | Question | Outcome |
+|---|---|---|
+| 25.1 Directory-ancestry durability | Does creating a directory make its **entry** durable in its parent, so an ancestor cannot be lost while its child is synced? | **Complete — adopted.** `durable::create_dir_all` now creates each missing component and `fsync`s its parent (default `Safe`); the store-open paths route through it. The proxy model folds `mkdir`/ancestry and prunes non-durable directories deepest-first (e.g. `off` fs removes **827** dirs) |
+| 25.2 Unpublished-segment recovery | Does a cut leaving a segment with an incomplete header **reopen** (prefix recovery), as Phase 20 requires — not just fail closed? | **Complete — adopted.** `ensure_open` syncs the segment header **before** the directory; `scan_open_segment` treats an incomplete/unparseable header on an **unsealed** (unpublished) segment as **absent**, so the store reopens and recovers the prefix. The two cut arms that previously failed closed (`record.after_body`, `flush.before_sync`) now **open** |
+| 25.3 Strict verdicts | Do the cut arms enforce manifest exactness and prefix recovery? | **Complete.** `lenient_verdict` removed; every arm judged by one rule: no manifest ⇒ **reopen**; published manifest ⇒ exact/serviceable |
+
+Re-sealed (`2026-10-08-phase23-durability-fc63436-phase25`): **32 cases, 20 PASS /
+0 FAIL / 0 shipped-arm CRITICAL** under the **stricter** rules; 12 counterfactual
+`model-drop` CRITICAL; `bad_hash` 0; fs `off` 723 → `safe` 1,381 ms (~1.91×),
+packed 22 → 34 ms (~1.55×). The residual is unchanged: a **model**, not a real
+power cut.
+
 ## Unmeasured gates
 
 - `N4` (decline-rate threshold): no pre-registered threshold exists, so it is

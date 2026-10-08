@@ -235,7 +235,7 @@ impl FsIndexStore {
     /// Open an index store that accounts every node read against `io`.
     pub fn open_with_io(root: impl AsRef<Path>, io: IoCounters) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
-        fs::create_dir_all(root.join("index"))?;
+        crate::store::durable::create_dir_all(&root.join("index"))?;
         Ok(FsIndexStore { root, io })
     }
 

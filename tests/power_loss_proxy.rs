@@ -91,6 +91,18 @@ fn walk_files(root: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// Collect every directory strictly under `root` (not `root` itself).
+fn walk_dirs(root: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(rd) = fs::read_dir(root) else { return };
+    for e in rd.flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            out.push(p.clone());
+            walk_dirs(&p, out);
+        }
+    }
+}
+
 fn list_manifests(root: &Path) -> Vec<FieldId> {
     let dir = root.join("field");
     let mut out = Vec::new();
@@ -145,7 +157,11 @@ fn build_model(log: &str, drop_dirsync: &[&str]) -> HashMap<String, Entry> {
                 let p = it.next().unwrap_or("");
                 m.insert(p.to_string(), Entry::default());
             }
-            "write" | "mkdir" => {}
+            "write" => {}
+            "mkdir" => {
+                let p = it.next().unwrap_or("");
+                m.insert(p.to_string(), Entry::default());
+            }
             "fsync" | "fsync_data" => {
                 let p = it.next().unwrap_or("");
                 let len: u64 = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
@@ -190,6 +206,7 @@ fn build_model(log: &str, drop_dirsync: &[&str]) -> HashMap<String, Entry> {
 #[derive(Debug, Default)]
 struct ReconStats {
     removed: usize,
+    removed_dirs: usize,
     truncated: usize,
 }
 
@@ -202,6 +219,21 @@ fn reconstruct(
 ) -> std::io::Result<ReconStats> {
     copy_dir(src, dst)?;
     let mut stats = ReconStats::default();
+
+    // Phase 25: a directory whose *entry* was never made durable (its creation
+    // was not followed by a parent `dirsync`) is lost, and everything beneath it
+    // with it. Prune deepest-first so a child removal cannot resurrect a parent.
+    let mut dirs = Vec::new();
+    walk_dirs(dst, &mut dirs);
+    dirs.sort();
+    for d in dirs.iter().rev() {
+        let rel = d.strip_prefix(dst).unwrap().to_string_lossy().into_owned();
+        if matches!(model.get(&rel), Some(e) if !e.dirent) {
+            fs::remove_dir_all(d)?;
+            stats.removed_dirs += 1;
+        }
+    }
+
     let mut files = Vec::new();
     walk_files(dst, &mut files);
     for f in files {
@@ -500,9 +532,13 @@ fn strict_verdict(
                 "no manifest: reopens; every present id re-hashes".into(),
             );
         }
+        // Phase 25: Phase 20's requirement is PREFIX RECOVERY — with no published
+        // manifest the store must reopen, not merely fail closed.
         return (
-            "PASS",
-            "no manifest: unusable but fails closed (typed)".into(),
+            "CRITICAL",
+            format!(
+                "no published manifest but the store did not reopen (prefix recovery violated): {state}"
+            ),
         );
     }
     if exact.starts_with("OpenFailClosed") || exact.starts_with("FailClosed") {
@@ -539,18 +575,6 @@ fn strict_verdict(
         "PASS",
         "published manifest exact; dependencies present".into(),
     )
-}
-
-fn lenient_verdict(manifests: usize, state: &str, bad: usize) -> (&'static str, String) {
-    if bad > 0 {
-        return ("CRITICAL", format!("{bad} wrong-byte node(s) served"));
-    }
-    let _ = manifests;
-    if state == "reopens_ok" {
-        ("PASS", "cut: reopens; every present id re-hashes".into())
-    } else {
-        ("PASS", "cut: unusable but fails closed (typed)".into())
-    }
 }
 
 /// Run one complete (or aborted) build, reconstruct the power-loss state, and
@@ -606,16 +630,15 @@ fn one_case(
         "n/a".into()
     };
 
-    let (verdict, note) = if arm == "complete" || arm == "model-drop" {
-        strict_verdict(manifests, chk.state, chk.bad_hash, &exact, &observe)
-    } else {
-        lenient_verdict(manifests, chk.state, chk.bad_hash)
-    };
+    // Phase 25: the SAME rules apply to every arm — a cut that publishes a
+    // manifest must be exact/serviceable, and a cut with no manifest must reopen
+    // (prefix recovery). The old `lenient` rule accepted either.
+    let (verdict, note) = strict_verdict(manifests, chk.state, chk.bad_hash, &exact, &observe);
 
     eprintln!(
         "[phase23-proxy] {label} ({backend}/{policy:?}/{dir_sync}/{arm}/{inject}): {verdict} \
-         open={} removed={} truncated={} manifests={manifests} {exact} obs={observe} err={}",
-        chk.opened, stats.removed, stats.truncated, chk.err
+         open={} removed={} removed_dirs={} truncated={} manifests={manifests} {exact} obs={observe} err={}",
+        chk.opened, stats.removed, stats.removed_dirs, stats.truncated, chk.err
     );
 
     Row {
@@ -633,8 +656,8 @@ fn one_case(
         observe,
         verdict: verdict.into(),
         note: format!(
-            "open={} removed={} truncated={}; {}",
-            chk.opened, stats.removed, stats.truncated, note
+            "open={} removed={} removed_dirs={} truncated={}; {}",
+            chk.opened, stats.removed, stats.removed_dirs, stats.truncated, note
         ),
     }
 }

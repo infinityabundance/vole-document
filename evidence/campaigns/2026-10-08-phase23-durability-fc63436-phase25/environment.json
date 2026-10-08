@@ -1,0 +1,28 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase23-durability-fc63436-phase25",
+  "phase": "23 — directory fsync (GAP 1) + model-based power-loss proxy (GAP 2)",
+  "utc": "2026-10-08T19:37:54Z",
+  "git_commit": "fc63436717ed85a79eff866fc01ab0dd90063d72",
+  "git_dirty": "?? evidence/campaigns/2026-10-08-phase1-fc63436/;?? evidence/campaigns/2026-10-08-phase23-durability-fc63436-phase25/;",
+  "arch": "x86_64",
+  "service": "dev",
+  "service_caps": "mem_limit == memswap_limit == 8g, pids_limit 4096",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "dev_image": "vole-document/dev:1.99.0",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "fea177dff83fbaf251a5797c74202ee609c11c2da8868c6aec837137aed8a994",
+  "bin": "target/debug/vole-document",
+  "docs": "nist-pdf-0002",
+  "reps": "3",
+  "doc_measured": "real100-v1/documents/nist/pdf/nist-pdf-0017.pdf",
+  "host_fs": "ext2/ext3",
+  "features_proxy": "power-log, fault-inject",
+  "env_affecting_semantics": {
+    "LC_ALL": "C",
+    "CARGO_PROFILE_DEV_DEBUG": "0 (artifact size only)",
+    "CARGO_PROFILE_TEST_DEBUG": "0 (artifact size only)",
+    "CARGO_PROFILE_DEV_INCREMENTAL": "false (artifact size only)",
+    "REPS": "3"
+  }
+}

@@ -42,7 +42,7 @@ Per-format authority boundaries, native inverse representation, and exactness.
 
 Frozen rationale and receipts, kept as a durable record (not rewritten).
 
-- [ADRs](adr/README.md) — every frozen decision (through ADR-0057).
+- [ADRs](adr/README.md) — every frozen decision (through ADR-0058).
 - [Phase plans and results](phases/) — the per-phase record. Recent results:
   [Phase 15](phases/phase-15-results.md), [Phase 16](phases/phase-16-results.md),
   [Phase 17](phases/phase-17-results.md), [Phase 18](phases/phase-18-results.md),
@@ -50,7 +50,9 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   [Phase 22](phases/phase-22-results.md) (economic programme — 22.1 competitor
   envelope and 22.2 profiling gate complete, 22.3–22.7 planned),
   [Phase 23](phases/phase-23-results.md) (durability: directory `fsync` + a
-  model-based power-loss proxy); planned (not started):
+  model-based power-loss proxy),
+  [Phase 25](phases/phase-25-results.md) (durability corrections: directory
+  ancestry + unpublished-segment recovery); planned (not started):
   [Phase 21](phases/phase-21-plan.md); the Phase 22 programme is pre-registered in
   [phase-22-plan.md](phases/phase-22-plan.md).
 - [Independent reviews](reviews/) — adversarial skeptic findings.

@@ -148,7 +148,7 @@ impl FsSeedStore {
     /// so a seed read made through either handle is attributed to one universe.
     pub fn open_with_io(root: impl AsRef<Path>, io: IoCounters) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
-        fs::create_dir_all(root.join("seed"))?;
+        crate::store::durable::create_dir_all(&root.join("seed"))?;
         Ok(FsSeedStore { root, io })
     }
 

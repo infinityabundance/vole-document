@@ -53,7 +53,7 @@ impl DerivedCache {
     /// Open (creating if needed) a derived cache rooted at `root`.
     pub fn open(root: impl AsRef<Path>) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
-        fs::create_dir_all(&root)?;
+        crate::store::durable::create_dir_all(&root)?;
         Ok(DerivedCache { root })
     }
 

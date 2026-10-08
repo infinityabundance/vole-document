@@ -355,10 +355,10 @@ impl FieldStore {
     /// Create or open a field store rooted at `root` (the filesystem backend).
     pub fn open(root: impl AsRef<Path>) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
-        fs::create_dir_all(root.join("descriptor"))?;
-        fs::create_dir_all(root.join("field"))?;
-        fs::create_dir_all(root.join("index"))?;
-        fs::create_dir_all(root.join("cache"))?;
+        crate::store::durable::create_dir_all(&root.join("descriptor"))?;
+        crate::store::durable::create_dir_all(&root.join("field"))?;
+        crate::store::durable::create_dir_all(&root.join("index"))?;
+        crate::store::durable::create_dir_all(&root.join("cache"))?;
         let io = IoCounters::new();
         let seeds = SeedSubstrate::Fs {
             root: root.clone(),
@@ -386,10 +386,10 @@ impl FieldStore {
     #[cfg(feature = "entropyfs-store")]
     pub fn open_entropyfs(root: impl AsRef<Path>) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
-        fs::create_dir_all(root.join("index"))?;
-        fs::create_dir_all(root.join("cache"))?;
+        crate::store::durable::create_dir_all(&root.join("index"))?;
+        crate::store::durable::create_dir_all(&root.join("cache"))?;
         let engine_root = root.join("entropyfs");
-        fs::create_dir_all(&engine_root)?;
+        crate::store::durable::create_dir_all(&engine_root)?;
         // An empty engine directory is a fresh store; anything else is an
         // existing one. (`Engine::open` cannot open a directory with no store.)
         let fresh = fs::read_dir(&engine_root)?.next().is_none();
@@ -432,10 +432,10 @@ impl FieldStore {
     /// irrelevant for the other backends and ignored by them.
     pub fn open_packed_with_policy(root: impl AsRef<Path>, policy: SyncPolicy) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
-        fs::create_dir_all(root.join("descriptor"))?;
-        fs::create_dir_all(root.join("field"))?;
-        fs::create_dir_all(root.join("index"))?;
-        fs::create_dir_all(root.join("cache"))?;
+        crate::store::durable::create_dir_all(&root.join("descriptor"))?;
+        crate::store::durable::create_dir_all(&root.join("field"))?;
+        crate::store::durable::create_dir_all(&root.join("index"))?;
+        crate::store::durable::create_dir_all(&root.join("cache"))?;
         // No `root/seed`; the `fieldpack/` directory is created by the writer.
         let io = IoCounters::new();
         let packed = Rc::new(PackedSeedStore::open_write_with_policy(
