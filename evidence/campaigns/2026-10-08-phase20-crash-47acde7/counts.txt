@@ -1,0 +1,10 @@
+total=1300
+pass=1300
+fail=0
+critical=0
+wrong_byte_nodes=0
+prefix_violations=0
+rehash_rejected_nodes=212812
+rows_with_rehash_rejection=110
+a_unusable_fail_closed=1
+verdict=PASS

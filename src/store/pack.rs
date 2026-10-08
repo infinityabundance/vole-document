@@ -797,7 +797,11 @@ impl PackedSeedStore {
         let idx = build_idx(seg_id, &entries);
         let dir = self.pack_dir();
         let idx_file = idx_path(&dir, seg_id);
+        #[cfg(feature = "fault-inject")]
+        crate::fault::hit("seal.before_idx");
         crate::field::write_atomic(&idx_file, &idx)?;
+        #[cfg(feature = "fault-inject")]
+        crate::fault::hit("seal.after_idx");
         let seg = SealedSeg::open(pack_path(&dir, seg_id), idx_file, seg_id)?;
         self.state.reader.borrow_mut().sealed.push(seg);
         Ok(())
@@ -911,6 +915,18 @@ impl PackedSeedStore {
             .current
             .as_mut()
             .ok_or_else(|| Error::internal_invariant("packed writer failed to open a segment"))?;
+        // The `fault-inject` build splits the record write at the framing
+        // boundary so the court can abort between prefix and body; the shipped
+        // build writes the whole record in one call (unchanged).
+        #[cfg(feature = "fault-inject")]
+        {
+            crate::fault::hit("record.before_prefix");
+            f.write_all(&rec[..RECORD_PREFIX as usize])?;
+            crate::fault::hit("record.after_prefix");
+            f.write_all(&rec[RECORD_PREFIX as usize..])?;
+            crate::fault::hit("record.after_body");
+        }
+        #[cfg(not(feature = "fault-inject"))]
         f.write_all(&rec)?;
         if sync_each {
             f.sync_data()?;
@@ -931,7 +947,11 @@ impl PackedSeedStore {
         };
         let w = w_cell.borrow();
         if let Some(f) = w.current.as_ref() {
+            #[cfg(feature = "fault-inject")]
+            crate::fault::hit("flush.before_sync");
             f.sync_all()?;
+            #[cfg(feature = "fault-inject")]
+            crate::fault::hit("flush.after_sync");
         }
         Ok(())
     }

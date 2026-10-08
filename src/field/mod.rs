@@ -602,9 +602,16 @@ impl FieldStore {
     /// (which make each node durable in `put_node`).
     pub fn put_field(&mut self, manifest: &FieldRoot) -> Result<FieldId> {
         if let SeedSubstrate::Packed { store } = &self.seeds {
+            #[cfg(feature = "fault-inject")]
+            crate::fault::hit("manifest.before_flush");
             store.flush()?;
+            #[cfg(feature = "fault-inject")]
+            crate::fault::hit("manifest.after_flush");
         }
-        self.backend.field_put(&self.root, manifest)
+        let id = self.backend.field_put(&self.root, manifest)?;
+        #[cfg(feature = "fault-inject")]
+        crate::fault::hit("manifest.after_publish");
+        Ok(id)
     }
 
     /// Fetch a field manifest, verifying its content id and universe.

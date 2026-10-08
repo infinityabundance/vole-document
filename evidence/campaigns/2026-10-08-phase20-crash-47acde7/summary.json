@@ -1,0 +1,16 @@
+{
+  "total": 1300,
+  "pass": 1300,
+  "fail": 0,
+  "critical": 0,
+  "wrong_byte_nodes": 0,
+  "prefix_violations": 0,
+  "rehash_rejected_nodes": 212812,
+  "rows_with_rehash_rejection": 110,
+  "family_A": {"pass": 1024, "fail": 0, "critical": 0},
+  "family_B": {"pass": 236, "fail": 0, "critical": 0},
+  "family_C": {"pass": 40, "fail": 0, "critical": 0},
+  "batch": {"total": 650, "pass": 650, "fail": 0, "critical": 0},
+  "each": {"total": 650, "pass": 650, "fail": 0, "critical": 0},
+  "verdict": "PASS"
+}

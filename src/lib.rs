@@ -56,6 +56,11 @@ pub mod dra;
 pub mod encode;
 pub mod entropy;
 pub mod error;
+/// Phase 20.1 crash-court deterministic abort points. Non-default: compiled only
+/// under `fault-inject`, and every call site is feature-gated, so the default
+/// build's bytes, behavior, and performance are unchanged.
+#[cfg(feature = "fault-inject")]
+mod fault;
 #[cfg(feature = "field")]
 pub mod field;
 pub mod integrity;
