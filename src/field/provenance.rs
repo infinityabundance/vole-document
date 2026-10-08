@@ -27,6 +27,10 @@ pub enum Basis {
     Inferred,
     /// A best-effort heuristic projection (e.g. text runs); never exact.
     Heuristic,
+    /// Supplied by an explicit external context beside the field (Phase 20.4),
+    /// e.g. corpus/dataset lineage. It is not document-derived, never exact, and
+    /// never on the decode path.
+    ExternalMetadata,
     /// Could not be resolved.
     Unresolved,
 }
@@ -40,6 +44,7 @@ impl Basis {
             Basis::DeterministicallyDerived => "deterministically-derived",
             Basis::Inferred => "inferred",
             Basis::Heuristic => "heuristic",
+            Basis::ExternalMetadata => "external-metadata",
             Basis::Unresolved => "unresolved",
         }
     }
@@ -149,6 +154,7 @@ mod tests {
         assert!(!Basis::DeterministicallyDerived.is_exact());
         assert!(!Basis::Inferred.is_exact());
         assert!(!Basis::Heuristic.is_exact());
+        assert!(!Basis::ExternalMetadata.is_exact());
         assert!(!Basis::Unresolved.is_exact());
     }
 

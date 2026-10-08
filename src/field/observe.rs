@@ -92,6 +92,13 @@ pub enum Selector {
     /// DOCX/EPUB/ODT, so a field with no revision structure is a typed decline,
     /// never an empty answer.
     Revisions,
+    /// The **external** corpus/dataset lineage (Phase 20.4): the dataset family
+    /// id, member id, and head flag, attached to the field as an explicit
+    /// [`crate::field::external::ExternalContext`] and drawn from it with basis
+    /// [`super::provenance::Basis::ExternalMetadata`]. These facts are **not** in
+    /// the document bytes, so a field with no attached context is a typed
+    /// decline, never a guess.
+    ExternalLineage,
     /// A package (ZIP/OCF/OPC) member, by central-directory ordinal. The ordinal is
     /// the physical identity; duplicate names stay distinct (Phase 12.2).
     Member(u32),
@@ -345,6 +352,7 @@ impl Selector {
             Selector::Stream(n) => format!("stream:{n}"),
             Selector::Revision(n) => format!("revision:{n}"),
             Selector::Revisions => "revisions".to_string(),
+            Selector::ExternalLineage => "external-lineage".to_string(),
             Selector::Member(n) => format!("member:{n}"),
             Selector::PackagePart(name) => format!("package-part:{name}"),
             Selector::Relationship(id) => format!("relationship:{id}"),
@@ -743,6 +751,64 @@ impl<S: SeedStore> SeedStore for CountingSeedStore<S> {
     }
 }
 
+/// Answer an `ExternalLineage` observation directly from the field's external
+/// context sidecar — without opening the field, the descriptor, the index, the
+/// disposable cache, or the seed DAG.
+///
+/// Returns `None` for any other request, so the document-derived path is
+/// untouched whenever the external selector is not used: attaching, querying,
+/// or removing the context can never change a plain observation's answer.
+///
+/// The answer is `Basis::ExternalMetadata` and never exact; it reads no seed
+/// node (`dependency_ids` is empty, `integrity_scope` is `None`). The sidecar
+/// read is *not* one of the four document-derived byte classes `ObserveStats`
+/// accounts, so it is reported explicitly in the answer's `provenance`.
+fn external_lineage_answer(
+    store: &FieldStore,
+    id: &FieldId,
+    req: &ObserveRequest,
+    started: Instant,
+) -> Option<Result<(FieldAnswer, ObserveStats, FieldId)>> {
+    if !matches!(
+        (&req.selector, req.representation),
+        (Selector::ExternalLineage, Representation::Lineage)
+    ) {
+        return None;
+    }
+    Some((|| {
+        let ctx = store.get_external_context(id)?.ok_or_else(|| {
+            Error::unsupported_feature(
+                "no external context is attached to this field; external lineage \
+                 is supplied explicitly and is never inferred from document bytes",
+            )
+        })?;
+        let json = ctx.answer_json();
+        let bytes_returned = json.len() as u64;
+        let answer = FieldAnswer {
+            value: AnswerValue::Json(json),
+            basis: Basis::ExternalMetadata,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: None,
+            provenance: format!(
+                "external-context;origin={};source={};external_bytes_read={}",
+                ctx.origin.name(),
+                ctx.source,
+                ctx.encode_canonical().len(),
+            ),
+            dependency_ids: Vec::new(),
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        };
+        let stats = ObserveStats {
+            bytes_returned,
+            wall_micros: started.elapsed().as_micros().min(u128::from(u64::MAX)) as u64,
+            ..ObserveStats::default()
+        };
+        Ok((answer, stats, *id))
+    })())
+}
+
 /// Observe one selector/representation pair.
 ///
 /// Returns the answer, its [`ObserveStats`], and the **current/promoted** field
@@ -756,6 +822,9 @@ pub fn observe(
     limits: Limits,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let started = Instant::now();
+    if let Some(r) = external_lineage_answer(store, id, req, started) {
+        return r;
+    }
     match narrow_probe(store, id, req)? {
         // The target is served wholly from the disposable derived cache: the
         // descriptor is never opened. The ordinary evaluation core still runs,
@@ -1055,6 +1124,9 @@ pub(crate) fn observe_opened(
     limits: Limits,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let started = Instant::now();
+    if let Some(r) = external_lineage_answer(store, &opened.manifest().content_id(), req, started) {
+        return r;
+    }
     observe_view(store, opened.view(), req, limits, started)
 }
 
@@ -1072,6 +1144,9 @@ pub fn observe_with_field(
     limits: Limits,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let started = Instant::now();
+    if let Some(r) = external_lineage_answer(store, &field.id(), req, started) {
+        return r;
+    }
     observe_view(store, FieldView::from_field(field), req, limits, started)
 }
 
@@ -1105,6 +1180,9 @@ pub(crate) fn observe_session(
     models: ModelMemo,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
     let started = Instant::now();
+    if let Some(r) = external_lineage_answer(store, &field.id(), req, started) {
+        return r;
+    }
     match narrow_probe_open(store, field.manifest(), index, req)? {
         // The target is served wholly from the disposable derived cache: the
         // descriptor is never opened. The ordinary evaluation core still runs,
@@ -5486,6 +5564,85 @@ mod tests {
             let err = observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap_err();
             assert_eq!(err.class(), crate::ErrorClass::UnsupportedFeature);
         }
+    }
+
+    /// Phase 20.4: the external lineage layer is typed, separate, and removable.
+    ///
+    /// It answers only from the attached sidecar (`ExternalMetadata`, never
+    /// exact, no seed bytes), it declines typed when absent, and attaching /
+    /// querying / removing it leaves every document-derived observation and the
+    /// exact closure byte-identical.
+    #[test]
+    fn external_lineage_is_typed_separate_and_removable() {
+        use crate::field::external::{ExternalContext, ExternalLineage, ExternalOrigin};
+        let mut fx = Fixture::new("external-ctx", false);
+        let req = ObserveRequest::new(Selector::ExternalLineage, Representation::Lineage);
+        // A document-derived observation and the exact closure before any attach.
+        let plain_before = observe_req(&mut fx, Selector::Page(1), Representation::Text).0;
+        let exact_before = Field::open(&fx.store, &fx.field, Limits::DEFAULT)
+            .unwrap()
+            .materialize_exact(Limits::DEFAULT)
+            .unwrap();
+        // No context attached: a typed decline, never a guess.
+        let err = observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap_err();
+        assert_eq!(err.class(), crate::ErrorClass::UnsupportedFeature);
+        // Attach the external context beside the field.
+        let ctx = ExternalContext {
+            dataset_id: Some("real100-v1".to_string()),
+            lineage: ExternalLineage {
+                family: Some("rev-nist-fips-140".to_string()),
+                member: Some("nist-pdf-0017".to_string()),
+                head: true,
+                revision_family: None,
+            },
+            origin: ExternalOrigin::Harness,
+            source: "real100-v1/manifest.tsv".to_string(),
+        };
+        fx.store.put_external_context(&fx.field, &ctx).unwrap();
+        let (answer, stats, _) = observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap();
+        assert_eq!(answer.basis, Basis::ExternalMetadata);
+        assert!(!answer.exact);
+        assert_eq!(answer.integrity_scope, IntegrityScope::None);
+        assert!(answer.dependency_ids.is_empty());
+        assert_eq!(answer.selector, "external-lineage");
+        assert_eq!(answer.representation, "lineage");
+        let AnswerValue::Json(json) = &answer.value else {
+            panic!("external lineage must be JSON");
+        };
+        assert!(
+            json.contains("\"family_id\":\"rev-nist-fips-140\""),
+            "{json}"
+        );
+        assert!(json.contains("\"member_id\":\"nist-pdf-0017\""), "{json}");
+        assert!(json.contains("\"is_head\":true"), "{json}");
+        assert!(
+            answer.provenance.contains("origin=harness"),
+            "{}",
+            answer.provenance
+        );
+        // The answer reads no document-derived byte class.
+        assert_eq!(stats.descriptor_bytes_read, 0);
+        assert_eq!(stats.manifest_bytes_read, 0);
+        assert_eq!(stats.index_bytes_read, 0);
+        assert_eq!(stats.seed_bytes_read, 0);
+        assert_eq!(stats.bytes_read, 0);
+        // A plain observation is byte-for-byte unchanged while attached.
+        let plain_after = observe_req(&mut fx, Selector::Page(1), Representation::Text).0;
+        assert_eq!(plain_before, plain_after);
+        // The exact closure is untouched.
+        let exact_after = Field::open(&fx.store, &fx.field, Limits::DEFAULT)
+            .unwrap()
+            .materialize_exact(Limits::DEFAULT)
+            .unwrap();
+        assert_eq!(exact_before, exact_after);
+        assert_eq!(exact_after, fx.source);
+        // Remove it: the external observation declines again; the plain
+        // observation is still byte-identical.
+        assert!(fx.store.clear_external_context(&fx.field).unwrap());
+        let err = observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap_err();
+        assert_eq!(err.class(), crate::ErrorClass::UnsupportedFeature);
+        let plain_removed = observe_req(&mut fx, Selector::Page(1), Representation::Text).0;
+        assert_eq!(plain_before, plain_removed);
     }
 
     #[test]

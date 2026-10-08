@@ -20,6 +20,7 @@ pub mod derive;
 pub mod document_format;
 pub mod edit;
 pub mod explain;
+pub mod external;
 pub mod index;
 /// Phase 16.1: the single shipped DEFLATE inflate seam (`zlib-rs`). One backend
 /// serves both PDF zlib (RFC 1950) and ZIP raw DEFLATE (RFC 1951) members.
@@ -658,6 +659,52 @@ impl FieldStore {
         }
         out.sort_unstable();
         Ok(out)
+    }
+
+    /// The external-context sidecar path for a field: `<root>/external/<hex>`.
+    ///
+    /// This namespace is deliberately disjoint from `descriptor/`, `field/`,
+    /// `index/`, `cache/`, `seed/`/`fieldpack/`, and `promoted/`: an external
+    /// record can be added or removed without touching any document-derived
+    /// state, and no document-derived path ever reads it.
+    pub(crate) fn external_context_path(&self, id: &FieldId) -> PathBuf {
+        self.root.join("external").join(id.to_hex())
+    }
+
+    /// Attach (or replace) an [`external::ExternalContext`] beside a field.
+    ///
+    /// The record is written atomically into the `external/` namespace. This is
+    /// **not** an exactness-path write: it never touches the descriptor, the
+    /// seed DAG, the index, the cache, or the manifest, and a field with no
+    /// context is still fully exact.
+    pub fn put_external_context(
+        &self,
+        id: &FieldId,
+        ctx: &external::ExternalContext,
+    ) -> Result<()> {
+        let bytes = ctx.encode_canonical();
+        write_atomic(&self.external_context_path(id), &bytes)
+    }
+
+    /// Read the attached [`external::ExternalContext`], or `None` when none is
+    /// attached. A malformed record fails closed rather than answering.
+    pub fn get_external_context(&self, id: &FieldId) -> Result<Option<external::ExternalContext>> {
+        match fs::read(self.external_context_path(id)) {
+            Ok(bytes) => external::ExternalContext::decode_canonical(&bytes).map(Some),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Remove the attached external context. Returns whether one was present.
+    /// Removing it restores the pre-attach state exactly: the field's
+    /// document-derived observations and exact materialization are untouched.
+    pub fn clear_external_context(&self, id: &FieldId) -> Result<bool> {
+        match fs::remove_file(self.external_context_path(id)) {
+            Ok(()) => Ok(true),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Ingest a serialized `.voldoc` descriptor as a new field.

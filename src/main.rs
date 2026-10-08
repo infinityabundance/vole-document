@@ -89,8 +89,15 @@ const USAGE_FIELD: &str = "\
         (direct source -> field: one process, no candidate search; the exact
          authority is the fixed profile's `.voldoc`, stored in the field)
     vole-document field-edit --store DIR --field HEX --page N --content FILE [--entropyfs | --packed]
+    vole-document field-external --store DIR --field HEX [--lineage FAMILY:MEMBER:HEAD]
+        [--dataset ID] [--revision-family ID] [--origin harness|operator|catalog] [--source LABEL]
+        (attaches an EXTERNAL corpus/dataset context BESIDE the field: family/member/head
+         the document bytes do not contain; stored in <store>/external/, never in the seed
+         DAG, index, manifest, or exactness authority; --clear removes it. No --lineage and
+         no --clear shows the attached record, or declines typed when none is attached)
+    vole-document field-external --store DIR --field HEX --clear
     vole-document observe --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]] (--page N | --object N | --stream N |
-        --revision N | --revisions | --byte-range A..B | --metadata | --doc-text | --heading N |
+        --revision N | --revisions | --external-lineage | --byte-range A..B | --metadata | --doc-text | --heading N |
         --block N | --table N | --cell T:R:C | --resource N | --link N |
         --spine-item N | --text PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
@@ -260,6 +267,8 @@ fn run(args: &[String]) -> Result<()> {
         "field-build" => cmd_field_build(args, limits),
         #[cfg(feature = "field")]
         "field-edit" => cmd_field_edit(args, limits),
+        #[cfg(feature = "field")]
+        "field-external" => cmd_field_external(args),
         #[cfg(feature = "field")]
         "observe" => cmd_field_observe(args, limits),
         #[cfg(feature = "field")]
@@ -1439,6 +1448,9 @@ struct FieldArgs {
     revision: Option<u32>,
     /// `--revisions`: the whole PDF revision lineage (Phase 17).
     revisions: bool,
+    /// `--external-lineage`: the external corpus/dataset lineage tuple (Phase
+    /// 20.4), answered from the attached external context, never the document.
+    external_lineage: bool,
     byte_range: Option<(u64, u64)>,
     kind: Option<String>,
     text: Option<String>,
@@ -1595,6 +1607,10 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             }
             "--revisions" => {
                 out.revisions = true;
+                i += 1;
+            }
+            "--external-lineage" => {
+                out.external_lineage = true;
                 i += 1;
             }
             "--byte-range" => {
@@ -1764,6 +1780,9 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
     }
     if out.revisions {
         chosen.push(Selector::Revisions);
+    }
+    if out.external_lineage {
+        chosen.push(Selector::ExternalLineage);
     }
     if let Some((offset, len)) = out.byte_range {
         chosen.push(Selector::ByteRange { offset, len });
@@ -2347,6 +2366,140 @@ fn cmd_field_edit(args: &[String], _limits: Limits) -> Result<()> {
         r.index_bytes_read,
         r.seed_bytes_read,
     );
+    Ok(())
+}
+
+/// `field-external`: attach, show, or clear an explicit **external** context
+/// (Phase 20.4). The record is stored beside the field under `external/`; it is
+/// never on the exactness path, never in the seed DAG/index/manifest, and is
+/// never read by a document-derived observation.
+#[cfg(feature = "field")]
+fn cmd_field_external(args: &[String]) -> Result<()> {
+    use vole_document::field::external::{ExternalContext, ExternalLineage, ExternalOrigin};
+    let mut store_dir: Option<PathBuf> = None;
+    let mut field_hex: Option<String> = None;
+    let mut lineage_spec: Option<String> = None;
+    let mut dataset: Option<String> = None;
+    let mut revision_family: Option<String> = None;
+    let mut origin: Option<String> = None;
+    let mut source: Option<String> = None;
+    let mut clear = false;
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        let (flag, inline) = match a.split_once('=') {
+            Some((f, v)) => (f, Some(v)),
+            None => (a, None),
+        };
+        match flag {
+            "--store" => {
+                store_dir = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--store", inline,
+                )?));
+            }
+            "--field" => field_hex = Some(field_arg_value(args, &mut i, "--field", inline)?),
+            "--lineage" => {
+                lineage_spec = Some(field_arg_value(args, &mut i, "--lineage", inline)?);
+            }
+            "--dataset" => dataset = Some(field_arg_value(args, &mut i, "--dataset", inline)?),
+            "--revision-family" => {
+                revision_family = Some(field_arg_value(args, &mut i, "--revision-family", inline)?);
+            }
+            "--origin" => origin = Some(field_arg_value(args, &mut i, "--origin", inline)?),
+            "--source" => source = Some(field_arg_value(args, &mut i, "--source", inline)?),
+            "--clear" => {
+                clear = true;
+                i += 1;
+            }
+            other => {
+                return Err(Error::usage(format!(
+                    "unknown field-external argument {other:?}"
+                )));
+            }
+        }
+    }
+    let store_dir = store_dir.ok_or_else(|| Error::usage("field-external requires --store DIR"))?;
+    let field_hex = field_hex.ok_or_else(|| Error::usage("field-external requires --field HEX"))?;
+    if clear && lineage_spec.is_some() {
+        return Err(Error::usage(
+            "field-external: --clear and --lineage are mutually exclusive",
+        ));
+    }
+    let store = open_field_store(
+        &store_dir,
+        false,
+        false,
+        vole_document::store::SyncPolicy::default(),
+    )?;
+    let id = FieldId::from_hex(&field_hex)?;
+    if clear {
+        let removed = store.clear_external_context(&id)?;
+        println!(
+            "{{\"field\":\"{}\",\"external_context\":\"cleared\",\"removed\":{}}}",
+            id.to_hex(),
+            removed
+        );
+        return Ok(());
+    }
+    if let Some(spec) = lineage_spec {
+        let parts: Vec<&str> = spec.split(':').collect();
+        if parts.len() != 3 {
+            return Err(Error::usage(
+                "--lineage must be FAMILY:MEMBER:HEAD (use '-' for an absent family/member)",
+            ));
+        }
+        let opt = |s: &str| {
+            if s == "-" || s.is_empty() {
+                None
+            } else {
+                Some(s.to_string())
+            }
+        };
+        let head = match parts[2] {
+            "1" | "true" => true,
+            "0" | "false" => false,
+            other => {
+                return Err(Error::usage(format!(
+                    "--lineage head must be 0 or 1, got {other:?}"
+                )));
+            }
+        };
+        let ctx = ExternalContext {
+            dataset_id: dataset,
+            lineage: ExternalLineage {
+                family: opt(parts[0]),
+                member: opt(parts[1]),
+                head,
+                revision_family,
+            },
+            origin: match origin.as_deref() {
+                Some(o) => ExternalOrigin::parse(o)?,
+                None => ExternalOrigin::Harness,
+            },
+            source: source.unwrap_or_default(),
+        };
+        let bytes = ctx.encode_canonical().len();
+        store.put_external_context(&id, &ctx)?;
+        println!(
+            "{{\"field\":\"{}\",\"external_context\":\"attached\",\"origin\":\"{}\",\"bytes\":{}}}",
+            id.to_hex(),
+            ctx.origin.name(),
+            bytes
+        );
+        return Ok(());
+    }
+    match store.get_external_context(&id)? {
+        Some(ctx) => println!(
+            "{{\"field\":\"{}\",\"basis\":\"external-metadata\",\"external_context\":{}}}",
+            id.to_hex(),
+            ctx.answer_json()
+        ),
+        None => {
+            return Err(Error::unsupported_feature(
+                "no external context is attached to this field",
+            ));
+        }
+    }
     Ok(())
 }
 

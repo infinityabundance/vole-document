@@ -1,0 +1,32 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase20-c4b-5ab2e76",
+  "phase": "20.4 — C4b contract court (external context supplied equally to both lanes)",
+  "utc": "2026-10-08T14:15:10Z",
+  "measured_commit": "5ab2e76491a3b123c1c85904f3dcbe5c7a570fa4",
+  "tree_state": " M src/field/mod.rs; M src/field/observe.rs; M src/field/plan.rs; M src/field/provenance.rs; M src/main.rs;?? evidence/campaigns/2026-10-08-phase1-5ab2e76/;?? evidence/campaigns/2026-10-08-phase20-c4b-5ab2e76/;?? src/field/external.rs;?? tools/fixtures/phase20-contract-c4b.py;?? tools/phase20-contract-c4b-court.sh;",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "91591d1385f375657628bdd470153e02fe61d55b2e5f6fe26c3d67f0db2a22f8",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "sqlite3": "3.40.1",
+  "cargo_lock_sha256": "3e8d445fbba07863a12e2c8eef065295c5976ad43b3750ad28d28c2ae98ba694",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "op_timeout_s": 180,
+  "depths": "0 1 2 3 4 5",
+  "court": "tools/phase20-contract-c4b-court.sh",
+  "baseline": "tools/fixtures/phase20-contract-c4b.py (additive copy of the phase-18 fixture; SQLite build/query/SQL byte-identical to Phase 16.5/18.1)",
+  "contracts": {
+    "C0": "value only",
+    "C1": "C0 + native coordinate",
+    "C2": "C1 + provenance class + source span",
+    "C3": "C2 + exact original closure (length + SHA-256 + cmp)",
+    "C4a": "C3 + document-native lineage (PDF incremental chain; byte-derivable; VOLE answers, baseline lane does not; typed unsupported otherwise)",
+    "C4b": "C3 + corpus/external lineage (dataset family/member/head; supplied to BOTH lanes under an equal external input: SQLite at build, VOLE as a typed ExternalContext beside the field, basis external-metadata)",
+    "C5": "C4 + heterogeneous batch served in one session (reported under both C4a and C4b)"
+  },
+  "accounting": "persistent bytes = sum of regular-file sizes (find -printf %s) for BOTH lanes; du -sb is avoided because the bind-mounted host fs inflates directory sizes and would compare VOLE's directory store against SQLite's single file unfairly",
+  "rc_codes": "0 ok; 3 decline; 6 unsupported-feature (non-PDF revision lineage; no attached external context); 124 timeout; 137 SIGKILL/OOM"
+}
