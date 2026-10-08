@@ -46,9 +46,11 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
 - [Phase plans and results](phases/) — the per-phase record. Recent results:
   [Phase 15](phases/phase-15-results.md), [Phase 16](phases/phase-16-results.md),
   [Phase 17](phases/phase-17-results.md), [Phase 18](phases/phase-18-results.md),
-  [Phase 19](phases/phase-19-results.md), [Phase 20](phases/phase-20-results.md);
-  planned (not started): [Phase 21](phases/phase-21-plan.md),
-  [Phase 22](phases/phase-22-plan.md) (economic programme).
+  [Phase 19](phases/phase-19-results.md), [Phase 20](phases/phase-20-results.md),
+  [Phase 22](phases/phase-22-results.md) (economic programme — 22.1 complete,
+  22.2–22.7 planned); planned (not started):
+  [Phase 21](phases/phase-21-plan.md); the Phase 22 programme is pre-registered in
+  [phase-22-plan.md](phases/phase-22-plan.md).
 - [Independent reviews](reviews/) — adversarial skeptic findings.
 - [Evidence index](evidence/README.md) — campaigns and measurement reports.
 

@@ -95,12 +95,18 @@ one mechanism at a time, and re-measures the equal-contract court. Results:
 | 18.2 One-pass direct build | Can the source → authority → source round trip be removed without changing bytes? | **Adopted** — `ingest_verified` verifies against the caller's source; `ingest_pdf_direct`/`ingest_package_direct` scan the original input; `encode`/`field-ingest` unchanged. Wall **−6.1%**, peak RSS median **−28.8%**; contract gap held at **7.21×**; exactness 9/9 + 12/12. `2026-10-08-phase18-onepass-61b11350` |
 | 18.3 Observation index before the single serialize | Can the redundant parse+re-serialize of the authority be removed? | **Adopted** — `Descriptor::with_observation_index` is a pure method; the index is attached before the court's single serialize; `encode` still emits no index and the one-pass authority is byte-identical to `with_observation_index(encode_with(…))`. Wall-neutral; large-doc RSS **−14–16%**. Isolation: `nist-pdf-0017` is 9425/11,605 ms (81%), 6842 files, 9.40 s on the bind mount vs 1.39 s `/tmp`. `2026-10-08-phase18-inindex-b7046f0` |
 | 18.4 Packed as an ingest-write optimization | Does the packed file-count collapse also collapse the build term? | **Falsified** — packed 11,312 ms vs same-run fs-direct 11,715 ms vs SQLite 1,597 ms (7.08× vs 7.34×); files collapse but `insert` syncs **per node** (6792 `fdatasync` vs 6842 `fsync`); the term is sync **latency**, not file count. `2026-10-08-phase18-contract-packed-fb23021` |
-| 18.5 Batched packed-store durability | If the term is a per-node sync, can the packed store sync once per segment — and can `observe-batch` serve it? | **Adopted** (ADR-0053) — `SyncPolicy { Batch (default), Each }`; `put_field` flushes before publishing a manifest; prefix recovery + no partial node + re-hash gate; `observe-batch --packed` now works. `nist-pdf-0017` wall **9392 → 1415 ms**, `fdatasync` **6792 → 0**; 12-doc contract build **1552 vs 1893 ms = 0.82×** (VOLE builds **~1.22× faster**); storage **0.53×**; warm **1.09×**; exactness **12/12**. `2026-10-08-phase18-batched-sync-14a7e6f`, `2026-10-08-phase18-contract-packed-14a7e6f` |
+| 18.5 Batched packed-store durability | If the term is a per-node sync, can the packed store sync once per segment — and can `observe-batch` serve it? | **Adopted** (ADR-0053) — `SyncPolicy { Batch (default), Each }`; `put_field` flushes before publishing a manifest; prefix recovery + no partial node + re-hash gate; `observe-batch --packed` now works. `nist-pdf-0017` wall **9392 → 1415 ms**, `fdatasync` **6792 → 0**; 12-doc contract build **1552 vs 1893 ms = 0.82×** (VOLE builds **~1.22× faster**); storage **0.53×**; warm **1.09×**; exactness **12/12**. **[SUPERSEDED as competitor statements by [Phase 22.1](../phases/phase-22-results.md): against the tuned equal-contract envelope storage is **0.762× `full` / 0.805× `adaptive`**, build **0.219× `full`**, cold **0.812× `full`**, warm a **loss** (**1.211× `full`**).]** `2026-10-08-phase18-batched-sync-14a7e6f`, `2026-10-08-phase18-contract-packed-14a7e6f` |
 
 The build position recorded by Phase 16.5 as VOLE's decisive loss now reads: on the
 equal-contract 12-document subset VOLE **builds ~1.22× faster** than the
 source-retaining SQLite baseline, **stores ~0.53×** the bytes, **ties** on cold
-queries, and is **~1.09×** slower on the warm one-session lane. **C4 is not a
+queries, and is **~1.09×** slower on the warm one-session lane. **[SUPERSEDED as
+competitor statements by [Phase 22.1](../phases/phase-22-results.md): those
+figures are against the *historical-control* configuration, whose contract-dead
+trigram index inflated the baseline (≈+44% bytes). Against a Pareto-tuned
+equal-contract SQLite, storage is **0.762× `full` / 0.805× `adaptive`** (not
+0.53×), build **0.219× `full`**, cold **0.812× `full`**, and warm is a **loss**
+(**1.211× `full`**, 95% CI 1.006–1.483).]** **C4 is not a
 closed contract:** C4a is VOLE's genuine native-lineage observable, C4b remains
 open because it is external metadata.
 
@@ -134,7 +140,11 @@ The Phase-18 **0.82×** build and **1.09×** warm headlines are superseded as po
 estimates: the build win stands (paired median 0.18, CI below 1.0) but its size is
 estimator-dependent (~0.96× by ratio of sums), and the warm lane is a modest
 ~1.29× loss that the median estimator cannot separate from 1.0 at N=100 while the
-geometric mean resolves it.
+geometric mean resolves it. **[SUPERSEDED as competitor statements by [Phase
+22.1](../phases/phase-22-results.md): these were all read against the
+historical-control configuration; against a tuned equal-contract envelope storage
+is **0.762× `full`**, build **0.219× `full`**, cold **0.812× `full`**, warm a
+**loss** (**1.211× `full`**).]**
 
 ## Phase-20 outcomes
 
@@ -159,20 +169,23 @@ The warm loss is now **diagnosed and durable**; the packed store's durability is
 ([ADR-0050](../adr/0050-sqlite-as-substrate-question.md)) is unchanged and no
 option of it is chosen.
 
-## Phase-22 programme (PLANNED — not started)
+## Phase-22 programme (22.1 complete; 22.2–22.7 planned)
 
 Phase 22 is the **economic programme** synthesised from an external technical
 review: it targets a better **capability/cost frontier** against the strongest
 honest competitor, in a commercially relevant workload region, with bounded
-statistics and no loss of accuracy or capability. Plan:
-[phase-22-plan.md](../phases/phase-22-plan.md) (PLANNED); the IP/presentation
+statistics and no loss of accuracy or capability. **22.1 (the competitor
+envelope) is complete and sealed**; **22.2–22.7 remain gates/priors, not
+measurements**. Plan: [phase-22-plan.md](../phases/phase-22-plan.md); results:
+[phase-22-results.md](../phases/phase-22-results.md); the IP/presentation
 distinction it depends on is [ADR-0056](../adr/0056-runtime-vs-research-reconstruction-programs.md).
-Nothing below is measured; each row is a **gate** and its **prior** (a VOLE win is
-not presumed likely against the record). Order is by dependency and risk.
+Nothing below is measured beyond **22.1**; each remaining row is a **gate** and its
+**prior** (a VOLE win is not presumed likely against the record). Order is by
+dependency and risk.
 
 | Subphase | Review | Question | Prior / gate |
 |---|---|---|---|
-| 22.1 Competitor envelope | P0 | Is there a strong competitor envelope, including an adaptive and a hybrid SQLite, before any frontier claim? | **Runs first.** Gate: ≥1 optimized configuration per required contract, no omitted capability; Python/Poppler kept as historical control; durability contracts compared explicitly |
+| 22.1 Competitor envelope | P0 | Is there a strong competitor envelope, including an adaptive and a hybrid SQLite, before any frontier claim? | **Complete (Phase 22.1).** Six purpose-tuned SQLite configurations added, the Phase-18 baseline kept **unmodified** as the `hist` control; gate met (**no omitted capability**, durability compared explicitly). Against the tuned envelope: storage **0.762× `full` / 0.805× `adaptive`**, build **0.219× `full`** (0.194× `hist`), cold **0.812× `full`**, warm a **loss** (**1.211× `full`**, 95% CI 1.006–1.483); equivalence **1920/1920**, 0 mismatches; exactness 12/12 VOLE, 6/6 per doc per config. `2026-10-08-phase22-competitors-86d9312` |
 | 22.2 Compact query-native directory / hot-cold layout | P1 | Can warm CPU/I/O/allocation fall without storage growth or weaker integrity? | Gate: meaningful warm reduction at equal observations/provenance; any answer change falsifies |
 | 22.3 Fused heterogeneous execution | P2 | Can a known batch be one dependency closure and one schedule? | Target **≥2×** less decoded/materialized work on overlap-rich loads; explicitly **not** adaptive promotion (ADR-0046) |
 | 22.4 Unknown-query lifetime frontier | P3 | On a hidden schedule, which system wins the cumulative lifetime frontier? | All adaptation costs charged; SQLite gets a serious adaptive strategy; prior: Phase-15 promotion **lost** |

@@ -65,7 +65,12 @@ tail and the caller appends from the recovered end).
   Storage unchanged (7,778,087 B = 0.53× SQLite; 120 vs 8621 files). Warm
   `observe-batch --packed` now exists: **1.09×** SQLite over C0–C5 (1.11× at steady
   state C1–C5), versus the fs-direct warm reference — the substrate does not change
-  the query path.
+  the query path. **SUPERSEDED as competitor statements by Phase 22.1: the 0.53×
+  storage and 1.09× warm figures are against the Phase-18 *historical-control*
+  configuration; against a Pareto-tuned equal-contract SQLite the storage
+  advantage is 0.762× (`full`) / 0.805× (`adaptive`) and warm is a loss (1.211×
+  `full`, 95% CI 1.006–1.483).** See
+  [phase-22-results.md](../phases/phase-22-results.md).
 - **`Batch` is the default** because it preserves every correctness invariant and
   only moves *when* a record becomes power-durable; the stronger per-`put_node`
   barrier remains available as `--sync=each`.

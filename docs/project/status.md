@@ -7,7 +7,7 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.25` (Phases 13–20 — Phase-13 proposals + `N5`
+**Current release:** `0.1.0-alpha.26` (Phases 13–22.1 — Phase-13 proposals + `N5`
 gate, the benign-`DOCTYPE` real-EPUB fix, a partial large-PDF encode fix, the
 Phase-15 performance programme, the Phase-16 backend adoption + large-PDF fix +
 storage-accounting correction, the Phase-17 direct field build +
@@ -21,8 +21,8 @@ median, resolved under the geometric mean), **100/100 built + 100/100 exact** on
 `real100-v1`), and the Phase-20 hardening-and-economics phase — an **adversarial
 1,300-case crash court** (0 fail; **scope stated**: ordering/prefix/fail-closed
 proven, true power loss and torn rename not), a **33 % large-source memory cut**
-so a **~1 GiB source now fits**, the warm loss **diagnosed and recorded
-durable**, and **C4b closed by a typed external layer**).
+so a **~1 GiB source now fits**, the warm loss **diagnosed and recorded durable**, and **C4b closed by a typed external layer**). **Phase 22.1** then strengthens the competitor **first** — a six-configuration SQLite envelope, with the Phase-18 baseline kept **unmodified** as the historical control — and re-measures the equal-contract court against it (results [Phase 22 results](../phases/phase-22-results.md)): storage **0.762× `full` / 0.805× `adaptive`** (not the historical-control **0.53×**, which was measured against a **contract-dead** trigram/FTS index, ≈+44% bytes), build **0.219× `full`** (0.194× `hist`; the advantage survives but shrinks), cold **0.812× `full`**, warm a **loss** (**1.211× `full`**, 95% CI 1.006–1.483) — **no capability gap remains**.
+
 **Top-level verdict (ADR-0023, the
 authoritative [`FINDINGS.md`](findings.md)):** the current representation stack
 does not beat purpose-built baselines on any measured axis; the durable results
@@ -307,7 +307,7 @@ lane: `nist-pdf-0017` packed wall **9392 → 1415 ms**, `fdatasync` **6792 → 0
 12-document contract build sum **1552 ms vs SQLite 1893 ms = 0.82×** (VOLE now
 builds ~1.22× **faster**), storage **0.53×**, warm **1.09×**, exactness
 `materialize --exact --packed` **12/12**. **The win came from deleting unnecessary
-durability syncs — not parallelism, not a codec.**
+durability syncs — not parallelism, not a codec.** **[SUPERSEDED as competitor statements by Phase 22.1](../phases/phase-22-results.md): against the tuned equal-contract envelope the storage advantage is **0.762× `full` / 0.805× `adaptive`** (not 0.53×, which is vs the historical control's contract-dead trigram index), build **0.219× `full`** (0.194× `hist`), cold **0.812× `full`**, and warm is a **loss** (**1.211× `full`**, 95% CI 1.006–1.483).]**
 
 Phase 19 (branch `phase19`) is a **measurement-discipline phase**: it replaces the
 two Phase-18 single-run point estimates with paired, interleaved, repeated
@@ -348,7 +348,7 @@ peak RSS median **30.9 MiB**, max **2342 MiB** (`nasa-pdf-0001`, a 409 MiB sourc
 corrected) the direct build is far faster (median **61 ms** vs 2,095 ms; paired
 **0.083×**) but stores **+5.3%** bytes. **Storage is population-dependent:**
 full-population VOLE bytes are **~0.96×** the SQLite `real100` db, **not** the
-**0.53×** of the 12-document contract subset. **Phase 19 changes no wire byte,
+**0.53×** of the 12-document contract subset ([SUPERSEDED as a competitor statement by Phase 22.1](../phases/phase-22-results.md): against a *tuned* equal-contract SQLite the subset figure is **~0.76–0.80×**, not 0.53×, which was measured against the historical control's contract-dead trigram index). **Phase 19 changes no wire byte,
 decode path, or `encode` output.**
 
 Phase 20 (branch `phase20`) is a **hardening-and-economics phase** that attacks
