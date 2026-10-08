@@ -1,0 +1,9 @@
+docs=12
+verdict=MIXED[win:full@pdf@C0,full@pdf@C1,full@pdf@C2,full@pdf@C3,full@pdf@C4,full@pdf@C5][loss:full@epub@C0,full@epub@C1,full@epub@C2,full@epub@C3,full@epub@C4,full@epub@C5]
+primary_wins=full@pdf@C0,full@pdf@C1,full@pdf@C2,full@pdf@C3,full@pdf@C4,full@pdf@C5
+primary_losses=full@epub@C0,full@epub@C1,full@epub@C2,full@epub@C3,full@epub@C4,full@epub@C5
+primary_ties=none
+primary_unresolved=full@C0,full@C1,full@C2,full@C3,full@C4,full@C5,full@docx@C0,full@docx@C1,full@docx@C2,full@docx@C3,full@docx@C4,full@docx@C5
+value_mismatches=0
+schedule_seed=220400
+schedule_length=24

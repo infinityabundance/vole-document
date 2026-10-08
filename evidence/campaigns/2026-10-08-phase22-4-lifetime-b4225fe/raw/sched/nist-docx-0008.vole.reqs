@@ -1,0 +1,24 @@
+--heading 0 --kind text
+--block 0 --kind text
+--revisions --kind lineage
+--byte-range 0..64 --kind exact
+--block 0 --kind text
+--metadata --kind metadata
+--table 0 --kind text
+--table 0 --kind text
+--table 0 --kind text
+--heading 0 --kind text
+--table 0 --kind text
+--metadata --kind metadata
+--revisions --kind lineage
+--doc-text --kind text
+--doc-text --kind text
+--revisions --kind lineage
+--revisions --kind lineage
+--byte-range 0..64 --kind exact
+--metadata --kind metadata
+--heading 0 --kind text
+--doc-text --kind text
+--doc-text --kind text
+--resource 0 --kind metadata
+--block 0 --kind text
