@@ -1,0 +1,1 @@
+SELECT json_object('obs','revision','declined',1,'value_kind','json','value',NULL,'coord',NULL,'provenance',NULL,'exact',json_object('length',(SELECT source_len FROM documents WHERE doc_id=1),'sha256',(SELECT source_sha256 FROM documents WHERE doc_id=1)),'revision',NULL)
