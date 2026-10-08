@@ -1,0 +1,30 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase16-largepdf-ce8af8f",
+  "phase": "16.3 — >100 MiB PDF memory pathology: reproduce, bisect, fix, re-measure",
+  "utc": "2026-10-08T06:20:00Z",
+  "measured_commit": "ce8af8fd65a6d5af84d55a6bdef258393915849a",
+  "measured_commit_subject": "phase16.2: full-real100 packed-store court — packed CLOSES the SQLite storage gap",
+  "tree_state": " M src/encode/candidates.rs (the fix); ?? evidence/scratch/** (gitignored); ?? evidence/campaigns/2026-10-08-phase16-largepdf-ce8af8f/ (this campaign)",
+  "profile": "release",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cpu_arch": "x86_64",
+  "cargo_lock_sha256": "d4d2ef7670f6f2aa6ddf39c979f55dc39c17451819dcf17112b5d5169457ac06",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "corpus": "real100-v1 (gitignored bytes under real100-v1/documents)",
+  "bin_before_sha256": "fb5544f746f508bc068e314b365a943b926582af50d8b75b6eb2f8f65dd5402f",
+  "bin_before_note": "identical to evidence/campaigns/2026-10-08-phase16-packed-full-0b21928 bin_sha256 — the pre-fix binary that reproduced the campaign's rcs",
+  "bin_after_sha256": "c799bae28381062353960f2e94d579b912ef737ae7604cf2156235bb2d6b7bc7",
+  "external_oracles": {
+    "qpdf": "qpdf version 11.3.0",
+    "pdftotext": "pdftotext version 22.12.0"
+  },
+  "env_vars_affecting_semantics": {
+    "LC_ALL": "C",
+    "VOLE_BIN": "lane default ./target/debug/vole-document; explicitly overridden to ./target/release/vole-document or the saved ./evidence/scratch/phase16-largepdf/vole-before for every measured run",
+    "OP_TIMEOUT": "180 or 600 (per-op wall budget; 180 matches phase16-packed-full)"
+  },
+  "notes": "peak RSS from /usr/bin/time -v 'Maximum resident set size'; rc 124 = 180 s timeout, rc 137 = SIGKILL/OOM under the 6g cap. No compose cap was raised."
+}

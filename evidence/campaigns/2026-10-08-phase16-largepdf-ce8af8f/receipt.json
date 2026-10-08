@@ -1,0 +1,68 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase16-largepdf-ce8af8f",
+  "phase": "16.3 — >100 MiB PDF memory pathology",
+  "headline": "The >100 MiB encode OOM is a single encoder-side allocation bug in propose_rle: it built a (u8,u64) run list (~16 bytes/run, ~16x the input) BEFORE its max_graph_ops decline check, so a 409 MB incompressible PDF OOM-killed the encoder before the candidate could decline. Streaming the count/longest-run in a first O(1)-memory pass and building ops only after the check removes the pathology: nasa-pdf-0001 now completes byte-exactly, and peak RSS on the 217-308 MB PDFs drops ~2x.",
+  "confirmed_prior_state": "Reproduces evidence/campaigns/2026-10-08-phase16-packed-full-0b21928 rcs: nasa-pdf-0001 encode OOM (rc 137), nasa-pdf-0002/0003 encode timeout at 180 s (rc 124).",
+  "method": {
+    "bisection": "encode --force KIND per candidate family under /usr/bin/time -v in the capped doc-baseline lane (per-candidate peak attribution).",
+    "attribution_proof": "0001 --force raw completes (rc 0, 2.29 GiB, exact) while 0001 --force rle OOMs (rc 137, 6.28 GiB, 0.54 s) — RLE is the OOM locus.",
+    "identity_gate": "before-vs-after binary differential: every corpus doc <20 MB (73) plus 0024/0020/0003/0002 (4) must produce a byte-identical .voldoc SHA-256."
+  },
+  "bisection_release_nasa_pdf_0024_168513117B": {
+    "unit": "peak_rss_kb / wall_ms / rc",
+    "auto":     [2954692, null, 0],
+    "raw":      [989928, null, 0],
+    "rle":      [2788964, null, 2],
+    "byte-rans":[990440, null, 0],
+    "pdf-physical":[995424, null, 0],
+    "pdf-channels":[1011824, null, 0],
+    "pdf-deflate-replay-rans-indexed":[1000752, null, 0],
+    "pdf-layout/pdf-layout-rans/pdf-length-revision/pdf-cos-template":[180096, null, 2],
+    "note": "rle peaks ~16.6x input (2,788,964 KB) and then DECLINES (rc 2, 'candidate Rle is not proposed'). Arithmetic: observed rss - input = 2,624,401 KB = 2,687,386,624 B / 16 B = 167,961,664 runs for a 168,513,117-byte input (mean run length 1.003). Every other kind stays <= ~1 GB. auto's 2.95 GB peak is the RLE term."
+  },
+  "root_cause": {
+    "file": "src/encode/candidates.rs",
+    "function": "propose_rle",
+    "detail": "let mut runs: Vec<(u8,u64)> = Vec::new(); for &b in input { ... runs.push((b,1)) ... } runs the length of `input` for near-incompressible data (16 B/run growing geometrically), and only then checks runs.len()*2 > max_graph_ops (DEFAULT 1<<20). A 409 MB PDF needs ~16.4 GB for that Vec and is SIGKILLed under the 6 GiB cap before the decline can happen."
+  },
+  "fix": {
+    "summary": "Two-pass streaming propose_rle: pass 1 counts maximal runs and the longest run in O(1) memory; the max_graph_ops and max_repeat_count/u32 declines happen there; pass 2 builds the ops only when admitted (bounded by max_graph_ops/2 <= 524,288 ops). Same ops, same descriptor bytes, same decline verdict for every input.",
+    "behaviour_preservation": "identical candidate set/order/bytes for all inputs; verified empirically (see identity_gate).",
+    "residual": "peak is now ~8.9x input (was ~17.7x), spread across the decoder round-trip of the whole-file candidates (RAW/rANS/PDF_CHANNELS) and the input buffer; that is the court's decode-before-commit cost, not an unbounded structure. nasa-pdf-0001 fits under the 6 GiB cap; nasa-pdf-0002/0003 now OOM-free but still exceed the 180 s op budget on the slow BYTE_RANS lane (wall, not memory)."
+  },
+  "before_after_peak_rss": {
+    "unit": "peak_rss_kb",
+    "op_budget_600s": {
+      "nasa-pdf-0001_408854600B": {"before": {"rc":137,"rss_kb":6281620,"wall_s":2.40,"exact":false}, "after": {"rc":0,"rss_kb":3558292,"wall_s":40.00,"exact":true,"candidate":"PDF_CHANNELS"}},
+      "nasa-pdf-0002_308803168B": {"before": {"rc":0,"rss_kb":5356860,"wall_s":260.05,"exact":true}, "after": {"rc":0,"rss_kb":2696872,"wall_s":228.26,"exact":true,"candidate":"BYTE_RANS"}},
+      "nasa-pdf-0003_217666672B": {"before": {"rc":0,"rss_kb":3758292,"wall_s":243.17,"exact":true}, "after": {"rc":0,"rss_kb":1906148,"wall_s":232.72,"exact":true,"candidate":"BYTE_RANS"}},
+      "nasa-pdf-0001_force_raw": {"before": {"rc":0,"rss_kb":2398660,"exact":true}, "after": {"rc":0,"rss_kb":2398672,"exact":true}},
+      "nasa-pdf-0001_force_rle":  {"before": {"rc":137,"rss_kb":6281128,"wall_s":0.54}, "after": {"rc":2,"rss_kb":401524,"wall_s":0.27,"note":"declines, no OOM"}}
+    },
+    "op_budget_180s_matches_phase16_campaign": {
+      "nasa-pdf-0001": {"before_rc":137,"after_rc":0,"after_wall_s":39.79,"after_exact":true},
+      "nasa-pdf-0002": {"before_rc":124,"after_rc":124,"note":"wall timeout; memory no longer the cause"},
+      "nasa-pdf-0003": {"before_rc":124,"after_rc":124,"note":"wall timeout; memory no longer the cause"}
+    },
+    "ratio_note": "peak/input: before 17.68x (0003) and 17.76x (0002); after 8.97x (0003) and 8.94x (0002). Forced RLE: 15.4x OOM -> 1.006x decline."
+  },
+  "nasa_pdf_0001_now_completes": true,
+  "identity_gate": {
+    "small_docs_lt20MB": {"docs": 73, "identical": 73, "mismatch": 0},
+    "large_pdfs": {"docs": ["nasa-pdf-0024","nasa-pdf-0020","nasa-pdf-0003","nasa-pdf-0002"], "identical": 4, "mismatch": 0},
+    "conclusion": "no .voldoc byte changes for any document that already encoded (77/77 identical SHA-256)."
+  },
+  "gates": {
+    "cargo_fmt_all_check": "PASS",
+    "cargo_clippy_all_targets_all_features_deny_warnings": "PASS",
+    "cargo_test_locked_all_features": "PASS",
+    "cargo_test_locked_no_default_features": "PASS",
+    "phase1_exact_court": "PASS",
+    "phase1_receipt": "raw/phase1-court/receipt.json (gate's own dated dir folded under this campaign)"
+  },
+  "open_items": [
+    "nasa-pdf-0002 (228 s) and nasa-pdf-0003 (233 s) still exceed the court's 180 s op budget on BYTE_RANS; this is an encode-speed gap, distinct from the memory pathology now fixed.",
+    "Residual ~8.9x peak is the whole-file candidate round-trip (serialize -> parse -> materialize) plus the input buffer; a bounded reduction would need streaming materialization/comparison in the court, out of scope here.",
+    "The court's 180 s op budget is unchanged; raising it is a deliberate act and was not done."
+  ]
+}

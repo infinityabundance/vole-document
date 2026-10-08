@@ -1,0 +1,25 @@
+Phase 16.3 gate outcomes (all inside Docker, pinned lanes)
+
+cargo fmt --all --check                                  PASS
+cargo clippy --all-targets --all-features -- -D warnings  PASS (no warnings)
+cargo test --locked --all-features                        PASS (all suites ok; 0 failures)
+cargo test --locked --no-default-features                 PASS (lib 269 passed, 1 ignored; integration ok; 0 failures)
+docker compose run --rm --no-TTY dev sh tools/phase1-court.sh   PASS
+    -> folded into raw/phase1-court/ (the gate writes its own dated campaign dir;
+       it was moved under this campaign's raw/ so evidence/campaigns/ contains only
+       this phase's dir)
+
+Note on raw/before.tsv wall_ms: the pre-fix scratch script parsed elapsed time with a
+non-anchored sed that matched the trailing "Page size (bytes): 4096" line; the wall
+column was corrected here from the authoritative raw/timings/*.time files, and the
+script was fixed before the after runs. peak_rss_kb values were already correct.
+The campaign's wall values for 0002/0003 (260.05 s / 243.17 s) come from those .time files.
+
+Focused RLE tests (all-features, lib):
+  encode::candidates::tests::rle_ops_match_run_list_reference ... ok   (new)
+  encode::candidates::tests::rle_declines_on_large_incompressible ... ok (new)
+  encode::candidates::tests::rle_declines_when_graph_too_big ... ok
+  encode::candidates::tests::single_byte_is_rle ... ok
+  encode::candidates::tests::rle_wins_on_long_runs ... ok
+  encode::candidates::tests::rle_wins_on_zeros ... ok
+  test result: ok. 12 passed; 0 failed; 0 ignored

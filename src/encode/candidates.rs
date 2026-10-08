@@ -277,35 +277,72 @@ pub fn propose(input: &[u8], limits: Limits) -> Result<Vec<Candidate>> {
 /// expressed within `limits`: the program would need more instructions than
 /// `max_graph_ops`, or a run is too long to reconstruct with a single
 /// `REPEAT_LAST` (`length - 1` exceeds `max_repeat_count` or `u32::MAX`).
+///
+/// The decline check is done in a first **streaming** pass that keeps only the
+/// running run count and the longest run in `O(1)` memory, and the `ops` are
+/// materialized in a second pass only once the limits admit them. Storing a
+/// `(u8, u64)` per run up front cost 16 bytes per run — ~16x the input for an
+/// incompressible file — which OOM-killed a 409 MB PDF under a 6 GiB cap before
+/// this candidate could decline (Phase 16.3). Because a candidate that passes
+/// has `runs <= max_graph_ops / 2`, the second pass is bounded by the graph-op
+/// budget and never by the raw input length.
 pub fn propose_rle(input: &[u8], limits: Limits) -> Result<Option<Candidate>> {
-    // Maximal runs of equal bytes: (byte value, run length).
-    let mut runs: Vec<(u8, u64)> = Vec::new();
+    // Pass 1: count maximal runs (and the longest run) without materializing
+    // the run list, so an incompressible input declines at O(1) extra memory.
+    let mut run_count: u64 = 0;
+    let mut max_run_len: u64 = 0;
+    let mut prev: Option<u8> = None;
+    let mut len: u64 = 0;
     for &b in input {
-        match runs.last_mut() {
-            Some((last, len)) if *last == b => *len += 1,
-            _ => runs.push((b, 1)),
+        if prev == Some(b) {
+            len += 1;
+        } else {
+            max_run_len = max_run_len.max(len);
+            run_count += 1;
+            prev = Some(b);
+            len = 1;
         }
     }
+    max_run_len = max_run_len.max(len);
 
     // Worst case is one INLINE plus one REPEAT_LAST per run.
-    if runs.len().saturating_mul(2) > limits.max_graph_ops as usize {
+    if run_count.saturating_mul(2) > limits.max_graph_ops as u64 {
         return Ok(None);
     }
 
-    // A run must be reconstructible by a single INLINE + REPEAT_LAST pair.
-    for &(_, length) in &runs {
-        let extra = length - 1;
-        if extra > limits.max_repeat_count || extra > u32::MAX as u64 {
-            return Ok(None);
-        }
+    // A run must be reconstructible by a single INLINE + REPEAT_LAST pair. Only
+    // the longest run can violate this, so checking it is equivalent to the
+    // former per-run loop.
+    let max_extra = max_run_len.saturating_sub(1);
+    if max_extra > limits.max_repeat_count || max_extra > u32::MAX as u64 {
+        return Ok(None);
     }
 
-    let mut ops = Vec::with_capacity(runs.len() * 2);
-    for &(byte, length) in &runs {
+    // Pass 2: build the ops. Safe from the bound above.
+    let mut ops: Vec<Op> = Vec::with_capacity(run_count as usize * 2);
+    let mut prev: Option<u8> = None;
+    let mut len: u64 = 0;
+    for &b in input {
+        if prev == Some(b) {
+            len += 1;
+        } else {
+            if let Some(byte) = prev {
+                ops.push(Op::Inline { bytes: vec![byte] });
+                if len > 1 {
+                    ops.push(Op::RepeatLast {
+                        count: (len - 1) as u32,
+                    });
+                }
+            }
+            prev = Some(b);
+            len = 1;
+        }
+    }
+    if let Some(byte) = prev {
         ops.push(Op::Inline { bytes: vec![byte] });
-        if length > 1 {
+        if len > 1 {
             ops.push(Op::RepeatLast {
-                count: (length - 1) as u32,
+                count: (len - 1) as u32,
             });
         }
     }
@@ -488,6 +525,45 @@ mod tests {
         let (bytes, report) = crate::encode::encode(&input, limits).unwrap();
         assert_ne!(report.kind, CandidateKind::Rle);
         assert_exact(&bytes, &input, limits);
+    }
+
+    #[test]
+    fn rle_declines_on_large_incompressible() {
+        // A near-incompressible multi-megabyte buffer has far more runs than
+        // `max_graph_ops / 2`, so RLE must decline. Before Phase 16.3 this built a
+        // `(u8, u64)` entry per run first, costing ~16x the input length (the
+        // 409 MB OOM); the streaming two-pass form must reach the same `None`
+        // verdict at O(1) extra memory. The assertion is the verdict, which is
+        // what the OOM run failed to reach.
+        let input = xorshift_bytes(4 * 1024 * 1024, 0xD1B5_4A32_D192_ED03);
+        assert!(
+            propose_rle(&input, Limits::DEFAULT).unwrap().is_none(),
+            "an incompressible buffer cannot be expressed as an RLE graph"
+        );
+    }
+
+    #[test]
+    fn rle_ops_match_run_list_reference() {
+        // Pin the streaming two-pass construction to the original run-list
+        // definition: one INLINE per maximal run, plus a REPEAT_LAST when the run
+        // is longer than one byte, in file order.
+        let mut input = Vec::new();
+        for &(byte, length) in &[(b'a', 6u64), (b'b', 1), (b'c', 300), (b'a', 2), (b'z', 1)] {
+            input.extend(std::iter::repeat_n(byte, length as usize));
+        }
+        let mut expected: Vec<Op> = Vec::new();
+        for &(byte, length) in &[(b'a', 6u64), (b'b', 1), (b'c', 300), (b'a', 2), (b'z', 1)] {
+            expected.push(Op::Inline { bytes: vec![byte] });
+            if length > 1 {
+                expected.push(Op::RepeatLast {
+                    count: (length - 1) as u32,
+                });
+            }
+        }
+        let cand = propose_rle(&input, Limits::DEFAULT)
+            .unwrap()
+            .expect("a 5-run input is expressible");
+        assert_eq!(cand.descriptor.program.ops, expected);
     }
 
     #[cfg(feature = "rans")]

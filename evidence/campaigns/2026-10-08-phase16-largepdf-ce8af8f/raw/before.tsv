@@ -1,0 +1,6 @@
+label	id	force	source_bytes	wall_ms	peak_rss_kb	rc	exact
+before	nasa-pdf-0001	auto	408854600	2400	6281620	137	no
+before	nasa-pdf-0002	auto	308803168	260050	5356860	0	yes
+before	nasa-pdf-0003	auto	217666672	243170	3758292	0	yes
+before	nasa-pdf-0001/raw	raw	408854600	2150	2398660	0	yes
+before	nasa-pdf-0001/rle	rle	408854600	540	6281128	137	no
