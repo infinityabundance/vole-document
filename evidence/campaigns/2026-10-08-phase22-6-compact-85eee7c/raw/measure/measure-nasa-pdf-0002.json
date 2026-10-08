@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 1010447,
+      "index_comp": 312070,
+      "index_orig": 1004482,
+      "orig": 1944072,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 698377,
+      "params_orig": 939590,
+      "rt_ok": true,
+      "saving": 933625
+    },
+    "B_dict": {
+      "comp": 43828,
+      "orig": 768595,
+      "rt_ok": true,
+      "saving": 724767
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 13452,
+      "duplicates": 0,
+      "kinds": 7,
+      "list_bytes": 43548,
+      "members": 43544,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 141071,
+      "orig": 1726432,
+      "refs": 53951,
+      "rt_ok": true,
+      "saving": 1585361
+    },
+    "E_header": {
+      "comp": 261506,
+      "orig": 1567620,
+      "rt_ok": true,
+      "saving": 1306114
+    }
+  },
+  "combined_best_saving": 4580308,
+  "combined_blob_bytes": 1458169,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9854506985984018,
+  "combined_rt_exact": true,
+  "combined_saving": 4549867,
+  "doc": "nasa-pdf-0002",
+  "encoded_len": 308803649,
+  "field": "a2f866e471e508d36d6abbf99e6800bb570f7404c5077dccb125c867fd210abf",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.014549301401598148,
+  "index_node_count": 298,
+  "namespaces": {
+    "descriptor": 308803649,
+    "field": 521,
+    "index": 2409778,
+    "seed": 3598968
+  },
+  "node_count": 43545,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 3,
+    "3": 2,
+    "4": 23327,
+    "5": 10108,
+    "6": 8634,
+    "9": 1470
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 364362,
+    "3": 136,
+    "4": 1539582,
+    "5": 747992,
+    "6": 811596,
+    "9": 135240
+  },
+  "seed_split": {
+    "deps": 323328,
+    "header": 1567620,
+    "params": 939590,
+    "prov": 768430
+  },
+  "source_len": 308803168,
+  "total": 314812916,
+  "typed": 6009267,
+  "typed_saving_frac": 0.762207437279788
+}

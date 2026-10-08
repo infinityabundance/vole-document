@@ -1,0 +1,52 @@
+{
+  "counts": {
+    "bytes": 7,
+    "metadata": 6,
+    "revision": 3,
+    "text": 8
+  },
+  "doc_id": "nist-pdf-0002",
+  "format": "pdf",
+  "length": 24,
+  "phase": "22.4",
+  "recipe": "phase22-4-schedule.py gen (frozen recipe in the module docstring)",
+  "schedule": [
+    "metadata",
+    "bytes",
+    "metadata",
+    "bytes",
+    "bytes",
+    "revision",
+    "revision",
+    "text",
+    "metadata",
+    "text",
+    "text",
+    "bytes",
+    "revision",
+    "bytes",
+    "bytes",
+    "text",
+    "text",
+    "bytes",
+    "metadata",
+    "metadata",
+    "text",
+    "text",
+    "text",
+    "metadata"
+  ],
+  "seed": 220477,
+  "vocabulary": [
+    "bytes",
+    "text",
+    "metadata",
+    "revision"
+  ],
+  "weights": {
+    "bytes": 1.759504,
+    "metadata": 0.901286,
+    "revision": 0.826849,
+    "text": 1.380729
+  }
+}

@@ -1,0 +1,506 @@
+{
+ "nist-pdf-0001": {
+  "fmt": "pdf",
+  "path": "real100-v1/documents/nist/pdf/nist-pdf-0001.pdf",
+  "nunits": 3065,
+  "tasks": [
+   {
+    "anchor": "organization-developed",
+    "anchor_lower": "organization-developed",
+    "unit_index": 2233,
+    "expected_text": "        security requirements and vulnerabilities in organization-developed application code",
+    "expected_span": [
+     204667,
+     204759
+    ],
+    "unit_kind": "line"
+   },
+   {
+    "anchor": "vulnerability-related",
+    "anchor_lower": "vulnerability-related",
+    "unit_index": 1132,
+    "expected_text": "penetration or vulnerability-related testing. For example, organizations can conduct active wireless",
+    "expected_span": [
+     104290,
+     104390
+    ],
+    "unit_kind": "line"
+   },
+   {
+    "anchor": "methodology-updating",
+    "anchor_lower": "methodology-updating",
+    "unit_index": 1740,
+    "expected_text": "methodology-updating techniques as appropriate, and update their tool kits. For example, attending",
+    "expected_span": [
+     159139,
+     159237
+    ],
+    "unit_kind": "line"
+   }
+  ],
+  "probe": {
+   "read_selector": "--page 1 --kind text",
+   "read_span": null,
+   "read_rc": 0
+  },
+  "vole_build": {
+   "rc": 0,
+   "wall_ms": 174.51195197645575,
+   "peak_rss_kb": 30312,
+   "field": "404397739289c3a5d4d28387eb9338283e17f2f468cb07a1ac687184f32f7c04",
+   "source_len": 544047,
+   "encoded_len": 544528,
+   "node_count": 949
+  }
+ },
+ "nist-pdf-0016": {
+  "fmt": "pdf",
+  "path": "real100-v1/documents/nist/pdf/nist-pdf-0016.pdf",
+  "nunits": 296,
+  "tasks": [
+   {
+    "anchor": "cryptographic-based",
+    "anchor_lower": "cryptographic-based",
+    "unit_index": 32,
+    "expected_text": "cryptographic-based security systems to provide adequate information security for all agency",
+    "expected_span": [
+     1767,
+     1859
+    ],
+    "unit_kind": "line"
+   },
+   {
+    "anchor": "responsibility",
+    "anchor_lower": "responsibility",
+    "unit_index": 30,
+    "expected_text": "responsibility of every federal organization in providing adequate security in its computer and",
+    "expected_span": [
+     1576,
+     1671
+    ],
+    "unit_kind": "line"
+   },
+   {
+    "anchor": "Qualifications",
+    "anchor_lower": "qualifications",
+    "unit_index": 152,
+    "expected_text": "13. Qualifications. The security requirements specified in this standard are based upon",
+    "expected_span": [
+     11149,
+     11236
+    ],
+    "unit_kind": "line"
+   }
+  ],
+  "probe": {
+   "read_selector": "--page 1 --kind text",
+   "read_span": null,
+   "read_rc": 0
+  },
+  "vole_build": {
+   "rc": 0,
+   "wall_ms": 39.38347194343805,
+   "peak_rss_kb": 30356,
+   "field": "c61ea4e9c37eabb60e9ff8d8b29964128f630435664d50701c49fe2979b62616",
+   "source_len": 310627,
+   "encoded_len": 311108,
+   "node_count": 166
+  }
+ },
+ "nist-pdf-0004": {
+  "fmt": "pdf",
+  "path": "real100-v1/documents/nist/pdf/nist-pdf-0004.pdf",
+  "nunits": 3054,
+  "tasks": [
+   {
+    "anchor": "Infrastructure-as-a-Service",
+    "anchor_lower": "infrastructure-as-a-service",
+    "unit_index": 430,
+    "expected_text": "          Infrastructure-as-a-Service. Infrastructure-as-a-Service (IaaS) is a model of service",
+    "expected_span": [
+     36403,
+     36501
+    ],
+    "unit_kind": "line"
+   },
+   {
+    "anchor": "provider-authenticated",
+    "anchor_lower": "provider-authenticated",
+    "unit_index": 1304,
+    "expected_text": "resources from provider-authenticated entities and vice versa. Identity federation can be",
+    "expected_span": [
+     112908,
+     112997
+    ],
+    "unit_kind": "line"
+   },
+   {
+    "anchor": "Software-as-a-Service",
+    "anchor_lower": "software-as-a-service",
+    "unit_index": 413,
+    "expected_text": "          Software-as-a-Service. Software-as-a-Service (SaaS) is a model of service delivery",
+    "expected_span": [
+     34875,
+     34970
+    ],
+    "unit_kind": "line"
+   }
+  ],
+  "probe": {
+   "read_selector": "--page 1 --kind text",
+   "read_span": null,
+   "read_rc": 0
+  },
+  "vole_build": {
+   "rc": 0,
+   "wall_ms": 65.14357903506607,
+   "peak_rss_kb": 30984,
+   "field": "84342e7ee03f713de4e4653fb8929de305bbb2a161acf4b62290afc88b22d56f",
+   "source_len": 1105061,
+   "encoded_len": 1105542,
+   "node_count": 531
+  }
+ },
+ "nist-docx-0001": {
+  "fmt": "docx",
+  "path": "real100-v1/documents/nist/docx/nist-docx-0001.docx",
+  "nunits": 123,
+  "tasks": [
+   {
+    "anchor": "commercial-off-the-shelf",
+    "anchor_lower": "commercial-off-the-shelf",
+    "unit_index": 66,
+    "expected_text": "Software type (e.g., commercial-off-the-shelf, open-source, internally developed)",
+    "expected_span": [
+     7760,
+     7841
+    ],
+    "unit_kind": "paragraph"
+   },
+   {
+    "anchor": "responsibilities",
+    "anchor_lower": "responsibilities",
+    "unit_index": 18,
+    "expected_text": "Identify authorizing officials, system owners, and other key roles with system responsibilities. Include the individual’s name; system-specific and organizational role; organizational unit, department, or division; primary and alternate business phone numbers; and email address for the following key points of contact:",
+    "expected_span": [
+     2115,
+     2436
+    ],
+    "unit_kind": "paragraph"
+   },
+   {
+    "anchor": "interconnection",
+    "anchor_lower": "interconnection",
+    "unit_index": 84,
+    "expected_text": "Type of agreement used for the information exchange (e.g., interconnection security agreement, memorandum of agreement, memorandum of understanding)",
+    "expected_span": [
+     9384,
+     9532
+    ],
+    "unit_kind": "paragraph"
+   }
+  ],
+  "probe": {
+   "read_selector": "--block 0 --kind text",
+   "read_span": [
+    1949,
+    14067
+   ],
+   "read_rc": 0
+  },
+  "vole_build": {
+   "rc": 0,
+   "wall_ms": 41.910336003638804,
+   "peak_rss_kb": 31060,
+   "field": "cbcb25e927c88072a6f497ee8027748cc8e5e25e8973f3278f974b01e467fc4c",
+   "source_len": 2286200,
+   "encoded_len": 2286681,
+   "node_count": 95
+  }
+ },
+ "nist-docx-0005": {
+  "fmt": "docx",
+  "path": "real100-v1/documents/nist/docx/nist-docx-0005.docx",
+  "nunits": 243,
+  "tasks": [
+   {
+    "anchor": "interconnections",
+    "anchor_lower": "interconnections",
+    "unit_index": 220,
+    "expected_text": "If the system does not have any direct interconnections, then this appendix may be removed, or the following statement may be used:",
+    "expected_span": [
+     32150,
+     32281
+    ],
+    "unit_kind": "paragraph"
+   },
+   {
+    "anchor": "well-documented",
+    "anchor_lower": "well-documented",
+    "unit_index": 149,
+    "expected_text": "It is important that all recovery events be well-documented, including actions taken and problems encountered during the recovery and reconstitution effort, and lessons learned for inclusion and update to this ISCP.  It is the responsibility of each ISCP team or person to document their actions during the recovery and reconstitution effort, and to provide that documentation to the ISCP Coordinator.",
+    "expected_span": [
+     22521,
+     22922
+    ],
+    "unit_kind": "paragraph"
+   },
+   {
+    "anchor": "interruptions",
+    "anchor_lower": "interruptions",
+    "unit_index": 56,
+    "expected_text": "Identify the activities, resources, and procedures to carry out {system name} processing requirements during prolonged interruptions to normal operations.",
+    "expected_span": [
+     6110,
+     6264
+    ],
+    "unit_kind": "paragraph"
+   }
+  ],
+  "probe": {
+   "read_selector": "--block 0 --kind text",
+   "read_span": [
+    2440,
+    29973
+   ],
+   "read_rc": 0
+  },
+  "vole_build": {
+   "rc": 0,
+   "wall_ms": 21.94501005578786,
+   "peak_rss_kb": 32180,
+   "field": "60d871163df68550348c9d147c4f4634a8deef98c4b97b42afcadde2835e6f11",
+   "source_len": 57045,
+   "encoded_len": 57526,
+   "node_count": 31
+  }
+ },
+ "nist-docx-0013": {
+  "fmt": "docx",
+  "path": "real100-v1/documents/nist/docx/nist-docx-0013.docx",
+  "nunits": 13,
+  "tasks": [
+   {
+    "anchor": "DepartmentEVIDENCE",
+    "anchor_lower": "departmentevidence",
+    "unit_index": 0,
+    "expected_text": "Anywhere Police DepartmentEVIDENCE CHAIN OF CUSTODY TRACKING FORM",
+    "expected_span": [
+     0,
+     65
+    ],
+    "unit_kind": "paragraph"
+   },
+   {
+    "anchor": "Description",
+    "anchor_lower": "description",
+    "unit_index": 6,
+    "expected_text": "Description of Evidence | Item # | Quantity | Description of Item (Model, Serial #, Condition, Marks, Scratches)",
+    "expected_span": [
+     461,
+     573
+    ],
+    "unit_kind": "table"
+   },
+   {
+    "anchor": "Seized",
+    "anchor_lower": "seized",
+    "unit_index": 5,
+    "expected_text": "Date/Time Seized: __________________Location of Seizure: ______________________",
+    "expected_span": [
+     381,
+     460
+    ],
+    "unit_kind": "paragraph"
+   }
+  ],
+  "probe": {
+   "read_selector": "--block 0 --kind text",
+   "read_span": [
+    2538,
+    7731
+   ],
+   "read_rc": 0
+  },
+  "vole_build": {
+   "rc": 0,
+   "wall_ms": 21.589085925370455,
+   "peak_rss_kb": 33164,
+   "field": "701d4cd1c101b35918fcfc3df0a36a2ed7d7f89762779b9360d04ff12f05bfe4",
+   "source_len": 25400,
+   "encoded_len": 25881,
+   "node_count": 41
+  }
+ },
+ "nist-epub-0001": {
+  "fmt": "epub",
+  "path": "real100-v1/documents/nist/epub/nist-epub-0001.epub",
+  "nunits": 1096,
+  "tasks": [
+   {
+    "anchor": "vulnerability-related",
+    "anchor_lower": "vulnerability-related",
+    "unit_index": 342,
+    "expected_text": "Organizations can move beyond passive wireless scanning to conduct active scanning. This builds on the information collected during passive scans, and attempts to attach to discovered devices and conduct penetration or vulnerability-related testing. For example, organizations can conduct active wireless scanning on their authorized wireless devices to ensure that they meet wireless security configuration requirements—including authentication mechanisms, data encryption, and administration access if this information is not already available through other means.",
+    "expected_span": [
+     84440,
+     85008
+    ],
+    "unit_kind": "block"
+   },
+   {
+    "anchor": "network-exploitable",
+    "anchor_lower": "network-exploitable",
+    "unit_index": 311,
+    "expected_text": "For local vulnerability scanning, a scanner is installed on each host to be scanned. This is done primarily to identify host OS and application misconfigurations and vulnerabilities—both network-exploitable and locally exploitable. Local scanning is able to detect vulnerabilities with a higher level of detail than network-based scanning because local scanning usually requires both host (local) access and a root or administrative account. Some scanners also offer the capability of repairing local misconfigurations.",
+    "expected_span": [
+     70895,
+     71416
+    ],
+    "unit_kind": "block"
+   },
+   {
+    "anchor": "telecommunications",
+    "anchor_lower": "telecommunications",
+    "unit_index": 751,
+    "expected_text": "Skills needed to conduct remote access testing include TCP/IP and networking knowledge; knowledge of remote access technologies and protocols; knowledge of authentication and access control methods; general knowledge of telecommunications systems and modem/PBX operations; and the ability to use scanning and security testing tools such as war dialers.",
+    "expected_span": [
+     213757,
+     214109
+    ],
+    "unit_kind": "block"
+   }
+  ],
+  "probe": {
+   "read_selector": "--block 0 --kind text",
+   "read_span": [
+    46039,
+    46882
+   ],
+   "read_rc": 0
+  },
+  "vole_build": {
+   "rc": 0,
+   "wall_ms": 23.82534695789218,
+   "peak_rss_kb": 33176,
+   "field": "1566c68bf2c2af6de5dfa589205eedd9e6a59690a30c0f8f0930419917fa5255",
+   "source_len": 168431,
+   "encoded_len": 168912,
+   "node_count": 71
+  }
+ },
+ "nist-epub-0003": {
+  "fmt": "epub",
+  "path": "real100-v1/documents/nist/epub/nist-epub-0003.epub",
+  "nunits": 810,
+  "tasks": [
+   {
+    "anchor": "misconfigurations",
+    "anchor_lower": "misconfigurations",
+    "unit_index": 510,
+    "expected_text": "Vulnerability scanners are automated tools that are used to identify vulnerabilities and misconfigurations of hosts. Many vulnerability scanners also provide information about mitigating discovered vulnerabilities. Vulnerability scanners attempt to identify vulnerabilities in the hosts scanned. Vulnerability scanners can help identify out-of-date software versions, missing patches, or system upgrades, and they can validate compliance with or deviations from the organization’s security policy. To accomplish this, vulnerability scanners identify OSs, server software, and other major software applications running on hosts and match them with known vulnerabilities in their vulnerability databases.",
+    "expected_span": [
+     111529,
+     112233
+    ],
+    "unit_kind": "block"
+   },
+   {
+    "anchor": "Defense-in-Depth",
+    "anchor_lower": "defense-in-depth",
+    "unit_index": 196,
+    "expected_text": "Defense-in-Depth—Organizations should understand that a single security mechanism is generally insufficient. Security mechanisms (defenses) need to be layered so that compromise of a single security mechanism is insufficient to compromise a host or network. No “silver bullet” exists for information system security.",
+    "expected_span": [
+     33251,
+     33573
+    ],
+    "unit_kind": "block"
+   },
+   {
+    "anchor": "security-related",
+    "anchor_lower": "security-related",
+    "unit_index": 253,
+    "expected_text": "Monitoring system integrity, protection levels, and security-related events",
+    "expected_span": [
+     45152,
+     45227
+    ],
+    "unit_kind": "block"
+   }
+  ],
+  "probe": {
+   "read_selector": "--block 0 --kind text",
+   "read_span": [
+    13795,
+    14551
+   ],
+   "read_rc": 0
+  },
+  "vole_build": {
+   "rc": 0,
+   "wall_ms": 27.28023298550397,
+   "peak_rss_kb": 35300,
+   "field": "c53ce8d4624c3159b4a2a5e75e445944bc085eeb96c36e94f363cc67170869d5",
+   "source_len": 89755,
+   "encoded_len": 90236,
+   "node_count": 53
+  }
+ },
+ "nist-epub-0008": {
+  "fmt": "epub",
+  "path": "real100-v1/documents/nist/epub/nist-epub-0008.epub",
+  "nunits": 78,
+  "tasks": [
+   {
+    "anchor": "authoritative",
+    "anchor_lower": "authoritative",
+    "unit_index": 0,
+    "expected_text": "For the authoritative PDF of this publication, visit csrc.nist.gov/publications.",
+    "expected_span": [
+     0,
+     80
+    ],
+    "unit_kind": "block"
+   },
+   {
+    "anchor": "self-service",
+    "anchor_lower": "self-service",
+    "unit_index": 61,
+    "expected_text": "On-demand self-service. A consumer can unilaterally provision computing capabilities, such as server time and network storage, as needed automatically without requiring human interaction with each service provider.",
+    "expected_span": [
+     5559,
+     5773
+    ],
+    "unit_kind": "block"
+   },
+   {
+    "anchor": "responsible",
+    "anchor_lower": "responsible",
+    "unit_index": 51,
+    "expected_text": "NIST is responsible for developing standards and guidelines, including minimum requirements, for providing adequate information security for all agency operations and assets; but such standards and guidelines shall not apply to national security systems. This guideline is consistent with the requirements of the Office of Management and Budget (OMB) Circular A-130, Section 8b(3), “Securing Agency Information Systems,” as analyzed in A-130, Appendix IV: Analysis of Key Sections. Supplemental information is provided in A-130, Appendix III.",
+    "expected_span": [
+     3241,
+     3787
+    ],
+    "unit_kind": "block"
+   }
+  ],
+  "probe": {
+   "read_selector": "--block 0 --kind text",
+   "read_span": [
+    23752,
+    24615
+   ],
+   "read_rc": 0
+  },
+  "vole_build": {
+   "rc": 0,
+   "wall_ms": 42.80792991630733,
+   "peak_rss_kb": 36220,
+   "field": "61f265ed465943daf22fdcf9ef683f1dbc0b3d92068d39e59eb6645cd7deed85",
+   "source_len": 35841,
+   "encoded_len": 36322,
+   "node_count": 37
+  }
+ }
+}

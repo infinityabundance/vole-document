@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 184668,
+      "index_comp": 66844,
+      "index_orig": 195781,
+      "orig": 356717,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 117824,
+      "params_orig": 160936,
+      "rt_ok": true,
+      "saving": 172049
+    },
+    "B_dict": {
+      "comp": 8768,
+      "orig": 157610,
+      "rt_ok": true,
+      "saving": 148842
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 4572,
+      "duplicates": 0,
+      "kinds": 7,
+      "list_bytes": 8490,
+      "members": 8487,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 21991,
+      "orig": 355488,
+      "refs": 11109,
+      "rt_ok": true,
+      "saving": 333497
+    },
+    "E_header": {
+      "comp": 54134,
+      "orig": 305568,
+      "rt_ok": true,
+      "saving": 251434
+    }
+  },
+  "combined_best_saving": 909799,
+  "combined_blob_bytes": 269919,
+  "combined_blob_error": null,
+  "combined_ratio": 0.997781146356947,
+  "combined_rt_exact": true,
+  "combined_saving": 905822,
+  "doc": "nasa-pdf-0001",
+  "encoded_len": 408855081,
+  "field": "23882a7ef2a91226fb45c439445087dd121f8addd5b9c59a2092195c64cf00cb",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.0022188536430529293,
+  "index_node_count": 59,
+  "namespaces": {
+    "descriptor": 408855081,
+    "field": 518,
+    "index": 469693,
+    "seed": 705808
+  },
+  "node_count": 8488,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 3,
+    "3": 2,
+    "4": 3428,
+    "5": 2496,
+    "6": 1628,
+    "9": 930
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 56068,
+    "3": 136,
+    "4": 226248,
+    "5": 184704,
+    "6": 153032,
+    "9": 85560
+  },
+  "seed_split": {
+    "deps": 81856,
+    "header": 305568,
+    "params": 160936,
+    "prov": 157448
+  },
+  "source_len": 408854600,
+  "total": 410031100,
+  "typed": 1176019,
+  "typed_saving_frac": 0.7736261063809343
+}

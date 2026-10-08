@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 432,
+      "index_comp": 275,
+      "index_orig": 920,
+      "orig": 1496,
+      "param_modes": {
+        "14": "raw",
+        "15": "u64",
+        "16": "u32",
+        "17": "raw",
+        "18": "raw",
+        "20": "raw",
+        "23": "raw"
+      },
+      "params_comp": 157,
+      "params_orig": 576,
+      "rt_ok": true,
+      "saving": 1064
+    },
+    "B_dict": {
+      "comp": 279,
+      "orig": 939,
+      "rt_ok": true,
+      "saving": 660
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 72,
+      "duplicates": 0,
+      "kinds": 6,
+      "list_bytes": 40,
+      "members": 40,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 65,
+      "orig": 2080,
+      "refs": 65,
+      "rt_ok": true,
+      "saving": 2015
+    },
+    "E_header": {
+      "comp": 314,
+      "orig": 1476,
+      "rt_ok": true,
+      "saving": 1162
+    }
+  },
+  "combined_best_saving": 4901,
+  "combined_blob_bytes": 1146,
+  "combined_blob_error": null,
+  "combined_ratio": 0.8466616607221075,
+  "combined_rt_exact": true,
+  "combined_saving": 4901,
+  "doc": "nist-docx-0013",
+  "encoded_len": 25881,
+  "field": "701d4cd1c101b35918fcfc3df0a36a2ed7d7f89762779b9360d04ff12f05bfe4",
+  "fmt": "docx",
+  "footprint_saving_frac": 0.1533383392778925,
+  "index_node_count": 1,
+  "namespaces": {
+    "descriptor": 25881,
+    "field": 315,
+    "index": 2208,
+    "seed": 3558
+  },
+  "node_count": 41,
+  "seed_by_kind": {
+    "14": 1,
+    "15": 18,
+    "16": 18,
+    "17": 1,
+    "18": 1,
+    "20": 1,
+    "23": 1
+  },
+  "seed_kbytes": {
+    "14": 48,
+    "15": 1260,
+    "16": 1908,
+    "17": 85,
+    "18": 86,
+    "20": 86,
+    "23": 85
+  },
+  "seed_split": {
+    "deps": 704,
+    "header": 1476,
+    "params": 576,
+    "prov": 802
+  },
+  "source_len": 25400,
+  "total": 31962,
+  "typed": 6081,
+  "typed_saving_frac": 0.8059529682617991
+}

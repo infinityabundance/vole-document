@@ -1,0 +1,10 @@
+phase22.4 lifetime court
+  docs=12 depths=C0,C1,C2,C3,C4,C5 reps=15
+  full@C0: median=0.995 (95% CI 0.839..1.780) MDE=+/-0.470 W/T/L=5/2/5 unresolved
+  full@C1: median=1.017 (95% CI 0.833..1.822) MDE=+/-0.494 W/T/L=4/3/5 unresolved
+  full@C2: median=0.975 (95% CI 0.777..1.530) MDE=+/-0.377 W/T/L=5/2/5 unresolved
+  full@C3: median=0.969 (95% CI 0.781..1.609) MDE=+/-0.414 W/T/L=5/2/5 unresolved
+  full@C4: median=0.903 (95% CI 0.727..1.328) MDE=+/-0.300 W/T/L=6/1/5 unresolved
+  full@C5: median=0.901 (95% CI 0.706..1.599) MDE=+/-0.446 W/T/L=7/0/5 unresolved
+  wins=6 losses=6 ties=0 unresolved=12
+  verdict=MIXED[win:full@pdf@C0,full@pdf@C1,full@pdf@C2,full@pdf@C3,full@pdf@C4,full@pdf@C5][loss:full@epub@C0,full@epub@C1,full@epub@C2,full@epub@C3,full@epub@C4,full@epub@C5]

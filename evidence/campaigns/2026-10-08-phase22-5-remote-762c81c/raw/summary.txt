@@ -1,0 +1,2 @@
+verdict: LOSS[bytes_ratio=3.154][lat_ratio=0.667][wins=0][losses=17][unresolved=7]
+exact: 12/12  srv cross-check: 223/223

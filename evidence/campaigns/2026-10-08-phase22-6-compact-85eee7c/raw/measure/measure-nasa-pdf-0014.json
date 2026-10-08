@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 345097,
+      "index_comp": 103226,
+      "index_orig": 335594,
+      "orig": 672238,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 241871,
+      "params_orig": 336644,
+      "rt_ok": true,
+      "saving": 327141
+    },
+    "B_dict": {
+      "comp": 14828,
+      "orig": 242641,
+      "rt_ok": true,
+      "saving": 227813
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 5484,
+      "duplicates": 0,
+      "kinds": 7,
+      "list_bytes": 14559,
+      "members": 14548,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 29115,
+      "orig": 469536,
+      "refs": 14673,
+      "rt_ok": true,
+      "saving": 440421
+    },
+    "E_header": {
+      "comp": 84445,
+      "orig": 523764,
+      "rt_ok": true,
+      "saving": 439319
+    }
+  },
+  "combined_best_saving": 1443873,
+  "combined_blob_bytes": 474005,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9785541775732747,
+  "combined_rt_exact": true,
+  "combined_saving": 1434694,
+  "doc": "nasa-pdf-0014",
+  "encoded_len": 65417396,
+  "field": "07468885a95c07523b6e7eb1207b6e63fe0706982278138f87a33cdc5bc30f6d",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.021445822426725367,
+  "index_node_count": 100,
+  "namespaces": {
+    "descriptor": 65417396,
+    "field": 517,
+    "index": 805098,
+    "seed": 1103528
+  },
+  "node_count": 14549,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 3,
+    "3": 2,
+    "4": 9260,
+    "5": 3516,
+    "6": 10,
+    "9": 1757
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 125308,
+    "3": 136,
+    "4": 611160,
+    "5": 260184,
+    "6": 940,
+    "9": 105740
+  },
+  "seed_split": {
+    "deps": 640,
+    "header": 523764,
+    "params": 336644,
+    "prov": 242480
+  },
+  "source_len": 65416915,
+  "total": 67326539,
+  "typed": 1909143,
+  "typed_saving_frac": 0.7562937925550889
+}

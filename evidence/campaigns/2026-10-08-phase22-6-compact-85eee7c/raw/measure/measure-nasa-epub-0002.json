@@ -1,0 +1,100 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 10092055,
+      "index_comp": 2384,
+      "index_orig": 6828,
+      "orig": 10099738,
+      "param_modes": {
+        "14": "raw",
+        "15": "u64",
+        "16": "u32",
+        "17": "raw",
+        "18": "raw",
+        "20": "raw",
+        "22": "raw",
+        "23": "raw"
+      },
+      "params_comp": 10089671,
+      "params_orig": 10092910,
+      "rt_ok": true,
+      "saving": 7683
+    },
+    "B_dict": {
+      "comp": 607,
+      "orig": 6771,
+      "rt_ok": true,
+      "saving": 6164
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 120,
+      "duplicates": 0,
+      "kinds": 6,
+      "list_bytes": 296,
+      "members": 296,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 738,
+      "orig": 14432,
+      "refs": 451,
+      "rt_ok": true,
+      "saving": 13694
+    },
+    "E_header": {
+      "comp": 2522,
+      "orig": 12816,
+      "rt_ok": true,
+      "saving": 10294
+    }
+  },
+  "combined_best_saving": 38013,
+  "combined_blob_bytes": 10095990,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9986920785508452,
+  "combined_rt_exact": true,
+  "combined_saving": 37835,
+  "doc": "nasa-epub-0002",
+  "encoded_len": 18929809,
+  "field": "44812e49ec475c1d9660dd722fa28befcbfecc9777a570bf8174213f2f670a43",
+  "fmt": "epub",
+  "footprint_saving_frac": 0.0013079214491548074,
+  "index_node_count": 3,
+  "namespaces": {
+    "descriptor": 18929809,
+    "field": 319,
+    "index": 16388,
+    "seed": 10117156
+  },
+  "node_count": 297,
+  "seed_by_kind": {
+    "14": 1,
+    "15": 146,
+    "16": 146,
+    "17": 1,
+    "18": 1,
+    "20": 1,
+    "22": 59,
+    "23": 1
+  },
+  "seed_kbytes": {
+    "14": 48,
+    "15": 10220,
+    "16": 15476,
+    "17": 85,
+    "18": 86,
+    "20": 86,
+    "22": 10091070,
+    "23": 85
+  },
+  "seed_split": {
+    "deps": 4800,
+    "header": 12816,
+    "params": 10092910,
+    "prov": 6630
+  },
+  "source_len": 18929328,
+  "total": 29063672,
+  "typed": 10133863,
+  "typed_saving_frac": 0.0037510868264155534
+}

@@ -1,0 +1,91 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 174315,
+      "index_comp": 48495,
+      "index_orig": 158871,
+      "orig": 334400,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32"
+      },
+      "params_comp": 125820,
+      "params_orig": 175529,
+      "rt_ok": true,
+      "saving": 160085
+    },
+    "B_dict": {
+      "comp": 7127,
+      "orig": 123333,
+      "rt_ok": true,
+      "saving": 116206
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 4716,
+      "duplicates": 33,
+      "kinds": 5,
+      "list_bytes": 6891,
+      "members": 6854,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 13701,
+      "orig": 222080,
+      "refs": 6940,
+      "rt_ok": true,
+      "saving": 208379
+    },
+    "E_header": {
+      "comp": 40224,
+      "orig": 247968,
+      "rt_ok": true,
+      "saving": 207744
+    }
+  },
+  "combined_best_saving": 694638,
+  "combined_blob_bytes": 235677,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9833370774482464,
+  "combined_rt_exact": true,
+  "combined_saving": 692414,
+  "doc": "nasa-pdf-eb-07",
+  "encoded_len": 40759316,
+  "field": "7920d1e55b475b32587184d87507b20497846cdc7aee52b2e7f004e24ba33c3a",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.016662922551753643,
+  "index_node_count": 48,
+  "namespaces": {
+    "descriptor": 40759316,
+    "field": 513,
+    "index": 381143,
+    "seed": 546673
+  },
+  "node_count": 6888,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 4,
+    "3": 3,
+    "4": 3544,
+    "5": 3336
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 65641,
+    "3": 204,
+    "4": 233904,
+    "5": 246864
+  },
+  "seed_split": {
+    "deps": 0,
+    "header": 247968,
+    "params": 175529,
+    "prov": 123176
+  },
+  "source_len": 40758835,
+  "total": 41687645,
+  "typed": 928329,
+  "typed_saving_frac": 0.7482670475661107
+}

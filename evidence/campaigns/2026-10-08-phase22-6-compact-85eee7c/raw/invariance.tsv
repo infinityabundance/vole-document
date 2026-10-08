@@ -1,0 +1,4 @@
+id	fmt	obs_rc	recon_rc	diff_rc	recon_obs_rc	sem_match	field
+nasa-epub-0001	epub	0	0	0	0	yes	a853cccf3c674e35fc528460b5908b6550eed7ee388369db797dcf0b60b3e556
+nasa-pdf-0001	pdf	0	0	0	0	yes	23882a7ef2a91226fb45c439445087dd121f8addd5b9c59a2092195c64cf00cb
+nist-docx-0001	docx	0	0	0	0	yes	cbcb25e927c88072a6f497ee8027748cc8e5e25e8973f3278f974b01e467fc4c

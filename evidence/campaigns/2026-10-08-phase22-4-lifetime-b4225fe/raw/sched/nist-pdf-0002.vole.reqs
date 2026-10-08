@@ -1,0 +1,24 @@
+--page 1 --kind text
+--page 1 --kind text
+--page 1 --kind text
+--byte-range 0..64 --kind exact
+--byte-range 0..64 --kind exact
+--revisions --kind lineage
+--revisions --kind lineage
+--metadata --kind metadata
+--revisions --kind lineage
+--byte-range 0..64 --kind exact
+--metadata --kind metadata
+--metadata --kind metadata
+--byte-range 0..64 --kind exact
+--revisions --kind lineage
+--revisions --kind lineage
+--revisions --kind lineage
+--byte-range 0..64 --kind exact
+--metadata --kind metadata
+--byte-range 0..64 --kind exact
+--metadata --kind metadata
+--revisions --kind lineage
+--metadata --kind metadata
+--revisions --kind lineage
+--revisions --kind lineage

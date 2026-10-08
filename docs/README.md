@@ -47,8 +47,16 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   [Phase 15](phases/phase-15-results.md), [Phase 16](phases/phase-16-results.md),
   [Phase 17](phases/phase-17-results.md), [Phase 18](phases/phase-18-results.md),
   [Phase 19](phases/phase-19-results.md), [Phase 20](phases/phase-20-results.md),
-  [Phase 22](phases/phase-22-results.md) (economic programme — 22.1 competitor
-  envelope and 22.2 profiling gate complete, 22.3–22.7 planned),
+  [Phase 22](phases/phase-22-results.md) (economic programme — **complete**:
+  22.1 competitor envelope, 22.2 profiling gate, 22.3.0 fused-execution gate,
+  22.4 lifetime frontier, 22.5 remote materialization, 22.6
+  compact-representation headroom, 22.7 agent cost; 22.2/22.3.0/22.5/22.6/22.7
+  are recorded negatives and 22.4 a region split — see
+  [phase-22-3-results.md](phases/phase-22-3-results.md),
+  [phase-22-4-results.md](phases/phase-22-4-results.md),
+  [phase-22-5-results.md](phases/phase-22-5-results.md),
+  [phase-22-6-results.md](phases/phase-22-6-results.md),
+  [phase-22-7-results.md](phases/phase-22-7-results.md)),
   [Phase 23](phases/phase-23-results.md) (durability: directory `fsync` + a
   model-based power-loss proxy),
   [Phase 25](phases/phase-25-results.md) (durability corrections: directory

@@ -1,0 +1,199 @@
+{
+  "bar": 0.05,
+  "candidates": {
+    "A_delta": {
+      "comp": 41846425,
+      "orig": 48716489,
+      "rt_ok": 100,
+      "saving": 6870064
+    },
+    "B_dict": {
+      "comp": 338218,
+      "orig": 5596339,
+      "rt_ok": 100,
+      "saving": 5258121
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 354576,
+      "list_bytes": 312660,
+      "rt_ok": 100
+    },
+    "D_intern": {
+      "comp": 834670,
+      "orig": 12077760,
+      "rt_ok": 100,
+      "saving": 11243090
+    },
+    "E_header": {
+      "comp": 1865284,
+      "orig": 11244132,
+      "rt_ok": 100,
+      "saving": 9378848
+    }
+  },
+  "clearing_bar": {
+    "doc_ids": [
+      "nasa-pdf-0028",
+      "nasa-pdf-eb-01",
+      "nist-docx-0005",
+      "nist-docx-0006",
+      "nist-docx-0007",
+      "nist-docx-0008",
+      "nist-docx-0010",
+      "nist-docx-0011",
+      "nist-docx-0012",
+      "nist-docx-0013",
+      "nist-epub-0002",
+      "nist-epub-0003",
+      "nist-epub-0006",
+      "nist-epub-0008",
+      "nist-epub-0010",
+      "nist-pdf-0001",
+      "nist-pdf-0002",
+      "nist-pdf-0003",
+      "nist-pdf-0004",
+      "nist-pdf-0005",
+      "nist-pdf-0007",
+      "nist-pdf-0010",
+      "nist-pdf-0014",
+      "nist-pdf-0015",
+      "nist-pdf-0016",
+      "nist-pdf-0017",
+      "nist-pdf-0020"
+    ],
+    "docs": 27,
+    "share_of_population_bytes": 0.014320071029632453,
+    "size_bytes": 40224451
+  },
+  "combined_blob_bytes": 44902837,
+  "combined_saving": 32762851,
+  "footprint_saving_frac": 0.011663710548921218,
+  "invariance": {
+    "byte_identical": 3,
+    "docs": 3,
+    "recon_ok": 3,
+    "sem_match": 3
+  },
+  "namespaces": {
+    "descriptor": 2731290421,
+    "field": 43499,
+    "index": 17273125,
+    "seed": 60349064
+  },
+  "population_docs": 100,
+  "rt_exact_docs": 100,
+  "seed_kind_bytes": {
+    "1": 3600,
+    "14": 1920,
+    "15": 204190,
+    "16": 307930,
+    "17": 3400,
+    "18": 3440,
+    "20": 3440,
+    "22": 34860100,
+    "23": 3400,
+    "25": 2472124,
+    "3": 8976,
+    "4": 10253760,
+    "5": 6291480,
+    "6": 4611452,
+    "9": 1319852
+  },
+  "seed_kind_count": {
+    "1": 60,
+    "14": 40,
+    "15": 2917,
+    "16": 2905,
+    "17": 40,
+    "18": 40,
+    "20": 40,
+    "22": 144,
+    "23": 40,
+    "25": 192,
+    "3": 132,
+    "4": 155360,
+    "5": 85020,
+    "6": 49058,
+    "9": 16349
+  },
+  "seed_split": {
+    "deps": 2006848,
+    "header": 11244132,
+    "params": 41516764,
+    "prov": 5581320
+  },
+  "strata": {
+    "format": {
+      "docx": {
+        "blob": 1857820,
+        "docs": 15,
+        "fp_frac": 0.007957209966491689,
+        "total": 14297348,
+        "typed": 1971587,
+        "typed_frac": 0.13789879074077235
+      },
+      "epub": {
+        "blob": 33145818,
+        "docs": 25,
+        "fp_frac": 0.002061928256203377,
+        "total": 298088936,
+        "typed": 33760456,
+        "typed_frac": 0.11325632025470413
+      },
+      "pdf": {
+        "blob": 9899199,
+        "docs": 60,
+        "fp_frac": 0.012831383956985862,
+        "total": 2496569825,
+        "typed": 41933645,
+        "typed_frac": 0.016796503979214762
+      }
+    },
+    "size": {
+      "1-10MiB": {
+        "blob": 3172537,
+        "docs": 40,
+        "fp_frac": 0.032145800237194065,
+        "total": 171426717,
+        "typed": 8683186,
+        "typed_frac": 0.05065246626638717
+      },
+      "10-100MiB": {
+        "blob": 37502035,
+        "docs": 30,
+        "fp_frac": 0.010861522095324233,
+        "total": 1332504954,
+        "typed": 51975067,
+        "typed_frac": 0.039005533783553946
+      },
+      "100KiB-1MiB": {
+        "blob": 350538,
+        "docs": 17,
+        "fp_frac": 0.07453757647594807,
+        "total": 6558598,
+        "typed": 839400,
+        "typed_frac": 0.127984669894389
+      },
+      "<100KiB": {
+        "blob": 34339,
+        "docs": 8,
+        "fp_frac": 0.07631201462045777,
+        "total": 478234,
+        "typed": 70834,
+        "typed_frac": 0.14811577595904935
+      },
+      ">=100MiB": {
+        "blob": 3843388,
+        "docs": 5,
+        "fp_frac": 0.009440624042445596,
+        "total": 1297987606,
+        "typed": 16097201,
+        "typed_frac": 0.012401660020165092
+      }
+    }
+  },
+  "total_bytes": 2808956109,
+  "typed_bytes": 77665688,
+  "typed_frac": 0.02764930635660566,
+  "verdict": "NO WIN (below bar)"
+}

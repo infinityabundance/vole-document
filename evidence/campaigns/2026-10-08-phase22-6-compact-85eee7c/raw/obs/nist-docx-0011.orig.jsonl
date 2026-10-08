@@ -1,0 +1,3 @@
+{"request":0,"error":20,"message":"InvalidPackageStructure: invalid byte 0x5b in part name"}
+{"request":1,"error":20,"message":"InvalidPackageStructure: invalid byte 0x5b in part name"}
+{"request":2,"error":20,"message":"InvalidPackageStructure: invalid byte 0x5b in part name"}

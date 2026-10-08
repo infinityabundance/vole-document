@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 74974,
+      "index_comp": 26654,
+      "index_orig": 84522,
+      "orig": 153842,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 48320,
+      "params_orig": 69320,
+      "rt_ok": true,
+      "saving": 78868
+    },
+    "B_dict": {
+      "comp": 3943,
+      "orig": 65802,
+      "rt_ok": true,
+      "saving": 61859
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 12168,
+      "duplicates": 0,
+      "kinds": 7,
+      "list_bytes": 3675,
+      "members": 3664,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 9304,
+      "orig": 151968,
+      "refs": 4749,
+      "rt_ok": true,
+      "saving": 142664
+    },
+    "E_header": {
+      "comp": 22681,
+      "orig": 131940,
+      "rt_ok": true,
+      "saving": 109259
+    }
+  },
+  "combined_best_saving": 392679,
+  "combined_blob_bytes": 111126,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9584075081057796,
+  "combined_rt_exact": true,
+  "combined_saving": 392650,
+  "doc": "nasa-pdf-0027",
+  "encoded_len": 8937179,
+  "field": "f65707ed3d02760c06672e35598b6b84a8892a335026750a20452b84fa00387b",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.04159249189422041,
+  "index_node_count": 26,
+  "namespaces": {
+    "descriptor": 8937179,
+    "field": 516,
+    "index": 202778,
+    "seed": 300630
+  },
+  "node_count": 3665,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 3,
+    "3": 2,
+    "4": 1783,
+    "5": 836,
+    "6": 680,
+    "9": 360
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 23404,
+    "3": 136,
+    "4": 117678,
+    "5": 61864,
+    "6": 63920,
+    "9": 33568
+  },
+  "seed_split": {
+    "deps": 33728,
+    "header": 131940,
+    "params": 69320,
+    "prov": 65642
+  },
+  "source_len": 8936698,
+  "total": 9441103,
+  "typed": 503924,
+  "typed_saving_frac": 0.7792425048221557
+}

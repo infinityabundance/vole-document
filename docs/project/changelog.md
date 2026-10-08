@@ -2,6 +2,60 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.29] — Phase 22 economic programme complete (22.3–22.7)
+
+Completes the Phase-22 **economic programme** (P2–P6). **Every subphase is a
+measurement or court result; no production mechanism was shipped.** The programme
+strengthened the competitor first (22.1) and then tested, one at a time, whether a
+new mechanism would pay — and recorded the negatives honestly, exactly as the
+programme's "failed gates are publishable" rule requires. Results:
+[phase-22-results.md](../phases/phase-22-results.md),
+[phase-22-3-results.md](../phases/phase-22-3-results.md),
+[phase-22-4-results.md](../phases/phase-22-4-results.md),
+[phase-22-5-results.md](../phases/phase-22-5-results.md),
+[phase-22-6-results.md](../phases/phase-22-6-results.md),
+[phase-22-7-results.md](../phases/phase-22-7-results.md).
+
+### Measured / recorded
+
+- **22.2 — compact query-native directory: `SESSION`/`NO WIN` class negative.** The
+  index/selector layer is **10.6 %** of the warm session (probe **0.4 %**),
+  redundant re-reads of one depth-0 leaf (493 opens / 20 files); a perfect
+  directory removes ≤10.6 % (≈**0.13** shift) vs court **MDE ≈0.399** —
+  **below resolution**. Nothing shipped (`2026-10-08-phase22-2-d81689c`).
+- **22.3.0 — fused heterogeneous execution: `SESSION-ALREADY-CAPTURES`.** The
+  duplication is real (an independent DOCX/EPUB batch executes **3.66–4.11×** more
+  seed nodes) but the shipping session's memo + derived cache **already remove
+  it**; the only undeduped axis is the index descent — the 22.2 sub-MDE candidate.
+  Nothing shipped. A first `|U|`-based `CLEARS` was **withdrawn** (unsound metric)
+  (`2026-10-08-phase22-3-dup-ca9f29e`).
+- **22.4 — unknown-query lifetime frontier: `MIXED` region split.** Pre-registered
+  hidden schedule (seed 220400), all adaptation charged: resolved VOLE **win** in
+  the **PDF** region (0.73–0.83×), resolved **loss** in **EPUB** (1.50–1.82×),
+  **unresolved** pooled/DOCX/size-classes; storage **0.468× (win)**; peak RSS a
+  resolved loss (`2026-10-08-phase22-4-lifetime-b4225fe`).
+- **22.5 — remote selective materialization: negative under a labelled model.**
+  `remote-selective-v1` (no S3; real byte counts + a real loopback range server):
+  VOLE selective transfers **median 3.15× more bytes** than a page-level SQLite
+  control (0 wins / 17 losses / 7 unresolved); exact byte-range reads tie on bytes
+  and win modelled latency (`2026-10-08-phase22-5-remote-762c81c`).
+- **22.6 — compact structural representation: no win.** The exact `descriptor/` is
+  **97.2 %** of the footprint, so typed bytes are only **2.765 %**; the best
+  candidate encoding saves **1.166 %** of the footprint vs a 5 % bar; bitmap/rank
+  **loses** to a sorted delta list (`2026-10-08-phase22-6-compact-85eee7c`).
+- **22.7 — agent end-to-end cost: VOLE loss.** Deterministic scripted agent (no
+  LLM), 27 frozen tasks, pinned offline tokenizer: cost per correct grounded task
+  VOLE **1.418×** the baseline (gate ≤0.5×) — **not met**; VOLE **16/27**
+  correct+grounded vs **27/27** (PDF 0/9 heuristic text with no span; EPUB a token
+  tie) (`2026-10-08-phase22-7-agent-ee8723b`).
+
+### Notes
+
+- No `src/` change: every subphase added only `tools/` courts and `evidence/`
+  receipts. Exactness (`materialize == source`) is untouched.
+- Recorded follow-ups (not built): a PDF text **source span** and an EPUB `find`
+  member span (22.7); in-session verified-node memo (22.2/22.3).
+
 ## [0.1.0-alpha.28] — Phase 25: durability corrections (directory ancestry + packed-header recovery)
 
 An external review found **two correctness gaps** in the Phase-23 durability work

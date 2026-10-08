@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 76504,
+      "index_comp": 22470,
+      "index_orig": 77602,
+      "orig": 155520,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 54034,
+      "params_orig": 77918,
+      "rt_ok": true,
+      "saving": 79016
+    },
+    "B_dict": {
+      "comp": 3641,
+      "orig": 56450,
+      "rt_ok": true,
+      "saving": 52809
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 1272,
+      "duplicates": 0,
+      "kinds": 7,
+      "list_bytes": 3367,
+      "members": 3364,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 6647,
+      "orig": 108832,
+      "refs": 3401,
+      "rt_ok": true,
+      "saving": 102185
+    },
+    "E_header": {
+      "comp": 18787,
+      "orig": 121140,
+      "rt_ok": true,
+      "saving": 102353
+    }
+  },
+  "combined_best_saving": 338484,
+  "combined_blob_bytes": 105795,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9827456193083659,
+  "combined_rt_exact": true,
+  "combined_saving": 336363,
+  "doc": "nasa-pdf-0022",
+  "encoded_len": 19174981,
+  "field": "51b6fe213e3ddcc6788dd34ce4996011ac0c1c97ce9038b54c9832cca5ae6f3e",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.017254380691634146,
+  "index_node_count": 24,
+  "namespaces": {
+    "descriptor": 19174981,
+    "field": 514,
+    "index": 186178,
+    "seed": 255606
+  },
+  "node_count": 3365,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 3,
+    "3": 2,
+    "4": 2141,
+    "5": 911,
+    "6": 4,
+    "9": 303
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 28006,
+    "3": 136,
+    "4": 141306,
+    "5": 67414,
+    "6": 376,
+    "9": 18308
+  },
+  "seed_split": {
+    "deps": 256,
+    "header": 121140,
+    "params": 77918,
+    "prov": 56292
+  },
+  "source_len": 19174500,
+  "total": 19617279,
+  "typed": 442298,
+  "typed_saving_frac": 0.7652849436352867
+}

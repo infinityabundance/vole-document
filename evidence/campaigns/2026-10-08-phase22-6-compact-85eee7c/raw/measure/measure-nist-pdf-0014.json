@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 206630,
+      "index_comp": 60488,
+      "index_orig": 207035,
+      "orig": 401430,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 146142,
+      "params_orig": 194395,
+      "rt_ok": true,
+      "saving": 194800
+    },
+    "B_dict": {
+      "comp": 9256,
+      "orig": 163408,
+      "rt_ok": true,
+      "saving": 154152
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 77688,
+      "duplicates": 0,
+      "kinds": 7,
+      "list_bytes": 9267,
+      "members": 8975,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 23290,
+      "orig": 376320,
+      "refs": 11760,
+      "rt_ok": true,
+      "saving": 353030
+    },
+    "E_header": {
+      "comp": 52713,
+      "orig": 323136,
+      "rt_ok": true,
+      "saving": 270423
+    }
+  },
+  "combined_best_saving": 972521,
+  "combined_blob_bytes": 292257,
+  "combined_blob_error": null,
+  "combined_ratio": 0.8674502448267186,
+  "combined_rt_exact": true,
+  "combined_saving": 972405,
+  "doc": "nist-pdf-0014",
+  "encoded_len": 6072072,
+  "field": "0331fe3e77f432b4cfbcd89848ae35932a858cc74f62e82b92e2616462357532",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.13254975517328138,
+  "index_node_count": 62,
+  "namespaces": {
+    "descriptor": 6072072,
+    "field": 518,
+    "index": 496683,
+    "seed": 767753
+  },
+  "node_count": 8976,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 2,
+    "3": 1,
+    "4": 4136,
+    "5": 2139,
+    "6": 2128,
+    "9": 569
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 83311,
+    "3": 68,
+    "4": 272976,
+    "5": 158286,
+    "6": 200032,
+    "9": 53020
+  },
+  "seed_split": {
+    "deps": 86976,
+    "header": 323136,
+    "params": 194395,
+    "prov": 163246
+  },
+  "source_len": 6071591,
+  "total": 7337026,
+  "typed": 1264954,
+  "typed_saving_frac": 0.7688192614118774
+}

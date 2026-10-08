@@ -1,0 +1,8 @@
+phase22.3.0 duplicate-work court
+  docs=12  determinism=PASS
+  docx  n=4 indep_exec=148 resident_exec=36 exec_dedup=4.1111 idx_dedup=1.0000 bytes_dedup=4.5000 cwrite_dedup=5.1248
+  epub  n=4 indep_exec=647 resident_exec=177 exec_dedup=3.6554 idx_dedup=1.0000 bytes_dedup=1.8090 cwrite_dedup=21.0487
+  pdf   n=4 indep_exec=26 resident_exec=26 exec_dedup=1.0000 idx_dedup=1.0000 bytes_dedup=0.9913 cwrite_dedup=1.0000
+  pooled indep_exec=821 resident_exec=239 exec_dedup=3.4351 idx_dedup=1.0000
+  dup_exists=docx,epub  uncaptured=none
+  verdict=SESSION-ALREADY-CAPTURES

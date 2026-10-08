@@ -75,9 +75,9 @@ by dependency and risk, not by expected payoff.
 |---|---|---|
 | **22.1** | **P0** | Is there a **strong competitor envelope**, including an adaptive and a hybrid SQLite, before any frontier claim is made? |
 | **22.2** | **P1** | Can a **compact query-native directory / hot-cold layout** cut warm CPU/I/O/allocation without adding storage or weakening integrity? **Complete (negative)** — index is 10.6 % and sub-MDE; nothing shipped |
-| **22.3** | **P2** | Can a heterogeneous batch be executed as **one dependency closure and one schedule**, sharing work already known to the batch? |
-| **22.4** | **P3** | On an **unknown** query schedule, which system wins the **cumulative lifetime frontier**? |
-| **22.5** | **P4** | Can bounded **remote** selective materialization reduce bytes transferred at competitive p95 latency? |
+| **22.3** | **P2** | Can a heterogeneous batch be executed as **one dependency closure and one schedule**, sharing work already known to the batch? | **22.3.0 complete — negative (`SESSION-ALREADY-CAPTURES`, `2026-10-08-phase22-3-dup-ca9f29e`).** The duplication is real (3.66–4.11× node execution on DOCX/EPUB) but the shipping session already removes it; the only undeduped axis (index descent) is the 22.2 sub-MDE candidate. 22.3.1/22.3.2 not started |
+| **22.4** | **P3** | On an **unknown** query schedule, which system wins the **cumulative lifetime frontier**? | **Complete — region split (`MIXED`, `2026-10-08-phase22-4-lifetime-b4225fe`).** Pre-registered hidden schedule (seed 220400), all adaptation charged: resolved VOLE **win** in the PDF region (0.73–0.83×), resolved **loss** in EPUB (1.50–1.82×), **unresolved** pooled/DOCX/size-classes; storage 0.468× win, RSS a loss |
+| **22.5** | **P4** | Can bounded **remote** selective materialization reduce bytes transferred at competitive p95 latency? | **Complete — negative under a labelled model (`LOSS`, `2026-10-08-phase22-5-remote-762c81c`).** `remote-selective-v1` (no S3): VOLE selective transfers median **3.15× more bytes** than a page-level SQLite control; exact byte-range reads tie on bytes/win modelled latency (unresolved); one large PDF 0.54×. Control-sensitive |
 | **22.6** | **P5** | Is there a **more compact structural representation** at equal observation capability (no reopened dedup)? |
 | **22.7** | **P6** | Does the whole **document-agent** workload cost ≥2× less per **correct, grounded** task? |
 | — | **P7** | **XLSX/PPTX** economic validation — **Phase 21's** work, evaluated through this thesis (see below). |
@@ -177,6 +177,15 @@ repaid, the mechanism is rejected and the loss is recorded.
 
 ## 22.3 Fused heterogeneous execution (P2)
 
+> **22.3.0 complete — negative; 22.3.1/22.3.2 not started.** The measurement-only
+> gate returned **`SESSION-ALREADY-CAPTURES`**: an independent DOCX/EPUB batch
+> executes **3.66–4.11×** more seed nodes than the shipping resident session
+> (memo + derived cache already remove the redundancy), and the only axis the
+> session never dedupes is the index/selector descent — the **22.2 sub-MDE**
+> candidate. So a new fused executor is **not** justified and nothing ships. See
+> [phase-22-3-results.md](phase-22-3-results.md) and the frozen contract
+> [phase-22-3-scope.md](phase-22-3-scope.md).
+
 **Question.** A heterogeneous batch is currently evaluated as N independent
 dependencies. Can it be evaluated as **ONE dependency closure and ONE schedule**?
 
@@ -260,6 +269,11 @@ latency**.
 
 ## 22.6 Compact structural representation (P5)
 
+> **Complete — no win (measurement-only).** Full `real100-v1`: the exact
+> `descriptor/` is **97.2 %** of the footprint, so typed bytes are capped at
+> **2.765 %**; the best candidate encoding saves **1.166 %** of the footprint vs a
+> 5 % bar. See [phase-22-6-results.md](phase-22-6-results.md).
+
 **Question.** Can an **existing typed index/structural node** be represented
 **more compactly while preserving the same observation capability**?
 
@@ -284,6 +298,11 @@ observation loss**.
 ---
 
 ## 22.7 Agent end-to-end economic court (P6)
+
+> **Complete — VOLE LOSS (gate not met).** Deterministic scripted agent (no LLM),
+> 27 frozen tasks over 9 docs, pinned offline tokenizer: cost per correct grounded
+> task VOLE **1.418×** the baseline (gate ≤0.5×); VOLE 16/27 vs 27/27. See
+> [phase-22-7-results.md](phase-22-7-results.md).
 
 **Question.** Across the **whole document-agent workload**, what is the **cost
 per correct, grounded task**?

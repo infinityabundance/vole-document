@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 92249,
+      "index_comp": 30730,
+      "index_orig": 103281,
+      "orig": 194482,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 61519,
+      "params_orig": 91201,
+      "rt_ok": true,
+      "saving": 102233
+    },
+    "B_dict": {
+      "comp": 4756,
+      "orig": 84052,
+      "rt_ok": true,
+      "saving": 79296
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 5064,
+      "duplicates": 4,
+      "kinds": 7,
+      "list_bytes": 4486,
+      "members": 4473,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 10808,
+      "orig": 176032,
+      "refs": 5501,
+      "rt_ok": true,
+      "saving": 165224
+    },
+    "E_header": {
+      "comp": 26621,
+      "orig": 161208,
+      "rt_ok": true,
+      "saving": 134587
+    }
+  },
+  "combined_best_saving": 481375,
+  "combined_blob_bytes": 134682,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9238071254642404,
+  "combined_rt_exact": true,
+  "combined_saving": 481340,
+  "doc": "nist-pdf-0010",
+  "encoded_len": 5701654,
+  "field": "503730bba7b8460dbcc8aead9a9461758cf3250bf0d8287a14798b7cec916380",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.07619287453575964,
+  "index_node_count": 32,
+  "namespaces": {
+    "descriptor": 5701654,
+    "field": 516,
+    "index": 247793,
+    "seed": 367885
+  },
+  "node_count": 4478,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 4,
+    "3": 3,
+    "4": 1805,
+    "5": 1678,
+    "6": 899,
+    "9": 88
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 31717,
+    "3": 204,
+    "4": 119130,
+    "5": 124172,
+    "6": 84506,
+    "9": 8096
+  },
+  "seed_split": {
+    "deps": 31584,
+    "header": 161208,
+    "params": 91201,
+    "prov": 83892
+  },
+  "source_len": 5701173,
+  "total": 6317848,
+  "typed": 616194,
+  "typed_saving_frac": 0.7812068926344625
+}

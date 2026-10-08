@@ -1,0 +1,100 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 20949,
+      "index_comp": 617,
+      "index_orig": 1978,
+      "orig": 23220,
+      "param_modes": {
+        "14": "raw",
+        "15": "u64",
+        "16": "u32",
+        "17": "raw",
+        "18": "raw",
+        "20": "raw",
+        "22": "raw",
+        "23": "raw"
+      },
+      "params_comp": 20332,
+      "params_orig": 21242,
+      "rt_ok": true,
+      "saving": 2271
+    },
+    "B_dict": {
+      "comp": 335,
+      "orig": 1871,
+      "rt_ok": true,
+      "saving": 1536
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 72,
+      "duplicates": 0,
+      "kinds": 6,
+      "list_bytes": 86,
+      "members": 86,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 134,
+      "orig": 4288,
+      "refs": 134,
+      "rt_ok": true,
+      "saving": 4154
+    },
+    "E_header": {
+      "comp": 609,
+      "orig": 3168,
+      "rt_ok": true,
+      "saving": 2559
+    }
+  },
+  "combined_best_saving": 10534,
+  "combined_blob_bytes": 22085,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9954027262435639,
+  "combined_rt_exact": true,
+  "combined_saving": 10520,
+  "doc": "nist-docx-0004",
+  "encoded_len": 2258721,
+  "field": "c078a42658fc8fbc5a54bc085b6b28b1c9ada0f9d74376a900a03ef19fd12971",
+  "fmt": "docx",
+  "footprint_saving_frac": 0.004597273756436139,
+  "index_node_count": 1,
+  "namespaces": {
+    "descriptor": 2258721,
+    "field": 315,
+    "index": 4738,
+    "seed": 27584
+  },
+  "node_count": 87,
+  "seed_by_kind": {
+    "14": 1,
+    "15": 41,
+    "16": 41,
+    "17": 1,
+    "18": 1,
+    "20": 1,
+    "22": 1,
+    "23": 1
+  },
+  "seed_kbytes": {
+    "14": 48,
+    "15": 2870,
+    "16": 4346,
+    "17": 85,
+    "18": 86,
+    "20": 86,
+    "22": 19978,
+    "23": 85
+  },
+  "seed_split": {
+    "deps": 1440,
+    "header": 3168,
+    "params": 21242,
+    "prov": 1734
+  },
+  "source_len": 2258240,
+  "total": 2291358,
+  "typed": 32637,
+  "typed_saving_frac": 0.3227625088090204
+}

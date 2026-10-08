@@ -1,0 +1,13 @@
+id	fmt	vole_ok	vole_rc	src_len	mat_len	sha_match	cmp_eq
+nist-pdf-0002	pdf	1	0	263703	263703	yes	eq
+nist-pdf-0004	pdf	1	0	1105061	1105061	yes	eq
+nist-pdf-0016	pdf	1	0	310627	310627	yes	eq
+nist-pdf-0017	pdf	1	0	1466246	1466246	yes	eq
+nist-docx-0005	docx	1	0	57045	57045	yes	eq
+nist-docx-0008	docx	1	0	28783	28783	yes	eq
+nist-docx-0009	docx	1	0	152516	152516	yes	eq
+nist-docx-0014	docx	1	0	948422	948422	yes	eq
+nist-epub-0003	epub	1	0	89755	89755	yes	eq
+nist-epub-0006	epub	1	0	105867	105867	yes	eq
+nist-epub-0008	epub	1	0	35841	35841	yes	eq
+nist-epub-0009	epub	1	0	1237255	1237255	yes	eq

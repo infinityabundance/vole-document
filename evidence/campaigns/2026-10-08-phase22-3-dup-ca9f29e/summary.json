@@ -1,0 +1,44 @@
+{
+  "verdict": "SESSION-ALREADY-CAPTURES",
+  "docs": 12,
+  "formats": [
+    {
+      "fmt": "docx",
+      "docs": 4,
+      "exec_dedup": 4.1111,
+      "idx_dedup": 1.0,
+      "bytes_dedup": 4.5,
+      "cwrite_dedup": 5.1248
+    },
+    {
+      "fmt": "epub",
+      "docs": 4,
+      "exec_dedup": 3.6554,
+      "idx_dedup": 1.0,
+      "bytes_dedup": 1.809,
+      "cwrite_dedup": 21.0487
+    },
+    {
+      "fmt": "pdf",
+      "docs": 4,
+      "exec_dedup": 1.0,
+      "idx_dedup": 1.0,
+      "bytes_dedup": 0.9913,
+      "cwrite_dedup": 1.0
+    }
+  ],
+  "pooled": {
+    "indep_exec": 821,
+    "resident_exec": 239,
+    "exec_dedup": 3.4351,
+    "indep_index_nodes": 461,
+    "resident_index_nodes": 461,
+    "idx_dedup": 1.0
+  },
+  "dup_exists_formats": [
+    "docx",
+    "epub"
+  ],
+  "uncaptured_formats": [],
+  "determinism": "PASS"
+}

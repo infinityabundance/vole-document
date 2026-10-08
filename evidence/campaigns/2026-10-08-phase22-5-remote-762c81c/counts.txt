@@ -1,0 +1,14 @@
+docs=12
+observations=36
+answered=33
+verdict=LOSS[bytes_ratio=3.154][lat_ratio=0.667][wins=0][losses=17][unresolved=7]
+wins=none
+losses=obs=text,obs=metadata,obs=resource,obs=text/pdf,obs=metadata/pdf,obs=text/docx,obs=resource/docx,obs=text/epub,obs=resource/epub,obs=text/100KiB-1MiB,obs=metadata/100KiB-1MiB,obs=text/1-10MiB,obs=metadata/1-10MiB,obs=text/<100KiB,obs=resource/<100KiB,obs=resource/100KiB-1MiB,obs=resource/1-10MiB
+unresolved=obs=bytes,obs=bytes/pdf,obs=bytes/docx,obs=bytes/epub,obs=bytes/100KiB-1MiB,obs=bytes/1-10MiB,obs=bytes/<100KiB
+exact_ok=12/12
+vole_ranges_verified=55/55
+sql_ranges_verified=96/96
+srv_client_requests=223
+srv_server_requests=223
+model=remote-selective-v1
+model_date=2026-10-08
