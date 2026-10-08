@@ -177,6 +177,13 @@ repaid, the mechanism is rejected and the loss is recorded.
 
 ## 22.3 Fused heterogeneous execution (P2)
 
+> **Scoped, not started.** The frozen contract, the higher-resolution court
+> design (a deterministic physical-work gate axis with wall reported separately),
+> the three controls (including **today's resident batch with its memo and
+> cache**), the pre-registered workloads, and the falsifiers are in
+> [phase-22-3-scope.md](phase-22-3-scope.md). Subphase **22.3.0** is a
+> measurement-only gate that can end the phase negative.
+
 **Question.** A heterogeneous batch is currently evaluated as N independent
 dependencies. Can it be evaluated as **ONE dependency closure and ONE schedule**?
 
