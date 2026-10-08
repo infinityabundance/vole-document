@@ -25,7 +25,7 @@ buried. No claim here is a population claim: every corpus is frozen.
   the resident session the cold path's `narrow_probe` works as intended but does
   **not** flip any size class; the isolated lever is a **lazy session open**.
 - **SQLite does not lose under an equal capability contract** (16.5): forced to
-  satisfy the same escalating contract, the baseline builds **~10×** faster,
+  satisfy the same escalating contract, the baseline builds **~10×** faster, [SUPERSEDED for build cost: Phase 18.5 re-ran this court with the direct packed build and batched durability and measured VOLE **0.82×** SQLite (i.e. faster); the ~10× figure is retained as the historical two-step-path result. See `docs/phases/phase-18-results.md` and ADR-0053.]
   serves the warm session **~1.5×** faster, and is the **only** lane that answers
   revision lineage — VOLE declines C4/C5 because its CLI has no revision surface.
 - **A false VOLE storage advantage was removed** (16.6): `du -sb` counted 4096 B
