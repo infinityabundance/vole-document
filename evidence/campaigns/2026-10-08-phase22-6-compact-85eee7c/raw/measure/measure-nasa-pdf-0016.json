@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 249195,
+      "index_comp": 71621,
+      "index_orig": 243876,
+      "orig": 494726,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 177574,
+      "params_orig": 250850,
+      "rt_ok": true,
+      "saving": 245531
+    },
+    "B_dict": {
+      "comp": 10850,
+      "orig": 177037,
+      "rt_ok": true,
+      "saving": 166187
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 4032,
+      "duplicates": 0,
+      "kinds": 7,
+      "list_bytes": 10578,
+      "members": 10572,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 21122,
+      "orig": 341216,
+      "refs": 10663,
+      "rt_ok": true,
+      "saving": 320094
+    },
+    "E_header": {
+      "comp": 59531,
+      "orig": 380628,
+      "rt_ok": true,
+      "saving": 321097
+    }
+  },
+  "combined_best_saving": 1059528,
+  "combined_blob_bytes": 341110,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9555909309814543,
+  "combined_rt_exact": true,
+  "combined_saving": 1052909,
+  "doc": "nasa-pdf-0016",
+  "encoded_len": 22464015,
+  "field": "297b8f3c328af0589fc4271f3a40ae25856165cb0e15270c2a5ad98674e86a96",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.044409069018545695,
+  "index_node_count": 73,
+  "namespaces": {
+    "descriptor": 22464015,
+    "field": 515,
+    "index": 585068,
+    "seed": 808772
+  },
+  "node_count": 10573,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 3,
+    "3": 2,
+    "4": 6726,
+    "5": 2876,
+    "6": 7,
+    "9": 958
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 93506,
+    "3": 136,
+    "4": 443916,
+    "5": 212824,
+    "6": 658,
+    "9": 57672
+  },
+  "seed_split": {
+    "deps": 416,
+    "header": 380628,
+    "params": 250850,
+    "prov": 176878
+  },
+  "source_len": 22463534,
+  "total": 23858370,
+  "typed": 1394355,
+  "typed_saving_frac": 0.7598696171348043
+}

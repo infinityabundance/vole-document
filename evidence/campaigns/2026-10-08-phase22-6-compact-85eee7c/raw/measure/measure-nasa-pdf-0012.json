@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 184516,
+      "index_comp": 53124,
+      "index_orig": 181757,
+      "orig": 368023,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 131392,
+      "params_orig": 186266,
+      "rt_ok": true,
+      "saving": 183507
+    },
+    "B_dict": {
+      "comp": 8157,
+      "orig": 131969,
+      "rt_ok": true,
+      "saving": 123812
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 2736,
+      "duplicates": 0,
+      "kinds": 7,
+      "list_bytes": 7883,
+      "members": 7879,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 15712,
+      "orig": 254368,
+      "refs": 7949,
+      "rt_ok": true,
+      "saving": 238656
+    },
+    "E_header": {
+      "comp": 44039,
+      "orig": 283680,
+      "rt_ok": true,
+      "saving": 239641
+    }
+  },
+  "combined_best_saving": 790818,
+  "combined_blob_bytes": 252764,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9897110431496252,
+  "combined_rt_exact": true,
+  "combined_saving": 785616,
+  "doc": "nasa-pdf-0012",
+  "encoded_len": 75822209,
+  "field": "0cd19908aaa44022f71e87f0107e99661a2c6cade53c2aadcf88cef098859f11",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.010288956850374793,
+  "index_node_count": 55,
+  "namespaces": {
+    "descriptor": 75822209,
+    "field": 515,
+    "index": 436053,
+    "seed": 602076
+  },
+  "node_count": 7880,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 3,
+    "3": 2,
+    "4": 5015,
+    "5": 2141,
+    "6": 5,
+    "9": 713
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 69046,
+    "3": 136,
+    "4": 330990,
+    "5": 158434,
+    "6": 470,
+    "9": 42940
+  },
+  "seed_split": {
+    "deps": 320,
+    "header": 283680,
+    "params": 186266,
+    "prov": 131810
+  },
+  "source_len": 75821728,
+  "total": 76860853,
+  "typed": 1038644,
+  "typed_saving_frac": 0.7613946645818972
+}

@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 7290,
+      "index_comp": 4477,
+      "index_orig": 12552,
+      "orig": 21192,
+      "param_modes": {
+        "14": "raw",
+        "15": "u64",
+        "16": "u32",
+        "17": "raw",
+        "18": "raw",
+        "20": "raw",
+        "23": "raw"
+      },
+      "params_comp": 2813,
+      "params_orig": 8640,
+      "rt_ok": true,
+      "saving": 13902
+    },
+    "B_dict": {
+      "comp": 786,
+      "orig": 11022,
+      "rt_ok": true,
+      "saving": 10236
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 168,
+      "duplicates": 0,
+      "kinds": 6,
+      "list_bytes": 544,
+      "members": 544,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 1453,
+      "orig": 26400,
+      "refs": 825,
+      "rt_ok": true,
+      "saving": 24947
+    },
+    "E_header": {
+      "comp": 3662,
+      "orig": 19620,
+      "rt_ok": true,
+      "saving": 15958
+    }
+  },
+  "combined_best_saving": 65423,
+  "combined_blob_bytes": 13265,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9974323393373361,
+  "combined_rt_exact": true,
+  "combined_saving": 65043,
+  "doc": "nasa-epub-0008",
+  "encoded_len": 25401257,
+  "field": "63c38e9dd1d6a3295933c1c1e16de2033c962247570d6547135900f3f548c1e9",
+  "fmt": "epub",
+  "footprint_saving_frac": 0.002567660662663911,
+  "index_node_count": 5,
+  "namespaces": {
+    "descriptor": 25401257,
+    "field": 318,
+    "index": 30128,
+    "seed": 47910
+  },
+  "node_count": 545,
+  "seed_by_kind": {
+    "14": 1,
+    "15": 270,
+    "16": 270,
+    "17": 1,
+    "18": 1,
+    "20": 1,
+    "23": 1
+  },
+  "seed_kbytes": {
+    "14": 48,
+    "15": 18900,
+    "16": 28620,
+    "17": 85,
+    "18": 86,
+    "20": 86,
+    "23": 85
+  },
+  "seed_split": {
+    "deps": 8768,
+    "header": 19620,
+    "params": 8640,
+    "prov": 10882
+  },
+  "source_len": 25400776,
+  "total": 25479613,
+  "typed": 78356,
+  "typed_saving_frac": 0.8349456327530757
+}

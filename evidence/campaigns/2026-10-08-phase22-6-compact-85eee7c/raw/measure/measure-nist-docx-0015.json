@@ -1,0 +1,100 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 1520921,
+      "index_comp": 469,
+      "index_orig": 1426,
+      "orig": 1522532,
+      "param_modes": {
+        "14": "raw",
+        "15": "u64",
+        "16": "u32",
+        "17": "raw",
+        "18": "raw",
+        "20": "raw",
+        "22": "raw",
+        "23": "raw"
+      },
+      "params_comp": 1520452,
+      "params_orig": 1521106,
+      "rt_ok": true,
+      "saving": 1611
+    },
+    "B_dict": {
+      "comp": 322,
+      "orig": 1512,
+      "rt_ok": true,
+      "saving": 1190
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 72,
+      "duplicates": 0,
+      "kinds": 6,
+      "list_bytes": 62,
+      "members": 62,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 98,
+      "orig": 3136,
+      "refs": 98,
+      "rt_ok": true,
+      "saving": 3038
+    },
+    "E_header": {
+      "comp": 560,
+      "orig": 2664,
+      "rt_ok": true,
+      "saving": 2104
+    }
+  },
+  "combined_best_saving": 7943,
+  "combined_blob_bytes": 1521958,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9974368324244086,
+  "combined_rt_exact": true,
+  "combined_saving": 7943,
+  "doc": "nist-docx-0015",
+  "encoded_len": 1568966,
+  "field": "e4f6fb433218ee06294ef838359e3c8a46744b042d064675cc4f07fdde472947",
+  "fmt": "docx",
+  "footprint_saving_frac": 0.002563167575591339,
+  "index_node_count": 1,
+  "namespaces": {
+    "descriptor": 1568966,
+    "field": 316,
+    "index": 3418,
+    "seed": 1526200
+  },
+  "node_count": 63,
+  "seed_by_kind": {
+    "14": 1,
+    "15": 29,
+    "16": 29,
+    "17": 1,
+    "18": 1,
+    "20": 1,
+    "22": 11,
+    "23": 1
+  },
+  "seed_kbytes": {
+    "14": 48,
+    "15": 2030,
+    "16": 3074,
+    "17": 85,
+    "18": 86,
+    "20": 86,
+    "22": 1520706,
+    "23": 85
+  },
+  "seed_split": {
+    "deps": 1056,
+    "header": 2664,
+    "params": 1521106,
+    "prov": 1374
+  },
+  "source_len": 1568485,
+  "total": 3098900,
+  "typed": 1529934,
+  "typed_saving_frac": 0.005191727224834536
+}

@@ -1,0 +1,100 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 228698,
+      "index_comp": 547,
+      "index_orig": 1702,
+      "orig": 230646,
+      "param_modes": {
+        "14": "raw",
+        "15": "u64",
+        "16": "u32",
+        "17": "raw",
+        "18": "raw",
+        "20": "raw",
+        "22": "raw",
+        "23": "raw"
+      },
+      "params_comp": 228151,
+      "params_orig": 228944,
+      "rt_ok": true,
+      "saving": 1948
+    },
+    "B_dict": {
+      "comp": 334,
+      "orig": 1752,
+      "rt_ok": true,
+      "saving": 1418
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 72,
+      "duplicates": 0,
+      "kinds": 6,
+      "list_bytes": 74,
+      "members": 74,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 116,
+      "orig": 3712,
+      "refs": 116,
+      "rt_ok": true,
+      "saving": 3596
+    },
+    "E_header": {
+      "comp": 621,
+      "orig": 3096,
+      "rt_ok": true,
+      "saving": 2475
+    }
+  },
+  "combined_best_saving": 9439,
+  "combined_blob_bytes": 229826,
+  "combined_blob_error": null,
+  "combined_ratio": 0.992056044484131,
+  "combined_rt_exact": true,
+  "combined_saving": 9437,
+  "doc": "nist-docx-0014",
+  "encoded_len": 948903,
+  "field": "b0a64c55109925b71c9b5e2b2d398baa8c920a0dd3a47af66c0a1276810dd83c",
+  "fmt": "docx",
+  "footprint_saving_frac": 0.007943955515868975,
+  "index_node_count": 1,
+  "namespaces": {
+    "descriptor": 948903,
+    "field": 316,
+    "index": 4078,
+    "seed": 234902
+  },
+  "node_count": 75,
+  "seed_by_kind": {
+    "14": 1,
+    "15": 35,
+    "16": 35,
+    "17": 1,
+    "18": 1,
+    "20": 1,
+    "22": 11,
+    "23": 1
+  },
+  "seed_kbytes": {
+    "14": 48,
+    "15": 2450,
+    "16": 3710,
+    "17": 85,
+    "18": 86,
+    "20": 86,
+    "22": 228352,
+    "23": 85
+  },
+  "seed_split": {
+    "deps": 1248,
+    "header": 3096,
+    "params": 228944,
+    "prov": 1614
+  },
+  "source_len": 948422,
+  "total": 1188199,
+  "typed": 239296,
+  "typed_saving_frac": 0.039444871623428725
+}

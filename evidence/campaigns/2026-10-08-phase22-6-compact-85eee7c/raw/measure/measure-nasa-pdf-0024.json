@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 395620,
+      "index_comp": 140466,
+      "index_orig": 423461,
+      "orig": 777445,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 255154,
+      "params_orig": 353984,
+      "rt_ok": true,
+      "saving": 381825
+    },
+    "B_dict": {
+      "comp": 18639,
+      "orig": 340411,
+      "rt_ok": true,
+      "saving": 321772
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 9276,
+      "duplicates": 0,
+      "kinds": 7,
+      "list_bytes": 18363,
+      "members": 18357,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 50113,
+      "orig": 765952,
+      "refs": 23936,
+      "rt_ok": true,
+      "saving": 715839
+    },
+    "E_header": {
+      "comp": 113782,
+      "orig": 660888,
+      "rt_ok": true,
+      "saving": 547106
+    }
+  },
+  "combined_best_saving": 1975757,
+  "combined_blob_bytes": 578780,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9884498821012337,
+  "combined_rt_exact": true,
+  "combined_saving": 1966542,
+  "doc": "nasa-pdf-0024",
+  "encoded_len": 168513598,
+  "field": "0daf05589877db8ceccfcc622389ed35b9a2fd1884b9ce88e52dabca51c10056",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.011550117898766268,
+  "index_node_count": 126,
+  "namespaces": {
+    "descriptor": 168513598,
+    "field": 519,
+    "index": 1015893,
+    "seed": 1529456
+  },
+  "node_count": 18358,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 3,
+    "3": 2,
+    "4": 7453,
+    "5": 5451,
+    "6": 3448,
+    "9": 2000
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 125876,
+    "3": 136,
+    "4": 491898,
+    "5": 403374,
+    "6": 324112,
+    "9": 184000
+  },
+  "seed_split": {
+    "deps": 174336,
+    "header": 660888,
+    "params": 353984,
+    "prov": 340248
+  },
+  "source_len": 168513117,
+  "total": 171059466,
+  "typed": 2545868,
+  "typed_saving_frac": 0.7760641950014691
+}

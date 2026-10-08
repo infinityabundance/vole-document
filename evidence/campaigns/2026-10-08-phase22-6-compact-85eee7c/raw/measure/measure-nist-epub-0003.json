@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 562,
+      "index_comp": 354,
+      "index_orig": 1196,
+      "orig": 1964,
+      "param_modes": {
+        "14": "raw",
+        "15": "u64",
+        "16": "u32",
+        "17": "raw",
+        "18": "raw",
+        "20": "raw",
+        "23": "raw"
+      },
+      "params_comp": 208,
+      "params_orig": 768,
+      "rt_ok": true,
+      "saving": 1402
+    },
+    "B_dict": {
+      "comp": 291,
+      "orig": 1179,
+      "rt_ok": true,
+      "saving": 888
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 72,
+      "duplicates": 0,
+      "kinds": 6,
+      "list_bytes": 52,
+      "members": 52,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 83,
+      "orig": 2656,
+      "refs": 83,
+      "rt_ok": true,
+      "saving": 2573
+    },
+    "E_header": {
+      "comp": 386,
+      "orig": 1908,
+      "rt_ok": true,
+      "saving": 1522
+    }
+  },
+  "combined_best_saving": 6385,
+  "combined_blob_bytes": 1378,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9348688706864016,
+  "combined_rt_exact": true,
+  "combined_saving": 6385,
+  "doc": "nist-epub-0003",
+  "encoded_len": 90236,
+  "field": "c53ce8d4624c3159b4a2a5e75e445944bc085eeb96c36e94f363cc67170869d5",
+  "fmt": "epub",
+  "footprint_saving_frac": 0.06513112931359848,
+  "index_node_count": 1,
+  "namespaces": {
+    "descriptor": 90236,
+    "field": 315,
+    "index": 2868,
+    "seed": 4614
+  },
+  "node_count": 53,
+  "seed_by_kind": {
+    "14": 1,
+    "15": 24,
+    "16": 24,
+    "17": 1,
+    "18": 1,
+    "20": 1,
+    "23": 1
+  },
+  "seed_kbytes": {
+    "14": 48,
+    "15": 1680,
+    "16": 2544,
+    "17": 85,
+    "18": 86,
+    "20": 86,
+    "23": 85
+  },
+  "seed_split": {
+    "deps": 896,
+    "header": 1908,
+    "params": 768,
+    "prov": 1042
+  },
+  "source_len": 89755,
+  "total": 98033,
+  "typed": 7797,
+  "typed_saving_frac": 0.8189047069385661
+}

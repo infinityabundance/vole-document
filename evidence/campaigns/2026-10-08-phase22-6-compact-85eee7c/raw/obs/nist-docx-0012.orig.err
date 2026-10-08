@@ -1,0 +1,4 @@
+observe-batch: request 0: InvalidPackageStructure: invalid byte 0x5b in part name
+observe-batch: request 1: InvalidPackageStructure: invalid byte 0x5b in part name
+observe-batch: request 2: InvalidPackageStructure: invalid byte 0x5b in part name
+error: InternalInvariant: observe-batch: no request was answered

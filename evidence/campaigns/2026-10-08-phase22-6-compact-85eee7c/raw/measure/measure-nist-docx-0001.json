@@ -1,0 +1,100 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 21041,
+      "index_comp": 673,
+      "index_orig": 2162,
+      "orig": 23532,
+      "param_modes": {
+        "14": "raw",
+        "15": "u64",
+        "16": "u32",
+        "17": "raw",
+        "18": "raw",
+        "20": "raw",
+        "22": "raw",
+        "23": "raw"
+      },
+      "params_comp": 20368,
+      "params_orig": 21370,
+      "rt_ok": true,
+      "saving": 2491
+    },
+    "B_dict": {
+      "comp": 343,
+      "orig": 2031,
+      "rt_ok": true,
+      "saving": 1688
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 72,
+      "duplicates": 0,
+      "kinds": 6,
+      "list_bytes": 94,
+      "members": 94,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 146,
+      "orig": 4672,
+      "refs": 146,
+      "rt_ok": true,
+      "saving": 4526
+    },
+    "E_header": {
+      "comp": 657,
+      "orig": 3456,
+      "rt_ok": true,
+      "saving": 2799
+    }
+  },
+  "combined_best_saving": 11526,
+  "combined_blob_bytes": 22245,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9950328856925905,
+  "combined_rt_exact": true,
+  "combined_saving": 11504,
+  "doc": "nist-docx-0001",
+  "encoded_len": 2286681,
+  "field": "cbcb25e927c88072a6f497ee8027748cc8e5e25e8973f3278f974b01e467fc4c",
+  "fmt": "docx",
+  "footprint_saving_frac": 0.004967114307409473,
+  "index_node_count": 1,
+  "namespaces": {
+    "descriptor": 2286681,
+    "field": 315,
+    "index": 5178,
+    "seed": 28288
+  },
+  "node_count": 95,
+  "seed_by_kind": {
+    "14": 1,
+    "15": 45,
+    "16": 45,
+    "17": 1,
+    "18": 1,
+    "20": 1,
+    "22": 1,
+    "23": 1
+  },
+  "seed_kbytes": {
+    "14": 48,
+    "15": 3150,
+    "16": 4770,
+    "17": 85,
+    "18": 86,
+    "20": 86,
+    "22": 19978,
+    "23": 85
+  },
+  "seed_split": {
+    "deps": 1568,
+    "header": 3456,
+    "params": 21370,
+    "prov": 1894
+  },
+  "source_len": 2286200,
+  "total": 2320462,
+  "typed": 33781,
+  "typed_saving_frac": 0.3411977146916906
+}

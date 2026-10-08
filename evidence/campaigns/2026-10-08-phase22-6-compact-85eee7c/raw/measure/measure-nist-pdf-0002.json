@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 11016,
+      "index_comp": 3694,
+      "index_orig": 13380,
+      "orig": 25002,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u64",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 7322,
+      "params_orig": 11622,
+      "rt_ok": true,
+      "saving": 13986
+    },
+    "B_dict": {
+      "comp": 855,
+      "orig": 9972,
+      "rt_ok": true,
+      "saving": 9117
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 1560,
+      "duplicates": 2,
+      "kinds": 7,
+      "list_bytes": 586,
+      "members": 578,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 1285,
+      "orig": 23136,
+      "refs": 723,
+      "rt_ok": true,
+      "saving": 21851
+    },
+    "E_header": {
+      "comp": 3238,
+      "orig": 20916,
+      "rt_ok": true,
+      "saving": 17678
+    }
+  },
+  "combined_best_saving": 62637,
+  "combined_blob_bytes": 16533,
+  "combined_blob_error": null,
+  "combined_ratio": 0.817604989895578,
+  "combined_rt_exact": true,
+  "combined_saving": 62632,
+  "doc": "nist-pdf-0002",
+  "encoded_len": 264184,
+  "field": "c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.18239501010442208,
+  "index_node_count": 5,
+  "namespaces": {
+    "descriptor": 264184,
+    "field": 512,
+    "index": 32108,
+    "seed": 46610
+  },
+  "node_count": 581,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 3,
+    "3": 2,
+    "4": 357,
+    "5": 85,
+    "6": 80,
+    "9": 53
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 4166,
+    "3": 136,
+    "4": 23562,
+    "5": 6290,
+    "6": 7520,
+    "9": 4876
+  },
+  "seed_split": {
+    "deps": 4256,
+    "header": 20916,
+    "params": 11622,
+    "prov": 9816
+  },
+  "source_len": 263703,
+  "total": 343414,
+  "typed": 79230,
+  "typed_saving_frac": 0.7905717531238168
+}

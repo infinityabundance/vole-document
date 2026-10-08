@@ -1,0 +1,100 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 22934485,
+      "index_comp": 1889,
+      "index_orig": 5264,
+      "orig": 22940244,
+      "param_modes": {
+        "14": "raw",
+        "15": "u64",
+        "16": "u64",
+        "17": "raw",
+        "18": "raw",
+        "20": "raw",
+        "22": "raw",
+        "23": "raw"
+      },
+      "params_comp": 22932596,
+      "params_orig": 22934980,
+      "rt_ok": true,
+      "saving": 5759
+    },
+    "B_dict": {
+      "comp": 529,
+      "orig": 5149,
+      "rt_ok": true,
+      "saving": 4620
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 96,
+      "duplicates": 0,
+      "kinds": 6,
+      "list_bytes": 228,
+      "members": 228,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 503,
+      "orig": 10784,
+      "refs": 337,
+      "rt_ok": true,
+      "saving": 10281
+    },
+    "E_header": {
+      "comp": 2040,
+      "orig": 9936,
+      "rt_ok": true,
+      "saving": 7896
+    }
+  },
+  "combined_best_saving": 28690,
+  "combined_blob_bytes": 22937624,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9994907742728371,
+  "combined_rt_exact": true,
+  "combined_saving": 28556,
+  "doc": "nasa-epub-0012",
+  "encoded_len": 33374218,
+  "field": "054513c63c3635e23ac28ed230742f0940f0e937aba456a04760f411186be0c4",
+  "fmt": "epub",
+  "footprint_saving_frac": 0.0005092257271628901,
+  "index_node_count": 3,
+  "namespaces": {
+    "descriptor": 33374218,
+    "field": 321,
+    "index": 12648,
+    "seed": 22953250
+  },
+  "node_count": 229,
+  "seed_by_kind": {
+    "14": 1,
+    "15": 112,
+    "16": 100,
+    "17": 1,
+    "18": 1,
+    "20": 1,
+    "22": 59,
+    "23": 1
+  },
+  "seed_kbytes": {
+    "14": 48,
+    "15": 7840,
+    "16": 10600,
+    "17": 85,
+    "18": 86,
+    "20": 86,
+    "22": 22934420,
+    "23": 85
+  },
+  "seed_split": {
+    "deps": 3328,
+    "header": 9936,
+    "params": 22934980,
+    "prov": 5006
+  },
+  "source_len": 33373737,
+  "total": 56340437,
+  "typed": 22966219,
+  "typed_saving_frac": 0.0012492260915913064
+}

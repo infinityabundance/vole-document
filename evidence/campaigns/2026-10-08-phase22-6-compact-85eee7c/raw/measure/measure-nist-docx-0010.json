@@ -1,0 +1,100 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 26112,
+      "index_comp": 339,
+      "index_orig": 1104,
+      "orig": 27378,
+      "param_modes": {
+        "14": "raw",
+        "15": "u64",
+        "16": "u32",
+        "17": "raw",
+        "18": "raw",
+        "20": "raw",
+        "22": "raw",
+        "23": "raw"
+      },
+      "params_comp": 25773,
+      "params_orig": 26274,
+      "rt_ok": true,
+      "saving": 1266
+    },
+    "B_dict": {
+      "comp": 297,
+      "orig": 1111,
+      "rt_ok": true,
+      "saving": 814
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 72,
+      "duplicates": 0,
+      "kinds": 6,
+      "list_bytes": 48,
+      "members": 48,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 77,
+      "orig": 2464,
+      "refs": 77,
+      "rt_ok": true,
+      "saving": 2387
+    },
+    "E_header": {
+      "comp": 373,
+      "orig": 1800,
+      "rt_ok": true,
+      "saving": 1427
+    }
+  },
+  "combined_best_saving": 5894,
+  "combined_blob_bytes": 26916,
+  "combined_blob_error": null,
+  "combined_ratio": 0.9416007768067693,
+  "combined_rt_exact": true,
+  "combined_saving": 5894,
+  "doc": "nist-docx-0010",
+  "encoded_len": 68083,
+  "field": "fdf50f0a90f072852a337ba1617d5f807e058651926510f9bccbb0b31e0396d1",
+  "fmt": "docx",
+  "footprint_saving_frac": 0.05839922319323068,
+  "index_node_count": 1,
+  "namespaces": {
+    "descriptor": 68083,
+    "field": 315,
+    "index": 2648,
+    "seed": 29880
+  },
+  "node_count": 49,
+  "seed_by_kind": {
+    "14": 1,
+    "15": 22,
+    "16": 22,
+    "17": 1,
+    "18": 1,
+    "20": 1,
+    "22": 1,
+    "23": 1
+  },
+  "seed_kbytes": {
+    "14": 48,
+    "15": 1540,
+    "16": 2332,
+    "17": 85,
+    "18": 86,
+    "20": 86,
+    "22": 25618,
+    "23": 85
+  },
+  "seed_split": {
+    "deps": 832,
+    "header": 1800,
+    "params": 26274,
+    "prov": 974
+  },
+  "source_len": 67602,
+  "total": 100926,
+  "typed": 32843,
+  "typed_saving_frac": 0.17945985445909327
+}

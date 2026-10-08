@@ -1,0 +1,97 @@
+{
+  "candidates": {
+    "A_delta": {
+      "comp": 547069,
+      "index_comp": 159311,
+      "index_orig": 501697,
+      "orig": 992803,
+      "param_modes": {
+        "1": "raw",
+        "25": "raw",
+        "3": "u32",
+        "4": "u32",
+        "5": "u32",
+        "6": "u32",
+        "9": "u32"
+      },
+      "params_comp": 387758,
+      "params_orig": 491106,
+      "rt_ok": true,
+      "saving": 445734
+    },
+    "B_dict": {
+      "comp": 22030,
+      "orig": 399000,
+      "rt_ok": true,
+      "saving": 376970
+    },
+    "C_bitmap": {
+      "bitmap_bytes": 106704,
+      "duplicates": 9,
+      "kinds": 7,
+      "list_bytes": 21767,
+      "members": 21740,
+      "rt_ok": true
+    },
+    "D_intern": {
+      "comp": 62853,
+      "orig": 899488,
+      "refs": 28109,
+      "rt_ok": true,
+      "saving": 836635
+    },
+    "E_header": {
+      "comp": 132360,
+      "orig": 783000,
+      "rt_ok": true,
+      "saving": 650640
+    }
+  },
+  "combined_best_saving": 2310274,
+  "combined_blob_bytes": 765030,
+  "combined_blob_error": null,
+  "combined_ratio": 0.971355830242744,
+  "combined_rt_exact": true,
+  "combined_saving": 2309979,
+  "doc": "nist-pdf-0013",
+  "encoded_len": 77578610,
+  "field": "f9a2f9b14c9737a4c4296b9e8f3d99f9417fcb79ba8b9ba61e911efc10c852ba",
+  "fmt": "pdf",
+  "footprint_saving_frac": 0.02864416975725606,
+  "index_node_count": 148,
+  "namespaces": {
+    "descriptor": 77578610,
+    "field": 518,
+    "index": 1203553,
+    "seed": 1871568
+  },
+  "node_count": 21750,
+  "seed_by_kind": {
+    "1": 1,
+    "25": 5,
+    "3": 4,
+    "4": 9813,
+    "5": 5720,
+    "6": 5634,
+    "9": 573
+  },
+  "seed_kbytes": {
+    "1": 60,
+    "25": 217986,
+    "3": 272,
+    "4": 647658,
+    "5": 423280,
+    "6": 529596,
+    "9": 52716
+  },
+  "seed_split": {
+    "deps": 198624,
+    "header": 783000,
+    "params": 491106,
+    "prov": 398838
+  },
+  "source_len": 77578129,
+  "total": 80654249,
+  "typed": 3075639,
+  "typed_saving_frac": 0.7511525247273818
+}
