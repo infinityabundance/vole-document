@@ -73,6 +73,10 @@ barrier). `put_field` **flushes before publishing a manifest**, so a durable
 manifest never references a non-durable node. Batching these syncs is what
 inverted the equal-contract build position (7.08× → 0.82×); the win is deleted
 unnecessary durability syncs, **not** parallelism or a codec (ADR-0053).
+[SUPERSEDED as a competitor statement by [Phase 22.1](../phases/phase-22-results.md):
+the 0.82× build figure is against the Phase-18 *historical-control*
+configuration; against a tuned equal-contract envelope the build ratio is
+**0.219×** (`full`).]
 
 ## Derived cache
 

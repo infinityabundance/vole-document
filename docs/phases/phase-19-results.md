@@ -16,6 +16,15 @@ Every figure below links to a sealed receipt under
 stated wherever a ratio is claimed. Decision record:
 [ADR-0054](../adr/0054-repeatability-and-paired-measurement.md).
 
+> **Competitor note (Phase 22.1).** Throughout Phase 19 the "SQLite" lane is the
+> Phase-18 **historical-control** configuration, which carried the baseline's
+> **contract-dead** FTS/trigram indexes. Phase 22.1 strengthened the competitor
+> **first** and re-measured: against the tuned equal-contract envelope the
+> storage advantage is **0.762× `full` / 0.805× `adaptive`** (not 0.53×), build
+> **0.219× `full`** (0.194× `hist`), cold **0.812× `full`**, and warm is a
+> **loss** (**1.211× `full`**, 95% CI 1.006–1.483). See
+> [phase-22-results.md](phase-22-results.md).
+
 ## What Phase 19 established
 
 - **The build win survives paired interleaved measurement — but its *magnitude*
@@ -254,6 +263,10 @@ compared). Common documents (new build ok ∧ old packed ingest ok): **96**.
 VOLE's bytes are **~0.96×** the SQLite `real100` database, **NOT** the **0.53×**
 of the 12-document contract subset. The contract subset understates SQLite's
 footprint; the full-population ratio is the honest storage statement.
+[SUPERSEDED as a competitor statement by [Phase 22.1](phase-22-results.md):
+against a *tuned* equal-contract SQLite the subset figure is **~0.76–0.80×**, not
+0.53× — the 0.53× was measured against the historical control's **contract-dead**
+trigram index (≈+44% bytes).]
 
 **Interpretation.** The direct, fixed-program build is **robust**: it admits and
 byte-exactly reconstructs every document of the frozen population, including the
@@ -282,4 +295,8 @@ container cap. No population claim beyond the frozen `real100-v1` corpus.
 - The Phase-18 **0.82×** build and **1.09×** warm headlines are **superseded as
   point estimates**, not deleted: 0.82× re-reads as ~0.96× under the ratio-of-sums
   estimator (with the build win still established under the paired estimator), and
-  1.09× re-reads as ~1.29× (a modest, marginal loss) at N=100.
+  1.09× re-reads as ~1.29× (a modest, marginal loss) at N=100. **[SUPERSEDED as
+  competitor statements by [Phase 22.1](phase-22-results.md): these figures were
+  all measured against the historical-control configuration; against a tuned
+  equal-contract envelope storage is **0.762× `full`**, build **0.219× `full`**,
+  cold **0.812× `full`**, and warm a **loss** (**1.211× `full`**).]**

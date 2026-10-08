@@ -7,7 +7,7 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.25` (Phases 13–20 — Phase-13 proposals + `N5`
+**Current release:** `0.1.0-alpha.26` (Phases 13–22.1 — Phase-13 proposals + `N5`
 gate, the benign-`DOCTYPE` real-EPUB fix, a partial large-PDF encode fix, the
 Phase-15 performance programme, the Phase-16 backend adoption + large-PDF fix +
 storage-accounting correction, the Phase-17 direct field build +
@@ -21,8 +21,8 @@ median, resolved under the geometric mean), **100/100 built + 100/100 exact** on
 `real100-v1`), and the Phase-20 hardening-and-economics phase — an **adversarial
 1,300-case crash court** (0 fail; **scope stated**: ordering/prefix/fail-closed
 proven, true power loss and torn rename not), a **33 % large-source memory cut**
-so a **~1 GiB source now fits**, the warm loss **diagnosed and recorded
-durable**, and **C4b closed by a typed external layer**).
+so a **~1 GiB source now fits**, the warm loss **diagnosed and recorded durable**, and **C4b closed by a typed external layer**). **Phase 22.1** then strengthens the competitor **first** — a six-configuration SQLite envelope, with the Phase-18 baseline kept **unmodified** as the historical control — and re-measures the equal-contract court against it (results [Phase 22 results](../phases/phase-22-results.md)): storage **0.762× `full` / 0.805× `adaptive`** (not the historical-control **0.53×**, which was measured against a **contract-dead** trigram/FTS index, ≈+44% bytes), build **0.219× `full`** (0.194× `hist`; the advantage survives but shrinks), cold **0.812× `full`**, warm a **loss** (**1.211× `full`**, 95% CI 1.006–1.483) — **no capability gap remains**.
+
 **Top-level verdict (ADR-0023, the
 authoritative [`FINDINGS.md`](findings.md)):** the current representation stack
 does not beat purpose-built baselines on any measured axis; the durable results
@@ -307,7 +307,7 @@ lane: `nist-pdf-0017` packed wall **9392 → 1415 ms**, `fdatasync` **6792 → 0
 12-document contract build sum **1552 ms vs SQLite 1893 ms = 0.82×** (VOLE now
 builds ~1.22× **faster**), storage **0.53×**, warm **1.09×**, exactness
 `materialize --exact --packed` **12/12**. **The win came from deleting unnecessary
-durability syncs — not parallelism, not a codec.**
+durability syncs — not parallelism, not a codec.** **[SUPERSEDED as competitor statements by Phase 22.1](../phases/phase-22-results.md): against the tuned equal-contract envelope the storage advantage is **0.762× `full` / 0.805× `adaptive`** (not 0.53×, which is vs the historical control's contract-dead trigram index), build **0.219× `full`** (0.194× `hist`), cold **0.812× `full`**, and warm is a **loss** (**1.211× `full`**, 95% CI 1.006–1.483).]**
 
 Phase 19 (branch `phase19`) is a **measurement-discipline phase**: it replaces the
 two Phase-18 single-run point estimates with paired, interleaved, repeated
@@ -348,7 +348,7 @@ peak RSS median **30.9 MiB**, max **2342 MiB** (`nasa-pdf-0001`, a 409 MiB sourc
 corrected) the direct build is far faster (median **61 ms** vs 2,095 ms; paired
 **0.083×**) but stores **+5.3%** bytes. **Storage is population-dependent:**
 full-population VOLE bytes are **~0.96×** the SQLite `real100` db, **not** the
-**0.53×** of the 12-document contract subset. **Phase 19 changes no wire byte,
+**0.53×** of the 12-document contract subset ([SUPERSEDED as a competitor statement by Phase 22.1](../phases/phase-22-results.md): against a *tuned* equal-contract SQLite the subset figure is **~0.76–0.80×**, not 0.53×, which was measured against the historical control's contract-dead trigram index). **Phase 19 changes no wire byte,
 decode path, or `encode` output.**
 
 Phase 20 (branch `phase20`) is a **hardening-and-economics phase** that attacks
@@ -499,6 +499,14 @@ byte, decode path, or `encode` output.**
 | Large-source memory architecture | 20.2 | ADOPTED | the peak was the encode court's decode-before-commit proof holding six source-sized buffers (traced to 6.007 S); Stage B never dominates. Four files drop a redundant copy, no wire change: `Court::offer` discards the candidate descriptor after `serialize()`; `materialize_in_place`/`take_objects` **move** inline object bytes (`std::mem::take`); `ingest_verified` and `ingest_package_direct` use it. RSS/source **5.998× → 3.997×** (−33 %); `nasa-pdf-0001` **2342.2 → 1562.6 MiB**; 1 GiB synthetic **rc 137 @6113 MiB → rc 0 @4099 MiB** (cap boundary ~1.0 → ~1.5 GiB; **no cap raised**). Exactness **16/16** (15/16 before); descriptor SHA-256 identical **15/15**; package path 6.32× → 5.30× at 10 MiB; wall unchanged. Residual floor **4 copies**; reaching 3 needs a lifetime-parameterized `Descriptor` (a wire-type change). Service `doc-baseline` (6 GiB). Campaign `2026-10-08-phase20-memory-7b897ba` |
 | Warm heterogeneous query (profiled; no change shipped) | 20.3 | RECORDED (durable loss) | dominant term is `Descriptor::parse` (~**1.7 ns/B**, ≈590 MB/s) + the full `Field::open` (1.6–2.6 ms; ~45–50 % of a losing session; 58 µs for the 29 KB winner). No safe lever: a lazy/partial open cannot help *this* contract because `probe_eligible` covers only `(Page, Text|Preview|Structure)`/`(Stream, Decoded|Operators)` while the schedule also issues `metadata`/`revision(s)`/docx-epub `block`/`doc-text`/`heading`/`table`/`resource`, forcing the full parse; there is no redundant manifest/descriptor re-read or re-hash; relaxing a validation lives in `src/container/` and would weaken decoder authority (**rejected**). Paired interleaved N=100 before/after: median **1.292 → 1.322** (CI lower 0.989 → 1.008), geomean **1.283 → 1.282**, 2/3/7 both — **NULL** (CI half-width ±0.311; MDE ≈0.44; the parse removal is ≈0.3, below resolution). Only the env-gated `VOLE_PROFILE_OPEN` profiler (off by default) kept. Exactness 12/12; 480 envelopes, 0 mismatches. Campaign `2026-10-08-phase20-warm-5ed5957` |
 | `ExternalContext` — typed external/corpus lineage (C4b) | 20.4 | ADOPTED | ADR-0055; `src/field/external.rs`, stored at `<store>/external/<FieldId>` (`VOLECTX1`), **disjoint** from `descriptor/field/index/cache/seed|fieldpack` and never in the seed DAG, index, manifest, or exactness authority; removal is one `unlink`. `Selector::ExternalLineage` (`external-lineage`) answered for `--kind lineage`; `Basis::ExternalMetadata` (`is_exact() == false`); the answer reports `basis=external-metadata`, `exact=false`, empty `dependency_ids`, `integrity_scope=none`, `bytes_read=0`, `provenance=external-context;origin=…;source=…`; no context is a typed decline (`UnsupportedFeature`, rc 6). Separation: plain `--metadata` byte-identical before-attach/after-attach/after-clear **12/12**; `materialize --exact` matches attached and removed **12/12**; external query declines rc 6 after clear **12/12**. With the SAME external input supplied to BOTH lanes, both answer C4b **12/12** and VOLE's tuple equals SQLite's **12/12** — **C4b closes** under equal input. Cost: sidecar **1001 B**, attach **26 ms**, query **8 ms** vs SQLite's **19 ms**; storage 0.49×, build 7.34×, warm 1.38×. Residual: **C5b batch folding not measured**. Campaign `2026-10-08-phase20-c4b-5ab2e76` |
+
+**Phase 22 is `PLANNED` — not started.** It is the **economic programme**
+([phase-22-plan.md](../phases/phase-22-plan.md)): a better capability/cost
+frontier against the strongest honest competitor, in a commercially relevant
+region, with bounded statistics and no loss of capability. **No Phase-22
+mechanism is implemented or measured**, and its IP/presentation distinction is
+[ADR-0056](../adr/0056-runtime-vs-research-reconstruction-programs.md). The
+immediate queue is [Phase 21](../phases/phase-21-plan.md) (formats).
 
 The PDF **physical authority** (lexer span cover, structural scanner, revision
 map, and object roles) is `ADOPTED` as of Phase 3 (campaign

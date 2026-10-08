@@ -7,7 +7,10 @@
 
 Phase 18.5 recorded two equal-contract headlines as **single-run point estimates
 reduced to a best-of-3 minimum**: the direct packed build at **0.82×** SQLite and
-the warm one-session lane at **1.09×**. Both ratios were computed as a **ratio of
+the warm one-session lane at **1.09×** — both against the Phase-18
+*historical-control* configuration (Phase 22.1 later re-measured against a tuned
+envelope; see [phase-22-results.md](../phases/phase-22-results.md)). Both ratios
+were computed as a **ratio of
 sums** (Σ VOLE / Σ SQLite over the 12-document subset). The build sum is
 dominated by one document (`nist-pdf-0017` is 81% of VOLE's sum), so a ratio of
 sums is a statement about the two lanes' *grand totals*, not about a typical
@@ -60,6 +63,12 @@ effect from parity.
   session. The warm lane is a **modest real loss that is marginal under the median
   estimator and resolved under the geometric mean** — not parity, and not the
   1.09× point estimate.
+- **Competitor qualification (Phase 22.1).** Every "SQLite" figure above is the
+  historical-control configuration. Against the Phase-22.1 tuned equal-contract
+  envelope, VOLE storage is **0.762×** (`full`) / **0.805×** (`adaptive`) — not
+  0.53× — build **0.219×** (`full`) / 0.194× (`hist`), cold **0.812×** (`full`),
+  and warm a resolved **loss** (**1.211×** `full`, 95% CI 1.006–1.483). See
+  [phase-22-results.md](../phases/phase-22-results.md).
 - **Resolution limits are quoted.** At N=100 the median-CI half-width is ±0.332
   and the normal-approx MDE(80%) is ≈0.474; a smaller true median shift is not
   separable from 1.0 at this variance floor. Wide intervals are reported as wide.

@@ -1,0 +1,273 @@
+# Phase 22.1 — SQLite competitive envelope (equal-contract court)
+
+The historical control (`tools/fixtures/phase18-contract-packed.py`, with `journal_mode=WAL`, `synchronous=NORMAL`, and TWO full FTS5 indexes) is retained as a HISTORICAL CONTROL lane (`hist`). The envelope adds six purpose-tuned configurations. Same 12-document subset, same contract depths C0–C5, same answer SQL (the frozen control's `sql_for`), same accounting (persistent bytes = **sum of regular-file sizes**; `du -sb` is never used). Wall times are integer microseconds; `N=10` repetitions, paired and interleaved.
+
+- documents: **nist-docx-0005, nist-docx-0008, nist-docx-0009, nist-docx-0014, nist-epub-0003, nist-epub-0006, nist-epub-0008, nist-epub-0009, nist-pdf-0002, nist-pdf-0004, nist-pdf-0016, nist-pdf-0017**
+- paired-ratio estimator: per (doc, rep) VOLE/lane ratio; median + geometric mean; fixed-seed cluster bootstrap 95% CI over documents (`20000` resamples, seed 220019); ±10% per-document tie band.
+- configurations: `minimal`, `fts`, `structural`, `full`, `adaptive`, `hybrid`; historical control `hist`. Capability ceilings: `minimal`≤C0, `fts`≤C0, `structural`≤C1, `full`≤C5, `adaptive`≤C5, `hybrid`≤C5.
+
+## Build decomposition (extraction vs SQLite write)
+
+Each lane's build is a SINGLE process that extracts and writes (comparable to VOLE's native build and to the historical control). The shared Python+Poppler extraction is additionally measured once per (doc, rep) and shown as the `extract` column; `db` is the lane's process wall minus that shared extraction (it still contains the interpreter start-up and the DB write). VOLE has no separate extract column: its build is native.
+
+| lane | depth | extract med ms | db med ms | total med ms | bytes | files |
+|---|---:|---:|---:|---:|---:|---:|
+| vole | all | 0 | 13 | 13 | - | - |
+| minimal | C0 | 51 | 8 | 59 | 1831153 | 2 |
+| fts | C0 | 51 | 10 | 61 | 1900781 | 2 |
+| structural | C0 | 51 | 8 | 59 | 1831155 | 2 |
+| structural | C1 | 51 | 7 | 58 | 1868019 | 2 |
+| full | C0 | 51 | 7 | 58 | 1847533 | 2 |
+| full | C1 | 51 | 8 | 59 | 1868013 | 2 |
+| full | C2 | 51 | 7 | 59 | 1925357 | 2 |
+| full | C3 | 51 | 8 | 59 | 1925357 | 2 |
+| full | C4 | 51 | 8 | 60 | 1933549 | 2 |
+| full | C5 | 51 | 9 | 60 | 1933549 | 2 |
+| adaptive | C0 | 51 | 6 | 58 | 1831153 | 2 |
+| adaptive | C1 | 51 | 7 | 58 | 1831153 | 2 |
+| adaptive | C2 | 51 | 6 | 57 | 1831153 | 2 |
+| adaptive | C3 | 51 | 7 | 58 | 1831153 | 2 |
+| adaptive | C4 | 51 | 7 | 58 | 1831153 | 2 |
+| adaptive | C5 | 51 | 7 | 58 | 1831153 | 2 |
+| hybrid | C0 | 51 | 8 | 59 | 1847535 | 2 |
+| hybrid | C1 | 51 | 9 | 60 | 1868015 | 2 |
+| hybrid | C2 | 51 | 8 | 59 | 1925359 | 2 |
+| hybrid | C3 | 51 | 9 | 60 | 1925359 | 2 |
+| hybrid | C4 | 51 | 9 | 60 | 1933551 | 2 |
+| hybrid | C5 | 51 | 8 | 59 | 1933551 | 2 |
+| hist | C0 | 51 | 17 | 68 | 2658545 | 2 |
+| hist | C5 | 51 | 17 | 69 | 2744561 | 2 |
+
+`extract med` is the shared, separately-measured extraction; each SQLite lane's build wall in `raw/build_samples.tsv` is a single extract+write process, so `db med` = wall − `extract med` (floor 0). `extract med` also carries one Python interpreter start-up; the SQLite lanes' walls carry another, which an integrated native loader would amortize — an implementation cost of the Python-orchestrated competitor, stated not hidden.
+
+## Capability coverage (the gate: no omitted competitor capability)
+
+| lane | C0 | C1 | C2 | C3 | C4 | C5 |
+|---|---|---|---|---|---|---|
+| vole | yes | yes | yes | yes | yes | yes |
+| minimal | yes | NO | NO | NO | NO | NO |
+| fts | yes | NO | NO | NO | NO | NO |
+| structural | yes | yes | NO | NO | NO | NO |
+| full | yes | yes | yes | yes | yes | yes |
+| adaptive | yes | yes | yes | yes | yes | yes |
+| hybrid | yes | yes | yes | yes | yes | yes |
+| hist | yes | yes | yes | yes | yes | yes |
+
+`minimal`/`fts` cover only C0; `structural` covers C0–C1; `full`/`adaptive`/`hybrid`/`hist`/VOLE cover the full C0–C5 contract. A configuration is only compared at a depth it actually covers.
+
+## Pareto frontier — build / persistent bytes / cold / warm
+
+Each cell is the pooled median over documents×reps (cold = sum of the per-observation process walls per rep; warm = the one-session batch). `*` marks Pareto-optimal points within a depth across (build, bytes, cold, warm); a point is dominated if another is ≤ in every axis and < in one.
+
+### C0
+
+| lane | build ms | bytes | cold ms | warm ms | pareto |
+|---|---:|---:|---:|---:|:--:|
+| vole | 13.2 | 1259371 | 8.68 | 2.40 | * |
+| adaptive | 57.5 | 1831153 | 35.23 | 1.75 | * |
+| full | 58.5 | 1847533 | 10.59 | 1.78 | * |
+| structural | 58.8 | 1831155 | 10.54 | 1.72 | * |
+| minimal | 59.2 | 1831153 | 10.78 | 1.74 | * |
+| hybrid | 59.2 | 1847535 | 10.64 | 1.80 |  |
+| fts | 60.8 | 1900781 | 10.64 | 1.77 |  |
+| hist | 68.5 | 2658545 | 10.79 | 1.78 |  |
+
+- VOLE vs `adaptive`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `full`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `structural`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `minimal`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `hybrid`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `fts`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `hist`: build_ms, bytes, cold_ms, -warm_ms
+
+### C1
+
+| lane | build ms | bytes | cold ms | warm ms | pareto |
+|---|---:|---:|---:|---:|:--:|
+| vole | 13.2 | 1259371 | 8.56 | 2.40 | * |
+| structural | 58.1 | 1868019 | 10.64 | 1.81 | * |
+| adaptive | 58.2 | 1831153 | 69.02 | 1.87 | * |
+| full | 59.0 | 1868013 | 10.64 | 1.83 | * |
+| hybrid | 60.3 | 1868015 | 10.67 | 1.82 | * |
+
+- VOLE vs `structural`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `adaptive`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `full`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `hybrid`: build_ms, bytes, cold_ms, -warm_ms
+
+### C2
+
+| lane | build ms | bytes | cold ms | warm ms | pareto |
+|---|---:|---:|---:|---:|:--:|
+| vole | 13.2 | 1259371 | 8.39 | 2.41 | * |
+| adaptive | 57.5 | 1831153 | 68.23 | 1.97 | * |
+| full | 58.5 | 1925357 | 10.81 | 1.95 | * |
+| hybrid | 59.2 | 1925359 | 10.81 | 1.95 |  |
+
+- VOLE vs `adaptive`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `full`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `hybrid`: build_ms, bytes, cold_ms, -warm_ms
+
+### C3
+
+| lane | build ms | bytes | cold ms | warm ms | pareto |
+|---|---:|---:|---:|---:|:--:|
+| vole | 13.2 | 1259371 | 8.43 | 2.39 | * |
+| adaptive | 58.0 | 1831153 | 68.43 | 1.95 | * |
+| full | 58.8 | 1925357 | 10.80 | 1.95 | * |
+| hybrid | 60.4 | 1925359 | 10.80 | 1.93 | * |
+
+- VOLE vs `adaptive`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `full`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `hybrid`: build_ms, bytes, cold_ms, -warm_ms
+
+### C4
+
+| lane | build ms | bytes | cold ms | warm ms | pareto |
+|---|---:|---:|---:|---:|:--:|
+| vole | 13.2 | 1259371 | 8.44 | 2.37 | * |
+| adaptive | 58.1 | 1831153 | 67.66 | 2.03 | * |
+| full | 59.5 | 1933549 | 10.88 | 2.02 | * |
+| hybrid | 60.0 | 1933551 | 10.94 | 2.01 | * |
+
+- VOLE vs `adaptive`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `full`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `hybrid`: build_ms, bytes, cold_ms, -warm_ms
+
+### C5
+
+| lane | build ms | bytes | cold ms | warm ms | pareto |
+|---|---:|---:|---:|---:|:--:|
+| vole | 13.2 | 1259371 | 8.44 | 2.49 | * |
+| adaptive | 58.2 | 1831153 | 68.63 | 2.01 | * |
+| hybrid | 59.4 | 1933551 | 10.92 | 2.03 | * |
+| full | 59.8 | 1933549 | 10.92 | 2.00 | * |
+| hist | 68.5 | 2744561 | 11.10 | 1.94 | * |
+
+- VOLE vs `adaptive`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `hybrid`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `full`: build_ms, bytes, cold_ms, -warm_ms
+- VOLE vs `hist`: build_ms, bytes, cold_ms, -warm_ms
+
+## Paired VOLE/lane ratios (metric < 1 favours VOLE)
+
+| depth | lane | n docs | build med (CI) | warm med (CI) | bytes ratio |
+|---|---|---:|---|---|---:|
+| C0 | minimal | 12 | 0.210 (0.107..0.254) | 1.327 (1.084..1.686) | 0.688 |
+| C0 | fts | 12 | 0.216 (0.106..0.251) | 1.354 (1.094..1.712) | 0.663 |
+| C0 | structural | 12 | 0.221 (0.107..0.247) | 1.382 (1.095..1.710) | 0.688 |
+| C0 | full | 12 | 0.222 (0.107..0.255) | 1.372 (1.068..1.675) | 0.682 |
+| C0 | adaptive | 12 | 0.221 (0.106..0.252) | 1.345 (1.056..1.663) | 0.688 |
+| C0 | hybrid | 12 | 0.220 (0.107..0.251) | 1.294 (1.082..1.659) | 0.682 |
+| C0 | hist | 12 | 0.200 (0.101..0.239) | 1.341 (1.061..1.690) | 0.474 |
+| C1 | structural | 12 | 0.222 (0.107..0.251) | 1.301 (1.064..1.615) | 0.674 |
+| C1 | full | 12 | 0.221 (0.106..0.257) | 1.296 (1.051..1.620) | 0.674 |
+| C1 | adaptive | 12 | 0.216 (0.105..0.256) | 1.289 (1.054..1.608) | 0.688 |
+| C1 | hybrid | 12 | 0.221 (0.099..0.255) | 1.307 (1.076..1.617) | 0.674 |
+| C2 | full | 12 | 0.219 (0.106..0.253) | 1.256 (1.035..1.556) | 0.654 |
+| C2 | adaptive | 12 | 0.208 (0.107..0.259) | 1.184 (1.027..1.548) | 0.688 |
+| C2 | hybrid | 12 | 0.220 (0.106..0.252) | 1.209 (1.022..1.522) | 0.654 |
+| C3 | full | 12 | 0.216 (0.107..0.252) | 1.207 (1.025..1.525) | 0.654 |
+| C3 | adaptive | 12 | 0.214 (0.108..0.254) | 1.215 (1.034..1.541) | 0.688 |
+| C3 | hybrid | 12 | 0.220 (0.107..0.257) | 1.196 (1.028..1.529) | 0.654 |
+| C4 | full | 12 | 0.216 (0.106..0.253) | 1.168 (0.987..1.502) | 0.651 |
+| C4 | adaptive | 12 | 0.219 (0.107..0.256) | 1.160 (0.999..1.496) | 0.688 |
+| C4 | hybrid | 12 | 0.219 (0.107..0.254) | 1.210 (0.988..1.509) | 0.651 |
+| C5 | full | 12 | 0.219 (0.106..0.255) | 1.211 (1.006..1.483) | 0.651 |
+| C5 | adaptive | 12 | 0.210 (0.108..0.254) | 1.238 (0.990..1.481) | 0.688 |
+| C5 | hybrid | 12 | 0.215 (0.107..0.252) | 1.154 (0.994..1.474) | 0.651 |
+| C5 | hist | 12 | 0.194 (0.101..0.238) | 1.253 (0.991..1.528) | 0.459 |
+
+## `synchronous=FULL` cost (measured, reported separately)
+
+Matched-setup builds are `synchronous=NORMAL`. This is the SAME build at `synchronous=FULL` (per-commit WAL `fsync`), for the `full` C5 configuration.
+
+| id | NORMAL db ms | FULL db ms | ratio | bytes NORMAL | bytes FULL |
+|---|---:|---:|---:|---:|---:|
+| nist-docx-0005 | 6.4 | 24.3 | 3.82 | 262376 | 262375 |
+| nist-docx-0008 | 5.4 | 21.8 | 4.01 | 127206 | 127205 |
+| nist-docx-0009 | 8.3 | 27.7 | 3.33 | 483562 | 483561 |
+| nist-docx-0014 | 10.2 | 26.7 | 2.62 | 1564912 | 1564910 |
+| nist-epub-0003 | 7.5 | 23.2 | 3.11 | 594153 | 594152 |
+| nist-epub-0006 | 6.0 | 22.4 | 3.76 | 327914 | 327913 |
+| nist-epub-0008 | 6.9 | 21.1 | 3.07 | 139493 | 139492 |
+| nist-epub-0009 | 9.1 | 28.7 | 3.14 | 1933549 | 1933548 |
+| nist-pdf-0002 | 6.0 | 22.2 | 3.68 | 671975 | 671974 |
+| nist-pdf-0004 | 7.1 | 25.2 | 3.56 | 1712360 | 1712359 |
+| nist-pdf-0016 | 5.6 | 21.3 | 3.79 | 418022 | 418021 |
+| nist-pdf-0017 | 7.2 | 26.0 | 3.61 | 1966312 | 1966311 |
+
+## Exact original closure (length + SHA-256 + byte compare)
+
+| id | fmt | VOLE ok | control ok | competitors ok |
+|---|---|:--:|:--:|:--:|
+| nist-docx-0005 |  | 1 | 1 | 6/6 |
+| nist-docx-0008 |  | 1 | 1 | 6/6 |
+| nist-docx-0009 |  | 1 | 1 | 6/6 |
+| nist-docx-0014 |  | 1 | 1 | 6/6 |
+| nist-epub-0003 |  | 1 | 1 | 6/6 |
+| nist-epub-0006 |  | 1 | 1 | 6/6 |
+| nist-epub-0008 |  | 1 | 1 | 6/6 |
+| nist-epub-0009 |  | 1 | 1 | 6/6 |
+| nist-pdf-0002 |  | 1 | 1 | 6/6 |
+| nist-pdf-0004 |  | 1 | 1 | 6/6 |
+| nist-pdf-0016 |  | 1 | 1 | 6/6 |
+| nist-pdf-0017 |  | 1 | 1 | 6/6 |
+
+## Answer equivalence (frozen control + VOLE vs every configuration)
+
+On the final repetition every lane's envelope for each (depth, fmt, observation) is retained under `raw/env/`. Because every SQLite lane is served by the SAME frozen `sql_for`, a configuration that carries the same capability must emit a **byte-identical** envelope to the `full` reference at the same depth (the historical `hist` control is compared where it was run, C0/C5). VOLE is compared field-by-field with the reference's `_equiv` (raw / projected / shape / divergent / mismatch).
+
+| lane | depth | envelopes | identical to `full` | VOLE-equiv raw/shape | mismatches |
+|---|---:|---:|---:|---|---:|
+| minimal | C0 | 80 | 80/80 | 41/21 | 18 |
+| fts | C0 | 80 | 80/80 | 41/21 | 18 |
+| structural | C0 | 80 | 80/80 | 41/21 | 18 |
+| structural | C1 | 80 | 80/80 | 41/21 | 18 |
+| full | C0 | 80 | 80/80 | 41/21 | 18 |
+| full | C1 | 80 | 80/80 | 41/21 | 18 |
+| full | C2 | 80 | 80/80 | 41/21 | 18 |
+| full | C3 | 80 | 80/80 | 41/21 | 18 |
+| full | C4 | 80 | 80/80 | 41/21 | 18 |
+| full | C5 | 80 | 80/80 | 41/21 | 18 |
+| adaptive | C0 | 80 | 80/80 | 41/21 | 18 |
+| adaptive | C1 | 80 | 80/80 | 41/21 | 18 |
+| adaptive | C2 | 80 | 80/80 | 41/21 | 18 |
+| adaptive | C3 | 80 | 80/80 | 41/21 | 18 |
+| adaptive | C4 | 80 | 80/80 | 41/21 | 18 |
+| adaptive | C5 | 80 | 80/80 | 41/21 | 18 |
+| hybrid | C0 | 80 | 80/80 | 41/21 | 18 |
+| hybrid | C1 | 80 | 80/80 | 41/21 | 18 |
+| hybrid | C2 | 80 | 80/80 | 41/21 | 18 |
+| hybrid | C3 | 80 | 80/80 | 41/21 | 18 |
+| hybrid | C4 | 80 | 80/80 | 41/21 | 18 |
+| hybrid | C5 | 80 | 80/80 | 41/21 | 18 |
+| hist | C0 | 80 | 80/80 | 41/21 | 18 |
+| hist | C5 | 80 | 80/80 | 41/21 | 18 |
+
+Across all compared cells: **1920/1920** configuration envelopes are byte-identical to the `full` reference; **432** VOLE/comparison mismatches (PDF heuristic text projections are reported as the control's `divergent` handling, not counted as contract failures).
+
+## Durability contracts (compared explicitly, not assumed equal)
+
+**SQLite `journal_mode=WAL`, `synchronous=NORMAL`** (the matched setting for the headline, matching VOLE's unproven power-loss boundary): the WAL keeps the database *internally consistent* after a crash, but SQLite documents that under certain power failures the **latest committed transactions may be lost**. There is no torn page and no corruption; the committed prefix is recoverable. `synchronous=FULL` would `fsync` the WAL on every commit (removing that exposure) at a per-commit latency cost; the `--durability full` variant of this fixture measures that cost and is reported separately in `raw/durability_full.*`.
+
+**VOLE packed store (ADR-0053; Phase 20.1)** with `SyncPolicy::Batch` (the default): records are forced to stable storage once per segment (seal/flush), the field manifest is **flushed before it is published**, and recovery is a strict **prefix** — no partial node is ever fetchable and every node is re-hashed against its id. A crash can therefore lose records appended since the last flush, but a published manifest is always consistent. Phase 20.1's 1,300-case fault-injection court passed under both policies with **zero** bad-hash and **zero** prefix violations, but it injects process death (`SIGKILL`/`abort`), which leaves the OS page cache intact: **no `fsync` boundary is actually exercised**, so true power loss and torn/lost rename remain **argued, not measured**.
+
+**Net.** Both sides at the matched setting can lose the tail of the most recent writes after a power failure; both preserve consistency and never expose a partial record. Neither side has a measured true-power-loss receipt. SQLite `synchronous=FULL` is the stronger, slower option; VOLE's `--sync=each` (per-record `fdatasync`) is its analogue and was also not measured under true power loss.
+
+## Answers
+
+- **C0**: configurations at least matching VOLE — `minimal`≤VOLE on warm; `fts`≤VOLE on warm; `structural`≤VOLE on warm; `full`≤VOLE on warm; `adaptive`≤VOLE on warm; `hybrid`≤VOLE on warm; `hist`≤VOLE on warm.
+- **C1**: configurations at least matching VOLE — `structural`≤VOLE on warm; `full`≤VOLE on warm; `adaptive`≤VOLE on warm; `hybrid`≤VOLE on warm.
+- **C2**: configurations at least matching VOLE — `full`≤VOLE on warm; `adaptive`≤VOLE on warm; `hybrid`≤VOLE on warm.
+- **C3**: configurations at least matching VOLE — `full`≤VOLE on warm; `adaptive`≤VOLE on warm; `hybrid`≤VOLE on warm.
+- **C4**: configurations at least matching VOLE — `full`≤VOLE on warm; `adaptive`≤VOLE on warm; `hybrid`≤VOLE on warm.
+- **C5**: configurations at least matching VOLE — `full`≤VOLE on warm; `adaptive`≤VOLE on warm; `hybrid`≤VOLE on warm; `hist`≤VOLE on warm.
+
+## Caveats and honesty
+
+- The store is the bind-mounted `/work`; per-cell CV is in `raw/per_doc_lane_depth.csv`. Wide intervals are reported wide.
+- `full`/`hybrid` exclude FTS because the contract has **no search observation**; `hist` carries the control's two FTS indexes and `fts` carries one tuned index, so the FTS overhead is quantified, not hidden.
+- `hybrid`'s 'native parser/cache' is Poppler (PDF) + Python stdlib (OOXML/EPUB) — the strongest native extraction available in the pinned image without modifying `src/`; it is NOT a rewrite of VOLE's adapters.
+- Cells are pooled medians; the paired per-rep CI is the estimator for ratio claims (ADR-0054). `hist` is measured only at C0 and C5 as a control point, not at every depth.
+

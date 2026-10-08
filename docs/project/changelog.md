@@ -2,6 +2,78 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.26] — Phase 22.1: the competitor envelope (strengthen the competitor first)
+
+Phase 22.1 is the **P0 competitor gate** for the Phase-22 economic programme:
+before any frontier claim is made, the competitor is **maximized first**. Six
+purpose-tuned SQLite configurations are added (
+`tools/fixtures/phase22-competitors.py`), and the Phase-18 baseline is kept
+**unmodified** as the historical-control lane `hist`. The strengthened competitor
+**shrinks** the previously reported VOLE edges: the earlier storage headline was
+measured against a baseline carrying a **contract-dead** trigram/FTS index (the
+contract has **no search observation**), so the honest storage advantage against
+a Pareto-tuned equal-contract SQLite is **~0.76×, not 0.53×**; the build advantage
+survives but is smaller; cold survives; and the warm advantage **does not exist**.
+**No capability gap remains.** Results:
+[phase-22-results.md](../phases/phase-22-results.md).
+
+### Added
+
+- **Six-configuration SQLite competitive envelope + equal-contract court**
+  (`tools/fixtures/phase22-competitors.py`, `tools/phase22-competitors-court.sh`):
+  `minimal` (source + value/metadata, no secondary indexes, no FTS), `fts`
+  (minimal + **one** FTS5, external-content, `detail=none`, `columnsize=0`,
+  unicode61 — no trigram), `structural` (+ `native_coord` column/index), `full`
+  (all contract projections; **no FTS** because the contract has no search
+  observation), `adaptive` (builds minimal, lazily materializes on first demand,
+  all cost charged), `hybrid` (`full` + 128 MB cache, `journal_size_limit`,
+  Poppler native PDF extraction). The Phase-18 Python/Poppler baseline is kept
+  **unmodified** as the historical-control lane `hist`. All lanes use one
+  transaction + `executemany` per build and explicit PRAGMAs.
+
+### Measured
+
+- **22.1 competitor frontier.** Receipt
+  `2026-10-08-phase22-competitors-86d9312` (12 documents, C0–C5, N=10, paired and
+  interleaved, bootstrap 20,000 seed 220019). Frontier (pooled medians): VOLE
+  build **13.2 ms**, **7,778,087 B**, cold **8.44 ms**, warm **2.49 ms**; at C5,
+  `full` **59.8 ms / 10,201,834 B / 10.92 ms / 2.00 ms**, `adaptive`
+  **58.2 / 9,661,209 / 68.63 / 2.01**, `hybrid` ≈ `full`, `hist`
+  **68.5 / 14,723,834 / 11.10 / 1.94**. Paired VOLE ratios at C5 — build
+  **0.219** vs `full` (0.194 vs `hist`), bytes **0.762** vs `full` (0.805 vs
+  `adaptive`, 0.528 vs `hist`), cold **0.812** vs `full`, warm **1.211** vs
+  `full` (95% CI **1.006–1.483**) and 1.253 vs `hist`. Equivalence **1920/1920**
+  byte-identical, **0** mismatches; exactness **12/12** VOLE and **6/6** per
+  document per configuration.
+- **Durability compared explicitly.** Matched setting is SQLite
+  `journal_mode=WAL` + `synchronous=NORMAL`; a separate `synchronous=FULL` probe
+  measures build **6.4 → 24.3 ms** (**~3.6×**), bytes unchanged. `NORMAL` and
+  `FULL` are reported separately, never conflated. **Neither side has a true
+  power-loss receipt** (Phase 20.1 injects process death only).
+
+### Recorded
+
+- **The earlier storage headline was measured against a contract-dead index.**
+  The `hist` control carries the Phase-18 baseline's **two** FTS5 indexes though
+  the contract has no search observation; removing that dead index accounts for
+  **≈+44% bytes / 4.5 MB over 12 docs**. **What survives, shrinks, or vanishes:**
+  build advantage **survives, shrinks slightly** (≈5.2× vs control → ≈4.6–4.8×
+  vs optimized); storage **survives but shrinks** from the previously reported
+  **0.53×** to **0.76–0.80×**; cold **survives** (~0.81×); the **warm advantage
+  does not exist** — VOLE is **1.15–1.25× slower** and `full`/`hybrid`/`hist` win
+  warm (consistent with ADR-0054); **no capability gap remains**. Strengthening
+  the competitor is the point; the shrinkage is the finding.
+- **Not measured:** true power loss (both sides); `FULL` on a multi-commit
+  workload; a genuinely native DOCX/EPUB hybrid extractor; cross-host results.
+- **Corrections propagated** (old numbers kept, marked superseded, forward-pointed)
+  in `README.md`, `docs/project/{findings,status,roadmap}.md`,
+  `docs/phases/phase-18-results.md`, `docs/phases/phase-19-results.md`,
+  [ADR-0053](../adr/0053-batched-packed-sync.md), and
+  [ADR-0054](../adr/0054-repeatability-and-paired-measurement.md): the `0.53×`
+  storage, `0.82×`/`1.09×` Phase-18, and `1.29×` Phase-19 figures were all
+  measured against the **historical control** configuration, not the tuned
+  competitor.
+
 ## [0.1.0-alpha.25] — Phase 20: hardening and economics
 
 Phase 20 is a **hardening-and-economics phase**. It **adversarially attacks** the

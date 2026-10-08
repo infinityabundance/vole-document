@@ -12,9 +12,23 @@ and finally the **per-node durability sync** (18.4 falsifies the file-count
 hypothesis; 18.5 adopts batched syncs). It closes with the equal-contract build
 position at **0.82× SQLite** — VOLE now builds the subset *faster* than SQLite —
 while VOLE stays at ~0.5× SQLite's storage and the cold queries remain a tie.
+[SUPERSEDED as competitor statements by [Phase 22.1](phase-22-results.md):
+against the *tuned* equal-contract envelope the storage advantage is
+**~0.76–0.80×** (not ~0.5×, which was vs the historical control's contract-dead
+trigram index), build **0.219× `full`**, cold **0.812× `full`**, and warm a
+**loss** (**1.211× `full`**).]
 Every number links to a sealed receipt under
 [`evidence/campaigns/`](../../evidence/campaigns/); negatives are recorded, not
 buried. No claim here is a population claim: every corpus is frozen.
+
+> **Competitor note (Phase 22.1).** Every "SQLite" figure in Phase 18 (and 19) is
+> measured against the Phase-18 **historical-control** configuration, which
+> carried the baseline's **contract-dead** FTS/trigram indexes (the contract has
+> no search observation). Phase 22.1 strengthened the competitor **first** (a
+> six-configuration SQLite envelope) and re-measured: the storage advantage is
+> **0.762× `full` / 0.805× `adaptive`** (not 0.53×), build **0.219× `full`**,
+> cold **0.812× `full`**, and warm is a **loss** (**1.211× `full`**). See
+> [phase-22-results.md](phase-22-results.md).
 
 ## What Phase 18 established
 
@@ -41,7 +55,11 @@ buried. No claim here is a population claim: every corpus is frozen.
 - **Storage ~0.5×, cold a tie, warm ~1.1×** (18.1, 18.5). VOLE's regular-file
   storage is **0.49–0.53×** SQLite's; its cold observation sums tie the baseline
   (779 vs 772 ms in 18.1); its warm one-session lane is **1.09×** (packed, 18.5)
-  to **1.33×** (fs, 18.1) SQLite.
+  to **1.33×** (fs, 18.1) SQLite. **[SUPERSEDED as competitor statements by
+  [Phase 22.1](phase-22-results.md): against the tuned equal-contract envelope
+  storage is **~0.76–0.80×** (not ~0.5×), cold **0.812× `full`**, and warm a
+  **loss** (**1.211× `full`**); the ~0.5× was inflated by the historical
+  control's contract-dead trigram index.]**
 - **Exactness is untouched throughout:** every build still leaves
   `materialize(descriptor) == original_bytes` (length + SHA-256 + `cmp`) — 12/12 on
   the contract subset for the packed store (18.5), and 9/9 for each of three
@@ -234,7 +252,9 @@ so the packed store could not serve the warm session.
 
 Storage stays VOLE's edge (packed = **0.53×** SQLite), but packed regular-file
 bytes are **1.09×** the fs store (block alignment + index), so the packed win is a
-*shape* win (inode/directory pressure), not a byte win.
+*shape* win (inode/directory pressure), not a byte win. [SUPERSEDED as a
+competitor statement by [Phase 22.1](phase-22-results.md): against a tuned
+equal-contract SQLite the storage advantage is **~0.76–0.80×**, not 0.53×.]
 
 **Interpretation.** A file-count collapse is **not** an ingest-write win when the
 durability barrier is still per node. The named hypothesis — the packed store
@@ -289,7 +309,11 @@ Policy probe (best-of-3 min) on the same document: `Batch` **2644 ms** vs `Each`
 warm one-session lane with `--packed` now exists: VOLE **226 ms** vs SQLite
 **208 ms** over C0–C5 (**1.09×**; **1.11×** at steady state C1–C5), versus the
 fs-direct warm reference — the substrate does not change the query path. Cold ties
-sum 895 vs 933 ms. Exactness `materialize --exact --packed` is **12/12** (length +
+sum 895 vs 933 ms. [SUPERSEDED as competitor statements by
+[Phase 22.1](phase-22-results.md): the **0.53×** and **1.09×** figures are against
+the historical control; against a tuned equal-contract SQLite storage is
+**0.762× `full`**, cold **0.812× `full`**, and warm is a **loss** (**1.211×
+`full`**).] Exactness `materialize --exact --packed` is **12/12** (length +
 SHA-256; worst doc len 1,466,246 = 1,466,246, `byte_compare = equal`).
 
 **Crash-consistency semantics (precise).** The packed store is append-only and
