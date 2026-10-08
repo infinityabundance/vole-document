@@ -1,0 +1,20 @@
+# Phase 23 durability court — exact commands (all inside the pinned `dev` service)
+docker compose run --rm --no-TTY dev sh tools/phase23-powerloss-court.sh
+
+# gates
+cargo fmt --all --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --locked --all-features
+cargo test --locked --no-default-features
+sh tools/phase1-court.sh
+
+# GAP 1 measurement (default-feature binary; per (backend, dir_sync, filesystem)):
+cargo build --locked
+./target/debug/vole-document field-build $DOC --store $STORE --profile runtime [--packed] --sync=batch --dir-sync=safe|off
+
+# GAP 2 proxy (env: PHASE23_PROXY_RAW, PHASE23_DOCS, PHASE23_PROXY_SCRATCH;
+#   the child runs also set VOLE_POWER_LOG / VOLE_POWER_ROOT / VOLE_FAULT_POINT)
+cargo test --locked --features "power-log,fault-inject" --test power_loss_proxy -- --ignored --nocapture --test-threads=1
+
+# aggregate
+sh tools/fixtures/phase23-powerloss-aggregate.sh evidence/campaigns/2026-10-08-phase23-durability-8816507/raw/proxy.tsv evidence/campaigns/2026-10-08-phase23-durability-8816507/raw/dirsync-timing.tsv evidence/campaigns/2026-10-08-phase23-durability-8816507

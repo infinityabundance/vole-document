@@ -1,0 +1,12 @@
+{
+  "total": 32,
+  "pass": 20,
+  "fail": 0,
+  "critical": 12,
+  "shipped_critical": 0,
+  "modeldrop_critical": 12,
+  "wrong_byte_nodes": 0,
+  "complete_safe_with_manifest": {"with": 4, "total": 4},
+  "complete_off_manifest_lost": {"lost": 4, "total": 4},
+  "verdict": "PASS"
+}
