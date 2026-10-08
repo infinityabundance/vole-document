@@ -477,14 +477,17 @@ impl PackWriter {
     fn ensure_open(&mut self) -> Result<()> {
         if self.current.is_none() {
             let path = pack_path(&self.dir, self.next_seg_id);
-            // A brand-new segment: create it, write its header, then (Phase 23,
-            // GAP 1) `fsync` the containing directory so the new entry survives a
-            // power cut. The file is opened read+write because `read_at` `pread`s
-            // the writer's own open segment.
+            // A brand-new segment: create it, write its header, sync the header
+            // **before** (Phase 25) the containing directory, then (Phase 23,
+            // GAP 1) `fsync` the directory so the new entry survives a power cut.
+            // Syncing the header first means a durable directory entry never
+            // points at a segment whose header was lost. The file is opened
+            // read+write because `read_at` `pread`s the writer's own open segment.
             let mut f = durable::create_file(&path).map_err(|e| {
                 Error::io(format!("creating packed segment {}: {e}", path.display()))
             })?;
             durable::write_all(&mut f, &path, &encode_pack_header(self.next_seg_id))?;
+            durable::sync_all(&f, &path)?;
             durable::sync_dir(&self.dir)?;
             self.current = Some(f);
             self.current_len = PACK_HEADER_LEN;
@@ -585,19 +588,19 @@ fn scan_open_segment(path: &Path, expected: u32) -> Result<ScannedOpenSegment> {
     let f = fs::File::open(path)
         .map_err(|e| Error::io(format!("opening packed segment {}: {e}", path.display())))?;
     let file_len = f.metadata()?.len();
+    // An unsealed segment is always UNPUBLISHED (a manifest is only published
+    // after a flush + seal), so an incomplete or unparseable header — a power
+    // interruption between create and sync — is treated as an ABSENT segment:
+    // the store reopens and recovers the valid prefix instead of failing closed.
+    // No wrong bytes are ever served, because there are no records.
     if file_len < PACK_HEADER_LEN {
-        return Err(Error::integrity_mismatch(format!(
-            "packed segment {} has a truncated header",
-            path.display()
-        )));
+        return Ok((Vec::new(), 0));
     }
     let mut head = [0u8; PACK_HEADER_LEN as usize];
     pread_exact(&f, &mut head, 0)?;
-    if parse_pack_header(&head, path)? != expected {
-        return Err(Error::integrity_mismatch(format!(
-            "packed segment {} names a different segment id",
-            path.display()
-        )));
+    match parse_pack_header(&head, path) {
+        Ok(id) if id == expected => {}
+        _ => return Ok((Vec::new(), 0)),
     }
     let mut entries = Vec::new();
     let mut p = PACK_HEADER_LEN;
@@ -713,29 +716,45 @@ impl PackedSeedStore {
             Some(seg_id) => {
                 let path = pack_path(&dir, seg_id);
                 let (entries, valid_len) = scan_open_segment(&path, seg_id)?;
-                if valid_len < fs::metadata(&path)?.len() {
-                    let f = fs::OpenOptions::new().read(true).write(true).open(&path)?;
-                    durable::set_len(&f, &path, valid_len)?;
-                }
-                let f = fs::OpenOptions::new()
-                    .read(true)
-                    .append(true)
-                    .open(&path)
-                    .map_err(|e| {
-                        Error::io(format!("opening packed segment {}: {e}", path.display()))
-                    })?;
-                let mut pending = HashMap::with_capacity(entries.len());
-                for (id, off, len) in entries {
-                    pending.insert(id, (off, len));
-                }
-                PackWriter {
-                    dir: dir.clone(),
-                    current: Some(f),
-                    current_len: valid_len,
-                    next_seg_id: seg_id,
-                    max_segment_bytes,
-                    sync_policy: policy,
-                    pending,
+                if valid_len < PACK_HEADER_LEN {
+                    // The open segment's header was never made durable (a power
+                    // cut between create and sync): re-create the segment from
+                    // scratch at the same id. Its bytes are unpublished; the
+                    // first `insert` truncates and writes a fresh header.
+                    PackWriter {
+                        dir: dir.clone(),
+                        current: None,
+                        current_len: 0,
+                        next_seg_id: seg_id,
+                        max_segment_bytes,
+                        sync_policy: policy,
+                        pending: HashMap::new(),
+                    }
+                } else {
+                    if valid_len < fs::metadata(&path)?.len() {
+                        let f = fs::OpenOptions::new().read(true).write(true).open(&path)?;
+                        durable::set_len(&f, &path, valid_len)?;
+                    }
+                    let f = fs::OpenOptions::new()
+                        .read(true)
+                        .append(true)
+                        .open(&path)
+                        .map_err(|e| {
+                            Error::io(format!("opening packed segment {}: {e}", path.display()))
+                        })?;
+                    let mut pending = HashMap::with_capacity(entries.len());
+                    for (id, off, len) in entries {
+                        pending.insert(id, (off, len));
+                    }
+                    PackWriter {
+                        dir: dir.clone(),
+                        current: Some(f),
+                        current_len: valid_len,
+                        next_seg_id: seg_id,
+                        max_segment_bytes,
+                        sync_policy: policy,
+                        pending,
+                    }
                 }
             }
             None => PackWriter {

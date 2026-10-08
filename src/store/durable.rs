@@ -9,6 +9,9 @@
 //!   directory after a rename (Unix), and the callers `fsync` a directory when a
 //!   new segment or index file is created. On by default; [`set_dir_sync_policy`]
 //!   exposes the explicit [`DirSyncPolicy::Off`] escape hatch for measurement.
+//!   [`create_dir_all`] additionally makes each newly created directory entry
+//!   durable in its parent, so an *ancestor* directory (e.g. `index/aa/`) can
+//!   never be lost while its child (`index/aa/bb/`) was synced.
 //! * **GAP 2 — a barrier log.** Under the non-default `power-log` feature every
 //!   durability barrier (`fsync`/`fdatasync`, and what byte range it covered) and
 //!   every file creation / rename / directory sync is appended, in program order,
@@ -23,7 +26,7 @@
 
 use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, Ordering};
 
 /// Whether an atomic publish `fsync`s the containing directory after the rename.
@@ -114,16 +117,50 @@ mod journal {
 // instrumented, pass-through filesystem operations
 // ---------------------------------------------------------------------------
 
-/// `create_dir_all`, logged as `mkdir <path>`.
+/// `create_dir_all`, making **every newly created directory entry durable**.
+///
+/// After each `mkdir`, the containing directory is `fsync`ed (when
+/// [`DirSyncPolicy::Safe`], the default) so the new entry survives a power cut.
+/// This matters because syncing a store's *leaf* directory does **not** make its
+/// **ancestors** durable: a power cut could otherwise lose `index/aa/` even though
+/// `index/aa/bb/` was synced, orphaning every node written under it. Components
+/// that already exist are left untouched (their parent entries are someone
+/// else's responsibility).
+///
+/// Logged as `mkdir <path>` per created directory and `dirsync <parent>` (via
+/// [`sync_dir`]) when the parent sync runs.
 pub fn create_dir_all(path: &Path) -> io::Result<()> {
-    let r = fs::create_dir_all(path);
-    #[cfg(feature = "power-log")]
-    if r.is_ok() {
-        journal::event(&format!("mkdir\t{}", journal::rel(path)));
+    // Collect the components that do not yet exist, deepest first.
+    let mut missing: Vec<PathBuf> = Vec::new();
+    let mut cur = path.to_path_buf();
+    loop {
+        if cur.is_dir() {
+            break;
+        }
+        missing.push(cur.clone());
+        match cur.parent() {
+            Some(p) if !p.as_os_str().is_empty() => cur = p.to_path_buf(),
+            _ => break,
+        }
     }
-    #[cfg(not(feature = "power-log"))]
-    let _ = path;
-    r
+    // Create shallowest first, syncing each new entry's parent.
+    for dir in missing.iter().rev() {
+        match fs::create_dir(dir) {
+            Ok(()) => {
+                #[cfg(feature = "power-log")]
+                journal::event(&format!("mkdir\t{}", journal::rel(dir)));
+                if let Some(parent) = dir.parent()
+                    && !parent.as_os_str().is_empty()
+                {
+                    sync_dir(parent)?;
+                }
+            }
+            // Raced (or a component already existed): the creator owns its sync.
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(())
 }
 
 /// Truncating create (read + write), logged as `create <path>` (length 0). Opens
