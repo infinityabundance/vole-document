@@ -306,11 +306,28 @@ pub struct WorkbookSheet {
     pub state: SheetState,
 }
 
+/// One `<definedName>` (a named/defined range) declared in `xl/workbook.xml`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DefinedName {
+    /// The defined name (`name`), e.g. `TaxRate`.
+    pub name: String,
+    /// `localSheetId` (the 0-based workbook sheet scope), when present.
+    pub local_sheet_id: Option<u32>,
+    /// `hidden="1"`.
+    pub hidden: bool,
+    /// `function="1"`.
+    pub function: bool,
+    /// The `refersTo` formula text (never evaluated).
+    pub refers_to: String,
+}
+
 /// The parsed workbook sheet inventory, in document order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkbookModel {
     /// The declared sheets, in document order.
     pub sheets: Vec<WorkbookSheet>,
+    /// The declared defined/named ranges, in document order.
+    pub defined_names: Vec<DefinedName>,
 }
 
 impl WorkbookModel {
@@ -318,13 +335,21 @@ impl WorkbookModel {
     pub fn encode(&self) -> Vec<u8> {
         let mut out = Vec::new();
         out.extend_from_slice(b"XLWB");
-        out.push(1);
+        out.push(2);
         put_u32(&mut out, self.sheets.len() as u32);
         for s in &self.sheets {
             put_str(&mut out, &s.name);
             put_opt_u32(&mut out, s.sheet_id);
             put_opt_str(&mut out, s.rel_id.as_deref());
             out.push(s.state.tag());
+        }
+        put_u32(&mut out, self.defined_names.len() as u32);
+        for d in &self.defined_names {
+            put_str(&mut out, &d.name);
+            put_opt_u32(&mut out, d.local_sheet_id);
+            out.push(d.hidden as u8);
+            out.push(d.function as u8);
+            put_str(&mut out, &d.refers_to);
         }
         out
     }
@@ -335,7 +360,7 @@ impl WorkbookModel {
         if r.bytes(4)? != b"XLWB" {
             return Err(corrupt("bad XLSX workbook magic"));
         }
-        if r.u8()? != 1 {
+        if r.u8()? != 2 {
             return Err(corrupt("unsupported XLSX workbook version"));
         }
         let n = r.u32()?;
@@ -352,10 +377,29 @@ impl WorkbookModel {
                 state,
             });
         }
+        let nd = r.u32()?;
+        let mut defined_names = Vec::new();
+        for _ in 0..nd {
+            let name = r.string()?;
+            let local_sheet_id = r.opt_u32()?;
+            let hidden = r.u8()? != 0;
+            let function = r.u8()? != 0;
+            let refers_to = r.string()?;
+            defined_names.push(DefinedName {
+                name,
+                local_sheet_id,
+                hidden,
+                function,
+                refers_to,
+            });
+        }
         if !r.at_end() {
             return Err(corrupt("XLSX workbook has trailing bytes"));
         }
-        Ok(WorkbookModel { sheets })
+        Ok(WorkbookModel {
+            sheets,
+            defined_names,
+        })
     }
 }
 
@@ -415,6 +459,23 @@ pub struct XlsxRow {
     pub cells: Vec<XlsxCell>,
 }
 
+/// One `<hyperlink>` declared in a worksheet. Whether it is an internal
+/// (`location`) or external (`r:id` → a relationship) link is a distinct
+/// observation; the target is never dereferenced here.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SheetHyperlink {
+    /// The cell (or range) reference (`ref`).
+    pub reference: String,
+    /// The relationship id (`r:id`) naming the target, when present.
+    pub rel_id: Option<String>,
+    /// The internal `location` (e.g. `Sheet2!A1`), when present.
+    pub location: Option<String>,
+    /// The `display` text override, when present.
+    pub display: Option<String>,
+    /// The `tooltip` text, when present.
+    pub tooltip: Option<String>,
+}
+
 /// The parsed bounded view of one worksheet part.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SheetModel {
@@ -426,6 +487,14 @@ pub struct SheetModel {
     pub dimension: Option<String>,
     /// Declared merged ranges (`ref` values), in document order.
     pub merges: Vec<String>,
+    /// Declared hyperlinks, in document order.
+    pub hyperlinks: Vec<SheetHyperlink>,
+    /// `tableParts` relationship ids (`r:id`), in document order.
+    pub table_parts: Vec<String>,
+    /// The `<drawing r:id>` relationship id, when present.
+    pub drawing_rel_id: Option<String>,
+    /// The `<legacyDrawing r:id>` (VML) relationship id, when present.
+    pub legacy_drawing_rel_id: Option<String>,
     /// Rows, in document order.
     pub rows: Vec<XlsxRow>,
 }
@@ -483,7 +552,7 @@ impl SheetModel {
     pub fn encode(&self) -> Vec<u8> {
         let mut out = Vec::new();
         out.extend_from_slice(b"XLSH");
-        out.push(1);
+        out.push(2);
         put_str(&mut out, &self.part_name);
         put_str(&mut out, &self.sheet_name);
         put_opt_str(&mut out, self.dimension.as_deref());
@@ -491,6 +560,20 @@ impl SheetModel {
         for m in &self.merges {
             put_str(&mut out, m);
         }
+        put_u32(&mut out, self.hyperlinks.len() as u32);
+        for h in &self.hyperlinks {
+            put_str(&mut out, &h.reference);
+            put_opt_str(&mut out, h.rel_id.as_deref());
+            put_opt_str(&mut out, h.location.as_deref());
+            put_opt_str(&mut out, h.display.as_deref());
+            put_opt_str(&mut out, h.tooltip.as_deref());
+        }
+        put_u32(&mut out, self.table_parts.len() as u32);
+        for t in &self.table_parts {
+            put_str(&mut out, t);
+        }
+        put_opt_str(&mut out, self.drawing_rel_id.as_deref());
+        put_opt_str(&mut out, self.legacy_drawing_rel_id.as_deref());
         put_u32(&mut out, self.rows.len() as u32);
         for row in &self.rows {
             put_u32(&mut out, row.index);
@@ -516,7 +599,7 @@ impl SheetModel {
         if r.bytes(4)? != b"XLSH" {
             return Err(corrupt("bad XLSX sheet magic"));
         }
-        if r.u8()? != 1 {
+        if r.u8()? != 2 {
             return Err(corrupt("unsupported XLSX sheet version"));
         }
         let part_name = r.string()?;
@@ -527,6 +610,24 @@ impl SheetModel {
         for _ in 0..nm {
             merges.push(r.string()?);
         }
+        let nh = r.u32()?;
+        let mut hyperlinks = Vec::new();
+        for _ in 0..nh {
+            hyperlinks.push(SheetHyperlink {
+                reference: r.string()?,
+                rel_id: r.opt_string()?,
+                location: r.opt_string()?,
+                display: r.opt_string()?,
+                tooltip: r.opt_string()?,
+            });
+        }
+        let nt = r.u32()?;
+        let mut table_parts = Vec::new();
+        for _ in 0..nt {
+            table_parts.push(r.string()?);
+        }
+        let drawing_rel_id = r.opt_string()?;
+        let legacy_drawing_rel_id = r.opt_string()?;
         let nr = r.u32()?;
         let mut rows = Vec::new();
         for _ in 0..nr {
@@ -565,17 +666,59 @@ impl SheetModel {
             sheet_name,
             dimension,
             merges,
+            hyperlinks,
+            table_parts,
+            drawing_rel_id,
+            legacy_drawing_rel_id,
             rows,
         })
     }
 }
 
 // ---------------------------------------------------------------------------
-// Styles (minimal cell-style table)
+// Styles (cell-style table)
 // ---------------------------------------------------------------------------
 
+/// A resolved text alignment (`<alignment>`), as written.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Alignment {
+    /// `horizontal` (`left`/`center`/`right`/…), when present.
+    pub horizontal: Option<String>,
+    /// `vertical` (`top`/`center`/`bottom`), when present.
+    pub vertical: Option<String>,
+    /// `wrapText` (default false).
+    pub wrap_text: bool,
+}
+
+/// A resolved font (`<font>`), as written. Only the facets Phase 21.1.2 exposes.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct FontStyle {
+    /// `<b/>` (a `val="0"` means *not* bold).
+    pub bold: bool,
+    /// `<i/>`.
+    pub italic: bool,
+    /// `<sz val="…"/>`, as written (never reformatted).
+    pub size: Option<String>,
+    /// `<name val="…"/>`.
+    pub name: Option<String>,
+}
+
+/// A resolved fill (`<fill>` / `<patternFill>`).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct FillStyle {
+    /// `patternType` (`none`/`solid`/`gray125`/…).
+    pub pattern_type: Option<String>,
+    /// `fgColor` `rgb`/`indexed`/`theme` value, as written.
+    pub fg_color: Option<String>,
+    /// `bgColor` value, as written.
+    pub bg_color: Option<String>,
+}
+
 /// One `cellXfs` entry: a resolved reference set into the styles substreams.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// The `alignment` is a distinct field from the number format, font, and fill;
+/// they are separate observations and are never conflated.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CellXf {
     /// `numFmtId` (builtin or custom).
     pub num_fmt_id: u32,
@@ -583,13 +726,37 @@ pub struct CellXf {
     pub font_id: u32,
     /// `fillId`.
     pub fill_id: u32,
+    /// The nested `<alignment>`, when present.
+    pub alignment: Option<Alignment>,
 }
 
-/// A minimal cell-style table: custom number formats and the `cellXfs` refs.
+/// A fully resolved cell style: the number-format id and code, the font, the
+/// fill, and the alignment. This is the *style* observation — distinct from the
+/// cell's value, formula, and span.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CellStyle {
+    /// `numFmtId` (builtin or custom).
+    pub num_fmt_id: u32,
+    /// The format code (a custom `formatCode`, else a known builtin code).
+    pub format_code: Option<String>,
+    /// The resolved font, when `fontId` names one.
+    pub font: Option<FontStyle>,
+    /// The resolved fill, when `fillId` names one.
+    pub fill: Option<FillStyle>,
+    /// The alignment, when declared.
+    pub alignment: Option<Alignment>,
+}
+
+/// A cell-style table: custom number formats, fonts, fills, and the `cellXfs`
+/// references that compose them per style index.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct StylesTable {
     /// `numFmtId` → `formatCode` for custom (`numFmtId >= 164`) formats.
     pub num_fmts: BTreeMap<u32, String>,
+    /// The `<fonts>` entries, in order.
+    pub fonts: Vec<FontStyle>,
+    /// The `<fills>` entries, in order.
+    pub fills: Vec<FillStyle>,
     /// The `cellXfs` entries, in order.
     pub cell_xfs: Vec<CellXf>,
 }
@@ -597,13 +764,141 @@ pub struct StylesTable {
 impl StylesTable {
     /// The style ref for a cell-style index (`s`), if present.
     pub fn cell_style(&self, index: u32) -> Option<CellXf> {
-        self.cell_xfs.get(index as usize).copied()
+        self.cell_xfs.get(index as usize).cloned()
     }
 
     /// The number-format code for a `numFmtId`, if a custom format declares one.
     pub fn num_fmt_code(&self, num_fmt_id: u32) -> Option<&str> {
         self.num_fmts.get(&num_fmt_id).map(String::as_str)
     }
+
+    /// The format code for a `numFmtId`: a custom code, else a known builtin.
+    pub fn format_code(&self, num_fmt_id: u32) -> Option<&str> {
+        self.num_fmt_code(num_fmt_id)
+            .or_else(|| builtin_format_code(num_fmt_id))
+    }
+
+    /// The font for a `fontId`.
+    pub fn font(&self, font_id: u32) -> Option<&FontStyle> {
+        self.fonts.get(font_id as usize)
+    }
+
+    /// The fill for a `fillId`.
+    pub fn fill(&self, fill_id: u32) -> Option<&FillStyle> {
+        self.fills.get(fill_id as usize)
+    }
+
+    /// Resolve a cell-style index into its full [`CellStyle`].
+    pub fn style_for(&self, index: u32) -> Option<CellStyle> {
+        let xf = self.cell_xfs.get(index as usize)?;
+        Some(CellStyle {
+            num_fmt_id: xf.num_fmt_id,
+            format_code: self.format_code(xf.num_fmt_id).map(str::to_string),
+            font: self.font(xf.font_id).cloned(),
+            fill: self.fill(xf.fill_id).cloned(),
+            alignment: xf.alignment.clone(),
+        })
+    }
+}
+
+/// The format code for a known ECMA-376 builtin `numFmtId`, when one is defined.
+/// Unlisted ids return `None` (no projection; never a guess).
+fn builtin_format_code(id: u32) -> Option<&'static str> {
+    Some(match id {
+        0 => "General",
+        1 => "0",
+        2 => "0.00",
+        3 => "#,##0",
+        4 => "#,##0.00",
+        9 => "0%",
+        10 => "0.00%",
+        11 => "0.00E+00",
+        13 => "#,##0",
+        14 => "m/d/yyyy",
+        15 => "d-mmm-yy",
+        16 => "d-mmm",
+        22 => "m/d/yyyy h:mm",
+        37 => "#,##0 ;(#,##0)",
+        38 => "#,##0 ;[Red](#,##0)",
+        39 => "#,##0.00;(#,##0.00)",
+        49 => "@",
+        _ => return None,
+    })
+}
+
+/// A **deterministic** projection of a cell's cached numeric value under a bounded
+/// subset of number-format codes. Returns `None` when the format is not in the
+/// supported subset or the cached value is not a finite number — i.e. the
+/// projection is *not available*, never a guess. This never evaluates a formula.
+pub fn format_displayed(cached: &str, format_code: &str) -> Option<String> {
+    let v: f64 = cached.trim().parse().ok()?;
+    if !v.is_finite() {
+        return None;
+    }
+    if format_code.eq_ignore_ascii_case("general") || format_code == "@" {
+        return Some(cached.to_string());
+    }
+    let percent = format_code.ends_with('%');
+    let core = if percent {
+        &format_code[..format_code.len() - 1]
+    } else {
+        format_code
+    };
+    // Only fixed decimal/grouping patterns are projected.
+    if core.is_empty()
+        || !core
+            .chars()
+            .all(|c| c == '#' || c == '0' || c == ',' || c == '.')
+    {
+        return None;
+    }
+    let (int_part, frac_part) = match core.split_once('.') {
+        Some((a, b)) => (a, b),
+        None => (core, ""),
+    };
+    if frac_part.contains('.') {
+        return None;
+    }
+    let decimals = frac_part.len();
+    // A bounded projection: a format code asking for more than 30 fractional
+    // digits is not projected (never a large allocation on a hostile code).
+    if decimals > 30 {
+        return None;
+    }
+    let grouping = int_part.contains(',');
+    let scaled = if percent { v * 100.0 } else { v };
+    let mut s = if decimals > 0 {
+        format!("{scaled:.decimals$}")
+    } else {
+        format!("{scaled:.0}")
+    };
+    if grouping {
+        s = group_thousands(&s, decimals);
+    }
+    if percent {
+        s.push('%');
+    }
+    Some(s)
+}
+
+/// Insert thousands separators into the integer part of a decimal string.
+fn group_thousands(s: &str, decimals: usize) -> String {
+    let (sign, rest) = match s.strip_prefix('-') {
+        Some(r) => ("-", r),
+        None => ("", s),
+    };
+    let int_len = rest
+        .len()
+        .saturating_sub(decimals.saturating_add(usize::from(decimals > 0)));
+    let (int_part, tail) = rest.split_at(int_len.min(rest.len()));
+    let mut grouped = String::new();
+    for (i, ch) in int_part.chars().enumerate() {
+        if i > 0 && (int_part.len() - i) % 3 == 0 {
+            grouped.push(',');
+        }
+        grouped.push(ch);
+    }
+    format!("{sign}{grouped}{tail}")
 }
 
 // ---------------------------------------------------------------------------
@@ -871,13 +1166,15 @@ pub fn read_sheet_params(
 // Workbook parsing
 // ---------------------------------------------------------------------------
 
-/// Parse and harden `xl/workbook.xml` into its sheet inventory.
+/// Parse and harden `xl/workbook.xml` into its sheet inventory and defined names.
 pub fn parse_workbook(bytes: &[u8], limits: Limits) -> Result<WorkbookModel> {
     harden_xml(bytes, limits)?;
     let mut reader = Reader::from_reader(bytes);
     reader.config_mut().trim_text(true);
     let mut st = XmlState::new();
     let mut sheets: Vec<WorkbookSheet> = Vec::new();
+    let mut defined_names: Vec<DefinedName> = Vec::new();
+    let mut cur_defined: Option<DefinedName> = None;
     let mut saw_root = false;
     loop {
         let ev = reader.read_event().map_err(xml_err)?;
@@ -891,7 +1188,32 @@ pub fn parse_workbook(bytes: &[u8], limits: Limits) -> Result<WorkbookModel> {
                     check_root(&e, "workbook")?;
                     saw_root = true;
                 }
-                workbook_element(&mut sheets, &e, limits)?;
+                if e.name().local_name().as_ref() == "definedName" {
+                    if defined_names.len() as u64 >= u64::from(limits.max_xlsx_defined_names) {
+                        return Err(Error::resource_limit(
+                            "workbook declares more defined names than max_xlsx_defined_names",
+                        ));
+                    }
+                    let attrs = read_attrs(&e, limits)?;
+                    let name = attr_of(&attrs, "name").unwrap_or("").to_string();
+                    let local_sheet_id = match attr_of(&attrs, "localSheetId") {
+                        Some(v) => Some(v.parse::<u32>().map_err(|_| {
+                            Error::invalid_package_structure(format!(
+                                "definedName localSheetId {v:?} is not a u32"
+                            ))
+                        })?),
+                        None => None,
+                    };
+                    cur_defined = Some(DefinedName {
+                        name,
+                        local_sheet_id,
+                        hidden: xml_flag(attr_of(&attrs, "hidden")),
+                        function: xml_flag(attr_of(&attrs, "function")),
+                        refers_to: String::new(),
+                    });
+                } else {
+                    workbook_element(&mut sheets, &e, limits)?;
+                }
             }
             Event::Empty(e) => {
                 st.leaf(limits)?;
@@ -901,15 +1223,36 @@ pub fn parse_workbook(bytes: &[u8], limits: Limits) -> Result<WorkbookModel> {
                 }
                 workbook_element(&mut sheets, &e, limits)?;
             }
-            Event::End(_) => st.close(),
-            Event::Text(t) => st.text(t.len(), limits)?,
+            Event::End(e) => {
+                if e.name().local_name().as_ref() == "definedName"
+                    && let Some(d) = cur_defined.take()
+                {
+                    defined_names.push(d);
+                }
+                st.close();
+            }
+            Event::Text(t) => {
+                let s = t.into_inner();
+                st.text(s.len(), limits)?;
+                if let Some(d) = cur_defined.as_mut() {
+                    d.refers_to.push_str(s.as_ref());
+                }
+            }
+            Event::GeneralRef(r) => {
+                if let Some(d) = cur_defined.as_mut() {
+                    push_ref(&mut d.refers_to, r);
+                }
+            }
             _ => {}
         }
     }
     if !saw_root {
         return Err(Error::invalid_xml_structure("workbook XML part is empty"));
     }
-    Ok(WorkbookModel { sheets })
+    Ok(WorkbookModel {
+        sheets,
+        defined_names,
+    })
 }
 
 fn workbook_element(
@@ -1055,7 +1398,10 @@ pub fn parse_shared_strings(bytes: &[u8], limits: Limits) -> Result<Vec<String>>
 // Styles parsing
 // ---------------------------------------------------------------------------
 
-/// Parse and harden `xl/styles.xml` into its minimal cell-style table.
+/// Parse and harden `xl/styles.xml` into its cell-style table (custom number
+/// formats, fonts, fills, and `cellXfs` references). Bounded by
+/// `max_xlsx_style_records`.
+#[allow(clippy::too_many_lines)]
 pub fn parse_styles_table(bytes: &[u8], limits: Limits) -> Result<StylesTable> {
     harden_xml(bytes, limits)?;
     let mut reader = Reader::from_reader(bytes);
@@ -1063,6 +1409,17 @@ pub fn parse_styles_table(bytes: &[u8], limits: Limits) -> Result<StylesTable> {
     let mut st = XmlState::new();
     let mut table = StylesTable::default();
     let mut in_cell_xfs = false;
+    let mut in_fonts = false;
+    let mut in_fills = false;
+    let mut in_font = false;
+    let mut in_fill = false;
+    let mut in_pattern = false;
+    let mut in_xf = false;
+    // The font/fill currently being assembled (a placeholder is pushed on open so
+    // its index matches document order even for a self-closing element).
+    let mut cur_font: Option<FontStyle> = None;
+    let mut cur_fill: Option<FillStyle> = None;
+    let mut cur_xf: Option<CellXf> = None;
     let mut saw_root = false;
     loop {
         let ev = reader.read_event().map_err(xml_err)?;
@@ -1078,9 +1435,69 @@ pub fn parse_styles_table(bytes: &[u8], limits: Limits) -> Result<StylesTable> {
                     saw_root = true;
                 }
                 match local.as_str() {
+                    "fonts" => in_fonts = true,
+                    "fills" => in_fills = true,
                     "cellXfs" => in_cell_xfs = true,
+                    "font" if in_fonts => {
+                        charge_style(&table, limits)?;
+                        cur_font = Some(FontStyle::default());
+                        in_font = true;
+                    }
+                    "fill" if in_fills => {
+                        charge_style(&table, limits)?;
+                        cur_fill = Some(FillStyle::default());
+                        in_fill = true;
+                    }
+                    "patternFill" if in_fill => {
+                        in_pattern = true;
+                        if let Some(f) = cur_fill.as_mut() {
+                            let attrs = read_attrs(&e, limits)?;
+                            f.pattern_type = attr_of(&attrs, "patternType").map(str::to_string);
+                        }
+                    }
+                    "b" if in_font => font_flag(&mut cur_font, FontFlag::Bold, &e, limits)?,
+                    "i" if in_font => font_flag(&mut cur_font, FontFlag::Italic, &e, limits)?,
+                    "sz" if in_font => {
+                        let attrs = read_attrs(&e, limits)?;
+                        if let Some(f) = cur_font.as_mut() {
+                            f.size = attr_of(&attrs, "val").map(str::to_string);
+                        }
+                    }
+                    "name" if in_font => {
+                        let attrs = read_attrs(&e, limits)?;
+                        if let Some(f) = cur_font.as_mut() {
+                            f.name = attr_of(&attrs, "val").map(str::to_string);
+                        }
+                    }
+                    "fgColor" if in_pattern => {
+                        let attrs = read_attrs(&e, limits)?;
+                        if let Some(f) = cur_fill.as_mut() {
+                            f.fg_color = color_value(&attrs);
+                        }
+                    }
+                    "bgColor" if in_pattern => {
+                        let attrs = read_attrs(&e, limits)?;
+                        if let Some(f) = cur_fill.as_mut() {
+                            f.bg_color = color_value(&attrs);
+                        }
+                    }
+                    "xf" if in_cell_xfs => {
+                        charge_style(&table, limits)?;
+                        cur_xf = Some(styles_xf_new(&e, limits)?);
+                        in_xf = true;
+                    }
+                    "alignment" if in_xf => {
+                        let attrs = read_attrs(&e, limits)?;
+                        if let Some(xf) = cur_xf.as_mut() {
+                            xf.alignment = Some(Alignment {
+                                horizontal: attr_of(&attrs, "horizontal").map(str::to_string),
+                                vertical: attr_of(&attrs, "vertical").map(str::to_string),
+                                wrap_text: attr_of(&attrs, "wrapText")
+                                    .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true")),
+                            });
+                        }
+                    }
                     "numFmt" => styles_num_fmt(&mut table, &e, limits)?,
-                    "xf" if in_cell_xfs => styles_xf(&mut table, &e, limits)?,
                     _ => {}
                 }
             }
@@ -1092,14 +1509,90 @@ pub fn parse_styles_table(bytes: &[u8], limits: Limits) -> Result<StylesTable> {
                     saw_root = true;
                 }
                 match local.as_str() {
+                    "font" if in_fonts => {
+                        charge_style(&table, limits)?;
+                        table.fonts.push(FontStyle::default());
+                    }
+                    "fill" if in_fills => {
+                        charge_style(&table, limits)?;
+                        table.fills.push(FillStyle::default());
+                    }
+                    "b" if in_font => font_flag(&mut cur_font, FontFlag::Bold, &e, limits)?,
+                    "i" if in_font => font_flag(&mut cur_font, FontFlag::Italic, &e, limits)?,
+                    "sz" if in_font => {
+                        let attrs = read_attrs(&e, limits)?;
+                        if let Some(f) = cur_font.as_mut() {
+                            f.size = attr_of(&attrs, "val").map(str::to_string);
+                        }
+                    }
+                    "name" if in_font => {
+                        let attrs = read_attrs(&e, limits)?;
+                        if let Some(f) = cur_font.as_mut() {
+                            f.name = attr_of(&attrs, "val").map(str::to_string);
+                        }
+                    }
+                    "patternFill" if in_fill => {
+                        if let Some(f) = cur_fill.as_mut() {
+                            let attrs = read_attrs(&e, limits)?;
+                            f.pattern_type = attr_of(&attrs, "patternType").map(str::to_string);
+                        }
+                    }
+                    "fgColor" if in_pattern => {
+                        let attrs = read_attrs(&e, limits)?;
+                        if let Some(f) = cur_fill.as_mut() {
+                            f.fg_color = color_value(&attrs);
+                        }
+                    }
+                    "bgColor" if in_pattern => {
+                        let attrs = read_attrs(&e, limits)?;
+                        if let Some(f) = cur_fill.as_mut() {
+                            f.bg_color = color_value(&attrs);
+                        }
+                    }
+                    "xf" if in_cell_xfs => {
+                        charge_style(&table, limits)?;
+                        table.cell_xfs.push(styles_xf_new(&e, limits)?);
+                    }
+                    "alignment" if in_xf => {
+                        let attrs = read_attrs(&e, limits)?;
+                        if let Some(xf) = cur_xf.as_mut() {
+                            xf.alignment = Some(Alignment {
+                                horizontal: attr_of(&attrs, "horizontal").map(str::to_string),
+                                vertical: attr_of(&attrs, "vertical").map(str::to_string),
+                                wrap_text: attr_of(&attrs, "wrapText")
+                                    .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true")),
+                            });
+                        }
+                    }
                     "numFmt" => styles_num_fmt(&mut table, &e, limits)?,
-                    "xf" if in_cell_xfs => styles_xf(&mut table, &e, limits)?,
                     _ => {}
                 }
             }
             Event::End(e) => {
-                if e.name().local_name().as_ref() == "cellXfs" {
-                    in_cell_xfs = false;
+                match e.name().local_name().as_ref() {
+                    "fonts" => in_fonts = false,
+                    "fills" => in_fills = false,
+                    "cellXfs" => in_cell_xfs = false,
+                    "font" if in_font => {
+                        if let Some(f) = cur_font.take() {
+                            table.fonts.push(f);
+                        }
+                        in_font = false;
+                    }
+                    "fill" if in_fill => {
+                        if let Some(f) = cur_fill.take() {
+                            table.fills.push(f);
+                        }
+                        in_fill = false;
+                    }
+                    "patternFill" => in_pattern = false,
+                    "xf" if in_xf => {
+                        if let Some(x) = cur_xf.take() {
+                            table.cell_xfs.push(x);
+                        }
+                        in_xf = false;
+                    }
+                    _ => {}
                 }
                 st.close();
             }
@@ -1113,6 +1606,46 @@ pub fn parse_styles_table(bytes: &[u8], limits: Limits) -> Result<StylesTable> {
     Ok(table)
 }
 
+enum FontFlag {
+    Bold,
+    Italic,
+}
+
+fn font_flag(
+    font: &mut Option<FontStyle>,
+    flag: FontFlag,
+    e: &BytesStart<'_>,
+    limits: Limits,
+) -> Result<()> {
+    let attrs = read_attrs(e, limits)?;
+    // `<b/>` is bold; `<b val="0"/>` is explicitly *not* bold.
+    let on = !attr_of(&attrs, "val").is_some_and(|v| v == "0" || v.eq_ignore_ascii_case("false"));
+    if let Some(f) = font.as_mut() {
+        match flag {
+            FontFlag::Bold => f.bold = on,
+            FontFlag::Italic => f.italic = on,
+        }
+    }
+    Ok(())
+}
+
+fn color_value(attrs: &[(String, String)]) -> Option<String> {
+    attr_of(attrs, "rgb")
+        .or_else(|| attr_of(attrs, "indexed"))
+        .or_else(|| attr_of(attrs, "theme"))
+        .map(str::to_string)
+}
+
+fn charge_style(table: &StylesTable, limits: Limits) -> Result<()> {
+    let total = table.fonts.len() as u64 + table.fills.len() as u64 + table.cell_xfs.len() as u64;
+    if total >= u64::from(limits.max_xlsx_style_records) {
+        return Err(Error::resource_limit(
+            "styles exceed max_xlsx_style_records",
+        ));
+    }
+    Ok(())
+}
+
 fn styles_num_fmt(table: &mut StylesTable, e: &BytesStart<'_>, limits: Limits) -> Result<()> {
     let attrs = read_attrs(e, limits)?;
     let id = attr_of(&attrs, "numFmtId")
@@ -1124,17 +1657,14 @@ fn styles_num_fmt(table: &mut StylesTable, e: &BytesStart<'_>, limits: Limits) -
     Ok(())
 }
 
-fn styles_xf(table: &mut StylesTable, e: &BytesStart<'_>, limits: Limits) -> Result<()> {
+fn styles_xf_new(e: &BytesStart<'_>, limits: Limits) -> Result<CellXf> {
     let attrs = read_attrs(e, limits)?;
-    let num_fmt_id = parse_u32_attr(&attrs, "numFmtId")?;
-    let font_id = parse_u32_attr(&attrs, "fontId")?;
-    let fill_id = parse_u32_attr(&attrs, "fillId")?;
-    table.cell_xfs.push(CellXf {
-        num_fmt_id,
-        font_id,
-        fill_id,
-    });
-    Ok(())
+    Ok(CellXf {
+        num_fmt_id: parse_u32_attr(&attrs, "numFmtId")?,
+        font_id: parse_u32_attr(&attrs, "fontId")?,
+        fill_id: parse_u32_attr(&attrs, "fillId")?,
+        alignment: None,
+    })
 }
 
 fn parse_u32_attr(attrs: &[(String, String)], name: &str) -> Result<u32> {
@@ -1247,6 +1777,10 @@ pub fn parse_worksheet(
     let mut st = XmlState::new();
     let mut dimension: Option<String> = None;
     let mut merges: Vec<String> = Vec::new();
+    let mut hyperlinks: Vec<SheetHyperlink> = Vec::new();
+    let mut table_parts: Vec<String> = Vec::new();
+    let mut drawing_rel_id: Option<String> = None;
+    let mut legacy_drawing_rel_id: Option<String> = None;
     let mut rows: Vec<XlsxRow> = Vec::new();
     let mut cur_row: Option<(u32, Vec<XlsxCell>)> = None;
     let mut cur_cell: Option<CellBuilder> = None;
@@ -1277,6 +1811,22 @@ pub fn parse_worksheet(
                     b"mergeCell" => {
                         let attrs = read_attrs(&e, limits)?;
                         push_merge(&mut merges, &attrs, limits)?;
+                    }
+                    b"hyperlink" => {
+                        let attrs = read_attrs(&e, limits)?;
+                        push_hyperlink(&mut hyperlinks, &attrs, limits)?;
+                    }
+                    b"tablePart" => {
+                        let attrs = read_attrs(&e, limits)?;
+                        push_rel_id(&mut table_parts, &attrs, "tableParts", limits)?;
+                    }
+                    b"drawing" => {
+                        let attrs = read_attrs(&e, limits)?;
+                        drawing_rel_id = attr_of(&attrs, "id").map(str::to_string);
+                    }
+                    b"legacyDrawing" => {
+                        let attrs = read_attrs(&e, limits)?;
+                        legacy_drawing_rel_id = attr_of(&attrs, "id").map(str::to_string);
                     }
                     b"row" => {
                         let attrs = read_attrs(&e, limits)?;
@@ -1328,6 +1878,22 @@ pub fn parse_worksheet(
                     b"mergeCell" => {
                         let attrs = read_attrs(&e, limits)?;
                         push_merge(&mut merges, &attrs, limits)?;
+                    }
+                    b"hyperlink" => {
+                        let attrs = read_attrs(&e, limits)?;
+                        push_hyperlink(&mut hyperlinks, &attrs, limits)?;
+                    }
+                    b"tablePart" => {
+                        let attrs = read_attrs(&e, limits)?;
+                        push_rel_id(&mut table_parts, &attrs, "tableParts", limits)?;
+                    }
+                    b"drawing" => {
+                        let attrs = read_attrs(&e, limits)?;
+                        drawing_rel_id = attr_of(&attrs, "id").map(str::to_string);
+                    }
+                    b"legacyDrawing" => {
+                        let attrs = read_attrs(&e, limits)?;
+                        legacy_drawing_rel_id = attr_of(&attrs, "id").map(str::to_string);
                     }
                     b"c" => {
                         let attrs = read_attrs(&e, limits)?;
@@ -1418,6 +1984,10 @@ pub fn parse_worksheet(
         sheet_name: sheet_name.to_string(),
         dimension,
         merges,
+        hyperlinks,
+        table_parts,
+        drawing_rel_id,
+        legacy_drawing_rel_id,
         rows,
     })
 }
@@ -1448,6 +2018,44 @@ fn push_merge(merges: &mut Vec<String>, attrs: &[(String, String)], limits: Limi
     }
     if let Some(r) = attr_of(attrs, "ref") {
         merges.push(r.to_string());
+    }
+    Ok(())
+}
+
+fn push_hyperlink(
+    hyperlinks: &mut Vec<SheetHyperlink>,
+    attrs: &[(String, String)],
+    limits: Limits,
+) -> Result<()> {
+    if hyperlinks.len() as u64 >= u64::from(limits.max_xlsx_hyperlinks) {
+        return Err(Error::resource_limit(
+            "worksheet declares more hyperlinks than max_xlsx_hyperlinks",
+        ));
+    }
+    hyperlinks.push(SheetHyperlink {
+        reference: attr_of(attrs, "ref").unwrap_or("").to_string(),
+        rel_id: attr_of(attrs, "id").map(str::to_string),
+        location: attr_of(attrs, "location").map(str::to_string),
+        display: attr_of(attrs, "display").map(str::to_string),
+        tooltip: attr_of(attrs, "tooltip").map(str::to_string),
+    });
+    Ok(())
+}
+
+/// Push a `r:id`-style relationship reference from a leaf element.
+fn push_rel_id(
+    out: &mut Vec<String>,
+    attrs: &[(String, String)],
+    what: &str,
+    limits: Limits,
+) -> Result<()> {
+    if out.len() as u64 >= u64::from(limits.max_xlsx_tables) {
+        return Err(Error::resource_limit(format!(
+            "{what} exceeds max_xlsx_tables"
+        )));
+    }
+    if let Some(id) = attr_of(attrs, "id") {
+        out.push(id.to_string());
     }
     Ok(())
 }
@@ -1532,6 +2140,433 @@ pub fn col_row_to_a1(col: u32, row: u32) -> String {
     }
     letters.reverse();
     format!("{}{}", letters.into_iter().collect::<String>(), row + 1)
+}
+
+// ---------------------------------------------------------------------------
+// Comments, VML, tables, drawings (Phase 21.1.2)
+// ---------------------------------------------------------------------------
+
+/// One cell comment (`xl/comments*.xml`), keyed by cell reference.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CellComment {
+    /// The A1 cell reference (`ref`).
+    pub cell: String,
+    /// The resolved author (via `authorId` into `<authors>`), when present.
+    pub author: Option<String>,
+    /// The comment text (the concatenated `<text>` runs; never interpreted).
+    pub text: String,
+}
+
+/// One VML note anchor (`xl/drawings/vmlDrawing*.vml`): the cell a comment shape
+/// sits on. The VML is a legacy drawing surface; only the note anchor and shape
+/// id are exposed here.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VmlNote {
+    /// The A1 cell reference resolved from the VML `Row`/`Column` client data.
+    pub cell: String,
+    /// The VML shape id, when present.
+    pub shape_id: Option<String>,
+}
+
+/// One `<tableColumn>` of a table part.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TableColumn {
+    /// The `id` attribute, when present.
+    pub id: Option<u32>,
+    /// The column `name`.
+    pub name: String,
+}
+
+/// A parsed `xl/tables/table*.xml` (`<table>`): name, ref, and columns.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SheetTable {
+    /// The `name` attribute.
+    pub name: Option<String>,
+    /// The `displayName` attribute.
+    pub display_name: Option<String>,
+    /// The `ref` range (e.g. `A1:C4`).
+    pub reference: Option<String>,
+    /// The columns, in document order.
+    pub columns: Vec<TableColumn>,
+}
+
+/// A parsed drawing part (`xl/drawings/drawing*.xml`): the anchor count and the
+/// relationship ids of any charts and images it references. Charts are **never
+/// evaluated**; only the relationship graph is exposed.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct DrawingModel {
+    /// The number of drawing anchors (`oneCellAnchor`/`twoCellAnchor`/`absoluteAnchor`).
+    pub anchors: u32,
+    /// The `r:id` of each `<c:chart>` reference, in document order.
+    pub chart_rel_ids: Vec<String>,
+    /// The `r:embed` of each `<a:blip>` (image) reference, in document order.
+    pub image_rel_ids: Vec<String>,
+}
+
+/// `true` for an XML boolean attribute written as `1` or `true`.
+fn xml_flag(v: Option<&str>) -> bool {
+    matches!(v, Some("1") | Some("true"))
+}
+
+/// Parse and harden an `xl/comments*.xml` part into its cell-keyed comments.
+pub fn parse_comments(bytes: &[u8], limits: Limits) -> Result<Vec<CellComment>> {
+    harden_xml(bytes, limits)?;
+    let mut reader = Reader::from_reader(bytes);
+    reader.config_mut().trim_text(false);
+    let mut st = XmlState::new();
+    let mut authors: Vec<String> = Vec::new();
+    let mut cur_author: Option<String> = None;
+    let mut comments: Vec<CellComment> = Vec::new();
+    let mut cur: Option<CellComment> = None;
+    let mut in_text = false;
+    let mut in_t = false;
+    let mut saw_root = false;
+    loop {
+        let ev = reader.read_event().map_err(xml_err)?;
+        st.event(limits)?;
+        match ev {
+            Event::Eof => break,
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
+            Event::Start(e) => {
+                st.open(limits)?;
+                let local = e.name().local_name().as_ref().to_string();
+                if !saw_root {
+                    check_root(&e, "comments")?;
+                    saw_root = true;
+                }
+                match local.as_str() {
+                    "author" => cur_author = Some(String::new()),
+                    "comment" => {
+                        if comments.len() as u64 >= u64::from(limits.max_xlsx_comments) {
+                            return Err(Error::resource_limit("comments exceed max_xlsx_comments"));
+                        }
+                        let attrs = read_attrs(&e, limits)?;
+                        let author = attr_of(&attrs, "authorId")
+                            .and_then(|v| v.parse::<usize>().ok())
+                            .and_then(|i| authors.get(i).cloned());
+                        cur = Some(CellComment {
+                            cell: attr_of(&attrs, "ref").unwrap_or("").to_string(),
+                            author,
+                            text: String::new(),
+                        });
+                    }
+                    "text" => in_text = true,
+                    "t" if in_text => in_t = true,
+                    _ => {}
+                }
+            }
+            Event::Empty(e) => {
+                st.leaf(limits)?;
+                if !saw_root {
+                    check_root(&e, "comments")?;
+                    saw_root = true;
+                }
+            }
+            Event::End(e) => {
+                match e.name().local_name().as_ref() {
+                    "author" => {
+                        if let Some(a) = cur_author.take() {
+                            authors.push(a);
+                        }
+                    }
+                    "comment" => {
+                        if let Some(c) = cur.take() {
+                            comments.push(c);
+                        }
+                    }
+                    "text" => in_text = false,
+                    "t" => in_t = false,
+                    _ => {}
+                }
+                st.close();
+            }
+            Event::Text(t) => {
+                let s = t.into_inner();
+                st.text(s.len(), limits)?;
+                if let Some(a) = cur_author.as_mut() {
+                    a.push_str(s.as_ref());
+                } else if in_t && let Some(c) = cur.as_mut() {
+                    c.text.push_str(s.as_ref());
+                }
+            }
+            Event::GeneralRef(r) => {
+                if let Some(a) = cur_author.as_mut() {
+                    push_ref(a, r);
+                } else if in_t && let Some(c) = cur.as_mut() {
+                    push_ref(&mut c.text, r);
+                }
+            }
+            _ => {}
+        }
+    }
+    if !saw_root {
+        return Err(Error::invalid_xml_structure("comments XML part is empty"));
+    }
+    Ok(comments)
+}
+
+/// Parse a legacy VML drawing part into its note anchors (`ObjectType="Note"`).
+/// The VML root element is not constrained (VML has no single fixed root).
+pub fn parse_vml_notes(bytes: &[u8], limits: Limits) -> Result<Vec<VmlNote>> {
+    harden_xml(bytes, limits)?;
+    let mut reader = Reader::from_reader(bytes);
+    reader.config_mut().trim_text(true);
+    let mut st = XmlState::new();
+    let mut notes: Vec<VmlNote> = Vec::new();
+    let mut shape_id: Option<String> = None;
+    let mut in_note = false;
+    let mut in_row = false;
+    let mut in_col = false;
+    let mut row: Option<u32> = None;
+    let mut col: Option<u32> = None;
+    loop {
+        let ev = reader.read_event().map_err(xml_err)?;
+        st.event(limits)?;
+        match ev {
+            Event::Eof => break,
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
+            Event::Start(e) => {
+                st.open(limits)?;
+                vml_element(
+                    &e,
+                    limits,
+                    &mut shape_id,
+                    &mut in_note,
+                    &mut in_row,
+                    &mut in_col,
+                    &mut row,
+                    &mut col,
+                )?;
+            }
+            Event::Empty(e) => {
+                st.leaf(limits)?;
+                vml_element(
+                    &e,
+                    limits,
+                    &mut shape_id,
+                    &mut in_note,
+                    &mut in_row,
+                    &mut in_col,
+                    &mut row,
+                    &mut col,
+                )?;
+            }
+            Event::End(e) => {
+                match e.name().local_name().as_ref() {
+                    "shape" => shape_id = None,
+                    "ClientData" => {
+                        if in_note {
+                            if notes.len() as u64 >= u64::from(limits.max_xlsx_comments) {
+                                return Err(Error::resource_limit(
+                                    "VML notes exceed max_xlsx_comments",
+                                ));
+                            }
+                            let cell = match (col, row) {
+                                (Some(c), Some(r)) => col_row_to_a1(c, r),
+                                _ => String::new(),
+                            };
+                            notes.push(VmlNote {
+                                cell,
+                                shape_id: shape_id.clone(),
+                            });
+                        }
+                        in_note = false;
+                        in_row = false;
+                        in_col = false;
+                        row = None;
+                        col = None;
+                    }
+                    "Row" => in_row = false,
+                    "Column" => in_col = false,
+                    _ => {}
+                }
+                st.close();
+            }
+            Event::Text(t) => {
+                let s = t.into_inner();
+                st.text(s.len(), limits)?;
+                if in_row && let Ok(v) = s.as_ref().trim().parse::<u32>() {
+                    row = Some(v);
+                } else if in_col && let Ok(v) = s.as_ref().trim().parse::<u32>() {
+                    col = Some(v);
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(notes)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn vml_element(
+    e: &BytesStart<'_>,
+    limits: Limits,
+    shape_id: &mut Option<String>,
+    in_note: &mut bool,
+    in_row: &mut bool,
+    in_col: &mut bool,
+    row: &mut Option<u32>,
+    col: &mut Option<u32>,
+) -> Result<()> {
+    match e.name().local_name().as_ref() {
+        "shape" => {
+            let attrs = read_attrs(e, limits)?;
+            *shape_id = attr_of(&attrs, "id").map(str::to_string);
+        }
+        "ClientData" => {
+            let attrs = read_attrs(e, limits)?;
+            if attr_of(&attrs, "ObjectType") == Some("Note") {
+                *in_note = true;
+                *row = None;
+                *col = None;
+            }
+        }
+        "Row" if *in_note => *in_row = true,
+        "Column" if *in_note => *in_col = true,
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Parse and harden an `xl/tables/table*.xml` part into its name/ref/columns.
+pub fn parse_table(bytes: &[u8], limits: Limits) -> Result<SheetTable> {
+    harden_xml(bytes, limits)?;
+    let mut reader = Reader::from_reader(bytes);
+    reader.config_mut().trim_text(true);
+    let mut st = XmlState::new();
+    let mut table = SheetTable::default();
+    let mut saw_root = false;
+    loop {
+        let ev = reader.read_event().map_err(xml_err)?;
+        st.event(limits)?;
+        match ev {
+            Event::Eof => break,
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
+            Event::Start(e) => {
+                st.open(limits)?;
+                if !saw_root {
+                    check_root(&e, "table")?;
+                    saw_root = true;
+                }
+                table_element(&mut table, &e, limits)?;
+            }
+            Event::Empty(e) => {
+                st.leaf(limits)?;
+                if !saw_root {
+                    check_root(&e, "table")?;
+                    saw_root = true;
+                }
+                table_element(&mut table, &e, limits)?;
+            }
+            Event::End(_) => st.close(),
+            Event::Text(t) => st.text(t.len(), limits)?,
+            _ => {}
+        }
+    }
+    if !saw_root {
+        return Err(Error::invalid_xml_structure("table XML part is empty"));
+    }
+    Ok(table)
+}
+
+fn table_element(table: &mut SheetTable, e: &BytesStart<'_>, limits: Limits) -> Result<()> {
+    let attrs = read_attrs(e, limits)?;
+    match e.name().local_name().as_ref() {
+        "table" => {
+            table.name = attr_of(&attrs, "name").map(str::to_string);
+            table.display_name = attr_of(&attrs, "displayName").map(str::to_string);
+            table.reference = attr_of(&attrs, "ref").map(str::to_string);
+        }
+        "tableColumn" => {
+            if table.columns.len() as u64 >= u64::from(limits.max_xlsx_table_columns) {
+                return Err(Error::resource_limit(
+                    "table has more columns than max_xlsx_table_columns",
+                ));
+            }
+            let id = match attr_of(&attrs, "id") {
+                Some(v) => Some(v.parse::<u32>().map_err(|_| {
+                    Error::invalid_package_structure("tableColumn id is not a u32")
+                })?),
+                None => None,
+            };
+            table.columns.push(TableColumn {
+                id,
+                name: attr_of(&attrs, "name").unwrap_or("").to_string(),
+            });
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Parse and harden an `xl/drawings/drawing*.xml` part into its anchor count and
+/// chart/image relationship references. Charts are never evaluated.
+pub fn parse_drawing(bytes: &[u8], limits: Limits) -> Result<DrawingModel> {
+    harden_xml(bytes, limits)?;
+    let mut reader = Reader::from_reader(bytes);
+    reader.config_mut().trim_text(true);
+    let mut st = XmlState::new();
+    let mut model = DrawingModel::default();
+    let mut saw_root = false;
+    loop {
+        let ev = reader.read_event().map_err(xml_err)?;
+        st.event(limits)?;
+        match ev {
+            Event::Eof => break,
+            Event::DocType(d) => accept_doctype(&d.into_inner())?,
+            Event::Start(e) => {
+                st.open(limits)?;
+                if !saw_root {
+                    check_root(&e, "wsDr")?;
+                    saw_root = true;
+                }
+                drawing_element(&mut model, &e, limits)?;
+            }
+            Event::Empty(e) => {
+                st.leaf(limits)?;
+                if !saw_root {
+                    check_root(&e, "wsDr")?;
+                    saw_root = true;
+                }
+                drawing_element(&mut model, &e, limits)?;
+            }
+            Event::End(_) => st.close(),
+            Event::Text(t) => st.text(t.len(), limits)?,
+            _ => {}
+        }
+    }
+    if !saw_root {
+        return Err(Error::invalid_xml_structure("drawing XML part is empty"));
+    }
+    Ok(model)
+}
+
+fn drawing_element(model: &mut DrawingModel, e: &BytesStart<'_>, limits: Limits) -> Result<()> {
+    match e.name().local_name().as_ref() {
+        "oneCellAnchor" | "twoCellAnchor" | "absoluteAnchor" => {
+            model.anchors = model.anchors.saturating_add(1);
+        }
+        "chart" => {
+            let attrs = read_attrs(e, limits)?;
+            if let Some(id) = attr_of(&attrs, "id") {
+                if model.chart_rel_ids.len() as u64 >= u64::from(limits.max_xlsx_drawings) {
+                    return Err(Error::resource_limit("drawing references too many charts"));
+                }
+                model.chart_rel_ids.push(id.to_string());
+            }
+        }
+        "blip" => {
+            let attrs = read_attrs(e, limits)?;
+            if let Some(id) = attr_of(&attrs, "embed") {
+                if model.image_rel_ids.len() as u64 >= u64::from(limits.max_xlsx_drawings) {
+                    return Err(Error::resource_limit("drawing references too many images"));
+                }
+                model.image_rel_ids.push(id.to_string());
+            }
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -1766,6 +2801,13 @@ mod tests {
                     state: SheetState::Hidden,
                 },
             ],
+            defined_names: vec![DefinedName {
+                name: "TaxRate".to_string(),
+                local_sheet_id: Some(0),
+                hidden: false,
+                function: false,
+                refers_to: "Sheet1!$A$1".to_string(),
+            }],
         };
         assert_eq!(WorkbookModel::decode(&wb.encode()).unwrap(), wb);
 
@@ -1774,6 +2816,16 @@ mod tests {
             sheet_name: "Alpha".to_string(),
             dimension: Some("A1:B2".to_string()),
             merges: vec!["A1:B1".to_string()],
+            hyperlinks: vec![SheetHyperlink {
+                reference: "A1".to_string(),
+                rel_id: Some("rId3".to_string()),
+                location: None,
+                display: Some("site".to_string()),
+                tooltip: None,
+            }],
+            table_parts: vec!["rId4".to_string()],
+            drawing_rel_id: Some("rId5".to_string()),
+            legacy_drawing_rel_id: None,
             rows: vec![XlsxRow {
                 index: 0,
                 cells: vec![XlsxCell {
@@ -1837,10 +2889,36 @@ mod tests {
         let table = parse_shared_strings(sst, Limits::DEFAULT).unwrap();
         assert_eq!(table, vec!["a&b".to_string(), "xy".to_string()]);
 
-        let styles = br#"<styleSheet><numFmts count="1"><numFmt numFmtId="164" formatCode="0.00"/></numFmts><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0"/><xf numFmtId="164" fontId="1" fillId="0"/></cellXfs></styleSheet>"#;
+        let styles = br#"<styleSheet><numFmts count="1"><numFmt numFmtId="164" formatCode="0.00"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><i/><sz val="14"/><name val="Arial"/></font></fonts><fills count="1"><fill><patternFill patternType="solid"><fgColor rgb="FFFF0000"/></patternFill></fill></fills><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0"/><xf numFmtId="164" fontId="1" fillId="0"><alignment horizontal="center" wrapText="1"/></xf></cellXfs></styleSheet>"#;
         let st = parse_styles_table(styles, Limits::DEFAULT).unwrap();
         assert_eq!(st.cell_style(1).unwrap().num_fmt_id, 164);
         assert_eq!(st.num_fmt_code(164), Some("0.00"));
+        let style = st.style_for(1).unwrap();
+        assert_eq!(style.format_code.as_deref(), Some("0.00"));
+        assert_eq!(style.font.as_ref().map(|f| f.bold), Some(true));
+        assert_eq!(style.font.as_ref().map(|f| f.italic), Some(true));
+        assert_eq!(
+            style.font.as_ref().and_then(|f| f.name.as_deref()),
+            Some("Arial")
+        );
+        assert_eq!(
+            style.fill.as_ref().and_then(|f| f.pattern_type.as_deref()),
+            Some("solid")
+        );
+        assert_eq!(
+            style
+                .alignment
+                .as_ref()
+                .and_then(|a| a.horizontal.as_deref()),
+            Some("center")
+        );
+        assert!(style.alignment.as_ref().is_some_and(|a| a.wrap_text));
+        // A bounded, deterministic display projection.
+        assert_eq!(format_displayed("42", "0.00").as_deref(), Some("42.00"));
+        assert_eq!(format_displayed("0.5", "0.00%").as_deref(), Some("50.00%"));
+        assert_eq!(format_displayed("1234", "#,##0").as_deref(), Some("1,234"));
+        assert_eq!(format_displayed("x", "0.00"), None);
+        assert_eq!(format_displayed("42", "[$-409]d-mmm"), None);
     }
 
     #[test]

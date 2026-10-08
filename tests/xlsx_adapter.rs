@@ -32,7 +32,8 @@ use std::path::PathBuf;
 
 use vole_document::adapter::xlsx::{
     SheetModel, XlsxExtractProfile, XlsxModel, a1_to_col_row, build_xlsx_model, col_row_to_a1,
-    parse_shared_strings, parse_styles_table, parse_workbook, parse_worksheet,
+    parse_comments, parse_drawing, parse_shared_strings, parse_styles_table, parse_table,
+    parse_vml_notes, parse_workbook, parse_worksheet,
 };
 use vole_document::container::{Descriptor, ObjectSource};
 use vole_document::dra::{Op, Program};
@@ -747,6 +748,10 @@ fn random_bytes_never_panic_and_cover_holds() {
         let _ = parse_worksheet(&buf, "/x", "s", None, Limits::STRICT);
         let _ = parse_shared_strings(&buf, Limits::STRICT);
         let _ = parse_styles_table(&buf, Limits::STRICT);
+        let _ = parse_comments(&buf, Limits::STRICT);
+        let _ = parse_vml_notes(&buf, Limits::STRICT);
+        let _ = parse_table(&buf, Limits::STRICT);
+        let _ = parse_drawing(&buf, Limits::STRICT);
     }
     // A benign real fixture at STRICT limits still parses and covers exactly.
     let source = fixture_bytes("single.xlsx");
@@ -756,9 +761,278 @@ fn random_bytes_never_panic_and_cover_holds() {
 }
 
 #[test]
+fn semantic_style_table_fonts_fills_alignments_and_number_formats() {
+    let mut fx = Fixture::named("semantic.xlsx", "sem-styles");
+    let (styles, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxStyles,
+        Representation::Metadata,
+    );
+    let j = answer_json(&styles);
+    assert!(j.contains("\"fonts\":3"), "{j}");
+    assert!(j.contains("\"fills\":2"), "{j}");
+    assert!(j.contains("\"num_fmts\":2"), "{j}");
+    assert!(j.contains("\"cell_xfs\":4"), "{j}");
+    assert!(j.contains("\"formatCode\":\"0.00\""), "{j}");
+    assert!(j.contains("\"formatCode\":\"0%\""), "{j}");
+    assert!(j.contains("\"bold\":true"), "{j}");
+    assert!(j.contains("\"italic\":true"), "{j}");
+    assert!(j.contains("\"name\":\"Arial\""), "{j}");
+    assert!(j.contains("\"patternType\":\"solid\""), "{j}");
+    assert!(j.contains("\"fgColor\":\"FFFF0000\""), "{j}");
+    assert!(j.contains("\"horizontal\":\"center\""), "{j}");
+    assert!(j.contains("\"wrapText\":true"), "{j}");
+}
+
+#[test]
+fn semantic_cell_keeps_value_formula_displayed_and_style_distinct() {
+    let mut fx = Fixture::named("semantic.xlsx", "sem-cell");
+    // B2: a formula whose cached value (2469) differs from its number-format
+    // rendering (2469.00); the comment is keyed to the same cell.
+    let (b2, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxCell {
+            sheet: 0,
+            cell: "B2".into(),
+            profile: P,
+        },
+        Representation::Metadata,
+    );
+    let j = answer_json(&b2);
+    assert!(j.contains("\"formula\":\"A1*2\""), "{j}");
+    assert!(j.contains("\"value\":\"2469\""), "{j}");
+    assert!(j.contains("\"displayed\":\"2469.00\""), "{j}");
+    assert!(j.contains("\"display_basis\":\"numFmt:0.00\""), "{j}");
+    assert!(j.contains("\"comment\":{\"author\":\"Alice\""), "{j}");
+    assert!(j.contains("Check this"), "{j}");
+    assert!(j.contains("\"bold\":true"), "{j}");
+    assert!(j.contains("\"name\":\"Arial\""), "{j}");
+
+    // B1: a percentage format makes the displayed value differ from the cached one.
+    let (b1, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxCell {
+            sheet: 0,
+            cell: "B1".into(),
+            profile: P,
+        },
+        Representation::Metadata,
+    );
+    let j1 = answer_json(&b1);
+    assert!(j1.contains("\"value\":\"0.5\""), "{j1}");
+    assert!(j1.contains("\"displayed\":\"50%\""), "{j1}");
+
+    // C1: alignment + italic (font 2 is explicitly not bold) + solid fill.
+    let (c1, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxCell {
+            sheet: 0,
+            cell: "C1".into(),
+            profile: P,
+        },
+        Representation::Structure,
+    );
+    let jc = answer_json(&c1);
+    assert!(jc.contains("\"italic\":true"), "{jc}");
+    assert!(jc.contains("\"bold\":false"), "{jc}");
+    assert!(jc.contains("\"name\":\"Courier New\""), "{jc}");
+    assert!(jc.contains("\"patternType\":\"solid\""), "{jc}");
+    assert!(jc.contains("\"horizontal\":\"center\""), "{jc}");
+}
+
+#[test]
+fn semantic_defined_names_comments_hyperlinks_tables_and_drawing() {
+    let mut fx = Fixture::named("semantic.xlsx", "sem-parts");
+
+    let (dn, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxDefinedNames,
+        Representation::Metadata,
+    );
+    let jd = answer_json(&dn);
+    assert!(jd.contains("\"count\":2"), "{jd}");
+    assert!(jd.contains("\"name\":\"TaxRate\""), "{jd}");
+    assert!(jd.contains("\"refersTo\":\"Data!$C$1\""), "{jd}");
+    assert!(jd.contains("\"HiddenName\""), "{jd}");
+    assert!(jd.contains("\"hidden\":true"), "{jd}");
+
+    let (cm, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxComments { sheet: 0 },
+        Representation::Metadata,
+    );
+    let jc = answer_json(&cm);
+    assert!(jc.contains("\"cell\":\"B2\""), "{jc}");
+    assert!(jc.contains("\"author\":\"Alice\""), "{jc}");
+    assert!(jc.contains("\"text\":\"Check this\""), "{jc}");
+    assert!(jc.contains("_x0000_s1025"), "{jc}");
+    assert!(jc.contains("\"vml_notes\":[{\"cell\":\"B2\""), "{jc}");
+
+    let (hl, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxHyperlinks { sheet: 0 },
+        Representation::Metadata,
+    );
+    let jh = answer_json(&hl);
+    assert!(jh.contains("\"count\":2"), "{jh}");
+    assert!(jh.contains("\"ref\":\"A1\""), "{jh}");
+    assert!(jh.contains("\"external\":true"), "{jh}");
+    assert!(jh.contains("\"target\":\"https://example.com/\""), "{jh}");
+    assert!(jh.contains("\"location\":\"Sheet1!C1\""), "{jh}");
+
+    let (tb, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxTables { sheet: 0 },
+        Representation::Metadata,
+    );
+    let jt = answer_json(&tb);
+    assert!(jt.contains("\"name\":\"Table1\""), "{jt}");
+    assert!(jt.contains("\"ref\":\"A1:C3\""), "{jt}");
+    assert!(jt.contains("\"name\":\"One\""), "{jt}");
+    assert!(jt.contains("\"name\":\"Three\""), "{jt}");
+
+    let (dr, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxDrawing { sheet: 0 },
+        Representation::Metadata,
+    );
+    let jdr = answer_json(&dr);
+    assert!(jdr.contains("\"anchors\":2"), "{jdr}");
+    assert!(jdr.contains("/xl/charts/chart1.xml"), "{jdr}");
+    assert!(jdr.contains("/xl/media/image1.png"), "{jdr}");
+
+    // The drawing part's exact/decoded bytes resolve.
+    let (db, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxDrawing { sheet: 0 },
+        Representation::DecodedBytes,
+    );
+    let bytes = answer_bytes(&db);
+    assert!(
+        String::from_utf8_lossy(&bytes).contains("wsDr"),
+        "drawing bytes not resolved"
+    );
+
+    let (ex, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxExternalRels,
+        Representation::Metadata,
+    );
+    let je = answer_json(&ex);
+    assert!(je.contains("\"target_mode\":\"external\""), "{je}");
+    assert!(je.contains("https://example.com/"), "{je}");
+    assert!(je.contains("file:///C:/tmp/other.xlsx"), "{je}");
+
+    // Sheet metadata reports the new counts without conflating them.
+    let (sm, _) = observe_eq(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxSheet {
+            index: 0,
+            profile: P,
+        },
+        Representation::Metadata,
+    );
+    let js = answer_json(&sm);
+    assert!(js.contains("\"hyperlinks\":2"), "{js}");
+    assert!(js.contains("\"tables\":1"), "{js}");
+    assert!(js.contains("\"drawing\":true"), "{js}");
+    assert!(js.contains("\"legacy_drawing\":true"), "{js}");
+    assert!(js.contains("\"defined_names\":2"), "{js}");
+    assert!(js.contains("\"merges\":1"), "{js}");
+    assert!(js.contains("Data"), "{js}");
+}
+
+#[test]
+fn semantic_unsupported_pairs_and_missing_parts_decline_typed() {
+    let mut fx = Fixture::named("semantic.xlsx", "sem-decline");
+    // A per-sheet selector on a sheet that does not exist declines typed.
+    let class = observe_err(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxComments { sheet: 9 },
+        Representation::Metadata,
+    );
+    assert_eq!(class, ErrorClass::UnsupportedFeature);
+    // A representation the styles observation does not serve declines typed.
+    let class = observe_err(
+        &mut fx.store,
+        &fx.report.field,
+        Selector::XlsxStyles,
+        Representation::ExactBytes,
+    );
+    assert_eq!(class, ErrorClass::UnsupportedFeature);
+    // `single.xlsx` carries no drawing: asking for its drawing bytes declines typed.
+    let mut s = Fixture::named("single.xlsx", "sem-nodraw");
+    let class = observe_err(
+        &mut s.store,
+        &s.report.field,
+        Selector::XlsxDrawing { sheet: 0 },
+        Representation::DecodedBytes,
+    );
+    assert_eq!(class, ErrorClass::UnsupportedFeature);
+}
+
+#[test]
+fn semantic_fixture_is_exact_and_queryable_after_removal() {
+    let root = temp_dir("sem-removal");
+    let source = fixture_bytes("semantic.xlsx");
+    let descriptor = opaque_descriptor(&source);
+    let src_path = root.join("doc.xlsx");
+    let desc_path = root.join("doc.voldoc");
+    std::fs::write(&src_path, &source).unwrap();
+    std::fs::write(&desc_path, &descriptor).unwrap();
+
+    let store_root = root.join("store");
+    let field_id = {
+        let mut store = FieldStore::open(&store_root).unwrap();
+        ingest_package(&mut store, &descriptor, Limits::DEFAULT)
+            .unwrap()
+            .field
+    };
+
+    std::fs::remove_file(&src_path).unwrap();
+    std::fs::remove_file(&desc_path).unwrap();
+
+    let mut store2 = FieldStore::open(&store_root).unwrap();
+    // Fully queryable in a fresh process.
+    let (dn, _) = observe_eq(
+        &mut store2,
+        &field_id,
+        Selector::XlsxDefinedNames,
+        Representation::Metadata,
+    );
+    assert!(answer_json(&dn).contains("TaxRate"));
+    let (hl, _) = observe_eq(
+        &mut store2,
+        &field_id,
+        Selector::XlsxHyperlinks { sheet: 0 },
+        Representation::Metadata,
+    );
+    assert!(answer_json(&hl).contains("https://example.com/"));
+
+    let field = Field::open(&store2, &field_id, Limits::DEFAULT).unwrap();
+    let exact = field.materialize_exact(Limits::DEFAULT).unwrap();
+    assert_eq!(exact.len(), source.len());
+    assert_eq!(sha256(&exact), sha256(&source));
+    assert!(exact == source);
+    drop(store2);
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
 fn adapter_unit_roundtrips_are_stable() {
-    // Model/codec round-trips are covered in the crate unit tests; here we pin a
-    // couple of behavioural facts the court relies on.
     assert_eq!(a1_to_col_row("A1"), Some((0, 0)));
     assert_eq!(col_row_to_a1(0, 0), "A1");
     let wb = parse_workbook(

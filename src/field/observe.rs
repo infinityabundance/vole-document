@@ -376,6 +376,44 @@ pub enum Selector {
         /// The extraction profile identity.
         profile: XlsxExtractProfile,
     },
+    /// The parsed SpreadsheetML style table (Phase 21.1.2): custom number formats,
+    /// fonts, fills, and the `cellXfs` composition. A distinct observation from a
+    /// cell's value, formula, or span.
+    #[cfg(feature = "xlsx")]
+    XlsxStyles,
+    /// The workbook's defined/named ranges (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    XlsxDefinedNames,
+    /// The package's external relationships (Phase 21.1.2). Typed metadata only;
+    /// an external target is an inert identifier and is never dereferenced.
+    #[cfg(feature = "xlsx")]
+    XlsxExternalRels,
+    /// The cell comments of one worksheet, keyed by cell (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    XlsxComments {
+        /// The 0-based workbook-order sheet index.
+        sheet: u32,
+    },
+    /// The hyperlinks declared in one worksheet (Phase 21.1.2). Internal
+    /// (`location`) and external (`r:id`) links are distinct observations.
+    #[cfg(feature = "xlsx")]
+    XlsxHyperlinks {
+        /// The 0-based workbook-order sheet index.
+        sheet: u32,
+    },
+    /// The tables referenced by one worksheet's `tableParts` (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    XlsxTables {
+        /// The 0-based workbook-order sheet index.
+        sheet: u32,
+    },
+    /// The drawing(s) referenced by one worksheet (Phase 21.1.2). Charts are never
+    /// evaluated; only the drawing part and its relationship graph are exposed.
+    #[cfg(feature = "xlsx")]
+    XlsxDrawing {
+        /// The 0-based workbook-order sheet index.
+        sheet: u32,
+    },
 }
 
 impl Selector {
@@ -552,6 +590,20 @@ impl Selector {
             Selector::XlsxFind { pattern, profile } => {
                 format!("xlsx-find:{pattern};profile={}", profile.fingerprint())
             }
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxStyles => "xlsx-styles".to_string(),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxDefinedNames => "xlsx-defined-names".to_string(),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxExternalRels => "xlsx-external-rels".to_string(),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxComments { sheet } => format!("xlsx-comments:{sheet}"),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxHyperlinks { sheet } => format!("xlsx-hyperlinks:{sheet}"),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxTables { sheet } => format!("xlsx-tables:{sheet}"),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxDrawing { sheet } => format!("xlsx-drawing:{sheet}"),
         }
     }
 
@@ -2183,6 +2235,33 @@ impl<S: SeedStore> Ctx<'_, S> {
             (Selector::XlsxFind { pattern, profile }, R::Text) => {
                 self.xlsx_find(req, pattern, profile)
             }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxStyles, R::Metadata | R::Structure) => self.xlsx_styles_answer(req),
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxDefinedNames, R::Metadata | R::Structure) => {
+                self.xlsx_defined_names(req)
+            }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxExternalRels, R::Metadata | R::Structure) => {
+                self.xlsx_external_rels(req)
+            }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxComments { sheet }, R::Metadata | R::Structure) => {
+                self.xlsx_comments(req, *sheet)
+            }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxHyperlinks { sheet }, R::Metadata | R::Structure) => {
+                self.xlsx_hyperlinks(req, *sheet)
+            }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxTables { sheet }, R::Metadata | R::Structure) => {
+                self.xlsx_tables(req, *sheet)
+            }
+            #[cfg(feature = "xlsx")]
+            (
+                Selector::XlsxDrawing { sheet },
+                R::Metadata | R::Structure | R::ExactBytes | R::DecodedBytes,
+            ) => self.xlsx_drawing(req, *sheet),
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
                 req.selector.canonical(),
@@ -4667,7 +4746,8 @@ impl<S: SeedStore> Ctx<'_, S> {
             Representation::Metadata => AnswerValue::Json(format!(
                 concat!(
                     "{{\"sheet\":\"{}\",\"index\":{},\"state\":\"{}\",\"part\":\"{}\",",
-                    "\"ordinal\":{},\"dimension\":{},\"merges\":{},\"rows\":{},\"cells\":{},",
+                    "\"ordinal\":{},\"dimension\":{},\"merges\":{},\"hyperlinks\":{},\"tables\":{},",
+                    "\"drawing\":{},\"legacy_drawing\":{},\"defined_names\":{},\"rows\":{},\"cells\":{},",
                     "\"profile\":\"{}\"}}"
                 ),
                 json_escape(&sheet_name),
@@ -4677,6 +4757,11 @@ impl<S: SeedStore> Ctx<'_, S> {
                 part.ordinal,
                 opt_str_json(sheet.dimension.as_deref()),
                 sheet.merges.len(),
+                sheet.hyperlinks.len(),
+                sheet.table_parts.len(),
+                sheet.drawing_rel_id.is_some(),
+                sheet.legacy_drawing_rel_id.is_some(),
+                workbook.defined_names.len(),
                 sheet.rows.len(),
                 sheet.cell_count(),
                 profile.fingerprint()
@@ -4777,32 +4862,36 @@ impl<S: SeedStore> Ctx<'_, S> {
                 AnswerValue::Bytes(slice)
             }
             Representation::Metadata | Representation::Structure => {
-                let style = found.style.and_then(|s| {
-                    let model = self.xlsx_model().ok()?;
-                    let table = self.xlsx_styles(&model)?;
-                    let xf = table.cell_style(s)?;
-                    let code = table.num_fmt_code(xf.num_fmt_id).map(str::to_string);
-                    Some((xf, code))
-                });
-                let style_json = match &style {
-                    Some((xf, code)) => format!(
-                        "{{\"index\":{},\"numFmtId\":{},\"fontId\":{},\"fillId\":{},\"formatCode\":{}}}",
-                        found.style.unwrap_or(0),
-                        xf.num_fmt_id,
-                        xf.font_id,
-                        xf.fill_id,
-                        opt_str_json(code.as_deref())
-                    ),
-                    None => match found.style {
-                        Some(i) => format!("{{\"index\":{i}}}"),
-                        None => "null".to_string(),
-                    },
+                let styles = self.xlsx_model().ok().and_then(|m| self.xlsx_styles(&m));
+                let resolved = found
+                    .style
+                    .and_then(|s| styles.as_ref().and_then(|t| t.style_for(s)));
+                let style_json = xlsx_cell_style_json(found.style, resolved.as_ref());
+                // The displayed value is a *deterministic projection* of the cached
+                // value under the cell's number format — never a formula evaluation.
+                // It is reported only where it differs from the cached value, with a
+                // basis label so the distinction is explicit.
+                let (displayed, display_basis) = match (
+                    found.value.as_deref(),
+                    resolved.as_ref().and_then(|s| s.format_code.as_deref()),
+                ) {
+                    (Some(v), Some(code)) => {
+                        match crate::adapter::xlsx::format_displayed(v, code) {
+                            Some(d) if d != v => (Some(d), format!("numFmt:{code}")),
+                            Some(_) => (None, "identical".to_string()),
+                            None => (None, "unsupported-format".to_string()),
+                        }
+                    }
+                    (Some(_), None) => (None, "no-format".to_string()),
+                    (None, _) => (None, "no-value".to_string()),
                 };
+                let comment = self.xlsx_cell_comment(part.ordinal, &found.reference)?;
                 AnswerValue::Json(format!(
                     concat!(
                         "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
                         "\"cell\":\"{}\",\"col\":{},\"row\":{},\"kind\":\"{}\",\"type\":{},",
-                        "\"value\":{},\"formula\":{},\"style\":{},\"profile\":\"{}\"}}"
+                        "\"value\":{},\"formula\":{},\"displayed\":{},\"display_basis\":\"{}\",",
+                        "\"style\":{},\"comment\":{},\"profile\":\"{}\"}}"
                     ),
                     json_escape(&sheet_name),
                     sheet_index,
@@ -4814,13 +4903,41 @@ impl<S: SeedStore> Ctx<'_, S> {
                     opt_str_json(found.type_tag.as_deref()),
                     opt_str_json(found.value.as_deref()),
                     opt_str_json(found.formula.as_deref()),
+                    opt_str_json(displayed.as_deref()),
+                    display_basis,
                     style_json,
+                    comment,
                     profile.fingerprint()
                 ))
             }
             _ => return Err(unsupported_common(req)),
         };
         Ok(self.xlsx_answer(req, value, provenance, span, deps))
+    }
+
+    /// The comment on one cell, as JSON (`null` when the sheet has no comment for
+    /// it). Keyed by the cell reference; a distinct observation from the value.
+    fn xlsx_cell_comment(&mut self, owner: u32, reference: &str) -> Result<String> {
+        let opc = self.opc_model()?;
+        let Some(rel) = xlsx_find_rel(&opc, owner, "comments") else {
+            return Ok("null".to_string());
+        };
+        let Some(resolved) = rel.resolved.as_deref() else {
+            return Ok("null".to_string());
+        };
+        let Some(p) = opc.part_by_name(resolved) else {
+            return Ok("null".to_string());
+        };
+        let bytes = self.xlsx_member_bytes(p.ordinal)?;
+        let comments = crate::adapter::xlsx::parse_comments(&bytes, self.limits)?;
+        Ok(match comments.iter().find(|c| c.cell == reference) {
+            Some(c) => format!(
+                "{{\"author\":{},\"text\":\"{}\"}}",
+                opt_str_json(c.author.as_deref()),
+                json_escape(&c.text)
+            ),
+            None => "null".to_string(),
+        })
     }
 
     fn xlsx_find(
@@ -4868,6 +4985,597 @@ impl<S: SeedStore> Ctx<'_, S> {
             Vec::new(),
         ))
     }
+
+    /// Resolve the worksheet part and sheet name for a 0-based index.
+    fn xlsx_sheet_scope(
+        &mut self,
+        index: u32,
+    ) -> Result<(
+        XlsxModel,
+        XlsxWorkbookModel,
+        crate::adapter::xlsx::XlsxPartRef,
+        String,
+    )> {
+        let model = self.xlsx_model()?;
+        let workbook = self.xlsx_workbook()?;
+        let (part, name) = self.xlsx_sheet_part(&model, &workbook, index)?;
+        Ok((model, workbook, part, name))
+    }
+
+    /// Materialize the decoded bytes of a package member by ordinal.
+    fn xlsx_member_bytes(&mut self, ordinal: u32) -> Result<Vec<u8>> {
+        let e = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, ordinal),
+            "XLSX related part decoded bytes",
+        )?;
+        let node = self.load(&e.node_id)?;
+        self.materialize(&node)
+    }
+
+    /// The parsed style table as a metadata observation (Phase 21.1.2).
+    fn xlsx_styles_answer(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.xlsx_model()?;
+        let table = self.xlsx_styles(&model);
+        let json = match &table {
+            Some(t) => xlsx_styles_json(t),
+            None => "{\"present\":false}".to_string(),
+        };
+        Ok(self.xlsx_answer(
+            req,
+            AnswerValue::Json(json),
+            "xlsx;styles".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    /// The workbook's defined/named ranges (Phase 21.1.2).
+    fn xlsx_defined_names(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let workbook = self.xlsx_workbook()?;
+        let names = workbook
+            .defined_names
+            .iter()
+            .map(|d| {
+                format!(
+                    concat!(
+                        "{{\"name\":\"{}\",\"localSheetId\":{},\"hidden\":{},",
+                        "\"function\":{},\"refersTo\":\"{}\"}}"
+                    ),
+                    json_escape(&d.name),
+                    opt_u32_json(d.local_sheet_id),
+                    d.hidden,
+                    d.function,
+                    json_escape(&d.refers_to)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let json = format!(
+            "{{\"count\":{},\"names\":[{}]}}",
+            workbook.defined_names.len(),
+            names
+        );
+        Ok(self.xlsx_answer(
+            req,
+            AnswerValue::Json(json),
+            "xlsx;defined-names".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    /// The package's external relationships (Phase 21.1.2). Typed metadata only;
+    /// external targets are inert identifiers and are never dereferenced.
+    fn xlsx_external_rels(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.opc_model()?;
+        let mut items: Vec<String> = Vec::new();
+        for r in &model.package_rels {
+            if r.is_external() {
+                items.push(xlsx_rel_json(r, None));
+            }
+        }
+        for (owner, rels) in &model.part_rels {
+            for r in rels {
+                if r.is_external() {
+                    items.push(xlsx_rel_json(r, Some(*owner)));
+                }
+            }
+        }
+        let json = format!(
+            "{{\"count\":{},\"relationships\":[{}]}}",
+            items.len(),
+            items.join(",")
+        );
+        Ok(self.xlsx_answer(
+            req,
+            AnswerValue::Json(json),
+            "xlsx;external-rels".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    /// The cell comments of one worksheet, keyed by cell (Phase 21.1.2).
+    fn xlsx_comments(&mut self, req: &ObserveRequest, sheet_index: u32) -> Result<FieldAnswer> {
+        let (_model, _wb, part, sheet_name) = self.xlsx_sheet_scope(sheet_index)?;
+        let opc = self.opc_model()?;
+        let mut comments_json = "null".to_string();
+        let mut vml_json = "null".to_string();
+        if let Some(rel) = xlsx_find_rel(&opc, part.ordinal, "comments")
+            && let Some(resolved) = rel.resolved.as_deref()
+            && let Some(p) = opc.part_by_name(resolved)
+        {
+            let bytes = self.xlsx_member_bytes(p.ordinal)?;
+            let comments = crate::adapter::xlsx::parse_comments(&bytes, self.limits)?;
+            comments_json = format!(
+                "[{}]",
+                comments
+                    .iter()
+                    .map(|c| format!(
+                        "{{\"cell\":\"{}\",\"author\":{},\"text\":\"{}\"}}",
+                        json_escape(&c.cell),
+                        opt_str_json(c.author.as_deref()),
+                        json_escape(&c.text)
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
+        }
+        if let Some(rel) = xlsx_find_rel(&opc, part.ordinal, "vmlDrawing")
+            && let Some(resolved) = rel.resolved.as_deref()
+            && let Some(p) = opc.part_by_name(resolved)
+        {
+            let bytes = self.xlsx_member_bytes(p.ordinal)?;
+            let notes = crate::adapter::xlsx::parse_vml_notes(&bytes, self.limits)?;
+            vml_json = format!(
+                "[{}]",
+                notes
+                    .iter()
+                    .map(|n| format!(
+                        "{{\"cell\":\"{}\",\"shapeId\":{}}}",
+                        json_escape(&n.cell),
+                        opt_str_json(n.shape_id.as_deref())
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
+        }
+        let json = format!(
+            concat!(
+                "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                "\"comments\":{},\"vml_notes\":{}}}"
+            ),
+            json_escape(&sheet_name),
+            sheet_index,
+            json_escape(&part.name),
+            comments_json,
+            vml_json
+        );
+        let provenance = format!("xlsx;sheet={sheet_name};index={sheet_index};comments");
+        Ok(self.xlsx_answer(req, AnswerValue::Json(json), provenance, None, Vec::new()))
+    }
+
+    /// The hyperlinks declared in one worksheet (Phase 21.1.2), resolved through
+    /// the sheet's relationships. Internal (`location`) and external (`r:id`) links
+    /// are kept distinct; external targets are never dereferenced.
+    fn xlsx_hyperlinks(&mut self, req: &ObserveRequest, sheet_index: u32) -> Result<FieldAnswer> {
+        let profile = XlsxExtractProfile::DEFAULT;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(sheet_index, &profile)?;
+        let opc = self.opc_model()?;
+        let mut items: Vec<String> = Vec::new();
+        for h in &sheet.hyperlinks {
+            let (external, target, resolved) = match h.rel_id.as_deref() {
+                Some(id) => match xlsx_part_rel(&opc, part.ordinal, id) {
+                    Some(rel) => (
+                        rel.is_external(),
+                        Some(rel.target.clone()),
+                        rel.resolved.clone(),
+                    ),
+                    None => (false, None, None),
+                },
+                None => (false, None, None),
+            };
+            items.push(format!(
+                concat!(
+                    "{{\"ref\":\"{}\",\"relId\":{},\"location\":{},\"display\":{},",
+                    "\"tooltip\":{},\"external\":{},\"target\":{},\"resolved\":{}}}"
+                ),
+                json_escape(&h.reference),
+                opt_str_json(h.rel_id.as_deref()),
+                opt_str_json(h.location.as_deref()),
+                opt_str_json(h.display.as_deref()),
+                opt_str_json(h.tooltip.as_deref()),
+                external,
+                opt_str_json(target.as_deref()),
+                opt_str_json(resolved.as_deref())
+            ));
+        }
+        let json = format!(
+            concat!(
+                "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                "\"count\":{},\"hyperlinks\":[{}]}}"
+            ),
+            json_escape(&sheet_name),
+            sheet_index,
+            json_escape(&part.name),
+            items.len(),
+            items.join(",")
+        );
+        let provenance = format!("xlsx;sheet={sheet_name};index={sheet_index};hyperlinks");
+        Ok(self.xlsx_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    /// The tables referenced by one worksheet's `tableParts` (Phase 21.1.2).
+    fn xlsx_tables(&mut self, req: &ObserveRequest, sheet_index: u32) -> Result<FieldAnswer> {
+        let profile = XlsxExtractProfile::DEFAULT;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(sheet_index, &profile)?;
+        let opc = self.opc_model()?;
+        let mut tables: Vec<String> = Vec::new();
+        for rid in &sheet.table_parts {
+            let rel = xlsx_part_rel(&opc, part.ordinal, rid).ok_or_else(|| {
+                Error::invalid_package_structure(format!(
+                    "worksheet tablePart {rid:?} has no relationship"
+                ))
+            })?;
+            let resolved = rel.resolved.clone().ok_or_else(|| {
+                Error::invalid_package_structure(format!(
+                    "worksheet tablePart {rid:?} target is external"
+                ))
+            })?;
+            let p = opc.part_by_name(&resolved).ok_or_else(|| {
+                Error::invalid_package_structure(format!(
+                    "worksheet tablePart {rid:?} targets {resolved:?}, not a part"
+                ))
+            })?;
+            let bytes = self.xlsx_member_bytes(p.ordinal)?;
+            let table = crate::adapter::xlsx::parse_table(&bytes, self.limits)?;
+            let columns = table
+                .columns
+                .iter()
+                .map(|c| {
+                    format!(
+                        "{{\"id\":{},\"name\":\"{}\"}}",
+                        opt_u32_json(c.id),
+                        json_escape(&c.name)
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            tables.push(format!(
+                concat!(
+                    "{{\"relId\":\"{}\",\"part\":\"{}\",\"ordinal\":{},",
+                    "\"name\":{},\"displayName\":{},\"ref\":{},\"columns\":[{}]}}"
+                ),
+                json_escape(rid),
+                json_escape(&p.name),
+                p.ordinal,
+                opt_str_json(table.name.as_deref()),
+                opt_str_json(table.display_name.as_deref()),
+                opt_str_json(table.reference.as_deref()),
+                columns
+            ));
+        }
+        let json = format!(
+            concat!(
+                "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                "\"count\":{},\"tables\":[{}]}}"
+            ),
+            json_escape(&sheet_name),
+            sheet_index,
+            json_escape(&part.name),
+            tables.len(),
+            tables.join(",")
+        );
+        let provenance = format!("xlsx;sheet={sheet_name};index={sheet_index};tables");
+        Ok(self.xlsx_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    /// The drawing(s) referenced by one worksheet (Phase 21.1.2). Charts are never
+    /// evaluated; `ExactBytes`/`DecodedBytes` resolve the drawing part itself.
+    fn xlsx_drawing(&mut self, req: &ObserveRequest, sheet_index: u32) -> Result<FieldAnswer> {
+        use Representation as R;
+        let profile = XlsxExtractProfile::DEFAULT;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(sheet_index, &profile)?;
+        let provenance = format!("xlsx;sheet={sheet_name};index={sheet_index};drawing");
+        match req.representation {
+            R::ExactBytes | R::DecodedBytes => {
+                let rid = sheet.drawing_rel_id.as_deref().ok_or_else(|| {
+                    Error::unsupported_feature(format!(
+                        "sheet {sheet_index} ({sheet_name}) has no drawing"
+                    ))
+                })?;
+                let opc = self.opc_model()?;
+                let rel = xlsx_part_rel(&opc, part.ordinal, rid).ok_or_else(|| {
+                    Error::invalid_package_structure(format!(
+                        "worksheet drawing {rid:?} has no relationship"
+                    ))
+                })?;
+                let resolved = rel.resolved.clone().ok_or_else(|| {
+                    Error::invalid_package_structure("worksheet drawing target is external")
+                })?;
+                let p = opc.part_by_name(&resolved).ok_or_else(|| {
+                    Error::invalid_package_structure(format!(
+                        "worksheet drawing targets {resolved:?}, not a part"
+                    ))
+                })?;
+                if req.representation == R::ExactBytes {
+                    self.indexed_exact(
+                        req,
+                        SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, p.ordinal),
+                        "drawing part",
+                    )
+                } else {
+                    self.member_decoded(req, p.ordinal)
+                }
+            }
+            R::Metadata | R::Structure => {
+                let opc = self.opc_model()?;
+                let mut drawing_json = "null".to_string();
+                let mut charts: Vec<String> = Vec::new();
+                let mut media: Vec<String> = Vec::new();
+                if let Some(rid) = sheet.drawing_rel_id.as_deref()
+                    && let Some(rel) = xlsx_part_rel(&opc, part.ordinal, rid)
+                    && let Some(resolved) = rel.resolved.as_deref()
+                    && let Some(p) = opc.part_by_name(resolved)
+                {
+                    let bytes = self.xlsx_member_bytes(p.ordinal)?;
+                    let d = crate::adapter::xlsx::parse_drawing(&bytes, self.limits)?;
+                    for cid in &d.chart_rel_ids {
+                        if let Some(crel) = xlsx_part_rel(&opc, p.ordinal, cid) {
+                            charts.push(xlsx_rel_part_json(crel, &opc));
+                        }
+                    }
+                    for iid in &d.image_rel_ids {
+                        if let Some(irel) = xlsx_part_rel(&opc, p.ordinal, iid) {
+                            media.push(xlsx_rel_part_json(irel, &opc));
+                        }
+                    }
+                    drawing_json = format!(
+                        "{{\"part\":\"{}\",\"ordinal\":{},\"anchors\":{}}}",
+                        json_escape(&p.name),
+                        p.ordinal,
+                        d.anchors
+                    );
+                }
+                let legacy = match &sheet.legacy_drawing_rel_id {
+                    Some(id) => format!("\"{}\"", json_escape(id)),
+                    None => "null".to_string(),
+                };
+                let json = format!(
+                    concat!(
+                        "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                        "\"drawing\":{},\"charts\":[{}],\"media\":[{}],\"legacyDrawing\":{}}}"
+                    ),
+                    json_escape(&sheet_name),
+                    sheet_index,
+                    json_escape(&part.name),
+                    drawing_json,
+                    charts.join(","),
+                    media.join(","),
+                    legacy
+                );
+                Ok(self.xlsx_answer(req, AnswerValue::Json(json), provenance, span, deps))
+            }
+            _ => Err(unsupported_common(req)),
+        }
+    }
+}
+
+/// A relationship's JSON metadata for the external-relationship observation.
+#[cfg(feature = "xlsx")]
+fn xlsx_rel_json(r: &crate::adapter::package::opc::Relationship, owner: Option<u32>) -> String {
+    format!(
+        concat!(
+            "{{\"id\":\"{}\",\"type\":\"{}\",\"target\":\"{}\",",
+            "\"target_mode\":\"{}\",\"owner\":{}}}"
+        ),
+        json_escape(&r.id),
+        json_escape(&r.rel_type),
+        json_escape(&r.target),
+        r.mode.name(),
+        match owner {
+            Some(o) => o.to_string(),
+            None => "null".to_string(),
+        }
+    )
+}
+
+/// The JSON for a relationship's resolved target part (a chart or image).
+#[cfg(feature = "xlsx")]
+fn xlsx_rel_part_json(
+    r: &crate::adapter::package::opc::Relationship,
+    model: &crate::adapter::package::opc::OpcModel,
+) -> String {
+    let (part, ordinal, ct) = match r.resolved.as_deref().and_then(|n| model.part_by_name(n)) {
+        Some(p) => (
+            format!("\"{}\"", json_escape(&p.name)),
+            p.ordinal.to_string(),
+            opt_str_json(p.content_type.as_deref()),
+        ),
+        None => ("null".to_string(), "null".to_string(), "null".to_string()),
+    };
+    format!(
+        "{{\"relId\":\"{}\",\"part\":{},\"ordinal\":{},\"contentType\":{}}}",
+        json_escape(&r.id),
+        part,
+        ordinal,
+        ct
+    )
+}
+
+/// The style table as deterministic JSON (Phase 21.1.2).
+#[cfg(feature = "xlsx")]
+fn xlsx_styles_json(t: &crate::adapter::xlsx::StylesTable) -> String {
+    let fonts = t
+        .fonts
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            format!(
+                concat!(
+                    "{{\"index\":{},\"bold\":{},\"italic\":{},",
+                    "\"size\":{},\"name\":{}}}"
+                ),
+                i,
+                f.bold,
+                f.italic,
+                opt_str_json(f.size.as_deref()),
+                opt_str_json(f.name.as_deref())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let fills = t
+        .fills
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            format!(
+                concat!(
+                    "{{\"index\":{},\"patternType\":{},",
+                    "\"fgColor\":{},\"bgColor\":{}}}"
+                ),
+                i,
+                opt_str_json(f.pattern_type.as_deref()),
+                opt_str_json(f.fg_color.as_deref()),
+                opt_str_json(f.bg_color.as_deref())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let fmts = t
+        .num_fmts
+        .iter()
+        .map(|(id, code)| format!("{{\"id\":{id},\"formatCode\":\"{}\"}}", json_escape(code)))
+        .collect::<Vec<_>>()
+        .join(",");
+    let xfs = t
+        .cell_xfs
+        .iter()
+        .enumerate()
+        .map(|(i, xf)| {
+            format!(
+                concat!(
+                    "{{\"index\":{},\"numFmtId\":{},\"fontId\":{},\"fillId\":{},",
+                    "\"alignment\":{}}}"
+                ),
+                i,
+                xf.num_fmt_id,
+                xf.font_id,
+                xf.fill_id,
+                xlsx_alignment_json(xf.alignment.as_ref())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        concat!(
+            "{{\"present\":true,\"fonts\":{},\"fills\":{},\"num_fmts\":{},\"cell_xfs\":{},",
+            "\"fonts_detail\":[{}],\"fills_detail\":[{}],\"num_fmts_detail\":[{}],\"cell_xfs_detail\":[{}]}}"
+        ),
+        t.fonts.len(),
+        t.fills.len(),
+        t.num_fmts.len(),
+        t.cell_xfs.len(),
+        fonts,
+        fills,
+        fmts,
+        xfs
+    )
+}
+
+/// A resolved alignment as JSON, or `null`.
+#[cfg(feature = "xlsx")]
+fn xlsx_alignment_json(a: Option<&crate::adapter::xlsx::Alignment>) -> String {
+    match a {
+        Some(a) => format!(
+            "{{\"horizontal\":{},\"vertical\":{},\"wrapText\":{}}}",
+            opt_str_json(a.horizontal.as_deref()),
+            opt_str_json(a.vertical.as_deref()),
+            a.wrap_text
+        ),
+        None => "null".to_string(),
+    }
+}
+
+/// A cell's resolved style as JSON, or `null` (Phase 21.1.2). Distinct from the
+/// cell's value, formula, and span.
+#[cfg(feature = "xlsx")]
+fn xlsx_cell_style_json(
+    style_index: Option<u32>,
+    style: Option<&crate::adapter::xlsx::CellStyle>,
+) -> String {
+    match (style_index, style) {
+        (Some(i), Some(s)) => {
+            let font = match &s.font {
+                Some(f) => format!(
+                    concat!("{{\"bold\":{},\"italic\":{},", "\"size\":{},\"name\":{}}}"),
+                    f.bold,
+                    f.italic,
+                    opt_str_json(f.size.as_deref()),
+                    opt_str_json(f.name.as_deref())
+                ),
+                None => "null".to_string(),
+            };
+            let fill = match &s.fill {
+                Some(f) => format!(
+                    concat!("{{\"patternType\":{},", "\"fgColor\":{},\"bgColor\":{}}}"),
+                    opt_str_json(f.pattern_type.as_deref()),
+                    opt_str_json(f.fg_color.as_deref()),
+                    opt_str_json(f.bg_color.as_deref())
+                ),
+                None => "null".to_string(),
+            };
+            format!(
+                concat!(
+                    "{{\"index\":{},\"numFmtId\":{},\"formatCode\":{},",
+                    "\"font\":{},\"fill\":{},\"alignment\":{}}}"
+                ),
+                i,
+                s.num_fmt_id,
+                opt_str_json(s.format_code.as_deref()),
+                font,
+                fill,
+                xlsx_alignment_json(s.alignment.as_ref())
+            )
+        }
+        (Some(i), None) => format!("{{\"index\":{i}}}"),
+        _ => "null".to_string(),
+    }
+}
+
+/// A relationship scoped to one owner part ordinal (ids are only unique within a
+/// `.rels` part, so the global lookup is deliberately not used here).
+#[cfg(feature = "xlsx")]
+fn xlsx_part_rel<'a>(
+    model: &'a crate::adapter::package::opc::OpcModel,
+    owner: u32,
+    id: &str,
+) -> Option<&'a crate::adapter::package::opc::Relationship> {
+    model
+        .part_rels
+        .iter()
+        .find(|(o, _)| *o == owner)?
+        .1
+        .iter()
+        .find(|r| r.id == id)
+}
+
+/// The first relationship of `owner` whose type ends with `suffix`.
+#[cfg(feature = "xlsx")]
+fn xlsx_find_rel<'a>(
+    model: &'a crate::adapter::package::opc::OpcModel,
+    owner: u32,
+    suffix: &str,
+) -> Option<&'a crate::adapter::package::opc::Relationship> {
+    let tail = format!("/{suffix}");
+    model
+        .part_rels
+        .iter()
+        .find(|(o, _)| *o == owner)?
+        .1
+        .iter()
+        .find(|r| r.rel_type == suffix || r.rel_type.ends_with(&tail))
 }
 
 // ---------------------------------------------------------------------------
@@ -5756,13 +6464,14 @@ impl<S: SeedStore> Ctx<'_, S> {
         let json = format!(
             concat!(
                 "{{\"format\":\"xlsx\",\"workbook\":\"{}\",\"ordinal\":{},",
-                "\"styles\":{},\"shared_strings\":{},",
+                "\"styles\":{},\"shared_strings\":{},\"defined_names\":{},",
                 "\"sheets\":{},\"sheet_names\":[{}],\"sheets_detail\":[{}],\"profile\":\"{}\"}}"
             ),
             json_escape(&model.workbook.name),
             model.workbook.ordinal,
             model.styles.is_some(),
             model.shared_strings.is_some(),
+            workbook.defined_names.len(),
             workbook.sheets.len(),
             names,
             detail,

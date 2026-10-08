@@ -99,7 +99,9 @@ const USAGE_FIELD: &str = "\
     vole-document observe --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]] (--page N | --object N | --stream N |
         --revision N | --revisions | --external-lineage | --byte-range A..B | --metadata | --doc-text | --heading N |
         --block N | --table N | --cell T:R:C | --resource N | --link N |
-        --spine-item N | --sheet N | --xlsx-cell A1 | --text PATTERN) --kind metadata|text|structure|operators|
+        --spine-item N | --sheet N | --xlsx-cell A1 | --text PATTERN |
+        --xlsx-styles | --xlsx-defined-names | --xlsx-external-rels |
+        --xlsx-comments | --xlsx-hyperlinks | --xlsx-tables | --xlsx-drawing) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1473,6 +1475,27 @@ struct FieldArgs {
     /// The XLSX cell reference (`--xlsx-cell A1`, Phase 21.1.1).
     #[cfg(feature = "xlsx")]
     xlsx_cell: Option<String>,
+    /// `--xlsx-styles`: the parsed style table (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_styles: bool,
+    /// `--xlsx-defined-names`: the workbook defined/named ranges (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_defined_names: bool,
+    /// `--xlsx-external-rels`: the package external relationships (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_external_rels: bool,
+    /// `--xlsx-comments`: the comments of the `--sheet` worksheet (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_comments: bool,
+    /// `--xlsx-hyperlinks`: the hyperlinks of the `--sheet` worksheet (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_hyperlinks: bool,
+    /// `--xlsx-tables`: the tables of the `--sheet` worksheet (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_tables: bool,
+    /// `--xlsx-drawing`: the drawing of the `--sheet` worksheet (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_drawing: bool,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -1708,6 +1731,41 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--xlsx-cell" => {
                 out.xlsx_cell = Some(field_arg_value(args, &mut i, "--xlsx-cell", inline)?);
             }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-styles" => {
+                out.xlsx_styles = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-defined-names" => {
+                out.xlsx_defined_names = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-external-rels" => {
+                out.xlsx_external_rels = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-comments" => {
+                out.xlsx_comments = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-hyperlinks" => {
+                out.xlsx_hyperlinks = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-tables" => {
+                out.xlsx_tables = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-drawing" => {
+                out.xlsx_drawing = true;
+                i += 1;
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -1860,18 +1918,54 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         });
     }
     // XLSX: `--xlsx-cell A1` is the cell selector and consumes `--sheet N` as its
-    // sheet; `--sheet N` alone is the native sheet selector.
+    // sheet; `--sheet N` alone is the native sheet selector. The Phase-21.1.2
+    // flags select the styles table, defined names, external relationships, or a
+    // per-sheet comments/hyperlinks/tables/drawing observation (each with `--sheet`).
     #[cfg(feature = "xlsx")]
     {
         let profile = vole_document::adapter::xlsx::XlsxExtractProfile::DEFAULT;
-        match (&out.xlsx_cell, out.sheet) {
-            (Some(cell), sheet) => chosen.push(Selector::XlsxCell {
-                sheet: sheet.unwrap_or(0),
+        let sheet = out.sheet.unwrap_or(0);
+        let mut specific = false;
+        if out.xlsx_styles {
+            chosen.push(Selector::XlsxStyles);
+            specific = true;
+        }
+        if out.xlsx_defined_names {
+            chosen.push(Selector::XlsxDefinedNames);
+            specific = true;
+        }
+        if out.xlsx_external_rels {
+            chosen.push(Selector::XlsxExternalRels);
+            specific = true;
+        }
+        if out.xlsx_comments {
+            chosen.push(Selector::XlsxComments { sheet });
+            specific = true;
+        }
+        if out.xlsx_hyperlinks {
+            chosen.push(Selector::XlsxHyperlinks { sheet });
+            specific = true;
+        }
+        if out.xlsx_tables {
+            chosen.push(Selector::XlsxTables { sheet });
+            specific = true;
+        }
+        if out.xlsx_drawing {
+            chosen.push(Selector::XlsxDrawing { sheet });
+            specific = true;
+        }
+        if let Some(cell) = &out.xlsx_cell {
+            chosen.push(Selector::XlsxCell {
+                sheet,
                 cell: cell.clone(),
                 profile,
-            }),
-            (None, Some(index)) => chosen.push(Selector::XlsxSheet { index, profile }),
-            (None, None) => {}
+            });
+            specific = true;
+        }
+        // `--sheet N` alone is the native sheet selector; when any other XLSX flag
+        // consumed it, it is not added again.
+        if !specific && let Some(index) = out.sheet {
+            chosen.push(Selector::XlsxSheet { index, profile });
         }
     }
     match chosen.len() {

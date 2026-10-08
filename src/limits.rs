@@ -146,6 +146,20 @@ pub struct Limits {
     pub max_xlsx_shared_strings: u32,
     /// Maximum merged ranges accepted in one worksheet (Phase 21.1.1).
     pub max_xlsx_merges: u32,
+    /// Maximum hyperlinks accepted in one worksheet (Phase 21.1.2).
+    pub max_xlsx_hyperlinks: u32,
+    /// Maximum comments accepted in one comments part (Phase 21.1.2).
+    pub max_xlsx_comments: u32,
+    /// Maximum table parts accepted across a workbook (Phase 21.1.2).
+    pub max_xlsx_tables: u32,
+    /// Maximum columns accepted in one table part (Phase 21.1.2).
+    pub max_xlsx_table_columns: u32,
+    /// Maximum defined/named ranges accepted in one workbook (Phase 21.1.2).
+    pub max_xlsx_defined_names: u32,
+    /// Maximum drawing parts accepted across a workbook (Phase 21.1.2).
+    pub max_xlsx_drawings: u32,
+    /// Maximum style records (fonts/fills/`cellXfs`) accepted in `styles.xml` (Phase 21.1.2).
+    pub max_xlsx_style_records: u32,
 }
 
 impl Limits {
@@ -202,6 +216,13 @@ impl Limits {
         max_xlsx_cells: 1 << 24,
         max_xlsx_shared_strings: 1 << 20,
         max_xlsx_merges: 1 << 20,
+        max_xlsx_hyperlinks: 1 << 20,
+        max_xlsx_comments: 1 << 20,
+        max_xlsx_tables: 1 << 20,
+        max_xlsx_table_columns: 1 << 16,
+        max_xlsx_defined_names: 1 << 20,
+        max_xlsx_drawings: 1 << 14,
+        max_xlsx_style_records: 1 << 16,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -257,6 +278,13 @@ impl Limits {
         max_xlsx_cells: 1 << 16,
         max_xlsx_shared_strings: 1 << 14,
         max_xlsx_merges: 1 << 14,
+        max_xlsx_hyperlinks: 1 << 14,
+        max_xlsx_comments: 1 << 14,
+        max_xlsx_tables: 1 << 14,
+        max_xlsx_table_columns: 1 << 12,
+        max_xlsx_defined_names: 1 << 14,
+        max_xlsx_drawings: 1 << 12,
+        max_xlsx_style_records: 1 << 12,
     };
 }
 
