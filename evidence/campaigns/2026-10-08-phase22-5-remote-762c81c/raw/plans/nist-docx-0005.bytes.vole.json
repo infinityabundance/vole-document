@@ -1,0 +1,12 @@
+[
+ {
+  "path": "store.img",
+  "offset": 0,
+  "length": 57526
+ },
+ {
+  "path": "store.img",
+  "offset": 57526,
+  "length": 315
+ }
+]

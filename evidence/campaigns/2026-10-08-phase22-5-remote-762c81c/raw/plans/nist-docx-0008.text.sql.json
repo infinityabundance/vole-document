@@ -1,0 +1,32 @@
+[
+ {
+  "path": "full.db",
+  "offset": 0,
+  "length": 100
+ },
+ {
+  "path": "full.db",
+  "offset": 0,
+  "length": 4096
+ },
+ {
+  "path": "full.db",
+  "offset": 4096,
+  "length": 4096
+ },
+ {
+  "path": "full.db",
+  "offset": 8192,
+  "length": 4096
+ },
+ {
+  "path": "full.db",
+  "offset": 49152,
+  "length": 4096
+ },
+ {
+  "path": "full.db",
+  "offset": 77824,
+  "length": 4096
+ }
+]
