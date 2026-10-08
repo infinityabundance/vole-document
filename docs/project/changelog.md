@@ -2,6 +2,77 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.22] — Phase 17: direct field build and a revision-lineage surface
+
+Phase 17 attacks the two weaknesses Phase 16 made explicit. It adds a **direct
+source → field build path** that skips the compression candidate search the
+field does not need, and a **PDF revision-lineage query surface** — then shows
+that adding that surface splits the Phase-16.5 C4 decline in two, because the
+contract's C4 tuple is external corpus metadata. Released as
+`v0.1.0-alpha.22` from `phase17`; base `main` @ `d83ddba`
+(`v0.1.0-alpha.21`). Results:
+[phase-17-results.md](../phases/phase-17-results.md); ADRs 0051–0052.
+
+### Added
+
+- **`field-build INPUT --store DIR [--profile runtime] [--workers N] [--voldoc OUT] [--entropyfs | --packed]`**
+  (17.1). A direct source → field ingestion path that builds the exact authority
+  and the field in **one process** with **no candidate search**. `--profile
+  runtime` fixes the program to the literal `RAW` floor (one literal object, one
+  `EMIT_OBJECT`); exactly one candidate is priced and still passed through the
+  full complete-cost court (`candidates_evaluated == 1`). New
+  `src/field/build.rs`; `encode`/`field-ingest` are untouched and reused
+  internally.
+- **PDF revision lineage** (17.2). New `Selector::Revisions` / `Representation::Lineage`
+  (`revisions`/`lineage`), CLI `observe --revisions --kind lineage` and
+  `observe --revision N --kind lineage`, advertised in capabilities. A new
+  `NodeKind::PdfRevisionLineage` is computed **once** at PDF ingest from the
+  existing byte-authoritative scan and indexed (`SEL_REVISIONS`,
+  `SEL_REVISION_LINEAGE`), so an observe is **O(depth)**. Non-PDF formats are a
+  **typed decline** (`UnsupportedFeature`, rc 6).
+
+### Measured
+
+- **17.1 direct build** (`doc-baseline`, 9 documents across pdf/docx/epub and
+  four size classes). Build wall sum **7,928 → 3,878 ms (2.04×)**; by format pdf
+  **2.56×**, epub **1.34×**, docx **1.22×**. Peak RSS median **51,792 → 15,228 KB
+  (3.4× smaller)**. Authority bytes **35,154,409 → 35,383,939 (1.007×)**.
+  Exactness **9/9** for each of three closures (current field, direct field,
+  direct authority decoded standalone; length + SHA-256 + `cmp`). Observation
+  equality over an 11-entry schedule: **53 equal / 46 decline-equal / 0
+  divergent**. Campaign `2026-10-08-phase17-direct-field-d83ddba`.
+- **17.2 revision-lineage contract court** (12 documents). New surface answers
+  the lineage cold and in a mixed batch; **C0–C3 satisfied**, **C4/C5 still do
+  not close**. SQLite lane byte-identical to Phase 16.5 (verified by diff). Cost
+  vs SQLite: storage **0.47×** (6,988,757 vs 14,721,024 B; lineage adds
+  **74,980 B** over 12 documents), build **10.74×**, cold 138 vs 129 ms, warm 37
+  vs 25 ms. Campaign `2026-10-08-phase17-revision-1179386`.
+
+### Recorded findings
+
+- **The PDF metadata projection is not encoder-independent** (17.1). For PDF,
+  `Selector::Metadata` embeds the chosen program's `object_count`/`graph_ops`;
+  a fixed `RAW` program reports 1/1 where the searched winner reported 29/1346
+  (`nist-pdf-0002`), 32/763 (`nist-pdf-0004`) and 0/1 (`nasa-pdf-0007`). All
+  other metadata fields are byte-identical and packages are unaffected. Recorded,
+  not silently changed.
+- **C4 is not a pure surface gap** (17.2). The surface half is fixed; the
+  contract's C4 tuple is the **corpus family/member/head** — external metadata a
+  single-document field cannot derive from PDF bytes. For PDFs the two lanes
+  report *different* lineage observables (recorded as `different observable`,
+  never equality); for DOCX/EPUB VOLE declines typed while the baseline answers.
+- **Residual risk:** lineage fidelity is bounded by the Phase-3 `%%EOF` scanner
+  (on `nist-pdf-0016` it splits at an embedded early `%%EOF` at offset 505 and
+  reports an inverted `/Prev`) — not an independent PDF-conformance oracle.
+
+### Open question
+
+- The honest next question is a **contract-definition** one, not a missing
+  surface: is the contract's C4 tuple the right definition, or should VOLE
+  ingest corpus/revision-family metadata as an **explicit external input**?
+  Recorded in [ADR-0052](../adr/0052-revision-lineage-surface.md); no code or
+  wire change decided.
+
 ## [0.1.0-alpha.21] — Phase 16: backend adoption, large-PDF fix, and a storage-accounting correction
 
 Phase 16 follows Phase 15: it adopts the inflate backend Phase 15 only

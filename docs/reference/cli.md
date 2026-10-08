@@ -66,10 +66,12 @@ roots.
 ## Persistent document field (`field`)
 
 ```text
+vole-document field-build  INPUT --store DIR [--profile runtime] [--workers N]
+                           [--voldoc OUT.voldoc] [--entropyfs | --packed]
 vole-document field-ingest INPUT.voldoc --store DIR [--workers N] [--entropyfs | --packed]
 vole-document field-edit   --store DIR --field HEX --page N --content FILE [--entropyfs | --packed]
 vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
-    (--page N | --object N | --stream N | --revision N | --byte-range A..B |
+    (--page N | --object N | --stream N | --revision N | --revisions | --byte-range A..B |
     --metadata | --doc-text | --heading N | --block N | --table N | --cell T:R:C |
     --resource N | --link N | --spine-item N | --text PATTERN) --kind KIND
 vole-document observe-batch --store DIR --field HEX [--entropyfs] [--promote[=BYTES]]
@@ -82,11 +84,21 @@ vole-document cache        --store DIR [--clear] [--entropyfs | --packed]
 vole-document field-store-stats --store DIR [--entropyfs | --packed]
 ```
 
+- `field-build` is the **direct** source → field path: it runs one court over ONE
+  fixed, non-searched exactness program (`--profile runtime`), stores the exact
+  authority, and inverts it into the field in a single process — no compression
+  portfolio search. Measured 2.04× faster and 3.4× lower peak RSS than
+  `encode` + `field-ingest`, with identical exactness and observations (ADR-0051).
 - `field-ingest` inverse-proceduralizes one `.voldoc` into a persistent field
   and prints its field id (`HEX`) and roots. The format is detected from bytes.
 - `observe` / `find` / `explain` / `preview` answer typed observations with
   provenance; `--kind` is one of
-  `metadata|text|structure|operators|encoded|decoded|exact|preview|full`.
+  `metadata|text|structure|operators|encoded|decoded|exact|preview|full|lineage`.
+- `--revisions --kind lineage` answers a PDF's revision lineage (header, revision
+  count, ordered indices, byte spans, resolved `startxref`/`/Prev`, per-revision
+  object/stream membership) from an ingest-once node; `--revision N --kind lineage`
+  scopes it to one revision. It is a PDF-native observation: every non-PDF format
+  is a **typed decline** (ADR-0052).
 - `observe-batch` serves many observations in **one** process (one JSON answer
   per line; each request line is the per-observation flag grammar *without*
   `--store`/`--field`). A resident session, not a wire/decoder change

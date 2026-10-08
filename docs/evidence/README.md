@@ -67,6 +67,8 @@ state, and the exact command line. Independent adversarial reviews live in
 | 16.4 | resident session + `narrow_probe` short-circuit | NEGATIVE: the probe removes per-observation cost but residency still wins only < ~1 MiB; residual = one-time session open (a full descriptor parse) | `phase16-resident-probe-5d331f2` | — |
 | 16.5 | contract-equivalent heterogeneous-session court (C0..C5) | SQLite does NOT lose under the equal contract: VOLE is the storage winner (`0.47×` bytes) but SQLite wins build (`9.54×`), warm latency (`1.47×`), ties cold, and is the only lane answering C4/C5 | `phase16-contract-45d2c0e` | — |
 | 16.6 | storage accounting correction (`du -sb` vs file-bytes-only) | CORRECTION: `du -sb` counts 4096 B/dir — fs store inflated ~52 %, packed 0.8 %, `.db` 0 %; the 15.3/16.2 byte headlines correct to parity (ADR-0049) | `phase16-storage-correction-2978e1d` | — |
+| 17.1 | direct source → field build (`field-build --profile runtime` = fixed `RAW`, no search) | ADOPTED (ADR-0051): build wall sum 7,928 → 3,878 ms (**2.04×**), peak RSS median 51,792 → 15,228 KB (**3.4× smaller**), authority 1.007×, exactness **9/9**, observations **0 divergent**; caveat: PDF metadata `object_count`/`graph_ops` are encoder-dependent | `phase17-direct-field-d83ddba` | — |
+| 17.2 | contract-equivalent court re-run with the PDF revision-lineage surface | SURFACE ADDED (ADR-0052): **C0–C3 satisfied**, **C4/C5 still do not close** — the contract's C4 tuple is the corpus family/member/head, external metadata PDF bytes cannot derive; storage 0.47×, build 10.74×; typed decline for non-PDF | `phase17-revision-1179386` | — |
 
 Receipt short names are the suffixes of `evidence/campaigns/2026-10-*<name>/`.
 
