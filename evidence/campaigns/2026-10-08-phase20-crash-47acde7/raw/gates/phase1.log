@@ -1,0 +1,29 @@
+=== corpus ===
+-rw-r--r-- 1 root root   15514 Oct  8 13:07 cargo-toml.bin
+-rw-r--r-- 1 root root       0 Oct  8 13:07 empty.bin
+-rw-r--r-- 1 root root       1 Oct  8 13:07 one.bin
+-rw-r--r-- 1 root root     256 Oct  8 13:07 pattern256.bin
+-rw-r--r-- 1 root root 1048576 Oct  8 13:07 seq-1m.bin
+-rw-r--r-- 1 root root     346 Oct  8 13:07 synthetic.pdf
+-rw-r--r-- 1 root root 1120000 Oct  8 13:07 text-1m.bin
+-rw-r--r-- 1 root root   65536 Oct  8 13:07 zeros-64k.bin
+cargo-toml.bin       src=15514     enc=10490     cmp=equal
+empty.bin            src=0         enc=417       cmp=equal
+one.bin              src=1         enc=423       cmp=equal
+pattern256.bin       src=256       enc=710       cmp=equal
+seq-1m.bin           src=1048576   enc=1049030   cmp=equal
+synthetic.pdf        src=346       enc=800       cmp=equal
+text-1m.bin          src=1120000   enc=695429    cmp=equal
+zeros-64k.bin        src=65536     enc=428       cmp=equal
+=== campaign: evidence/campaigns/2026-10-08-phase1-47acde7 ===
+{
+  "campaign": "2026-10-08-phase1-47acde7",
+  "phase": "Phase 1 — exact .voldoc core",
+  "claim": "For every corpus item, materialize(encode(X)) == X byte-for-byte, with a matching SHA-256.",
+  "results_sha256": "adcf82185b96ed0b4ece2c7f195ff262684072a9385814c9fd0dfbd7c8e2356d",
+  "environment_sha256": "a07db0391ce17485f96a7f90c74e54ab94414f66c412273c41eabfac1e9bdb90",
+  "attribution_sha256": "4f733abc122d619e77d07689846a4b9cabc9c15103a9ca658ae3bf06e7883281",
+  "capabilities_sha256": "0dfe662ca5c0c66bcbcd56976b0803a3dbbff42729573729ae06ce160c9a0ce3",
+  "verdict": "PASS"
+}
+PHASE 1 COURT: PASS

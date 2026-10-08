@@ -1,0 +1,1 @@
+error: UnsupportedFeature: no external context is attached to this field; external lineage is supplied explicitly and is never inferred from document bytes

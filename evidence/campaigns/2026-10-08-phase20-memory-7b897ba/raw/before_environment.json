@@ -1,0 +1,22 @@
+{
+  "campaign": "evidence/scratch/phase20-memory/before",
+  "phase": "20.2 — large-source memory architecture for the direct build",
+  "utc": "2026-10-08T13:39:02Z",
+  "git_commit": "7b897ba23906a250f7b89ed3e7e2566ebcf56621",
+  "git_dirty": "?? evidence/campaigns/2026-10-08-phase20-memory-7b897ba/;?? tools/fixtures/phase20-memory.py;?? tools/phase20-memory-court.sh;",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "cargo_lock_sha256": "3e8d445fbba07863a12e2c8eef065295c5976ad43b3750ad28d28c2ae98ba694",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "4a66bb6a48811671e926b29e71b45ca61cb0a5ec9a6dbfbddacb7e2628545bf9",
+  "profile": "release",
+  "synth_mb": 1024,
+  "op_timeout_s": 900,
+  "build_cmd": "field-build SRC --store DIR --profile runtime --packed --sync=batch (under /usr/bin/time -v)",
+  "exactness": "materialize --exact compared to the source by length + SHA-256 + cmp",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

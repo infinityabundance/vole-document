@@ -1,0 +1,25 @@
+[vole-profile] descriptor_read_us=457 descriptor_parse_us=2195 descriptor_len=1237736
+[vole-profile] manifest_read_us=9 field_open_total_us=2677
+[vole-profile] store_open_us=44 field_open_us=2681 index_open_us=4 session_open_total_us=2729
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+[vole-profile] request_loop_total_us=3631 observe_dispatch_us=2717 observe_calls=8
+[vole-profile] descriptor_read_us=431 descriptor_parse_us=2217 descriptor_len=1237736
+[vole-profile] manifest_read_us=8 field_open_total_us=2665
+[vole-profile] store_open_us=47 field_open_us=2668 index_open_us=4 session_open_total_us=2719
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+[vole-profile] request_loop_total_us=3390 observe_dispatch_us=2570 observe_calls=8
+[vole-profile] descriptor_read_us=445 descriptor_parse_us=2201 descriptor_len=1237736
+[vole-profile] manifest_read_us=9 field_open_total_us=2664
+[vole-profile] store_open_us=48 field_open_us=2667 index_open_us=5 session_open_total_us=2720
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+[vole-profile] request_loop_total_us=3668 observe_dispatch_us=2763 observe_calls=8
+[vole-profile] descriptor_read_us=438 descriptor_parse_us=2424 descriptor_len=1237736
+[vole-profile] manifest_read_us=9 field_open_total_us=2881
+[vole-profile] store_open_us=43 field_open_us=2885 index_open_us=5 session_open_total_us=2933
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+[vole-profile] request_loop_total_us=3965 observe_dispatch_us=3023 observe_calls=8
+[vole-profile] descriptor_read_us=396 descriptor_parse_us=2177 descriptor_len=1237736
+[vole-profile] manifest_read_us=8 field_open_total_us=2588
+[vole-profile] store_open_us=43 field_open_us=2591 index_open_us=5 session_open_total_us=2639
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+[vole-profile] request_loop_total_us=3509 observe_dispatch_us=2627 observe_calls=8

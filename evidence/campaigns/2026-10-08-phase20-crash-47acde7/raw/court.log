@@ -1,0 +1,1317 @@
+    Finished `test` profile [optimized] target(s) in 0.01s
+     Running tests/crash_recovery.rs (target/debug/deps/crash_recovery-e8033c7c9ec980c2)
+
+running 1 test
+test crash_fault_injection_court ... [phase20-crash] family A nist-pdf-0017 Batch: clean build 1.09530716s
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d0 SIGKILL @ 0us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d0 SIGKILL @ 0us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d19559 SIGKILL @ 19559us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d19559 SIGKILL @ 19559us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d39118 SIGKILL @ 39118us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d39118 SIGKILL @ 39118us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d58677 SIGKILL @ 58677us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d58677 SIGKILL @ 58677us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d78236 SIGKILL @ 78236us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d78236 SIGKILL @ 78236us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d97795 SIGKILL @ 97795us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d97795 SIGKILL @ 97795us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d117354 SIGKILL @ 117354us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d117354 SIGKILL @ 117354us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d136913 SIGKILL @ 136913us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d136913 SIGKILL @ 136913us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d156472 SIGKILL @ 156472us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d156472 SIGKILL @ 156472us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d176031 SIGKILL @ 176031us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d176031 SIGKILL @ 176031us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d195590 SIGKILL @ 195590us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d195590 SIGKILL @ 195590us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d215149 SIGKILL @ 215149us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d215149 SIGKILL @ 215149us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d234708 SIGKILL @ 234708us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d234708 SIGKILL @ 234708us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d254267 SIGKILL @ 254267us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d254267 SIGKILL @ 254267us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d273826 SIGKILL @ 273826us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d273826 SIGKILL @ 273826us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d293385 SIGKILL @ 293385us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d293385 SIGKILL @ 293385us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d312944 SIGKILL @ 312944us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d312944 SIGKILL @ 312944us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d332503 SIGKILL @ 332503us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d332503 SIGKILL @ 332503us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d352062 SIGKILL @ 352062us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d352062 SIGKILL @ 352062us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d371621 SIGKILL @ 371621us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d371621 SIGKILL @ 371621us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d391180 SIGKILL @ 391180us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d391180 SIGKILL @ 391180us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d410739 SIGKILL @ 410739us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d410739 SIGKILL @ 410739us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d430298 SIGKILL @ 430298us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d430298 SIGKILL @ 430298us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d449857 SIGKILL @ 449857us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d449857 SIGKILL @ 449857us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d469416 SIGKILL @ 469416us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d469416 SIGKILL @ 469416us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d488975 SIGKILL @ 488975us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d488975 SIGKILL @ 488975us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d508534 SIGKILL @ 508534us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d508534 SIGKILL @ 508534us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d528093 SIGKILL @ 528093us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d528093 SIGKILL @ 528093us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d547652 SIGKILL @ 547652us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d547652 SIGKILL @ 547652us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d567211 SIGKILL @ 567211us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d567211 SIGKILL @ 567211us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d586770 SIGKILL @ 586770us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d586770 SIGKILL @ 586770us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d606329 SIGKILL @ 606329us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d606329 SIGKILL @ 606329us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d625888 SIGKILL @ 625888us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d625888 SIGKILL @ 625888us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d645447 SIGKILL @ 645447us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d645447 SIGKILL @ 645447us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d665006 SIGKILL @ 665006us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d665006 SIGKILL @ 665006us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d684565 SIGKILL @ 684565us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d684565 SIGKILL @ 684565us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d704124 SIGKILL @ 704124us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d704124 SIGKILL @ 704124us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d723683 SIGKILL @ 723683us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d723683 SIGKILL @ 723683us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d743242 SIGKILL @ 743242us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d743242 SIGKILL @ 743242us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d762801 SIGKILL @ 762801us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d762801 SIGKILL @ 762801us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d782360 SIGKILL @ 782360us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d782360 SIGKILL @ 782360us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d801919 SIGKILL @ 801919us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d801919 SIGKILL @ 801919us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d821478 SIGKILL @ 821478us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d821478 SIGKILL @ 821478us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d841037 SIGKILL @ 841037us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d841037 SIGKILL @ 841037us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d860596 SIGKILL @ 860596us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d860596 SIGKILL @ 860596us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d880155 SIGKILL @ 880155us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d880155 SIGKILL @ 880155us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d899714 SIGKILL @ 899714us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d899714 SIGKILL @ 899714us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d919273 SIGKILL @ 919273us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d919273 SIGKILL @ 919273us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d938832 SIGKILL @ 938832us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d938832 SIGKILL @ 938832us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d958391 SIGKILL @ 958391us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d958391 SIGKILL @ 958391us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d977950 SIGKILL @ 977950us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d977950 SIGKILL @ 977950us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d997509 SIGKILL @ 997509us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d997509 SIGKILL @ 997509us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1017068 SIGKILL @ 1017068us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1017068 SIGKILL @ 1017068us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1036627 SIGKILL @ 1036627us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1036627 SIGKILL @ 1036627us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1056186 SIGKILL @ 1056186us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1056186 SIGKILL @ 1056186us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1075745 SIGKILL @ 1075745us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1075745 SIGKILL @ 1075745us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1095304 SIGKILL @ 1095304us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1095304 SIGKILL @ 1095304us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1114863 SIGKILL @ 1114863us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1114863 SIGKILL @ 1114863us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d0 SIGABRT @ 0us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d0 SIGABRT @ 0us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d19559 SIGABRT @ 19559us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d19559 SIGABRT @ 19559us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d39118 SIGABRT @ 39118us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d39118 SIGABRT @ 39118us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d58677 SIGABRT @ 58677us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d58677 SIGABRT @ 58677us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d78236 SIGABRT @ 78236us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d78236 SIGABRT @ 78236us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d97795 SIGABRT @ 97795us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d97795 SIGABRT @ 97795us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d117354 SIGABRT @ 117354us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d117354 SIGABRT @ 117354us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d136913 SIGABRT @ 136913us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d136913 SIGABRT @ 136913us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d156472 SIGABRT @ 156472us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d156472 SIGABRT @ 156472us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d176031 SIGABRT @ 176031us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d176031 SIGABRT @ 176031us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d195590 SIGABRT @ 195590us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d195590 SIGABRT @ 195590us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d215149 SIGABRT @ 215149us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d215149 SIGABRT @ 215149us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d234708 SIGABRT @ 234708us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d234708 SIGABRT @ 234708us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d254267 SIGABRT @ 254267us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d254267 SIGABRT @ 254267us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d273826 SIGABRT @ 273826us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d273826 SIGABRT @ 273826us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d293385 SIGABRT @ 293385us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d293385 SIGABRT @ 293385us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d312944 SIGABRT @ 312944us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d312944 SIGABRT @ 312944us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d332503 SIGABRT @ 332503us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d332503 SIGABRT @ 332503us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d352062 SIGABRT @ 352062us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d352062 SIGABRT @ 352062us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d371621 SIGABRT @ 371621us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d371621 SIGABRT @ 371621us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d391180 SIGABRT @ 391180us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d391180 SIGABRT @ 391180us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d410739 SIGABRT @ 410739us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d410739 SIGABRT @ 410739us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d430298 SIGABRT @ 430298us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d430298 SIGABRT @ 430298us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d449857 SIGABRT @ 449857us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d449857 SIGABRT @ 449857us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d469416 SIGABRT @ 469416us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d469416 SIGABRT @ 469416us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d488975 SIGABRT @ 488975us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d488975 SIGABRT @ 488975us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d508534 SIGABRT @ 508534us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d508534 SIGABRT @ 508534us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d528093 SIGABRT @ 528093us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d528093 SIGABRT @ 528093us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d547652 SIGABRT @ 547652us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d547652 SIGABRT @ 547652us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d567211 SIGABRT @ 567211us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d567211 SIGABRT @ 567211us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d586770 SIGABRT @ 586770us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d586770 SIGABRT @ 586770us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d606329 SIGABRT @ 606329us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d606329 SIGABRT @ 606329us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d625888 SIGABRT @ 625888us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d625888 SIGABRT @ 625888us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d645447 SIGABRT @ 645447us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d645447 SIGABRT @ 645447us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d665006 SIGABRT @ 665006us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d665006 SIGABRT @ 665006us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d684565 SIGABRT @ 684565us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d684565 SIGABRT @ 684565us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d704124 SIGABRT @ 704124us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d704124 SIGABRT @ 704124us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d723683 SIGABRT @ 723683us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d723683 SIGABRT @ 723683us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d743242 SIGABRT @ 743242us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d743242 SIGABRT @ 743242us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d762801 SIGABRT @ 762801us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d762801 SIGABRT @ 762801us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d782360 SIGABRT @ 782360us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d782360 SIGABRT @ 782360us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d801919 SIGABRT @ 801919us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d801919 SIGABRT @ 801919us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d821478 SIGABRT @ 821478us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d821478 SIGABRT @ 821478us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d841037 SIGABRT @ 841037us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d841037 SIGABRT @ 841037us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d860596 SIGABRT @ 860596us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d860596 SIGABRT @ 860596us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d880155 SIGABRT @ 880155us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d880155 SIGABRT @ 880155us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d899714 SIGABRT @ 899714us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d899714 SIGABRT @ 899714us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d919273 SIGABRT @ 919273us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d919273 SIGABRT @ 919273us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d938832 SIGABRT @ 938832us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d938832 SIGABRT @ 938832us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d958391 SIGABRT @ 958391us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d958391 SIGABRT @ 958391us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d977950 SIGABRT @ 977950us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d977950 SIGABRT @ 977950us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d997509 SIGABRT @ 997509us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d997509 SIGABRT @ 997509us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1017068 SIGABRT @ 1017068us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1017068 SIGABRT @ 1017068us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1036627 SIGABRT @ 1036627us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1036627 SIGABRT @ 1036627us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1056186 SIGABRT @ 1056186us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1056186 SIGABRT @ 1056186us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1075745 SIGABRT @ 1075745us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1075745 SIGABRT @ 1075745us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1095304 SIGABRT @ 1095304us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1095304 SIGABRT @ 1095304us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1114863 SIGABRT @ 1114863us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1114863 SIGABRT @ 1114863us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] family B nist-pdf-0017 Batch: clean manifests = 2
+[phase20-crash] b-nist-pdf-0017-truncate_pack-0 truncate .pack to 0: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-1 truncate .pack to 1: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-2 truncate .pack to 10: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-3 truncate .pack to 23: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-4 truncate .pack to 24: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-5 truncate .pack to 25: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-6 truncate .pack to 26: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-7 truncate .pack to 27: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-8 truncate .pack to 28: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-9 truncate .pack to 29: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-10 truncate .pack to 58: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-11 truncate .pack to 87: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-12 truncate .pack to 88: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-13 truncate .pack to 89: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-14 truncate .pack to 270497: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-15 truncate .pack to 540993: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-16 delete .idx then truncate .pack to 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed segment /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-16/fieldpack/seg-00000000.pack has a truncated header") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-17 delete .idx then truncate .pack to 24: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: MissingExternalObject: seed node f041a4613222c158b0d63a6a4c95063e488380412d87ac050abc48caafe1595c is not present")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-18 delete .idx then truncate .pack to 40: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: MissingExternalObject: seed node f041a4613222c158b0d63a6a4c95063e488380412d87ac050abc48caafe1595c is not present")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-19 delete .idx then truncate .pack to 58: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: MissingExternalObject: seed node f041a4613222c158b0d63a6a4c95063e488380412d87ac050abc48caafe1595c is not present")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-20 delete .idx then truncate .pack to 88: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: MissingExternalObject: seed node f041a4613222c158b0d63a6a4c95063e488380412d87ac050abc48caafe1595c is not present")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-21 delete .idx then truncate .pack to 270497: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: MissingExternalObject: seed node f041a4613222c158b0d63a6a4c95063e488380412d87ac050abc48caafe1595c is not present")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-22 delete .idx then truncate .pack to 540993: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-truncate_idx-23 truncate .idx to 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-23/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-24 truncate .idx to 1: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-24/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-25 truncate .idx to 10: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-25/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-26 truncate .idx to 31: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-26/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-27 truncate .idx to 32: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-27/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-28 truncate .idx to 33: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-28/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-29 truncate .idx to 40: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-29/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-30 truncate .idx to 48: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-30/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-31 truncate .idx to 56: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-31/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-32 truncate .idx to 228564: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-32/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-33 truncate .idx to 457127: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-33/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-drop_idx-34 delete .idx (crash before seal): PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-35 flip bit in .pack at 0: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-36 flip bit in .pack at 24: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-37 flip bit in .pack at 25: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-38 flip bit in .pack at 28: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-39 flip bit in .pack at 29: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-40 flip bit in .pack at 58: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-41 flip bit in .pack at 270497: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-42 flip bit in .pack at 540993: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_idx-43 flip bit in .idx at 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-43/fieldpack/seg-00000000.idx has an unrecognised magic") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-44 flip bit in .idx at 8: PASS ro=fail_closed rw=fail_closed FailClosed("UnsupportedVersion:UnsupportedVersion: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-44/fieldpack/seg-00000000.idx has version 0, expected 1") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got UnsupportedVersion")
+[phase20-crash] b-nist-pdf-0017-flip_idx-45 flip bit in .idx at 9: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-45/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-46 flip bit in .idx at 16: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-46/fieldpack/seg-00000000.idx names segment 1, expected 0") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-47 flip bit in .idx at 20: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-47/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-48 flip bit in .idx at 24: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-48/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-49 flip bit in .idx at 32: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-49/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-50 flip bit in .idx at 40: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_idx-51 flip bit in .idx at 47: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-batch/inj-51/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-52 flip bit in .idx at 228564: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_idx-53 flip bit in .idx at 457127: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-zero_pack_tail-54 zero last 1 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-zero_pack_tail-55 zero last 4 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-zero_pack_tail-56 zero last 8 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-zero_pack_tail-57 zero last 32 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-zero_pack_tail-58 zero last 128 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] family A nist-pdf-0017 Each: clean build 1.106816187s
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d0 SIGKILL @ 0us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d0 SIGKILL @ 0us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d19764 SIGKILL @ 19764us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d19764 SIGKILL @ 19764us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d39528 SIGKILL @ 39528us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d39528 SIGKILL @ 39528us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d59292 SIGKILL @ 59292us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d59292 SIGKILL @ 59292us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d79056 SIGKILL @ 79056us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d79056 SIGKILL @ 79056us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d98820 SIGKILL @ 98820us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d98820 SIGKILL @ 98820us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d118584 SIGKILL @ 118584us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d118584 SIGKILL @ 118584us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d138348 SIGKILL @ 138348us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d138348 SIGKILL @ 138348us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d158112 SIGKILL @ 158112us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d158112 SIGKILL @ 158112us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d177876 SIGKILL @ 177876us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d177876 SIGKILL @ 177876us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d197640 SIGKILL @ 197640us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d197640 SIGKILL @ 197640us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d217404 SIGKILL @ 217404us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d217404 SIGKILL @ 217404us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d237168 SIGKILL @ 237168us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d237168 SIGKILL @ 237168us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d256932 SIGKILL @ 256932us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d256932 SIGKILL @ 256932us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d276696 SIGKILL @ 276696us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d276696 SIGKILL @ 276696us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d296460 SIGKILL @ 296460us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d296460 SIGKILL @ 296460us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d316224 SIGKILL @ 316224us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d316224 SIGKILL @ 316224us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d335988 SIGKILL @ 335988us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d335988 SIGKILL @ 335988us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d355752 SIGKILL @ 355752us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d355752 SIGKILL @ 355752us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d375516 SIGKILL @ 375516us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d375516 SIGKILL @ 375516us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d395280 SIGKILL @ 395280us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d395280 SIGKILL @ 395280us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d415044 SIGKILL @ 415044us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d415044 SIGKILL @ 415044us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d434808 SIGKILL @ 434808us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d434808 SIGKILL @ 434808us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d454572 SIGKILL @ 454572us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d454572 SIGKILL @ 454572us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d474336 SIGKILL @ 474336us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d474336 SIGKILL @ 474336us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d494100 SIGKILL @ 494100us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d494100 SIGKILL @ 494100us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d513864 SIGKILL @ 513864us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d513864 SIGKILL @ 513864us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d533628 SIGKILL @ 533628us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d533628 SIGKILL @ 533628us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d553392 SIGKILL @ 553392us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d553392 SIGKILL @ 553392us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d573156 SIGKILL @ 573156us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d573156 SIGKILL @ 573156us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d592920 SIGKILL @ 592920us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d592920 SIGKILL @ 592920us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d612684 SIGKILL @ 612684us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d612684 SIGKILL @ 612684us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d632448 SIGKILL @ 632448us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d632448 SIGKILL @ 632448us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d652212 SIGKILL @ 652212us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d652212 SIGKILL @ 652212us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d671976 SIGKILL @ 671976us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d671976 SIGKILL @ 671976us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d691740 SIGKILL @ 691740us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d691740 SIGKILL @ 691740us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d711504 SIGKILL @ 711504us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d711504 SIGKILL @ 711504us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d731268 SIGKILL @ 731268us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d731268 SIGKILL @ 731268us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d751032 SIGKILL @ 751032us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d751032 SIGKILL @ 751032us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d770796 SIGKILL @ 770796us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d770796 SIGKILL @ 770796us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d790560 SIGKILL @ 790560us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d790560 SIGKILL @ 790560us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d810324 SIGKILL @ 810324us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d810324 SIGKILL @ 810324us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d830088 SIGKILL @ 830088us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d830088 SIGKILL @ 830088us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d849852 SIGKILL @ 849852us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d849852 SIGKILL @ 849852us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d869616 SIGKILL @ 869616us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d869616 SIGKILL @ 869616us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d889380 SIGKILL @ 889380us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d889380 SIGKILL @ 889380us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d909144 SIGKILL @ 909144us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d909144 SIGKILL @ 909144us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d928908 SIGKILL @ 928908us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d928908 SIGKILL @ 928908us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d948672 SIGKILL @ 948672us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d948672 SIGKILL @ 948672us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d968436 SIGKILL @ 968436us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d968436 SIGKILL @ 968436us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d988200 SIGKILL @ 988200us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d988200 SIGKILL @ 988200us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1007964 SIGKILL @ 1007964us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1007964 SIGKILL @ 1007964us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1027728 SIGKILL @ 1027728us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1027728 SIGKILL @ 1027728us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1047492 SIGKILL @ 1047492us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1047492 SIGKILL @ 1047492us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1067256 SIGKILL @ 1067256us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1067256 SIGKILL @ 1067256us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1087020 SIGKILL @ 1087020us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1087020 SIGKILL @ 1087020us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1106784 SIGKILL @ 1106784us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1106784 SIGKILL @ 1106784us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1126548 SIGKILL @ 1126548us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-d1126548 SIGKILL @ 1126548us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d0 SIGABRT @ 0us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d0 SIGABRT @ 0us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d19764 SIGABRT @ 19764us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d19764 SIGABRT @ 19764us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d39528 SIGABRT @ 39528us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d39528 SIGABRT @ 39528us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d59292 SIGABRT @ 59292us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d59292 SIGABRT @ 59292us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d79056 SIGABRT @ 79056us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d79056 SIGABRT @ 79056us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d98820 SIGABRT @ 98820us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d98820 SIGABRT @ 98820us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d118584 SIGABRT @ 118584us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d118584 SIGABRT @ 118584us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d138348 SIGABRT @ 138348us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d138348 SIGABRT @ 138348us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d158112 SIGABRT @ 158112us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d158112 SIGABRT @ 158112us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d177876 SIGABRT @ 177876us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d177876 SIGABRT @ 177876us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d197640 SIGABRT @ 197640us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d197640 SIGABRT @ 197640us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d217404 SIGABRT @ 217404us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d217404 SIGABRT @ 217404us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d237168 SIGABRT @ 237168us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d237168 SIGABRT @ 237168us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d256932 SIGABRT @ 256932us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d256932 SIGABRT @ 256932us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d276696 SIGABRT @ 276696us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d276696 SIGABRT @ 276696us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d296460 SIGABRT @ 296460us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d296460 SIGABRT @ 296460us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d316224 SIGABRT @ 316224us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d316224 SIGABRT @ 316224us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d335988 SIGABRT @ 335988us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d335988 SIGABRT @ 335988us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d355752 SIGABRT @ 355752us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d355752 SIGABRT @ 355752us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d375516 SIGABRT @ 375516us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d375516 SIGABRT @ 375516us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d395280 SIGABRT @ 395280us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d395280 SIGABRT @ 395280us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d415044 SIGABRT @ 415044us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d415044 SIGABRT @ 415044us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d434808 SIGABRT @ 434808us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d434808 SIGABRT @ 434808us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d454572 SIGABRT @ 454572us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d454572 SIGABRT @ 454572us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d474336 SIGABRT @ 474336us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d474336 SIGABRT @ 474336us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d494100 SIGABRT @ 494100us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d494100 SIGABRT @ 494100us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d513864 SIGABRT @ 513864us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d513864 SIGABRT @ 513864us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d533628 SIGABRT @ 533628us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d533628 SIGABRT @ 533628us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d553392 SIGABRT @ 553392us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d553392 SIGABRT @ 553392us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d573156 SIGABRT @ 573156us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d573156 SIGABRT @ 573156us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d592920 SIGABRT @ 592920us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d592920 SIGABRT @ 592920us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d612684 SIGABRT @ 612684us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d612684 SIGABRT @ 612684us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d632448 SIGABRT @ 632448us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d632448 SIGABRT @ 632448us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d652212 SIGABRT @ 652212us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d652212 SIGABRT @ 652212us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d671976 SIGABRT @ 671976us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d671976 SIGABRT @ 671976us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d691740 SIGABRT @ 691740us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d691740 SIGABRT @ 691740us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d711504 SIGABRT @ 711504us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d711504 SIGABRT @ 711504us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d731268 SIGABRT @ 731268us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d731268 SIGABRT @ 731268us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d751032 SIGABRT @ 751032us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d751032 SIGABRT @ 751032us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d770796 SIGABRT @ 770796us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d770796 SIGABRT @ 770796us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d790560 SIGABRT @ 790560us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d790560 SIGABRT @ 790560us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d810324 SIGABRT @ 810324us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d810324 SIGABRT @ 810324us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d830088 SIGABRT @ 830088us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d830088 SIGABRT @ 830088us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d849852 SIGABRT @ 849852us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d849852 SIGABRT @ 849852us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d869616 SIGABRT @ 869616us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d869616 SIGABRT @ 869616us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d889380 SIGABRT @ 889380us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d889380 SIGABRT @ 889380us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d909144 SIGABRT @ 909144us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d909144 SIGABRT @ 909144us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d928908 SIGABRT @ 928908us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d928908 SIGABRT @ 928908us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d948672 SIGABRT @ 948672us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d948672 SIGABRT @ 948672us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d968436 SIGABRT @ 968436us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d968436 SIGABRT @ 968436us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d988200 SIGABRT @ 988200us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d988200 SIGABRT @ 988200us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1007964 SIGABRT @ 1007964us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1007964 SIGABRT @ 1007964us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1027728 SIGABRT @ 1027728us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1027728 SIGABRT @ 1027728us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1047492 SIGABRT @ 1047492us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1047492 SIGABRT @ 1047492us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1067256 SIGABRT @ 1067256us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1067256 SIGABRT @ 1067256us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1087020 SIGABRT @ 1087020us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1087020 SIGABRT @ 1087020us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1106784 SIGABRT @ 1106784us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1106784 SIGABRT @ 1106784us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1126548 SIGABRT @ 1126548us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-d1126548 SIGABRT @ 1126548us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0017-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] family B nist-pdf-0017 Each: clean manifests = 2
+[phase20-crash] b-nist-pdf-0017-truncate_pack-0 truncate .pack to 0: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-1 truncate .pack to 1: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-2 truncate .pack to 10: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-3 truncate .pack to 23: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-4 truncate .pack to 24: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-5 truncate .pack to 25: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-6 truncate .pack to 26: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-7 truncate .pack to 27: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-8 truncate .pack to 28: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-9 truncate .pack to 29: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-10 truncate .pack to 58: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-11 truncate .pack to 87: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-12 truncate .pack to 88: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-13 truncate .pack to 89: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-14 truncate .pack to 270497: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: Io: reading packed segment at 536582: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0017-truncate_pack-15 truncate .pack to 540993: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-16 delete .idx then truncate .pack to 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed segment /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-16/fieldpack/seg-00000000.pack has a truncated header") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-17 delete .idx then truncate .pack to 24: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: MissingExternalObject: seed node f041a4613222c158b0d63a6a4c95063e488380412d87ac050abc48caafe1595c is not present")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-18 delete .idx then truncate .pack to 40: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: MissingExternalObject: seed node f041a4613222c158b0d63a6a4c95063e488380412d87ac050abc48caafe1595c is not present")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-19 delete .idx then truncate .pack to 58: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: MissingExternalObject: seed node f041a4613222c158b0d63a6a4c95063e488380412d87ac050abc48caafe1595c is not present")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-20 delete .idx then truncate .pack to 88: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: MissingExternalObject: seed node f041a4613222c158b0d63a6a4c95063e488380412d87ac050abc48caafe1595c is not present")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-21 delete .idx then truncate .pack to 270497: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field f711fbe8e3a0d6a0cef24de1ffd968735b1c79c31ada82b981c56841f1e21a37: error: MissingExternalObject: seed node f041a4613222c158b0d63a6a4c95063e488380412d87ac050abc48caafe1595c is not present")
+[phase20-crash] b-nist-pdf-0017-drop_idx_truncate_pack-22 delete .idx then truncate .pack to 540993: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-truncate_idx-23 truncate .idx to 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-23/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-24 truncate .idx to 1: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-24/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-25 truncate .idx to 10: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-25/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-26 truncate .idx to 31: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-26/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-27 truncate .idx to 32: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-27/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-28 truncate .idx to 33: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-28/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-29 truncate .idx to 40: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-29/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-30 truncate .idx to 48: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-30/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-31 truncate .idx to 56: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-31/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-32 truncate .idx to 228564: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-32/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-truncate_idx-33 truncate .idx to 457127: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-33/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-drop_idx-34 delete .idx (crash before seal): PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-35 flip bit in .pack at 0: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-36 flip bit in .pack at 24: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-37 flip bit in .pack at 25: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-38 flip bit in .pack at 28: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-39 flip bit in .pack at 29: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-40 flip bit in .pack at 58: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-41 flip bit in .pack at 270497: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_pack-42 flip bit in .pack at 540993: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_idx-43 flip bit in .idx at 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-43/fieldpack/seg-00000000.idx has an unrecognised magic") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-44 flip bit in .idx at 8: PASS ro=fail_closed rw=fail_closed FailClosed("UnsupportedVersion:UnsupportedVersion: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-44/fieldpack/seg-00000000.idx has version 0, expected 1") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got UnsupportedVersion")
+[phase20-crash] b-nist-pdf-0017-flip_idx-45 flip bit in .idx at 9: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-45/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-46 flip bit in .idx at 16: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-46/fieldpack/seg-00000000.idx names segment 1, expected 0") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-47 flip bit in .idx at 20: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-47/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-48 flip bit in .idx at 24: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-48/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-49 flip bit in .idx at 32: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-49/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-50 flip bit in .idx at 40: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_idx-51 flip bit in .idx at 47: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0017-each/inj-51/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 07564e4f6589cd8e5b3aea3f90b147ee4c123823cc0a1f873340a5263e33f0cd: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0017-flip_idx-52 flip bit in .idx at 228564: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-flip_idx-53 flip bit in .idx at 457127: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-zero_pack_tail-54 zero last 1 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-zero_pack_tail-55 zero last 4 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-zero_pack_tail-56 zero last 8 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-zero_pack_tail-57 zero last 32 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0017-zero_pack_tail-58 zero last 128 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] family A nist-pdf-0002 Batch: clean build 9.055941ms
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d0 SIGKILL @ 0us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d0 SIGKILL @ 0us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d161 SIGKILL @ 161us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d161 SIGKILL @ 161us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d322 SIGKILL @ 322us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d322 SIGKILL @ 322us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d483 SIGKILL @ 483us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d483 SIGKILL @ 483us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d644 SIGKILL @ 644us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d644 SIGKILL @ 644us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d805 SIGKILL @ 805us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d805 SIGKILL @ 805us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d966 SIGKILL @ 966us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d966 SIGKILL @ 966us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1127 SIGKILL @ 1127us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1127 SIGKILL @ 1127us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1288 SIGKILL @ 1288us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1288 SIGKILL @ 1288us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1449 SIGKILL @ 1449us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1449 SIGKILL @ 1449us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1610 SIGKILL @ 1610us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1610 SIGKILL @ 1610us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1771 SIGKILL @ 1771us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1771 SIGKILL @ 1771us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1932 SIGKILL @ 1932us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1932 SIGKILL @ 1932us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2093 SIGKILL @ 2093us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2093 SIGKILL @ 2093us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2254 SIGKILL @ 2254us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2254 SIGKILL @ 2254us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2415 SIGKILL @ 2415us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2415 SIGKILL @ 2415us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2576 SIGKILL @ 2576us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2576 SIGKILL @ 2576us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2737 SIGKILL @ 2737us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2737 SIGKILL @ 2737us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2898 SIGKILL @ 2898us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2898 SIGKILL @ 2898us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3059 SIGKILL @ 3059us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3059 SIGKILL @ 3059us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3220 SIGKILL @ 3220us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3220 SIGKILL @ 3220us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3381 SIGKILL @ 3381us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3381 SIGKILL @ 3381us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3542 SIGKILL @ 3542us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3542 SIGKILL @ 3542us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3703 SIGKILL @ 3703us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3703 SIGKILL @ 3703us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3864 SIGKILL @ 3864us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3864 SIGKILL @ 3864us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4025 SIGKILL @ 4025us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4025 SIGKILL @ 4025us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4186 SIGKILL @ 4186us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4186 SIGKILL @ 4186us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4347 SIGKILL @ 4347us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4347 SIGKILL @ 4347us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4508 SIGKILL @ 4508us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4508 SIGKILL @ 4508us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4669 SIGKILL @ 4669us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4669 SIGKILL @ 4669us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4830 SIGKILL @ 4830us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4830 SIGKILL @ 4830us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4991 SIGKILL @ 4991us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4991 SIGKILL @ 4991us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5152 SIGKILL @ 5152us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5152 SIGKILL @ 5152us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5313 SIGKILL @ 5313us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5313 SIGKILL @ 5313us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5474 SIGKILL @ 5474us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5474 SIGKILL @ 5474us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5635 SIGKILL @ 5635us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5635 SIGKILL @ 5635us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5796 SIGKILL @ 5796us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5796 SIGKILL @ 5796us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5957 SIGKILL @ 5957us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5957 SIGKILL @ 5957us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6118 SIGKILL @ 6118us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6118 SIGKILL @ 6118us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6279 SIGKILL @ 6279us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6279 SIGKILL @ 6279us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6440 SIGKILL @ 6440us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6440 SIGKILL @ 6440us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6601 SIGKILL @ 6601us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6601 SIGKILL @ 6601us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6762 SIGKILL @ 6762us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6762 SIGKILL @ 6762us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6923 SIGKILL @ 6923us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6923 SIGKILL @ 6923us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7084 SIGKILL @ 7084us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7084 SIGKILL @ 7084us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7245 SIGKILL @ 7245us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7245 SIGKILL @ 7245us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7406 SIGKILL @ 7406us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7406 SIGKILL @ 7406us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7567 SIGKILL @ 7567us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7567 SIGKILL @ 7567us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7728 SIGKILL @ 7728us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7728 SIGKILL @ 7728us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7889 SIGKILL @ 7889us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7889 SIGKILL @ 7889us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8050 SIGKILL @ 8050us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8050 SIGKILL @ 8050us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8211 SIGKILL @ 8211us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8211 SIGKILL @ 8211us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8372 SIGKILL @ 8372us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8372 SIGKILL @ 8372us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8533 SIGKILL @ 8533us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8533 SIGKILL @ 8533us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8694 SIGKILL @ 8694us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8694 SIGKILL @ 8694us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8855 SIGKILL @ 8855us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8855 SIGKILL @ 8855us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d9016 SIGKILL @ 9016us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d9016 SIGKILL @ 9016us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d9177 SIGKILL @ 9177us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d9177 SIGKILL @ 9177us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d0 SIGABRT @ 0us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d0 SIGABRT @ 0us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d161 SIGABRT @ 161us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d161 SIGABRT @ 161us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d322 SIGABRT @ 322us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d322 SIGABRT @ 322us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d483 SIGABRT @ 483us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d483 SIGABRT @ 483us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d644 SIGABRT @ 644us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d644 SIGABRT @ 644us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d805 SIGABRT @ 805us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d805 SIGABRT @ 805us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d966 SIGABRT @ 966us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d966 SIGABRT @ 966us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1127 SIGABRT @ 1127us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1127 SIGABRT @ 1127us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1288 SIGABRT @ 1288us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1288 SIGABRT @ 1288us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1449 SIGABRT @ 1449us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1449 SIGABRT @ 1449us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1610 SIGABRT @ 1610us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1610 SIGABRT @ 1610us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1771 SIGABRT @ 1771us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1771 SIGABRT @ 1771us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1932 SIGABRT @ 1932us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1932 SIGABRT @ 1932us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2093 SIGABRT @ 2093us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2093 SIGABRT @ 2093us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2254 SIGABRT @ 2254us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2254 SIGABRT @ 2254us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2415 SIGABRT @ 2415us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2415 SIGABRT @ 2415us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2576 SIGABRT @ 2576us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2576 SIGABRT @ 2576us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2737 SIGABRT @ 2737us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2737 SIGABRT @ 2737us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2898 SIGABRT @ 2898us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2898 SIGABRT @ 2898us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3059 SIGABRT @ 3059us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3059 SIGABRT @ 3059us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3220 SIGABRT @ 3220us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3220 SIGABRT @ 3220us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3381 SIGABRT @ 3381us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3381 SIGABRT @ 3381us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3542 SIGABRT @ 3542us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3542 SIGABRT @ 3542us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3703 SIGABRT @ 3703us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3703 SIGABRT @ 3703us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3864 SIGABRT @ 3864us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3864 SIGABRT @ 3864us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4025 SIGABRT @ 4025us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4025 SIGABRT @ 4025us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4186 SIGABRT @ 4186us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4186 SIGABRT @ 4186us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4347 SIGABRT @ 4347us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4347 SIGABRT @ 4347us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4508 SIGABRT @ 4508us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4508 SIGABRT @ 4508us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4669 SIGABRT @ 4669us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4669 SIGABRT @ 4669us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4830 SIGABRT @ 4830us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4830 SIGABRT @ 4830us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4991 SIGABRT @ 4991us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4991 SIGABRT @ 4991us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5152 SIGABRT @ 5152us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5152 SIGABRT @ 5152us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5313 SIGABRT @ 5313us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5313 SIGABRT @ 5313us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5474 SIGABRT @ 5474us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5474 SIGABRT @ 5474us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5635 SIGABRT @ 5635us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5635 SIGABRT @ 5635us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5796 SIGABRT @ 5796us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5796 SIGABRT @ 5796us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5957 SIGABRT @ 5957us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5957 SIGABRT @ 5957us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6118 SIGABRT @ 6118us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6118 SIGABRT @ 6118us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6279 SIGABRT @ 6279us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6279 SIGABRT @ 6279us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6440 SIGABRT @ 6440us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6440 SIGABRT @ 6440us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6601 SIGABRT @ 6601us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6601 SIGABRT @ 6601us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6762 SIGABRT @ 6762us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6762 SIGABRT @ 6762us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6923 SIGABRT @ 6923us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6923 SIGABRT @ 6923us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7084 SIGABRT @ 7084us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7084 SIGABRT @ 7084us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7245 SIGABRT @ 7245us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7245 SIGABRT @ 7245us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7406 SIGABRT @ 7406us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7406 SIGABRT @ 7406us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7567 SIGABRT @ 7567us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7567 SIGABRT @ 7567us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7728 SIGABRT @ 7728us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7728 SIGABRT @ 7728us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7889 SIGABRT @ 7889us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7889 SIGABRT @ 7889us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8050 SIGABRT @ 8050us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8050 SIGABRT @ 8050us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8211 SIGABRT @ 8211us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8211 SIGABRT @ 8211us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8372 SIGABRT @ 8372us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8372 SIGABRT @ 8372us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8533 SIGABRT @ 8533us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8533 SIGABRT @ 8533us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8694 SIGABRT @ 8694us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8694 SIGABRT @ 8694us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8855 SIGABRT @ 8855us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8855 SIGABRT @ 8855us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d9016 SIGABRT @ 9016us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d9016 SIGABRT @ 9016us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d9177 SIGABRT @ 9177us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d9177 SIGABRT @ 9177us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] family B nist-pdf-0002 Batch: clean manifests = 2
+[phase20-crash] b-nist-pdf-0002-truncate_pack-0 truncate .pack to 0: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-1 truncate .pack to 1: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-2 truncate .pack to 10: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-3 truncate .pack to 23: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-4 truncate .pack to 24: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-5 truncate .pack to 25: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-6 truncate .pack to 26: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-7 truncate .pack to 27: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-8 truncate .pack to 28: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-9 truncate .pack to 29: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-10 truncate .pack to 58: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-11 truncate .pack to 87: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-12 truncate .pack to 88: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-13 truncate .pack to 89: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-14 truncate .pack to 24479: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-15 truncate .pack to 48957: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-16 delete .idx then truncate .pack to 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed segment /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-16/fieldpack/seg-00000000.pack has a truncated header") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-17 delete .idx then truncate .pack to 24: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: MissingExternalObject: seed node 0cfb22625ba57c8bb1ffebb2ce91882bf1c4b562a395e88a52a324899316950d is not present")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-18 delete .idx then truncate .pack to 40: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: MissingExternalObject: seed node 0cfb22625ba57c8bb1ffebb2ce91882bf1c4b562a395e88a52a324899316950d is not present")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-19 delete .idx then truncate .pack to 58: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: MissingExternalObject: seed node 0cfb22625ba57c8bb1ffebb2ce91882bf1c4b562a395e88a52a324899316950d is not present")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-20 delete .idx then truncate .pack to 88: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: MissingExternalObject: seed node 0cfb22625ba57c8bb1ffebb2ce91882bf1c4b562a395e88a52a324899316950d is not present")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-21 delete .idx then truncate .pack to 24479: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: MissingExternalObject: seed node 0cfb22625ba57c8bb1ffebb2ce91882bf1c4b562a395e88a52a324899316950d is not present")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-22 delete .idx then truncate .pack to 48957: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-truncate_idx-23 truncate .idx to 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-23/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-24 truncate .idx to 1: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-24/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-25 truncate .idx to 10: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-25/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-26 truncate .idx to 31: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-26/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-27 truncate .idx to 32: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-27/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-28 truncate .idx to 33: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-28/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-29 truncate .idx to 40: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-29/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-30 truncate .idx to 48: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-30/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-31 truncate .idx to 56: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-31/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-32 truncate .idx to 18060: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-32/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-33 truncate .idx to 36119: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-33/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-drop_idx-34 delete .idx (crash before seal): PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-35 flip bit in .pack at 0: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-36 flip bit in .pack at 24: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-37 flip bit in .pack at 25: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-38 flip bit in .pack at 28: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-39 flip bit in .pack at 29: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-40 flip bit in .pack at 58: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-41 flip bit in .pack at 24479: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-42 flip bit in .pack at 48957: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_idx-43 flip bit in .idx at 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-43/fieldpack/seg-00000000.idx has an unrecognised magic") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-44 flip bit in .idx at 8: PASS ro=fail_closed rw=fail_closed FailClosed("UnsupportedVersion:UnsupportedVersion: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-44/fieldpack/seg-00000000.idx has version 0, expected 1") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got UnsupportedVersion")
+[phase20-crash] b-nist-pdf-0002-flip_idx-45 flip bit in .idx at 9: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-45/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-46 flip bit in .idx at 16: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-46/fieldpack/seg-00000000.idx names segment 1, expected 0") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-47 flip bit in .idx at 20: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-47/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-48 flip bit in .idx at 24: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-48/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-49 flip bit in .idx at 32: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-49/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-50 flip bit in .idx at 40: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-50/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-51 flip bit in .idx at 47: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-batch/inj-51/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-52 flip bit in .idx at 18060: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_idx-53 flip bit in .idx at 36119: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-zero_pack_tail-54 zero last 1 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-zero_pack_tail-55 zero last 4 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-zero_pack_tail-56 zero last 8 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-zero_pack_tail-57 zero last 32 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-zero_pack_tail-58 zero last 128 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] family A nist-pdf-0002 Each: clean build 9.145157ms
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d0 SIGKILL @ 0us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d0 SIGKILL @ 0us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d163 SIGKILL @ 163us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d163 SIGKILL @ 163us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d326 SIGKILL @ 326us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d326 SIGKILL @ 326us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d489 SIGKILL @ 489us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d489 SIGKILL @ 489us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d652 SIGKILL @ 652us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d652 SIGKILL @ 652us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d815 SIGKILL @ 815us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d815 SIGKILL @ 815us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d978 SIGKILL @ 978us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d978 SIGKILL @ 978us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1141 SIGKILL @ 1141us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1141 SIGKILL @ 1141us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1304 SIGKILL @ 1304us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1304 SIGKILL @ 1304us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1467 SIGKILL @ 1467us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1467 SIGKILL @ 1467us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1630 SIGKILL @ 1630us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1630 SIGKILL @ 1630us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1793 SIGKILL @ 1793us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1793 SIGKILL @ 1793us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1956 SIGKILL @ 1956us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d1956 SIGKILL @ 1956us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2119 SIGKILL @ 2119us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2119 SIGKILL @ 2119us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2282 SIGKILL @ 2282us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2282 SIGKILL @ 2282us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2445 SIGKILL @ 2445us: PASS ro=fail_closed rw=fail_closed NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2445 SIGKILL @ 2445us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2608 SIGKILL @ 2608us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2608 SIGKILL @ 2608us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2771 SIGKILL @ 2771us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2771 SIGKILL @ 2771us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2934 SIGKILL @ 2934us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d2934 SIGKILL @ 2934us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3097 SIGKILL @ 3097us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3097 SIGKILL @ 3097us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3260 SIGKILL @ 3260us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3260 SIGKILL @ 3260us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3423 SIGKILL @ 3423us: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3423 SIGKILL @ 3423us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3586 SIGKILL @ 3586us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3586 SIGKILL @ 3586us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3749 SIGKILL @ 3749us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3749 SIGKILL @ 3749us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3912 SIGKILL @ 3912us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d3912 SIGKILL @ 3912us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4075 SIGKILL @ 4075us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4075 SIGKILL @ 4075us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4238 SIGKILL @ 4238us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4238 SIGKILL @ 4238us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4401 SIGKILL @ 4401us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4401 SIGKILL @ 4401us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4564 SIGKILL @ 4564us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4564 SIGKILL @ 4564us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4727 SIGKILL @ 4727us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4727 SIGKILL @ 4727us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4890 SIGKILL @ 4890us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d4890 SIGKILL @ 4890us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5053 SIGKILL @ 5053us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5053 SIGKILL @ 5053us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5216 SIGKILL @ 5216us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5216 SIGKILL @ 5216us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5379 SIGKILL @ 5379us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5379 SIGKILL @ 5379us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5542 SIGKILL @ 5542us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5542 SIGKILL @ 5542us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5705 SIGKILL @ 5705us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5705 SIGKILL @ 5705us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5868 SIGKILL @ 5868us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d5868 SIGKILL @ 5868us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6031 SIGKILL @ 6031us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6031 SIGKILL @ 6031us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6194 SIGKILL @ 6194us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6194 SIGKILL @ 6194us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6357 SIGKILL @ 6357us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6357 SIGKILL @ 6357us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6520 SIGKILL @ 6520us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6520 SIGKILL @ 6520us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6683 SIGKILL @ 6683us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6683 SIGKILL @ 6683us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6846 SIGKILL @ 6846us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d6846 SIGKILL @ 6846us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7009 SIGKILL @ 7009us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7009 SIGKILL @ 7009us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7172 SIGKILL @ 7172us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7172 SIGKILL @ 7172us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7335 SIGKILL @ 7335us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7335 SIGKILL @ 7335us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7498 SIGKILL @ 7498us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7498 SIGKILL @ 7498us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7661 SIGKILL @ 7661us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7661 SIGKILL @ 7661us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7824 SIGKILL @ 7824us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7824 SIGKILL @ 7824us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7987 SIGKILL @ 7987us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d7987 SIGKILL @ 7987us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8150 SIGKILL @ 8150us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8150 SIGKILL @ 8150us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8313 SIGKILL @ 8313us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8313 SIGKILL @ 8313us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8476 SIGKILL @ 8476us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8476 SIGKILL @ 8476us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8639 SIGKILL @ 8639us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8639 SIGKILL @ 8639us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8802 SIGKILL @ 8802us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8802 SIGKILL @ 8802us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8965 SIGKILL @ 8965us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d8965 SIGKILL @ 8965us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d9128 SIGKILL @ 9128us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d9128 SIGKILL @ 9128us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d9291 SIGKILL @ 9291us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-d9291 SIGKILL @ 9291us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-manifest SIGKILL @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGKILL-after-idx SIGKILL @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d0 SIGABRT @ 0us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d0 SIGABRT @ 0us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d163 SIGABRT @ 163us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d163 SIGABRT @ 163us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d326 SIGABRT @ 326us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d326 SIGABRT @ 326us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d489 SIGABRT @ 489us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d489 SIGABRT @ 489us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d652 SIGABRT @ 652us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d652 SIGABRT @ 652us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d815 SIGABRT @ 815us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d815 SIGABRT @ 815us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d978 SIGABRT @ 978us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d978 SIGABRT @ 978us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1141 SIGABRT @ 1141us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1141 SIGABRT @ 1141us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1304 SIGABRT @ 1304us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1304 SIGABRT @ 1304us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1467 SIGABRT @ 1467us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1467 SIGABRT @ 1467us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1630 SIGABRT @ 1630us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1630 SIGABRT @ 1630us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1793 SIGABRT @ 1793us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1793 SIGABRT @ 1793us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1956 SIGABRT @ 1956us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d1956 SIGABRT @ 1956us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2119 SIGABRT @ 2119us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2119 SIGABRT @ 2119us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2282 SIGABRT @ 2282us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2282 SIGABRT @ 2282us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2445 SIGABRT @ 2445us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2445 SIGABRT @ 2445us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2608 SIGABRT @ 2608us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2608 SIGABRT @ 2608us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2771 SIGABRT @ 2771us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2771 SIGABRT @ 2771us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2934 SIGABRT @ 2934us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d2934 SIGABRT @ 2934us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3097 SIGABRT @ 3097us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3097 SIGABRT @ 3097us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3260 SIGABRT @ 3260us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3260 SIGABRT @ 3260us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3423 SIGABRT @ 3423us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3423 SIGABRT @ 3423us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3586 SIGABRT @ 3586us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3586 SIGABRT @ 3586us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3749 SIGABRT @ 3749us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3749 SIGABRT @ 3749us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3912 SIGABRT @ 3912us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d3912 SIGABRT @ 3912us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4075 SIGABRT @ 4075us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4075 SIGABRT @ 4075us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4238 SIGABRT @ 4238us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4238 SIGABRT @ 4238us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4401 SIGABRT @ 4401us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4401 SIGABRT @ 4401us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4564 SIGABRT @ 4564us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4564 SIGABRT @ 4564us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4727 SIGABRT @ 4727us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4727 SIGABRT @ 4727us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4890 SIGABRT @ 4890us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d4890 SIGABRT @ 4890us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5053 SIGABRT @ 5053us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5053 SIGABRT @ 5053us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5216 SIGABRT @ 5216us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5216 SIGABRT @ 5216us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5379 SIGABRT @ 5379us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5379 SIGABRT @ 5379us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5542 SIGABRT @ 5542us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5542 SIGABRT @ 5542us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5705 SIGABRT @ 5705us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5705 SIGABRT @ 5705us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5868 SIGABRT @ 5868us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d5868 SIGABRT @ 5868us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6031 SIGABRT @ 6031us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6031 SIGABRT @ 6031us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6194 SIGABRT @ 6194us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6194 SIGABRT @ 6194us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6357 SIGABRT @ 6357us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6357 SIGABRT @ 6357us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6520 SIGABRT @ 6520us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6520 SIGABRT @ 6520us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6683 SIGABRT @ 6683us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6683 SIGABRT @ 6683us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6846 SIGABRT @ 6846us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d6846 SIGABRT @ 6846us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7009 SIGABRT @ 7009us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7009 SIGABRT @ 7009us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7172 SIGABRT @ 7172us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7172 SIGABRT @ 7172us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7335 SIGABRT @ 7335us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7335 SIGABRT @ 7335us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7498 SIGABRT @ 7498us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7498 SIGABRT @ 7498us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7661 SIGABRT @ 7661us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7661 SIGABRT @ 7661us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7824 SIGABRT @ 7824us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7824 SIGABRT @ 7824us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7987 SIGABRT @ 7987us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d7987 SIGABRT @ 7987us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8150 SIGABRT @ 8150us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8150 SIGABRT @ 8150us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8313 SIGABRT @ 8313us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8313 SIGABRT @ 8313us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8476 SIGABRT @ 8476us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8476 SIGABRT @ 8476us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8639 SIGABRT @ 8639us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8639 SIGABRT @ 8639us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8802 SIGABRT @ 8802us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8802 SIGABRT @ 8802us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8965 SIGABRT @ 8965us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d8965 SIGABRT @ 8965us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d9128 SIGABRT @ 9128us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d9128 SIGABRT @ 9128us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d9291 SIGABRT @ 9291us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-d9291 SIGABRT @ 9291us: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-manifest SIGABRT @ after-manifest: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] a-nist-pdf-0002-SIGABRT-after-idx SIGABRT @ after-idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] family B nist-pdf-0002 Each: clean manifests = 2
+[phase20-crash] b-nist-pdf-0002-truncate_pack-0 truncate .pack to 0: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-1 truncate .pack to 1: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-2 truncate .pack to 10: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-3 truncate .pack to 23: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-4 truncate .pack to 24: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-5 truncate .pack to 25: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-6 truncate .pack to 26: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-7 truncate .pack to 27: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-8 truncate .pack to 28: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-9 truncate .pack to 29: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-10 truncate .pack to 58: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-11 truncate .pack to 87: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-12 truncate .pack to 88: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-13 truncate .pack to 89: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-14 truncate .pack to 24479: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: Io: reading packed segment at 43874: failed to fill whole buffer")
+[phase20-crash] b-nist-pdf-0002-truncate_pack-15 truncate .pack to 48957: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-16 delete .idx then truncate .pack to 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed segment /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-16/fieldpack/seg-00000000.pack has a truncated header") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-17 delete .idx then truncate .pack to 24: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: MissingExternalObject: seed node 0cfb22625ba57c8bb1ffebb2ce91882bf1c4b562a395e88a52a324899316950d is not present")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-18 delete .idx then truncate .pack to 40: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: MissingExternalObject: seed node 0cfb22625ba57c8bb1ffebb2ce91882bf1c4b562a395e88a52a324899316950d is not present")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-19 delete .idx then truncate .pack to 58: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: MissingExternalObject: seed node 0cfb22625ba57c8bb1ffebb2ce91882bf1c4b562a395e88a52a324899316950d is not present")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-20 delete .idx then truncate .pack to 88: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: MissingExternalObject: seed node 0cfb22625ba57c8bb1ffebb2ce91882bf1c4b562a395e88a52a324899316950d is not present")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-21 delete .idx then truncate .pack to 24479: PASS ro=reopens_ok rw=reopens_ok Match FailClosed("field c314b31364b726bc320acc2e5767ef49812755c0d07df7d171744320d8911144: error: MissingExternalObject: seed node 0cfb22625ba57c8bb1ffebb2ce91882bf1c4b562a395e88a52a324899316950d is not present")
+[phase20-crash] b-nist-pdf-0002-drop_idx_truncate_pack-22 delete .idx then truncate .pack to 48957: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-truncate_idx-23 truncate .idx to 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-23/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-24 truncate .idx to 1: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-24/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-25 truncate .idx to 10: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-25/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-26 truncate .idx to 31: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-26/fieldpack/seg-00000000.idx is shorter than its header") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-27 truncate .idx to 32: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-27/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-28 truncate .idx to 33: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-28/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-29 truncate .idx to 40: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-29/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-30 truncate .idx to 48: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-30/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-31 truncate .idx to 56: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-31/fieldpack/seg-00000000.idx is too short for its bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-32 truncate .idx to 18060: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-32/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-truncate_idx-33 truncate .idx to 36119: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-33/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-drop_idx-34 delete .idx (crash before seal): PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-35 flip bit in .pack at 0: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-36 flip bit in .pack at 24: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-37 flip bit in .pack at 25: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-38 flip bit in .pack at 28: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-39 flip bit in .pack at 29: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-40 flip bit in .pack at 58: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-41 flip bit in .pack at 24479: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_pack-42 flip bit in .pack at 48957: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_idx-43 flip bit in .idx at 0: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-43/fieldpack/seg-00000000.idx has an unrecognised magic") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-44 flip bit in .idx at 8: PASS ro=fail_closed rw=fail_closed FailClosed("UnsupportedVersion:UnsupportedVersion: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-44/fieldpack/seg-00000000.idx has version 0, expected 1") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got UnsupportedVersion")
+[phase20-crash] b-nist-pdf-0002-flip_idx-45 flip bit in .idx at 9: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-45/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-46 flip bit in .idx at 16: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-46/fieldpack/seg-00000000.idx names segment 1, expected 0") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-47 flip bit in .idx at 20: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-47/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-48 flip bit in .idx at 24: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-48/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-49 flip bit in .idx at 32: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-49/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-50 flip bit in .idx at 40: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-50/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-51 flip bit in .idx at 47: PASS ro=fail_closed rw=fail_closed FailClosed("IntegrityMismatch:IntegrityMismatch: packed index /tmp/phase20-scratch/b-nist-pdf-0002-each/inj-51/fieldpack/seg-00000000.idx has an inconsistent bucket directory") Differ("field 836a464ed1bb619b4c28458ae6fce9f38ff21c1569226997f4b8b1cc8d473ee3: expected decline UnsupportedFeature, got IntegrityMismatch")
+[phase20-crash] b-nist-pdf-0002-flip_idx-52 flip bit in .idx at 18060: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-flip_idx-53 flip bit in .idx at 36119: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-zero_pack_tail-54 zero last 1 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-zero_pack_tail-55 zero last 4 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-zero_pack_tail-56 zero last 8 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-zero_pack_tail-57 zero last 32 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] b-nist-pdf-0002-zero_pack_tail-58 zero last 128 B of .pack: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0017-batch-record.before_prefix record.before_prefix: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-batch-record.after_prefix record.after_prefix: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-batch-record.after_body record.after_body: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-batch-flush.before_sync flush.before_sync: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-batch-flush.after_sync flush.after_sync: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-batch-seal.before_idx seal.before_idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0017-batch-seal.after_idx seal.after_idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0017-batch-manifest.before_flush manifest.before_flush: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-batch-manifest.after_flush manifest.after_flush: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-batch-manifest.after_publish manifest.after_publish: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0017-each-record.before_prefix record.before_prefix: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-each-record.after_prefix record.after_prefix: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-each-record.after_body record.after_body: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-each-flush.before_sync flush.before_sync: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-each-flush.after_sync flush.after_sync: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-each-seal.before_idx seal.before_idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0017-each-seal.after_idx seal.after_idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0017-each-manifest.before_flush manifest.before_flush: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-each-manifest.after_flush manifest.after_flush: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0017-each-manifest.after_publish manifest.after_publish: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0002-batch-record.before_prefix record.before_prefix: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-batch-record.after_prefix record.after_prefix: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-batch-record.after_body record.after_body: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-batch-flush.before_sync flush.before_sync: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-batch-flush.after_sync flush.after_sync: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-batch-seal.before_idx seal.before_idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0002-batch-seal.after_idx seal.after_idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0002-batch-manifest.before_flush manifest.before_flush: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-batch-manifest.after_flush manifest.after_flush: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-batch-manifest.after_publish manifest.after_publish: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0002-each-record.before_prefix record.before_prefix: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-each-record.after_prefix record.after_prefix: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-each-record.after_body record.after_body: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-each-flush.before_sync flush.before_sync: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-each-flush.after_sync flush.after_sync: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-each-seal.before_idx seal.before_idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0002-each-seal.after_idx seal.after_idx: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] c-nist-pdf-0002-each-manifest.before_flush manifest.before_flush: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-each-manifest.after_flush manifest.after_flush: PASS ro=reopens_ok rw=reopens_ok NotApplicable NoBaseline
+[phase20-crash] c-nist-pdf-0002-each-manifest.after_publish manifest.after_publish: PASS ro=reopens_ok rw=reopens_ok Match Match
+[phase20-crash] cases=1300 failures=0 criticals=0
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 462.81s
+

@@ -1,0 +1,29 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase20-crash-47acde7",
+  "phase": "20.1 — crash / power-cut fault-injection court",
+  "utc": "2026-10-08T13:15:09Z",
+  "git_commit": "47acde7ce2696063908c418a09784c457e5f0a99",
+  "git_dirty": " M Cargo.toml; M src/field/mod.rs; M src/lib.rs; M src/store/pack.rs;?? evidence/campaigns/2026-10-08-phase1-47acde7/;?? evidence/campaigns/2026-10-08-phase20-crash-47acde7/;?? src/fault.rs;?? tests/crash_recovery.rs;?? tools/fixtures/phase20-crash-aggregate.sh;?? tools/phase20-crash-court.sh;",
+  "arch": "x86_64",
+  "service": "dev",
+  "service_caps": "mem_limit == memswap_limit == 8g, pids_limit 4096",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "dev_image": "vole-document/dev:1.99.0",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "3e8d445fbba07863a12e2c8eef065295c5976ad43b3750ad28d28c2ae98ba694",
+  "bin": "target/debug/vole-document",
+  "docs": "nist-pdf-0017 nist-pdf-0002",
+  "reps": "2",
+  "policies": "SyncPolicy::Batch, SyncPolicy::Each",
+  "families": "A process death (SIGKILL/SIGABRT); B storage corruption (truncate/flip/zero/.idx-drop); C deterministic abort (--features fault-inject, VOLE_FAULT_POINT)",
+  "aggregator": "tools/fixtures/phase20-crash-aggregate.sh",
+  "env_affecting_semantics": {
+    "LC_ALL": "C",
+    "CARGO_PROFILE_DEV_DEBUG": "0 (artifact size only)",
+    "CARGO_PROFILE_TEST_DEBUG": "0 (artifact size only)",
+    "CARGO_PROFILE_DEV_INCREMENTAL": "false (artifact size only)",
+    "PHASE20_REPS": "2",
+    "PHASE20_DOCS": "nist-pdf-0017 nist-pdf-0002"
+  }
+}

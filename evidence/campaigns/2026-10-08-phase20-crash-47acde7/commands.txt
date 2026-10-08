@@ -1,0 +1,17 @@
+# Phase 20.1 crash court — exact commands (all inside the pinned `dev` service)
+docker compose run --rm --no-TTY dev sh tools/phase20-crash-court.sh
+
+# gates
+cargo fmt --all --check
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-features
+cargo test --locked --no-default-features
+sh tools/phase1-court.sh
+
+# the court itself (env: CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+#   CARGO_PROFILE_DEV_INCREMENTAL=false LC_ALL=C PHASE20_CRASH_RAW=evidence/campaigns/2026-10-08-phase20-crash-47acde7/raw/cases.tsv
+#   PHASE20_DOCS="nist-pdf-0017 nist-pdf-0002" PHASE20_REPS=2 PHASE20_SCRATCH=/tmp/phase20-scratch)
+cargo test --locked --features fault-inject --test crash_recovery -- --ignored --nocapture --test-threads=1
+
+# aggregate
+sh tools/fixtures/phase20-crash-aggregate.sh evidence/campaigns/2026-10-08-phase20-crash-47acde7/raw/cases.tsv evidence/campaigns/2026-10-08-phase20-crash-47acde7

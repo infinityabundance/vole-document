@@ -1,12 +1,11 @@
 # Phase 20 — Hardening and economics
 
-> **PLANNED — not started.** No code, court, or receipt for Phase 20 exists yet.
-> This document is the contract to be frozen *before* implementation; the
-> orchestrator owns integration and commits. Anything below that looks like a
-> measured number is a **target or a predecessor's result**, never a Phase-20
-> result.
+> **COMPLETE.** All four subphases (20.1–20.4) are measured and sealed; see
+> [phase-20-results.md](phase-20-results.md). The text below is the contract as
+> frozen *before* implementation, preserved as the record of what was planned —
+> the measured results live in the results doc and the receipts, not here.
 
-Branch (to be created): `phase20`. Base: `main` @ `v0.1.0-alpha.24` (Phase 19).
+Branch: `phase20` (created). Base: `main` @ `v0.1.0-alpha.24` (Phase 19).
 Predecessors: [phase-18-results.md](phase-18-results.md),
 [phase-19-results.md](phase-19-results.md), ADR-0053, ADR-0054.
 

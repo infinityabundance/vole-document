@@ -103,6 +103,15 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
         (Selector::Revisions, R::Lineage) | (Selector::Revision(_), R::Lineage) => {
             Ok(index_plan("PdfRevisionLineage"))
         }
+        (Selector::ExternalLineage, R::Lineage) => Ok(ObservePlan {
+            // The external context is answered from its own sidecar; no seed
+            // node, descriptor byte, or index entry is read.
+            shape: PlanShape::CachedObservation,
+            index_reads: 0,
+            required_nodes: 0,
+            will_materialize: Vec::new(),
+            will_not_materialize: kinds(&["seed-nodes", "descriptor"]),
+        }),
         (Selector::Member(_), R::EncodedBytes) => Ok(ObservePlan {
             shape: PlanShape::IndexLookup,
             index_reads: 1,

@@ -1,0 +1,6 @@
+id	fmt	blen	vstore_bytes	descriptor_len	store_open_us	field_open_us	index_open_us	session_open_total_us	manifest_read_us	descriptor_read_us	descriptor_parse_us	loop_total_us	dispatch_us	observes
+nist-docx-0008	docx	28783	37639	0	29	88	1	121	7	13	58	244	186	8
+nist-docx-0014	docx	948422	1194783	0	31	1880	3	1915	7	254	1621	1010	689	8
+nist-pdf-0004	pdf	1105061	1216084	0	37	2203	2	2248	5	318	1861	81	63	4
+nist-pdf-0017	pdf	1466246	2841174	0	135	3118	5	3264	9	517	2589	197	169	4
+nist-epub-0009	epub	1237255	1259371	0	44	2668	5	2720	9	438	2201	3631	2717	8

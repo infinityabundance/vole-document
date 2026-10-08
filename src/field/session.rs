@@ -73,6 +73,8 @@ impl DocumentFieldSession {
     /// BLAKE3, descriptor read + Id::of BLAKE3 + Descriptor::parse, and the
     /// FieldId hex parse exactly once.
     pub fn open(store_dir: &Path, field_hex: &str, opts: SessionOptions) -> Result<Self> {
+        let prof = super::warm_prof_enabled();
+        let t0 = std::time::Instant::now();
         let mut store = if opts.packed {
             FieldStore::open_packed(store_dir)?
         } else if opts.entropyfs {
@@ -90,11 +92,23 @@ impl DocumentFieldSession {
             FieldStore::open(store_dir)?
         };
         store.set_promote(opts.promote);
+        let t_store = t0.elapsed();
         let field_id = FieldId::from_hex(field_hex)?;
         let field = Field::open(&store, &field_id, Limits::DEFAULT)?;
         let open_io = field.open_io();
+        let t_field = t0.elapsed();
         // Open the index store once; the probe path borrows it for every request.
         let index = open_session_index(&store)?;
+        let t_index = t0.elapsed();
+        if prof {
+            eprintln!(
+                "[vole-profile] store_open_us={} field_open_us={} index_open_us={} session_open_total_us={}",
+                t_store.as_micros(),
+                t_field.as_micros().saturating_sub(t_store.as_micros()),
+                t_index.as_micros().saturating_sub(t_field.as_micros()),
+                t_index.as_micros()
+            );
+        }
         Ok(Self {
             store,
             field,

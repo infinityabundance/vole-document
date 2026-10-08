@@ -2,6 +2,94 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.25] — Phase 20: hardening and economics
+
+Phase 20 is a **hardening-and-economics phase**. It **adversarially attacks** the
+packed store's durability with a 1,300-case fault-injection court (20.1), cuts
+large-source peak memory by **33%** so a ~1 GiB source now ingests (20.2),
+profiles the warm loss and records it as **durable** (20.3), and closes **C4b**
+with an explicit, typed **external** layer rather than contaminating the field
+(20.4). Exactness and the wire are untouched: `materialize --exact` 16/16 (20.2),
+12/12 + 480 envelopes / 0 mismatches (20.3), 12/12 both lanes (20.4), and
+descriptor SHA-256 identical **15/15** (20.2). Results:
+[phase-20-results.md](../phases/phase-20-results.md).
+
+### Added
+
+- **`ExternalContext` — external/corpus lineage as a separate typed layer**
+  (20.4, [ADR-0055](../adr/0055-external-context-typed-external-metadata.md)):
+  `src/field/external.rs` (`ExternalContext { dataset_id, lineage { family,
+  member, head, revision_family }, origin harness|operator|catalog, source }`,
+  canonical `VOLECTX1`), stored at `<store>/external/<FieldId>`, disjoint from
+  the field's `descriptor/index/manifest/seed|fieldpack` and never in the seed
+  DAG or exactness authority; removal is one `unlink`. New
+  `Selector::ExternalLineage` (`external-lineage`) answered for `--kind lineage`,
+  with `Basis::ExternalMetadata` (`is_exact() == false`); CLI
+  `observe --external-lineage --kind lineage` and `field-external --store --field
+  (--lineage FAMILY:MEMBER:HEAD | --clear)`. No context is a typed decline
+  (`UnsupportedFeature`, rc 6).
+- **Crash court + non-default `fault-inject` feature** (20.1): `tests/crash_recovery.rs`
+  and `tools/phase20-crash-court.sh`; a deterministic in-code abort behind the
+  non-default `fault-inject` feature at ten named writer points.
+- **Env-gated open profiler** (20.3): `VOLE_PROFILE_OPEN` (off by default; a
+  single `getenv` on the default path).
+
+### Changed
+
+- **Large-source memory (20.2), no wire change.** Four files remove a redundant
+  source-sized copy from the encode court's decode-before-commit proof:
+  `Court::offer` drops the candidate descriptor right after `serialize()`
+  (`src/encode/court.rs`); `materialize_in_place`/`take_objects` **move** inline
+  object bytes (`std::mem::take`) instead of cloning (`src/materialize/mod.rs`);
+  `ingest_verified` (`src/field/mod.rs`) and `ingest_package_direct`
+  (`src/field/ingest_package.rs`) use it.
+
+### Measured
+
+- **20.1 crash / power-cut fault-injection court.** Receipt
+  `2026-10-08-phase20-crash-47acde7`. **1,300 cases, PASS 1,300 / FAIL 0 /
+  CRITICAL 0** under **both** `SyncPolicy::Batch` and `SyncPolicy::Each`
+  (650/650 each); families A process death 1,024, B storage corruption 236,
+  C deterministic abort 40. `bad_hash = 0`; prefix violations **0**; the
+  whole-node re-hash gate rejected **212,812** nodes across **110** cases;
+  corruption fails closed typed. **Scope:** proves ordering / no-partial-node /
+  prefix recovery / fail-closed, **not** true power loss (page cache survives
+  `SIGKILL`) or torn rename (`write_atomic` never dir-fsyncs).
+- **20.2 large-source memory.** Receipt `2026-10-08-phase20-memory-7b897ba`.
+  RSS/source **5.998× → 3.997×** (−33%); `nasa-pdf-0001` **2342 → 1563 MiB**; a
+  1 GiB synthetic **rc 137 (OOM) @6113 MiB → rc 0 @4099 MiB** (~1 GiB now fits
+  with ~2 GiB headroom; cap boundary ~1.0 → ~1.5 GiB). Exactness **16/16** after
+  (15/16 before); descriptor SHA-256 identical **15/15**; wall unchanged. No cap
+  raised. Residual floor: 4 copies; reaching 3 needs a lifetime-borrowing
+  `Descriptor` (a wire-type change).
+- **20.3 warm heterogeneous query — profiled, no change shipped.** Receipt
+  `2026-10-08-phase20-warm-5ed5957`. Dominant term is `Descriptor::parse`
+  (~**1.7 ns/B**, ≈590 MB/s) + the full `Field::open` (1.6–2.6 ms; ~45–50% of a
+  losing session; 58 µs for the 29 KB doc). A lazy/partial open **cannot** help
+  this contract (`probe_eligible` misses the schedule's `metadata`, `revision`,
+  and docx/epub selectors), and there is no redundant re-read/re-hash. Paired
+  N=100 before/after: median **1.292 → 1.322** (CI half-width ±0.311, MDE ≈0.44)
+  — **NULL**; the loss is recorded **durable**. Exactness 12/12; 480 envelopes,
+  0 mismatches.
+- **20.4 C4b closes under an equal external input.** Receipt
+  `2026-10-08-phase20-c4b-5ab2e76`. A plain `--metadata` answer is byte-identical
+  before-attach / after-attach / after-clear **12/12**; `materialize --exact`
+  matches attached and after removal **12/12**; the external query declines rc 6
+  after clear **12/12**; supplied equally to both lanes, both answer C4b **12/12**
+  and VOLE's tuple equals SQLite's **12/12**. Cost: sidecar **1001 B**, attach
+  **26 ms**, query **8 ms** vs SQLite's **19 ms**; storage 0.49×, build 7.34×,
+  warm 1.38×. Residual: C5b batch folding not measured.
+
+### Recorded
+
+- **Durability scope is stated with the evidence.** Ordering, prefix recovery,
+  and fail-closed corruption handling are **proven**; loss of un-`fsync`ed
+  records under true power loss and torn/lost rename are **not**
+  (a Phase-20.1 amendment to [ADR-0053](../adr/0053-batched-packed-sync.md)).
+- **The warm ~1.29× loss is durable**, a property of the resident session's
+  descriptor parse that decoder authority requires — recorded, not tuned away.
+- **Phase 20 changes no wire byte, decode path, or `encode` output.**
+
 ## [0.1.0-alpha.24] — Phase 19: repeatability, paired measurement, and the full-population direct build
 
 Phase 19 is a **measurement-discipline phase**. It replaces Phase 18's two

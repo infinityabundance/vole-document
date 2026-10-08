@@ -1,0 +1,13 @@
+id	fmt	attach_rc	attach_ms	query_rc	query_ms	attach_bytes
+nist-pdf-0002	pdf	0	3	0	1	74
+nist-pdf-0004	pdf	0	2	0	1	74
+nist-pdf-0016	pdf	0	2	0	1	95
+nist-pdf-0017	pdf	0	2	0	1	95
+nist-docx-0005	docx	0	2	0	1	96
+nist-docx-0008	docx	0	3	0	1	96
+nist-docx-0009	docx	0	2	0	0	96
+nist-docx-0014	docx	0	2	0	0	75
+nist-epub-0003	epub	0	2	0	0	75
+nist-epub-0006	epub	0	2	0	0	75
+nist-epub-0008	epub	0	2	0	1	75
+nist-epub-0009	epub	0	2	0	1	75

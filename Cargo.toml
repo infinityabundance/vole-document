@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.24"
+version = "0.1.0-alpha.25"
 edition = "2024"
 rust-version = "1.89"
 description = "Persistent procedural document runtime: byte-exact reconstruction plus a content-addressed procedural seed DAG, queryable observations with provenance, and selective late materialization."
@@ -230,6 +230,12 @@ parallel = ["field", "dep:rayon"]
 # builds. Output is identical to the scalar scan (differential test in
 # `lexer.rs`), so it changes no `.voldoc` byte.
 memmem-scan = ["dep:memchr"]
+# Phase 20.1: deterministic crash-court fault injection. Non-default and
+# dependency-free: it adds `#[cfg(feature = "fault-inject")]`-gated `abort()`
+# call sites at named packed-writer durability boundaries. The default build
+# compiles neither the module nor the calls, so it changes no wire byte, no
+# on-disk layout, and no behavior.
+fault-inject = []
 # Phase 15.5: enable `miniz_oxide`'s optional `simd` adler-32 path
 # (`simd-adler32`), currently OFF. Output-preserving by construction: it swaps only
 # the zlib checksum hasher, never the DEFLATE bit decoder, so decoded bytes are
