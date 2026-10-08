@@ -1,11 +1,17 @@
 # Phase 22.3 — Fused heterogeneous execution: scope and frozen contract
 
-> **DESIGN ONLY — NOT STARTED.** This document is a **frozen contract**, not a
-> result. No code for 22.3 exists, no mechanism is implemented, and nothing here
-> is measured. It exists so that (a) the decision to build or not is made on a
-> **decisive measurement first**, and (b) a *different* subagent can audit an
-> implementation against a contract it did not write. Every number quoted is a
-> **prior** or a **target**, never a claim.
+> **22.3.0 COMPLETE — NEGATIVE; 22.3.1/22.3.2 NOT STARTED.** The measurement-only
+> gate ran and returned **`SESSION-ALREADY-CAPTURES`**: the cross-request
+> redundancy is already removed by the shipping resident session, so a new fused
+> executor is **not** justified. See
+> [phase-22-3-results.md](phase-22-3-results.md). Everything below is kept as the
+> frozen contract; the `A`-stage design (22.3.1/22.3.2) is **not** being built.
+>
+> Originally: **DESIGN ONLY.** This document is a **frozen contract**, not a
+> result. No code for 22.3 existed when it was written; (a) the decision to build
+> was to be made on a **decisive measurement first** (22.3.0), and (b) a
+> *different* subagent can audit an implementation against a contract it did not
+> write. Every number quoted is a **prior** or a **target**, never a claim.
 >
 > Parent: [phase-22-plan.md](phase-22-plan.md) §22.3 (P2). Predecessor method:
 > [phase-22-results.md](phase-22-results.md) §22.2 (the profiling gate that
@@ -223,9 +229,9 @@ still 12/12 (fusion is observe-only, never on the archival path).
 
 | Subphase | Kind | Question | Can end the phase? |
 |---|---|---|---|
-| **22.3.0** | measurement | What is the removable duplicate-work upper bound across a known batch, and where is the 32 % `dispatch` bucket actually spent? | **Yes** (negative if below floor) |
-| **22.3.1** | implementation | Build the one-closure/one-schedule executor with per-answer identity preserved. | only after 22.3.0 clears |
-| **22.3.2** | court | Does `W_fused ≤ ½ Σ W_individual` hold vs the **resident-with-cache** control, with zero divergence? | the gate |
+| **22.3.0** | measurement | What is the removable duplicate-work upper bound across a known batch, and where is the 32 % `dispatch` bucket actually spent? | **Complete — negative (`SESSION-ALREADY-CAPTURES`).** The duplication is real (3.66–4.11× node execution on DOCX/EPUB) but already removed by the shipping session; the index axis (the only undeduped one) is the 22.2 sub-MDE candidate. See [phase-22-3-results.md](phase-22-3-results.md) |
+| **22.3.1** | implementation | Build the one-closure/one-schedule executor with per-answer identity preserved. | **Not started — not justified by 22.3.0** |
+| **22.3.2** | court | Does `W_fused ≤ ½ Σ W_individual` hold vs the **resident-with-cache** control, with zero divergence? | Not started |
 
 Branch: `phase24`; commit and push after each subphase; a sealed receipt per court
 under `evidence/campaigns/`.

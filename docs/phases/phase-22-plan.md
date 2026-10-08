@@ -75,7 +75,7 @@ by dependency and risk, not by expected payoff.
 |---|---|---|
 | **22.1** | **P0** | Is there a **strong competitor envelope**, including an adaptive and a hybrid SQLite, before any frontier claim is made? |
 | **22.2** | **P1** | Can a **compact query-native directory / hot-cold layout** cut warm CPU/I/O/allocation without adding storage or weakening integrity? **Complete (negative)** — index is 10.6 % and sub-MDE; nothing shipped |
-| **22.3** | **P2** | Can a heterogeneous batch be executed as **one dependency closure and one schedule**, sharing work already known to the batch? |
+| **22.3** | **P2** | Can a heterogeneous batch be executed as **one dependency closure and one schedule**, sharing work already known to the batch? | **22.3.0 complete — negative (`SESSION-ALREADY-CAPTURES`, `2026-10-08-phase22-3-dup-ca9f29e`).** The duplication is real (3.66–4.11× node execution on DOCX/EPUB) but the shipping session already removes it; the only undeduped axis (index descent) is the 22.2 sub-MDE candidate. 22.3.1/22.3.2 not started |
 | **22.4** | **P3** | On an **unknown** query schedule, which system wins the **cumulative lifetime frontier**? |
 | **22.5** | **P4** | Can bounded **remote** selective materialization reduce bytes transferred at competitive p95 latency? |
 | **22.6** | **P5** | Is there a **more compact structural representation** at equal observation capability (no reopened dedup)? |
@@ -177,12 +177,14 @@ repaid, the mechanism is rejected and the loss is recorded.
 
 ## 22.3 Fused heterogeneous execution (P2)
 
-> **Scoped, not started.** The frozen contract, the higher-resolution court
-> design (a deterministic physical-work gate axis with wall reported separately),
-> the three controls (including **today's resident batch with its memo and
-> cache**), the pre-registered workloads, and the falsifiers are in
-> [phase-22-3-scope.md](phase-22-3-scope.md). Subphase **22.3.0** is a
-> measurement-only gate that can end the phase negative.
+> **22.3.0 complete — negative; 22.3.1/22.3.2 not started.** The measurement-only
+> gate returned **`SESSION-ALREADY-CAPTURES`**: an independent DOCX/EPUB batch
+> executes **3.66–4.11×** more seed nodes than the shipping resident session
+> (memo + derived cache already remove the redundancy), and the only axis the
+> session never dedupes is the index/selector descent — the **22.2 sub-MDE**
+> candidate. So a new fused executor is **not** justified and nothing ships. See
+> [phase-22-3-results.md](phase-22-3-results.md) and the frozen contract
+> [phase-22-3-scope.md](phase-22-3-scope.md).
 
 **Question.** A heterogeneous batch is currently evaluated as N independent
 dependencies. Can it be evaluated as **ONE dependency closure and ONE schedule**?

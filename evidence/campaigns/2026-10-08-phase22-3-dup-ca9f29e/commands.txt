@@ -1,0 +1,18 @@
+# Phase 22.3.0 — duplicate-work court (measurement only; never the host).
+# Each document's packed store is built ONCE, then three lanes run from a cold
+# derived cache: resident (memo+cache on), indep (--no-cache on every request
+# line; run twice for determinism), and a two-request null-overlap control.
+docker compose run --rm --no-TTY doc-baseline bash tools/phase22-3-dup-court.sh
+
+# bounded / explicit population:
+docker compose run --rm --no-TTY doc-baseline sh -c 'IDS="nist-pdf-0002 nist-pdf-0004" bash tools/phase22-3-dup-court.sh'
+
+# per-document CLI the court drives (inside the container, /work = repo root):
+#   BIN field-build <source> --store <dir> --profile runtime --packed
+#   jq -r '.ingest.field // empty' <build.json>
+#   rm -rf <dir>/cache
+#   BIN observe-batch --store <dir> --packed --field <hex> --requests <req.resident>
+#   rm -rf <dir>/cache
+#   BIN observe-batch --store <dir> --packed --field <hex> --requests <req.indep>
+# aggregate:
+#   python3 tools/fixtures/phase22-3-dup.py <campaign>/raw <campaign>

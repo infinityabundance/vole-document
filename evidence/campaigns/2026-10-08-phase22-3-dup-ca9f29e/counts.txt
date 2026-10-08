@@ -1,0 +1,9 @@
+docs=12
+verdict=SESSION-ALREADY-CAPTURES
+determinism=PASS
+dup_exists=docx,epub
+uncaptured=none
+pooled_indep_exec=821
+pooled_resident_exec=239
+pooled_exec_dedup=3.4351
+pooled_idx_dedup=1.0000
