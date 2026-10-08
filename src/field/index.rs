@@ -33,7 +33,6 @@
 //! * `MAX_INDEX_NODE_BYTES = 8 KiB` per node.
 
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
@@ -250,14 +249,16 @@ impl FsIndexStore {
         let dir = path
             .parent()
             .ok_or_else(|| Error::internal_invariant("index node path has no parent"))?;
-        fs::create_dir_all(dir)?;
+        crate::store::durable::create_dir_all(dir)?;
         let tmp = dir.join(format!(".{}.tmp-{}", id.to_hex(), std::process::id()));
         {
-            let mut f = fs::File::create(&tmp)?;
-            f.write_all(canonical)?;
-            f.sync_all()?;
+            let mut f = crate::store::durable::create_file(&tmp)?;
+            crate::store::durable::write_all(&mut f, &tmp, canonical)?;
+            crate::store::durable::sync_all(&f, &tmp)?;
         }
-        fs::rename(&tmp, &path)?;
+        crate::store::durable::rename(&tmp, &path)?;
+        // Phase 23, GAP 1: make the rename durable in the parent directory.
+        crate::store::durable::sync_dir(dir)?;
         Ok(id)
     }
 
@@ -482,6 +483,7 @@ pub fn build(store: &mut FsIndexStore, entries: &[IndexEntry]) -> Result<NodeId>
 /// oversized, or out-of-depth node is a typed error, never a silent empty result.
 /// Only the nodes on the `root -> internal(s) -> leaf` path are read.
 pub fn lookup(store: &FsIndexStore, root: &NodeId, key: &SelectorKey) -> Result<Vec<IndexEntry>> {
+    crate::field::prof::inc_lookup();
     lookup_impl(store, root, key)
 }
 
@@ -548,8 +550,13 @@ fn lookup_impl<R: NodeReader>(
     let mut out: Vec<IndexEntry> = Vec::new();
     let mut stack: Vec<(NodeId, Option<u8>)> = vec![(*root, None)];
     while let Some((id, expected)) = stack.pop() {
+        let t_read = crate::field::prof::start();
         let bytes = store.read_node(&id)?;
+        crate::field::prof::add_index_read(t_read);
+        crate::field::prof::inc_index_node();
+        let t_parse = crate::field::prof::start();
         let node = parse_node(&bytes)?;
+        crate::field::prof::add_index_parse(t_parse);
         if let Some(exp) = expected
             && node.depth != exp
         {

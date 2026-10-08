@@ -1,0 +1,120 @@
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+	Command being timed: "target/release/vole-document observe-batch --store evidence/scratch/phase22-2-profile/nist-epub-0003.packed/vstore --packed --field c53ce8d4624c3159b4a2a5e75e445944bc085eeb96c36e94f363cc67170869d5 --requests evidence/scratch/phase22-2-profile/nist-epub-0003.packed/reqs"
+	User time (seconds): 0.00
+	System time (seconds): 0.00
+	Percent of CPU this job got: 100%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.00
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4540
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 423
+	Voluntary context switches: 1
+	Involuntary context switches: 2
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 8
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+	Command being timed: "target/release/vole-document observe-batch --store evidence/scratch/phase22-2-profile/nist-epub-0003.packed/vstore --packed --field c53ce8d4624c3159b4a2a5e75e445944bc085eeb96c36e94f363cc67170869d5 --requests evidence/scratch/phase22-2-profile/nist-epub-0003.packed/reqs"
+	User time (seconds): 0.00
+	System time (seconds): 0.00
+	Percent of CPU this job got: 50%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.00
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4376
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 419
+	Voluntary context switches: 0
+	Involuntary context switches: 0
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+	Command being timed: "target/release/vole-document observe-batch --store evidence/scratch/phase22-2-profile/nist-epub-0003.packed/vstore --packed --field c53ce8d4624c3159b4a2a5e75e445944bc085eeb96c36e94f363cc67170869d5 --requests evidence/scratch/phase22-2-profile/nist-epub-0003.packed/reqs"
+	User time (seconds): 0.00
+	System time (seconds): 0.00
+	Percent of CPU this job got: 50%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.00
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4444
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 418
+	Voluntary context switches: 1
+	Involuntary context switches: 0
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+	Command being timed: "target/release/vole-document observe-batch --store evidence/scratch/phase22-2-profile/nist-epub-0003.packed/vstore --packed --field c53ce8d4624c3159b4a2a5e75e445944bc085eeb96c36e94f363cc67170869d5 --requests evidence/scratch/phase22-2-profile/nist-epub-0003.packed/reqs"
+	User time (seconds): 0.00
+	System time (seconds): 0.00
+	Percent of CPU this job got: 50%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.00
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4348
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 420
+	Voluntary context switches: 0
+	Involuntary context switches: 0
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+	Command being timed: "target/release/vole-document observe-batch --store evidence/scratch/phase22-2-profile/nist-epub-0003.packed/vstore --packed --field c53ce8d4624c3159b4a2a5e75e445944bc085eeb96c36e94f363cc67170869d5 --requests evidence/scratch/phase22-2-profile/nist-epub-0003.packed/reqs"
+	User time (seconds): 0.00
+	System time (seconds): 0.00
+	Percent of CPU this job got: 50%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.00
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4532
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 420
+	Voluntary context switches: 1
+	Involuntary context switches: 3
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

@@ -35,6 +35,7 @@ pub mod observe;
 pub mod opc;
 pub mod partial;
 pub mod plan;
+pub(crate) mod prof;
 pub mod promote;
 pub mod provenance;
 pub mod resource;
@@ -784,21 +785,26 @@ impl FieldStore {
     }
 }
 
-/// Write bytes to `path` atomically (`tmp -> fsync -> rename`).
+/// Write bytes to `path` atomically (`tmp -> fsync -> rename -> dir fsync`).
+///
+/// The final directory `fsync` (Phase 23, GAP 1) makes the rename itself durable:
+/// on strict POSIX a rename is lost across a power cut unless the containing
+/// directory is synced, so a published manifest could otherwise vanish even
+/// though its bytes were synced. [`crate::store::DirSyncPolicy::Off`] skips it.
 pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
-    use std::io::Write;
     let dir = path
         .parent()
         .ok_or_else(|| Error::internal_invariant("atomic write path has no parent"))?;
-    fs::create_dir_all(dir)?;
+    crate::store::durable::create_dir_all(dir)?;
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("blob");
     let tmp = dir.join(format!(".{name}.tmp-{}", std::process::id()));
     {
-        let mut f = fs::File::create(&tmp)?;
-        f.write_all(bytes)?;
-        f.sync_all()?;
+        let mut f = crate::store::durable::create_file(&tmp)?;
+        crate::store::durable::write_all(&mut f, &tmp, bytes)?;
+        crate::store::durable::sync_all(&f, &tmp)?;
     }
-    fs::rename(&tmp, path)?;
+    crate::store::durable::rename(&tmp, path)?;
+    crate::store::durable::sync_dir(dir)?;
     Ok(())
 }
 

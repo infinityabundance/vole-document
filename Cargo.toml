@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.26"
+version = "0.1.0-alpha.27"
 edition = "2024"
 rust-version = "1.89"
 description = "Persistent procedural document runtime: byte-exact reconstruction plus a content-addressed procedural seed DAG, queryable observations with provenance, and selective late materialization."
@@ -236,6 +236,14 @@ memmem-scan = ["dep:memchr"]
 # compiles neither the module nor the calls, so it changes no wire byte, no
 # on-disk layout, and no behavior.
 fault-inject = []
+# Phase 23: the power-loss barrier journal. Non-default and dependency-free: it
+# adds `#[cfg(feature = "power-log")]`-gated logging of every durability barrier
+# (`fsync`/`fdatasync`, and the byte range it covered), file creation, rename,
+# and directory sync to `$VOLE_POWER_LOG`. From that log the power-loss proxy
+# (`tests/power_loss_proxy.rs`) reconstructs the post-power-loss state. It
+# changes no wire byte, no on-disk layout, and no shipped behavior; with the
+# feature off the instrumented wrappers are pass-throughs.
+power-log = []
 # Phase 15.5: enable `miniz_oxide`'s optional `simd` adler-32 path
 # (`simd-adler32`), currently OFF. Output-preserving by construction: it swaps only
 # the zlib checksum hasher, never the DEFLATE bit decoder, so decoded bytes are

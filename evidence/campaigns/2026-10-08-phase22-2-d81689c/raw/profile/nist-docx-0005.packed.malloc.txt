@@ -1,0 +1,4 @@
+observe-batch: request 3: UnsupportedFeature: DOCX main story has no heading 0
+observe-batch: request 5: UnsupportedFeature: DOCX main story has no resource 0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format docx has no revision structure
+[malloc-count] allocs=3105 bytes=1115931 frees=2726

@@ -139,3 +139,33 @@ non-default `fault-inject` feature.
 
 See [phase-20-results.md](../phases/phase-20-results.md) (20.1) for the full
 injection × outcome matrix.
+
+## Amendment (Phase 23) — the directory-`fsync` gap closes, and power loss is modelled
+
+The amendment above states that the `write_atomic` rename is "never followed by
+a parent-directory `fsync`, so a torn/lost rename across a real power cut
+remains argued, not measured". **Phase 23 closes that gap and measures it.**
+
+- Every atomic writer now `fsync`s the containing directory after the rename (and
+  on new segment/index creation), with `DirSyncPolicy::Safe` the default and
+  `--dir-sync=off` an explicit escape hatch. On the host ext4 bind mount the fs
+  store's one-file-per-node layout pays ~1.95× (`nist-pdf-0017`: 717 → 1,400 ms,
+  median of 7); the packed store pays ~1.5× (23 → 35 ms), because it dir-fsyncs
+  once per new segment and per sealed `.idx`. On the container tmpfs the cost is
+  below noise.
+- A **model-based power-loss proxy** (`tests/power_loss_proxy.rs`, non-default
+  `power-log` feature) logs every barrier with its byte range and reconstructs
+  the post-power-loss state (only barrier-covered bytes survive) before re-running
+  the Phase-20.1 invariants. Result: with `Safe`, a completed ingest's published
+  manifest and the nodes it references survive **4/4** and materialize exactly;
+  with `--dir-sync=off` the published store is lost **4/4**; no shipped arm was
+  CRITICAL. It is a **model**, not a real power cut (see
+  [ADR-0057](0057-directory-fsync-and-power-loss-proxy.md) for the residual).
+- The `Batch` vs `Each` distinction is now stated precisely: under the model they
+  are **equivalent for the published-manifest invariant** because `put_field`
+  flushes before publishing; they differ only for the unreferenced open-segment
+  tail (visible at the `flush.before_sync` cut: `Batch` reconstructs to a
+  truncated header, `Each` to the synced records).
+
+Receipt: `evidence/campaigns/2026-10-08-phase23-durability-8816507/`; see
+[phase-23-results.md](../phases/phase-23-results.md).

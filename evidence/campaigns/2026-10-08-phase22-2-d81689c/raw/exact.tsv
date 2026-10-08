@@ -1,0 +1,13 @@
+id	fmt	v_ok	v_rc	v_us	sql_ok	sql_rc	sql_us
+nist-pdf-0002	pdf	1	0	4800	1	0	30040
+nist-pdf-0004	pdf	1	0	8034	1	0	29593
+nist-pdf-0016	pdf	1	0	4893	1	0	28299
+nist-pdf-0017	pdf	1	0	8749	1	0	27832
+nist-docx-0005	docx	1	0	3544	1	0	25314
+nist-docx-0008	docx	1	0	3679	1	0	27402
+nist-docx-0009	docx	1	0	4216	1	0	27940
+nist-docx-0014	docx	1	0	7015	1	0	29497
+nist-epub-0003	epub	1	0	3610	1	0	27332
+nist-epub-0006	epub	1	0	5354	1	0	28026
+nist-epub-0008	epub	1	0	4385	1	0	30969
+nist-epub-0009	epub	1	0	8228	1	0	29175

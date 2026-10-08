@@ -1,0 +1,2 @@
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format epub has no revision structure
+[malloc-count] allocs=15513 bytes=4746731 frees=14292

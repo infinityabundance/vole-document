@@ -2,13 +2,14 @@
 
 > **PLANNED — not started.** Nothing in this document is implemented or measured.
 > It records the ordered sequence and the shared-substrate architecture for later
-> phases. The **immediate queue is [Phase 20](phase-20-plan.md)** — and 20.1
-> (crash fault injection) first; Phase 21 does not begin until Phase 20 is
-> honestly complete. Every "observation" below is a proposed surface, not a
-> shipped one.
+> phases. Phase 21 begins **only after the [Phase-22 economic
+> programme](phase-22-plan.md) is honestly resolved** (22.1–22.7); its last
+> subphase, P7 (XLSX/PPTX economic validation), is judged by that thesis — a
+> better capability/cost frontier on the same contract — **not by format count**.
+> Every "observation" below is a proposed surface, not a shipped one.
 
-Branch (to be created): `phase21`. Base: `main` @ `v0.1.0-alpha.24` (Phase 19);
-gated behind Phase 20.
+Branch (to be created): `phase21`. Base: `main` @ `v0.1.0-alpha.27` (Phase 23);
+gated behind the Phase-22 economic programme.
 
 ## Why
 
@@ -60,6 +61,32 @@ substrate and **ODT/ODS/ODP** from one ODF substrate.
 | Bibliography | BibTeX, CSL-JSON, RIS |
 | Legacy | RTF; later DOC/XLS/PPT via a shared **CFBF/OLE** layer |
 | Containers | ZIP, TAR |
+
+### Wave 2 — the near order
+
+Within Wave 2 the immediate order is chosen for **maximum reuse of the two new
+shared layers** (the structured tree and the tabular layer), so each format pays
+mostly for its own physical parser and span policy:
+
+```text
+JSON → YAML → CSV/TSV → Markdown → XML → HTML → TOML → JSONL
+```
+
+Reasons the order matters, briefly: **JSON** (path / JSON Pointer / exact token
+spans) and **YAML** (anchors, aliases, tags, merge keys — which a JSON-normalizing
+pipeline destroys) exercise the *structured* layer hardest; **CSV/TSV** give a
+cheap **high-volume** court (100 MB / 1 GB / 10 GB) for ingest throughput
+`GB/s`, index size, and selective reads; **Markdown/HTML/XML** are the wide-web
+and documentation surface; **TOML/JSONL** are cheap completions.
+
+**Analytical comparators are required, not optional.** For the **tabular/
+analytical** formats (CSV/TSV, XLSX, ODS) the court **must** include a
+**DuckDB/Parquet** baseline as well as SQLite, because those engines already
+embody columnar projection, predicate pushdown, compressed pages, and metadata
+indexes — winning only against SQLite there could just mean the wrong competitor
+was chosen (the Phase-22 "maximize the competitor first" rule, applied per
+format). Parquet and Arrow IPC themselves are the **most adversarial** later
+targets for exactly this reason.
 
 ## The reuse architecture
 

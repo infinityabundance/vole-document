@@ -1179,11 +1179,16 @@ pub(crate) fn observe_session(
     limits: Limits,
     models: ModelMemo,
 ) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
+    crate::field::prof::reset();
     let started = Instant::now();
     if let Some(r) = external_lineage_answer(store, &field.id(), req, started) {
         return r;
     }
-    match narrow_probe_open(store, field.manifest(), index, req)? {
+    let prof = crate::field::prof::enabled();
+    let t_probe = crate::field::prof::start();
+    let probe = narrow_probe_open(store, field.manifest(), index, req);
+    crate::field::prof::add_probe(t_probe);
+    let result = match probe? {
         // The target is served wholly from the disposable derived cache: the
         // descriptor is never opened. The ordinary evaluation core still runs,
         // against a trip-wire source, so the answer and every work counter are
@@ -1239,7 +1244,23 @@ pub(crate) fn observe_session(
                 models,
             )
         }
+    };
+    crate::field::prof::add_observe(Some(started));
+    if prof {
+        let s = crate::field::prof::take();
+        eprintln!(
+            "[vole-profile-stage] observe_us={} probe_us={} lookup_calls={} index_nodes={} index_read_us={} index_parse_us={} dispatch_us={} materialize_us={}",
+            s.observe_us,
+            s.probe_us,
+            s.lookup_calls,
+            s.index_nodes,
+            s.index_read_us,
+            s.index_parse_us,
+            s.dispatch_us,
+            s.materialize_us
+        );
     }
+    result
 }
 
 /// A descriptor opened for one observation: the full parse, or a seek-based
@@ -1567,7 +1588,9 @@ fn observe_with_stores_pre<'a, S: SeedStore>(
         current_id: field_id,
     };
 
+    let t_dispatch = crate::field::prof::start();
     let answer = ctx.dispatch(req)?;
+    crate::field::prof::add_dispatch(t_dispatch);
     let produced = answer.value.byte_len();
     if produced > req.budget.max_output_bytes {
         return Err(Error::resource_limit(format!(
@@ -1804,7 +1827,8 @@ impl<S: SeedStore> Ctx<'_, S> {
             _ => {}
         }
         let depth = node.limits.max_depth;
-        if self.use_cache {
+        let t_mat = crate::field::prof::start();
+        let out = if self.use_cache {
             // The cache-first probe may have already read and integrity-checked
             // this exact node's output. Serving it here is byte-identical to a
             // cache hit and avoids reading the entry a second time.
@@ -1838,7 +1862,9 @@ impl<S: SeedStore> Ctx<'_, S> {
                 depth,
                 &mut self.reuse,
             )
-        }
+        };
+        crate::field::prof::add_materialize(t_mat);
+        out
     }
 
     fn load(&self, id: &NodeId) -> Result<SeedNode> {

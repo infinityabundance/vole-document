@@ -2,6 +2,82 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.27] — Phase 22.2 profiling gate + Phase 23 durability gaps closed
+
+Two review-driven increments. **Phase 22.2** is a **profiling gate that shipped
+nothing**: the compact query-native selector directory was **not** built because
+attribution shows the index/selector layer is only **10.6 %** of the warm session
+(selector resolution **0.4 %**) and that share is redundant re-reads of one
+immutable depth-0 leaf (493 opens / 20 files), so a perfect directory would shift
+the warm headline by ≈**0.13** against a court **MDE ≈0.40** — **below
+resolution** — while adding persistent bytes. The before/after warm court against
+the Phase-22.1 tuned `full` envelope is a **NULL** (1.211 → 1.293, overlapping
+CIs; no layout byte changed). **Phase 23** closes the two durability gaps Phase
+20.1 named but could not measure, by engineering: every atomic publish now
+`fsync`s its containing **directory** (default `DirSyncPolicy::Safe`;
+`--dir-sync=off` escape hatch), and a **model-based power-loss proxy**
+reconstructs the post-power-loss store from a barrier log and re-runs the
+Phase-20.1 invariants. Results: [phase-22-results.md](../phases/phase-22-results.md),
+[phase-23-results.md](../phases/phase-23-results.md).
+
+### Added
+
+- **Directory `fsync` on every atomic writer** (`src/store/durable.rs`;
+  `field::write_atomic`, `FsSeedStore::put_node`, `FsIndexStore::put`, packed
+  `ensure_open`/`seal`; CLI `--dir-sync=safe|off`). `DirSyncPolicy::Safe` is the
+  default; on strict POSIX a rename is not durable until the parent directory is
+  synced, so this is what makes a published manifest survive a power cut.
+  `--dir-sync=off` exists to *measure* the cost and to *show* the barrier is
+  load-bearing.
+- **A model-based power-loss proxy** (non-default `power-log` feature +
+  `tests/power_loss_proxy.rs` + `tools/phase23-powerloss-court.sh`): every
+  durability barrier is journaled with the byte range it covered; the proxy folds
+  the log into a per-path model (a file survives only if its create/rename was
+  followed by a parent `dirsync`; content truncated to its last completed
+  barrier), reconstructs the post-power-loss store, and checks the Phase-20.1
+  invariants under `Batch`/`Each` × fs/packed, complete and cut.
+- **`src/field/prof.rs`** profiler extension (`VOLE_PROFILE_OPEN`, off by
+  default) and the 22.2 profiling/court scripts (`tools/phase22-2-profile.sh`,
+  `tools/phase22-2-court.sh`).
+
+### Measured
+
+- **22.2 warm-session attribution** (12-doc packed subset; receipt
+  `2026-10-08-phase22-2-d81689c`): pooled session **22,219 µs = open 55.5 %
+  (`Descriptor::parse` 44.7 %) + loop 44.5 %**; inside the loop probe **0.4 %**,
+  dispatch 32.0 %, serialize 8.4 %, materialize 6.3 %; index read+verify 10.5 %,
+  index decode 0.1 %. The index term is **redundancy** — 493 node opens for 20
+  distinct files (one root leaf re-read 117×) — not lookup work. Before/after
+  paired warm court vs tuned `full`: **1.211 → 1.293** (overlapping CIs) = NULL;
+  exactness 12/12, 480 answers / 0 mismatches; bytes 0.763×.
+- **23.1 directory-`fsync` cost** (median of 7, plain binary, host ext4 bind
+  mount): fs **717 → 1,400 ms** (~1.95×; one dir-`fsync` per node, ~6,800 for
+  `nist-pdf-0017`), packed **23 → 35 ms** (~1.5×); below noise on tmpfs.
+- **23.2 power-loss proxy** (receipt `2026-10-08-phase23-durability-8816507`):
+  **32 cases — 20 PASS / 0 FAIL / 0 CRITICAL on shipped arms**; the 12
+  counterfactual `model-drop` arms are all **CRITICAL** (sensitivity control);
+  `bad_hash` **0**; `safe` survives **4/4**, `off` loses **4/4**. `Batch`/`Each`
+  are power-equivalent for the published field.
+
+### Changed
+
+- The **ADR-0053** note that the rename is "argued, not measured" is now
+  **closed** ([ADR-0057](../adr/0057-directory-fsync-and-power-loss-proxy.md));
+  `Batch` vs `Each` is stated precisely (equivalent for the published-manifest
+  invariant; differ only in the unreferenced open-segment tail).
+
+### Recorded
+
+- **22.2 is a publishable negative.** Nothing structural shipped; the compact
+  selector directory is ~3× below the court's minimum detectable effect. The
+  cheapest real lever — an **in-session verified-node memo** (zero persistent
+  bytes) — is left for a **higher-resolution** court; `dispatch` (32 %) is one
+  bucket and must be split before crediting anything against it.
+- **The power-loss proxy is a model, not a physical power cut.** It does not
+  exercise the device write cache, the filesystem journal, torn sectors, or a
+  real directory-entry loss; a physical proxy is not reproducible in the pinned,
+  unprivileged, hard-capped lane. That residual is stated, not approximated.
+
 ## [0.1.0-alpha.26] — Phase 22.1: the competitor envelope (strengthen the competitor first)
 
 Phase 22.1 is the **P0 competitor gate** for the Phase-22 economic programme:

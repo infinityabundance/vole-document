@@ -1,0 +1,120 @@
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format docx has no revision structure
+	Command being timed: "target/release/vole-document observe-batch --store evidence/scratch/phase22-2-profile/nist-docx-0014.packed/vstore --packed --field b0a64c55109925b71c9b5e2b2d398baa8c920a0dd3a47af66c0a1276810dd83c --requests evidence/scratch/phase22-2-profile/nist-docx-0014.packed/reqs"
+	User time (seconds): 0.00
+	System time (seconds): 0.00
+	Percent of CPU this job got: 66%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.00
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 6600
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 1020
+	Voluntary context switches: 1
+	Involuntary context switches: 2
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 8
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format docx has no revision structure
+	Command being timed: "target/release/vole-document observe-batch --store evidence/scratch/phase22-2-profile/nist-docx-0014.packed/vstore --packed --field b0a64c55109925b71c9b5e2b2d398baa8c920a0dd3a47af66c0a1276810dd83c --requests evidence/scratch/phase22-2-profile/nist-docx-0014.packed/reqs"
+	User time (seconds): 0.00
+	System time (seconds): 0.00
+	Percent of CPU this job got: 66%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.00
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 6652
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 1019
+	Voluntary context switches: 1
+	Involuntary context switches: 1
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format docx has no revision structure
+	Command being timed: "target/release/vole-document observe-batch --store evidence/scratch/phase22-2-profile/nist-docx-0014.packed/vstore --packed --field b0a64c55109925b71c9b5e2b2d398baa8c920a0dd3a47af66c0a1276810dd83c --requests evidence/scratch/phase22-2-profile/nist-docx-0014.packed/reqs"
+	User time (seconds): 0.00
+	System time (seconds): 0.00
+	Percent of CPU this job got: 66%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.00
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 6544
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 1021
+	Voluntary context switches: 1
+	Involuntary context switches: 3
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format docx has no revision structure
+	Command being timed: "target/release/vole-document observe-batch --store evidence/scratch/phase22-2-profile/nist-docx-0014.packed/vstore --packed --field b0a64c55109925b71c9b5e2b2d398baa8c920a0dd3a47af66c0a1276810dd83c --requests evidence/scratch/phase22-2-profile/nist-docx-0014.packed/reqs"
+	User time (seconds): 0.00
+	System time (seconds): 0.00
+	Percent of CPU this job got: 100%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.00
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 6764
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 1022
+	Voluntary context switches: 1
+	Involuntary context switches: 0
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format docx has no revision structure
+	Command being timed: "target/release/vole-document observe-batch --store evidence/scratch/phase22-2-profile/nist-docx-0014.packed/vstore --packed --field b0a64c55109925b71c9b5e2b2d398baa8c920a0dd3a47af66c0a1276810dd83c --requests evidence/scratch/phase22-2-profile/nist-docx-0014.packed/reqs"
+	User time (seconds): 0.00
+	System time (seconds): 0.00
+	Percent of CPU this job got: 100%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.00
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 6424
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 1020
+	Voluntary context switches: 1
+	Involuntary context switches: 2
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

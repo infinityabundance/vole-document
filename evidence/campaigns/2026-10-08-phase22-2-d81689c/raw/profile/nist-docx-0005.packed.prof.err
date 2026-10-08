@@ -1,0 +1,75 @@
+[vole-profile] descriptor_read_us=19 descriptor_parse_us=106 descriptor_len=57526
+[vole-profile] manifest_read_us=7 field_open_total_us=143
+[vole-profile] store_open_us=38 field_open_us=145 index_open_us=1 session_open_total_us=184
+[vole-profile-stage] observe_us=15 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=10 materialize_us=8
+[vole-profile-stage] observe_us=182 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=12 index_parse_us=1 dispatch_us=180 materialize_us=32
+[vole-profile-stage] observe_us=36 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=34 materialize_us=0
+[vole-profile-stage] observe_us=17 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=11 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 3: UnsupportedFeature: DOCX main story has no heading 0
+[vole-profile-stage] observe_us=18 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=17 materialize_us=0
+[vole-profile-stage] observe_us=16 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=10 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 5: UnsupportedFeature: DOCX main story has no resource 0
+[vole-profile-stage] observe_us=17 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=15 materialize_us=0
+[vole-profile-stage] observe_us=2 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format docx has no revision structure
+[vole-profile] request_loop_total_us=465 observe_dispatch_us=326 observe_calls=8 serialize_us=112
+[vole-profile] descriptor_read_us=22 descriptor_parse_us=106 descriptor_len=57526
+[vole-profile] manifest_read_us=6 field_open_total_us=141
+[vole-profile] store_open_us=33 field_open_us=144 index_open_us=1 session_open_total_us=178
+[vole-profile-stage] observe_us=8 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=5 materialize_us=4
+[vole-profile-stage] observe_us=186 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=13 index_parse_us=1 dispatch_us=184 materialize_us=32
+[vole-profile-stage] observe_us=37 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=12 index_parse_us=0 dispatch_us=35 materialize_us=0
+[vole-profile-stage] observe_us=17 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=11 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 3: UnsupportedFeature: DOCX main story has no heading 0
+[vole-profile-stage] observe_us=23 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=15 index_parse_us=0 dispatch_us=21 materialize_us=0
+[vole-profile-stage] observe_us=17 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=11 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 5: UnsupportedFeature: DOCX main story has no resource 0
+[vole-profile-stage] observe_us=17 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=10 index_parse_us=0 dispatch_us=16 materialize_us=0
+[vole-profile-stage] observe_us=2 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format docx has no revision structure
+[vole-profile] request_loop_total_us=462 observe_dispatch_us=332 observe_calls=8 serialize_us=107
+[vole-profile] descriptor_read_us=21 descriptor_parse_us=107 descriptor_len=57526
+[vole-profile] manifest_read_us=6 field_open_total_us=139
+[vole-profile] store_open_us=31 field_open_us=140 index_open_us=1 session_open_total_us=172
+[vole-profile-stage] observe_us=11 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=8 materialize_us=6
+[vole-profile-stage] observe_us=187 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=11 index_parse_us=1 dispatch_us=184 materialize_us=35
+[vole-profile-stage] observe_us=36 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=34 materialize_us=0
+[vole-profile-stage] observe_us=17 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=11 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 3: UnsupportedFeature: DOCX main story has no heading 0
+[vole-profile-stage] observe_us=18 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=16 materialize_us=0
+[vole-profile-stage] observe_us=16 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 5: UnsupportedFeature: DOCX main story has no resource 0
+[vole-profile-stage] observe_us=17 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=15 materialize_us=0
+[vole-profile-stage] observe_us=1 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format docx has no revision structure
+[vole-profile] request_loop_total_us=477 observe_dispatch_us=332 observe_calls=8 serialize_us=123
+[vole-profile] descriptor_read_us=19 descriptor_parse_us=101 descriptor_len=57526
+[vole-profile] manifest_read_us=4 field_open_total_us=130
+[vole-profile] store_open_us=29 field_open_us=133 index_open_us=1 session_open_total_us=163
+[vole-profile-stage] observe_us=8 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=5 materialize_us=4
+[vole-profile-stage] observe_us=170 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=12 index_parse_us=1 dispatch_us=168 materialize_us=28
+[vole-profile-stage] observe_us=35 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=32 materialize_us=0
+[vole-profile-stage] observe_us=24 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=17 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 3: UnsupportedFeature: DOCX main story has no heading 0
+[vole-profile-stage] observe_us=18 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=16 materialize_us=0
+[vole-profile-stage] observe_us=16 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 5: UnsupportedFeature: DOCX main story has no resource 0
+[vole-profile-stage] observe_us=17 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=15 materialize_us=0
+[vole-profile-stage] observe_us=2 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format docx has no revision structure
+[vole-profile] request_loop_total_us=447 observe_dispatch_us=312 observe_calls=8 serialize_us=113
+[vole-profile] descriptor_read_us=18 descriptor_parse_us=101 descriptor_len=57526
+[vole-profile] manifest_read_us=5 field_open_total_us=130
+[vole-profile] store_open_us=32 field_open_us=132 index_open_us=1 session_open_total_us=165
+[vole-profile-stage] observe_us=8 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=6 materialize_us=4
+[vole-profile-stage] observe_us=167 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=12 index_parse_us=0 dispatch_us=165 materialize_us=29
+[vole-profile-stage] observe_us=34 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=32 materialize_us=0
+[vole-profile-stage] observe_us=17 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=11 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 3: UnsupportedFeature: DOCX main story has no heading 0
+[vole-profile-stage] observe_us=18 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=16 materialize_us=0
+[vole-profile-stage] observe_us=16 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=10 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 5: UnsupportedFeature: DOCX main story has no resource 0
+[vole-profile-stage] observe_us=17 probe_us=0 lookup_calls=4 index_nodes=4 index_read_us=9 index_parse_us=0 dispatch_us=15 materialize_us=0
+[vole-profile-stage] observe_us=1 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=0 materialize_us=0
+observe-batch: request 7: UnsupportedFeature: revision lineage is a PDF-native observation; format docx has no revision structure
+[vole-profile] request_loop_total_us=440 observe_dispatch_us=303 observe_calls=8 serialize_us=114

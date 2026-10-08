@@ -1,0 +1,28 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase23-durability-8816507",
+  "phase": "23 — directory fsync (GAP 1) + model-based power-loss proxy (GAP 2)",
+  "utc": "2026-10-08T18:51:56Z",
+  "git_commit": "881650707b0323a72ca685381a70cbb8f4ad4a51",
+  "git_dirty": " M Cargo.toml; M docs/adr/0053-batched-packed-sync.md; M docs/adr/README.md; M src/field/index.rs; M src/field/mod.rs; M src/main.rs; M src/store/mod.rs; M src/store/pack.rs; M src/store/seed.rs;?? docs/adr/0057-directory-fsync-and-power-loss-proxy.md;?? docs/phases/phase-23-results.md;?? evidence/campaigns/2026-10-08-phase1-8816507/;?? evidence/campaigns/2026-10-08-phase23-durability-8816507/;?? src/store/durable.rs;?? tests/power_loss_proxy.rs;?? tools/fixtures/phase23-powerloss-aggregate.sh;?? tools/phase23-powerloss-court.sh;",
+  "arch": "x86_64",
+  "service": "dev",
+  "service_caps": "mem_limit == memswap_limit == 8g, pids_limit 4096",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "dev_image": "vole-document/dev:1.99.0",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "72352b92554404442286ffe7d8414109cb9b383eba9612cf94eca69ffbc2dde7",
+  "bin": "target/debug/vole-document",
+  "docs": "nist-pdf-0002",
+  "reps": "7",
+  "doc_measured": "real100-v1/documents/nist/pdf/nist-pdf-0017.pdf",
+  "host_fs": "ext2/ext3",
+  "features_proxy": "power-log, fault-inject",
+  "env_affecting_semantics": {
+    "LC_ALL": "C",
+    "CARGO_PROFILE_DEV_DEBUG": "0 (artifact size only)",
+    "CARGO_PROFILE_TEST_DEBUG": "0 (artifact size only)",
+    "CARGO_PROFILE_DEV_INCREMENTAL": "false (artifact size only)",
+    "REPS": "7"
+  }
+}

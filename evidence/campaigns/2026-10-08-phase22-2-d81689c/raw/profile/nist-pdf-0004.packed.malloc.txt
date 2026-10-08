@@ -1,0 +1,1 @@
+[malloc-count] allocs=431 bytes=2355594 frees=323
