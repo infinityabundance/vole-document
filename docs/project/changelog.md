@@ -2,6 +2,82 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.24] — Phase 19: repeatability, paired measurement, and the full-population direct build
+
+Phase 19 is a **measurement-discipline phase**. It replaces Phase 18's two
+single-run point estimates — the equal-contract build at **0.82×** SQLite and the
+warm lane at **1.09×** — with **paired, interleaved, repeated** measurements and a
+fixed-seed bootstrap interval (19.1), extends the warm lane to **N=100** (19.2),
+and runs the new direct build over the **full frozen `real100-v1` population**
+(19.3). The build win **survives** the paired measurement with a CI below 1.0, but
+its *magnitude* is **estimator-dependent** (paired median 0.18 vs ratio-of-sums
+~0.96); the warm position is a **modest real loss (~1.29×)**, marginal under the
+median estimator but resolved under the geometric mean; and the direct path is
+**100/100 built and 100/100 exact** on the frozen corpus. No wire byte, decode
+path, or `encode` output changed. Results:
+[phase-19-results.md](../phases/phase-19-results.md);
+[ADR-0054](../adr/0054-repeatability-and-paired-measurement.md).
+
+### Measured
+
+- **19.1 repeatability court (paired, interleaved, N=10).** Re-measured the same
+  12-document C0–C5 contract court with N=10 reps of **both** lanes at every
+  depth, interleaved, every sample retained; bootstrap 20,000, seed 190019,
+  ±10% tie band. **Build established < 1.0:** paired median **0.182** (95% CI
+  **0.102–0.228**, entirely below 1); geometric mean 0.203 (0.128–0.395); 11 win
+  / 0 tie / 1 loss (the loss is `nist-pdf-0017` at **4.440×**). **Warm not
+  resolved:** paired median **1.077** (95% CI 0.809–1.391, includes 1.0);
+  geometric mean 1.065 (0.880–1.287); 5 win / 1 tie / 6 loss. Best-of-3 (min) vs
+  median-of-10: build **0.977 → 0.963**, warm **1.218 → 1.194** — the min
+  reduction did not materially bias either estimate (≤2.4%). Exactness 12/12 both
+  lanes. Campaign `2026-10-08-phase19-repeat-d6c8c4c`.
+- **19.2 high-N warm repeat (N=100).** Stores built once, then the warm
+  one-session lane repeated N=100 per (document, depth, lane), interleaved;
+  bootstrap 20,000, seed 190102. Pooled warm medians VOLE **2.25–2.32 ms**
+  (CV ≈53%) vs SQLite **1.54–1.65 ms** (CV ≈21–25%). Pooled median paired ratio
+  **1.292** (95% CI **0.994–1.658**, includes 1.0); geometric mean **1.283**
+  (95% CI **1.069–1.535**, excludes 1.0); per-document 2 win / 3 tie / 7 loss.
+  Verdict: **not resolved under the median estimator**, **resolved under the
+  geometric mean**. Variance floor: within-cell between-rep CV 5.4% (p90 9.4%);
+  median-CI half-width ±0.332; MDE(80%) ≈0.474; an independent identical re-run
+  also gave "includes 1.0". Exactness 12/12 both; 480 warm envelopes, 0
+  mismatches. Campaign `2026-10-08-phase19-warm-6b66eab`.
+- **19.3 direct build over the full `real100-v1`.**
+  `field-build --profile runtime --packed --sync=batch` on all 100 documents:
+  build **100/100** (pdf 60/60, docx 15/15, epub 25/25; rc histogram all 0 — no
+  124 timeouts, no 137 OOMs). The OLD two-step path built 97/100 (`rc124`×2,
+  `rc137`×1 on `nasa-pdf-0001`/`0002`/`0003`); the direct path **recovered all
+  three**. Wall median **64 ms**, sum 221,408 ms; slowest `nasa-pdf-0003`
+  **87.5 s** (under budget). Peak RSS median **30.9 MiB**, max **2342 MiB**
+  (`nasa-pdf-0001`, 409 MiB source ≈5.7×) — **memory, not wall, is the binding
+  constraint** for sources ≳1 GiB. Persistent **2,829,898,049 B = 1.036×**
+  source; 2,691 files / 4,610 dirs. **Exactness 100/100.** Cold coverage text
+  92/100, metadata 98/100; all declines typed (`rc 6` for `nasa-pdf-eb-*` text —
+  no page 1; `rc 20` `InvalidPackageStructure` for `nist-docx-0011/0012`). vs the
+  old path (file-size-corrected; `du -sb` deliberately not compared): on 96
+  common docs the direct build is far faster — median **61 ms** vs 2,095 ms
+  (paired **0.083×**) — but stores **+5.3%** bytes (1.830 vs 1.738 GB); 15/96
+  byte-identical (all epub). Campaign `2026-10-08-phase19-real100-direct-954dbc2`.
+
+### Corrected / recorded
+
+- **The Phase-18 build headline corrects from 0.82× to ~0.96× under the
+  ratio-of-sums estimator.** VOLE's total build is dominated by one heavy
+  document (`nist-pdf-0017`) while SQLite's is spread, so the 0.82 → 0.96 move is
+  **SQLite-lane host variance** (1893 → 1582 ms); VOLE's own build sum is
+  reproducible (1545.5 vs 1552 ms). Under the paired per-rep estimator the build
+  win is **0.182** with a CI entirely below 1.0 — the build win stands, its size
+  depends on the estimator ([ADR-0054](../adr/0054-repeatability-and-paired-measurement.md)).
+- **The Phase-18 warm 1.09× re-reads as ~1.29×**, and the N=10 warm estimate
+  (1.077) was **under-sampled**: the corrected reading is a modest **real loss**,
+  marginal under the median estimator and resolved under the geometric mean.
+- **Storage is population-dependent.** On the full population VOLE's bytes are
+  **~0.96×** the SQLite `real100` database — **not** the **0.53×** of the
+  12-document contract subset; the subset is not representative.
+- **Measurement discipline (ADR-0054).** A performance claim must state its
+  estimator (paired median/geometric mean vs ratio of sums) **and** its interval;
+  samples are retained, and the ±10% tie band is reported alongside.
+
 ## [0.1.0-alpha.23] — Phase 18: build-cost programme — the equal-contract build position inverted
 
 Phase 18 is a **build-cost programme**. Starting from Phase 17's direct

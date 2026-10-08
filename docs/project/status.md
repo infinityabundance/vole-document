@@ -7,13 +7,18 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.23` (Phases 13–18 — Phase-13 proposals + `N5`
+**Current release:** `0.1.0-alpha.24` (Phases 13–19 — Phase-13 proposals + `N5`
 gate, the benign-`DOCTYPE` real-EPUB fix, a partial large-PDF encode fix, the
 Phase-15 performance programme, the Phase-16 backend adoption + large-PDF fix +
 storage-accounting correction, the Phase-17 direct field build +
-revision-lineage surface, and the Phase-18 build-cost programme whose batched
-packed-store durability took the equal-contract build position from **10.74×
-slower to 0.82× (faster than SQLite)**).
+revision-lineage surface, the Phase-18 build-cost programme whose batched
+packed-store durability inverted the equal-contract build position, and the
+Phase-19 measurement-discipline phase that re-read that position with paired
+interleaved repetitions and ran the direct build over the full frozen
+population: build win **paired median 0.182 (95% CI 0.102–0.228, < 1.0)** vs a
+ratio-of-sums **~0.96×**, warm a **modest ~1.29× loss** (marginal under the
+median, resolved under the geometric mean), and **100/100 built + 100/100 exact**
+on `real100-v1`).
 **Top-level verdict (ADR-0023, the
 authoritative [`FINDINGS.md`](findings.md)):** the current representation stack
 does not beat purpose-built baselines on any measured axis; the durable results
@@ -300,6 +305,48 @@ builds ~1.22× **faster**), storage **0.53×**, warm **1.09×**, exactness
 `materialize --exact --packed` **12/12**. **The win came from deleting unnecessary
 durability syncs — not parallelism, not a codec.**
 
+Phase 19 (branch `phase19`) is a **measurement-discipline phase**: it replaces the
+two Phase-18 single-run point estimates with paired, interleaved, repeated
+measurements and fixed-seed bootstrap intervals (ADR-0054; results
+[`docs/phases/phase-19-results.md`](../phases/phase-19-results.md)). **19.1**
+re-runs the SAME 12-document C0–C5 court with **N=10 paired reps of BOTH lanes at
+every depth**, interleaved (odd reps VOLE→SQLite, even SQLite→VOLE), every sample
+retained; bootstrap 20,000, seed 190019, ±10% tie band. **The build win is
+established as < 1.0:** the paired per-rep median VOLE/SQLite ratio is **0.182**
+(95% CI **0.102–0.228**, entirely below 1); geometric mean 0.203 (0.128–0.395);
+**11 win / 0 tie / 1 loss** (the single loss is `nist-pdf-0017` at **4.440×**).
+The Phase-18 **0.82×** headline is corrected: the **ratio-of-sums** estimator
+reads **~0.96** here, because VOLE's *total* build is dominated by that one heavy
+document while SQLite's total is spread; the 0.82 → 0.96 move is **SQLite-lane
+host variance** (1893 → 1582 ms) and VOLE's own build sum is reproducible (1545.5
+vs 1552 ms). **The warm lane is not resolved at N=10:** paired median **1.077**
+(95% CI 0.809–1.391, includes 1.0); geometric mean 1.065 (0.880–1.287); 5 win / 1
+tie / 6 loss. The best-of-3 (min) vs median-of-10 control shows the min reduction
+moved build **0.977 → 0.963** and warm **1.218 → 1.194** (≤2.4%, no material
+bias). **19.2** extends the warm lane to **N=100** (stores built once; bootstrap
+20,000, seed 190102): the pooled median paired ratio is **1.292** (95% CI
+**0.994–1.658**, includes 1.0) and the geometric mean is **1.283** (95% CI
+**1.069–1.535**, excludes 1.0); VOLE's pooled warm median is 2.25–2.32 ms (CV
+≈53%) vs SQLite 1.54–1.65 ms (CV ≈21–25%), i.e. ~0.7 ms slower per session. The
+verdict is **not resolved under the median estimator but resolved under the
+geometric mean** — a **modest real loss (~1.29×), not parity**; the N=10 warm
+estimate was under-sampled. Variance floor: within-cell between-rep CV **5.4%**
+(p90 9.4%); median-CI half-width ±0.332; MDE(80%) ≈0.474; an independent
+identical re-run also gave "includes 1.0". **19.3** runs the new direct build
+(`field-build --profile runtime --packed --sync=batch`) over the **full frozen
+`real100-v1`**: build **100/100** (pdf 60/60, docx 15/15, epub 25/25; rc histogram
+all 0, no timeouts/OOMs), recovering the three documents the OLD two-step path
+failed (`nasa-pdf-0001`/`0002`/`0003`); wall median **64 ms**, sum 221,408 ms;
+peak RSS median **30.9 MiB**, max **2342 MiB** (`nasa-pdf-0001`, a 409 MiB source
+≈5.7×) — **memory, not wall, is the next binding constraint**; persistent
+**2,829,898,049 B = 1.036×** source; **exactness 100/100**. Cold coverage text
+92/100, metadata 98/100, all declines typed. Against the old path (file-size-
+corrected) the direct build is far faster (median **61 ms** vs 2,095 ms; paired
+**0.083×**) but stores **+5.3%** bytes. **Storage is population-dependent:**
+full-population VOLE bytes are **~0.96×** the SQLite `real100` db, **not** the
+**0.53×** of the 12-document contract subset. **Phase 19 changes no wire byte,
+decode path, or `encode` output.**
+
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED` / `SUPERSEDED` / `PARTLY DELIVERED`).
 
@@ -398,6 +445,9 @@ durability syncs — not parallelism, not a codec.**
 | Observation index attached before the single serialize (`Descriptor::with_observation_index`, `encode_with_observation_index`) | 18.3 | IMPLEMENTED | `with_observation_index` had **parsed and re-serialized the whole authority** just to append the ignorable `OBSERVATION_INDEX` record. The op table is now a **pure method** of the descriptor and is attached **before** the court's single serialize; `encode` still emits **no** index and the one-pass authority equals `with_observation_index(encode_with(…))` **byte for byte** (witness test). Wall **neutral** (direct sum 3723 → 3617 ms, control +3.8%); large-doc RSS **−14–16%**; exactness 9/9 + 12/12. Isolation: `nist-pdf-0017` is **9425 of 11,605 ms (81%)**, **6842 seed files**, **9.40 s** on the bind mount vs **1.39 s** in `/tmp` — the contract-build term is a store write, not the descriptor encode. Campaign `2026-10-08-phase18-inindex-b7046f0` |
 | Packed store as an ingest-write optimization | 18.4 | RECORDED (FALSIFIED) | packed build **11,312 ms** vs same-run fs-direct **11,715 ms** vs SQLite **1,597 ms** → gap **7.08×** vs 7.34× (within noise); files collapse (**120 files / 202 dirs** vs 8621/9618) but `PackedSeedStore::insert` synced **per node** (6792 `fdatasync` vs 6842 `fsync`), so the build term is sync **latency**, not file count; `observe-batch` rejected `--packed` (rc 6). Storage 7,778,087 B = **0.53×** SQLite; packed is 1.09× fs-direct bytes — a *shape* win (inode/directory pressure), not a byte or ingest-write win. Campaign `2026-10-08-phase18-contract-packed-fb23021` |
 | Batched packed-store durability (`SyncPolicy::Batch`, default) + `observe-batch --packed` | 18.5 | ADOPTED | ADR-0053; `SyncPolicy { Batch (default), Each }` syncs once per segment (at seal and an explicit flush) instead of once per record; `Each` restores the per-record `fdatasync`; `FieldStore::put_field` **flushes before publishing a manifest** so a durable manifest never references a non-durable node. The packed store is append-only/self-describing, so recovery is a **PREFIX** recovery: recovered records are exactly a prefix of the appended sequence, the torn tail is discarded, no partial node is ever observable, every fetched node is re-hashed against its id, and a sealed segment is never rewritten; `--sync=each` keeps the stronger per-`put_node` barrier. `observe-batch --packed` now serves the warm lane (rc 6 removed). Measured: `nist-pdf-0017` packed wall **9392 → 1415 ms**, `fdatasync` **6792 → 0**; 12-doc contract build sum **1552 vs SQLite 1893 ms = 0.82×** (VOLE now builds ~1.22× **faster**; was 7.08×/7.21×/10.74×); storage **0.53×** (7,778,087 vs 14,721,024 B; 120 vs 8621 files); warm `observe-batch --packed` **1.09×** over C0–C5 (1.11× C1–C5); policy probe `Batch` 2644 ms vs `Each` 9230 ms; exactness `materialize --exact --packed` **12/12**. **The win is deleted unnecessary durability syncs, not parallelism or a codec.** Campaigns `2026-10-08-phase18-batched-sync-14a7e6f`, `2026-10-08-phase18-contract-packed-14a7e6f` (ADR-0053) |
+| Paired, interleaved repeatability court (build + warm, N=10) | 19.1 | RECORDED (measurement) | ADR-0054; same 12-document C0–C5 court, **N=10 paired reps of both lanes at every depth**, interleaved (odd reps VOLE→SQLite, even SQLite→VOLE), every sample retained; bootstrap 20,000, seed 190019, ±10% tie band; persistent bytes = regular-file sum. **Build: established < 1.0** — paired median **0.182** (95% CI **0.102–0.228**), geometric mean 0.203 (0.128–0.395), **11 win / 0 tie / 1 loss** (`nist-pdf-0017` at **4.440×**). **Correction:** the Phase-18 **ratio-of-sums** estimator reads **~0.96** here (not 0.82) because VOLE's *total* build is dominated by that one document while SQLite's is spread; the 0.82 → 0.96 move is SQLite-lane host variance (1893 → 1582 ms), VOLE's sum reproducible (1545.5 vs 1552 ms). **Warm not resolved:** paired median **1.077** (0.809–1.391, includes 1.0), geomean 1.065 (0.880–1.287), 5/1/6. Best-of-3 (min) vs median-of-10: build 0.977 → 0.963, warm 1.218 → 1.194 (≤2.4%, no material bias). Exactness 12/12 both lanes. Campaign `2026-10-08-phase19-repeat-d6c8c4c` |
+| High-N warm-only query court (N=100) | 19.2 | RECORDED (measurement) | ADR-0054; stores built **once**, warm one-session lane repeated **N=100** per (document, depth, lane), interleaved; bootstrap 20,000, seed 190102. Pooled warm medians VOLE **2.25–2.32 ms** (CV ≈53%) vs SQLite **1.54–1.65 ms** (CV ≈21–25%) — ~0.7 ms slower per session. Pooled median paired ratio **1.292** (95% CI **0.994–1.658**, includes 1.0); geometric mean **1.283** (95% CI **1.069–1.535**, excludes 1.0); per-document 2 win / 3 tie / 7 loss. Per-depth median ratio C0 1.326, C1 1.282 (both resolved losses), C2 1.259, C3 1.259, C4 1.179, C5 1.305 (C2–C5 include 1.0). Verdict: **not resolved under the median estimator, resolved under the geometric mean** — a modest real loss; the N=10 warm estimate was under-sampled. Variance floor: within-cell between-rep CV 5.4% (p90 9.4%); median-CI half-width ±0.332; MDE(80%) ≈0.474; an independent identical re-run also gave "includes 1.0". Exactness 12/12 both; 480 warm envelopes, 0 mismatches. Campaign `2026-10-08-phase19-warm-6b66eab` |
+| Direct build over the full frozen `real100-v1` | 19.3 | RECORDED (measurement, robustness) | `field-build --profile runtime --packed --sync=batch` on all 100 docs: build **100/100** (pdf 60/60, docx 15/15, epub 25/25; rc histogram all 0 — no 124 timeouts, no 137 OOMs); the OLD two-step path built 97/100 (`rc124`×2, `rc137`×1 on `nasa-pdf-0001`/`0002`/`0003`) and the direct path **recovered all three**. Wall median **64 ms**, sum 221,408 ms; slowest `nasa-pdf-0003` **87.5 s** (under the 180 s budget). Peak RSS median **30.9 MiB**, max **2342 MiB** (`nasa-pdf-0001`, a 409 MiB source ≈5.7×) — **memory, not wall, is the binding constraint** for sources ≳1 GiB. Persistent **2,829,898,049 B = 1.036×** source; 2,691 files / 4,610 dirs. **Exactness 100/100.** Cold coverage text 92/100, metadata 98/100; all declines typed (`rc 6` for `nasa-pdf-eb-*` text — no page 1; `rc 20` `InvalidPackageStructure` for `nist-docx-0011/0012`, still byte-exact). vs the old path (file-size-corrected; `du -sb` not compared): on 96 common docs median **61 ms** vs 2,095 ms (paired **0.083×**) but **+5.3%** bytes (1.830 vs 1.738 GB), 15/96 byte-identical (all epub). **Storage is population-dependent: full-population VOLE bytes are ~0.96× the SQLite `real100` db, not the 0.53× of the 12-document contract subset.** Campaign `2026-10-08-phase19-real100-direct-954dbc2` |
 
 The PDF **physical authority** (lexer span cover, structural scanner, revision
 map, and object roles) is `ADOPTED` as of Phase 3 (campaign
