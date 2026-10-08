@@ -1,0 +1,6 @@
+# Phase-16 storage-correction court. Never run on the host.
+docker compose run --rm --no-TTY doc-baseline bash tools/phase16-storage-correction-court.sh
+# smoke:
+docker compose run --rm --no-TTY doc-baseline sh -c 'LIMIT=2 bash tools/phase16-storage-correction-court.sh'
+# restricted population (newline-separated ids):
+docker compose run --rm --no-TTY doc-baseline sh -c 'IDS_FILE=evidence/scratch/phase16-storage-correction/union96.txt bash tools/phase16-storage-correction-court.sh'
