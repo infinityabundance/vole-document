@@ -299,6 +299,11 @@ observation loss**.
 
 ## 22.7 Agent end-to-end economic court (P6)
 
+> **Complete — VOLE LOSS (gate not met).** Deterministic scripted agent (no LLM),
+> 27 frozen tasks over 9 docs, pinned offline tokenizer: cost per correct grounded
+> task VOLE **1.418×** the baseline (gate ≤0.5×); VOLE 16/27 vs 27/27. See
+> [phase-22-7-results.md](phase-22-7-results.md).
+
 **Question.** Across the **whole document-agent workload**, what is the **cost
 per correct, grounded task**?
 

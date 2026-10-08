@@ -169,14 +169,14 @@ The warm loss is now **diagnosed and durable**; the packed store's durability is
 ([ADR-0050](../adr/0050-sqlite-as-substrate-question.md)) is unchanged and no
 option of it is chosen.
 
-## Phase-22 programme (22.1–22.6 complete; 22.7 planned)
+## Phase-22 programme (22.1–22.7 complete)
 
 Phase 22 is the **economic programme** synthesised from an external technical
 review: it targets a better **capability/cost frontier** against the strongest
 honest competitor, in a commercially relevant workload region, with bounded
 statistics and no loss of accuracy or capability. **22.1 (the competitor
 envelope), 22.2 (the compact-index profiling gate) and 22.3.0 (the fused-execution
-measurement gate) are complete and sealed**; **22.7 remains a gate/prior, not a
+measurement gate) are complete and sealed** — the programme is **complete**; no row
 measurements**. Plan:
 [phase-22-plan.md](../phases/phase-22-plan.md); results:
 [phase-22-results.md](../phases/phase-22-results.md),
@@ -194,7 +194,7 @@ by dependency and risk.
 | 22.4 Unknown-query lifetime frontier | P3 | On a hidden schedule, which system wins the cumulative lifetime frontier? | **Complete (region split, `MIXED`).** Pre-registered hidden schedule (seed **220400**, len 24, undisclosed seeded proportions); all adaptation charged. Cumulative query ratio VOLE/`full` per equivalent observation: pooled 0.99–1.08 (**unresolved**, MDE ±0.29–0.36), **pdf 0.73–0.83 (resolved WIN)**, docx 0.88–1.00 (unresolved), **epub 1.50–1.82 (resolved LOSS)**; storage **0.468× (win)**; peak RSS **1.24–1.32 (loss)**; build unresolved. Exactness 12/12; 0 value mismatches; 102 divergent PDF page-text (by design). Seed-check (220477) reproduces the split. `2026-10-08-phase22-4-lifetime-b4225fe` |
 | 22.5 Large/remote selective materialization | P4 | Can remote byte-range reads cut bytes transferred at competitive p95? | **Complete — negative under a labelled model (`LOSS`, bytes 3.15×).** Explicitly-labelled `remote-selective-v1` (no S3): real local byte counts + a real loopback HTTP range server/coalescing client. VOLE selective transfers **median 3.15× more bytes** than a page-level SQLite control (0 wins / 17 losses / 7 unresolved); exact byte-range reads tie on bytes and win modelled latency (unresolved); one large PDF 0.54×. Exactness 12/12; ranges verified 55/55 + 96/96. Control-sensitive (vs whole-`.db` VOLE wins bytes). `2026-10-08-phase22-5-remote-762c81c` |
 | 22.6 Compact structural representation | P5 | Is an existing typed node representable more compactly at equal capability? | **Complete — no win (measurement-only).** Full `real100-v1` footprint 2.81 GB is **97.2 % exact `descriptor/`**; typed bytes (`seed`+`index`+`field`) are only **2.765 %**. Candidate encodings on actual node bytes (round-trip 100/100): content-id interning 11.2 MB, header-fold 9.4 MB, delta+varint 6.9 MB, string dict 5.3 MB; bitmap/rank **loses**. Best combined **1.166 % of footprint** < the 5 % bar. Compaction pays only in small structure-dense docs (~7.5 % of `<1 MiB`), byte-negligible at scale. `2026-10-08-phase22-6-compact-85eee7c` |
-| 22.7 Agent end-to-end economic court | P6 | Does the whole document-agent workload cost ≥2× less per correct, grounded task? | Gate: ≥2× lower cost per **correct, grounded** task; correctness fixed before any token claim |
+| 22.7 Agent end-to-end economic court | P6 | Does the whole document-agent workload cost ≥2× less per correct, grounded task? | **Complete — VOLE LOSS (gate not met).** Deterministic scripted agent (no LLM), 9 docs / 27 frozen tasks, pinned offline tokenizer. Cost per correct grounded task: VOLE **$0.001501** vs baseline **$0.001059** = **1.418×** (gate ≤0.5×) → **not met**; VOLE **16/27** correct+grounded vs **27/27** (PDF **0/9** heuristic text, no span; docx 7/9 find misses tables; **EPUB a token tie**). Pooled loss is coverage/grounding, not token economy. `2026-10-08-phase22-7-agent-ee8723b` |
 | — XLSX/PPTX economic validation | P7 | Is XLSX/PPTX evaluated through this economic thesis? | **Phase 21's** work (21.1), judged by frontier not format count |
 
 The programme also fixes a **world-class lifetime cost model** (the physical cost
