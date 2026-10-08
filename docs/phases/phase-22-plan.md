@@ -269,6 +269,11 @@ latency**.
 
 ## 22.6 Compact structural representation (P5)
 
+> **Complete — no win (measurement-only).** Full `real100-v1`: the exact
+> `descriptor/` is **97.2 %** of the footprint, so typed bytes are capped at
+> **2.765 %**; the best candidate encoding saves **1.166 %** of the footprint vs a
+> 5 % bar. See [phase-22-6-results.md](phase-22-6-results.md).
+
 **Question.** Can an **existing typed index/structural node** be represented
 **more compactly while preserving the same observation capability**?
 
