@@ -1,0 +1,13 @@
+id	fmt	sclass	byte_len	v_enc_rc	v_enc_ms	v_ing_rc	v_ing_ms	v_store_bytes	v_desc_bytes
+nist-pdf-0002	pdf	100KiB-1MiB	263703	0	25	0	0	381882	264184
+nist-pdf-0004	pdf	1-10MiB	1105061	0	39	0	0	1216084	1105542
+nist-pdf-0016	pdf	100KiB-1MiB	310627	0	19	0	0	345470	311108
+nist-pdf-0017	pdf	1-10MiB	1466246	0	1382	0	0	2841174	1466727
+nist-docx-0005	docx	<100KiB	57045	0	8	0	0	65901	57526
+nist-docx-0008	docx	<100KiB	28783	0	8	0	0	37639	29264
+nist-docx-0009	docx	100KiB-1MiB	152516	0	10	0	0	166832	152997
+nist-docx-0014	docx	100KiB-1MiB	948422	0	17	0	0	1194783	948903
+nist-epub-0003	epub	<100KiB	89755	0	8	0	0	102901	90236
+nist-epub-0006	epub	100KiB-1MiB	105867	0	9	0	0	120183	106348
+nist-epub-0008	epub	<100KiB	35841	0	8	0	0	45867	36322
+nist-epub-0009	epub	1-10MiB	1237255	0	19	0	0	1259371	1237736

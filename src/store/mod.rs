@@ -64,7 +64,7 @@ pub use seed::{
 #[cfg(feature = "field")]
 mod pack;
 #[cfg(feature = "field")]
-pub use pack::PackedSeedStore;
+pub use pack::{PackedSeedStore, SyncPolicy};
 
 /// Size accounting reported by a backend.
 ///

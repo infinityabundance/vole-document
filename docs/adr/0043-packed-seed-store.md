@@ -1,6 +1,6 @@
 # ADR-0043: A segmented, offset-addressed packed fieldpack backend replaces the one-file-per-node seed store (seed namespace only)
 
-- **Status:** Accepted — adopted (scoped: the seed namespace only) (Phase 15.3)
+- **Status:** Accepted — adopted (scoped: the seed namespace only) (Phase 15.3); amended by ADR-0053 (batched durability + `observe-batch --packed`)
 - **Date:** 2026-10-07
 
 ## Context
@@ -23,6 +23,11 @@ are unchanged** and a packed store and a filesystem store of the same descriptor
 are interchangeable. `--packed` is mutually exclusive with `--entropyfs`, and
 `observe-batch` does not support it. Only the **seed namespace** is packed;
 descriptor / manifest / index / cache remain files.
+
+> **Amended (Phase 18.5, ADR-0053).** The per-node `sync_data()` no longer makes
+> the packed write path a storage-shape-only win: the default durability policy
+> **batches** syncs to one per segment (`--sync=batch`; `--sync=each` restores the
+> old per-node barrier), and `observe-batch` now serves `--packed`. See ADR-0053.
 
 ## Consequences
 

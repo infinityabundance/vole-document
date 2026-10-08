@@ -26,6 +26,9 @@ pub const DEFAULT_MODEL_MEMO_BYTES: u64 = 64 * 1024 * 1024;
 pub struct SessionOptions {
     /// Open the EntropyFS backend instead of the filesystem backend.
     pub entropyfs: bool,
+    /// Open the packed seed substrate (`fieldpack/`) instead of `seed/`.
+    /// Mutually exclusive with `entropyfs`.
+    pub packed: bool,
     /// In-memory typed-model memo budget; `0` disables the memo.
     pub model_memo_bytes: u64,
     /// Opt-in durable promotion policy (Phase 15.6); disabled by default.
@@ -36,6 +39,7 @@ impl Default for SessionOptions {
     fn default() -> Self {
         SessionOptions {
             entropyfs: false,
+            packed: false,
             model_memo_bytes: DEFAULT_MODEL_MEMO_BYTES,
             promote: PromotePolicy::default(),
         }
@@ -69,7 +73,9 @@ impl DocumentFieldSession {
     /// BLAKE3, descriptor read + Id::of BLAKE3 + Descriptor::parse, and the
     /// FieldId hex parse exactly once.
     pub fn open(store_dir: &Path, field_hex: &str, opts: SessionOptions) -> Result<Self> {
-        let mut store = if opts.entropyfs {
+        let mut store = if opts.packed {
+            FieldStore::open_packed(store_dir)?
+        } else if opts.entropyfs {
             #[cfg(feature = "entropyfs-store")]
             {
                 FieldStore::open_entropyfs(store_dir)?

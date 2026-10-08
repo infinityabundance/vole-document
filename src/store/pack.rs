@@ -52,6 +52,44 @@
 //! *outside* the payload, so it can never change a node's bytes or id. Nothing
 //! here is on the `materialize --exact` path.
 //!
+//! ## Durability policy and crash consistency
+//!
+//! Appended records live in the open segment until it is **sealed** (an `.idx`
+//! is published atomically and a new segment is opened) or explicitly
+//! **flushed** (a durability barrier with no visibility change). [`SyncPolicy`]
+//! decides when an appended record is forced to stable storage:
+//!
+//! * [`SyncPolicy::Batch`] (default) — one `fsync` per segment, at seal and at
+//!   [`PackedSeedStore::flush`], never per record. This is the sound choice for
+//!   this format: the segment is append-only and self-describing, so crash
+//!   recovery is a **prefix** recovery (see below), and a published field
+//!   manifest is written only after [`PackedSeedStore::flush`] has made every
+//!   node it references durable (`FieldStore::put_field`).
+//! * [`SyncPolicy::Each`] — a `fdatasync` after every record (the pre-18.5
+//!   behavior). Stronger per-`put_node` durability, at one sync round-trip per
+//!   seed node.
+//!
+//! **What a crash guarantees.** A record is a `u32` length prefix followed by
+//! its body. On reopen the open segment is scanned from its header: scanning
+//! stops at the first prefix that is absent, zero, oversized, or whose body does
+//! not fit inside the file. Every record before that point is complete and is
+//! recovered; the torn tail is discarded (and truncated on a read-write reopen;
+//! a read-only reopen simply ignores it). Therefore:
+//!
+//! * no **partial** node is ever observable — a record is recovered whole or not
+//!   at all, and every fetched node is re-hashed against its id (the unchanged
+//!   [`SeedStore::get_node`] gate);
+//! * the recovered set is exactly a **prefix** of the appended record sequence;
+//! * only records not yet forced to stable storage at the crash are at risk
+//!   (with [`SyncPolicy::Batch`], at most the records since the last seal/flush);
+//! * a **sealed** segment is never written again, so its `.pack`/`.idx` pair is
+//!   immutable and its entries cannot be lost or reordered;
+//! * an unsealed segment that lost its tail can be **left incomplete**: recovery
+//!   drops the torn tail, and the caller may append from the recovered end. Any
+//!   node referenced by a durable field manifest is durable by construction
+//!   (the flush-before-publish ordering above), so a dangling manifest cannot
+//!   survive a crash.
+//!
 //! Reads use `std::os::unix::fs::FileExt::read_exact_at` (a *safe* `pread`);
 //! mmap is deliberately out of scope because the crate `forbid`s `unsafe_code`
 //! (see the Phase 15.3 design, §2.5).
@@ -89,6 +127,21 @@ pub const PACK_DIR: &str = "fieldpack";
 pub const MAX_SEGMENT_BYTES: u64 = 64 * 1024 * 1024;
 /// A single canonical node may not exceed this (the record length field is `u32`).
 pub const MAX_PACK_NODE_BYTES: u64 = u32::MAX as u64;
+
+/// When the packed writer forces appended records to stable storage.
+///
+/// The default is [`SyncPolicy::Batch`]; see the module docs for the crash
+/// consistency it provides. [`SyncPolicy::Each`] restores the pre-18.5 per-record
+/// barrier for callers that want the strongest per-`put_node` durability at the
+/// cost of one sync round-trip per node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SyncPolicy {
+    /// One `fsync` per segment (at seal and at [`PackedSeedStore::flush`]).
+    #[default]
+    Batch,
+    /// A `fdatasync` after every appended record.
+    Each,
+}
 
 /// The 4-byte little-endian record length prefix.
 const RECORD_PREFIX: u64 = 4;
@@ -415,6 +468,7 @@ struct PackWriter {
     current_len: u64,
     next_seg_id: u32,
     max_segment_bytes: u64,
+    sync_policy: SyncPolicy,
     pending: HashMap<NodeId, (u64, u32)>,
 }
 
@@ -620,11 +674,27 @@ impl PackedSeedStore {
 
     /// Open the store read-write, recovering (and truncating the torn tail of) an
     /// unsealed segment so appends continue from the last complete record.
+    ///
+    /// Uses the default [`SyncPolicy::Batch`].
     pub fn open_write(root: impl AsRef<Path>, io: IoCounters) -> Result<Self> {
-        Self::open_write_internal(root.as_ref(), io, MAX_SEGMENT_BYTES)
+        Self::open_write_internal(root.as_ref(), io, MAX_SEGMENT_BYTES, SyncPolicy::default())
     }
 
-    fn open_write_internal(root: &Path, io: IoCounters, max_segment_bytes: u64) -> Result<Self> {
+    /// Open the store read-write with an explicit durability [`SyncPolicy`].
+    pub fn open_write_with_policy(
+        root: impl AsRef<Path>,
+        io: IoCounters,
+        policy: SyncPolicy,
+    ) -> Result<Self> {
+        Self::open_write_internal(root.as_ref(), io, MAX_SEGMENT_BYTES, policy)
+    }
+
+    fn open_write_internal(
+        root: &Path,
+        io: IoCounters,
+        max_segment_bytes: u64,
+        policy: SyncPolicy,
+    ) -> Result<Self> {
         let root = root.to_path_buf();
         let dir = root.join(PACK_DIR);
         fs::create_dir_all(&dir)?;
@@ -667,6 +737,7 @@ impl PackedSeedStore {
                     current_len: valid_len,
                     next_seg_id: seg_id,
                     max_segment_bytes,
+                    sync_policy: policy,
                     pending,
                 }
             }
@@ -676,6 +747,7 @@ impl PackedSeedStore {
                 current_len: 0,
                 next_seg_id: next_seg_for_fresh,
                 max_segment_bytes,
+                sync_policy: policy,
                 pending: HashMap::new(),
             },
         };
@@ -800,6 +872,11 @@ impl PackedSeedStore {
     }
 
     /// Store the canonical bytes of one node (idempotent).
+    ///
+    /// With [`SyncPolicy::Each`] the record is `fdatasync`'d before returning;
+    /// with the default [`SyncPolicy::Batch`] it is visible immediately (through
+    /// the pending map) but becomes crash-durable at the next seal or
+    /// [`PackedSeedStore::flush`]. See the module docs for the exact semantics.
     pub fn insert(&self, canonical: &[u8]) -> Result<NodeId> {
         let id = NodeId::of_node(canonical);
         if self.has(&id)? {
@@ -826,6 +903,7 @@ impl PackedSeedStore {
         let mut w = w_cell.borrow_mut();
         w.ensure_open()?;
         let body_off = w.current_len + RECORD_PREFIX;
+        let sync_each = w.sync_policy == SyncPolicy::Each;
         let mut rec = Vec::with_capacity(RECORD_PREFIX as usize + canonical.len());
         rec.extend_from_slice(&(canonical.len() as u32).to_le_bytes());
         rec.extend_from_slice(canonical);
@@ -834,10 +912,28 @@ impl PackedSeedStore {
             .as_mut()
             .ok_or_else(|| Error::internal_invariant("packed writer failed to open a segment"))?;
         f.write_all(&rec)?;
-        f.sync_data()?;
+        if sync_each {
+            f.sync_data()?;
+        }
         w.current_len = body_off + canonical.len() as u64;
         w.pending.insert(id, (body_off, canonical.len() as u32));
         Ok(id)
+    }
+
+    /// Force every appended record in the open segment to stable storage without
+    /// sealing it. A durability barrier, not a visibility change: the pending map
+    /// already serves every appended node. Called by
+    /// [`FieldStore::put_field`](crate::field::FieldStore) so a published manifest
+    /// only ever references nodes that are already durable.
+    pub fn flush(&self) -> Result<()> {
+        let Some(w_cell) = self.state.writer.as_ref() else {
+            return Ok(());
+        };
+        let w = w_cell.borrow();
+        if let Some(f) = w.current.as_ref() {
+            f.sync_all()?;
+        }
+        Ok(())
     }
 
     /// Fetch a node, verifying `NodeId::of_node(bytes) == id`.
@@ -1068,7 +1164,9 @@ mod tests {
     fn sealing_spans_multiple_segments() {
         let root = temp_root("segments");
         // A tiny limit forces a new segment every couple of records.
-        let packed = PackedSeedStore::open_write_internal(&root, IoCounters::new(), 64).unwrap();
+        let packed =
+            PackedSeedStore::open_write_internal(&root, IoCounters::new(), 64, SyncPolicy::Batch)
+                .unwrap();
         let nodes = sample_nodes();
         let ids: Vec<NodeId> = nodes.iter().map(|n| packed.insert(n).unwrap()).collect();
         packed.seal().unwrap();
@@ -1146,6 +1244,88 @@ mod tests {
             fs::read(idx_path(&a.join(PACK_DIR), 0)).unwrap(),
             fs::read(idx_path(&b.join(PACK_DIR), 0)).unwrap(),
             "index segments are byte-identical"
+        );
+        fs::remove_dir_all(&a).ok();
+        fs::remove_dir_all(&b).ok();
+    }
+
+    /// The default [`SyncPolicy::Batch`] makes appended records visible and
+    /// recoverable without a per-record sync: a crash that tears the trailing
+    /// record recovers exactly the complete prefix, and no partial node is ever
+    /// returned (the per-fetch re-hash gate still applies).
+    #[test]
+    fn batch_policy_recovers_a_complete_prefix_after_a_torn_tail() {
+        let root = temp_root("batch-torn");
+        let nodes = sample_nodes();
+        let ids: Vec<NodeId> = {
+            let packed = PackedSeedStore::open_write_with_policy(
+                &root,
+                IoCounters::new(),
+                SyncPolicy::Batch,
+            )
+            .unwrap();
+            nodes.iter().map(|n| packed.insert(n).unwrap()).collect()
+            // Drop without sealing: the tail is durable only to the page cache.
+        };
+        let path = pack_file(&root, 0);
+        // Simulate a power-loss torn tail: a length prefix whose body is short.
+        {
+            let mut bytes = fs::read(&path).unwrap();
+            bytes.extend_from_slice(&11u32.to_le_bytes());
+            bytes.extend_from_slice(b"partial");
+            fs::write(&path, &bytes).unwrap();
+        }
+        let before = fs::metadata(&path).unwrap().len();
+
+        let packed = PackedSeedStore::open_write(&root, IoCounters::new()).unwrap();
+        assert!(
+            fs::metadata(&path).unwrap().len() < before,
+            "the torn tail is truncated to the last complete record boundary"
+        );
+        assert_eq!(
+            packed.entries().unwrap().len(),
+            nodes.len(),
+            "exactly the complete prefix is recovered"
+        );
+        for (id, node) in ids.iter().zip(&nodes) {
+            assert_eq!(&packed.fetch(id).unwrap(), node);
+        }
+        fs::remove_dir_all(&root).ok();
+    }
+
+    /// The sync policy is a durability distinction only: it must not change any
+    /// stored byte, node id, or the `(id, len)` enumeration set. An explicit
+    /// [`PackedSeedStore::flush`] is a no-op when nothing has been appended.
+    #[test]
+    fn sync_policy_does_not_change_stored_bytes() {
+        let a = temp_root("policy-batch");
+        let b = temp_root("policy-each");
+        let nodes = sample_nodes();
+        for (root, policy) in [(&a, SyncPolicy::Batch), (&b, SyncPolicy::Each)] {
+            let packed =
+                PackedSeedStore::open_write_with_policy(root, IoCounters::new(), policy).unwrap();
+            packed.flush().unwrap();
+            for n in &nodes {
+                packed.insert(n).unwrap();
+            }
+            packed.flush().unwrap();
+            packed.seal().unwrap();
+        }
+        let ro = PackedSeedStore::open_read(&a, IoCounters::new()).unwrap();
+        for node in &nodes {
+            let id = NodeId::of_node(node);
+            assert!(ro.has(&id).unwrap());
+            assert_eq!(&ro.fetch(&id).unwrap(), node);
+        }
+        assert_eq!(
+            fs::read(pack_file(&a, 0)).unwrap(),
+            fs::read(pack_file(&b, 0)).unwrap(),
+            "the policy must not change the pack bytes"
+        );
+        assert_eq!(
+            fs::read(idx_path(&a.join(PACK_DIR), 0)).unwrap(),
+            fs::read(idx_path(&b.join(PACK_DIR), 0)).unwrap(),
+            "the policy must not change the index bytes"
         );
         fs::remove_dir_all(&a).ok();
         fs::remove_dir_all(&b).ok();

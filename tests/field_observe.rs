@@ -253,3 +253,67 @@ fn cli_materialize_exact_is_byte_identical() {
 
     std::fs::remove_dir_all(&dir).ok();
 }
+
+/// Phase 18.5: `observe-batch` must serve the packed seed substrate, not reject
+/// it with the old typed `UnsupportedFeature` (rc 6). The session opens the same
+/// `fieldpack/` store `field-build --packed` wrote, and its warm answers match a
+/// cold `observe --packed`.
+#[test]
+fn cli_observe_batch_supports_packed_store() {
+    use vole_document::field::FieldStore;
+
+    let dir = temp_dir("batch-packed");
+    let source = fixture_pdf();
+    let descriptor = opaque_descriptor(&source);
+    let store = dir.join("store");
+
+    // Build a packed-store field through the library (the same shape
+    // `field-build --packed` / `field-ingest --packed` produce).
+    let field_hex = {
+        let mut s = FieldStore::open_packed(&store).unwrap();
+        let report = field_ingest::ingest_pdf(&mut s, &descriptor, Limits::DEFAULT).unwrap();
+        s.sync().unwrap();
+        report.field.to_hex()
+    };
+
+    let req = dir.join("reqs");
+    std::fs::write(
+        &req,
+        "--byte-range 0..8 --kind exact\n--page 1 --kind text\n--metadata --kind metadata\n",
+    )
+    .unwrap();
+    let store_s = store.to_str().unwrap();
+    let (ok, stdout, stderr) = run(&[
+        "observe-batch",
+        "--store",
+        store_s,
+        "--field",
+        &field_hex,
+        "--packed",
+        "--requests",
+        req.to_str().unwrap(),
+    ]);
+    assert!(ok, "observe-batch --packed failed: {stderr}");
+    assert!(
+        stdout.contains("\"text\":\"") && stdout.contains("Hello"),
+        "warm text answer: {stdout}"
+    );
+    assert!(
+        !stdout.contains("UnsupportedFeature"),
+        "the packed rejection must be gone: {stdout}"
+    );
+
+    // The warm answer agrees with a cold `observe --packed` on the same bytes.
+    let (ok, cold, stderr) = run(&[
+        "observe", "--store", store_s, "--field", &field_hex, "--packed", "--page", "1", "--kind",
+        "text",
+    ]);
+    assert!(ok, "cold observe --packed failed: {stderr}");
+    let warm_text = stdout.lines().find(|l| l.contains("Hello")).unwrap_or("");
+    assert!(
+        !cold.is_empty() && warm_text.contains("Hello"),
+        "cold and warm must agree"
+    );
+
+    std::fs::remove_dir_all(&dir).ok();
+}

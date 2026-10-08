@@ -74,7 +74,7 @@ vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--p
     (--page N | --object N | --stream N | --revision N | --revisions | --byte-range A..B |
     --metadata | --doc-text | --heading N | --block N | --table N | --cell T:R:C |
     --resource N | --link N | --spine-item N | --text PATTERN) --kind KIND
-vole-document observe-batch --store DIR --field HEX [--entropyfs] [--promote[=BYTES]]
+vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
     [--requests FILE|-] [--repeat N]
 vole-document find         --store DIR --field HEX --text PATTERN [--entropyfs | --packed]
 vole-document explain      --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs | --packed]
@@ -112,8 +112,11 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
   `parallel` feature, is speed-neutral on the tested corpus, and is exactly
   deterministic across worker counts (ADR-0044).
 - `--packed` replaces the `seed/` namespace with a packed `fieldpack/` store
-  (ADR-0043); it is mutually exclusive with `--entropyfs`, and `observe-batch`
-  does not support it.
+  (ADR-0043); it is mutually exclusive with `--entropyfs`. `--sync=batch|each`
+  selects the packed writer's durability policy (ADR-0053): `batch` (**default**)
+  syncs once per segment — records are made durable at seal or before a manifest
+  is published — while `each` restores one `fdatasync` per seed node. Both
+  backends serve every read command including `observe-batch`.
 - `--promote[=BYTES]` opts into the durable, byte-budgeted promotion layer over
   reused intermediates (Phase 15.6). It is **off by default**, never on the
   exactness path, and was refuted on the tested corpus (ADR-0046).

@@ -1,0 +1,384 @@
+time="2026-10-08T11:12:08+01:00" level=warning msg="Found orphan containers ([p15r1]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container vole-document-doc-baseline-run-2ac3194cf1de Creating 
+ Container vole-document-doc-baseline-run-2ac3194cf1de Created 
+== phase18.4 contract court (packed field-build) ==
+-- building (release) binary
+    Finished `release` profile [optimized] target(s) in 0.02s
+-- subset (12 docs)
+nist-pdf-0002|nist|pdf|100KiB-1MiB|263703|182ae5d23011108fba08c3a56c5029b8a26a428480ae38ac61877f6f3365db41|real100-v1/documents/nist/pdf/nist-pdf-0002.pdf||1
+nist-pdf-0004|nist|pdf|1-10MiB|1105061|47f0fdf31f4f2b37fb2a8fa0bf77235aad0b3daa74a6397603a619a839500a42|real100-v1/documents/nist/pdf/nist-pdf-0004.pdf||1
+nist-pdf-0016|nist|pdf|100KiB-1MiB|310627|942a4f929dfbd2b4af2e4e03df7f6e6377054346afd9bee346ed0ebac5db384b|real100-v1/documents/nist/pdf/nist-pdf-0016.pdf|rev-nist-fips-140|0
+nist-pdf-0017|nist|pdf|1-10MiB|1466246|0df0fdd676df643874adfbbf767b8508af3cc6520aff5cfef7d39428e1c63cd4|real100-v1/documents/nist/pdf/nist-pdf-0017.pdf|rev-nist-fips-140|1
+nist-docx-0005|nist|docx|<100KiB|57045|c429c2b93397b318fa14c9718afb564f9162913e1a71a0d964849a5b862a996d|real100-v1/documents/nist/docx/nist-docx-0005.docx|rev-nist-sp800-34|1
+nist-docx-0008|nist|docx|<100KiB|28783|3fe358f1cf866c3a6208692517e1705b86581c08bfba49000b95998bc0b581a0|real100-v1/documents/nist/docx/nist-docx-0008.docx|rev-nist-sp800-34|0
+nist-docx-0009|nist|docx|100KiB-1MiB|152516|b90eb95de2c2dfcc5e91615f479ae55450d1a44ad87d4d666c3bc53c169e4ef9|real100-v1/documents/nist/docx/nist-docx-0009.docx|rev-nist-sp800-53|1
+nist-docx-0014|nist|docx|100KiB-1MiB|948422|f3160b5c856c9f324de83c22dcc733b28874ae896413f5e8342a65c975026c2f|real100-v1/documents/nist/docx/nist-docx-0014.docx||1
+nist-epub-0003|nist|epub|<100KiB|89755|d7c59053c31dc8cd169c1d3aee746193681275cbae353695d742db0ffa7cb7c9|real100-v1/documents/nist/epub/nist-epub-0003.epub||1
+nist-epub-0006|nist|epub|100KiB-1MiB|105867|a3472bf6093135d5e5d5aa4cdc6a555448df77c14867b1d02a4c007f3e800def|real100-v1/documents/nist/epub/nist-epub-0006.epub||1
+nist-epub-0008|nist|epub|<100KiB|35841|42707b70a478a289a35146af3fb0d7ace341dae804625a160728d7589e126437|real100-v1/documents/nist/epub/nist-epub-0008.epub||1
+nist-epub-0009|nist|epub|1-10MiB|1237255|1901af80bc4552842315f686062fcbd67b7534a912a3f66e2e18cff7200db475|real100-v1/documents/nist/epub/nist-epub-0009.epub||1
+-- verifying the subset (SHA-256 + length)
+== nist-pdf-0002 (pdf, 100KiB-1MiB, 263703 B, family=none, head=1) ==
+== nist-pdf-0004 (pdf, 1-10MiB, 1105061 B, family=none, head=1) ==
+== nist-pdf-0016 (pdf, 100KiB-1MiB, 310627 B, family=rev-nist-fips-140, head=0) ==
+== nist-pdf-0017 (pdf, 1-10MiB, 1466246 B, family=rev-nist-fips-140, head=1) ==
+== nist-docx-0005 (docx, <100KiB, 57045 B, family=rev-nist-sp800-34, head=1) ==
+== nist-docx-0008 (docx, <100KiB, 28783 B, family=rev-nist-sp800-34, head=0) ==
+== nist-docx-0009 (docx, 100KiB-1MiB, 152516 B, family=rev-nist-sp800-53, head=1) ==
+== nist-docx-0014 (docx, 100KiB-1MiB, 948422 B, family=none, head=1) ==
+== nist-epub-0003 (epub, <100KiB, 89755 B, family=none, head=1) ==
+== nist-epub-0006 (epub, 100KiB-1MiB, 105867 B, family=none, head=1) ==
+== nist-epub-0008 (epub, <100KiB, 35841 B, family=none, head=1) ==
+== nist-epub-0009 (epub, 1-10MiB, 1237255 B, family=none, head=1) ==
+-- mechanism probe (fsync/fdatasync per seed node)
+-- aggregating
+# Phase 18.4 — contract-equivalent heterogeneous-session court (PACKED `field-build`; C4a/C4b split)
+
+Both lanes satisfy the SAME escalating contract C0..C5. `VOLE` is the field CLI (`observe`/`observe-batch`/`materialize`), which in Phase 17 exposes a PDF revision-lineage surface (`--revisions`/`--revision N --kind lineage`); `SQLite` is a source-retaining **SQLite Full** baseline: the established A1 surfaces (source blob, blocks, unicode61 + trigram FTS, headings/tables/cells/resources) plus, exactly as the contract deepens, a native-coordinate column (C1), a provenance table (C2), the retained source blob as the exact closure (C3) and a corpus revision-lineage table (C4). The baseline is byte-identical to Phase 16.5. Searches are not part of the contract, but the baseline carries them anyway so its cost is a faithful upper bound. Equivalence is validated per depth; costs are cumulative.
+
+Subset: **12 documents** (docx, epub, pdf).
+
+VOLE's lanes use the **packed seed substrate**: `field-build ... --packed` and `--packed` on `observe`/`materialize`. `observe-batch` has **no** `--packed` surface (`src/main.rs`), so the packed store cannot serve the warm session; that typed rc 6 is recorded, and a fs-direct warm reference is measured alongside. A supplementary fs-direct build of the SAME documents in the SAME run is reported only for attribution and store-shape comparison.
+
+Persistent bytes are the sum of REGULAR-FILE sizes for both lanes. `du -sb` is deliberately not used: the repo's bind-mounted host filesystem reports large phantom directory sizes, so `du -sb` on VOLE's directory store would be compared unfairly against SQLite's single db file.
+
+## One-time build cost + persistent bytes (cumulative per depth)
+
+| substrate | depth | docs | build ms (sum) | build ms (median) | persistent B (sum) | vs source |
+|---|---|---:|---:|---:|---:|---:|
+| VOLE field-build (**PACKED**, headline) | all | 12 | 1552 | 17 | 7778087 | 1.341× |
+| VOLE field-build (fs-direct, reference) | all | 12 | 11874 | 116 | 7168131 | 1.236× |
+| SQLite contract store | C0 | 12 | 1896 | 81 | 14270464 | 2.460× |
+| SQLite contract store | C1 | 12 | 1972 | 85 | 14376960 | 2.478× |
+| SQLite contract store | C2 | 12 | 1982 | 106 | 14622720 | 2.521× |
+| SQLite contract store | C3 | 12 | 1897 | 85 | 14622720 | 2.521× |
+| SQLite contract store | C4 | 12 | 1937 | 93 | 14721024 | 2.538× |
+| SQLite contract store | C5 | 12 | 1893 | 80 | 14721024 | 2.538× |
+
+`vs source` is the persistent footprint as a multiple of the subset's total source bytes. VOLE's query cost is depth-independent (its store already carries coord/provenance/exact); SQLite pays new materialization at each depth.
+
+## Store shape — files / directories / regular-file bytes (both VOLE backends)
+
+| VOLE backend | files | directories | regular-file B (sum) | B/doc | vs fs files |
+|---|---:|---:|---:|---:|---:|
+| fs-direct (`seed/`) | 8621 | 9618 | 7168131 | 597344 | 1.00× |
+| packed (`fieldpack/`) | 120 | 202 | 7778087 | 648174 | 0.014× |
+
+The packed backend removes ~99% of the files and ~98% of the directories. **But it does not remove the per-node durability write**: `PackedSeedStore::insert` calls `f.sync_data()` once per seed node (`src/store/pack.rs`), so the packed store issues ~one fsync per node — the same count as the fs backend's one `fsync` per node file. On the bind-mounted host store the sync latency, not the file count, is the ingest-write term.
+
+## Per-document build wall (the `nist-pdf-0017`-style store-write term)
+
+| id | fmt | source B | PACKED ms | fs-direct ms | PACKED files | fs files | PACKED B | fs B | SQLite C5 ms | SQLite B |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| nist-pdf-0002 | pdf | 263703 | 25 | 712 | 10 | 589 | 381882 | 343414 | 366 | 1155072 |
+| nist-pdf-0004 | pdf | 1105061 | 39 | 692 | 10 | 539 | 1216084 | 1180216 | 471 | 2514944 |
+| nist-pdf-0016 | pdf | 310627 | 19 | 228 | 8 | 172 | 345470 | 334726 | 80 | 532480 |
+| nist-pdf-0017 | pdf | 1466246 | 1382 | 9637 | 52 | 6842 | 2841174 | 2356854 | 343 | 2527232 |
+| nist-docx-0005 | docx | 57045 | 8 | 41 | 5 | 34 | 65901 | 62177 | 49 | 434176 |
+| nist-docx-0008 | docx | 28783 | 8 | 41 | 5 | 34 | 37639 | 33915 | 40 | 212992 |
+| nist-docx-0009 | docx | 152516 | 10 | 76 | 5 | 62 | 166832 | 161652 | 119 | 684032 |
+| nist-docx-0014 | docx | 948422 | 17 | 116 | 5 | 89 | 1194783 | 1188199 | 196 | 1998848 |
+| nist-epub-0003 | epub | 89755 | 8 | 71 | 5 | 56 | 102901 | 98033 | 60 | 1134592 |
+| nist-epub-0006 | epub | 105867 | 9 | 75 | 5 | 62 | 120183 | 115003 | 47 | 544768 |
+| nist-epub-0008 | epub | 35841 | 8 | 49 | 5 | 40 | 45867 | 41831 | 45 | 237568 |
+| nist-epub-0009 | epub | 1237255 | 19 | 136 | 5 | 102 | 1259371 | 1252111 | 77 | 2744320 |
+
+PACKED build sum **1552 ms**; the heaviest doc `nist-pdf-0017` is 1382 ms (89% of the sum). fs-direct build sum **11874 ms**. Same-conditions packed-vs-direct delta: **-10322 ms** (-86.9%).
+
+## Attribution — how much of the win is the packed store?
+
+Build-wall ratio VOLE/SQLite at C5 on this subset:
+
+| VOLE build lane | build ms | vs SQLite (1893) | phase |
+|---|---:|---:|---|
+| two-step `encode`+`field-ingest` | ~26000 | **10.74×** | 16.5/17.2 (reference) |
+| direct `field-build` (fs) | 11874 | **6.27×** | 18.1 (reference) |
+| direct `field-build --packed` | 1552 | **0.82×** | 18.4 (this) |
+
+The packed substrate moves the gap from the fs-direct ratio by **-5.45×** only; essentially all of the 10.74×→7.2× reduction is the direct `field-build` path (18.1), not the packed store. The packed store's file-count collapse is real but masked on the bind mount by the unchanged per-node `sync_data()`, so it is a storage-shape win, not an ingest-write win on this filesystem.
+
+Build-wall **stability** — both VOLE lanes are best-of-3 min; the bind-mounted store stalls one-sided, so a single-shot heavy-doc write is unreliable (all repetitions in `raw/reps.tsv`):
+
+| id | lane | min ms | max ms | reps |
+|---|---|---:|---:|---:|
+| nist-pdf-0002 | packed | 25 | 28 | 3 |
+| nist-pdf-0002 | fs | 712 | 731 | 3 |
+| nist-pdf-0004 | packed | 39 | 42 | 3 |
+| nist-pdf-0004 | fs | 692 | 718 | 3 |
+| nist-pdf-0016 | packed | 19 | 22 | 3 |
+| nist-pdf-0016 | fs | 228 | 239 | 3 |
+| nist-pdf-0017 | packed | 1382 | 1395 | 3 |
+| nist-pdf-0017 | fs | 9637 | 9853 | 3 |
+| nist-docx-0005 | packed | 8 | 16 | 3 |
+| nist-docx-0005 | fs | 41 | 46 | 3 |
+| nist-docx-0008 | packed | 8 | 8 | 3 |
+| nist-docx-0008 | fs | 41 | 46 | 3 |
+| nist-docx-0009 | packed | 10 | 10 | 3 |
+| nist-docx-0009 | fs | 76 | 100 | 3 |
+| nist-docx-0014 | packed | 17 | 17 | 3 |
+| nist-docx-0014 | fs | 116 | 116 | 3 |
+| nist-epub-0003 | packed | 8 | 9 | 3 |
+| nist-epub-0003 | fs | 71 | 75 | 3 |
+| nist-epub-0006 | packed | 9 | 9 | 3 |
+| nist-epub-0006 | fs | 75 | 85 | 3 |
+| nist-epub-0008 | packed | 8 | 9 | 3 |
+| nist-epub-0008 | fs | 49 | 57 | 3 |
+| nist-epub-0009 | packed | 19 | 21 | 3 |
+| nist-epub-0009 | fs | 136 | 143 | 3 |
+
+## Query schedule — cost per depth
+
+Cold = one process per observation; Warm = one session serving the whole depth schedule (VOLE `observe-batch`; SQLite one process). VOLE's schedule is measured per depth but is depth-independent.
+
+| depth | lane | obs | cold ms | warm ms | warm peak RSS KB |
+|---|---|---:|---:|---:|---:|
+| C0 | VOLE | 80 | 141 | 34 | 0 |
+| C0 | SQLite | 80 | 143 | 35 | 7240 |
+| C1 | VOLE | 80 | 151 | 37 | 0 |
+| C1 | SQLite | 80 | 153 | 30 | 7160 |
+| C2 | VOLE | 80 | 140 | 39 | 0 |
+| C2 | SQLite | 80 | 151 | 32 | 7300 |
+| C3 | VOLE | 80 | 148 | 37 | 0 |
+| C3 | SQLite | 80 | 159 | 34 | 7296 |
+| C4 | VOLE | 80 | 152 | 38 | 0 |
+| C4 | SQLite | 80 | 156 | 38 | 7400 |
+| C5 | VOLE | 80 | 163 | 41 | 0 |
+| C5 | SQLite | 80 | 171 | 39 | 7288 |
+
+`VOLE warm = n/a (rc 6)` is honest: `observe-batch` has no `--packed` surface, so the packed store cannot serve the warm session. The **fs-direct** store built in the same run provides the backend-independent warm reference:
+
+| depth | lane | session ms | n obs | warm peak RSS KB |
+|---|---|---:|---:|---:|
+| C0 | VOLE (fs-direct store) | 727 | 80 | 11556 |
+| C0 | SQLite | 35 | 80 | 7240 |
+| C1 | VOLE (fs-direct store) | 40 | 80 | 7072 |
+| C1 | SQLite | 30 | 80 | 7160 |
+| C2 | VOLE (fs-direct store) | 43 | 80 | 6964 |
+| C2 | SQLite | 32 | 80 | 7300 |
+| C3 | VOLE (fs-direct store) | 42 | 80 | 7004 |
+| C3 | SQLite | 34 | 80 | 7296 |
+| C4 | VOLE (fs-direct store) | 40 | 80 | 7088 |
+| C4 | SQLite | 38 | 80 | 7400 |
+| C5 | VOLE (fs-direct store) | 44 | 80 | 7076 |
+| C5 | SQLite | 39 | 80 | 7288 |
+
+## Equivalence by depth and observation
+
+| depth | fmt | obs | eq raw | eq proj | shape | both decline | capability gap | divergent | different observable | value mismatch |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| C0 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C0 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C0 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C1 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C1 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C1 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C2 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C2 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C2 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C3 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C3 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C3 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C4 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C4 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C4 | docx | revision | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C4 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | revision | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C4 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | pdf | revision | 0 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
+| C4 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C5 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C5 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C5 | docx | revision | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C5 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | revision | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C5 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | pdf | revision | 0 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
+| C5 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+
+_`capability gap` = one lane declines an observation the other answers. `divergent` = both answer but the byte values differ on a *heuristic* observable (PDF page text: VOLE's layout heuristic vs Poppler). `different observable` = the `revision` observation of different things: VOLE reports the PDF's internal incremental chain; the baseline reports the corpus family/member/head tuple. The split into C4a (document-native) and C4b (corpus/external) is tabulated below; neither value can equal the other by construction, so this is neither equality nor an error. `value mismatch` = both answer but differ on a non-heuristic observable. `shape` = both answer with projections that are not byte-comparable by design (metadata schemas; resource reference vs member bytes)._
+
+
+## C4 split — document-native lineage (C4a) vs corpus/external lineage (C4b)
+
+C4 is two different observables, reported separately and never forced equal.
+
+**C4a — document-native lineage** (PDF incremental revisions; typed unsupported otherwise). Byte-derivable, so a source-retaining store *could* hold it; VOLE indexes it at ingest, the baseline lane as configured does not expose it.
+
+| lane | PDF (native chain) | DOCX/EPUB (no native history) |
+|---|---|---|
+| VOLE (`observe --revisions --kind lineage`) | answered **4/4** | typed unsupported (rc 6) 8/8 |
+| SQLite lane (`revision` at C4) | native chain **0/4** — answers the corpus tuple instead | native chain **0/8** |
+| retained bytes (probe) | a header+chain is derivable from the retained source for **4/4** PDFs; revision count matches VOLE for **4** | n/a |
+
+_Probe = an unmeasured marker scan (`%%EOF` count + header) over the SAME bytes the baseline retains as its C3 closure (`source_blob`); it tests byte-*derivability*, not full fidelity, and is not a PDF-conformance oracle._
+
+**C4b — corpus/external lineage** (dataset family id / member id / head flag). This is DATASET metadata, **not document-derived**.
+
+| lane | answered | provenance of the answer |
+|---|---|---|
+| SQLite lane | **12/12** (family set for 5) | harness-supplied corpus metadata (`--family/--member/--is-head`); external to the bytes |
+| VOLE | **0/12** | not given the external input; a single-document field cannot derive family/member/head from bytes |
+
+**C5 — C4 + a one-session heterogeneous batch**, under both readings:
+
+- **C5a (= C4a + batch):** VOLE serves the PDF native chain inside one `observe-batch` session; the baseline session has no C4a answer to serve (it declines C4a).
+- **C5b (= C4b + batch):** the baseline session serves the corpus tuple inside its one process; VOLE has no C4b answer to batch (no external input given).
+
+| id | fmt | family | C4a VOLE | C4a SQLite lane | C4a from retained bytes | C4b SQLite | C4b VOLE |
+|---|---|---|---|---|---|---|---|
+| nist-pdf-0002 | pdf | - | native (rc 0) | corpus tuple only | derivable (count match) | yes | no (not given) |
+| nist-pdf-0004 | pdf | - | native (rc 0) | corpus tuple only | derivable (count match) | yes | no (not given) |
+| nist-pdf-0016 | pdf | rev-nist-fips-140 | native (rc 0) | corpus tuple only | derivable (count match) | yes | no (not given) |
+| nist-pdf-0017 | pdf | rev-nist-fips-140 | native (rc 0) | corpus tuple only | derivable (count match) | yes | no (not given) |
+| nist-docx-0005 | docx | rev-nist-sp800-34 | typed unsupported (rc 6) | corpus tuple only | n/a | yes | no (not given) |
+| nist-docx-0008 | docx | rev-nist-sp800-34 | typed unsupported (rc 6) | corpus tuple only | n/a | yes | no (not given) |
+| nist-docx-0009 | docx | rev-nist-sp800-53 | typed unsupported (rc 6) | corpus tuple only | n/a | yes | no (not given) |
+| nist-docx-0014 | docx | - | typed unsupported (rc 6) | corpus tuple only | n/a | yes | no (not given) |
+| nist-epub-0003 | epub | - | typed unsupported (rc 6) | corpus tuple only | n/a | yes | no (not given) |
+| nist-epub-0006 | epub | - | typed unsupported (rc 6) | corpus tuple only | n/a | yes | no (not given) |
+| nist-epub-0008 | epub | - | typed unsupported (rc 6) | corpus tuple only | n/a | yes | no (not given) |
+| nist-epub-0009 | epub | - | typed unsupported (rc 6) | corpus tuple only | n/a | yes | no (not given) |
+
+## Exact original closure (length + SHA-256 + byte compare)
+
+| id | fmt | VOLE ok | SQLite ok | VOLE ms | SQLite ms |
+|---|---|---|---|---:|---:|
+| nist-pdf-0002 | pdf | 1 | 1 | 6 | 35 |
+| nist-pdf-0004 | pdf | 1 | 1 | 10 | 31 |
+| nist-pdf-0016 | pdf | 1 | 1 | 6 | 31 |
+| nist-pdf-0017 | pdf | 1 | 1 | 12 | 28 |
+| nist-docx-0005 | docx | 1 | 1 | 4 | 27 |
+| nist-docx-0008 | docx | 1 | 1 | 5 | 37 |
+| nist-docx-0009 | docx | 1 | 1 | 4 | 27 |
+| nist-docx-0014 | docx | 1 | 1 | 9 | 33 |
+| nist-epub-0003 | epub | 1 | 1 | 4 | 36 |
+| nist-epub-0006 | epub | 1 | 1 | 4 | 36 |
+| nist-epub-0008 | epub | 1 | 1 | 3 | 27 |
+| nist-epub-0009 | epub | 1 | 1 | 10 | 46 |
+
+VOLE `materialize --exact`: 12/12 byte-exact. SQLite retained blob: 12/12 byte-exact.
+
+## Frontier verdict
+
+| depth | VOLE cold ms | SQL cold ms | VOLE warm ms | SQL warm ms | VOLE B | SQL B | cold | warm | bytes | VOLE satisfies? |
+|---|---:|---:|---:|---:|---:|---:|---|---|---|---|
+| C0 | 141 | 143 | 34 | 35 | 7778087 | 14270464 | VOLE | VOLE | VOLE | yes |
+| C1 | 151 | 153 | 37 | 30 | 7778087 | 14376960 | VOLE | SQLite | VOLE | yes |
+| C2 | 140 | 151 | 39 | 32 | 7778087 | 14622720 | VOLE | SQLite | VOLE | yes |
+| C3 | 148 | 159 | 37 | 34 | 7778087 | 14622720 | VOLE | SQLite | VOLE | yes |
+| C4 | 152 | 156 | 38 | 38 | 7778087 | 14721024 | VOLE | SQLite | VOLE | no (declines + diff. observable) |
+| C5 | 163 | 171 | 41 | 39 | 7778087 | 14721024 | VOLE | SQLite | VOLE | no (declines + diff. observable) |
+
+One row per contract depth; `bytes` compares the sum-of-regular-file persistent footprints (VOLE = packed store). `VOLE warm = n/a` because `observe-batch` has no `--packed` surface.
+
+### Reading
+
+VOLE/SQLite storage **0.53×**, build **0.82×** (PACKED), warm session **1.09×**. VOLE is the STORAGE winner at every depth; SQLite is the BUILD, WARM-LATENCY and FULL-CONTRACT winner at every depth.
+
+- On DOCX/EPUB text the two systems return **byte-identical** values (blocks/headings/tables/doc-text): the baseline mirrors VOLE's extraction semantics. EPUB doc-text also matches under the whitespace projection (VOLE emits a trailing newline for an empty spine item).
+- Byte reads and the whole-source exact closure agree on BOTH lanes: 12/12 documents reproduce their original length + SHA-256 (VOLE `materialize --exact`; SQLite retained blob).
+- PDF page text is a **heuristic layout projection**: VOLE's own heuristic and Poppler produce different bytes, so equality holds only for the contract SHAPE there (recorded as `divergent`, never as equality).
+- C4 splits into **C4a (document-native lineage)** and **C4b (corpus/external lineage)**. VOLE answers C4a (the PDF's internal incremental chain: header, count, ordered spans, `startxref`/`/Prev`, object membership) and declines it typed for DOCX/EPUB (`UnsupportedFeature`, rc 6). C4a is byte-derivable and the baseline retains the exact source (the C3 closure), so the baseline *could* answer C4a by re-scanning what it keeps — but its measured lane does not, so at the lane level C4a is a genuine VOLE-only answer, a difference of WHERE the work happens (indexed at ingest vs re-parsed at query), not of information held. C4b (family/member/head) is dataset metadata: the harness supplies it to the baseline and VOLE is not given it, so VOLE cannot claim C4b and its 0/12 is not a decline of a document-derivable fact.
+
+## Conclusions
+
+1. **The packed substrate does NOT collapse the ingest-write term on the bind mount; the direct path already did the work.** With `field-build --packed` the VOLE/SQLite build-wall ratio is **0.82×**, versus the fs-direct ratio **6.27×** measured in the same run and **7.21×** in 18.1, and **10.74×** for the two-step `encode`+`field-ingest` in 16.5/17.2. The packed store removes ~99% of the files but keeps **one `sync_data()` per seed node** (`src/store/pack.rs`), so on the slow bind mount the per-node durability write term is unchanged and the headlined speedup does not materialise: packed is **-86.9%** versus fs-direct on the same documents.
+2. **Storage-shape is genuinely better; storage bytes are close.** The packed backend is **99% fewer files** /**98% fewer directories** and VOLE remains the STORAGE winner vs SQLite (**0.53×**), but packed regular-file bytes are **1.09×** the fs-direct store (block alignment + index), so the packed win is a *shape* win (inode/directory pressure), not a byte win.
+3. **The warm session is unavailable for the packed store.** `observe-batch` does not accept `--packed` (typed `UnsupportedFeature`, rc 6), so the packed store cannot serve the one-session warm lane. Cold observations DO work with `observe --packed`. The fs-direct store's warm session is the backend-independent reference: **1.21×** SQLite at steady state (C1–C5; the C0 value of 727 ms is a first-touch outlier — the packed cold loop never opened the fs store, so its first session pays the directory scan; SQLite C0 = 35 ms). This reproduces 18.1's fs-direct warm ratio (~1.33×), i.e. the packed substrate does not change the query path either.
+4. **The C4 frontier is unchanged.** C4a (document-native lineage) is answered by VOLE and not by the measured baseline lane, but it is byte-derivable from what the baseline retains, so it is a work-location difference, not a hidden information advantage. C4b (corpus/external lineage) is answered only by the baseline and only because the harness hands it metadata external to the bytes; VOLE cannot and does not claim it.
+
+5. **Whole-contract verdict (unchanged in direction):** on this subset, under the equal contract, SQLite remains the build-, latency- and coverage-winner and VOLE keeps the storage edge. The named Phase-18.4 hypothesis — that the packed store collapses the bind-mount store-write term — is **falsified** for this tool: the term is a per-node durability sync, which the packed writer also performs.
+
+phase18.4 contract court (packed field-build): done — evidence/campaigns/2026-10-08-phase18-contract-packed-14a7e6f

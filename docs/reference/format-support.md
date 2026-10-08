@@ -79,10 +79,11 @@ no persisted artifact, and no decoder behavior:
 | `miniz-simd` | `miniz_oxide`'s SIMD adler-32 path (output-preserving) | `simd-adler32` |
 | `deflate-ablation` | the `examples/deflate_ablation.rs` harness (measures only; ADR-0045) | `zlib-rs`, `zune-inflate` |
 
-The field CLI flags add `--workers N`, `--packed`, and `--promote[=BYTES]`, plus
-the `observe-batch` command — see the [CLI](cli.md). `--packed` and `--workers`
-are the two Phase-15 mechanisms that touch a persisted artifact or a runtime path;
-`--promote` is refuted on the tested corpus and default-off (ADR-0046).
+The field CLI flags add `--workers N`, `--packed` (with `--sync=batch|each`),
+and `--promote[=BYTES]`, plus the `observe-batch` command — see the [CLI](cli.md).
+`--packed` and `--workers` are the two Phase-15 mechanisms that touch a persisted
+artifact or a runtime path (`--sync` selects the packed writer's durability policy,
+ADR-0053); `--promote` is refuted on the tested corpus and default-off (ADR-0046).
 
 ## Not supported
 

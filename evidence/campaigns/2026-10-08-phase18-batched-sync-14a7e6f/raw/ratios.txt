@@ -1,0 +1,19 @@
+# Phase 18.5 derived ratios (from raw/court/*, same run, 12-doc subset)
+packed_build_ms_sum	1552
+fs_build_ms_sum	11874
+packed_files	120
+fs_files	8621
+packed_bytes	7778087
+fs_bytes	7168131
+sqlite_c5_build_ms_sum	1893
+sqlite_c5_bytes	14721024
+warm_packed_all_ms	0
+warm_sqlite_all_ms	0
+warm_packed_c1c5_ms	0
+warm_sqlite_c1c5_ms	0
+warm_fs_c1c5_ms	0
+warm_packed_all_ms	226	rows	72
+warm_sqlite_all_ms	208	rows	72
+warm_packed_c1c5_ms	192
+warm_sqlite_c1c5_ms	173
+warm_fs_c1c5_ms	209

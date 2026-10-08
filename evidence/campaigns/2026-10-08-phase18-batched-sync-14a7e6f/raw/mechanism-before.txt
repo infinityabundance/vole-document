@@ -1,0 +1,34 @@
+# Phase 18.4 packed-store ingest-write mechanism probe
+# bin: target/release/vole-document ; source: real100-v1/documents/nist/pdf/nist-pdf-0017.pdf (1466246 bytes)
+# date: 2026-10-08T10:08:22Z
+
+## work/fs rc=0 wall_ms=10181 files=6842
+ 25.81    0.086311           4     21026     14222 mkdir
+ 24.92    0.083335          12      6842           fsync
+ 10.63    0.035543           5      6897           openat
+  7.33    0.024510           3      6843           write
+100.00    0.334369           3     89990     27856 total
+
+## work/packed rc=0 wall_ms=9392 files=52
+ 68.46    0.029102           4      6792           fdatasync
+ 27.72    0.011785           1      6845           write
+  0.73    0.000311           2       141        47 mkdir
+  0.60    0.000254           4        52           fsync
+  0.42    0.000177           1       109           openat
+100.00    0.042508           2     14457        98 total
+
+## tmp/fs rc=0 wall_ms=1749 files=6842
+ 22.92    0.027272           1     21026     14222 mkdir
+ 21.06    0.025069           3      6897           openat
+  7.23    0.008604           1      6843           write
+  2.86    0.003403           0      6842           fsync
+100.00    0.119009           1     89990     27856 total
+
+## tmp/packed rc=0 wall_ms=1374 files=52
+ 45.09    0.002991           0      6845           write
+ 32.20    0.002136           0      6792           fdatasync
+  6.23    0.000413           2       141        47 mkdir
+  5.65    0.000375           3       109           openat
+  0.48    0.000032           0        52           fsync
+100.00    0.006633           0     14457        98 total
+

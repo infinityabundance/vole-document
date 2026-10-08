@@ -57,7 +57,9 @@ use crate::error::{Error, Result};
 use crate::limits::Limits;
 #[cfg(feature = "entropyfs-store")]
 use crate::store::{EntropyFsStore, map_engine_error};
-use crate::store::{FsSeedStore, Id, IoCounters, IoSnapshot, NodeId, PackedSeedStore, SeedStore};
+use crate::store::{
+    FsSeedStore, Id, IoCounters, IoSnapshot, NodeId, PackedSeedStore, SeedStore, SyncPolicy,
+};
 
 #[cfg(feature = "entropyfs-store")]
 use self::manifest::FIELD_ROOT_DOMAIN;
@@ -412,6 +414,14 @@ impl FieldStore {
     /// store must therefore be opened with the matching CLI flag (`--packed`),
     /// exactly like `--entropyfs`.
     pub fn open_packed(root: impl AsRef<Path>) -> Result<Self> {
+        Self::open_packed_with_policy(root, SyncPolicy::default())
+    }
+
+    /// Like [`FieldStore::open_packed`], but with an explicit packed-store
+    /// durability [`SyncPolicy`]. The default is [`SyncPolicy::Batch`];
+    /// [`SyncPolicy::Each`] restores one sync per seed node. The policy is
+    /// irrelevant for the other backends and ignored by them.
+    pub fn open_packed_with_policy(root: impl AsRef<Path>, policy: SyncPolicy) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
         fs::create_dir_all(root.join("descriptor"))?;
         fs::create_dir_all(root.join("field"))?;
@@ -419,7 +429,11 @@ impl FieldStore {
         fs::create_dir_all(root.join("cache"))?;
         // No `root/seed`; the `fieldpack/` directory is created by the writer.
         let io = IoCounters::new();
-        let packed = Rc::new(PackedSeedStore::open_write(&root, io.handle())?);
+        let packed = Rc::new(PackedSeedStore::open_write_with_policy(
+            &root,
+            io.handle(),
+            policy,
+        )?);
         let seeds = SeedSubstrate::Packed { store: packed };
         Ok(FieldStore {
             root,
@@ -580,7 +594,16 @@ impl FieldStore {
     }
 
     /// Store a canonical field manifest.
+    ///
+    /// Durability ordering: a published manifest must never reference seed bytes
+    /// that are not yet on stable storage. The packed substrate batches its
+    /// per-node syncs ([`SyncPolicy::Batch`]), so barrier the open segment before
+    /// publishing. This is a no-op for the filesystem and EntropyFS substrates
+    /// (which make each node durable in `put_node`).
     pub fn put_field(&mut self, manifest: &FieldRoot) -> Result<FieldId> {
+        if let SeedSubstrate::Packed { store } = &self.seeds {
+            store.flush()?;
+        }
         self.backend.field_put(&self.root, manifest)
     }
 
