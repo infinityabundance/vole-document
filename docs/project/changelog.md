@@ -31,12 +31,15 @@ lifetime economic frontier can be earned. Released as `v0.1.0-alpha.20` from
   binary with the storage universes split: VOLE 455 answered/245 declined, a1
   506/194, a0 508/192; `materialize --exact` 97/100 (v), 98/100 (a1), 100/100 (a0).
   Storage: persistent `2,667,668,262 B`, descriptor `1,704,524,849 B`, A1 db
-  `2,891,784,192 B`. VOLE holds `pdf`/`text_repeat` and `docx`/`table`; everything
+  `2,891,784,192 B` (whole-population `du -sb` aggregates; the store figure is
+  method-inflated — ADR-0049). VOLE holds `pdf`/`text_repeat` and `docx`/`table`; everything
   else loses to SQLite/FTS, `exact` loses to the source file. Campaign
   `2026-10-07-real100-release-baseline-866f489`.
-- **15.3 Packed store (win).** Persistent bytes `0.719x`, file count `0.009x`
-  (111x fewer), latency parity; field id identical 12/12, byte-exact 12/12 both
-  (`2026-10-07-phase15-packed-8c195e8`).
+- **15.3 Packed store (win).** File/directory count `0.009x` (111x fewer) at
+  **byte parity** (file bytes `1.007x`); latency parity; field id identical 12/12,
+  byte-exact 12/12 both (`2026-10-07-phase15-packed-8c195e8`). *(Corrected: the
+  earlier "persistent bytes `0.719x`" was a `du -sb` directory-inode artifact;
+  ADR-0049.)*
 - **15.5 DEFLATE ablation (recommendation).** `zlib-rs` **1.58x** GB/s at 1.00x RSS,
   byte-identical — **meets** the pre-registered bar and is the recommended backend
   swap (not yet adopted); `miniz-simd` (1.11x) enabled as a free, output-preserving

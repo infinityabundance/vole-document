@@ -25,5 +25,11 @@
   "common_success_all": {"a1_bytes":1902919680,"documents":95,"fs_bytes":2619707424,"fs_over_a1":1.3766778763883507,"median_fs_over_a1":1.3423124216992228,"median_pack_over_a1":0.8459241129823414,"median_pack_over_fs":0.48573500060986285,"pack_bytes":1752688904,"pack_over_a1":0.9210524870918356,"pack_over_fs":0.6690399423779317},
   "common_success_fs_a1": {"a1_bytes":1902919680,"documents":95,"fs_bytes":2619707424,"fs_over_a1":1.3766778763883507,"median_fs_over_a1":1.3423124216992228},
   "verdict": {"closes_gap_packed_le_1x":true,"common_success_documents":95,"fs_over_a1_sum":1.3766778763883507,"pack_over_a1_median":0.8459241129823414,"pack_over_a1_sum":0.9210524870918356},
-  "rc_codes": "0 success; 124 timeout (OP_TIMEOUT); 137 SIGKILL/OOM under the 6g cap; -1 not run (encode failed); other = the tool's own error code"
+  "rc_codes": "0 success; 124 timeout (OP_TIMEOUT); 137 SIGKILL/OOM under the 6g cap; -1 not run (encode failed); other = the tool's own error code",
+  "superseded_by": "evidence/campaigns/2026-10-08-phase16-storage-correction-2978e1d",
+  "correction": {
+    "what": "the storage ratios here — common_success_all.fs_over_a1 = 1.3767, pack_over_a1 = 0.9211, pack_over_fs = 0.6690 — and the whole_population byte totals were measured with `du -sb`, which on this bind mount is --apparent-size and counts 4096 B per directory inode. The one-file-per-node fs store carries ~2 directories per file (~218,853 here), so its du -sb was inflated ~52%; the packed store by 0.8%; the single-file .db by 0. No number in this receipt is deleted.",
+    "corrected": "file-bytes-only accounting gives fs/SQLite = 0.906x, packed/SQLite = 0.914x, packed/fs = 1.009x on the same 95 common-success documents. The 'packed closes the gap' framing is mis-stated: there was no byte gap — fs was already below SQLite. Both VOLE backends are at/below SQLite on file bytes.",
+    "scope": "measurement only; no descriptor, manifest, index or wire byte changed. See the correction campaign's CORRECTION.md and ADR-0049."
+  }
 }

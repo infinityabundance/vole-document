@@ -27,5 +27,11 @@
     "the `perf` counter is unavailable in doc-baseline; strace + du/find are used instead"
   ],
   "note_fixed_during_sealing": "an earlier run of this court recorded `bin` = the debug path while building release, because BIN resolution consulted the doc-baseline `VOLE_BIN` env var; the script now ignores VOLE_BIN under PROFILE=release (mirroring the 15.1 real100-court fix) and this sealed run measured target/release/vole-document",
-  "tuning": "none; the subset is chosen from pre-registered format/size strata, not from any measurement"
+  "tuning": "none; the subset is chosen from pre-registered format/size strata, not from any measurement",
+  "superseded_by": "evidence/campaigns/2026-10-08-phase16-storage-correction-2978e1d",
+  "correction": {
+    "what": "results.persistent_bytes (fs 352671955, packed 253737799, sum_ratio 0.719) was measured with `du -sb`, which on this bind mount is --apparent-size and counts 4096 B per directory inode. The fs store here carries ~108 dirs/doc, so its du -sb was inflated far more than the packed store's. No number in this receipt is deleted; the file-count and cold-wall results are unaffected.",
+    "corrected": "file-bytes-only accounting (sum of regular-file st_size) gives packed/fs = 1.007x (byte parity; packed marginally larger), not 0.719x. The surviving win is file/directory count (25,574 -> 237 files; 0.009x). See the correction campaign's CORRECTION.md and ADR-0049.",
+    "scope": "measurement only; no descriptor, manifest, index or wire byte changed"
+  }
 }

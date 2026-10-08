@@ -206,9 +206,10 @@ not by re-materializing the document. The full CLI surface is in
 
 Release **`0.1.0-alpha.20`** (Phases 13–15 complete; see
 [Changelog](docs/project/changelog.md)). **Phase 15** repaired the frozen `real100-v1` court (release build; storage universes reported
-separately) and measured the frontier — [Phase 15 results](docs/phases/phase-15-results.md). **Two structural wins:** `--packed` cuts persistent
-bytes to **0.719×** and file count to **0.009×** at latency parity (ADR-0043), and **`zlib-rs`** inflate is **1.58×** `miniz_oxide` at **1.00×** RSS,
-byte-identical and meeting the pre-registered bar (recommended, not adopted; ADR-0045). **Two negatives:** residency wins only below ~1 MiB
+separately) and measured the frontier — [Phase 15 results](docs/phases/phase-15-results.md). **Two structural wins:** `--packed` cuts the
+file/directory count to **0.009×** (**111×** fewer) at **byte parity**, and **`zlib-rs`** inflate is **1.58×** `miniz_oxide` at **1.00×** RSS,
+byte-identical and meeting the pre-registered bar (recommended, not adopted; ADR-0045). Both VOLE backends are at/below SQLite on file bytes
+(fs/SQLite **0.906×**, packed/SQLite **0.914×**); the old "0.719× bytes"/"1.377×" figures were a `du -sb` directory-inode artifact ([ADR-0049](docs/adr/0049-storage-accounting-correction.md)). **Two negatives:** residency wins only below ~1 MiB
 (7 ms cold vs 9 ms resident; ADR-0042) and adaptive promotion fails all three pre-registered falsifiers (opt-in, default-off; ADR-0046).
 **CUDA is deferred** (the bandwidth gate is unopened; the pinned Docker lanes cannot see the GPU; ADR-0048). VOLE holds `pdf`/`text_repeat` and
 `docx`/`table`, loses the rest to SQLite/FTS, and 3/5 `>100 MiB` PDFs still fail at `encode` (ADR-0041). Headline measurements, each with its

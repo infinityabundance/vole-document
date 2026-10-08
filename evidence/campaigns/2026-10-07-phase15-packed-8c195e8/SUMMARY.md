@@ -1,5 +1,12 @@
 # phase15-packed — packed seed store vs one-file-per-node reference
 
+> **Corrected 2026-10-08 (Phase 16.6, ADR-0049).** The `persistent bytes (du -sb)`
+> row below is a directory-inode artifact: `du -sb` counts 4096 B per directory,
+> and the `fs` store carries ~108 dirs/doc. On file-bytes-only accounting
+> packed/fs is **1.007×** (parity), not **0.719×**. The file-count and cold-wall
+> results are unaffected. Original numbers kept for the record; see
+> [`../2026-10-08-phase16-storage-correction-2978e1d/CORRECTION.md`](../2026-10-08-phase16-storage-correction-2978e1d/CORRECTION.md).
+
 Documents: **12** (SUBSET of `real100-v1`, joined on the `(format, size_class)` strata — **not** the frozen 100-document population). Ratios are `packed / fs`; a ratio < 1 means packed is smaller/faster, > 1 means the reverse. Within ±10% of 1.0 is labelled parity. This court makes **no** claim that packed is better.
 
 ## Correctness

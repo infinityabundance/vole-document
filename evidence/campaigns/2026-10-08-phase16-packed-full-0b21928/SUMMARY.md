@@ -1,5 +1,15 @@
 # Phase 16.2 — full `real100-v1` packed-store storage court
 
+> **Corrected 2026-10-08 (Phase 16.6, ADR-0049).** Every ratio below used
+> `du -sb`, which counts 4096 B per directory inode, so the one-file-per-node `fs`
+> store is inflated (~52 %) while the packed store (0.8 %) and the single `.db`
+> (0 %) are not. On file-bytes-only accounting the same 95 common-success
+> documents give fs/SQLite **0.906×**, packed/SQLite **0.914×**, packed/fs
+> **1.009×** — both VOLE backends are at/below SQLite on file bytes, and the
+> "closes the gap" framing is mis-stated (there was no byte gap). Original numbers
+> kept for the record; see
+> [`../2026-10-08-phase16-storage-correction-2978e1d/CORRECTION.md`](../2026-10-08-phase16-storage-correction-2978e1d/CORRECTION.md).
+
 Documents in population: **100**. Profile release, `doc-baseline` (6 GiB, cpus 8). Question: on the **common-success** population, does the `--packed` backend close the persistent-storage gap against the A1 SQLite db? Ratios are VOLE/SQLite (and pack/fs); < 1 means VOLE is smaller. The established baseline (`2026-10-07-real100-release-baseline-866f489`) reported fs/SQLite = **1.377×** on 95 common-success documents.
 
 ## Population and success

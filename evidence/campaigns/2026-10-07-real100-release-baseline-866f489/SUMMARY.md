@@ -1,5 +1,14 @@
 # real100-v1 frontier map
 
+> **Corrected 2026-10-08 (Phase 16.6, ADR-0049).** The VOLE persistent-byte
+> figures in this report were measured with `du -sb`, which on this bind-mounted
+> host counts 4096 B per directory inode; the one-file-per-node store is therefore
+> inflated (~52 % over the population, e.g. `nist-docx-0013` 31,292 real bytes vs
+> 387,644 shown). On file-bytes-only accounting the 95-document common-success
+> `fs`/SQLite ratio is **0.906×**, not **1.377×**. Original numbers are kept for
+> the record; see
+> [`../2026-10-08-phase16-storage-correction-2978e1d/CORRECTION.md`](../2026-10-08-phase16-storage-correction-2978e1d/CORRECTION.md).
+
 Documents measured: **100**. Lanes: VOLE (frozen), SQLite/FTS (A1), direct tooling (A0). Tie band: ±10% of the fastest median. `decline` = the lane has no such observation for the format / returned a typed error.
 
 ## Answered vs declined (all ops)
