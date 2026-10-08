@@ -55,7 +55,8 @@ use crate::field::index::SEL_ODT_MODEL;
 use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::{
     FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PACKAGE_MEMBER_DECODED, SEL_PACKAGE_MEMBER_RAW,
-    SEL_PAGE, SEL_REVISION, SEL_STREAM, SEL_STREAM_DECODED, SelectorKey, lookup,
+    SEL_PAGE, SEL_REVISION, SEL_REVISION_LINEAGE, SEL_REVISIONS, SEL_STREAM, SEL_STREAM_DECODED,
+    SelectorKey, lookup,
 };
 use crate::field::ingest;
 use crate::field::manifest::FieldRoot;
@@ -84,6 +85,13 @@ pub enum Selector {
     Stream(u32),
     /// A physical revision, by 0-based index.
     Revision(u32),
+    /// The whole PDF **revision lineage** (Phase 17): the revision count, the
+    /// ordered revision indices and byte spans, each revision's resolved
+    /// `startxref`/`/Prev` headers, and which indirect objects and streams each
+    /// revision defines. Incremental updates are a PDF concept with no analog in
+    /// DOCX/EPUB/ODT, so a field with no revision structure is a typed decline,
+    /// never an empty answer.
+    Revisions,
     /// A package (ZIP/OCF/OPC) member, by central-directory ordinal. The ordinal is
     /// the physical identity; duplicate names stay distinct (Phase 12.2).
     Member(u32),
@@ -336,6 +344,7 @@ impl Selector {
             Selector::Object(n) => format!("object:{n}"),
             Selector::Stream(n) => format!("stream:{n}"),
             Selector::Revision(n) => format!("revision:{n}"),
+            Selector::Revisions => "revisions".to_string(),
             Selector::Member(n) => format!("member:{n}"),
             Selector::PackagePart(name) => format!("package-part:{name}"),
             Selector::Relationship(id) => format!("relationship:{id}"),
@@ -526,6 +535,8 @@ pub enum Representation {
     ExactBytes,
     /// A deterministic structured page preview.
     Preview,
+    /// A structured metadata projection (e.g. a PDF revision lineage, Phase 17).
+    Lineage,
     /// The full source document.
     FullDocument,
 }
@@ -542,6 +553,7 @@ impl Representation {
             Representation::DecodedBytes => "decoded",
             Representation::ExactBytes => "exact",
             Representation::Preview => "preview",
+            Representation::Lineage => "lineage",
             Representation::FullDocument => "full",
         }
     }
@@ -1804,6 +1816,8 @@ impl<S: SeedStore> Ctx<'_, S> {
             (Selector::Revision(n), R::ExactBytes) => {
                 self.indexed_exact(req, SelectorKey::new(SEL_REVISION, *n), "revision")
             }
+            (Selector::Revisions, R::Lineage) => self.pdf_revisions(req),
+            (Selector::Revision(n), R::Lineage) => self.pdf_revision(req, *n),
             (Selector::Member(n), R::EncodedBytes) => self.indexed_exact(
                 req,
                 SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, *n),
@@ -2084,6 +2098,73 @@ impl<S: SeedStore> Ctx<'_, S> {
             dependency_ids: vec![entry.node_id],
             integrity_scope: IntegrityScope::Node,
             exact: true,
+        })
+    }
+
+    /// A typed decline when the field is not a PDF: revision lineage is a
+    /// **PDF-native** observation (Phase 17), and incremental updates have no
+    /// analog in DOCX/EPUB/ODT. A PDF with no revision structure also declines,
+    /// because the ingest registers no lineage entry in that case.
+    fn require_pdf_revision_structure(&self) -> Result<()> {
+        match self.document_format() {
+            Some(DocumentFormat::Pdf) => Ok(()),
+            Some(other) => Err(Error::unsupported_feature(format!(
+                "revision lineage is a PDF-native observation; format {} has no revision structure",
+                other.name()
+            ))),
+            None => Err(Error::unsupported_feature(
+                "the field manifest does not record a document format; revision lineage is unavailable",
+            )),
+        }
+    }
+
+    /// The whole revision lineage of the PDF (Phase 17).
+    ///
+    /// Resolved through the index to the persisted `PdfRevisionLineage` node the
+    /// ingest computed from the byte-authoritative physical scan, so the answer is
+    /// `O(depth)` and never re-reads or re-parses the source.
+    fn pdf_revisions(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        self.require_pdf_revision_structure()?;
+        let entry = self.require_entry(SelectorKey::new(SEL_REVISIONS, 0), "revision lineage")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        let json = String::from_utf8(bytes)
+            .map_err(|_| Error::internal_invariant("persisted revision lineage is not UTF-8"))?;
+        Ok(FieldAnswer {
+            value: AnswerValue::Json(json),
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: None,
+            provenance: "pdf;revision-lineage".to_string(),
+            dependency_ids: vec![entry.node_id],
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        })
+    }
+
+    /// One revision's lineage entry, scoped to a revision index (Phase 17).
+    fn pdf_revision(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        self.require_pdf_revision_structure()?;
+        let entry = self.require_entry(
+            SelectorKey::new(SEL_REVISION_LINEAGE, index),
+            "revision lineage",
+        )?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        let json = String::from_utf8(bytes)
+            .map_err(|_| Error::internal_invariant("persisted revision lineage is not UTF-8"))?;
+        let end = entry.out_off.saturating_add(entry.out_len);
+        Ok(FieldAnswer {
+            value: AnswerValue::Json(json),
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: Some((entry.out_off, end)),
+            provenance: format!("pdf;revision-lineage;index={index}"),
+            dependency_ids: vec![entry.node_id],
+            integrity_scope: IntegrityScope::None,
+            exact: false,
         })
     }
 
@@ -5274,9 +5355,12 @@ mod tests {
 
     impl Fixture {
         fn new(label: &str, with_image: bool) -> Fixture {
+            Fixture::from_source(label, fixture_pdf(with_image))
+        }
+
+        fn from_source(label: &str, source: Vec<u8>) -> Fixture {
             let root = temp_root(label);
             let mut store = FieldStore::open(&root).unwrap();
-            let source = fixture_pdf(with_image);
             let descriptor = opaque_descriptor(&source);
             let report = ingest::ingest_pdf(&mut store, &descriptor, Limits::DEFAULT).unwrap();
             Fixture {
@@ -5303,6 +5387,105 @@ mod tests {
         let (answer, stats, _field) =
             observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap();
         (answer, stats)
+    }
+
+    /// A classic-xref PDF with **two** incremental revisions: revision 0 defines
+    /// objects 1-5, revision 1 appends object 6 and its own xref/trailer with
+    /// `/Prev` pointing at revision 0's `startxref`.
+    fn two_revision_pdf() -> Vec<u8> {
+        let content = b"BT /F1 12 Tf 72 720 Td (Hello) Tj ET\n";
+        let encoded = zlib_stored(content);
+        let mut w = PdfBuilder::new();
+        w.text("%PDF-1.5\n");
+        w.obj(1, b"<< /Type /Catalog /Pages 2 0 R >>");
+        w.obj(2, b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        w.obj(
+            3,
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        );
+        w.stream_obj(4, " /Filter /FlateDecode", &encoded);
+        w.obj(5, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+        let xref0 = w.buf.len() as u64;
+        w.text("xref\n0 6\n");
+        w.raw(b"0000000000 65535 f \n");
+        for number in 1..6 {
+            let off = w.offset_of(number);
+            w.text(&format!("{off:010} 00000 n \n"));
+        }
+        w.text(&format!(
+            "trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n{xref0}\n%%EOF\n"
+        ));
+        // Revision 1: append object 6, then a partial xref + trailer with /Prev.
+        w.obj(
+            6,
+            b"<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>",
+        );
+        let xref1 = w.buf.len() as u64;
+        w.text("xref\n0 1\n0000000000 65535 f \n6 1\n");
+        let off6 = w.offset_of(6);
+        w.text(&format!("{off6:010} 00000 n \n"));
+        w.text(&format!(
+            "trailer\n<< /Size 7 /Root 1 0 R /Prev {xref0} >>\nstartxref\n{xref1}\n%%EOF\n"
+        ));
+        w.buf
+    }
+
+    #[test]
+    fn revision_lineage_lists_ordered_revisions_and_membership() {
+        let mut fx = Fixture::from_source("rev-lineage", two_revision_pdf());
+        let (answer, _stats) = observe_req(&mut fx, Selector::Revisions, Representation::Lineage);
+        assert_eq!(answer.selector, "revisions");
+        assert_eq!(answer.representation, "lineage");
+        assert!(!answer.exact);
+        let AnswerValue::Json(json) = &answer.value else {
+            panic!("revision lineage must be JSON");
+        };
+        assert!(json.contains("\"count\":2"), "{json}");
+        assert!(json.contains("\"header\":\"%PDF-1.5\""), "{json}");
+        // The two revisions are ordered and exactly cover the source.
+        assert!(json.contains("\"index\":0"), "{json}");
+        assert!(json.contains("\"index\":1"), "{json}");
+        // Object 6 is defined in revision 1 only; objects 1-5 in revision 0 only.
+        let rev0 = json.split("\"index\":0").nth(1).unwrap();
+        let rev1 = json.split("\"index\":1").nth(1).unwrap();
+        assert!(rev0.contains("\"objects\":[1,2,3,4,5]"), "{rev0}");
+        assert!(rev1.contains("\"objects\":[6]"), "{rev1}");
+        // Revision 1's trailer /Prev resolves to revision 0's xref anchor.
+        assert!(rev1.contains("\"prev\":"), "{rev1}");
+        assert!(!rev1.contains("\"prev\":null"), "{rev1}");
+        // Deterministic: a second observation is byte-identical.
+        let (again, _) = observe_req(&mut fx, Selector::Revisions, Representation::Lineage);
+        assert_eq!(again.value, answer.value);
+    }
+
+    #[test]
+    fn revision_scoped_lineage_matches_one_revision() {
+        let mut fx = Fixture::from_source("rev-scoped", two_revision_pdf());
+        let (answer, _stats) = observe_req(&mut fx, Selector::Revision(1), Representation::Lineage);
+        assert_eq!(answer.selector, "revision:1");
+        let AnswerValue::Json(json) = &answer.value else {
+            panic!("revision lineage must be JSON");
+        };
+        assert!(json.contains("\"index\":1"), "{json}");
+        assert!(json.contains("\"objects\":[6]"), "{json}");
+        assert_eq!(answer.source_span, Some(fx_source_span(&mut fx, 1)));
+    }
+
+    /// Revision `n`'s exact `[start, end)` span, from the persisted revision node.
+    fn fx_source_span(fx: &mut Fixture, n: u32) -> (u64, u64) {
+        let req = ObserveRequest::new(Selector::Revision(n), Representation::ExactBytes);
+        let (answer, _stats, _) = observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap();
+        answer.source_span.unwrap()
+    }
+
+    #[test]
+    fn revision_lineage_declines_typed_for_non_pdf() {
+        let mut fx = Fixture::from_source("rev-decline", b"this is not a document".to_vec());
+        for selector in [Selector::Revisions, Selector::Revision(0)] {
+            let req = ObserveRequest::new(selector, Representation::Lineage);
+            let err = observe(&mut fx.store, &fx.field, &req, Limits::DEFAULT).unwrap_err();
+            assert_eq!(err.class(), crate::ErrorClass::UnsupportedFeature);
+        }
     }
 
     #[test]

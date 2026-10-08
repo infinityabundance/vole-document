@@ -12,6 +12,7 @@
 //! one blob; the seed DAG and the hierarchical index are additional persisted
 //! state. A field never weakens `materialize(root) == original_bytes` (ADR-0024).
 
+pub mod build;
 pub mod cache;
 pub mod capabilities;
 pub mod dag;

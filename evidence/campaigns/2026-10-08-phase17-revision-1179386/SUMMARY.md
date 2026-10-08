@@ -1,0 +1,215 @@
+# Phase 17 item 2 — contract-equivalent heterogeneous-session court (revision surface)
+
+Both lanes satisfy the SAME escalating contract C0..C5. `VOLE` is the field CLI (`observe`/`observe-batch`/`materialize`), which in Phase 17 exposes a PDF revision-lineage surface (`--revisions`/`--revision N --kind lineage`); `SQLite` is a source-retaining **SQLite Full** baseline: the established A1 surfaces (source blob, blocks, unicode61 + trigram FTS, headings/tables/cells/resources) plus, exactly as the contract deepens, a native-coordinate column (C1), a provenance table (C2), the retained source blob as the exact closure (C3) and a corpus revision-lineage table (C4). The baseline is byte-identical to Phase 16.5. Searches are not part of the contract, but the baseline carries them anyway so its cost is a faithful upper bound. Equivalence is validated per depth; costs are cumulative.
+
+Subset: **12 documents** (docx, epub, pdf).
+
+Persistent bytes are the sum of REGULAR-FILE sizes for both lanes. `du -sb` is deliberately not used: the repo's bind-mounted host filesystem reports large phantom directory sizes, so `du -sb` on VOLE's directory store would be compared unfairly against SQLite's single db file.
+
+## One-time build cost + persistent bytes (cumulative per depth)
+
+| substrate | depth | docs | build ms (sum) | build ms (median) | persistent B (sum) | vs source |
+|---|---|---:|---:|---:|---:|---:|
+| VOLE encode+ingest | all | 12 | 17155 | 151 | 6988757 | 1.205× |
+| SQLite contract store | C0 | 12 | 1593 | 71 | 14270464 | 2.460× |
+| SQLite contract store | C1 | 12 | 1619 | 90 | 14376960 | 2.478× |
+| SQLite contract store | C2 | 12 | 1596 | 72 | 14622720 | 2.521× |
+| SQLite contract store | C3 | 12 | 1592 | 72 | 14622720 | 2.521× |
+| SQLite contract store | C4 | 12 | 1590 | 72 | 14721024 | 2.538× |
+| SQLite contract store | C5 | 12 | 1598 | 71 | 14721024 | 2.538× |
+
+`vs source` is the persistent footprint as a multiple of the subset's total source bytes. VOLE's query cost is depth-independent (its store already carries coord/provenance/exact); SQLite pays new materialization at each depth.
+
+## Query schedule — cost per depth
+
+Cold = one process per observation; Warm = one session serving the whole depth schedule (VOLE `observe-batch`; SQLite one process). VOLE's schedule is measured per depth but is depth-independent.
+
+| depth | lane | obs | cold ms | warm ms | warm peak RSS KB |
+|---|---|---:|---:|---:|---:|
+| C0 | VOLE | 80 | 138 | 37 | 7196 |
+| C0 | SQLite | 80 | 129 | 25 | 7160 |
+| C1 | VOLE | 80 | 135 | 38 | 7132 |
+| C1 | SQLite | 80 | 128 | 25 | 7368 |
+| C2 | VOLE | 80 | 136 | 36 | 7088 |
+| C2 | SQLite | 80 | 124 | 28 | 7388 |
+| C3 | VOLE | 80 | 129 | 37 | 7148 |
+| C3 | SQLite | 80 | 125 | 27 | 7396 |
+| C4 | VOLE | 80 | 133 | 37 | 7132 |
+| C4 | SQLite | 80 | 129 | 29 | 7272 |
+| C5 | VOLE | 80 | 142 | 37 | 7068 |
+| C5 | SQLite | 80 | 134 | 29 | 7300 |
+
+## Equivalence by depth and observation
+
+| depth | fmt | obs | eq raw | eq proj | shape | both decline | capability gap | divergent | different observable | value mismatch |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| C0 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C0 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C0 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C0 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C0 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C1 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C1 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C1 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C1 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C1 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C2 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C2 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C2 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C2 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C2 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C3 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C3 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C3 | docx | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C3 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | pdf | revision | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C3 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C4 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C4 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C4 | docx | revision | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C4 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | revision | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C4 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C4 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C4 | pdf | revision | 0 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
+| C4 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+| C5 | docx | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | doc-text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | heading | 1 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| C5 | docx | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | resource | 0 | 0 | 1 | 3 | 0 | 0 | 0 | 0 |
+| C5 | docx | revision | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C5 | docx | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | docx | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | doc-text | 1 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | heading | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | resource | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | revision | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 |
+| C5 | epub | table | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | epub | text | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | pdf | bytes | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| C5 | pdf | metadata | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
+| C5 | pdf | revision | 0 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
+| C5 | pdf | text | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 |
+
+_`capability gap` = one lane declines an observation the other answers. `divergent` = both answer but the byte values differ on a *heuristic* observable (PDF page text: VOLE's layout heuristic vs Poppler). `different observable` = Phase 17: both lanes answer a *revision-lineage* observation, but of different things — VOLE reports the PDF's internal incremental revision chain; the baseline reports the corpus family/member/head tuple. Neither value can equal the other by construction, so this is neither equality nor an error. `value mismatch` = both answer but differ on a non-heuristic observable. `shape` = both answer with projections that are not byte-comparable by design (metadata schemas; resource reference vs member bytes)._
+
+
+## Exact original closure (length + SHA-256 + byte compare)
+
+| id | fmt | VOLE ok | SQLite ok | VOLE ms | SQLite ms |
+|---|---|---|---|---:|---:|
+| nist-pdf-0002 | pdf | 1 | 1 | 5 | 29 |
+| nist-pdf-0004 | pdf | 1 | 1 | 9 | 26 |
+| nist-pdf-0016 | pdf | 1 | 1 | 5 | 25 |
+| nist-pdf-0017 | pdf | 1 | 1 | 16 | 28 |
+| nist-docx-0005 | docx | 1 | 1 | 3 | 26 |
+| nist-docx-0008 | docx | 1 | 1 | 3 | 25 |
+| nist-docx-0009 | docx | 1 | 1 | 4 | 24 |
+| nist-docx-0014 | docx | 1 | 1 | 11 | 26 |
+| nist-epub-0003 | epub | 1 | 1 | 4 | 25 |
+| nist-epub-0006 | epub | 1 | 1 | 4 | 25 |
+| nist-epub-0008 | epub | 1 | 1 | 3 | 25 |
+| nist-epub-0009 | epub | 1 | 1 | 8 | 26 |
+
+VOLE `materialize --exact`: 12/12 byte-exact. SQLite retained blob: 12/12 byte-exact.
+
+## Frontier verdict
+
+| depth | VOLE cold ms | SQL cold ms | VOLE warm ms | SQL warm ms | VOLE B | SQL B | cold | warm | bytes | VOLE satisfies? |
+|---|---:|---:|---:|---:|---:|---:|---|---|---|---|
+| C0 | 138 | 129 | 37 | 25 | 6988757 | 14270464 | SQLite | SQLite | VOLE | yes |
+| C1 | 135 | 128 | 38 | 25 | 6988757 | 14376960 | SQLite | SQLite | VOLE | yes |
+| C2 | 136 | 124 | 36 | 28 | 6988757 | 14622720 | SQLite | SQLite | VOLE | yes |
+| C3 | 129 | 125 | 37 | 27 | 6988757 | 14622720 | SQLite | SQLite | VOLE | yes |
+| C4 | 133 | 129 | 37 | 29 | 6988757 | 14721024 | SQLite | SQLite | VOLE | no (declines + diff. observable) |
+| C5 | 142 | 134 | 37 | 29 | 6988757 | 14721024 | SQLite | SQLite | VOLE | no (declines + diff. observable) |
+
+One row per contract depth; `bytes` compares the sum-of-regular-file persistent footprints.
+
+### Reading
+
+VOLE/SQLite storage **0.47×**, build **10.74×**, warm session **1.36×**. VOLE is the STORAGE winner at every depth; SQLite is the BUILD, WARM-LATENCY and FULL-CONTRACT winner at every depth.
+
+- On DOCX/EPUB text the two systems return **byte-identical** values (blocks/headings/tables/doc-text): the baseline mirrors VOLE's extraction semantics. EPUB doc-text also matches under the whitespace projection (VOLE emits a trailing newline for an empty spine item).
+- Byte reads and the whole-source exact closure agree on BOTH lanes: 12/12 documents reproduce their original length + SHA-256 (VOLE `materialize --exact`; SQLite retained blob).
+- PDF page text is a **heuristic layout projection**: VOLE's own heuristic and Poppler produce different bytes, so equality holds only for the contract SHAPE there (recorded as `divergent`, never as equality).
+- C4 revision lineage is a **different observable, not a closed gap**: in Phase 17 VOLE answers a revision-lineage observation (the PDF's internal incremental chain: count, ordered indices, byte spans, `startxref`/`/Prev` and object membership), so it now resolves the `revision` observation for every PDF. The baseline answers a *different* lineage — the corpus family/member/head tuple supplied as frozen metadata. Both answer; neither value can equal the other by construction (classified `different observable`). DOCX/EPUB have no PDF revision structure, so VOLE declines those typed (`UnsupportedFeature`, rc 6): the contract's corpus tuple is external metadata a single-document field cannot derive from bytes, so C4 does not close on the contract's terms.
+
+## Conclusions
+
+1. **No depth is VOLE-preferable on the whole contract.** VOLE is cheaper to STORE (about 0.47× the baseline bytes) at every depth, but that is its only win: SQLite builds ~11× faster, serves the warm session ~1.36× faster, and ties on cold. C4/C5 no longer *decline*, but they do not close either: the contract's revision lineage is corpus metadata the baseline carries and VOLE cannot derive.
+2. **SQLite does NOT lose under the equal contract.** The richer contract costs SQLite only about +3% persistent bytes from C0 to C4 on this subset, because the source blob it retains anyway dominates the store; its query times are flat across depths. 'SQLite wins even under the equal contract' therefore holds on build, latency and coverage, with VOLE's storage edge the sole counter-example.
+3. **C4 is not a pure surface gap.** Phase 16.5 recorded VOLE's C4 decline as a missing CLI surface. Phase 17 adds that surface (the PDF revision lineage) and shows the decline splits in two: the *surface* half is fixed (VOLE answers a revision observation for PDFs, in cold and in a mixed batch), but the contract's *corpus-level family/member/head* tuple is external metadata that no single-document field can observe, so it remains unanswered. The honest frontier is unchanged: only the baseline satisfies the contract's C4/C5.

@@ -1,0 +1,31 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase17-revision-1179386",
+  "phase": "17.2 — contract-equivalent heterogeneous-session court (revision surface)",
+  "utc": "2026-10-08T08:16:55Z",
+  "measured_commit": "117938607a052bc491969da63b94370cadfdd341",
+  "tree_state": " M src/field/capabilities.rs; M src/field/dag.rs; M src/field/index.rs; M src/field/ingest.rs; M src/field/node.rs; M src/field/observe.rs; M src/field/plan.rs; M src/main.rs;?? evidence/campaigns/2026-10-08-phase1-1179386/;?? evidence/campaigns/2026-10-08-phase17-revision-1179386/;?? tools/fixtures/phase17-contract.py;?? tools/phase17-contract-court.sh;",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "796d035717b4432c9c340c9425e204547f045667ef6d56e3d2c783dd598655a0",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "sqlite3": "3.40.1",
+  "cargo_lock_sha256": "7614b636b3646ce9aa967535d4ba2a644addd6ed91e8998454eb617db78b751d",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "op_timeout_s": 180,
+  "depths": "0 1 2 3 4 5",
+  "court": "tools/phase17-contract-court.sh",
+  "baseline": "tools/fixtures/phase17-contract.py (contract baseline + aggregator; SQLite build/query/SQL byte-identical to Phase 16.5)",
+  "contracts": {
+    "C0": "value only",
+    "C1": "C0 + native coordinate",
+    "C2": "C1 + provenance class + source span",
+    "C3": "C2 + exact original closure (length + SHA-256 + cmp)",
+    "C4": "C3 + revision lineage (baseline: corpus family/member/head; VOLE Phase 17: PDF-internal incremental chain)",
+    "C5": "C4 + heterogeneous batch served in one session"
+  },
+  "accounting": "persistent bytes = sum of regular-file sizes (find -printf %s) for BOTH lanes; du -sb is avoided because the bind-mounted host fs inflates directory sizes and would compare VOLE's directory store against SQLite's single file unfairly",
+  "rc_codes": "0 ok; 3 decline; 6 unsupported-feature (non-PDF revision lineage); 124 timeout; 137 SIGKILL/OOM"
+}

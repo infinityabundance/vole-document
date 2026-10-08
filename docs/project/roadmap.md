@@ -59,6 +59,29 @@ not resolve**: should the conceptual invention keep competing with SQLite, or
 observation state? **No switch is decided.** The measurements that would settle
 it are enumerated in [ADR-0050](../adr/0050-sqlite-as-substrate-question.md).
 
+## Phase-17 outcomes
+
+Phase 17 follows Phase 16: it removes the search overhead from the runtime build
+path and adds the revision-lineage surface Phase 16 recorded as missing, then
+re-runs the contract court. Results:
+[phase-17-results.md](../phases/phase-17-results.md); ADRs 0051–0052.
+
+| Item | Question | Outcome |
+|---|---|---|
+| 17.1 Direct source → field ingestion | Can the runtime build path skip the candidate portfolio search without changing exactness or the observation surface? | **Adopted** (ADR-0051): `field-build --profile runtime` fixes `RAW` (`candidates_evaluated == 1`) and builds the authority + field in one process; build wall sum **7,928 → 3,878 ms (2.04×)**, peak RSS median **51,792 → 15,228 KB (3.4× smaller)**, authority **1.007×**, exactness **9/9**, observations **0 divergent**. Recorded caveat: the PDF metadata projection's `object_count`/`graph_ops` are encoder-dependent (`2026-10-08-phase17-direct-field-d83ddba`) |
+| 17.2 Revision-lineage surface | Does adding the missing revision surface close C4/C5? | **Surface added; contract still open** (ADR-0052): `Selector::Revisions`/`Representation::Lineage` computed once at ingest, indexed, **O(depth)**, typed decline for non-PDF; the court re-run satisfies **C0–C3** but **C4/C5 still do not close** because the contract's C4 tuple is the corpus family/member/head — external metadata PDF bytes cannot derive (`different observable`) (`2026-10-08-phase17-revision-1179386`) |
+
+### Recorded open question (Phase 17)
+
+The C4 finding re-frames the open question: it is a **contract-definition**
+question, not a missing surface. Either the contract's C4 tuple is the right
+definition — in which case a single-document exact field is the wrong tool for C4
+by construction — or VOLE should **ingest corpus/revision-family metadata as an
+explicit external input** and answer the tuple as a derived observation. **No
+decision is taken**; see [ADR-0052](../adr/0052-revision-lineage-surface.md).
+This complements, and does not supersede, the Phase-16 substrate question
+([ADR-0050](../adr/0050-sqlite-as-substrate-question.md)).
+
 ## Unmeasured gates
 
 - `N4` (decline-rate threshold): no pre-registered threshold exists, so it is

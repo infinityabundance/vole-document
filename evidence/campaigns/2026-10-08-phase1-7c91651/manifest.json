@@ -1,0 +1,10 @@
+{
+  "campaign": "2026-10-08-phase1-7c91651",
+  "phase": "Phase 1 — exact .voldoc core",
+  "claim": "For every corpus item, materialize(encode(X)) == X byte-for-byte, with a matching SHA-256.",
+  "results_sha256": "d4f42fd8b639fa9d77a2f3a4524047fa2fe88e5cda064fbecfb1ce1946765d7d",
+  "environment_sha256": "a9440c94158f4ed731687bb1485bc48d6d6516d2e98481f284fbe5625092d61a",
+  "attribution_sha256": "4f733abc122d619e77d07689846a4b9cabc9c15103a9ca658ae3bf06e7883281",
+  "capabilities_sha256": "0dfe662ca5c0c66bcbcd56976b0803a3dbbff42729573729ae06ce160c9a0ce3",
+  "verdict": "PASS"
+}

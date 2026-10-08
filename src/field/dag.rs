@@ -449,6 +449,10 @@ fn materialize_inner(
             out
         }
         NodeKind::Literal => node.params.clone(),
+        // The revision lineage is computed once at ingest from the byte-
+        // authoritative scan and held as its canonical JSON projection; the node
+        // is a leaf whose bytes are its `params` (Phase 17).
+        NodeKind::PdfRevisionLineage => node.params.clone(),
         // A shared resource's canonical payload *is* its exact bytes; identity is
         // content identity, so identical bytes across documents share this node.
         NodeKind::ResourceBlob => node.params.clone(),

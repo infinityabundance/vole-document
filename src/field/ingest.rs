@@ -30,15 +30,15 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::adapter::pdf::cos::FilterClass;
 use crate::adapter::pdf::lexer::lex;
-use crate::adapter::pdf::physical::{PdfPhysical, PdfStreamSpan, scan};
+use crate::adapter::pdf::physical::{PdfPhysical, PdfStreamSpan, RevisionInfo, scan};
 use crate::adapter::pdf::span::{Span, SpanKind};
 use crate::container::observation::{ObservationIndex, OpEntry, SECTION_OP_TABLE};
 use crate::container::{Descriptor, ParsedDescriptor};
 use crate::error::{Error, Result};
 use crate::field::dag;
 use crate::field::index::{
-    FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PAGE, SEL_REVISION, SEL_STREAM, SEL_STREAM_DECODED,
-    SelectorKey, build, lookup, validate,
+    FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PAGE, SEL_REVISION, SEL_REVISION_LINEAGE,
+    SEL_REVISIONS, SEL_STREAM, SEL_STREAM_DECODED, SelectorKey, build, lookup, validate,
 };
 use crate::field::manifest::FieldRoot;
 use crate::field::node::{MAX_NODE_DEPS, NodeKind, SeedNode, object_params, u32_params};
@@ -558,6 +558,50 @@ fn run_stage_b(
             out_len: len,
             node_id: id,
         })?;
+    }
+
+    // Revision lineage (Phase 17): a compact derived projection of the physical
+    // revision chain, computed once here (the scan is already in hand) so a
+    // `Revisions`/`Revision(n) + Lineage` observation resolves through the index
+    // in O(depth) instead of re-scanning the source. One document-level node plus
+    // one node per revision; the per-revision entry carries the revision's exact
+    // source span so the scoped answer reports it without a second lookup.
+    if !physical.revisions.is_empty() {
+        let full = pdf_revision_lineage_json(source, physical);
+        let node = SeedNode::new(
+            NodeKind::PdfRevisionLineage,
+            full.len() as u64,
+            full.into_bytes(),
+            Vec::new(),
+            "pdf:revision-lineage",
+        );
+        let id = acc.put(store, &node)?;
+        acc.add_entry(IndexEntry {
+            key: SelectorKey::new(SEL_REVISIONS, 0),
+            out_off: 0,
+            out_len: 0,
+            node_id: id,
+        })?;
+        for rev in &physical.revisions {
+            let Some((offset, len)) = span32(rev.start, rev.end.saturating_sub(rev.start)) else {
+                continue;
+            };
+            let json = pdf_revision_json(rev, physical);
+            let node = SeedNode::new(
+                NodeKind::PdfRevisionLineage,
+                json.len() as u64,
+                json.into_bytes(),
+                Vec::new(),
+                "pdf:revision-lineage",
+            );
+            let id = acc.put(store, &node)?;
+            acc.add_entry(IndexEntry {
+                key: SelectorKey::new(SEL_REVISION_LINEAGE, rev.index),
+                out_off: offset,
+                out_len: len,
+                node_id: id,
+            })?;
+        }
     }
 
     // Encoded stream spans, plus one eager decode for a lone Flate stream. The
@@ -1447,6 +1491,81 @@ fn integer_span(source: &[u8], span: Span) -> Option<u64> {
 /// Whether `span` is the `Regular` keyword `keyword`.
 fn is_regular(source: &[u8], span: Span, keyword: &[u8]) -> bool {
     span.kind == SpanKind::Regular && span_bytes(source, span) == Some(keyword)
+}
+
+/// The `%PDF-x.y` header version string, from the scanned header span.
+fn pdf_header_version(source: &[u8], physical: &PdfPhysical) -> Option<String> {
+    let (off, len) = physical.header?;
+    let start = usize::try_from(off).ok()?;
+    let end = usize::try_from(off.checked_add(len)?).ok()?;
+    Some(
+        String::from_utf8_lossy(source.get(start..end)?)
+            .trim()
+            .to_string(),
+    )
+}
+
+fn pdf_u64_array(values: &[u64]) -> String {
+    values
+        .iter()
+        .map(|v| v.to_string())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+/// One revision's lineage entry: its byte span, resolved `startxref`/`/Prev`
+/// headers, and the indirect objects and streams whose bytes it defines.
+fn pdf_revision_json(rev: &RevisionInfo, physical: &PdfPhysical) -> String {
+    let objects: Vec<u64> = physical
+        .objects
+        .iter()
+        .filter(|o| o.start >= rev.start && o.start < rev.end)
+        .map(|o| o.number)
+        .collect();
+    let streams: Vec<u64> = physical
+        .streams
+        .iter()
+        .filter(|s| s.data_start >= rev.start && s.data_start < rev.end)
+        .map(|s| s.object)
+        .collect();
+    let startxref = rev
+        .startxref
+        .map_or_else(|| "null".to_string(), |v| v.to_string());
+    let prev = rev
+        .prev
+        .map_or_else(|| "null".to_string(), |v| v.to_string());
+    format!(
+        "{{\"index\":{},\"start\":{},\"end\":{},\"len\":{},\"startxref\":{},\"prev\":{},\"objects\":[{}],\"streams\":[{}]}}",
+        rev.index,
+        rev.start,
+        rev.end,
+        rev.end.saturating_sub(rev.start),
+        startxref,
+        prev,
+        pdf_u64_array(&objects),
+        pdf_u64_array(&streams)
+    )
+}
+
+/// The whole-document revision lineage (Phase 17): a deterministic JSON object
+/// with the `%PDF-` header, the revision count, and one entry per revision.
+fn pdf_revision_lineage_json(source: &[u8], physical: &PdfPhysical) -> String {
+    let header = match pdf_header_version(source, physical) {
+        Some(h) => format!("\"{}\"", crate::field::provenance::json_escape(&h)),
+        None => "null".to_string(),
+    };
+    let revs = physical
+        .revisions
+        .iter()
+        .map(|r| pdf_revision_json(r, physical))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"format\":\"pdf\",\"header\":{},\"count\":{},\"revisions\":[{}]}}",
+        header,
+        physical.revisions.len(),
+        revs
+    )
 }
 
 /// The bytes backing `span`, or `None` if the offset is out of range.

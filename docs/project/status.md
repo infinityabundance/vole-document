@@ -7,10 +7,11 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.21` (Phases 13–16 — Phase-13 proposals + `N5`
+**Current release:** `0.1.0-alpha.22` (Phases 13–17 — Phase-13 proposals + `N5`
 gate, the benign-`DOCTYPE` real-EPUB fix, a partial large-PDF encode fix, the
-Phase-15 performance programme, and the Phase-16 backend adoption + large-PDF
-fix + storage-accounting correction).
+Phase-15 performance programme, the Phase-16 backend adoption + large-PDF fix +
+storage-accounting correction, and the Phase-17 direct field build +
+revision-lineage surface).
 **Top-level verdict (ADR-0023, the
 authoritative [`FINDINGS.md`](findings.md)):** the current representation stack
 does not beat purpose-built baselines on any measured axis; the durable results
@@ -228,6 +229,37 @@ decided). Finally, the **storage-accounting correction** (16.6, ADR-0049):
 1.377× SQLite" and "packed closes the gap" headlines are refuted, and the packed
 win is file/directory **count** (3,511 vs 218,853 dirs).
 
+Phase 17 (branch `phase17`) attacks the two weaknesses Phase 16 made explicit
+(ADRs 0051–0052; results
+[`docs/phases/phase-17-results.md`](../phases/phase-17-results.md)). **17.1 adds
+a direct source → field build path:** `field-build --profile runtime` fixes the
+exactness program to the literal `RAW` floor (one literal object, one
+`EMIT_OBJECT`; `candidates_evaluated == 1`) and builds the authority and the
+field in one process with **no candidate search**. RAW preserves the observation
+surface because structure is re-scanned from the materialized source, not read
+from the winning program. Measured on 9 documents across pdf/docx/epub: build
+wall sum **7,928 → 3,878 ms (2.04×)** (pdf 2.56×, epub 1.34×, docx 1.22×), peak
+RSS median **51,792 → 15,228 KB (3.4× smaller)**, authority **1.007×**, exactness
+**9/9**, observations **53 equal / 46 decline-equal / 0 divergent**. One
+recorded difference: the PDF `Selector::Metadata` projection embeds the chosen
+program's `object_count`/`graph_ops` (e.g. 29/1346 searched vs 1/1 direct), so it
+is **not encoder-independent**; packages are unaffected. **17.2 adds a PDF
+revision-lineage surface:** `Selector::Revisions` / `Representation::Lineage`
+with `observe --revisions --kind lineage` / `--revision N`, computed **once** at
+ingest from the existing byte-authoritative scan and indexed
+(`SEL_REVISIONS`/`SEL_REVISION_LINEAGE`), so an observe is **O(depth)**; non-PDF
+formats are a **typed decline** (`UnsupportedFeature`, rc 6). The contract court
+re-run (SQLite lane byte-identical to 16.5) shows **C0–C3 satisfied but C4/C5
+still do not close**: the surface half is fixed, but the contract's C4 tuple is
+the **corpus family/member/head** — external metadata the PDF bytes cannot
+derive — so the two lanes report *different* lineage observables (recorded as
+such, never equality) and DOCX/EPUB decline while the baseline answers. Cost on
+the 12-document subset: storage **0.47×**, build **10.74×**, cold 138 vs 129 ms,
+warm 37 vs 25 ms; lineage adds **74,980 B** over 12 documents. Residual risk:
+lineage fidelity is bounded by the Phase-3 `%%EOF` scanner (on `nist-pdf-0016` it
+splits at an embedded early `%%EOF` at offset 505 and reports an inverted
+`/Prev`), not an independent PDF-conformance oracle.
+
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED` / `SUPERSEDED` / `PARTLY DELIVERED`).
 
@@ -319,6 +351,8 @@ win is file/directory **count** (3,511 vs 218,853 dirs).
 | Resident session + `narrow_probe` short-circuit | 16.4 | IMPLEMENTED / RECORDED (negative) | ADR-0042 extended; `narrow_probe` refactored into a shared core and `observe_session` keeps the index store open and probes with the already-open `Field` manifest. The probe works (observations 2..N: `descriptor_bytes_read = 0`, `descriptor_read_mode = partial`, ~25 µs, 208/360 hits; cold-vs-resident answer equality **90 equal / 0 mismatch**) but **no size-class verdict flips**: cold aggregate median **6.0 ms** vs resident **9.0 ms**, sums cold **3,092 ms** vs resident **3,894 ms**; resident wins only `<100KiB` and `100KiB-1MiB`. Mechanism: the session pays a one-time full `Field::open` descriptor parse (`repeat=1 == repeat=5 == 0.14 s`) while cold `narrow_probe` uses the partial-descriptor lane. Isolated lever: a **lazy session open** (recorded, out of scope). Campaign `2026-10-08-phase16-resident-probe-5d331f2` |
 | Contract-equivalent heterogeneous-session court | 16.5 | RECORDED (SQLite does not lose under the equal contract) | ADR-0050; a source-retaining SQLite baseline is forced to satisfy the same escalating contract C0–C5 (12-document subset). Equality holds at **C0–C3** (docx/epub text byte-identical; PDF page text is a heuristic projection, recorded `divergent`); both lanes reproduce the source exactly (VOLE `materialize --exact` 12/12, SQLite retained blob 12/12). **VOLE declines C4/C5** — its CLI has no revision query surface (`--revision` = `unsupported observation`). SQLite builds **~10×** faster (VOLE 20,847 ms vs SQLite C0 1,956 ms), serves the warm session **~1.47×** faster, ties on cold, and escalating C0 → C4 costs it only **~+3 %** persistent bytes with flat query cost. VOLE's sole edge is storage, corrected to ~0.9× by 16.6. Campaign `2026-10-08-phase16-contract-45d2c0e` |
 | Storage-accounting correction (file bytes vs `du -sb`) | 16.6 | ADOPTED (measurement correction) | ADR-0049; `du -sb` is `--apparent-size` and counted **4096 B per directory inode**, inflating the one-file-per-node `fs` store **52 %** (1,723,650,951 file bytes vs 2,620,072,839 `du`; 218,853 dirs) while packed (0.8 %, 3,511 dirs) and the single `.db` (0 %) were not. Corrected to sum-of-regular-file bytes: 15.3 packed/`fs` **0.719× → 1.007×**; 16.2 `fs`/SQLite **1.377× → 0.906×**, packed/SQLite **0.921× → 0.914×**, packed/`fs` **0.669× → 1.009×** (by format fs/SQLite: pdf 0.893×, docx 0.845×, epub 0.992×). **Refuted:** "VOLE is 1.377× SQLite" and "packed closes the gap" — no byte gap existed; both VOLE backends are at/below SQLite on file bytes, and the packed win is file/directory **count**. Exactness untouched (no wire/descriptor byte changed); amendment, not rewrite. Campaign `2026-10-08-phase16-storage-correction-2978e1d` |
+| Direct source → field build (`field-build`, `--profile runtime` = `RAW`) | 17.1 | ADOPTED | ADR-0051; `src/field/build.rs` + the `field-build INPUT --store DIR [--profile runtime] [--workers N] [--voldoc OUT] [--entropyfs \| --packed]` CLI builds the exact authority and the field in **one process** with **no candidate search**; the fixed `RAW` program (one literal object + one `EMIT_OBJECT`) is still priced by the complete-cost court (`candidates_evaluated == 1`). RAW preserves the surface because Stage B / package ingest materialize the source and **re-scan the source bytes** into spans/objects/streams/pages/members/resources and the index — structure is a function of the source, not the program. `encode`/`field-ingest` untouched. Measured (9 docs, pdf/docx/epub, four size classes): build wall sum **7,928 → 3,878 ms (2.04×)**; by format pdf 2.56×, epub 1.34×, docx 1.22×; peak RSS median **51,792 → 15,228 KB (3.4× smaller)**, authority **1.007×**. Exactness **9/9** (three closures; length + SHA-256 + `cmp`); observations **53 equal / 46 decline-equal / 0 divergent**. Recorded caveat: the PDF `Selector::Metadata` projection embeds the program's `object_count`/`graph_ops` (29/1346, 32/763, 0/1 searched vs 1/1 direct) — **not encoder-independent**; all other metadata fields byte-identical, packages unaffected. Campaign `2026-10-08-phase17-direct-field-d83ddba` |
+| PDF revision-lineage surface (`Selector::Revisions` / `Representation::Lineage`) | 17.2 | IMPLEMENTED / RECORDED (C4/C5 still open) | ADR-0052; new selector (`revisions`) + representation (`lineage`) with CLI `observe --revisions --kind lineage` and `observe --revision N --kind lineage`, advertised in capabilities. A new `NodeKind::PdfRevisionLineage` is computed **once** at PDF ingest from the existing byte-authoritative scan (never re-parsing the source at query time) and indexed (`SEL_REVISIONS`, `SEL_REVISION_LINEAGE`), so an observe is **O(depth)**; it answers the `%PDF-` header, revision count, ordered indices/spans, resolved `startxref`/`/Prev`, and per-revision object/stream membership. Non-PDF formats are a **typed decline** (`UnsupportedFeature`, rc 6). Contract court re-run (SQLite lane byte-identical to 16.5, verified by diff; 12 docs): **C0–C3 satisfied**, **C4/C5 still do not close** — the surface half is fixed, but the contract's C4 tuple is the **corpus family/member/head**, external metadata the PDF bytes cannot derive, so the lanes report *different* observables (`different observable`, never equality) and DOCX/EPUB decline while the baseline answers. Cost vs SQLite: storage **0.47×** (6,988,757 vs 14,721,024 B; lineage adds **74,980 B**), build **10.74×**, cold 138 vs 129 ms, warm 37 vs 25 ms. Residual risk: fidelity bounded by the Phase-3 `%%EOF` scanner (`nist-pdf-0016` splits at an embedded early `%%EOF` at offset 505, inverted `/Prev`) — not a PDF-conformance oracle. Campaign `2026-10-08-phase17-revision-1179386` |
 
 The PDF **physical authority** (lexer span cover, structural scanner, revision
 map, and object roles) is `ADOPTED` as of Phase 3 (campaign

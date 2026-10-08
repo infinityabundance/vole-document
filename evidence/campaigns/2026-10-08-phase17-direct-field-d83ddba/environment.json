@@ -1,0 +1,32 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase17-direct-field-d83ddba",
+  "phase": "17.1 — direct source -> field ingestion (no candidate search)",
+  "utc": "2026-10-08T07:57:12Z",
+  "git_commit": "d83ddba3141c2ea2cf82cbc5c7c8c5b14e2601dd",
+  "git_branch": "phase17",
+  "git_dirty": " M src/field/mod.rs; M src/main.rs; ?? src/field/build.rs; ?? tests/phase17_direct_field.rs; ?? tools/phase17-direct-field-court.sh; ?? evidence/campaigns/2026-10-08-phase1-d83ddba/; ?? evidence/campaigns/2026-10-08-phase17-direct-field-d83ddba/;",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "service_caps": "mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "7614b636b3646ce9aa967535d4ba2a644addd6ed91e8998454eb617db78b751d",
+  "external_oracles": {
+    "sqlite3": "3.40.1 2022-12-28",
+    "python": "Python 3.11.2",
+    "qpdf": "11.3.0",
+    "pdftotext": "22.12.0",
+    "gnu_time": "/usr/bin/time (Maximum resident set size)",
+    "jq": "jq-1.6"
+  },
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "3d03c6d018ba088a70178d248183dee5cacf9a3d5a5da49648b2420235dd4867",
+  "manifest": "real100-v1/manifest.tsv",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "subset": "nist-pdf-0002 nist-pdf-0004 nasa-pdf-0007 nist-docx-0010 nist-docx-0001 nist-epub-0008 nist-epub-0004 nasa-epub-0011 nasa-epub-0006",
+  "op_timeout_s": 300,
+  "env_affecting_semantics": {"LC_ALL": "C"},
+  "command": "docker compose run --rm --no-TTY doc-baseline bash tools/phase17-direct-field-court.sh"
+}
