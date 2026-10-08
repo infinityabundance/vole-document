@@ -1,0 +1,43 @@
+{
+  "campaign": "2026-10-08-phase18-batched-sync-14a7e6f",
+  "phase": "18.5",
+  "question": "Batch packed-store durability syncs (one fsync per segment instead of per node) and measure the new contract build gap; make observe-batch --packed work.",
+  "git": {
+    "commit_full": "14a7e6f4a78ca761a443a75e499db2aa095a1ed0",
+    "commit_short": "14a7e6f",
+    "branch": "phase18",
+    "dirty": true,
+    "dirty_files": [
+      "src/field/mod.rs",
+      "src/field/session.rs",
+      "src/main.rs",
+      "src/store/mod.rs",
+      "src/store/pack.rs",
+      "tests/field_observe.rs"
+    ]
+  },
+  "toolchain": {
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "f2d11b64cf7fda10d98ca8c250bc4c4915bc8170dad813a87e1e6f3c5c902c45"
+  },
+  "images": {
+    "dev": "vole-document/dev:1.99.0 sha256:652fbf80bd6631f9a80df84589bc1227e374a576d5267c343b87471b911415c8",
+    "doc-baseline": "vole-document/doc-baseline:1.99.0 sha256:dc17f388a49349eb39f89e30705a554a3ceaeae277a22518fd307e526c7159af"
+  },
+  "platform": {"arch": "x86_64", "os": "Linux", "base": "Debian GNU/Linux 12 (bookworm)"},
+  "oracles": {"sqlite3": "3.40.1", "python3": "3.11.2", "qpdf": "11.3.0"},
+  "caps": {
+    "dev": "mem_limit=memswap_limit=8g, pids_limit=4096",
+    "doc-baseline": "mem_limit=memswap_limit=6g, pids_limit=4096, cpus=8"
+  },
+  "env_affecting_semantics": {"LC_ALL": "C"},
+  "workload": {
+    "corpus": "real100-v1",
+    "doc_subset_docs": 12,
+    "worst_doc": "nist-pdf-0017",
+    "worst_doc_bytes": 1466246,
+    "field_build_profile": "runtime",
+    "build_reps": 3
+  }
+}

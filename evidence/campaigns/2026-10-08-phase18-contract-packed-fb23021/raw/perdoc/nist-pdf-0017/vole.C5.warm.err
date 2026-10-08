@@ -1,0 +1,1 @@
+error: UnsupportedFeature: --packed is not supported by observe-batch; use observe (or open the store per observation)

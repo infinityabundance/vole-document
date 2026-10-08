@@ -1,0 +1,32 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase18-contract-direct-61b11350-onepass",
+  "phase": "18.1 — contract-equivalent court, direct field-build (C4a/C4b split)",
+  "utc": "2026-10-08T09:07:58Z",
+  "measured_commit": "61b11350c8a4d2640f403c7131b69a48895eb9c2",
+  "tree_state": " M src/field/build.rs; M src/field/ingest.rs; M src/field/ingest_package.rs; M src/field/mod.rs; M tests/phase17_direct_field.rs;?? evidence/campaigns/2026-10-08-phase17-direct-field-61b11350-after/;?? evidence/campaigns/2026-10-08-phase17-direct-field-61b11350-before/;?? evidence/campaigns/2026-10-08-phase18-contract-direct-61b11350-onepass/;",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "8201d036b5838a68dae21a2f8ad7dbe09c0da4a618bd04db94c15f86c4ca7db1",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "sqlite3": "3.40.1",
+  "cargo_lock_sha256": "f2d11b64cf7fda10d98ca8c250bc4c4915bc8170dad813a87e1e6f3c5c902c45",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "op_timeout_s": 180,
+  "depths": "0 1 2 3 4 5",
+  "court": "tools/phase18-contract-court.sh",
+  "baseline": "tools/fixtures/phase18-contract.py (contract baseline + aggregator; SQLite build/query/SQL byte-identical to Phase 16.5)",
+  "contracts": {
+    "C0": "value only",
+    "C1": "C0 + native coordinate",
+    "C2": "C1 + provenance class + source span",
+    "C3": "C2 + exact original closure (length + SHA-256 + cmp)",
+    "C4a": "C3 + document-native lineage (PDF incremental chain; byte-derivable; VOLE answers, baseline lane does not; typed unsupported otherwise)",
+    "C4b": "C3 + corpus/external lineage (dataset family/member/head; supplied to the baseline by the harness; NOT given to VOLE)",
+    "C5": "C4 + heterogeneous batch served in one session (reported under both C4a and C4b)"
+  },
+  "accounting": "persistent bytes = sum of regular-file sizes (find -printf %s) for BOTH lanes; du -sb is avoided because the bind-mounted host fs inflates directory sizes and would compare VOLE's directory store against SQLite's single file unfairly",
+  "rc_codes": "0 ok; 3 decline; 6 unsupported-feature (non-PDF revision lineage); 124 timeout; 137 SIGKILL/OOM"
+}

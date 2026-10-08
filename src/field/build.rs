@@ -3,39 +3,38 @@
 //! The runtime path deliberately **skips the compression candidate search**. The
 //! field is not a compression product, and — this is the load-bearing fact — its
 //! observations are *not* derived from the winning reconstruction program: both
-//! [`crate::field::ingest::ingest_pdf_with`] (Stage B) and
-//! [`crate::field::ingest_package::ingest_package_with`] materialize the exact
-//! source from the descriptor and then **re-scan the source bytes** into exact
-//! spans, object/stream/page nodes, package members, resource blobs, and the
-//! hierarchical index. The descriptor's program is consulted only for the
-//! advisory `OBSERVATION_INDEX` op table (a seek optimization; it falls back to
+//! Stage B ([`crate::field::ingest`]) and the package adapter
+//! ([`crate::field::ingest_package`]) recover exact spans, object/stream/page
+//! nodes, package members, resource blobs, and the hierarchical index by scanning
+//! the source bytes. Here the source bytes are the **original `field-build`
+//! input**, handed straight to the native scanners (`ingest_pdf_direct` /
+//! `ingest_package_direct`), not a copy materialized back out of the authority
+//! (Phase 18.2). The descriptor's program is consulted only for the advisory
+//! `OBSERVATION_INDEX` op table (a seek optimization; it falls back to
 //! the full descriptor path when it cannot apply) and for the exactness check
-//! itself.
+//! itself (`FieldStore::ingest_verified` materializes the stored authority once
+//! and byte-compares it to the original source).
 //!
 //! Therefore a single, deterministically chosen, exact program serves the same
 //! observation surface as the searched winner. [`BuildProfile::Runtime`] fixes
 //! that program to the literal [`CandidateKind::Raw`] floor: one `EMIT_OBJECT`
-//! over one literal object. It costs a copy, not a search, and it is proved
-//! exact by the same court ([`crate::encode::encode_with`]) the searched path
-//! uses — the court is still run, over exactly one candidate.
+//! over one literal object. It costs the authority encoding, not a search, and it
+//! is proved exact by the same court ([`crate::encode::encode_with`]) the searched
+//! path uses — the court is still run, over exactly one candidate.
 //!
 //! This module produces the exact authority (a valid `.voldoc` descriptor blob,
 //! stored in the field's descriptor namespace and optionally written to disk) and
 //! the field from one source buffer, in one process.
 
 use crate::encode::candidates::CandidateKind;
-use crate::encode::encode_with;
+use crate::encode::encode_with_observation_index;
 use crate::error::{Error, Result};
 use crate::field::FieldId;
 use crate::field::FieldStore;
 use crate::field::ingest::IngestReport;
-#[cfg(not(feature = "package"))]
-use crate::field::ingest::ingest_pdf_with;
-use crate::field::ingest::with_observation_index;
+use crate::field::ingest::ingest_pdf_direct;
 #[cfg(feature = "package")]
-use crate::field::ingest::{IngestOutcome, ingest_with};
-#[cfg(feature = "package")]
-use crate::field::ingest_package::PackageIngestReport;
+use crate::field::ingest_package::{PackageIngestReport, ingest_package_direct};
 use crate::integrity::{sha256, to_hex};
 use crate::limits::Limits;
 use crate::parallel::WorkerPool;
@@ -152,16 +151,23 @@ pub fn build_field_with(
     profile: BuildProfile,
     pool: Option<&WorkerPool>,
 ) -> Result<DirectBuildReport> {
-    let (descriptor_bytes, encode_report) = encode_with(source, limits, Some(profile.candidate()))?;
-    // The durable authority is the descriptor plus the advisory observation-index
-    // record the ingest adds. `with_observation_index` is idempotent (it returns
-    // the input unchanged when a record is already present), so computing it here
-    // once yields exactly the blob the ingest will store, with no extra read-back.
-    let authority = with_observation_index(&descriptor_bytes, limits)?;
-    drop(descriptor_bytes);
+    // The durable authority is the descriptor *with* the advisory
+    // observation-index record. The index is attached to the descriptor before
+    // the court serializes it (Phase 18.3), so the source-sized payload is
+    // serialized once rather than twice: the bytes are identical to enriching the
+    // plain `encode` output after the fact, but the extra parse + reserialize of
+    // the whole descriptor is removed from the direct-build wall.
+    let (authority, encode_report) =
+        encode_with_observation_index(source, limits, profile.candidate())?;
     let encoded_len = authority.len() as u64;
     let descriptor_sha256 = to_hex(&sha256(&authority));
-    let ingest = direct_ingest(store, &authority, limits, pool)?;
+    // The direct path already holds the exact source, so hand it to the native
+    // scanner instead of reconstructing it from the authority. The authority is
+    // still stored and still verified to materialize to `source` *inside* the
+    // ingest (`FieldStore::ingest_verified`), so the Phase-18.2 one-pass shape is
+    // exact by construction: source → (authority stored + source scanned), with a
+    // single verification round trip instead of the previous two-to-three.
+    let ingest = direct_ingest(store, &authority, source, limits, pool)?;
     Ok(DirectBuildReport {
         profile: profile.name(),
         candidate: encode_report.kind.name(),
@@ -177,28 +183,35 @@ pub fn build_field_with(
 #[cfg(feature = "package")]
 fn direct_ingest(
     store: &mut FieldStore,
-    descriptor_bytes: &[u8],
+    authority: &[u8],
+    source: &[u8],
     limits: Limits,
     pool: Option<&WorkerPool>,
 ) -> Result<DirectIngest> {
-    match ingest_with(store, descriptor_bytes, limits, pool)? {
-        IngestOutcome::Package(r) => Ok(DirectIngest::Package(r)),
-        IngestOutcome::Pdf(r) => Ok(DirectIngest::Pdf(r)),
+    // Detect the family from the *original bytes* (never a file name) and invert
+    // with the matching adapter; both scan `source` directly rather than a
+    // materialized copy.
+    if crate::field::document_format::is_zip(source, limits) {
+        Ok(DirectIngest::Package(ingest_package_direct(
+            store, authority, source, limits, pool,
+        )?))
+    } else {
+        Ok(DirectIngest::Pdf(ingest_pdf_direct(
+            store, authority, source, limits, pool,
+        )?))
     }
 }
 
 #[cfg(not(feature = "package"))]
 fn direct_ingest(
     store: &mut FieldStore,
-    descriptor_bytes: &[u8],
+    authority: &[u8],
+    source: &[u8],
     limits: Limits,
     pool: Option<&WorkerPool>,
 ) -> Result<DirectIngest> {
-    Ok(DirectIngest::Pdf(ingest_pdf_with(
-        store,
-        descriptor_bytes,
-        limits,
-        pool,
+    Ok(DirectIngest::Pdf(ingest_pdf_direct(
+        store, authority, source, limits, pool,
     )?))
 }
 

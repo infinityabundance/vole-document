@@ -57,7 +57,9 @@ use crate::error::{Error, Result};
 use crate::limits::Limits;
 #[cfg(feature = "entropyfs-store")]
 use crate::store::{EntropyFsStore, map_engine_error};
-use crate::store::{FsSeedStore, Id, IoCounters, IoSnapshot, NodeId, PackedSeedStore, SeedStore};
+use crate::store::{
+    FsSeedStore, Id, IoCounters, IoSnapshot, NodeId, PackedSeedStore, SeedStore, SyncPolicy,
+};
 
 #[cfg(feature = "entropyfs-store")]
 use self::manifest::FIELD_ROOT_DOMAIN;
@@ -412,6 +414,14 @@ impl FieldStore {
     /// store must therefore be opened with the matching CLI flag (`--packed`),
     /// exactly like `--entropyfs`.
     pub fn open_packed(root: impl AsRef<Path>) -> Result<Self> {
+        Self::open_packed_with_policy(root, SyncPolicy::default())
+    }
+
+    /// Like [`FieldStore::open_packed`], but with an explicit packed-store
+    /// durability [`SyncPolicy`]. The default is [`SyncPolicy::Batch`];
+    /// [`SyncPolicy::Each`] restores one sync per seed node. The policy is
+    /// irrelevant for the other backends and ignored by them.
+    pub fn open_packed_with_policy(root: impl AsRef<Path>, policy: SyncPolicy) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
         fs::create_dir_all(root.join("descriptor"))?;
         fs::create_dir_all(root.join("field"))?;
@@ -419,7 +429,11 @@ impl FieldStore {
         fs::create_dir_all(root.join("cache"))?;
         // No `root/seed`; the `fieldpack/` directory is created by the writer.
         let io = IoCounters::new();
-        let packed = Rc::new(PackedSeedStore::open_write(&root, io.handle())?);
+        let packed = Rc::new(PackedSeedStore::open_write_with_policy(
+            &root,
+            io.handle(),
+            policy,
+        )?);
         let seeds = SeedSubstrate::Packed { store: packed };
         Ok(FieldStore {
             root,
@@ -580,7 +594,16 @@ impl FieldStore {
     }
 
     /// Store a canonical field manifest.
+    ///
+    /// Durability ordering: a published manifest must never reference seed bytes
+    /// that are not yet on stable storage. The packed substrate batches its
+    /// per-node syncs ([`SyncPolicy::Batch`]), so barrier the open segment before
+    /// publishing. This is a no-op for the filesystem and EntropyFS substrates
+    /// (which make each node durable in `put_node`).
     pub fn put_field(&mut self, manifest: &FieldRoot) -> Result<FieldId> {
+        if let SeedSubstrate::Packed { store } = &self.seeds {
+            store.flush()?;
+        }
         self.backend.field_put(&self.root, manifest)
     }
 
@@ -633,6 +656,47 @@ impl FieldStore {
         // authority it cannot reproduce.
         let parsed = crate::container::Descriptor::parse(descriptor_bytes, limits)?;
         let source = crate::materialize::materialize(&parsed, limits)?;
+        self.ingest_parsed(descriptor_bytes, &parsed, &source)
+    }
+
+    /// Ingest a descriptor, verifying it materializes to a caller-supplied
+    /// `source`.
+    ///
+    /// Identical to [`FieldStore::ingest`] except the materialized source is
+    /// byte-compared to `source` instead of being dropped. A direct build
+    /// (`field-build`) already holds the exact source and proved
+    /// `materialize(descriptor) == source` in the encode court; passing the
+    /// original bytes here keeps that one non-negotiable check (length + byte
+    /// equality, hence SHA-256) while letting the caller scan the source rather
+    /// than a freshly materialized copy. The authority stored is unchanged.
+    pub fn ingest_verified(
+        &mut self,
+        descriptor_bytes: &[u8],
+        source: &[u8],
+        limits: Limits,
+    ) -> Result<FieldId> {
+        let parsed = crate::container::Descriptor::parse(descriptor_bytes, limits)?;
+        let materialized = crate::materialize::materialize(&parsed, limits)?;
+        if materialized.len() != source.len() || materialized != source {
+            return Err(Error::reconstruction_mismatch(format!(
+                "descriptor materialized {} bytes that differ from the supplied {} byte source",
+                materialized.len(),
+                source.len()
+            )));
+        }
+        self.ingest_parsed(descriptor_bytes, &parsed, source)
+    }
+
+    /// Shared tail of [`FieldStore::ingest`] / [`FieldStore::ingest_verified`]:
+    /// store the parsed descriptor and an exact `DocumentExact` root node, then
+    /// write the manifest. `source` must already be the exact materialization of
+    /// `parsed` (both callers establish this).
+    fn ingest_parsed(
+        &mut self,
+        descriptor_bytes: &[u8],
+        parsed: &ParsedDescriptor,
+        source: &[u8],
+    ) -> Result<FieldId> {
         let descriptor_id = self.put_descriptor(descriptor_bytes)?;
 
         let root = SeedNode::new(

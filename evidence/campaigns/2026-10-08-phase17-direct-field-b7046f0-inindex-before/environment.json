@@ -1,0 +1,20 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase17-direct-field-b7046f0-inindex-before",
+  "phase": "17.1 — direct source -> field ingestion (no candidate search)",
+  "utc": "2026-10-08T09:16:36Z",
+  "git_commit": "b7046f0f05aa0aea24b436fb78241837fe583cc2",
+  "git_dirty": "?? evidence/campaigns/2026-10-08-phase1-b7046f0/;?? evidence/campaigns/2026-10-08-phase17-direct-field-b7046f0-inindex-before/;",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "8201d036b5838a68dae21a2f8ad7dbe09c0da4a618bd04db94c15f86c4ca7db1",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "f2d11b64cf7fda10d98ca8c250bc4c4915bc8170dad813a87e1e6f3c5c902c45",
+  "manifest": "real100-v1/manifest.tsv",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "subset": "nist-pdf-0002 nist-pdf-0004 nasa-pdf-0007 nist-docx-0010 nist-docx-0001 nist-epub-0008 nist-epub-0004 nasa-epub-0011 nasa-epub-0006",
+  "op_timeout_s": 300,
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

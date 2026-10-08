@@ -1,0 +1,34 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase18-inindex-b7046f0",
+  "phase": "18.3 — one-pass enriched authority (attach the observation index before the single serialize)",
+  "utc": "2026-10-08T10:20:00Z",
+  "measured_commit": "b7046f0f05aa0aea24b436fb78241837fe583cc2",
+  "branch": "phase18",
+  "tree_state": " M src/container/descriptor.rs; M src/encode/mod.rs; M src/field/build.rs; M src/field/ingest.rs",
+  "diff_stat": "src/container/descriptor.rs +53/-1; src/encode/mod.rs +90/-8; src/field/build.rs +9/-9; src/field/ingest.rs +8/-26 (4 files, +151/-44)",
+  "dirty": true,
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "df48d71706f2719a33588559ad6203128bd2133b6294de37939f8787ca3df9b4",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "services": {
+    "doc-baseline": "mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8 (court lane)",
+    "dev": "mem_limit == memswap_limit == 8g, pids_limit 4096 (gate lane)"
+  },
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "sqlite3": "3.40.1 (2022-12-28)",
+  "python3": "3.11.2",
+  "os": "Debian GNU/Linux 12 (bookworm)",
+  "arch": "x86_64",
+  "cargo_lock_sha256": "f2d11b64cf7fda10d98ca8c250bc4c4915bc8170dad813a87e1e6f3c5c902c45",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "env_vars_affecting_semantics": {
+    "LC_ALL": "C",
+    "PROFILE": "release",
+    "OP_TIMEOUT": "300 (phase17 court) / 180 (phase18 court)",
+    "IDS": "court defaults (9 docs phase17; 12 docs phase18)",
+    "TAG": "inindex-before | inindex-after | inindex"
+  },
+  "host_note": "4 unrelated long-running containers (openssl-rs-*) were up 43-47 h with loadavg ~3.4/16 during this session; the untouched `current` control lane moved +3.8% between the before/after direct runs, which bounds the wall-time noise floor."
+}

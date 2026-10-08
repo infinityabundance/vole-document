@@ -1,0 +1,68 @@
+{
+  "campaign": "2026-10-08-phase18-batched-sync-14a7e6f",
+  "phase": "18.5",
+  "claim": "Batching the packed seed store's durability syncs to one fsync per segment (default SyncPolicy::Batch) collapses the bind-mount ingest-write term, is crash-consistent (prefix recovery, no partial node), preserves byte-exact materialization, and lets observe-batch serve the packed store; the VOLE/SQLite contract build ratio moves from 7.08x to 0.82x on the same 12-document subset.",
+  "evidence": {
+    "mechanism_worst_doc": {
+      "doc": "nist-pdf-0017",
+      "bytes": 1466246,
+      "bind_mount_work_store": {
+        "before": {"packed_wall_ms": 9392, "packed_fdatasync": 6792, "packed_fsync": 52, "fs_wall_ms": 10181, "fs_fsync": 6842},
+        "after":  {"packed_wall_ms": 1415, "packed_fdatasync": 0,    "packed_fsync": 54, "fs_wall_ms": 9963,  "fs_fsync": 6842}
+      },
+      "tmp_store": {
+        "before": {"packed_wall_ms": 1374, "fs_wall_ms": 1749},
+        "after":  {"packed_wall_ms": 1378, "fs_wall_ms": 1739}
+      },
+      "probe_script": "tools/phase18-contract-packed-mechanism.sh (unmodified)"
+    },
+    "policy_probe_worst_doc": {
+      "script": "policy-probe.sh",
+      "batch_min_ms": 2644, "batch_max_ms": 2826,
+      "each_min_ms": 9230,  "each_max_ms": 38229,
+      "note": "single-shot reps on the contention-prone bind mount; min is the reliable statistic, matching the court's best-of-3"
+    },
+    "contract_court": {
+      "script": "tools/phase18-contract-packed-court.sh (unmodified)",
+      "campaign_dir": "evidence/campaigns/2026-10-08-phase18-contract-packed-14a7e6f",
+      "docs": 12,
+      "build_ms_sum": {"packed": 1552, "fs_direct": 11874, "sqlite_c5": 1893},
+      "build_ratio_vs_sqlite": {"packed": 0.82, "fs_direct": 6.27, "prior_18_4_packed": 7.08, "prior_18_1_fs": 7.21, "prior_two_step": 10.74},
+      "storage_bytes": {"packed": 7778087, "sqlite_c5": 14721024, "ratio": 0.53},
+      "files": {"packed": 120, "fs": 8621},
+      "warm_session_ms": {"packed_all_c0c5": 226, "sqlite_all_c0c5": 208, "ratio_c0c5": 1.09, "packed_c1c5": 192, "sqlite_c1c5": 173, "ratio_c1c5": 1.11, "fs_c1c5": 209},
+      "warm_lane_rc": 0,
+      "court_static_prose_stale": true,
+      "court_static_prose_note": "tools/fixtures/phase18-contract-packed.py hard-codes the pre-18.5 conclusions ('observe-batch has no --packed', 'term unchanged'); its raw tables (copied under raw/court/) carry the new numbers. The fixture and court scripts were NOT modified."
+    },
+    "exactness": {
+      "court_materialize_exact": "12/12 documents v_ok=1 (length + SHA-256) with --packed",
+      "worst_doc": {
+        "orig_len": 1466246,
+        "mat_len": 1466246,
+        "orig_sha256": "0df0fdd676df643874adfbbf767b8508af3cc6520aff5cfef7d39428e1c63cd4",
+        "mat_sha256": "0df0fdd676df643874adfbbf767b8508af3cc6520aff5cfef7d39428e1c63cd4",
+        "byte_compare": "equal"
+      },
+      "observe_batch_packed": {"rc": 0, "answers": 60, "wall_ms": 23}
+    },
+    "gate": {
+      "cargo_fmt_all_check": "pass",
+      "cargo_clippy_all_targets_all_features_deny_warnings": "pass",
+      "cargo_test_all_features": "pass",
+      "cargo_test_no_default_features": "pass",
+      "phase1_court": "PASS"
+    }
+  },
+  "crash_consistency": {
+    "guarantee": "Recovered open-segment records are exactly a prefix of the appended sequence: framing scan stops at the first absent/zero/oversized/overlong prefix, the torn tail is discarded (truncated on a read-write reopen), and every fetched node is re-hashed against its id. No partial node is observable.",
+    "batched_default_risk": "With SyncPolicy::Batch, records appended since the last seal/flush (or segment roll) may be lost on power loss. Ordering is preserved: FieldStore::put_field flushes the packed segment before a manifest is published, so a durable manifest never references non-durable nodes.",
+    "policy_option": "--sync=batch (default) | --sync=each (per-record fdatasync, pre-18.5 behavior). Store-level: SyncPolicy / PackedSeedStore::open_write_with_policy / FieldStore::open_packed_with_policy."
+  },
+  "residual_risks": [
+    "Batch durability is bounded by seal/flush: a crash before the final seal can lose acknowledged nodes not yet flushed, but only a suffix; the manifest ordering keeps any published field consistent.",
+    "The contract court fixture's static conclusion prose is stale (it still prints 'observe-batch has no --packed' and the falsified 18.4 conclusion); the raw tables are authoritative. The fixture was not modified per constraints.",
+    "The bind-mounted store is contention-prone; single-shot walls vary up to ~2x. All build figures are best-of-3 minimums, and the before/after mechanism probes are single-shot.",
+    "The packed warm RSS is not measured (the court runs /usr/bin/time only on the fs-direct warm lane); warm-latency ratio is the reported metric."
+  ]
+}

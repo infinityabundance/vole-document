@@ -1,0 +1,38 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase18-onepass-61b11350",
+  "phase": "18.2 — one-pass direct build (scan the original source; store + verify the authority)",
+  "utc_start": "2026-10-08T09:00:00Z",
+  "measured_commit": "61b11350c8a4d2640f403c7131b69a48895eb9c2",
+  "branch": "phase18",
+  "tree_state": " M src/field/build.rs; M src/field/ingest.rs; M src/field/ingest_package.rs; M src/field/mod.rs; M tests/phase17_direct_field.rs; ?? evidence/campaigns/2026-10-08-phase1-61b11350/; ?? evidence/campaigns/2026-10-08-phase17-direct-field-61b11350-after/; ?? evidence/campaigns/2026-10-08-phase17-direct-field-61b11350-before/; ?? evidence/campaigns/2026-10-08-phase18-contract-direct-61b11350-onepass/; ?? evidence/campaigns/2026-10-08-phase18-contract-direct-61b11350-onepass2/; ?? evidence/campaigns/2026-10-08-phase18-onepass-61b11350/;",
+  "diff_stat": "src/field/build.rs +; src/field/ingest.rs +; src/field/ingest_package.rs +; src/field/mod.rs +; tests/phase17_direct_field.rs + (5 files, +353/-35)",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "8201d036b5838a68dae21a2f8ad7dbe09c0da4a618bd04db94c15f86c4ca7db1",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "services": {
+    "doc-baseline": "mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8 (court lane)",
+    "dev": "mem_limit == memswap_limit == 8g, pids_limit 4096 (gate lane)"
+  },
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "sqlite3": "3.40.1 (2022-12-28)",
+  "python3": "3.11.2",
+  "os": "Debian GNU/Linux 12 (bookworm)",
+  "arch": "x86_64",
+  "cargo_lock_sha256": "f2d11b64cf7fda10d98ca8c250bc4c4915bc8170dad813a87e1e6f3c5c902c45",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "external_oracles": {
+    "sqlite3": "3.40.1",
+    "poppler_pdftotext": "used by the contract baseline only (qpdf/poppler ages per the pinned image)",
+    "qpdf": "pinned image"
+  },
+  "env_vars_affecting_semantics": {
+    "LC_ALL": "C",
+    "PROFILE": "release",
+    "OP_TIMEOUT": "300 (phase17 court) / 180 (phase18 court)",
+    "IDS": "court defaults (9 docs phase17; 12 docs phase18)",
+    "TAG": "before | after | onepass | onepass2"
+  },
+  "host_note": "4 unrelated long-running containers (openssl-rs-*) were up 43-47 h with loadavg ~3.7/16 during this session; the first phase18 re-run (TAG=onepass) was discarded as contention-inflated (VOLE build sum 46679 ms vs 11689 ms on the clean re-run)."
+}

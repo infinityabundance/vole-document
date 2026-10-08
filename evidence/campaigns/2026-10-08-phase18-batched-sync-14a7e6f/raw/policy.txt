@@ -1,0 +1,8 @@
+# policy probe: real100-v1/documents/nist/pdf/nist-pdf-0017.pdf (1466246 bytes), bin target/release/vole-document
+policy	rep	rc	ms	files
+batch	1	0	2805	52
+batch	2	0	2826	52
+batch	3	0	2644	52
+each	1	0	38229	52
+each	2	0	9454	52
+each	3	0	9230	52

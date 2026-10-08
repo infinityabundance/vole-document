@@ -1,0 +1,100 @@
+id	fmt	selector	rep	cur_rc	dir_rc	equal	note
+nist-pdf-0002	pdf	--metadata	metadata	0	0	1	shape-counters cur=29/1346 dir=1/1
+nist-pdf-0002	pdf	--doc-text	text	0	0	1	
+nist-pdf-0002	pdf	--page	--kind	0	0	1	
+nist-pdf-0002	pdf	--page	--kind	0	0	1	
+nist-pdf-0002	pdf	--page	--kind	6	6	decline-equal	
+nist-pdf-0002	pdf	--byte-range	--kind	0	0	1	
+nist-pdf-0002	pdf	--object	--kind	6	6	decline-equal	
+nist-pdf-0002	pdf	--stream	--kind	6	6	decline-equal	
+nist-pdf-0002	pdf	--table	--kind	6	6	decline-equal	
+nist-pdf-0002	pdf	--resource	--kind	6	6	decline-equal	
+nist-pdf-0002	pdf	--text	--kind	0	0	1	
+nist-pdf-0004	pdf	--metadata	metadata	0	0	1	shape-counters cur=32/763 dir=1/1
+nist-pdf-0004	pdf	--doc-text	text	0	0	1	
+nist-pdf-0004	pdf	--page	--kind	0	0	1	
+nist-pdf-0004	pdf	--page	--kind	0	0	1	
+nist-pdf-0004	pdf	--page	--kind	6	6	decline-equal	
+nist-pdf-0004	pdf	--byte-range	--kind	0	0	1	
+nist-pdf-0004	pdf	--object	--kind	0	0	1	
+nist-pdf-0004	pdf	--stream	--kind	6	6	decline-equal	
+nist-pdf-0004	pdf	--table	--kind	6	6	decline-equal	
+nist-pdf-0004	pdf	--resource	--kind	6	6	decline-equal	
+nist-pdf-0004	pdf	--text	--kind	0	0	1	
+nasa-pdf-0007	pdf	--metadata	metadata	0	0	1	shape-counters cur=0/1 dir=1/1
+nasa-pdf-0007	pdf	--doc-text	text	0	0	1	
+nasa-pdf-0007	pdf	--page	--kind	0	0	1	
+nasa-pdf-0007	pdf	--page	--kind	0	0	1	
+nasa-pdf-0007	pdf	--page	--kind	6	6	decline-equal	
+nasa-pdf-0007	pdf	--byte-range	--kind	0	0	1	
+nasa-pdf-0007	pdf	--object	--kind	0	0	1	
+nasa-pdf-0007	pdf	--stream	--kind	6	6	decline-equal	
+nasa-pdf-0007	pdf	--table	--kind	6	6	decline-equal	
+nasa-pdf-0007	pdf	--resource	--kind	6	6	decline-equal	
+nasa-pdf-0007	pdf	--text	--kind	0	0	1	
+nist-docx-0010	docx	--metadata	metadata	0	0	1	shape-counters cur= dir=
+nist-docx-0010	docx	--doc-text	text	0	0	1	
+nist-docx-0010	docx	--page	--kind	6	6	decline-equal	
+nist-docx-0010	docx	--page	--kind	6	6	decline-equal	
+nist-docx-0010	docx	--page	--kind	6	6	decline-equal	
+nist-docx-0010	docx	--byte-range	--kind	0	0	1	
+nist-docx-0010	docx	--object	--kind	6	6	decline-equal	
+nist-docx-0010	docx	--stream	--kind	6	6	decline-equal	
+nist-docx-0010	docx	--table	--kind	6	6	decline-equal	
+nist-docx-0010	docx	--resource	--kind	0	0	1	
+nist-docx-0010	docx	--text	--kind	0	0	1	
+nist-docx-0001	docx	--metadata	metadata	0	0	1	shape-counters cur= dir=
+nist-docx-0001	docx	--doc-text	text	0	0	1	
+nist-docx-0001	docx	--page	--kind	6	6	decline-equal	
+nist-docx-0001	docx	--page	--kind	6	6	decline-equal	
+nist-docx-0001	docx	--page	--kind	6	6	decline-equal	
+nist-docx-0001	docx	--byte-range	--kind	0	0	1	
+nist-docx-0001	docx	--object	--kind	6	6	decline-equal	
+nist-docx-0001	docx	--stream	--kind	6	6	decline-equal	
+nist-docx-0001	docx	--table	--kind	6	6	decline-equal	
+nist-docx-0001	docx	--resource	--kind	6	6	decline-equal	
+nist-docx-0001	docx	--text	--kind	0	0	1	
+nist-epub-0008	epub	--metadata	metadata	0	0	1	shape-counters cur= dir=
+nist-epub-0008	epub	--doc-text	text	0	0	1	
+nist-epub-0008	epub	--page	--kind	6	6	decline-equal	
+nist-epub-0008	epub	--page	--kind	6	6	decline-equal	
+nist-epub-0008	epub	--page	--kind	6	6	decline-equal	
+nist-epub-0008	epub	--byte-range	--kind	0	0	1	
+nist-epub-0008	epub	--object	--kind	6	6	decline-equal	
+nist-epub-0008	epub	--stream	--kind	6	6	decline-equal	
+nist-epub-0008	epub	--table	--kind	0	0	1	
+nist-epub-0008	epub	--resource	--kind	0	0	1	
+nist-epub-0008	epub	--text	--kind	0	0	1	
+nist-epub-0004	epub	--metadata	metadata	0	0	1	shape-counters cur= dir=
+nist-epub-0004	epub	--doc-text	text	0	0	1	
+nist-epub-0004	epub	--page	--kind	6	6	decline-equal	
+nist-epub-0004	epub	--page	--kind	6	6	decline-equal	
+nist-epub-0004	epub	--page	--kind	6	6	decline-equal	
+nist-epub-0004	epub	--byte-range	--kind	0	0	1	
+nist-epub-0004	epub	--object	--kind	6	6	decline-equal	
+nist-epub-0004	epub	--stream	--kind	6	6	decline-equal	
+nist-epub-0004	epub	--table	--kind	0	0	1	
+nist-epub-0004	epub	--resource	--kind	0	0	1	
+nist-epub-0004	epub	--text	--kind	0	0	1	
+nasa-epub-0011	epub	--metadata	metadata	0	0	1	shape-counters cur= dir=
+nasa-epub-0011	epub	--doc-text	text	0	0	1	
+nasa-epub-0011	epub	--page	--kind	6	6	decline-equal	
+nasa-epub-0011	epub	--page	--kind	6	6	decline-equal	
+nasa-epub-0011	epub	--page	--kind	6	6	decline-equal	
+nasa-epub-0011	epub	--byte-range	--kind	0	0	1	
+nasa-epub-0011	epub	--object	--kind	6	6	decline-equal	
+nasa-epub-0011	epub	--stream	--kind	6	6	decline-equal	
+nasa-epub-0011	epub	--table	--kind	0	0	1	
+nasa-epub-0011	epub	--resource	--kind	0	0	1	
+nasa-epub-0011	epub	--text	--kind	0	0	1	
+nasa-epub-0006	epub	--metadata	metadata	0	0	1	shape-counters cur= dir=
+nasa-epub-0006	epub	--doc-text	text	0	0	1	
+nasa-epub-0006	epub	--page	--kind	6	6	decline-equal	
+nasa-epub-0006	epub	--page	--kind	6	6	decline-equal	
+nasa-epub-0006	epub	--page	--kind	6	6	decline-equal	
+nasa-epub-0006	epub	--byte-range	--kind	0	0	1	
+nasa-epub-0006	epub	--object	--kind	6	6	decline-equal	
+nasa-epub-0006	epub	--stream	--kind	6	6	decline-equal	
+nasa-epub-0006	epub	--table	--kind	0	0	1	
+nasa-epub-0006	epub	--resource	--kind	0	0	1	
+nasa-epub-0006	epub	--text	--kind	0	0	1	

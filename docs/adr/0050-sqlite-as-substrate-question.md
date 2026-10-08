@@ -42,7 +42,7 @@ measurements that would settle it. It changes no code and no wire byte.
   Both VOLE backends are **at or below** SQLite on file bytes.
 - **Net.** After 16.6, VOLE's *sole* measured edge over the baseline under the
   equal contract is storage — and it shrank to **~0.9×** (a ~10 % file-byte
-  margin), against a **~10×** build-speed deficit, a **~1.5×** warm-latency
+  margin), against a **~10×** build-speed deficit [SUPERSEDED: Phase 18.5 measures VOLE at **0.82×** SQLite build on the same equal-contract court — a build advantage, not a deficit; see `docs/phases/phase-18-results.md` and ADR-0053], a **~1.5×** warm-latency
   deficit, and a hard **C4/C5 coverage gap**.
 
 ## The open question

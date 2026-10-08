@@ -7,11 +7,13 @@ are evidence.
 
 ## Status vocabulary
 
-**Current release:** `0.1.0-alpha.22` (Phases 13–17 — Phase-13 proposals + `N5`
+**Current release:** `0.1.0-alpha.23` (Phases 13–18 — Phase-13 proposals + `N5`
 gate, the benign-`DOCTYPE` real-EPUB fix, a partial large-PDF encode fix, the
 Phase-15 performance programme, the Phase-16 backend adoption + large-PDF fix +
-storage-accounting correction, and the Phase-17 direct field build +
-revision-lineage surface).
+storage-accounting correction, the Phase-17 direct field build +
+revision-lineage surface, and the Phase-18 build-cost programme whose batched
+packed-store durability took the equal-contract build position from **10.74×
+slower to 0.82× (faster than SQLite)**).
 **Top-level verdict (ADR-0023, the
 authoritative [`FINDINGS.md`](findings.md)):** the current representation stack
 does not beat purpose-built baselines on any measured axis; the durable results
@@ -260,6 +262,44 @@ lineage fidelity is bounded by the Phase-3 `%%EOF` scanner (on `nist-pdf-0016` i
 splits at an embedded early `%%EOF` at offset 505 and reports an inverted
 `/Prev`), not an independent PDF-conformance oracle.
 
+Phase 18 (branch `phase18`) is a **build-cost programme** that starts from Phase
+17's direct `field-build` and removes the remaining unnecessary work stepwise
+(ADR-0053; results
+[`docs/phases/phase-18-results.md`](../phases/phase-18-results.md)). **18.1**
+re-runs the SAME 12-document C0–C5 contract court with only the build step changed
+to `field-build --profile runtime`: the two-step gap **10.74× → 7.24×** (the 17.1
+`2.04×` self-speedup and the 10.74× two-step gap are **not composable**), storage
+**0.49×** (7,168,131 vs 14,721,024 B), cold sum **779 vs 772 ms (tie)**, warm
+**1.33×**, and C4 splits into **C4a document-native lineage** (VOLE answers 4/4
+PDFs natively, typed unsupported for 8/8 docx/epub; the measured SQLite lane
+answers 0/4 natively although a header+chain is derivable from its retained blob —
+a *where-the-work-happens* difference, not hidden information) and **C4b
+corpus/external lineage** (harness-supplied dataset metadata; baseline 12/12, VOLE
+0/12). **18.2** removes the source → authority → source round trip
+(`FieldStore::ingest_verified` verifies against the caller's source; new
+`ingest_pdf_direct`/`ingest_package_direct` scan the ORIGINAL input; `encode` and
+`field-ingest` stay byte-for-byte identical): wall **−6.1%**, peak RSS median
+**−28.8%**, the contract gap held at **7.21×**, exactness 9/9 + 12/12. **18.3**
+makes `Descriptor::with_observation_index` a pure method and attaches the index
+**before** the court's single serialize (`encode_with_observation_index`; `encode`
+still emits no index, and the one-pass authority equals
+`with_observation_index(encode_with(…))` byte-for-byte): wall-neutral, large-doc
+RSS **−14–16%**, and the isolation finding that **`nist-pdf-0017` is 9425 of
+11,605 ms (81%), 6842 seed files, 9.40 s on the bind mount vs 1.39 s in `/tmp`**.
+**18.4** tests the packed store as an ingest-write optimization and **falsifies
+it**: packed 11,312 ms vs same-run fs-direct 11,715 ms vs SQLite 1,597 ms (gap
+7.08× vs 7.34×, within noise), because `insert` synced **per node** (6792
+`fdatasync` vs 6842 `fsync`) — the term is sync **latency**, not file count. **18.5**
+adopts `SyncPolicy { Batch (default), Each }` (sync once per segment, at seal and
+an explicit flush; `put_field` flushes **before** publishing a manifest; recovered
+records are exactly a PREFIX, the torn tail is discarded, no partial node is ever
+observable, exactness untouched) and lets `observe-batch --packed` serve the warm
+lane: `nist-pdf-0017` packed wall **9392 → 1415 ms**, `fdatasync` **6792 → 0**, the
+12-document contract build sum **1552 ms vs SQLite 1893 ms = 0.82×** (VOLE now
+builds ~1.22× **faster**), storage **0.53×**, warm **1.09×**, exactness
+`materialize --exact --packed` **12/12**. **The win came from deleting unnecessary
+durability syncs — not parallelism, not a codec.**
+
 `PROPOSED` → `PROTOTYPED` → `IMPLEMENTED` → `MEASURED` → `ADOPTED`
 (or `RECORDED` / `REJECTED` / `STOPPED` / `SUPERSEDED` / `PARTLY DELIVERED`).
 
@@ -353,6 +393,11 @@ splits at an embedded early `%%EOF` at offset 505 and reports an inverted
 | Storage-accounting correction (file bytes vs `du -sb`) | 16.6 | ADOPTED (measurement correction) | ADR-0049; `du -sb` is `--apparent-size` and counted **4096 B per directory inode**, inflating the one-file-per-node `fs` store **52 %** (1,723,650,951 file bytes vs 2,620,072,839 `du`; 218,853 dirs) while packed (0.8 %, 3,511 dirs) and the single `.db` (0 %) were not. Corrected to sum-of-regular-file bytes: 15.3 packed/`fs` **0.719× → 1.007×**; 16.2 `fs`/SQLite **1.377× → 0.906×**, packed/SQLite **0.921× → 0.914×**, packed/`fs` **0.669× → 1.009×** (by format fs/SQLite: pdf 0.893×, docx 0.845×, epub 0.992×). **Refuted:** "VOLE is 1.377× SQLite" and "packed closes the gap" — no byte gap existed; both VOLE backends are at/below SQLite on file bytes, and the packed win is file/directory **count**. Exactness untouched (no wire/descriptor byte changed); amendment, not rewrite. Campaign `2026-10-08-phase16-storage-correction-2978e1d` |
 | Direct source → field build (`field-build`, `--profile runtime` = `RAW`) | 17.1 | ADOPTED | ADR-0051; `src/field/build.rs` + the `field-build INPUT --store DIR [--profile runtime] [--workers N] [--voldoc OUT] [--entropyfs \| --packed]` CLI builds the exact authority and the field in **one process** with **no candidate search**; the fixed `RAW` program (one literal object + one `EMIT_OBJECT`) is still priced by the complete-cost court (`candidates_evaluated == 1`). RAW preserves the surface because Stage B / package ingest materialize the source and **re-scan the source bytes** into spans/objects/streams/pages/members/resources and the index — structure is a function of the source, not the program. `encode`/`field-ingest` untouched. Measured (9 docs, pdf/docx/epub, four size classes): build wall sum **7,928 → 3,878 ms (2.04×)**; by format pdf 2.56×, epub 1.34×, docx 1.22×; peak RSS median **51,792 → 15,228 KB (3.4× smaller)**, authority **1.007×**. Exactness **9/9** (three closures; length + SHA-256 + `cmp`); observations **53 equal / 46 decline-equal / 0 divergent**. Recorded caveat: the PDF `Selector::Metadata` projection embeds the program's `object_count`/`graph_ops` (29/1346, 32/763, 0/1 searched vs 1/1 direct) — **not encoder-independent**; all other metadata fields byte-identical, packages unaffected. Campaign `2026-10-08-phase17-direct-field-d83ddba` |
 | PDF revision-lineage surface (`Selector::Revisions` / `Representation::Lineage`) | 17.2 | IMPLEMENTED / RECORDED (C4/C5 still open) | ADR-0052; new selector (`revisions`) + representation (`lineage`) with CLI `observe --revisions --kind lineage` and `observe --revision N --kind lineage`, advertised in capabilities. A new `NodeKind::PdfRevisionLineage` is computed **once** at PDF ingest from the existing byte-authoritative scan (never re-parsing the source at query time) and indexed (`SEL_REVISIONS`, `SEL_REVISION_LINEAGE`), so an observe is **O(depth)**; it answers the `%PDF-` header, revision count, ordered indices/spans, resolved `startxref`/`/Prev`, and per-revision object/stream membership. Non-PDF formats are a **typed decline** (`UnsupportedFeature`, rc 6). Contract court re-run (SQLite lane byte-identical to 16.5, verified by diff; 12 docs): **C0–C3 satisfied**, **C4/C5 still do not close** — the surface half is fixed, but the contract's C4 tuple is the **corpus family/member/head**, external metadata the PDF bytes cannot derive, so the lanes report *different* observables (`different observable`, never equality) and DOCX/EPUB decline while the baseline answers. Cost vs SQLite: storage **0.47×** (6,988,757 vs 14,721,024 B; lineage adds **74,980 B**), build **10.74×**, cold 138 vs 129 ms, warm 37 vs 25 ms. Residual risk: fidelity bounded by the Phase-3 `%%EOF` scanner (`nist-pdf-0016` splits at an embedded early `%%EOF` at offset 505, inverted `/Prev`) — not a PDF-conformance oracle. Campaign `2026-10-08-phase17-revision-1179386` |
+| Contract-equivalent court with the direct build (C4a/C4b split) | 18.1 | RECORDED | the SAME 12-document C0–C5 court with only VOLE's build step changed to `field-build --profile runtime`: build wall **10.74× → 7.24×** (VOLE 11,905 vs SQLite 1,644 ms; the 17.1 2.04× and the 10.74× two-step gap are **not composable**), storage **0.49×** (7,168,131 vs 14,721,024 B regular files), cold sum **779 vs 772 ms (tie)**, warm **1.33×**. **C4 splits:** **C4a document-native lineage** — VOLE answers **4/4** PDFs natively and typed-unsupported (`rc 6`) **8/8** docx/epub; the measured SQLite lane answers native **0/4** (it answers the corpus tuple) although a header+chain is derivable from its retained blob — a *where-the-work-happens* difference (indexed at ingest vs re-parsed at query), not hidden information. **C4b corpus/external lineage** (family/member/head) — harness-supplied dataset metadata; baseline **12/12**, VOLE **0/12** (not given it; a single-document field cannot derive it). Campaign `2026-10-08-phase18-contract-direct-f2a34a5` |
+| One-pass direct build (`ingest_verified`, `ingest_pdf_direct`/`ingest_package_direct`) | 18.2 | ADOPTED | `field-build` reconstructed the exact source from the authority twice more than needed (a materialization just to detect ZIP-vs-PDF, and a second inside `ingest_pdf_with` only to hand bytes to `scan()`). `FieldStore::ingest_verified` now parses, materializes, and **byte-compares to the caller's source** (verification, not a discarded copy); the new direct entry points verify against and scan the **original** input. `encode`/`field-ingest` byte-for-byte unchanged. 9-doc A/B: wall **−6.1%** (4012 → 3769 ms sum), peak RSS median **−28.8%** (15,184 → 10,812 KB); contract gap held at **7.21×** (the removed `RAW` decodes were ~`memcpy`, so RSS is the trustworthy win). Exactness 9/9 three closures + 12/12; observations 53/46/0. Campaign `2026-10-08-phase18-onepass-61b11350` |
+| Observation index attached before the single serialize (`Descriptor::with_observation_index`, `encode_with_observation_index`) | 18.3 | IMPLEMENTED | `with_observation_index` had **parsed and re-serialized the whole authority** just to append the ignorable `OBSERVATION_INDEX` record. The op table is now a **pure method** of the descriptor and is attached **before** the court's single serialize; `encode` still emits **no** index and the one-pass authority equals `with_observation_index(encode_with(…))` **byte for byte** (witness test). Wall **neutral** (direct sum 3723 → 3617 ms, control +3.8%); large-doc RSS **−14–16%**; exactness 9/9 + 12/12. Isolation: `nist-pdf-0017` is **9425 of 11,605 ms (81%)**, **6842 seed files**, **9.40 s** on the bind mount vs **1.39 s** in `/tmp` — the contract-build term is a store write, not the descriptor encode. Campaign `2026-10-08-phase18-inindex-b7046f0` |
+| Packed store as an ingest-write optimization | 18.4 | RECORDED (FALSIFIED) | packed build **11,312 ms** vs same-run fs-direct **11,715 ms** vs SQLite **1,597 ms** → gap **7.08×** vs 7.34× (within noise); files collapse (**120 files / 202 dirs** vs 8621/9618) but `PackedSeedStore::insert` synced **per node** (6792 `fdatasync` vs 6842 `fsync`), so the build term is sync **latency**, not file count; `observe-batch` rejected `--packed` (rc 6). Storage 7,778,087 B = **0.53×** SQLite; packed is 1.09× fs-direct bytes — a *shape* win (inode/directory pressure), not a byte or ingest-write win. Campaign `2026-10-08-phase18-contract-packed-fb23021` |
+| Batched packed-store durability (`SyncPolicy::Batch`, default) + `observe-batch --packed` | 18.5 | ADOPTED | ADR-0053; `SyncPolicy { Batch (default), Each }` syncs once per segment (at seal and an explicit flush) instead of once per record; `Each` restores the per-record `fdatasync`; `FieldStore::put_field` **flushes before publishing a manifest** so a durable manifest never references a non-durable node. The packed store is append-only/self-describing, so recovery is a **PREFIX** recovery: recovered records are exactly a prefix of the appended sequence, the torn tail is discarded, no partial node is ever observable, every fetched node is re-hashed against its id, and a sealed segment is never rewritten; `--sync=each` keeps the stronger per-`put_node` barrier. `observe-batch --packed` now serves the warm lane (rc 6 removed). Measured: `nist-pdf-0017` packed wall **9392 → 1415 ms**, `fdatasync` **6792 → 0**; 12-doc contract build sum **1552 vs SQLite 1893 ms = 0.82×** (VOLE now builds ~1.22× **faster**; was 7.08×/7.21×/10.74×); storage **0.53×** (7,778,087 vs 14,721,024 B; 120 vs 8621 files); warm `observe-batch --packed` **1.09×** over C0–C5 (1.11× C1–C5); policy probe `Batch` 2644 ms vs `Each` 9230 ms; exactness `materialize --exact --packed` **12/12**. **The win is deleted unnecessary durability syncs, not parallelism or a codec.** Campaigns `2026-10-08-phase18-batched-sync-14a7e6f`, `2026-10-08-phase18-contract-packed-14a7e6f` (ADR-0053) |
 
 The PDF **physical authority** (lexer span cover, structural scanner, revision
 map, and object roles) is `ADOPTED` as of Phase 3 (campaign

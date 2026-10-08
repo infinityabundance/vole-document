@@ -1,0 +1,26 @@
+# Phase 18.5 — commands (all inside the pinned, capped Docker lanes; never the host)
+
+# Build the release measurement binary (dev lane).
+docker compose run --rm --no-TTY dev sh -c 'cargo build --release --locked --all-features'
+
+# BEFORE: per-node durability (SyncPolicy was fixed per-record). Mechanism probe:
+# fs vs packed on the bind-mounted /work store and on /tmp, with strace syscall
+# counts, on the worst document.
+docker compose run --rm --no-TTY doc-baseline bash tools/phase18-contract-packed-mechanism.sh evidence/scratch/p185-before/mechanism.txt
+
+# AFTER: default is SyncPolicy::Batch (one fsync per segment). Same probe.
+docker compose run --rm --no-TTY doc-baseline bash tools/phase18-contract-packed-mechanism.sh evidence/scratch/p185-after/mechanism.txt
+
+# AFTER: full contract-equivalent court, 12 documents, VOLE build = field-build --packed,
+# VOLE warm = observe-batch --packed (the 18.4 rc-6 surface, now supported).
+docker compose run --rm --no-TTY doc-baseline bash tools/phase18-contract-packed-court.sh
+
+# Policy + exactness + warm probe on the worst document.
+docker compose run --rm --no-TTY doc-baseline bash evidence/scratch/p185-after/policy-probe.sh
+
+# Gates (dev lane).
+docker compose run --rm --no-TTY dev sh -c 'cargo fmt --all --check'
+docker compose run --rm --no-TTY dev sh -c 'cargo clippy --all-targets --all-features -- -D warnings'
+docker compose run --rm --no-TTY dev sh -c 'cargo test --locked --all-features'
+docker compose run --rm --no-TTY dev sh -c 'cargo test --locked --no-default-features'
+docker compose run --rm --no-TTY dev sh -c 'sh tools/phase1-court.sh'

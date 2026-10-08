@@ -20,6 +20,11 @@ use vole_document::field::provenance::AnswerValue;
 use vole_document::field::{Field, FieldStore};
 use vole_document::limits::Limits;
 
+#[cfg(feature = "package")]
+use vole_document::adapter::package::crc32_iso_hdlc;
+#[cfg(feature = "package")]
+use vole_document::field::ingest::IngestOutcome;
+
 fn temp_root(label: &str) -> PathBuf {
     let mut p = std::env::temp_dir();
     p.push(format!(
@@ -311,4 +316,189 @@ fn direct_build_accepts_arbitrary_bytes_and_stays_exact() {
     let field = Field::open(&store, &field_id, Limits::DEFAULT).unwrap();
     assert_eq!(field.materialize_exact(Limits::DEFAULT).unwrap(), source);
     std::fs::remove_dir_all(&root).ok();
+}
+
+#[cfg(feature = "package")]
+fn put_u16(out: &mut Vec<u8>, v: u16) {
+    out.extend_from_slice(&v.to_le_bytes());
+}
+
+#[cfg(feature = "package")]
+fn put_u32(out: &mut Vec<u8>, v: u32) {
+    out.extend_from_slice(&v.to_le_bytes());
+}
+
+/// A ZIP with stored members (order preserved), UTF-8 flag set. Ground truth for
+/// the package adapter; no compression, so the bytes are trivially exact.
+#[cfg(feature = "package")]
+fn build_zip(entries: &[(String, Vec<u8>)]) -> Vec<u8> {
+    const UTF8_FLAG: u16 = 0x0800;
+    let mut out: Vec<u8> = Vec::new();
+    let mut offsets: Vec<u32> = Vec::new();
+    let mut crcs: Vec<u32> = Vec::new();
+    for (name, content) in entries {
+        offsets.push(out.len() as u32);
+        crcs.push(crc32_iso_hdlc(content));
+        put_u32(&mut out, 0x0403_4b50);
+        put_u16(&mut out, 20);
+        put_u16(&mut out, UTF8_FLAG);
+        put_u16(&mut out, 0); // stored
+        put_u16(&mut out, 0);
+        put_u16(&mut out, 0);
+        put_u32(&mut out, *crcs.last().unwrap());
+        put_u32(&mut out, content.len() as u32);
+        put_u32(&mut out, content.len() as u32);
+        put_u16(&mut out, name.len() as u16);
+        put_u16(&mut out, 0);
+        out.extend_from_slice(name.as_bytes());
+        out.extend_from_slice(content);
+    }
+    let cd_start = out.len() as u32;
+    for (i, (name, content)) in entries.iter().enumerate() {
+        put_u32(&mut out, 0x0201_4b50);
+        put_u16(&mut out, 20);
+        put_u16(&mut out, 20);
+        put_u16(&mut out, UTF8_FLAG);
+        put_u16(&mut out, 0);
+        put_u16(&mut out, 0);
+        put_u16(&mut out, 0);
+        put_u32(&mut out, crcs[i]);
+        put_u32(&mut out, content.len() as u32);
+        put_u32(&mut out, content.len() as u32);
+        put_u16(&mut out, name.len() as u16);
+        put_u16(&mut out, 0);
+        put_u16(&mut out, 0);
+        put_u16(&mut out, 0);
+        put_u16(&mut out, 0);
+        put_u32(&mut out, 0);
+        put_u32(&mut out, offsets[i]);
+        out.extend_from_slice(name.as_bytes());
+    }
+    let cd_end = out.len() as u32;
+    put_u32(&mut out, 0x0605_4b50);
+    put_u16(&mut out, 0);
+    put_u16(&mut out, 0);
+    put_u16(&mut out, entries.len() as u16);
+    put_u16(&mut out, entries.len() as u16);
+    put_u32(&mut out, cd_end - cd_start);
+    put_u32(&mut out, cd_start);
+    put_u16(&mut out, 0);
+    out
+}
+
+/// The direct package build must scan the **original** ZIP bytes: it must recover
+/// exactly the same members/index/nodes as the searched `encode` + `ingest` path,
+/// answer the same observations, and materialize the source byte-exactly. This is
+/// the ZIP analogue of `direct_runtime_build_matches_the_searched_path` and the
+/// regression guard for the Phase-18.2 `ingest_package_direct` path.
+#[cfg(feature = "package")]
+#[test]
+fn direct_package_build_matches_the_searched_path() {
+    let source = build_zip(&[
+        ("mimetype".to_string(), b"application/epub+zip".to_vec()),
+        (
+            "META-INF/container.xml".to_string(),
+            b"<container>meta</container>".to_vec(),
+        ),
+        (
+            "OEBPS/chapter.xhtml".to_string(),
+            b"<html><body><p>one pass, scanned from the original bytes</p></body></html>".to_vec(),
+        ),
+        (
+            "OEBPS/data.bin".to_string(),
+            (0u8..=255).cycle().take(4096).collect(),
+        ),
+    ]);
+
+    // --- searched path: portfolio encode, then package ingest --------------
+    let (auto_descriptor, auto_report) =
+        vole_document::encode::encode(&source, Limits::DEFAULT).unwrap();
+    assert!(
+        auto_report.candidates_evaluated >= 1,
+        "the searched lane must price at least one candidate"
+    );
+    let a_root = temp_root("pkg-searched");
+    let mut store_a = FieldStore::open(&a_root).unwrap();
+    let a_ingest = field_ingest::ingest(&mut store_a, &auto_descriptor, Limits::DEFAULT).unwrap();
+    let (a_field, a_root_node, a_index_root, a_node_count) = match &a_ingest {
+        IngestOutcome::Package(r) => (r.field, r.root_node, r.index_root, r.node_count),
+        IngestOutcome::Pdf(r) => panic!("a ZIP must ingest as a package, got {r:?}"),
+    };
+    store_a.sync().unwrap();
+
+    // --- direct path: one fixed program, no search, original bytes scanned --
+    let b_root = temp_root("pkg-direct");
+    let mut store_b = FieldStore::open(&b_root).unwrap();
+    let direct = build_field(
+        &source,
+        &mut store_b,
+        Limits::DEFAULT,
+        BuildProfile::Runtime,
+    )
+    .unwrap();
+    store_b.sync().unwrap();
+    assert_eq!(direct.profile, "runtime");
+    assert_eq!(direct.candidates_evaluated, 1);
+    let (b_field, b_root_node, b_index_root, b_node_count, b_members) = match &direct.ingest {
+        DirectIngest::Package(r) => (
+            r.field,
+            r.root_node,
+            r.index_root,
+            r.node_count,
+            r.member_count,
+        ),
+        DirectIngest::Pdf(r) => panic!("a ZIP must build as a package, got {r:?}"),
+    };
+    let a_members = match &a_ingest {
+        IngestOutcome::Package(r) => r.member_count,
+        IngestOutcome::Pdf(_) => unreachable!(),
+    };
+
+    // --- exactness: length + SHA-256 + byte compare ------------------------
+    let field_a = Field::open(&store_a, &a_field, Limits::DEFAULT).unwrap();
+    let field_b = Field::open(&store_b, &b_field, Limits::DEFAULT).unwrap();
+    let a_bytes = field_a.materialize_exact(Limits::DEFAULT).unwrap();
+    let b_bytes = field_b.materialize_exact(Limits::DEFAULT).unwrap();
+    assert_eq!(a_bytes.len(), source.len());
+    assert_eq!(b_bytes.len(), source.len());
+    assert_eq!(
+        vole_document::integrity::to_hex(&vole_document::integrity::sha256(&b_bytes)),
+        vole_document::integrity::to_hex(&vole_document::integrity::sha256(&source))
+    );
+    assert_eq!(
+        b_bytes, source,
+        "direct field must materialize the source byte-exactly"
+    );
+    assert_eq!(
+        direct.source_sha256,
+        vole_document::integrity::to_hex(&vole_document::integrity::sha256(&source))
+    );
+
+    // --- structure equality: same root, index, node count, members ---------
+    assert_eq!(a_root_node, b_root_node);
+    assert_eq!(a_index_root, b_index_root);
+    assert_eq!(a_node_count, b_node_count);
+    assert_eq!(a_members, b_members);
+
+    // --- observation equality over a mixed schedule ------------------------
+    let schedule: Vec<(Selector, Representation)> = vec![
+        (Selector::Text, Representation::Text),
+        (Selector::Document, Representation::FullDocument),
+        (
+            Selector::ByteRange { offset: 0, len: 24 },
+            Representation::ExactBytes,
+        ),
+    ];
+    for (selector, representation) in &schedule {
+        let a = observe_value(&mut store_a, &a_field, selector, *representation);
+        let b = observe_value(&mut store_b, &b_field, selector, *representation);
+        assert_eq!(
+            a, b,
+            "package observation differed for {selector:?}/{representation:?}: \
+             searched={a:?} direct={b:?}"
+        );
+    }
+
+    std::fs::remove_dir_all(&a_root).ok();
+    std::fs::remove_dir_all(&b_root).ok();
 }

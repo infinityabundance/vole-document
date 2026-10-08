@@ -1,0 +1,5 @@
+# Phase 18.4 — the SAME contract court as 18.1, re-run with VOLE's one-time build
+# and every VOLE observation changed to the PACKED seed substrate. Never on the host.
+docker compose run --rm --no-TTY doc-baseline bash tools/phase18-contract-packed-court.sh
+# bounded / explicit population:
+docker compose run --rm --no-TTY doc-baseline sh -c 'IDS="nist-pdf-0017 nist-docx-0005" bash tools/phase18-contract-packed-court.sh'

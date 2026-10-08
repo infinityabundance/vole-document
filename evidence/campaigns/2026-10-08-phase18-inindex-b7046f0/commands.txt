@@ -1,0 +1,38 @@
+# Phase 18.3 — one-pass enriched authority (no descriptor re-parse + re-serialize)
+# campaign: evidence/campaigns/2026-10-08-phase18-inindex-b7046f0
+# commit: b7046f0f05aa0aea24b436fb78241837fe583cc2 (branch phase18; dirty tree:
+#   the 4 source files below carry the change under measurement)
+#
+# Change under test: `field-build` attaches the advisory OBSERVATION_INDEX to the
+# descriptor BEFORE the court serializes it (`encode_with_observation_index`),
+# instead of serializing the plain descriptor and then re-parsing + re-serializing
+# the whole thing to append the record (`with_observation_index`).
+
+# --- A/B measurement: Phase 17.1 9-document direct-field court ------------------
+# "before" = b7046f0 working tree with the 4 files stashed (i.e. Phase 18.2 HEAD)
+git stash push -m phase18.3-inindex-ab -- src/container/descriptor.rs src/encode/mod.rs src/field/build.rs src/field/ingest.rs
+docker compose run --rm --no-TTY doc-baseline sh -c 'TAG=inindex-before bash tools/phase17-direct-field-court.sh'
+git stash pop
+docker compose run --rm --no-TTY doc-baseline sh -c 'TAG=inindex-after  bash tools/phase17-direct-field-court.sh'
+
+# --- Phase 18.1 contract court, re-run with the one-pass enriched authority -----
+docker compose run --rm --no-TTY doc-baseline sh -c 'TAG=inindex bash tools/phase18-contract-court.sh'
+
+# --- isolation probe: what actually dominates the contract build wall -----------
+# (nist-pdf-0017's field-build is a bind-mount small-file store effect, not encode)
+docker compose run --rm --no-TTY doc-baseline sh evidence/campaigns/2026-10-08-phase18-inindex-b7046f0/raw/probe-pdf0017.sh
+
+# --- unit / feature gate (dev service, never the host) -------------------------
+docker compose run --rm --no-TTY dev cargo fmt --all --check
+docker compose run --rm --no-TTY dev cargo clippy --all-targets --all-features -- -D warnings
+docker compose run --rm --no-TTY dev cargo test --locked --all-features
+docker compose run --rm --no-TTY dev cargo test --locked --no-default-features
+docker compose run --rm --no-TTY dev sh tools/phase1-court.sh
+
+# --- environment probe (for the receipt) ---------------------------------------
+docker compose run --rm --no-TTY doc-baseline sh -c 'uname -m; rustc --version; cargo --version; sqlite3 --version; python3 --version; sha256sum Cargo.lock; sha256sum target/release/vole-document'
+
+# Raw lanes: raw/phase17-before, raw/phase17-after (9-doc direct court) and
+# raw/phase18-contract (onetime.tsv = VOLE build; build.tsv = SQLite build).
+# The witness test that the two-pass and one-pass authority bytes are identical is
+# `encode::tests::forced_encode_omits_index_and_enrichment_is_byte_identical`.

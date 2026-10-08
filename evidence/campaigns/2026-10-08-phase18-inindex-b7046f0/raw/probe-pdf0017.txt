@@ -1,0 +1,21 @@
+# pdf-0017 isolation probe
+# bin: target/release/vole-document
+# source: real100-v1/documents/nist/pdf/nist-pdf-0017.pdf (1466246 bytes)
+
+## encode (whole candidate court, forced-nothing) -> /tmp
+wall=2.62 s  maxrss=29152 KB
+winner=BYTE_RANS encoded_len=1285205 graph_ops=1
+
+## field-build --profile runtime, store on the bind mount (/work)
+wall=9.40 s  maxrss=19516 KB
+seed files on bind store: 6842
+
+## field-build --profile runtime, store in /tmp
+wall=1.39 s  maxrss=20172 KB
+seed files in /tmp store: 6842
+
+## field-ingest of the already-encoded authority, store in /tmp
+wall=1.38 s  maxrss=27816 KB
+
+## contract-court contribution of pdf-0017 (from raw/phase18-contract/onetime.tsv)
+v_enc_ms = 9425 of the 11605 ms VOLE build sum (81%); the other 11 docs sum to 2180 ms.

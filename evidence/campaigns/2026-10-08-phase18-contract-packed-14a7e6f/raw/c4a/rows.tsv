@@ -1,0 +1,13 @@
+id	fmt	native_derivable	eof_markers	header	vole_count	count_match
+nist-pdf-0002	pdf	1	2	%PDF-1.6	2	1
+nist-pdf-0004	pdf	1	2	%PDF-1.6	2	1
+nist-pdf-0016	pdf	1	2	%PDF-1.6	2	1
+nist-pdf-0017	pdf	1	2	%PDF-1.2	2	1
+nist-docx-0005	docx	0	0			
+nist-docx-0008	docx	0	0			
+nist-docx-0009	docx	0	0			
+nist-docx-0014	docx	0	0			
+nist-epub-0003	epub	0	0			
+nist-epub-0006	epub	0	0			
+nist-epub-0008	epub	0	0			
+nist-epub-0009	epub	0	0			

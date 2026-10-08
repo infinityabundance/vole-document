@@ -82,6 +82,39 @@ decision is taken**; see [ADR-0052](../adr/0052-revision-lineage-surface.md).
 This complements, and does not supersede, the Phase-16 substrate question
 ([ADR-0050](../adr/0050-sqlite-as-substrate-question.md)).
 
+## Phase-18 outcomes
+
+Phase 18 is a **build-cost programme**: starting from Phase 17's direct
+`field-build`, it removes the remaining unnecessary work from the runtime build,
+one mechanism at a time, and re-measures the equal-contract court. Results:
+[phase-18-results.md](../phases/phase-18-results.md); ADR-0053.
+
+| Item | Question | Outcome |
+|---|---|---|
+| 18.1 Contract court with the direct build | Re-run the 12-document C0–C5 court changing only VOLE's build step to `field-build --profile runtime`; what is the composable gap, and what is C4? | **Recorded** — build **10.74× → 7.24×** (the 17.1 2.04× and the 10.74× two-step gap are **not composable**); storage **0.49×**; cold sum **779 vs 772 ms (tie)**; warm **1.33×**. C4 splits: **C4a** document-native lineage is VOLE's answer (4/4 PDFs; typed unsupported for 8/8 docx/epub) and byte-derivable from the baseline's retained blob (a work-location difference); **C4b** corpus/external lineage is harness-supplied metadata (baseline 12/12, VOLE 0/12). `2026-10-08-phase18-contract-direct-f2a34a5` |
+| 18.2 One-pass direct build | Can the source → authority → source round trip be removed without changing bytes? | **Adopted** — `ingest_verified` verifies against the caller's source; `ingest_pdf_direct`/`ingest_package_direct` scan the original input; `encode`/`field-ingest` unchanged. Wall **−6.1%**, peak RSS median **−28.8%**; contract gap held at **7.21×**; exactness 9/9 + 12/12. `2026-10-08-phase18-onepass-61b11350` |
+| 18.3 Observation index before the single serialize | Can the redundant parse+re-serialize of the authority be removed? | **Adopted** — `Descriptor::with_observation_index` is a pure method; the index is attached before the court's single serialize; `encode` still emits no index and the one-pass authority is byte-identical to `with_observation_index(encode_with(…))`. Wall-neutral; large-doc RSS **−14–16%**. Isolation: `nist-pdf-0017` is 9425/11,605 ms (81%), 6842 files, 9.40 s on the bind mount vs 1.39 s `/tmp`. `2026-10-08-phase18-inindex-b7046f0` |
+| 18.4 Packed as an ingest-write optimization | Does the packed file-count collapse also collapse the build term? | **Falsified** — packed 11,312 ms vs same-run fs-direct 11,715 ms vs SQLite 1,597 ms (7.08× vs 7.34×); files collapse but `insert` syncs **per node** (6792 `fdatasync` vs 6842 `fsync`); the term is sync **latency**, not file count. `2026-10-08-phase18-contract-packed-fb23021` |
+| 18.5 Batched packed-store durability | If the term is a per-node sync, can the packed store sync once per segment — and can `observe-batch` serve it? | **Adopted** (ADR-0053) — `SyncPolicy { Batch (default), Each }`; `put_field` flushes before publishing a manifest; prefix recovery + no partial node + re-hash gate; `observe-batch --packed` now works. `nist-pdf-0017` wall **9392 → 1415 ms**, `fdatasync` **6792 → 0**; 12-doc contract build **1552 vs 1893 ms = 0.82×** (VOLE builds **~1.22× faster**); storage **0.53×**; warm **1.09×**; exactness **12/12**. `2026-10-08-phase18-batched-sync-14a7e6f`, `2026-10-08-phase18-contract-packed-14a7e6f` |
+
+The build position recorded by Phase 16.5 as VOLE's decisive loss now reads: on the
+equal-contract 12-document subset VOLE **builds ~1.22× faster** than the
+source-retaining SQLite baseline, **stores ~0.53×** the bytes, **ties** on cold
+queries, and is **~1.09×** slower on the warm one-session lane. **C4 is not a
+closed contract:** C4a is VOLE's genuine native-lineage observable, C4b remains
+open because it is external metadata.
+
+### Recorded open question (Phase 18)
+
+The C4b half is a **contract-definition / external-input** question, unchanged by
+the build-cost programme: either the C4 tuple (corpus family/member/head) is not a
+single-document derivable fact — in which case a single-document exact field is the
+wrong tool for C4b by construction — or VOLE should ingest corpus/revision-family
+metadata as an **explicit external input** and answer it as a derived observation.
+**No decision is taken;** this remains the Phase-17 question
+([ADR-0052](../adr/0052-revision-lineage-surface.md)) and composes with the
+Phase-16 substrate question ([ADR-0050](../adr/0050-sqlite-as-substrate-question.md)).
+
 ## Unmeasured gates
 
 - `N4` (decline-rate threshold): no pre-registered threshold exists, so it is

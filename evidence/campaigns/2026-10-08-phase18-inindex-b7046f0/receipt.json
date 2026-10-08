@@ -1,0 +1,78 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase18-inindex-b7046f0",
+  "phase": "18.3 — one-pass enriched authority",
+  "utc": "2026-10-08T10:20:00Z",
+  "measured_commit": "b7046f0f05aa0aea24b436fb78241837fe583cc2",
+  "tree_state": "dirty: 4 tracked files modified (src/container/descriptor.rs, src/encode/mod.rs, src/field/build.rs, src/field/ingest.rs)",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "service": "doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8); gate in dev (8g)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "sqlite3": "3.40.1",
+  "python3": "3.11.2",
+  "arch": "x86_64",
+  "cargo_lock_sha256": "f2d11b64cf7fda10d98ca8c250bc4c4915bc8170dad813a87e1e6f3c5c902c45",
+  "manifest_sha256": "1b4c873066b46052b64de755a8a5409d68ede14f117a539660b2d7f7de017595",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "df48d71706f2719a33588559ad6203128bd2133b6294de37939f8787ca3df9b4",
+  "court": "tools/phase17-direct-field-court.sh (9 docs) + tools/phase18-contract-court.sh (12 docs)",
+  "commands": [
+    "git stash push -m phase18.3-inindex-ab -- src/container/descriptor.rs src/encode/mod.rs src/field/build.rs src/field/ingest.rs",
+    "docker compose run --rm --no-TTY doc-baseline sh -c 'TAG=inindex-before bash tools/phase17-direct-field-court.sh'",
+    "git stash pop",
+    "docker compose run --rm --no-TTY doc-baseline sh -c 'TAG=inindex-after bash tools/phase17-direct-field-court.sh'",
+    "docker compose run --rm --no-TTY doc-baseline sh -c 'TAG=inindex bash tools/phase18-contract-court.sh'",
+    "docker compose run --rm --no-TTY dev cargo fmt --all --check",
+    "docker compose run --rm --no-TTY dev cargo clippy --all-targets --all-features -- -D warnings",
+    "docker compose run --rm --no-TTY dev cargo test --locked --all-features",
+    "docker compose run --rm --no-TTY dev cargo test --locked --no-default-features",
+    "docker compose run --rm --no-TTY dev sh tools/phase1-court.sh"
+  ],
+  "mechanism": "The advisory OBSERVATION_INDEX op table is now a pure method on Descriptor (Descriptor::with_observation_index, src/container/descriptor.rs) and the direct build attaches it before the court's single serialize (encode::encode_with_observation_index), removing the whole-descriptor parse + reserialize that with_observation_index performed on the source-sized payload. encode/field-ingest are untouched.",
+  "byte_compatibility": {
+    "encode_unchanged": "The public forced lane emits no observation index; witness test encode::tests::forced_encode_omits_index_and_enrichment_is_byte_identical asserts parse(encode_with(Raw)).observation_index.is_none().",
+    "authority_byte_identical": "encode_with_observation_index == with_observation_index(encode_with(...)) byte for byte (same witness test). Empirically, direct-court dir_enc_bytes are identical before/after per document, and the contract-court v_desc_bytes match the Phase-18.2 run exactly (e.g. nist-pdf-0002 264184, nist-pdf-0017 1466727).",
+    "old_descriptors_still_decode": "Descriptor::parse is unchanged; descriptors without (or with) the index are unaffected. Direct-court exact.tsv: direct-authority-decode 9/9; contract exact.tsv: VOLE materialize --exact 12/12."
+  },
+  "exactness": {
+    "phase17_direct_court": "current 9/9, direct-field 9/9, direct-authority-decode 9/9 (length + SHA-256 + cmp)",
+    "phase18_contract_court": "VOLE materialize --exact 12/12; SQLite retained blob 12/12",
+    "observations": "equal=53, decline-equal=46, divergent=0 (of 99)"
+  },
+  "measurements": {
+    "direct_court_9doc": {
+      "before_sum_ms": 3723, "before_median_ms": 524,
+      "after_sum_ms": 3617, "after_median_ms": 491,
+      "delta_sum_pct": -2.85, "delta_median_pct": -6.30,
+      "control_current_sum_ms": {"before": 7800, "after": 8099, "delta_pct": 3.83},
+      "large_doc_peak_rss_kb": {
+        "nasa-pdf-0007": {"before": 73476, "after": 62032},
+        "nasa-epub-0006": {"before": 78408, "after": 67292},
+        "nist-docx-0001": {"before": 19816, "after": 16944}
+      }
+    },
+    "contract_court_12doc": {
+      "vole_build_sum_ms": 11605,
+      "sqlite_c5_build_sum_ms": 1544,
+      "build_gap": 7.52,
+      "prior_gap_18_2": 7.21,
+      "prior_gap_18_1": 7.24,
+      "vole_sum_18_2": 11689,
+      "note": "VOLE build sum flat (11689 -> 11605, -0.7%, within noise); the ratio rose because SQLite's C5 sum fell 1621 -> 1544 ms this run. The gap did not improve."
+    },
+    "isolation_probe": "nist-pdf-0017 field-build = 9.40 s on the bind-mounted store (6842 seed files) vs 1.39 s to /tmp, same 6842 files. encode 2.62 s, field-ingest 1.38 s. pdf-0017 contributes 9425 of the 11605 ms VOLE build sum (81%); the other 11 docs sum to 2180 ms. The contract build wall is dominated by a small-file store-write effect, not the descriptor encode / observation index."
+  },
+  "gate": {
+    "fmt": "pass",
+    "clippy": "pass",
+    "test_all_features": "pass",
+    "test_no_default_features": "pass",
+    "phase1_court": "PASS (8/8 cmp=equal)"
+  },
+  "residual_risks": [
+    "The direct-court wall delta (-2.8% sum) is within the untouched control lane's own +3.8% run-to-run variance; only the RSS reduction is a robust signal.",
+    "The contract build gap does not improve because the dominant term (one document's bind-mount store write) is untouched.",
+    "Enrichment fallback (enriched lane refused -> plain lane) is exercised only by the witness test path, never by the corpus (RAW enrichment always succeeds).",
+    "encode_with_observation_index is gated on the `field` feature; the --no-default-features gate confirms it compiles away cleanly."
+  ]
+}

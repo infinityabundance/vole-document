@@ -2,6 +2,100 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.23] — Phase 18: build-cost programme — the equal-contract build position inverted
+
+Phase 18 is a **build-cost programme**. Starting from Phase 17's direct
+`field-build`, it removes the remaining *unnecessary* work from the runtime build
+one mechanism at a time — a redundant source materialization (18.2), a redundant
+re-serialize of the authority (18.3), and finally the **per-node durability
+sync** (18.4 falsifies the file-count hypothesis; 18.5 adopts batched syncs). The
+equal-contract build gap falls **10.74× → 7.24× → 0.82×** — VOLE now builds the
+12-document subset *faster* than SQLite — while storage stays ~0.5× and cold
+queries stay a tie. Results:
+[phase-18-results.md](../phases/phase-18-results.md); ADR-0053.
+
+### Added
+
+- **`SyncPolicy { Batch, Each }`** in the packed seed store, exposed as `--sync=batch|each`
+  (CLI) and `PackedSeedStore::open_write_with_policy` / `FieldStore::open_packed_with_policy`
+  (library) (18.5). `Batch` (the default) syncs once per segment — at **seal** and
+  at an explicit **flush** — instead of once per record; `Each` restores the
+  pre-18.5 per-record `fdatasync` ([ADR-0053](../adr/0053-batched-packed-sync.md)).
+- **`observe-batch --packed`** (18.5). `SessionOptions` gained `packed`, so the
+  packed store can serve the one-session warm lane; the 18.4 typed `rc 6`
+  rejection is removed.
+- **`FieldStore::ingest_verified(descriptor, source, limits)`** plus
+  `ingest_pdf_direct` / `ingest_package_direct` (18.2): the direct build verifies
+  the materialized authority against the caller's **original source** and scans
+  that source once, removing the source → authority → source round trip.
+- **`Descriptor::with_observation_index(limits)`** as a pure method, and
+  **`encode_with_observation_index`** (18.3): the observation index is attached
+  *before* the court's single serialize, removing a source-sized parse and
+  re-serialize. `encode` still emits **no** index.
+
+### Changed
+
+- The direct `field-build` path scans the **original** input; `encode` and
+  `field-ingest` are byte-for-byte unchanged (they share the same `ingest_parsed`
+  tail) (18.2).
+- The packed store's default durability policy is now **`Batch`**; `put_field`
+  **flushes before publishing a manifest**, so a durable manifest never references
+  a non-durable node (18.5).
+
+### Measured
+
+- **18.1 contract court with the direct build** (12 documents). Build wall sum VOLE
+  **11,905 ms vs SQLite 1,644 ms = 7.24×** (the two-step `encode`+`field-ingest`
+  gap was 10.74×); storage **0.49×** SQLite (7,168,131 vs 14,721,024 B); cold sum
+  **779 vs 772 ms (tie)**; warm **1.33×**. Campaign
+  `2026-10-08-phase18-contract-direct-f2a34a5`.
+- **18.2 one-pass direct build** (9-document direct court A/B). Wall **−6.1%**
+  (sum 4012 → 3769 ms), peak RSS median **−28.8%** (15,184 → 10,812 KB); the
+  contract gap held at **7.21×**; exactness 9/9 (three closures) and 12/12;
+  observations 0 divergent. The removed `RAW` materializations were cheap (a
+  `memcpy`), so RSS is the trustworthy win. Campaign
+  `2026-10-08-phase18-onepass-61b11350`.
+- **18.3 observation index before the single serialize** (9-document A/B). Wall
+  **neutral** (direct sum 3723 → 3617 ms, but the untouched control moved +3.8%);
+  large-document RSS **−14–16%** (`nasa-pdf-0007` −15.6%, `nasa-epub-0006` −14.2%,
+  `nist-docx-0001` −14.5%); exactness 9/9 + 12/12; one-pass authority byte-identical
+  to `with_observation_index(encode_with(…))` (witness test). Campaign
+  `2026-10-08-phase18-inindex-b7046f0`.
+- **18.4 packed as an ingest-write optimization — FALSIFIED.** Packed build
+  **11,312 ms** vs same-run fs-direct **11,715 ms** vs SQLite **1,597 ms** → gap
+  **7.08×** vs 7.34× (within noise); files collapse (**120/202** vs 8621/9618) but
+  `insert` synced **per node** (6792 `fdatasync` vs 6842 `fsync`), so the term is
+  sync **latency**, not file count; `observe-batch` still rejected `--packed`
+  (rc 6). Storage 7,778,087 B = **0.53×** SQLite. Campaign
+  `2026-10-08-phase18-contract-packed-fb23021`.
+- **18.5 batched packed-store durability — the win.** Worst doc `nist-pdf-0017`
+  packed wall **9392 → 1415 ms**, `fdatasync` **6792 → 0**; same-run 12-document
+  contract court VOLE build sum **1552 ms vs SQLite 1893 ms = 0.82×** (VOLE now
+  builds **~1.22× faster**; was 7.08×/7.21×/10.74×); storage **0.53×** (7,778,087
+  vs 14,721,024 B; 120 vs 8621 files); warm `observe-batch --packed` **1.09×**
+  SQLite over C0–C5; policy probe `Batch` 2644 ms vs `Each` 9230 ms; exactness
+  `materialize --exact --packed` **12/12**. Campaigns
+  `2026-10-08-phase18-batched-sync-14a7e6f` and
+  `2026-10-08-phase18-contract-packed-14a7e6f`; [ADR-0053](../adr/0053-batched-packed-sync.md).
+
+### Corrected / recorded
+
+- **The 16.5/17.2 two-step `10.74×` and the 17.1 `field-build 2.04×` are not
+  composable.** The composable equal-contract build number is **7.24×** (18.1)
+  under the direct `field-build`, before the 18.5 sync batching took it to 0.82×.
+- **C4 is two observables.** 18.1 splits it: **C4a document-native lineage** (the
+  PDF internal incremental chain) is VOLE's answer (**4/4** PDFs; typed unsupported
+  for 8/8 docx/epub) and is byte-derivable from what the baseline retains — a
+  *where-the-work-happens* difference, not hidden information; **C4b
+  corpus/external lineage** (family/member/head) is dataset metadata the harness
+  supplies (baseline **12/12**, VOLE **0/12**, not given it). Recorded as two
+  cases, never forced equal.
+- **The build wall is dominated by one document's store write.** `nist-pdf-0017`
+  is **9425 of 11,605 ms (81%)**, **6842 seed files**, **9.40 s** on the
+  bind-mounted store vs **1.39 s** in `/tmp` (18.3). The lever is seed-store write
+  amplification — which is what 18.5 then removed (sync batching), **not** a codec
+  or parallelism.
+
 ## [0.1.0-alpha.22] — Phase 17: direct field build and a revision-lineage surface
 
 Phase 17 attacks the two weaknesses Phase 16 made explicit. It adds a **direct
