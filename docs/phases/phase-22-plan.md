@@ -1,19 +1,18 @@
 # Phase 22 — Economic programme: a strong competitor, shared execution, lifetime cost
 
-> **PLANNED — not started.** Nothing in this document is implemented or measured.
-> It records an ordered research programme and its pre-registered gates so that
-> the work survives chat history and can be falsified by a court rather than
-> argued by preference. Every "measurement", "reduction", or "frontier" below is
-> a **target** or a **gate**, never a result. The **immediate queue is
-> [Phase 21](phase-21-plan.md)** (the format programme); Phase 22's economic
-> courts run on the already-shipped PDF/DOCX/EPUB/ODT surface, and its last
-> format subphase (P7) is **Phase 21's** work evaluated through this thesis.
+> **IN PROGRESS.** Subphase **22.1 (competitor envelope) is complete and released**
+> in `v0.1.0-alpha.26` — see [phase-22-results.md](phase-22-results.md). Subphases
+> **22.2–22.7 remain planned and not started.** Everything below that is not 22.1
+> is a **target** or a **gate**, never a result. (The format programme,
+> [Phase 21](phase-21-plan.md), remains deferred and unstarted; this programme
+> runs on the already-shipped PDF/DOCX/EPUB/ODT surface, and its last format
+> subphase (P7) is **Phase 21's** work evaluated through this thesis.)
 >
 > This plan synthesises an **external technical review** into the repo's plan
 > style. Where the review's claim could not be rendered exactly, the deviation is
 > noted in the final message to the orchestrator, not silently smoothed.
 
-Branch (to be created): `phase22`. Base: `main` @ `v0.1.0-alpha.25` (Phase 20).
+Branch: `phase22` (merged as `v0.1.0-alpha.26`). Base: `main` @ `v0.1.0-alpha.25` (Phase 20).
 Predecessors (read this plan with them): [phase-20-results.md](phase-20-results.md),
 [Phase 21 plan](phase-21-plan.md), [ADR-0050](../adr/0050-sqlite-as-substrate-question.md),
 [ADR-0051](../adr/0051-direct-field-ingestion.md),

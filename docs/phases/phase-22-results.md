@@ -89,6 +89,14 @@ never conflated.
 the `full` reference, **0** mismatches; exactness **12/12** VOLE and **6/6** per
 document per configuration (length + SHA-256).
 
+> **Caveat on what that 1920/1920 means.** Those envelopes are **SQLite-to-SQLite**
+> (each configuration against the `full` SQLite reference) — they are *not* 1,920
+> VOLE-vs-SQLite semantic matches. The court separately records **96 divergent PDF
+> text observations** (VOLE's heuristic page-text projection vs Poppler), which
+> remain relevant to any claim of equivalent answers. The VOLE-vs-SQLite comparison
+> is therefore equality of *contract shape* plus a recorded divergence on one
+> observation class, not full semantic identity.
+
 **Interpretation — the shrinkage is the finding.** Strengthening the competitor
 is the point of 22.1, and the strengthened competitor shrinks the previously
 reported VOLE edges. The direction of every surviving edge is unchanged, but the
