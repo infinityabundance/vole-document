@@ -2,6 +2,21 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.31] — Phase 21 Wave 2 begins: JSON (structured tree) — *unreleased*
+
+- **21.5 — JSON adapter + economic court.** Non-default, dependency-free
+  `json = []` feature. Byte-based, conservative detection (the whole source must
+  parse as exactly one JSON value; malformed → Opaque). A bounded,
+  **representation-preserving** parser: exact token spans, member order, numeric
+  spelling (`1e3`), string escape spelling (`\u00e9`), and **duplicate keys kept
+  distinct**. Native `--json-pointer` (RFC 6901), `--json-node`, `--json-find`;
+  common metadata/text/find. Exact closure 8/8 (adapter) and 7/7 (economic).
+  Economic court vs a source-retaining SQLite `json1`/`jsonb` baseline: build
+  **1.244×**, storage **0.599×**, cold **0.046×**, warm **0.570×**; the two
+  cross-lane mismatches (duplicate-key count, escape spelling) are exactly the
+  representation-preservation value VOLE claims.
+  `2026-10-09-phase21-5-1-json-0d94667`, `…-phase21-5-json-econ-0d94667`.
+
 ## [0.1.0-alpha.30] — Phase 21 Wave 1: six office formats (XLSX, PPTX, ODS, ODP) + economic courts
 
 Opens the Phase-21 **format programme** by adding the fifth document format, XLSX,

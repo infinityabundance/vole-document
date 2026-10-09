@@ -19,8 +19,14 @@
 > The **Wave-2 families** below remain planned and not started; they are a target,
 > never a result. The whole programme is judged by the capability/cost frontier on
 > the same contract — **not by format count**.
+>
+> **Wave 2** has started: **JSON** (structured tree) is complete
+> (span-preserving adapter + economic court vs SQLite `json1`/`jsonb`);
+> YAML, CSV/TSV, Markdown, XML, HTML, TOML, JSONL, and the other families below
+> remain planned.
 
-Branch: `staging` @ `v0.1.0-alpha.30` (Phase 21 Wave 1). The Phase-22 economic
+Branch: `phase21-wave2` @ `v0.1.0-alpha.30`+ (Wave 2). Wave 1 shipped as
+`v0.1.0-alpha.30` on `main`. The Phase-22 economic
 programme (22.1–22.7) is complete and released in `v0.1.0-alpha.29`.
 
 ## Why
