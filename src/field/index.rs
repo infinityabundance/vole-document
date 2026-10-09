@@ -159,6 +159,15 @@ pub const SEL_ODS_MODEL: u8 = 17;
 /// presentation content model and the styles model are computed on demand from
 /// their decoded member nodes (no index entry of their own, mirroring `OdsContent`).
 pub const SEL_ODP_MODEL: u8 = 18;
+/// Selector kind: the canonical JSON structured-tree model (Phase 21.5.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as exactly one JSON value into a bounded,
+/// representation-preserving arena (token spans, member order, duplicate keys,
+/// spelling) as `Q_gen` derived state. It is computed on demand from the exact
+/// source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); JSON has no package layer.
+pub const SEL_JSON_MODEL: u8 = 19;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

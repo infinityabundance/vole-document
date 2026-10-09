@@ -54,6 +54,10 @@ pub enum ErrorClass {
     /// ambiguous main part, content-type abuse, `mimetype` trick, or an ambiguous
     /// part-name identity.
     InvalidPackageStructure,
+    /// A JSON structured-tree structure error (Phase 21.5+): a malformed token,
+    /// an unterminated string/container, a bad escape, or a trailing byte after
+    /// the single top-level value.
+    InvalidJsonStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -81,6 +85,7 @@ impl ErrorClass {
             ErrorClass::InvalidZipStructure => 18,
             ErrorClass::InvalidXmlStructure => 19,
             ErrorClass::InvalidPackageStructure => 20,
+            ErrorClass::InvalidJsonStructure => 21,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -107,6 +112,7 @@ impl ErrorClass {
             ErrorClass::InvalidZipStructure => "InvalidZipStructure",
             ErrorClass::InvalidXmlStructure => "InvalidXmlStructure",
             ErrorClass::InvalidPackageStructure => "InvalidPackageStructure",
+            ErrorClass::InvalidJsonStructure => "InvalidJsonStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -187,6 +193,7 @@ impl Error {
     ctor!(invalid_zip_structure, InvalidZipStructure);
     ctor!(invalid_xml_structure, InvalidXmlStructure);
     ctor!(invalid_package_structure, InvalidPackageStructure);
+    ctor!(invalid_json_structure, InvalidJsonStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

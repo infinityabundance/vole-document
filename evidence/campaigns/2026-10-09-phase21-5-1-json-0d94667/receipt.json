@@ -1,0 +1,23 @@
+{
+  "campaign": "evidence/campaigns/2026-10-09-phase21-5-1-json-0d94667",
+  "phase": "21.5.1 — JSON structured-tree surface + exact closure + model",
+  "utc": "2026-10-09T04:13:51Z",
+  "measured_commit": "0d94667e6f76b4d9c06133b461eeca7a8a13ea30",
+  "tree_state": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-09-phase21-5-1-json-0d94667/ ?? evidence/campaigns/2026-10-09-phase21-5-json-econ-0d94667/ ?? src/adapter/json.rs ?? tests/json_adapter.rs ?? tools/fixtures/json/ ?? tools/fixtures/make-json.py ?? tools/fixtures/phase21-5-json-baseline.py ?? tools/fixtures/phase21-5-json-vole.py ?? tools/phase21-5-1-json-court.sh ?? tools/phase21-5-json-court.sh ",
+  "service": "doc-baseline",
+  "profile": "debug",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "60961eed285a5d0c502669813f2590e9d8df1cf7db0d0f87678ab1d24b3635dd",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "fixtures": "basic.json unicode.json numbers.json dup.json deep.json scalar.json large.json malformed.json",
+  "fixture_tool": "tools/fixtures/make-json.py (stdlib only)",
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "observations": ["metadata", "text", "search-match", "native json-pointer", "native json-node", "native json-find"],
+  "declines": "unsupported common pairs decline typed (rc 6); a malformed document is Opaque (rc 6), never a panic",
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "adr_0060": "the JsonModel node depends on the DocumentExact root (sha256(source)); no source-reading node aliases another field's source",
+  "verdict": "PASS"
+}

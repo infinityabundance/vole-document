@@ -108,7 +108,8 @@ const USAGE_FIELD: &str = "\
         --ods-sheet N | --ods-cell B7|R:C | --ods-styles | --ods-named-expressions |
         --ods-comments | --ods-find PATTERN |
         --odp-slide N | --odp-shape I | --odp-notes N | --odp-masters |
-        --odp-media N | --odp-tables | --odp-find PATTERN) --kind metadata|text|structure|operators|
+        --odp-media N | --odp-tables | --odp-find PATTERN |
+        --json-pointer PATH | --json-node PATH | --json-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1573,6 +1574,18 @@ struct FieldArgs {
     /// `--odp-find`: a lexical text search over slides (Phase 21.4.1).
     #[cfg(feature = "odp")]
     odp_find: Option<String>,
+    /// `--json-pointer POINTER`: resolve an RFC 6901 JSON pointer, returning the
+    /// node's kind, exact source span, and exact token bytes (Phase 21.5.1).
+    #[cfg(feature = "json")]
+    json_pointer: Option<String>,
+    /// `--json-node POINTER`: the structural view of a JSON node (kind, span,
+    /// parent/child spans, member key/value spans) (Phase 21.5.1).
+    #[cfg(feature = "json")]
+    json_node: Option<String>,
+    /// `--json-find`: a lexical, case-sensitive search over JSON keys/strings
+    /// (Phase 21.5.1).
+    #[cfg(feature = "json")]
+    json_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -1967,6 +1980,18 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--odp-find" => {
                 out.odp_find = Some(field_arg_value(args, &mut i, "--odp-find", inline)?);
             }
+            #[cfg(feature = "json")]
+            "--json-pointer" => {
+                out.json_pointer = Some(field_arg_value(args, &mut i, "--json-pointer", inline)?);
+            }
+            #[cfg(feature = "json")]
+            "--json-node" => {
+                out.json_node = Some(field_arg_value(args, &mut i, "--json-node", inline)?);
+            }
+            #[cfg(feature = "json")]
+            "--json-find" => {
+                out.json_find = Some(field_arg_value(args, &mut i, "--json-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2304,6 +2329,26 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         // consumed it, it is not added again.
         if !specific && let Some(index) = out.odp_slide {
             chosen.push(Selector::OdpSlide { index, profile });
+        }
+    }
+    // JSON: `--json-pointer`/`--json-node` address a node by RFC 6901 pointer;
+    // `--json-find` is a lexical search. Each stands alone (Phase 21.5.1).
+    #[cfg(feature = "json")]
+    {
+        if let Some(pointer) = &out.json_pointer {
+            chosen.push(Selector::JsonPointer {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pointer) = &out.json_node {
+            chosen.push(Selector::JsonNode {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pattern) = &out.json_find {
+            chosen.push(Selector::JsonFind {
+                pattern: pattern.clone(),
+            });
         }
     }
     match chosen.len() {

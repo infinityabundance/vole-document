@@ -37,6 +37,12 @@ use crate::adapter::docx::wml::StoryModel;
 use crate::adapter::docx::{DocxExtractProfile, DocxModel, DocxPartRef, DocxStory, story_params};
 #[cfg(feature = "epub")]
 use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
+#[cfg(feature = "json")]
+use crate::adapter::json::{
+    JsonModel, canonical_text, decode_string as json_decode_string, find as json_find_matches,
+    kind_name as json_kind_name, resolve_pointer as json_resolve_pointer,
+    token_bytes as json_token_bytes,
+};
 #[cfg(feature = "odp")]
 use crate::adapter::odp::{
     ContentModel as OdpContentModel, OdpExtractProfile, OdpModel, OdpShape, OdpTable,
@@ -67,6 +73,8 @@ use crate::field::document_format::DocumentFormat;
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "json")]
+use crate::field::index::SEL_JSON_MODEL;
 #[cfg(feature = "odp")]
 use crate::field::index::SEL_ODP_MODEL;
 #[cfg(feature = "ods")]
@@ -598,6 +606,30 @@ pub enum Selector {
         /// The extraction profile identity.
         profile: PptxExtractProfile,
     },
+    /// A JSON node addressed by an RFC 6901 pointer (Phase 21.5.1), e.g.
+    /// `/a/b/0`. The answer reports the node's kind, its exact source span, and
+    /// (for `ExactBytes`) its exact token bytes. JSON has no package layer, so the
+    /// source *is* the whole document.
+    #[cfg(feature = "json")]
+    JsonPointer {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A JSON node's structural view (Phase 21.5.1): kind, span, parent/child
+    /// spans, and, for objects, each member's key and key/value spans. Same
+    /// RFC 6901 addressing as [`Selector::JsonPointer`]; the projection differs.
+    #[cfg(feature = "json")]
+    JsonNode {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A lexical, case-sensitive search over JSON object keys and string values
+    /// (Phase 21.5.1). Never an embedding or a model call.
+    #[cfg(feature = "json")]
+    JsonFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
 }
 
 impl Selector {
@@ -870,6 +902,12 @@ impl Selector {
             Selector::PptxFind { pattern, profile } => {
                 format!("pptx-find:{pattern};profile={}", profile.fingerprint())
             }
+            #[cfg(feature = "json")]
+            Selector::JsonPointer { pointer } => format!("json-pointer:{pointer}"),
+            #[cfg(feature = "json")]
+            Selector::JsonNode { pointer } => format!("json-node:{pointer}"),
+            #[cfg(feature = "json")]
+            Selector::JsonFind { pattern } => format!("json-find:{pattern}"),
         }
     }
 
@@ -2635,6 +2673,20 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "pptx")]
             (Selector::PptxFind { pattern, profile }, R::Text) => {
                 self.pptx_find(req, pattern, profile)
+            }
+            #[cfg(feature = "json")]
+            (
+                Selector::JsonPointer { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.json_pointer(req, pointer),
+            #[cfg(feature = "json")]
+            (
+                Selector::JsonNode { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.json_node(req, pointer),
+            #[cfg(feature = "json")]
+            (Selector::JsonFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.json_find(req, pattern)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -7803,6 +7855,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Odp => self.common_odp(req)?,
             DocumentFormat::Xlsx => self.common_xlsx(req)?,
             DocumentFormat::Pptx => self.common_pptx(req)?,
+            DocumentFormat::Json => self.common_json(req)?,
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -8125,6 +8178,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_pptx(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "PPTX observations require a build with the pptx feature",
+        ))
+    }
+
+    #[cfg(not(feature = "json"))]
+    fn common_json(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "JSON observations require a build with the json feature",
         ))
     }
 
@@ -8761,6 +8821,357 @@ impl<S: SeedStore> Ctx<'_, S> {
 }
 
 // ---------------------------------------------------------------------------
+// JSON observations (Phase 21.5.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "json")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the JSON structured-tree model (derived, `Q_gen`).
+    fn json_model(&mut self) -> Result<(JsonModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_JSON_MODEL, 0), "JSON model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((JsonModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn json_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn json_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Resolve `pointer` and answer per representation: `ExactBytes` returns the
+    /// exact token bytes; `Text` the decoded string (or the canonical subtree for a
+    /// container/scalar); `Metadata`/`Structure` a JSON descriptor with the kind, the
+    /// exact span, and the duplicate-key match count.
+    fn json_pointer(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json_model()?;
+        let (source, root) = self.json_source()?;
+        let r = json_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("JSON pointer resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "json;pointer={pointer};kind={};matches={}",
+            json_kind_name(node.kind),
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(json_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::json_node_text(&model, &source, index, &node)?)
+            }
+            _ => {
+                let token = String::from_utf8_lossy(json_token_bytes(&source, &node)?).into_owned();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"pointer\":\"{}\",\"kind\":\"{}\",",
+                        "\"span\":[{},{}],\"matches\":{},\"token\":\"{}\",",
+                        "\"top_type\":\"{}\"}}"
+                    ),
+                    json_escape(pointer),
+                    json_kind_name(node.kind),
+                    node.start,
+                    node.end,
+                    r.matches,
+                    json_escape(&token),
+                    json_kind_name(model.top_type),
+                ))
+            }
+        };
+        Ok(self.json_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn json_node_text(
+        model: &JsonModel,
+        source: &[u8],
+        index: u32,
+        node: &crate::adapter::json::JNode,
+    ) -> Result<String> {
+        if node.kind == crate::adapter::json::K_STRING {
+            json_decode_string(source, node)
+        } else if crate::adapter::json::is_container(node.kind) {
+            crate::adapter::json::subtree_text(model, source, index)
+        } else {
+            Ok(String::from_utf8_lossy(json_token_bytes(source, node)?).into_owned())
+        }
+    }
+
+    /// The structural view of a JSON node: kind, span, parent span, and (for
+    /// containers) the child spans; object member keys and key/value spans are
+    /// exposed separately, and duplicate keys are reported, never hidden.
+    fn json_node(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json_model()?;
+        let (source, root) = self.json_source()?;
+        let r = json_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("JSON node resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "json;node={pointer};kind={};children={}",
+            json_kind_name(node.kind),
+            node.children.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(json_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::json_node_text(&model, &source, index, &node)?)
+            }
+            _ => {
+                AnswerValue::Json(self.json_node_structure(&model, &source, pointer, index, &node)?)
+            }
+        };
+        Ok(self.json_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn json_node_structure(
+        &self,
+        model: &JsonModel,
+        source: &[u8],
+        pointer: &str,
+        index: u32,
+        node: &crate::adapter::json::JNode,
+    ) -> Result<String> {
+        let parent_span = match crate::adapter::json::find_parent(model, index) {
+            Some(p) => model
+                .node(p)
+                .map_or("null".to_string(), |n| format!("[{},{}]", n.start, n.end)),
+            None => "null".to_string(),
+        };
+        let mut extra = String::new();
+        if node.kind == crate::adapter::json::K_OBJECT {
+            let mut members: Vec<String> = Vec::new();
+            let mut keys: Vec<String> = Vec::new();
+            let mut i = 0usize;
+            while i + 1 < node.children.len() {
+                let key_node = model
+                    .node(node.children[i])
+                    .ok_or_else(|| Error::internal_invariant("JSON key index out of range"))?;
+                let val_node = model
+                    .node(node.children[i + 1])
+                    .ok_or_else(|| Error::internal_invariant("JSON value index out of range"))?;
+                i += 2;
+                let key = json_decode_string(source, key_node)?;
+                keys.push(key.clone());
+                members.push(format!(
+                    concat!(
+                        "{{\"key\":\"{}\",\"key_span\":[{},{}],",
+                        "\"value_kind\":\"{}\",\"value_span\":[{},{}]}}"
+                    ),
+                    json_escape(&key),
+                    key_node.start,
+                    key_node.end,
+                    json_kind_name(val_node.kind),
+                    val_node.start,
+                    val_node.end,
+                ));
+            }
+            let mut dupes: Vec<String> = Vec::new();
+            for (idx, k) in keys.iter().enumerate() {
+                if keys[..idx].contains(k) && !dupes.contains(k) {
+                    dupes.push(k.clone());
+                }
+            }
+            let dupes_json = dupes
+                .iter()
+                .map(|d| format!("\"{}\"", json_escape(d)))
+                .collect::<Vec<_>>()
+                .join(",");
+            extra = format!(
+                ",\"members\":[{}],\"duplicate_keys\":[{}]",
+                members.join(","),
+                dupes_json
+            );
+        } else if node.kind == crate::adapter::json::K_ARRAY {
+            let mut elems: Vec<String> = Vec::new();
+            for (i, child) in node.children.iter().enumerate() {
+                let cn = model
+                    .node(*child)
+                    .ok_or_else(|| Error::internal_invariant("JSON element out of range"))?;
+                elems.push(format!(
+                    "{{\"index\":{},\"kind\":\"{}\",\"span\":[{},{}]}}",
+                    i,
+                    json_kind_name(cn.kind),
+                    cn.start,
+                    cn.end
+                ));
+            }
+            extra = format!(",\"elements\":[{}]", elems.join(","));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"pointer\":\"{}\",\"kind\":\"{}\",\"span\":[{},{}],",
+                "\"parent_span\":{},\"children\":{}{}}}"
+            ),
+            json_escape(pointer),
+            json_kind_name(node.kind),
+            node.start,
+            node.end,
+            parent_span,
+            node.children.len(),
+            extra,
+        ))
+    }
+
+    /// A bounded lexical search over keys and string values; each match reports its
+    /// canonical pointer, role (key/value), and exact source span.
+    fn json_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json_model()?;
+        let (source, root) = self.json_source()?;
+        let matches = json_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "JSON find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"pointer\":\"{}\",\"role\":\"{}\",",
+                    "\"kind\":\"string\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("json;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.json_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_json(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.json_common_metadata(req),
+            Selector::Text => self.json_common_text(req),
+            Selector::SearchMatch(p) => self.json_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "JSON does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn json_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json_model()?;
+        let (source, root) = self.json_source()?;
+        let text = canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.json_answer(
+            req,
+            AnswerValue::Text(text),
+            "json;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn json_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json_model()?;
+        let (source, root) = self.json_source()?;
+        let mut members = 0u64;
+        let mut arrays = 0u64;
+        let mut elements = 0u64;
+        let mut dup_keys = 0u64;
+        let mut objects = 0u64;
+        for n in &model.nodes {
+            if n.kind == crate::adapter::json::K_OBJECT {
+                objects += 1;
+                let mut seen: Vec<String> = Vec::new();
+                let mut i = 0usize;
+                while i + 1 < n.children.len() {
+                    members += 1;
+                    if let Some(k) = model.node(n.children[i])
+                        && let Ok(s) = json_decode_string(&source, k)
+                    {
+                        if seen.contains(&s) {
+                            dup_keys += 1;
+                        } else {
+                            seen.push(s);
+                        }
+                    }
+                    i += 2;
+                }
+            } else if n.kind == crate::adapter::json::K_ARRAY {
+                arrays += 1;
+                elements += n.children.len() as u64;
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"json\",\"top_type\":\"{}\",",
+                "\"nodes\":{},\"max_depth\":{},\"bytes\":{},",
+                "\"objects\":{},\"members\":{},\"arrays\":{},\"array_elements\":{},",
+                "\"duplicate_keys\":{}}}"
+            ),
+            json_kind_name(model.top_type),
+            model.nodes.len(),
+            model.max_depth,
+            model.doc_len,
+            objects,
+            members,
+            arrays,
+            elements,
+            dup_keys,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.json_answer(
+            req,
+            value,
+            "json;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // ODP common observations (Phase 21.4.1)
 // ---------------------------------------------------------------------------
 
@@ -9144,7 +9555,8 @@ impl<S: SeedStore> Ctx<'_, S> {
     feature = "epub",
     feature = "odt",
     feature = "xlsx",
-    feature = "pptx"
+    feature = "pptx",
+    feature = "json"
 ))]
 fn unsupported_common(req: &ObserveRequest) -> Error {
     Error::unsupported_feature(format!(

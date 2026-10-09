@@ -256,6 +256,25 @@ pub struct Limits {
     /// Maximum `style:master-page` master pages accepted, and the bound applied to
     /// `style:style` records, in one presentation (Phase 21.4.1).
     pub max_odp_masters: u32,
+    // The JSON caps below bound the derived, span-preserving structured-tree model
+    // (Phase 21.5.1). JSON is not a package: the whole source parses as exactly one
+    // JSON value beneath these caps, and everything derived is `Q_gen` only.
+    /// Maximum JSON container nesting depth accepted (objects/arrays). A deeper
+    /// document is not detected as JSON (and any direct parse declines typed)
+    /// rather than risking unbounded recursion (Phase 21.5.1).
+    pub max_json_depth: u32,
+    /// Maximum JSON nodes (values plus object member keys) accepted in one
+    /// document. An over-large document declines typed rather than allocating
+    /// (Phase 21.5.1).
+    pub max_json_nodes: u32,
+    /// Maximum total raw string-token bytes accepted across one JSON document
+    /// (the bytes between the quotes, escapes included). A conservative upper
+    /// bound on the decoded text (Phase 21.5.1).
+    pub max_json_string_bytes: u64,
+    /// Maximum source length admitted for byte-based JSON detection. Larger inputs
+    /// fall back to [`crate::field::document_format::DocumentFormat::Opaque`]
+    /// (Phase 21.5.1).
+    pub max_json_document_bytes: u64,
 }
 
 impl Limits {
@@ -347,6 +366,10 @@ impl Limits {
         max_odp_table_cells: 1 << 20,
         max_odp_notes: 1 << 16,
         max_odp_masters: 1 << 14,
+        max_json_depth: 256,
+        max_json_nodes: 1 << 24,
+        max_json_string_bytes: 1 << 28,
+        max_json_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -437,6 +460,10 @@ impl Limits {
         max_odp_table_cells: 1 << 16,
         max_odp_notes: 1 << 12,
         max_odp_masters: 1 << 12,
+        max_json_depth: 64,
+        max_json_nodes: 1 << 16,
+        max_json_string_bytes: 1 << 20,
+        max_json_document_bytes: 1 << 26,
     };
 }
 

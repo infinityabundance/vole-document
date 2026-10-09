@@ -147,6 +147,18 @@ problem preserves the exact bytes and declines only the decode.
 - Chart data/rendering not interpreted. Progressive inversion; exact leaves stay
   the 12.2 member raw spans.
 
+## JSON adapter — structured tree (Phase 21 Wave 2)
+
+- The first **structured-tree** format; not a package — the whole source is the
+  document (RAW authority). Non-default, dependency-free `json` feature.
+- A bounded, **representation-preserving** parser: exact token source spans,
+  object member order, numeric spelling (`1e3`), string escape spelling
+  (`\u00e9`), and duplicate keys kept distinct. `--json-pointer` (RFC 6901),
+  `--json-node`, `--json-find`; common metadata/text/find.
+- Conservative detection (the whole source must parse as one JSON value;
+  malformed → Opaque). The model node depends on the `DocumentExact` root
+  (ADR-0060).
+
 ## Shared vocabulary (ADR-0031)
 
 Common selectors/representations are added additively: `metadata`, `text`,

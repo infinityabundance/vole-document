@@ -81,7 +81,8 @@ vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--p
     --ods-sheet N | --ods-cell A1 [--ods-sheet N] | --ods-styles | --ods-named-expressions |
     --ods-comments | --ods-find PATTERN |
     --odp-slide N | --odp-shape N | --odp-notes N | --odp-masters | --odp-media N |
-    --odp-tables | --odp-find PATTERN)
+    --odp-tables | --odp-find PATTERN |
+    --json-pointer P | --json-node P | --json-find PATTERN)
     --kind KIND
 vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
     [--requests FILE|-] [--repeat N]
@@ -115,6 +116,10 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
 - The ODP selectors (`--odp-slide`, `--odp-shape`, `--odp-notes`, `--odp-masters`,
   `--odp-media`, `--odp-tables`, `--odp-find`) need the non-default `odp` feature.
   Slide order is `draw:page` document order, never page-name/file order.
+- The JSON selectors (`--json-pointer` RFC 6901, `--json-node`, `--json-find`) need
+  the non-default, dependency-free `json` feature. The adapter preserves
+  representation: numeric/escape spelling, member order, duplicate keys, and exact
+  token source spans.
 - `field-ingest` inverse-proceduralizes one `.voldoc` into a persistent field
   and prints its field id (`HEX`) and roots. The format is detected from bytes.
 - `observe` / `find` / `explain` / `preview` answer typed observations with
