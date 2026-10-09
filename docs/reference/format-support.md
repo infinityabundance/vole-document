@@ -67,6 +67,7 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | ODS economic court (vs source-retaining SQLite + DuckDB/Parquet) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-2-ods-3dd5827/` |
 | ODP adapter / economic court | exact 6/6 · 8/8 | `evidence/campaigns/2026-10-09-phase21-4-1-odp-957a800/`, `…/2026-10-09-phase21-4-odp-econ-957a800/` |
 | JSON adapter / economic court | exact 8/8 · 7/7 | `evidence/campaigns/2026-10-09-phase21-5-1-json-0d94667/`, `…/2026-10-09-phase21-5-json-econ-0d94667/` |
+| YAML adapter / economic court | exact 10/10 · 8/8 | `evidence/campaigns/2026-10-09-phase21-6-1-yaml-ceab8ec/`, `…/2026-10-09-phase21-6-yaml-econ-ceab8ec/` |
 
 See [Status ledger](../project/status.md) for the full mechanism table and
 [Conformance](../reference/conformance.md) for the courts.
@@ -179,13 +180,32 @@ The representation-preservation is the point: SQLite's `json1`/`jsonb` normalize
 spelling and collapses duplicate keys, where VOLE surfaces them. See
 [Formats/JSON](../formats/json.md).
 
+## YAML (structured tree)
+
+YAML is the second structured-tree format (Wave 2); the `yaml = []` feature is
+**non-default and dependency-free**. Detection is conservative (the whole source
+must parse as YAML with a mapping/sequence at every document root; a bare scalar
+or plain text → Opaque).
+
+| Property | YAML |
+|---|---|
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `find` |
+| Native observations | `yaml-path`, `yaml-node`, `yaml-documents`, `yaml-anchor` (`--yaml-anchor NAME`), `yaml-find` |
+| Representation preserved | exact spans; **anchors/aliases as a graph** (never expanded); tags; multiple documents; scalar styles (`|`, `>`, quoted); merge keys (`<<`); mapping order; duplicate keys; comment spans |
+
+A normalizing "YAML→JSON" pipeline expands anchors/aliases and merges `<<`, drops
+tags/styles/comments — the adapter surfaces them instead. See
+[Formats/YAML](../formats/yaml.md).
+
 ## Feature gates
 
 The default build is `default = ["rans", "store", "field"]`. The ZIP/DOCX/EPUB/ODT
 adapters need `package,opc,docx,epub,odt`; the XLSX adapter needs `package,opc,xlsx`
 and the PPTX adapter `package,opc,pptx` (the non-default `xlsx`/`pptx` features);
 the ODS adapter needs `package,opc,ods`, the ODP adapter `package,opc,odp`, and the
-JSON adapter the dependency-free `json`.
+the JSON adapter the dependency-free `json`, and the YAML adapter `yaml`.
 `deflate-replay` is opt-in (pulls LGPL
 `cabac`). A descriptor that needs a capability the build lacks sets a mandatory
 feature bit and fails closed with `unsupported-feature` (exit 6).

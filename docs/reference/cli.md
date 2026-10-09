@@ -82,7 +82,8 @@ vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--p
     --ods-comments | --ods-find PATTERN |
     --odp-slide N | --odp-shape N | --odp-notes N | --odp-masters | --odp-media N |
     --odp-tables | --odp-find PATTERN |
-    --json-pointer P | --json-node P | --json-find PATTERN)
+    --json-pointer P | --json-node P | --json-find PATTERN |
+    --yaml-path P | --yaml-node | --yaml-documents | --yaml-anchor NAME | --yaml-find PATTERN)
     --kind KIND
 vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
     [--requests FILE|-] [--repeat N]
@@ -120,6 +121,10 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
   the non-default, dependency-free `json` feature. The adapter preserves
   representation: numeric/escape spelling, member order, duplicate keys, and exact
   token source spans.
+- The YAML selectors (`--yaml-path`, `--yaml-node`, `--yaml-documents`,
+  `--yaml-anchor NAME`, `--yaml-find`) need the non-default `yaml` feature. Anchors
+  and aliases are exposed as a graph (never expanded); tags, scalar styles, merge
+  keys and comments are preserved.
 - `field-ingest` inverse-proceduralizes one `.voldoc` into a persistent field
   and prints its field id (`HEX`) and roots. The format is detected from bytes.
 - `observe` / `find` / `explain` / `preview` answer typed observations with

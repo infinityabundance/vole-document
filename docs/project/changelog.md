@@ -2,6 +2,22 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.32] — Phase 21 Wave 2: YAML (structured tree) — *unreleased*
+
+- **21.6 — YAML adapter + economic court.** Non-default, dependency-free
+  `yaml = []` feature. A bounded YAML subset that **preserves representation**:
+  exact spans; anchors and aliases as a graph (never expanded); tags as literal
+  text; multiple documents; scalar styles (plain/single/double/literal/folded);
+  merge keys (`<<`); mapping order, duplicate keys, comment spans. Native
+  `--yaml-path`, `--yaml-node`, `--yaml-documents`, `--yaml-anchor`, `--yaml-find`.
+  Conservative detection (a mapping/sequence at every document root; plain text →
+  Opaque). Exact closure 10/10 (adapter) and 8/8 (economic).
+  Economic court vs a source-retaining SQLite baseline (conventional YAML→JSON
+  normalization): build **1.015×**, storage **0.604×**, cold **0.038×**, warm
+  **0.780×**; spans/tags/scalar style are pure SQLite capability gaps, and
+  anchors/`<<` are answered only where present (a normalizing pipeline expands
+  them). `2026-10-09-phase21-6-1-yaml-ceab8ec`, `…-phase21-6-yaml-econ-ceab8ec`.
+
 ## [0.1.0-alpha.31] — Phase 21 Wave 2 begins: JSON (structured tree) — *unreleased*
 
 - **21.5 — JSON adapter + economic court.** Non-default, dependency-free
