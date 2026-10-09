@@ -104,7 +104,9 @@ const USAGE_FIELD: &str = "\
         --xlsx-comments | --xlsx-hyperlinks | --xlsx-tables | --xlsx-drawing |
         --slide N | --pptx-shape I | --pptx-notes N | --pptx-layouts |
         --pptx-masters | --pptx-theme | --pptx-media N | --pptx-tables |
-        --pptx-find PATTERN) --kind metadata|text|structure|operators|
+        --pptx-find PATTERN |
+        --ods-sheet N | --ods-cell B7|R:C | --ods-styles | --ods-named-expressions |
+        --ods-comments | --ods-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1527,6 +1529,26 @@ struct FieldArgs {
     /// `--pptx-find`: a lexical text search over slides (Phase 21.2.1).
     #[cfg(feature = "pptx")]
     pptx_find: Option<String>,
+    /// The ODS document-order sheet index (`--ods-sheet N`, Phase 21.3.1). Also
+    /// used as the sheet of `--ods-cell`/`--ods-comments` when given.
+    #[cfg(feature = "ods")]
+    ods_sheet: Option<u32>,
+    /// The ODS cell reference (`--ods-cell B7` or `--ods-cell row:col`, Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    ods_cell: Option<String>,
+    /// `--ods-styles`: the parsed cell styles and number formats (Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    ods_styles: bool,
+    /// `--ods-named-expressions`: the spreadsheet's named ranges/expressions
+    /// (Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    ods_named_expressions: bool,
+    /// `--ods-comments`: the cell comments of the `--ods-sheet` sheet (Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    ods_comments: bool,
+    /// `--ods-find`: a lexical text search over sheet cells (Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    ods_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -1849,6 +1871,36 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--pptx-find" => {
                 out.pptx_find = Some(field_arg_value(args, &mut i, "--pptx-find", inline)?);
             }
+            #[cfg(feature = "ods")]
+            "--ods-sheet" => {
+                out.ods_sheet = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--ods-sheet", inline)?,
+                    "--ods-sheet",
+                )?);
+            }
+            #[cfg(feature = "ods")]
+            "--ods-cell" => {
+                out.ods_cell = Some(field_arg_value(args, &mut i, "--ods-cell", inline)?);
+            }
+            #[cfg(feature = "ods")]
+            "--ods-styles" => {
+                out.ods_styles = true;
+                i += 1;
+            }
+            #[cfg(feature = "ods")]
+            "--ods-named-expressions" => {
+                out.ods_named_expressions = true;
+                i += 1;
+            }
+            #[cfg(feature = "ods")]
+            "--ods-comments" => {
+                out.ods_comments = true;
+                i += 1;
+            }
+            #[cfg(feature = "ods")]
+            "--ods-find" => {
+                out.ods_find = Some(field_arg_value(args, &mut i, "--ods-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2102,6 +2154,45 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         // consumed it, it is not added again.
         if !specific && let Some(index) = out.slide {
             chosen.push(Selector::PptxSlide { index, profile });
+        }
+    }
+    // ODS: `--ods-cell B7` is the cell selector and consumes `--ods-sheet N` as its
+    // sheet; `--ods-sheet N` alone is the native sheet selector. `--ods-comments`
+    // consumes `--ods-sheet`; the styles/named-expressions/find flags stand alone.
+    #[cfg(feature = "ods")]
+    {
+        let profile = vole_document::adapter::ods::OdsExtractProfile::DEFAULT;
+        let sheet = out.ods_sheet.unwrap_or(0);
+        let mut specific = false;
+        if out.ods_styles {
+            chosen.push(Selector::OdsStyles);
+            specific = true;
+        }
+        if out.ods_named_expressions {
+            chosen.push(Selector::OdsNamedExpressions);
+            specific = true;
+        }
+        if out.ods_comments {
+            chosen.push(Selector::OdsComments { sheet });
+            specific = true;
+        }
+        if let Some(cell) = &out.ods_cell {
+            chosen.push(Selector::OdsCell {
+                sheet,
+                cell: cell.clone(),
+                profile,
+            });
+            specific = true;
+        }
+        if let Some(pattern) = &out.ods_find {
+            chosen.push(Selector::OdsFind {
+                pattern: pattern.clone(),
+                profile,
+            });
+            specific = true;
+        }
+        if !specific && let Some(index) = out.ods_sheet {
+            chosen.push(Selector::OdsSheet { index, profile });
         }
     }
     match chosen.len() {
@@ -2553,6 +2644,7 @@ fn package_ingest_json(r: &vole_document::field::ingest_package::PackageIngestRe
             "\"opc_model_nodes\":{},",
             "\"docx_model_nodes\":{},",
             "\"epub_model_nodes\":{},",
+            "\"ods_model_nodes\":{},",
             "\"xlsx_model_nodes\":{},",
             "\"pptx_model_nodes\":{},",
             "\"resource_blob_nodes\":{},",
@@ -2577,6 +2669,7 @@ fn package_ingest_json(r: &vole_document::field::ingest_package::PackageIngestRe
         r.opc_model_nodes,
         r.docx_model_nodes,
         r.epub_model_nodes,
+        r.ods_model_nodes,
         r.xlsx_model_nodes,
         r.pptx_model_nodes,
         r.resource_blob_nodes,

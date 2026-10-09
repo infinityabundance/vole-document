@@ -8,6 +8,8 @@
 pub mod docx;
 #[cfg(feature = "epub")]
 pub mod epub;
+#[cfg(feature = "ods")]
+pub mod ods;
 #[cfg(feature = "odt")]
 pub mod odt;
 pub mod opaque;

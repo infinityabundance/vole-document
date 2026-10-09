@@ -37,6 +37,10 @@ use crate::adapter::docx::wml::StoryModel;
 use crate::adapter::docx::{DocxExtractProfile, DocxModel, DocxPartRef, DocxStory, story_params};
 #[cfg(feature = "epub")]
 use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
+#[cfg(feature = "ods")]
+use crate::adapter::ods::{
+    ContentModel as OdsContentModel, OdsExtractProfile, OdsModel, StylesModel as OdsStylesModel,
+};
 #[cfg(feature = "odt")]
 use crate::adapter::odt::{
     Block as OdtBlock, ContentModel as OdtContentModel, OdtExtractProfile, OdtModel,
@@ -58,6 +62,8 @@ use crate::field::document_format::DocumentFormat;
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "ods")]
+use crate::field::index::SEL_ODS_MODEL;
 #[cfg(feature = "odt")]
 use crate::field::index::SEL_ODT_MODEL;
 #[cfg(feature = "opc")]
@@ -345,13 +351,59 @@ pub enum Selector {
         /// The extraction profile identity.
         profile: OdtExtractProfile,
     },
-    /// A text search over the OpenDocument blocks, scoped by the extraction profile.
+    /// A lexical text search over the OpenDocument blocks, scoped by the extraction profile.
     #[cfg(feature = "odt")]
     OdtFind {
         /// The pattern (case-sensitive substring).
         pattern: String,
         /// The extraction profile identity.
         profile: OdtExtractProfile,
+    },
+    /// An ODS sheet by 0-based document-order index (Phase 21.3.1). Hidden sheets
+    /// are still addressable by index; the profile only governs whether a
+    /// whole-spreadsheet projection includes them.
+    #[cfg(feature = "ods")]
+    OdsSheet {
+        /// The 0-based document-order sheet index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdsExtractProfile,
+    },
+    /// One ODS cell, addressed by an A1-style reference (`B7`) or an explicit
+    /// zero-based `row:col`. The stored formula, typed value, displayed text, style
+    /// name, and decoded-part span are distinct facets of the same cell, never
+    /// conflated.
+    #[cfg(feature = "ods")]
+    OdsCell {
+        /// The 0-based document-order sheet index.
+        sheet: u32,
+        /// The cell reference (`B7` or `row:col`).
+        cell: String,
+        /// The extraction profile identity.
+        profile: OdsExtractProfile,
+    },
+    /// A text search over sheet cells, scoped by the extraction profile.
+    #[cfg(feature = "ods")]
+    OdsFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The extraction profile identity.
+        profile: OdsExtractProfile,
+    },
+    /// The parsed OpenDocument cell styles (automatic styles from `content.xml`
+    /// plus the named styles from the styles part, Phase 21.3.1). A distinct
+    /// observation from a cell's value, formula, or span.
+    #[cfg(feature = "ods")]
+    OdsStyles,
+    /// The spreadsheet's named expressions (Phase 21.3.1). Formulas are never
+    /// evaluated; only the stored text is reported.
+    #[cfg(feature = "ods")]
+    OdsNamedExpressions,
+    /// The cell comments (`office:annotation`) of one sheet (Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    OdsComments {
+        /// The 0-based document-order sheet index.
+        sheet: u32,
     },
     /// An XLSX worksheet by 0-based workbook-order index (Phase 21.1.1). Hidden
     /// sheets are still addressable by index; the profile only governs whether a
@@ -644,6 +696,26 @@ impl Selector {
             Selector::OdtFind { pattern, profile } => {
                 format!("odt-find:{pattern};profile={}", profile.fingerprint())
             }
+            #[cfg(feature = "ods")]
+            Selector::OdsSheet { index, profile } => {
+                format!("ods-sheet:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "ods")]
+            Selector::OdsCell {
+                sheet,
+                cell,
+                profile,
+            } => format!("ods-cell:{sheet}:{cell};profile={}", profile.fingerprint()),
+            #[cfg(feature = "ods")]
+            Selector::OdsFind { pattern, profile } => {
+                format!("ods-find:{pattern};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "ods")]
+            Selector::OdsStyles => "ods-styles".to_string(),
+            #[cfg(feature = "ods")]
+            Selector::OdsNamedExpressions => "ods-named-expressions".to_string(),
+            #[cfg(feature = "ods")]
+            Selector::OdsComments { sheet } => format!("ods-comments:{sheet}"),
             #[cfg(feature = "xlsx")]
             Selector::XlsxSheet { index, profile } => {
                 format!("xlsx-sheet:{index};profile={}", profile.fingerprint())
@@ -1977,7 +2049,13 @@ fn opt_u8_json(v: Option<u8>) -> String {
     }
 }
 
-#[cfg(any(feature = "docx", feature = "odt", feature = "xlsx", feature = "pptx"))]
+#[cfg(any(
+    feature = "docx",
+    feature = "odt",
+    feature = "ods",
+    feature = "xlsx",
+    feature = "pptx"
+))]
 fn opt_str_json(v: Option<&str>) -> String {
     match v {
         Some(s) => format!("\"{}\"", json_escape(s)),
@@ -1985,7 +2063,7 @@ fn opt_str_json(v: Option<&str>) -> String {
     }
 }
 
-#[cfg(any(feature = "xlsx", feature = "pptx"))]
+#[cfg(any(feature = "ods", feature = "xlsx", feature = "pptx"))]
 fn opt_u32_json(v: Option<u32>) -> String {
     match v {
         Some(n) => n.to_string(),
@@ -2034,6 +2112,9 @@ impl<S: SeedStore> Ctx<'_, S> {
             | NodeKind::EpubContent
             | NodeKind::OdtModel
             | NodeKind::OdtContent
+            | NodeKind::OdsModel
+            | NodeKind::OdsContent
+            | NodeKind::OdsStyles
             | NodeKind::XlsxModel
             | NodeKind::XlsxWorkbook
             | NodeKind::XlsxSheet
@@ -2322,6 +2403,33 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "odt")]
             (Selector::OdtFind { pattern, profile }, R::Text) => {
                 self.odt_find(req, pattern, profile)
+            }
+            #[cfg(feature = "ods")]
+            (Selector::OdsSheet { index, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.ods_sheet(req, *index, profile)
+            }
+            #[cfg(feature = "ods")]
+            (
+                Selector::OdsCell {
+                    sheet,
+                    cell,
+                    profile,
+                },
+                R::Text | R::Structure | R::Metadata | R::ExactBytes,
+            ) => self.ods_cell(req, *sheet, cell, profile),
+            #[cfg(feature = "ods")]
+            (Selector::OdsFind { pattern, profile }, R::Text) => {
+                self.ods_find(req, pattern, profile)
+            }
+            #[cfg(feature = "ods")]
+            (Selector::OdsStyles, R::Metadata | R::Structure) => self.ods_styles_answer(req),
+            #[cfg(feature = "ods")]
+            (Selector::OdsNamedExpressions, R::Metadata | R::Structure) => {
+                self.ods_named_expressions(req)
+            }
+            #[cfg(feature = "ods")]
+            (Selector::OdsComments { sheet }, R::Metadata | R::Structure) => {
+                self.ods_comments(req, *sheet)
             }
             #[cfg(feature = "xlsx")]
             (Selector::XlsxSheet { index, profile }, R::Text | R::Structure | R::Metadata) => {
@@ -4694,6 +4802,504 @@ impl<S: SeedStore> Ctx<'_, S> {
 }
 
 // ---------------------------------------------------------------------------
+// ODS (OpenDocument Spreadsheet) observations (Phase 21.3.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "ods")]
+type OdsContentView = (
+    OdsContentModel,
+    crate::adapter::ods::PartRef,
+    Option<(u64, u64)>,
+    Vec<NodeId>,
+);
+
+#[cfg(feature = "ods")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the ODS discovery model (derived, `Q_gen`).
+    fn ods_model(&mut self) -> Result<OdsModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_ODS_MODEL, 0), "ODS model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        OdsModel::decode(&bytes)
+    }
+
+    fn ods_member_span(&mut self, ordinal: Option<u32>) -> Option<(u64, u64)> {
+        let o = ordinal?;
+        self.lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, o))
+            .ok()?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)))
+    }
+
+    fn ods_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Resolve the main content part to its parsed [`OdsContentModel`], parsing
+    /// **only** that part and persisting the derived node in the disposable cache.
+    fn ods_content_view(&mut self, profile: &OdsExtractProfile) -> Result<OdsContentView> {
+        let model = self.ods_model()?;
+        let part = model.content.clone().ok_or_else(|| {
+            Error::invalid_package_structure(
+                "ODF package has no resolvable OpenDocument content part",
+            )
+        })?;
+        if part.ordinal == u32::MAX {
+            return Err(Error::invalid_package_structure(
+                "ODF content part does not resolve to a package member",
+            ));
+        }
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "ODS content decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::OdsContent,
+            self.limits.max_output_bytes,
+            crate::adapter::ods::content_params(part.ordinal, &part.name, profile),
+            vec![dec.node_id],
+            "ods:content",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let cm = OdsContentModel::decode(&bytes)?;
+        let span = self.ods_member_span(Some(part.ordinal));
+        Ok((cm, part, span, vec![id, dec.node_id]))
+    }
+
+    /// Resolve the styles part to its parsed [`OdsStylesModel`], when present. A
+    /// missing styles part is not an error (an ODS may declare styles inline).
+    fn ods_styles_view(
+        &mut self,
+    ) -> Result<Option<(OdsStylesModel, crate::adapter::ods::PartRef, Vec<NodeId>)>> {
+        let model = self.ods_model()?;
+        let Some(part) = model.styles.clone() else {
+            return Ok(None);
+        };
+        if part.ordinal == u32::MAX {
+            return Ok(None);
+        }
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "ODS styles decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::OdsStyles,
+            self.limits.max_output_bytes,
+            crate::adapter::ods::styles_params(part.ordinal, &part.name),
+            vec![dec.node_id],
+            "ods:styles",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let sm = OdsStylesModel::decode(&bytes)?;
+        Ok(Some((sm, part, vec![id, dec.node_id])))
+    }
+
+    fn ods_a1(col: u32, row: u32) -> String {
+        let mut n = col as u64 + 1;
+        let mut letters: Vec<u8> = Vec::new();
+        while n > 0 {
+            let rem = ((n - 1) % 26) as u8;
+            letters.push(b'A' + rem);
+            n = (n - 1) / 26;
+        }
+        letters.reverse();
+        format!("{}{}", String::from_utf8_lossy(&letters), row + 1)
+    }
+
+    fn ods_cell_json(c: &crate::adapter::ods::Cell, sheet: u32, row: u32) -> String {
+        format!(
+            concat!(
+                "{{\"sheet\":{},\"ref\":\"{}\",\"col\":{},\"row\":{},\"covered\":{},",
+                "\"value_type\":{},\"value\":{},\"boolean_value\":{},\"date_value\":{},",
+                "\"string_value\":{},\"formula\":{},\"style\":{},\"text\":\"{}\",",
+                "\"cols_spanned\":{},\"rows_spanned\":{},\"span_start\":{},\"span_len\":{}}}"
+            ),
+            sheet,
+            Self::ods_a1(c.grid_col, row),
+            c.grid_col,
+            row,
+            c.covered,
+            opt_str_json(c.value_type.as_deref()),
+            opt_str_json(c.value.as_deref()),
+            opt_str_json(c.boolean_value.as_deref()),
+            opt_str_json(c.date_value.as_deref()),
+            opt_str_json(c.string_value.as_deref()),
+            opt_str_json(c.formula.as_deref()),
+            opt_str_json(c.style_name.as_deref()),
+            json_escape(&c.text),
+            c.col_span,
+            c.row_span,
+            c.span_start,
+            c.span_len,
+        )
+    }
+
+    fn ods_rows_json(
+        &self,
+        sheet: &crate::adapter::ods::Sheet,
+        req: &ObserveRequest,
+    ) -> Result<String> {
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for row in &sheet.rows {
+            let mut cells: Vec<String> = Vec::new();
+            for c in &row.cells {
+                estimated = estimated.saturating_add(96 + c.text.len() as u64);
+                if estimated > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "ODS sheet structure exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                cells.push(Self::ods_cell_json(c, sheet.index, row.index));
+            }
+            out.push(format!(
+                "{{\"index\":{},\"cells\":[{}]}}",
+                row.index,
+                cells.join(",")
+            ));
+        }
+        Ok(out.join(","))
+    }
+
+    fn ods_sheet(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(profile)?;
+        let sheet = m.sheet(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("spreadsheet has no sheet {index}"))
+        })?;
+        let name = sheet.name.clone();
+        let display = sheet.display;
+        let rows = sheet.rows.len();
+        let cells = sheet.cell_count();
+        let provenance = format!(
+            "ods;sheet={name};index={index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(sheet.text()),
+            Representation::Structure => {
+                let rows_json = self.ods_rows_json(sheet, req)?;
+                AnswerValue::Json(format!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"rows\":[{}]}}",
+                    json_escape(&name),
+                    index,
+                    rows_json
+                ))
+            }
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"display\":{},\"part\":\"{}\",",
+                    "\"ordinal\":{},\"rows\":{},\"cells\":{},\"styles\":{},",
+                    "\"named_expressions\":{},\"comments\":{},\"profile\":\"{}\"}}"
+                ),
+                json_escape(&name),
+                index,
+                display,
+                json_escape(&part.name),
+                part.ordinal,
+                rows,
+                cells,
+                m.styles.len(),
+                m.named_expressions.len(),
+                m.comments.iter().filter(|c| c.sheet == index).count(),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.ods_answer(req, value, provenance, span, deps))
+    }
+
+    fn ods_cell(
+        &mut self,
+        req: &ObserveRequest,
+        sheet_index: u32,
+        cell: &str,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (col, row) = crate::adapter::ods::parse_cell_position(cell).ok_or_else(|| {
+            Error::usage(format!(
+                "cell reference {cell:?} is not A1-style (e.g. B7) or row:col"
+            ))
+        })?;
+        let (m, part, span, deps) = self.ods_content_view(profile)?;
+        let sheet = m.sheet(sheet_index).ok_or_else(|| {
+            Error::unsupported_feature(format!("spreadsheet has no sheet {sheet_index}"))
+        })?;
+        let found = sheet.cell_at(row, col).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "sheet {sheet_index} ({}) has no cell {cell}",
+                sheet.name
+            ))
+        })?;
+        let sheet_name = sheet.name.clone();
+        let provenance = format!(
+            "ods;sheet={sheet_name};index={sheet_index};cell={cell};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(found.text.clone()),
+            Representation::ExactBytes => {
+                // The decoded-part byte span of the `<table:table-cell>` element. A
+                // derived (decompressed) span, not a source span; the raw member
+                // span stays on the answer for traceability.
+                let dec = self.require_entry(
+                    SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+                    "ODS content decoded bytes",
+                )?;
+                let node = self.load(&dec.node_id)?;
+                let bytes = self.materialize(&node)?;
+                let start = found.span_start as usize;
+                let end = start.saturating_add(found.span_len as usize);
+                AnswerValue::Bytes(bytes.get(start..end).unwrap_or_default().to_vec())
+            }
+            Representation::Metadata | Representation::Structure => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                    "\"cell\":\"{}\",\"col\":{},\"row\":{},\"covered\":{},",
+                    "\"value_type\":{},\"value\":{},\"boolean_value\":{},",
+                    "\"date_value\":{},\"string_value\":{},\"formula\":{},",
+                    "\"style\":{},\"text\":\"{}\",",
+                    "\"cols_spanned\":{},\"rows_spanned\":{},",
+                    "\"span_start\":{},\"span_len\":{},\"profile\":\"{}\"}}"
+                ),
+                json_escape(&sheet_name),
+                sheet_index,
+                json_escape(&part.name),
+                json_escape(cell),
+                found.grid_col,
+                row,
+                found.covered,
+                opt_str_json(found.value_type.as_deref()),
+                opt_str_json(found.value.as_deref()),
+                opt_str_json(found.boolean_value.as_deref()),
+                opt_str_json(found.date_value.as_deref()),
+                opt_str_json(found.string_value.as_deref()),
+                opt_str_json(found.formula.as_deref()),
+                opt_str_json(found.style_name.as_deref()),
+                json_escape(&found.text),
+                found.col_span,
+                found.row_span,
+                found.span_start,
+                found.span_len,
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.ods_answer(req, value, provenance, span, deps))
+    }
+
+    fn ods_style_json(s: &crate::adapter::ods::CellStyle) -> String {
+        let attrs = |pairs: &[(String, String)]| {
+            format!(
+                "{{{}}}",
+                pairs
+                    .iter()
+                    .map(|(k, v)| format!("\"{}\":\"{}\"", json_escape(k), json_escape(v)))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            )
+        };
+        format!(
+            concat!(
+                "{{\"name\":\"{}\",\"family\":\"{}\",\"parent\":{},\"data_style\":{},",
+                "\"table_cell_properties\":{},\"text_properties\":{}}}"
+            ),
+            json_escape(&s.name),
+            json_escape(&s.family),
+            opt_str_json(s.parent.as_deref()),
+            opt_str_json(s.data_style.as_deref()),
+            attrs(&s.table_cell_properties),
+            attrs(&s.text_properties),
+        )
+    }
+
+    fn ods_styles_answer(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(&OdsExtractProfile::DEFAULT)?;
+        let styles_view = self.ods_styles_view()?;
+        let auto: Vec<String> = m.styles.iter().map(Self::ods_style_json).collect();
+        let mut named: Vec<String> = Vec::new();
+        let mut formats: Vec<String> = m
+            .number_formats
+            .iter()
+            .map(|f| {
+                format!(
+                    "{{\"name\":\"{}\",\"kind\":\"{}\"}}",
+                    json_escape(&f.name),
+                    json_escape(&f.kind)
+                )
+            })
+            .collect();
+        let mut all_deps = deps;
+        if let Some((sm, _spart, sdeps)) = styles_view {
+            named = sm.styles.iter().map(Self::ods_style_json).collect();
+            for f in &sm.number_formats {
+                formats.push(format!(
+                    "{{\"name\":\"{}\",\"kind\":\"{}\"}}",
+                    json_escape(&f.name),
+                    json_escape(&f.kind)
+                ));
+            }
+            all_deps.extend(sdeps);
+        }
+        let provenance = format!("ods;part={};styles", part.name);
+        Ok(self.ods_answer(
+            req,
+            AnswerValue::Json(format!(
+                "{{\"automatic_styles\":[{}],\"named_styles\":[{}],\"number_formats\":[{}]}}",
+                auto.join(","),
+                named.join(","),
+                formats.join(",")
+            )),
+            provenance,
+            span,
+            all_deps,
+        ))
+    }
+
+    fn ods_named_expressions(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(&OdsExtractProfile::DEFAULT)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for n in &m.named_expressions {
+            estimated = estimated.saturating_add(96 + n.name.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "ODS named expressions exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            items.push(format!(
+                concat!(
+                    "{{\"name\":\"{}\",\"kind\":\"{}\",\"base_cell_address\":{},",
+                    "\"cell_range_address\":{},\"expression\":{}}}"
+                ),
+                json_escape(&n.name),
+                json_escape(&n.kind),
+                opt_str_json(n.base_cell_address.as_deref()),
+                opt_str_json(n.cell_range_address.as_deref()),
+                opt_str_json(n.expression.as_deref()),
+            ));
+        }
+        let provenance = format!("ods;part={};named-expressions", part.name);
+        Ok(self.ods_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+
+    fn ods_comments(&mut self, req: &ObserveRequest, sheet: u32) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(&OdsExtractProfile::DEFAULT)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for c in m.comments.iter().filter(|c| c.sheet == sheet) {
+            estimated = estimated.saturating_add(96 + c.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "ODS comments exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            items.push(format!(
+                concat!(
+                    "{{\"ref\":\"{}\",\"row\":{},\"col\":{},\"author\":{},",
+                    "\"date\":{},\"text\":\"{}\"}}"
+                ),
+                Self::ods_a1(c.col, c.row),
+                c.row,
+                c.col,
+                opt_str_json(c.author.as_deref()),
+                opt_str_json(c.date.as_deref()),
+                json_escape(&c.text),
+            ));
+        }
+        let provenance = format!("ods;part={};sheet={sheet};comments", part.name);
+        Ok(self.ods_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+
+    fn ods_find(
+        &mut self,
+        req: &ObserveRequest,
+        pattern: &str,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(profile)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for sheet in &m.sheets {
+            for row in &sheet.rows {
+                for c in &row.cells {
+                    if !c.text.contains(pattern) {
+                        continue;
+                    }
+                    estimated = estimated.saturating_add(96 + c.text.len() as u64);
+                    if estimated > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "ODS find exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                    items.push(format!(
+                        "{{\"sheet\":{},\"row\":{},\"col\":{},\"text\":\"{}\"}}",
+                        sheet.index,
+                        row.index,
+                        c.grid_col,
+                        json_escape(&c.text)
+                    ));
+                }
+            }
+        }
+        let provenance = format!("ods;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.ods_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // XLSX (Phase 21.1.1)
 // ---------------------------------------------------------------------------
 
@@ -6581,6 +7187,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Docx => self.common_docx(req)?,
             DocumentFormat::Epub => self.common_epub(req)?,
             DocumentFormat::Odt => self.common_odt(req)?,
+            DocumentFormat::Ods => self.common_ods(req)?,
             DocumentFormat::Xlsx => self.common_xlsx(req)?,
             DocumentFormat::Pptx => self.common_pptx(req)?,
             DocumentFormat::Opaque => {
@@ -6877,6 +7484,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_odt(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "ODT observations require a build with the odt feature",
+        ))
+    }
+
+    #[cfg(not(feature = "ods"))]
+    fn common_ods(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "ODS observations require a build with the ods feature",
         ))
     }
 
@@ -7382,6 +7996,147 @@ impl<S: SeedStore> Ctx<'_, S> {
             profile.fingerprint()
         );
         Ok(self.odt_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ODS common observations (Phase 21.3.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "ods")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn common_ods(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let profile = OdsExtractProfile::DEFAULT;
+        match &req.selector {
+            Selector::Metadata => self.ods_common_metadata(req, &profile),
+            Selector::Text => self.ods_content_text(req, &profile),
+            Selector::Table(i) => self.ods_sheet(req, *i, &profile),
+            Selector::Cell { table, row, col } => {
+                self.ods_common_cell(req, *table, *row, *col, &profile)
+            }
+            Selector::SearchMatch(p) => self.ods_find(req, p, &profile),
+            other => Err(Error::unsupported_feature(format!(
+                "ODS does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn ods_content_text(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(profile)?;
+        let provenance = format!("ods;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.ods_answer(
+            req,
+            AnswerValue::Text(m.text(profile.hidden)),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+
+    fn ods_common_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let model = self.ods_model()?;
+        let part = model.content.as_ref().ok_or_else(|| {
+            Error::invalid_package_structure(
+                "ODF package has no resolvable OpenDocument content part",
+            )
+        })?;
+        let (m, _part, span, deps) = self.ods_content_view(profile)?;
+        let names = m
+            .sheets
+            .iter()
+            .map(|s| format!("\"{}\"", json_escape(&s.name)))
+            .collect::<Vec<_>>()
+            .join(",");
+        let json = format!(
+            concat!(
+                "{{",
+                "\"format\":\"ods\",",
+                "\"part\":\"{}\",",
+                "\"ordinal\":{},",
+                "\"media_type\":{},",
+                "\"root\":\"{}\",",
+                "\"manifest_entries\":{},",
+                "\"sheets\":{},",
+                "\"sheet_names\":[{}],",
+                "\"cells\":{},",
+                "\"styles\":{},",
+                "\"number_formats\":{},",
+                "\"named_expressions\":{},",
+                "\"comments\":{},",
+                "\"profile\":\"{}\"",
+                "}}"
+            ),
+            json_escape(&part.name),
+            part.ordinal,
+            opt_str_json(part.media_type.as_deref()),
+            json_escape(&m.root_local),
+            model.manifest.len(),
+            m.sheets.len(),
+            names,
+            m.cell_count(),
+            m.styles.len(),
+            m.number_formats.len(),
+            m.named_expressions.len(),
+            m.comments.len(),
+            profile.fingerprint(),
+        );
+        let provenance = format!("ods;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.ods_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    fn ods_common_cell(
+        &mut self,
+        req: &ObserveRequest,
+        table: u32,
+        row: u32,
+        col: u32,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(profile)?;
+        let sheet = m.sheet(table).ok_or_else(|| {
+            Error::unsupported_feature(format!("spreadsheet has no sheet {table}"))
+        })?;
+        let found = sheet.cell_at(row, col).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "sheet {table} ({}) has no cell at row {row} col {col}",
+                sheet.name
+            ))
+        })?;
+        let sheet_name = sheet.name.clone();
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(found.text.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"cell\":\"{}\",\"row\":{},\"col\":{},",
+                    "\"value_type\":{},\"value\":{},\"formula\":{},\"style\":{},\"text\":\"{}\"}}"
+                ),
+                json_escape(&sheet_name),
+                table,
+                Self::ods_a1(col, row),
+                row,
+                col,
+                opt_str_json(found.value_type.as_deref()),
+                opt_str_json(found.value.as_deref()),
+                opt_str_json(found.formula.as_deref()),
+                opt_str_json(found.style_name.as_deref()),
+                json_escape(&found.text),
+            )),
+        };
+        let provenance = format!(
+            "ods;part={};sheet={table};row={row};cell={col};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        Ok(self.ods_answer(req, value, provenance, span, deps))
     }
 }
 

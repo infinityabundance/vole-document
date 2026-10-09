@@ -299,6 +299,37 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["OdtModel", "PackageMemberRaw", "PackageMemberDecoded"]),
             will_not_materialize: kinds(&["other-parts", "whole-document"]),
         }),
+        #[cfg(feature = "ods")]
+        (Selector::OdsSheet { .. }, R::Text | R::Structure | R::Metadata)
+        | (Selector::OdsCell { .. }, R::Text | R::Metadata | R::Structure | R::ExactBytes)
+        | (Selector::OdsFind { .. }, R::Text)
+        | (Selector::OdsComments { .. }, R::Metadata | R::Structure)
+        | (Selector::OdsNamedExpressions, R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 4,
+            will_materialize: kinds(&[
+                "OdsModel",
+                "OdsContent",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-sheets", "whole-document"]),
+        }),
+        #[cfg(feature = "ods")]
+        (Selector::OdsStyles, R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 5,
+            will_materialize: kinds(&[
+                "OdsModel",
+                "OdsContent",
+                "OdsStyles",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-sheets", "whole-document"]),
+        }),
         #[cfg(feature = "xlsx")]
         (Selector::XlsxSheet { .. }, R::Text | R::Structure | R::Metadata)
         | (Selector::XlsxCell { .. }, R::Text | R::Metadata | R::Structure | R::ExactBytes)
@@ -438,6 +469,12 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Odt => &[
             "OdtModel",
             "OdtContent",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Ods => &[
+            "OdsModel",
+            "OdsContent",
             "PackageMemberDecoded",
             "PackageMemberRaw",
         ],

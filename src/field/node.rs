@@ -136,6 +136,19 @@ pub enum NodeKind {
     /// One notes-slide part (`ppt/notesSlides/notesSlideN.xml`) parsed into its
     /// bounded text model. Derived, never exact (Phase 21.2.1).
     PptxNotes = 0x20,
+    /// The canonical ODS (ODF spreadsheet) discovery model: `mimetype` conformance
+    /// facts and the parsed `META-INF/manifest.xml` file entries with the main
+    /// content part resolved semantically, derived on demand from the exact package
+    /// source. Derived, never exact (Phase 21.3.1).
+    OdsModel = 0x21,
+    /// The OpenDocument spreadsheet main part (`content.xml`, `office:spreadsheet`)
+    /// parsed into its bounded native model (sheets/rows/cells with typed values,
+    /// stored formulas, cell styles, named expressions, and annotations), honoring a
+    /// declared extraction profile. Derived, never exact (Phase 21.3.1).
+    OdsContent = 0x22,
+    /// The OpenDocument styles part (`styles.xml`) parsed into its bounded cell-style
+    /// and number-format model. Derived, never exact (Phase 21.3.1).
+    OdsStyles = 0x23,
 }
 
 impl NodeKind {
@@ -174,6 +187,9 @@ impl NodeKind {
             0x1E => NodeKind::PptxPresentation,
             0x1F => NodeKind::PptxSlide,
             0x20 => NodeKind::PptxNotes,
+            0x21 => NodeKind::OdsModel,
+            0x22 => NodeKind::OdsContent,
+            0x23 => NodeKind::OdsStyles,
             _ => return None,
         })
     }
@@ -213,6 +229,9 @@ impl NodeKind {
             NodeKind::PptxPresentation => "PptxPresentation",
             NodeKind::PptxSlide => "PptxSlide",
             NodeKind::PptxNotes => "PptxNotes",
+            NodeKind::OdsModel => "OdsModel",
+            NodeKind::OdsContent => "OdsContent",
+            NodeKind::OdsStyles => "OdsStyles",
         }
     }
 

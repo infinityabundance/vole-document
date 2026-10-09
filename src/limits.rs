@@ -136,6 +136,37 @@ pub struct Limits {
     pub max_odt_blocks: u32,
     /// Maximum notes accepted in one OpenDocument content part (Phase 13.3).
     pub max_odt_notes: u32,
+    // The ODS/OpenDocument-Spreadsheet caps below bound the derived spreadsheet
+    // model (Phase 21.3.1). ODS semantics are derived (`Q_gen`) only.
+    /// Maximum `table:table` sheets accepted in one OpenDocument spreadsheet
+    /// content part (Phase 21.3.1).
+    pub max_ods_sheets: u32,
+    /// Maximum *expanded* grid slots accepted across one spreadsheet, after
+    /// `table:number-rows-repeated`/`table:number-columns-repeated` expansion
+    /// (Phase 21.3.1). Each expanded row charges at least one slot even when it
+    /// declares no cells, so an empty-row repeat bomb still declines. This is the
+    /// ODS analogue of the XLSX coordinate bound (ADR-0059): a repeated span is
+    /// bounded and the *expanded* count declines typed rather than allocating.
+    pub max_ods_cells: u64,
+    /// Maximum repeat count admitted for a single
+    /// `table:number-columns-repeated`/`table:number-rows-repeated` attribute
+    /// (Phase 21.3.1). A declaration above this bound is a typed resource-limit
+    /// decline, never an allocation.
+    pub max_ods_repeated_span: u32,
+    /// Maximum merged spans (`table:number-columns-spanned`>1 or
+    /// `table:number-rows-spanned`>1) accepted across one spreadsheet
+    /// (Phase 21.3.1).
+    pub max_ods_merges: u32,
+    /// Maximum named expressions
+    /// (`table:named-range`/`table:named-expression`) accepted across one
+    /// spreadsheet (Phase 21.3.1).
+    pub max_ods_named_expressions: u32,
+    /// Maximum `style:style` cell-style records accepted in one spreadsheet's
+    /// automatic styles or styles part (Phase 21.3.1).
+    pub max_ods_styles: u32,
+    /// Maximum `office:annotation` cell comments accepted across one spreadsheet
+    /// (Phase 21.3.1).
+    pub max_ods_comments: u32,
     // The XLSX/SpreadsheetML caps below bound the derived semantic model
     // (Phase 21.1.1). XLSX semantics are derived (`Q_gen`) only.
     /// Maximum `<sheet>` declarations accepted in one workbook (Phase 21.1.1).
@@ -250,6 +281,13 @@ impl Limits {
         max_odt_manifest_entries: 1 << 20,
         max_odt_blocks: 1 << 20,
         max_odt_notes: 1 << 20,
+        max_ods_sheets: 4096,
+        max_ods_cells: 1 << 24,
+        max_ods_repeated_span: 1 << 20,
+        max_ods_merges: 1 << 20,
+        max_ods_named_expressions: 1 << 20,
+        max_ods_styles: 1 << 16,
+        max_ods_comments: 1 << 20,
         max_xlsx_sheets: 4096,
         max_xlsx_cells: 1 << 24,
         max_xlsx_shared_strings: 1 << 20,
@@ -324,6 +362,13 @@ impl Limits {
         max_odt_manifest_entries: 1 << 14,
         max_odt_blocks: 1 << 14,
         max_odt_notes: 1 << 12,
+        max_ods_sheets: 64,
+        max_ods_cells: 1 << 16,
+        max_ods_repeated_span: 1 << 14,
+        max_ods_merges: 1 << 14,
+        max_ods_named_expressions: 1 << 14,
+        max_ods_styles: 1 << 12,
+        max_ods_comments: 1 << 14,
         max_xlsx_sheets: 64,
         max_xlsx_cells: 1 << 16,
         max_xlsx_shared_strings: 1 << 14,

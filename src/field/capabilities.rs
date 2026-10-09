@@ -133,6 +133,16 @@ const PDF_NATIVE: &[&str] = &[
     "byte-range",
     "text-match",
 ];
+const ODS_NATIVE: &[&str] = &[
+    "ods-sheet",
+    "ods-cell",
+    "ods-find",
+    "ods-styles",
+    "ods-named-expressions",
+    "ods-comments",
+    "package-part",
+    "member",
+];
 const XLSX_NATIVE: &[&str] = &[
     "xlsx-sheet",
     "xlsx-cell",
@@ -245,6 +255,17 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 odt_profiles(),
                 ODT_NATIVE.to_vec(),
             ),
+            DocumentFormat::Ods => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                ods_profiles(),
+                ODS_NATIVE.to_vec(),
+            ),
             DocumentFormat::Xlsx => (
                 vec![
                     caps("metadata", COMMON_METADATA),
@@ -302,6 +323,15 @@ fn odt_profiles() -> Vec<String> {
 }
 #[cfg(not(feature = "odt"))]
 fn odt_profiles() -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(feature = "ods")]
+fn ods_profiles() -> Vec<String> {
+    vec![crate::adapter::ods::OdsExtractProfile::DEFAULT.fingerprint()]
+}
+#[cfg(not(feature = "ods"))]
+fn ods_profiles() -> Vec<String> {
     Vec::new()
 }
 

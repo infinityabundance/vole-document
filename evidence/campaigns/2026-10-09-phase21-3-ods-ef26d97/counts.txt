@@ -1,0 +1,6 @@
+fixtures 8
+exact_ok 8
+exact_fail 0
+typed_declines_ok 7
+bomb_declines_ok 1
+binary 8b192b386094c52632080b35494bf18dfd185b229da5f7f6bbe500494b451523

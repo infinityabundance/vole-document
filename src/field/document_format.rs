@@ -18,6 +18,11 @@
 //! * **ODT** — a valid ZIP that is an OpenDocument (ODF) package: the mandatory
 //!   stored `mimetype` member is an OpenDocument *text* media type, or
 //!   `META-INF/manifest.xml` declares one.
+//! * **ODS** — a valid ZIP that is an OpenDocument (ODF) package whose mandatory
+//!   stored `mimetype` member is an OpenDocument *spreadsheet* media type, or whose
+//!   `META-INF/manifest.xml` declares one (Phase 21.3.1). Mutually exclusive with
+//!   ODT (a text document declares the text media type, a spreadsheet the
+//!   spreadsheet one).
 //! * **Opaque** — everything else, including a ZIP that matches none of the above
 //!   (or more than one — an ambiguous ZIP fails safe).
 //!
@@ -57,6 +62,12 @@ const ODT_MANIFEST_MEMBER: &[u8] = b"META-INF/manifest.xml";
 /// The OpenDocument *text* media-type fragment (Phase 13.3).
 #[cfg(feature = "odt")]
 const ODT_TEXT_FRAGMENT: &[u8] = b"application/vnd.oasis.opendocument.text";
+/// The ODF package manifest member for the ODS detection rule (Phase 21.3.1).
+#[cfg(feature = "ods")]
+const ODS_MANIFEST_MEMBER: &[u8] = b"META-INF/manifest.xml";
+/// The OpenDocument *spreadsheet* media-type fragment (Phase 21.3.1).
+#[cfg(feature = "ods")]
+const ODS_SPREADSHEET_FRAGMENT: &[u8] = b"application/vnd.oasis.opendocument.spreadsheet";
 /// The SpreadsheetML workbook main content-type fragment (Phase 21.1.1).
 #[cfg(feature = "xlsx")]
 const XLSX_MAIN_FRAGMENT: &[u8] = b"spreadsheetml.sheet.main+xml";
@@ -87,6 +98,8 @@ pub enum DocumentFormat {
     Epub,
     /// An ODF package with an OpenDocument text content part.
     Odt,
+    /// An ODF package with an OpenDocument spreadsheet content part.
+    Ods,
     /// An OPC package with a SpreadsheetML workbook part.
     Xlsx,
     /// An OPC package with a PresentationML presentation part.
@@ -103,6 +116,7 @@ impl DocumentFormat {
             DocumentFormat::Docx => "docx",
             DocumentFormat::Epub => "epub",
             DocumentFormat::Odt => "odt",
+            DocumentFormat::Ods => "ods",
             DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Pptx => "pptx",
             DocumentFormat::Opaque => "opaque",
@@ -116,6 +130,7 @@ impl DocumentFormat {
             DocumentFormat::Docx => "docx",
             DocumentFormat::Epub => "epub",
             DocumentFormat::Odt => "odt",
+            DocumentFormat::Ods => "ods",
             DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Pptx => "pptx",
             DocumentFormat::Opaque => "opaque",
@@ -129,6 +144,7 @@ impl DocumentFormat {
             DocumentFormat::Docx => cfg!(feature = "docx"),
             DocumentFormat::Epub => cfg!(feature = "epub"),
             DocumentFormat::Odt => cfg!(feature = "odt"),
+            DocumentFormat::Ods => cfg!(feature = "ods"),
             DocumentFormat::Xlsx => cfg!(feature = "xlsx"),
             DocumentFormat::Pptx => cfg!(feature = "pptx"),
         }
@@ -152,6 +168,7 @@ impl DocumentFormat {
             "docx" => Some(DocumentFormat::Docx),
             "epub" => Some(DocumentFormat::Epub),
             "odt" => Some(DocumentFormat::Odt),
+            "ods" => Some(DocumentFormat::Ods),
             "xlsx" => Some(DocumentFormat::Xlsx),
             "pptx" => Some(DocumentFormat::Pptx),
             "opaque" => Some(DocumentFormat::Opaque),
@@ -268,8 +285,22 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
     #[cfg(not(feature = "odt"))]
     let is_odt = false;
 
+    // ODS: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
+    // declares an OpenDocument *spreadsheet* media type. The positive spreadsheet
+    // fragment keeps it mutually exclusive with ODT (a text document declares the
+    // text media type, never the spreadsheet one).
+    #[cfg(feature = "ods")]
+    let is_ods = mimetype
+        .as_deref()
+        .is_some_and(|m| contains(m, ODS_SPREADSHEET_FRAGMENT))
+        || member_decoded(&physical, source, ODS_MANIFEST_MEMBER, limits)
+            .as_deref()
+            .is_some_and(|m| contains(m, ODS_SPREADSHEET_FRAGMENT));
+    #[cfg(not(feature = "ods"))]
+    let is_ods = false;
+
     // A ZIP matching more than one native signature is ambiguous: fail safe.
-    let matches = [is_docx, is_epub, is_odt, is_xlsx, is_pptx]
+    let matches = [is_docx, is_epub, is_odt, is_ods, is_xlsx, is_pptx]
         .iter()
         .filter(|b| **b)
         .count();
@@ -277,6 +308,7 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
         1 if is_docx => Some(DocumentFormat::Docx),
         1 if is_epub => Some(DocumentFormat::Epub),
         1 if is_odt => Some(DocumentFormat::Odt),
+        1 if is_ods => Some(DocumentFormat::Ods),
         1 if is_xlsx => Some(DocumentFormat::Xlsx),
         1 if is_pptx => Some(DocumentFormat::Pptx),
         _ => None,
@@ -329,6 +361,7 @@ mod tests {
             DocumentFormat::Docx,
             DocumentFormat::Epub,
             DocumentFormat::Odt,
+            DocumentFormat::Ods,
             DocumentFormat::Xlsx,
             DocumentFormat::Pptx,
             DocumentFormat::Opaque,

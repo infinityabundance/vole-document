@@ -1,0 +1,15 @@
+docker compose run --rm --no-TTY doc-baseline sh tools/phase21-3-ods-court.sh
+# inside the court:
+#   cargo build --locked --all-features
+#   python3 tools/fixtures/make-ods.py
+#   target/debug/vole-document field-build tools/fixtures/ods/F.ods --store STORE --voldoc F.voldoc
+#   target/debug/vole-document observe --store STORE --field HEX (--metadata|--doc-text|--ods-sheet 0|--ods-cell A1 --ods-sheet 0|--ods-styles|--ods-named-expressions|--ods-comments) --kind metadata|text
+#   rm source F.voldoc
+#   target/debug/vole-document materialize --store STORE --field HEX --exact --output OUT ; cmp OUT source
+# Full gate (dev service):
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features
+#   cargo test --locked
+#   cargo test --locked --no-default-features
+#   MSRV: docker compose run --rm --no-TTY msrv cargo build --locked --all-features
