@@ -62,6 +62,10 @@ pub enum ErrorClass {
     /// unsupported construct (a bad indentation, an unterminated quoted scalar, a
     /// declined directive/explicit key/flow-context block scalar).
     InvalidYamlStructure,
+    /// A CSV/TSV tabular structure error (Phase 21.7+): an unterminated quoted
+    /// field, a byte after a closing quote that is neither a delimiter nor an end
+    /// of record, or an input that is not a table under either delimiter.
+    InvalidCsvStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -91,6 +95,7 @@ impl ErrorClass {
             ErrorClass::InvalidPackageStructure => 20,
             ErrorClass::InvalidJsonStructure => 21,
             ErrorClass::InvalidYamlStructure => 22,
+            ErrorClass::InvalidCsvStructure => 23,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -119,6 +124,7 @@ impl ErrorClass {
             ErrorClass::InvalidPackageStructure => "InvalidPackageStructure",
             ErrorClass::InvalidJsonStructure => "InvalidJsonStructure",
             ErrorClass::InvalidYamlStructure => "InvalidYamlStructure",
+            ErrorClass::InvalidCsvStructure => "InvalidCsvStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -201,6 +207,7 @@ impl Error {
     ctor!(invalid_package_structure, InvalidPackageStructure);
     ctor!(invalid_json_structure, InvalidJsonStructure);
     ctor!(invalid_yaml_structure, InvalidYamlStructure);
+    ctor!(invalid_csv_structure, InvalidCsvStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 
@@ -231,6 +238,9 @@ mod tests {
             ErrorClass::InvalidZipStructure,
             ErrorClass::InvalidXmlStructure,
             ErrorClass::InvalidPackageStructure,
+            ErrorClass::InvalidJsonStructure,
+            ErrorClass::InvalidYamlStructure,
+            ErrorClass::InvalidCsvStructure,
             ErrorClass::InternalInvariant,
         ];
         let mut codes: Vec<i32> = classes.iter().map(|c| c.exit_code()).collect();

@@ -64,3 +64,6 @@ __pycache__/
 # The manifest (pinned URLs + SHA-256) is committed; the bytes are not.
 /realformats-v1/documents/
 /realformats-v1/.cache/
+
+# Phase 21.7 CSV: the large generated fixture (regenerated at court time).
+/tools/fixtures/csv/large.csv
