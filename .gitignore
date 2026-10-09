@@ -58,3 +58,9 @@ __pycache__/
 /real100-v1/.cache/
 /real100-v1/documents/
 /real100-v1/pilot/documents/
+
+# realformats-v1 (Phase 21.5.3 FIX 4): pinned real-world multi-format samples
+# (XLSX/PPTX/ODS/ODP/JSON/YAML) fetched on demand from stable public sources.
+# The manifest (pinned URLs + SHA-256) is committed; the bytes are not.
+/realformats-v1/documents/
+/realformats-v1/.cache/

@@ -1,0 +1,1 @@
+{"decline": {"code": "no-source-span", "detail": "SQLite exposes no source byte span"}, "declined": true, "detail": {}, "lane": "sqlite", "native": true, "q": "Q2", "value": null}

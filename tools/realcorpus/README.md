@@ -24,6 +24,12 @@ The service is `FROM debian:bookworm-slim@sha256:3783cc…` (the same digest as 
 | `select-real100.py` | Deterministically builds the frozen selection → `sources/real100_selection.tsv`. |
 | `select-real100.sh` / `select-pilot.sh` | Acquisition drivers over the selection / pilot list. |
 | `verify.sh` | Gate: verifies every row, regenerates `SHA256SUMS`, optionally prints the diversity table. Exit non-zero on any hash/length/format mismatch. |
+| `formats-manifest.tsv` | **Phase 21.5.3 (FIX 4)** — a small pinned, checksummed set of *real-world* samples for the Wave-2 formats (XLSX, PPTX, ODS, ODP, JSON, YAML) from stable, permissively licensed public sources (Apache POI, odfpy, Natural Earth, Prometheus), pinned by tag/commit and by SHA-256. Bytes are gitignored. |
+| `fetch-formats.sh` | Downloads + verifies the format manifest into gitignored `realformats-v1/documents/<format>/<id>` (`--check` verifies only). Never trusts the network: a length/SHA-256 mismatch fails. Runs in the `realcorpus` service. |
+
+The stratified smoke court for those samples is `tools/realformats-smoke-court.sh`
+(runs in `doc-baseline`); it reports **pooled costs alongside medians**, stratified
+by format and size class.
 
 ## Typical use
 
@@ -43,6 +49,11 @@ docker compose run --rm --no-TTY realcorpus tools/realcorpus/fetch.sh \
 
 # print the gate evaluator's help
 docker compose run --rm --no-TTY realcorpus python3 tools/realcorpus/check-diversity.py --help
+
+# Phase 21.5.3 (FIX 4): acquire the pinned real multi-format samples, then run the
+# stratified smoke court (pooled costs alongside medians) in the doc-baseline lane.
+docker compose run --rm --no-TTY realcorpus sh tools/realcorpus/fetch-formats.sh
+docker compose run --rm --no-TTY doc-baseline bash tools/realformats-smoke-court.sh
 ```
 
 ## Format verification is by bytes

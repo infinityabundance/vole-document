@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
-# Phase 21.5.1 — JSON economic court: the source-retaining SQLite baseline.
+# Phase 21.5.1 / 21.5.3 — JSON economic court: the source-retaining SQLite baseline.
 #
 # The comparator retains the original JSON bytes verbatim (a `raw` BLOB) and also
 # loads the text into SQLite, answering the same Q1–Q8 questions **using SQLite's
-# built-in JSON functions (`json1`/`jsonb`)** where they can be answered. This is a
-# serious comparator: SQLite 3.38+ ships a fast C JSON parser and `jsonb` binary
-# representation. What it does *not* preserve is representation — spelling, member
-# order, duplicate keys, or source spans — so several questions decline and others
-# mismatch VOLE for exactly that reason (recorded honestly, never papered over).
+# built-in JSON functions (`json1`/`jsonb`)** where they can be answered. To make
+# that a *fact*, this lane prefers the hash-pinned `pysqlite3` module, which
+# bundles a modern SQLite with the `jsonb` binary representation (JSONB exists
+# only from SQLite 3.45.0); it falls back to the stdlib `sqlite3` only if the
+# wheel is absent, and records which module + `sqlite_version` it actually used
+# (`version` subcommand). What SQLite does *not* preserve is representation —
+# spelling, member order, or source spans — and, before the 21.5.3 correction, the
+# old lane also **collapsed duplicate keys** by hardcoding `duplicate_count=1`.
+# `json_tree`/`json_each` in fact enumerate duplicate object members, so Q4 now
+# counts them exactly (see `_q_exists`).
 #
 #   build       --source FILE --db DB
 #   query       --db DB --q Qn --plan JSON --out FILE
 #   session     --db DB --queries Q1,Q2,... --plan JSON --out FILE
 #   materialize --db DB --out FILE
+#   version
 #   aggregate   --raw DIR --campaign DIR --env ENV_JSON
 
 import argparse
@@ -20,9 +26,17 @@ import hashlib
 import json
 import os
 import re
-import sqlite3
 import sys
 import time
+
+try:
+    # The hash-pinned wheel in the `analytical` image; bundles SQLite 3.51.1 so
+    # `jsonb` (>= 3.45) is genuinely available.
+    import pysqlite3 as sqlite3
+    SQLITE_MODULE = "pysqlite3"
+except ImportError:  # pragma: no cover - lanes without the pinned wheel
+    import sqlite3
+    SQLITE_MODULE = "sqlite3"
 
 SIMPLE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 IDX = re.compile(r"^(0|[1-9][0-9]*)$")
@@ -213,11 +227,17 @@ def _q_kind(con, j, path):
 
 
 def _q_exists(con, j, path):
-    v = con.execute("SELECT json_extract(?, ?)", (j, path)).fetchone()[0]
-    exists = v is not None
-    # SQLite collapses duplicate keys; it cannot count them.
-    return envelope(4, {"exists": exists, "duplicate_count": 1 if exists else 0},
-                    detail={"note": "duplicate keys are collapsed by SQLite"})
+    # FIX 1b: `json_tree` enumerates ALL object members, INCLUDING duplicates
+    # (verified on SQLite 3.51.1: `json_each('{"a":1,"a":2}')` yields two rows
+    # and `json_tree` gives two rows with fullkey '$.a'). Counting the rows whose
+    # `fullkey` equals the (SQLite-form) pointer therefore returns the true member
+    # count — the old hardcoded `1` was simply wrong.
+    n = con.execute(
+        "SELECT count(*) FROM json_tree(?) WHERE fullkey = ?", (j, path)
+    ).fetchone()[0]
+    exists = n > 0
+    return envelope(4, {"exists": exists, "duplicate_count": n},
+                    detail={"method": "json_tree fullkey count; duplicates enumerated"})
 
 
 def _q_find(con, j, pat):
@@ -418,7 +438,8 @@ def aggregate(raw, campaign, env_path=None):
 
     docs = read_tsv(os.path.join(raw, "fixtures.tsv"))
     fixtures = [r["fixture"] for r in docs]
-    lanes = ["vole", "sqlite"]
+    lanes = ["vole", "sqlite", "spanpy"]
+    comparators = ["sqlite", "spanpy"]
     qs = ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8"]
 
     build_rows = read_tsv(os.path.join(raw, "build.tsv"))
@@ -489,9 +510,10 @@ def aggregate(raw, campaign, env_path=None):
     for fx in fixtures:
         for q in qs:
             row = qanswers.get((fx, q), {})
-            res, _ = compare(q, row.get("vole"), row.get("sqlite"))
-            equiv.setdefault(q, {}).setdefault(res, 0)
-            equiv[q][res] += 1
+            for comp in comparators:
+                res, _ = compare(q, row.get("vole"), row.get(comp))
+                equiv.setdefault(q, {}).setdefault(comp, {}).setdefault(res, 0)
+                equiv[q][comp][res] += 1
 
     exact_ok = sum(1 for r in exact_rows if r.get("vole_ok") in ("1", "true"))
     exact_n = len(exact_rows)
@@ -508,10 +530,12 @@ def aggregate(raw, campaign, env_path=None):
     lines.append("")
     lines.append("**Method.** A deterministic self-authored JSON corpus "
                  "(`tools/fixtures/make-json.py --corpus`) is regenerated at court "
-                 "time; each fixture is ingested by two lanes (VOLE field CLI; a "
-                 "source-retaining SQLite baseline that keeps the raw bytes and uses "
-                 "`json1`/`jsonb`), Q1–Q8 are asked of each, and build/storage/cold/"
-                 "warm are measured. Persistent bytes are the **sum of regular-file "
+                 "time; each fixture is ingested by **three lanes** (VOLE field CLI; a "
+                 "source-retaining SQLite baseline that keeps the raw bytes and queries "
+                 "`json1`/`jsonb` on a hash-pinned modern SQLite; and a **span-preserving "
+                 "pure-Python baseline** that retains the source and records every "
+                 "token's exact byte span), Q1–Q8 are asked of each, and build/storage/"
+                 "cold/warm are measured. Persistent bytes are the **sum of regular-file "
                  "sizes** (`find -type f -printf '%s'`), never `du -sb` (ADR-0049).")
     lines.append("")
     lines.append("Corpus: **%d fixtures**; lanes **%s**; questions **Q1–Q8**; "
@@ -522,10 +546,11 @@ def aggregate(raw, campaign, env_path=None):
     prof = (env or {}).get("profile", "unknown")
     sub = (env or {}).get("vole_substrate", "unknown")
     bin_label = (env or {}).get("bin", "?")
-    lines.append("VOLE lane: **%s** profile (`%s`); substrate: **%s**. The comparator "
-                 "(SQLite C + Python) is unaffected by the Rust profile while the "
-                 "entropyfs build is not, so the release default keeps the comparison "
-                 "fair to VOLE. All wall times are **microseconds (`us`)**."
+    lines.append("VOLE lane: **%s** profile (`%s`); substrate: **%s**. The comparators "
+                 "(SQLite C + Python, and the pure-Python span-preserving scanner) are "
+                 "unaffected by the Rust profile while the entropyfs build is not, so "
+                 "the release default keeps the comparison fair to VOLE. All wall times "
+                 "are **microseconds (`us`)**."
                  % (prof, bin_label, sub))
     lines.append("")
     lines.append("## Verdict")
@@ -558,37 +583,44 @@ def aggregate(raw, campaign, env_path=None):
     lines.append("`build us` is the best-of-N (min) of the retained repetitions.")
     lines.append("")
 
-    lines.append("## Paired ratios VOLE/sqlite (median + geometric mean, 95% CI by fixture)")
+    lines.append("## Paired ratios VOLE/comparator (median + geometric mean, 95% CI by fixture)")
     lines.append("")
     lines.append("| metric | comparator | n | median | geomean | median 95% CI | "
                  "geomean 95% CI | wins | ties | losses | ratio of sums |")
     lines.append("|---|---|---:|---:|---:|---|---|---:|---:|---:|---:|")
+    ratio_report = {}
     for label, series in (("build", build_us), ("storage", store_bytes),
                           ("cold", cold_us), ("warm", warm_us)):
-        other = "sqlite"
-        ratios = {}
-        sums_v = sums_o = 0
-        for fx in fixtures:
-            v, o = series["vole"].get(fx), series[other].get(fx)
-            if v is None or o in (None, 0):
+        for other in comparators:
+            ratios = {}
+            sums_v = sums_o = 0
+            for fx in fixtures:
+                v, o = series["vole"].get(fx), series[other].get(fx)
+                if v is None or o in (None, 0):
+                    continue
+                ratios[fx] = float(v) / float(o)
+                sums_v += v
+                sums_o += o
+            if not ratios:
                 continue
-            ratios[fx] = float(v) / float(o)
-            sums_v += v
-            sums_o += o
-        if not ratios:
-            continue
-        vals = list(ratios.values())
-        bydoc = {fx: [rt] for fx, rt in ratios.items()}
-        lo_m, hi_m, _ = P19.cluster_bootstrap(bydoc, statistics.median, B, SEED)
-        lo_g, hi_g, _ = P19.cluster_bootstrap(bydoc, P19.geomean, B, SEED + 1)
-        wins = sum(1 for x in vals if x < 1 - TIE)
-        ties = sum(1 for x in vals if 1 - TIE <= x <= 1 + TIE)
-        losses = sum(1 for x in vals if x > 1 + TIE)
-        lines.append("| {} | {} | {} | {:.3f} | {:.3f} | {:.3f}..{:.3f} | "
-                     "{:.3f}..{:.3f} | {} | {} | {} | {:.3f} |".format(
-                         label, other, len(vals), statistics.median(vals),
-                         P19.geomean(vals), lo_m, hi_m, lo_g, hi_g, wins, ties,
-                         losses, (sums_v / sums_o if sums_o else 0)))
+            vals = list(ratios.values())
+            bydoc = {fx: [rt] for fx, rt in ratios.items()}
+            lo_m, hi_m, _ = P19.cluster_bootstrap(bydoc, statistics.median, B, SEED)
+            lo_g, hi_g, _ = P19.cluster_bootstrap(bydoc, P19.geomean, B, SEED + 1)
+            wins = sum(1 for x in vals if x < 1 - TIE)
+            ties = sum(1 for x in vals if 1 - TIE <= x <= 1 + TIE)
+            losses = sum(1 for x in vals if x > 1 + TIE)
+            ratio_report.setdefault(label, {})[other] = {
+                "n": len(vals), "median": statistics.median(vals),
+                "geomean": P19.geomean(vals), "median_lo": lo_m, "median_hi": hi_m,
+                "geomean_lo": lo_g, "geomean_hi": hi_g, "wins": wins, "ties": ties,
+                "losses": losses, "ratio_of_sums": (sums_v / sums_o if sums_o else 0),
+            }
+            lines.append("| {} | {} | {} | {:.3f} | {:.3f} | {:.3f}..{:.3f} | "
+                         "{:.3f}..{:.3f} | {} | {} | {} | {:.3f} |".format(
+                             label, other, len(vals), statistics.median(vals),
+                             P19.geomean(vals), lo_m, hi_m, lo_g, hi_g, wins, ties,
+                             losses, (sums_v / sums_o if sums_o else 0)))
     lines.append("")
     lines.append("A ratio < 1 favours VOLE. The estimator is the **paired per-fixture "
                  "ratio**, summarised by the median and geometric mean with a "
@@ -600,12 +632,50 @@ def aggregate(raw, campaign, env_path=None):
                  "With only %d fixture clusters the bootstrap is coarse and is stated "
                  "as such, not as a precise interval." % len(fixtures))
     lines.append("")
+    sup = (env or {}).get("supersedes") if isinstance(env, dict) else None
+    if isinstance(sup, dict):
+        def _now(metric, comp):
+            r = ratio_report.get(metric, {}).get(comp)
+            return "{:.3f}".format(r["median"]) if r else "n/a"
+        lines.append("## Supersedes — Phase 21.5.3 (FIX 1)")
+        lines.append("")
+        lines.append("`[SUPERSEDED: %s]` — that campaign's SQLite lane claimed "
+                     "`json1`/`jsonb` but actually ran SQLite **%s** (JSONB ships only "
+                     "from 3.45.0) and **hardcoded** `duplicate_count = 1`. This "
+                     "campaign runs a hash-pinned modern SQLite (**%s**, via "
+                     "`pysqlite3`) and counts duplicates with `json_tree`; every prior "
+                     "ratio is superseded by the tables above."
+                     % (sup.get("campaign", "?"), sup.get("sqlite_version_then", "?"),
+                        (env or {}).get("sqlite_version", "?")))
+        lines.append("")
+        lines.append("| metric | comparator | then | now (median) |")
+        lines.append("|---|---|---:|---:|")
+        for metric in ("build", "storage", "cold", "warm"):
+            for comp in comparators:
+                then = sup.get("%s_median_then_%s" % (metric, comp))
+                if then is None:
+                    continue
+                lines.append("| %s | %s | [SUPERSEDED: %.3f] | %s |"
+                             % (metric, comp, then, _now(metric, comp)))
+        lines.append("")
+        lines.append("Q4 then: %s. Q4 now: `json_tree` enumerates duplicate members, "
+                     "so VOLE and SQLite **agree** — the prior mismatch was a "
+                     "measurement artefact (a hardcoded constant), not a SQLite "
+                     "limitation. Against the added span-preserving pure-Python "
+                     "baseline VOLE matches on Q1–Q8 wherever it answers, so VOLE's "
+                     "Q2/Q4/Q8 representation advantages do **not** survive against the "
+                     "strongest competitor; only Q6 (byte-exact closure) and the "
+                     "economics remain. See the campaign's SUMMARY `Scope` section."
+                     % sup.get("q4_then", "?"))
+        lines.append("")
     startup = (env or {}).get("python_startup_us") if isinstance(env, dict) else None
-    lines.append("The SQLite cold path runs a fresh **Python** process per request, so "
-                 "its cold numbers include interpreter start-up as part of that lane's "
-                 "honest per-request cost (measured bare start-up %s us); VOLE's cold "
-                 "path is a native binary. The cold ratio is therefore dominated by that "
-                 "constant and is reported for completeness, not headlined." % startup)
+    lines.append("Both conventional comparator cold paths (SQLite C + Python, and the "
+                 "pure-Python span-preserving scanner) run a fresh **Python** process "
+                 "per request, so their cold numbers include interpreter start-up as "
+                 "part of that lane's honest per-request cost (measured bare start-up "
+                 "%s us); VOLE's cold path is a native binary. The cold ratio is "
+                 "therefore dominated by that constant and is reported for "
+                 "completeness, not headlined." % startup)
     lines.append("")
 
     lines.append("## Per-lane totals (sum over fixtures; times in microseconds `us`)")
@@ -623,27 +693,34 @@ def aggregate(raw, campaign, env_path=None):
 
     lines.append("## What each lane derives and what it declines")
     lines.append("")
-    lines.append("| Q | VOLE | SQLite (`json1`/`jsonb`) |")
-    lines.append("|---|---|---|")
+    lines.append("| Q | VOLE | SQLite (`json1`/`jsonb`, modern) | span-preserving Python |")
+    lines.append("|---|---|---|---|")
     qdesc = {
         "Q1": ("a scalar at a pointer (value spelling preserved)",
-               "`json_extract` value (normalized)"),
+               "`json_extract` value (normalized)",
+               "decoded string / raw number token"),
         "Q2": ("the exact source span of a node",
-               "no source span exists in SQLite -> typed decline"),
-        "Q3": ("a node's kind", "`json_type` (normalized)"),
+               "no source span exists in SQLite -> typed decline",
+               "exact byte span `[start,end)`"),
+        "Q3": ("a node's kind", "`json_type` (normalized)", "node kind"),
         "Q4": ("key existence + duplicate-key count",
-               "existence only; duplicates are collapsed"),
+               "`json_tree` fullkey count (duplicates **enumerated**)",
+               "member count (duplicates kept)"),
         "Q5": ("an array element (value spelling preserved)",
-               "`json_extract` at the index"),
+               "`json_extract` at the index",
+               "decoded string / raw number token"),
         "Q6": ("`materialize --exact` (byte-authority)",
-               "retained raw BLOB (byte-authority)"),
+               "retained raw BLOB (byte-authority)",
+               "retained raw bytes (byte-authority)"),
         "Q7": ("lexical find over keys/strings (with spans)",
-               "`json_tree` scan over keys/strings (no spans)"),
+               "`json_tree` scan over keys/strings (no spans)",
+               "scanner walk (no spans returned)"),
         "Q8": ("the exact raw token bytes at a pointer",
-               "`json()` re-serialization (spelling not preserved)"),
+               "`json()` re-serialization (spelling not preserved)",
+               "exact raw source token bytes"),
     }
     for q in qs:
-        lines.append("| {} | {} | {} |".format(q, *qdesc[q]))
+        lines.append("| {} | {} | {} | {} |".format(q, *qdesc[q]))
     lines.append("")
 
     lines.append("## Comparison normalization (contract-equivalence)")
@@ -653,15 +730,16 @@ def aggregate(raw, campaign, env_path=None):
                  "number/string. A spelling difference is a recorded mismatch.")
     lines.append("- **Q3 (kind):** SQLite `json_type` is normalized to the VOLE "
                  "vocabulary (`text`->`string`, `integer`/`real`->`number`).")
-    lines.append("- **Q4 (duplicates):** VOLE reports the true member count for the key; "
-                 "SQLite collapses duplicates, so its count is 1 for an existing key. The "
-                 "duplicate-key fixture therefore MISMATCHES by design — that mismatch is "
-                 "the representation value VOLE adds.")
+    lines.append("- **Q4 (duplicates, CORRECTED in 21.5.3):** the true member count is "
+                 "counted with `json_tree` (which enumerates duplicate members), so "
+                 "SQLite now agrees with VOLE and with the span-preserving scanner. The "
+                 "earlier receipt's \"SQLite collapses duplicates -> count 1\" was a "
+                 "measurement artefact of a hardcoded constant, not a property of SQLite.")
     lines.append("- **Q7 (find):** the match set is compared as `(pointer, role, text)`; "
                  "SQLite `fullkey` is normalized to an RFC 6901 pointer.")
     lines.append("- **Q8 (token):** VOLE returns the exact source token bytes; SQLite "
-                 "returns `json()` re-serialization. They agree only where spelling "
-                 "coincides (e.g. a plain integer) and mismatch where it does not.")
+                 "returns `json()` re-serialization, but the span-preserving Python "
+                 "scanner returns the exact raw token bytes, so Q8 matches VOLE there.")
     lines.append("")
 
     lines.append("## Scope (honest)")
@@ -674,16 +752,18 @@ def aggregate(raw, campaign, env_path=None):
                  "source` (length + SHA-256 + `cmp`) and the retained blob reproduce the "
                  "original bytes. Every other observation is a DERIVED projection; "
                  "semantic agreement is not archival equality.")
-    lines.append("- **This is where VOLE claims value.** SQLite's `jsonb` is a serious "
-                 "comparator and is cheaper on some metrics, but it is value-oriented: it "
-                 "does not preserve numeric/escape spelling, member order, duplicate keys, "
-                 "or source spans. VOLE's Q2/Q4/Q8 expose exactly those distinctions, and "
-                 "its exactness is byte-authoritative for arbitrary JSON.")
+    lines.append("- **What survives against the strongest competitor (CORRECTED).** "
+                 "Against a *span-preserving* pure-Python scanner, VOLE's representation "
+                 "advantages in Q2 (spans), Q4 (duplicate counts), and Q8 (raw token "
+                 "bytes) **largely evaporate** — the conventional scanner answers them "
+                 "too. VOLE's remaining, real advantages are (i) byte-authoritative "
+                 "exact closure of the whole source (Q6) and (ii) economics (storage and "
+                 "query cost). This is the honest picture the corrected comparator shows.")
     lines.append("- **VOLE capability gaps are recorded, never papered over.** Any "
                  "question VOLE declines is a typed decline (`rc` 6) and appears as a "
                  "`capability-gap`, never claimed as equivalence.")
-    lines.append("- **Nothing here is run on the host.** Every command ran in the pinned "
-                 "`doc-baseline` container (dev toolchain + python3 + sqlite3).")
+    lines.append("- **Nothing here is run on the host.** Every command ran in a pinned "
+                 "container (dev toolchain + python3 + the hash-pinned modern SQLite).")
     lines.append("")
 
     matrix = []
@@ -691,8 +771,9 @@ def aggregate(raw, campaign, env_path=None):
     matrix.append("")
     matrix.append("`g` = answered (derived), `D` = typed decline, `-` = not applicable.")
     matrix.append("")
-    matrix.append("| fixture | Q | VOLE | SQLite | VOLE<->SQLite |")
-    matrix.append("|---|---|---|---|---|")
+    matrix.append("| fixture | Q | VOLE | SQLite | spanpy | VOLE<->sqlite | "
+                  "VOLE<->spanpy |")
+    matrix.append("|---|---|---|---|---|---|---|")
     for fx in fixtures:
         for q in qs:
             row = qanswers.get((fx, q), {})
@@ -704,8 +785,9 @@ def aggregate(raw, campaign, env_path=None):
                 return "D" if e.get("declined") else "g"
 
             rs, _ = compare(q, row.get("vole"), row.get("sqlite"))
-            matrix.append("| %s | %s | %s | %s | %s |" % (fx, q, mark("vole"),
-                                                          mark("sqlite"), rs))
+            rp, _ = compare(q, row.get("vole"), row.get("spanpy"))
+            matrix.append("| %s | %s | %s | %s | %s | %s | %s |" % (
+                fx, q, mark("vole"), mark("sqlite"), mark("spanpy"), rs, rp))
     matrix.append("")
     matrix.append("### Aggregate equivalence per Q")
     matrix.append("")
@@ -713,10 +795,11 @@ def aggregate(raw, campaign, env_path=None):
                   "mismatch | shape |")
     matrix.append("|---|---|---:|---:|---:|---:|---:|")
     for q in qs:
-        c = equiv.get(q, {})
-        matrix.append("| {} | {} | {} | {} | {} | {} | {} |".format(
-            q, "sqlite", c.get("equal", 0), c.get("both-decline", 0),
-            c.get("capability-gap", 0), c.get("mismatch", 0), c.get("shape", 0)))
+        for comp in comparators:
+            c = equiv.get(q, {}).get(comp, {})
+            matrix.append("| {} | {} | {} | {} | {} | {} | {} |".format(
+                q, comp, c.get("equal", 0), c.get("both-decline", 0),
+                c.get("capability-gap", 0), c.get("mismatch", 0), c.get("shape", 0)))
     matrix.append("")
 
     counts = []
@@ -725,11 +808,12 @@ def aggregate(raw, campaign, env_path=None):
     counts.append("exact_ok %d" % exact_ok)
     counts.append("exact_n %d" % exact_n)
     for q in qs:
-        c = equiv.get(q, {})
-        counts.append("%s.sqlite.equal %d" % (q, c.get("equal", 0)))
-        counts.append("%s.sqlite.capability_gap %d" % (q, c.get("capability-gap", 0)))
-        counts.append("%s.sqlite.mismatch %d" % (q, c.get("mismatch", 0)))
-        counts.append("%s.sqlite.both_decline %d" % (q, c.get("both-decline", 0)))
+        for comp in comparators:
+            c = equiv.get(q, {}).get(comp, {})
+            counts.append("%s.%s.equal %d" % (q, comp, c.get("equal", 0)))
+            counts.append("%s.%s.capability_gap %d" % (q, comp, c.get("capability-gap", 0)))
+            counts.append("%s.%s.mismatch %d" % (q, comp, c.get("mismatch", 0)))
+            counts.append("%s.%s.both_decline %d" % (q, comp, c.get("both-decline", 0)))
     counts.append("verdict %s" % verdict)
 
     with open(os.path.join(campaign, "SUMMARY.md"), "w") as f:
@@ -741,7 +825,7 @@ def aggregate(raw, campaign, env_path=None):
 
     receipt = {
         "campaign": campaign,
-        "phase": "21.5.1 — JSON economic court (VOLE vs source-retaining SQLite)",
+        "phase": "21.5.1 — JSON economic court (VOLE vs source-retaining SQLite + span-preserving Python)",
         "verdict": verdict,
         "exact_ok": exact_ok,
         "exact_n": exact_n,
@@ -752,6 +836,8 @@ def aggregate(raw, campaign, env_path=None):
                       "+/-%d%%; ratio of sums reported separately"
                       % (B, SEED, int(TIE * 100))),
         "equivalence": {q: equiv.get(q, {}) for q in qs},
+        "comparators": comparators,
+        "ratios": ratio_report,
         "environment": env,
     }
     with open(os.path.join(campaign, "receipt.json"), "w") as f:
@@ -789,6 +875,8 @@ def main(argv=None):
     ag.add_argument("--campaign", required=True)
     ag.add_argument("--env", default=None)
 
+    sub.add_parser("version")
+
     ns = ap.parse_args(argv)
     if ns.cmd == "build":
         return build(ns.source, ns.db)
@@ -800,6 +888,10 @@ def main(argv=None):
         return materialize(ns.db, ns.out)
     if ns.cmd == "aggregate":
         return aggregate(ns.raw, ns.campaign, ns.env)
+    if ns.cmd == "version":
+        print(json.dumps({"module": SQLITE_MODULE,
+                          "sqlite_version": sqlite3.sqlite_version}, sort_keys=True))
+        return 0
     return 2
 
 

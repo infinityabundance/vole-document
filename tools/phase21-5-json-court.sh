@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
-# Phase 21.5.2 — the JSON economic court (completes subphase 21.5).
+# Phase 21.5.2/21.5.3 — the JSON economic court (completes subphase 21.5).
+#
+# Phase 21.5.3 (FIX 1) corrections, all forced by an external review:
+#   * the SQLite lane now runs on a **hash-pinned modern SQLite** (`pysqlite3`,
+#     bundled 3.51.1) so the JSONB claim is true (JSONB exists only from 3.45.0);
+#   * duplicate-key accounting is **no longer hardcoded to 1** — `json_tree`
+#     enumerates duplicate members, so Q4 counts them exactly;
+#   * a **span-preserving pure-Python baseline** (`phase21-5-json-spanpy.py`) is
+#     added as the strongest realistic competitor: it retains the source and
+#     records every token's exact byte span, so it can answer value/kind/span/
+#     token. VOLE is now compared against BOTH comparators.
 #
 # Pre-registered. Hypotheses:
 #
@@ -7,28 +17,27 @@
 #       `materialize --exact == source` (length + SHA-256 + `cmp`) after the source
 #       file AND the standalone descriptor are deleted, in a fresh process. The
 #       court FAILS unless this is 100 %.
-#   H2 (contract questions) — the two lanes (VOLE and a source-retaining SQLite
-#       baseline using `json1`/`jsonb`) answer the SAME eight questions Q1–Q8 where
-#       they can, and every question a lane cannot answer is a TYPED decline.
-#   H3 (cross-lane agreement) — where both lanes answer, comparable values agree
-#       (a value at a pointer, a node kind, an array element, key existence, a
-#       lexical find set, exact closure). VOLE declines what its surface cannot
-#       answer; SQLite declines what it does not model (source spans, duplicate
-#       keys, token spelling). Those gaps are recorded, never papered over.
+#   H2 (contract questions) — the three lanes (VOLE; a source-retaining SQLite
+#       baseline on modern SQLite with `json1`/`jsonb`; a span-preserving
+#       pure-Python baseline) answer the SAME eight questions Q1–Q8 where they can,
+#       and every question a lane cannot answer is a TYPED decline.
+#   H3 (cross-lane agreement) — where VOLE and a comparator both answer,
+#       comparable values agree. VOLE declines what its surface cannot answer; the
+#       comparators decline what they do not model. Those gaps are recorded, never
+#       papered over.
 #   H4 (economics) — build/storage/cold/warm are measured per lane with a stated
 #       estimator (paired per-fixture ratios, median + geometric mean, fixed-seed
 #       cluster bootstrap by fixture), every raw sample retained.
 #
 # Honest scope: this is a self-authored corpus; only Q6 is a byte-authority claim.
-# Preserving representation (spelling/order/duplicate keys/spans) is where VOLE
-# claims value; SQLite's `jsonb` is a serious comparator.
 #
 # Fairness / conventions: RELEASE build (`PROFILE=release`); VOLE substrate
 # `field-build --profile runtime --packed`, `--packed` on every observe/batch/
 # materialize. Wall times are microseconds (`us`). Runs in the pinned, hard-capped
-# `doc-baseline` service; never the host:
+# `analytical` service (rust toolchain + python3 + duckdb + pysqlite3); never the
+# host:
 #
-#   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-5-json-court.sh
+#   docker compose run --rm --no-TTY analytical bash tools/phase21-5-json-court.sh
 
 set -uo pipefail
 cd /work
@@ -37,12 +46,15 @@ export PYTHONDONTWRITEBYTECODE=1
 
 BASE=tools/fixtures/phase21-5-json-baseline.py
 VOLE=tools/fixtures/phase21-5-json-vole.py
+SPANPY=tools/fixtures/phase21-5-json-spanpy.py
 SHA=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 STAMP=$(date -u +%Y-%m-%d)
 CAMPAIGN="evidence/campaigns/${STAMP}-phase21-5-json-econ-${SHA}"
 RAW="$CAMPAIGN/raw"
 WORK="evidence/scratch/phase21-5-json"
 REPS=${REPS:-3}
+# The installed pysqlite3-binary cp311 manylinux2014_x86_64 wheel (see Dockerfile).
+PYSQLITE3_WHEEL_SHA256=3060a56666ede382c9af3e4b086e30c9ffb65133b3fa606c2d1b9fbff512f241
 
 PROFILE=${PROFILE:-release}
 case "$PROFILE" in
@@ -100,7 +112,7 @@ printf 'fixture\tlane\trep\trc\tus\n' > "$RAW/build.tsv"
 printf 'fixture\tlane\tbytes\tfiles\n' > "$RAW/storage.tsv"
 printf 'fixture\tlane\tq\trep\trc\tus\n' > "$RAW/cold.tsv"
 printf 'fixture\tlane\tq\trep\trc\tus\n' > "$RAW/warm.tsv"
-printf 'fixture\tvole_ok\tsqlite_ok\tlen_ok\tsha_ok\tcmp_ok\tv_us\ts_us\n' > "$RAW/exact.tsv"
+printf 'fixture\tvole_ok\tsqlite_ok\tspanpy_ok\tlen_ok\tsha_ok\tcmp_ok\tv_us\ts_us\tp_us\n' > "$RAW/exact.tsv"
 
 build_lane() { # fixture lane dir
     local f="$1" lane="$2" dir="$3"
@@ -109,6 +121,16 @@ build_lane() { # fixture lane dir
         vole)   "$BIN" field-build "$WORK/corpus/$f" --store "$dir/store" --voldoc "$dir/desc.voldoc" \
                     --profile runtime --packed > "$dir/build.json" 2> "$dir/build.err" ;;
         sqlite) python3 "$BASE" build --source "$WORK/corpus/$f" --db "$dir/x.sqlite" > "$dir/build.json" 2> "$dir/build.err" ;;
+        spanpy) python3 "$SPANPY" build --source "$WORK/corpus/$f" --db "$dir/db" > "$dir/build.json" 2> "$dir/build.err" ;;
+    esac
+}
+
+# Rotating lane order per repetition so no lane is systematically first/last.
+lane_order() { # rep
+    case $(( ($1 - 1) % 3 )) in
+        0) echo "vole sqlite spanpy" ;;
+        1) echo "spanpy vole sqlite" ;;
+        *) echo "sqlite spanpy vole" ;;
     esac
 }
 
@@ -122,12 +144,12 @@ EOF
 
     VDIR="$WORK/lanes/$f.vole"
     SDIR="$WORK/lanes/$f.sqlite"
+    PDIR="$WORK/lanes/$f.spanpy"
 
-    # ---- build (best-of-N, interleaved lane order per rep) ------------------
+    # ---- build (best-of-N, rotating lane order per rep) ---------------------
     for rep in $(seq 1 "$REPS"); do
-        if [ $((rep % 2)) -eq 1 ]; then order="vole sqlite"; else order="sqlite vole"; fi
-        for lane in $order; do
-            case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; esac
+        for lane in $(lane_order "$rep"); do
+            case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; spanpy) dir="$PDIR" ;; esac
             t0=$(now_ns)
             build_lane "$f" "$lane" "$dir"; rc=$?
             t1=$(now_ns)
@@ -138,8 +160,8 @@ EOF
     done
 
     # ---- storage (sum of regular-file sizes; never du -sb) ------------------
-    for lane in vole sqlite; do
-        case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; esac
+    for lane in vole sqlite spanpy; do
+        case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; spanpy) dir="$PDIR" ;; esac
         bytes=$(find "$dir" -type f -printf '%s\n' | awk '{s+=$1} END{print s+0}')
         files=$(find "$dir" -type f | wc -l | tr -d ' ')
         printf '%s\t%s\t%s\t%s\n' "$f" "$lane" "$bytes" "$files" >> "$RAW/storage.tsv"
@@ -147,10 +169,9 @@ EOF
 
     FIELD=$(python3 -c "import json,sys;print(json.load(open('$VDIR/build.json'))['ingest']['field'])" 2>/dev/null || echo "")
 
-    # ---- query phase (cold + warm), interleaved lane order per rep ----------
+    # ---- query phase (cold + warm), rotating lane order per rep -------------
     for rep in $(seq 1 "$REPS"); do
-        if [ $((rep % 2)) -eq 1 ]; then order="vole sqlite"; else order="sqlite vole"; fi
-        for lane in $order; do
+        for lane in $(lane_order "$rep"); do
             if [ "$lane" = "vole" ]; then
                 [ -n "$FIELD" ] || { echo "FINDING: no VOLE field for $f" >&2; continue; }
                 python3 "$VOLE" run --bin "$BIN" --store "$VDIR/store" --field "$FIELD" \
@@ -165,7 +186,7 @@ EOF
                         cp "$VDIR/run$rep/warm/$q.json" "$RAW/vole_warm/$f.$q.json" 2>/dev/null || true
                     fi
                 done
-            else
+            elif [ "$lane" = "sqlite" ]; then
                 for q in Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8; do
                     t0=$(now_ns)
                     python3 "$BASE" query --db "$SDIR/x.sqlite" --q "$q" --plan "$PLAN" \
@@ -179,6 +200,22 @@ EOF
                     --plan "$PLAN" --out "$SDIR/sess$rep.json" >/dev/null 2>&1
                 for q in Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8; do
                     wus=$(python3 -c "import json;b=json.load(open('$SDIR/sess$rep.json'))['batch'];print(next((x['us'] for x in b if x['q']=='$q'),0))" 2>/dev/null || echo 0)
+                    printf '%s\t%s\t%s\t%s\t0\t%s\n' "$f" "$lane" "$q" "$rep" "$wus" >> "$RAW/warm.tsv"
+                done
+            else # spanpy
+                for q in Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8; do
+                    t0=$(now_ns)
+                    python3 "$SPANPY" query --db "$PDIR/db" --q "$q" --plan "$PLAN" \
+                        --out "$PDIR/run${rep}_$q.json" >/dev/null 2>&1; rc=$?
+                    t1=$(now_ns)
+                    us=$(( (t1 - t0) / 1000 ))
+                    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$lane" "$q" "$rep" "$rc" "$us" >> "$RAW/cold.tsv"
+                    if [ "$rep" -eq 1 ]; then cp "$PDIR/run${rep}_$q.json" "$RAW/qanswers/$f.$q.spanpy.json"; fi
+                done
+                python3 "$SPANPY" session --db "$PDIR/db" --queries Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8 \
+                    --plan "$PLAN" --out "$PDIR/sess$rep.json" >/dev/null 2>&1
+                for q in Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8; do
+                    wus=$(python3 -c "import json;b=json.load(open('$PDIR/sess$rep.json'))['batch'];print(next((x['us'] for x in b if x['q']=='$q'),0))" 2>/dev/null || echo 0)
                     printf '%s\t%s\t%s\t%s\t0\t%s\n' "$f" "$lane" "$q" "$rep" "$wus" >> "$RAW/warm.tsv"
                 done
             fi
@@ -198,6 +235,10 @@ EOF
     python3 "$BASE" materialize --db "$SDIR/x.sqlite" --out "$WORK/$f.sql.out" >/dev/null 2>&1; s_rc=$?
     t1=$(now_ns)
     s_us=$(( (t1 - t0) / 1000 ))
+    t0=$(now_ns)
+    python3 "$SPANPY" materialize --db "$PDIR/db" --out "$WORK/$f.sp.out" >/dev/null 2>&1; p_rc=$?
+    t1=$(now_ns)
+    p_us=$(( (t1 - t0) / 1000 ))
 
     v_len=$(wc -c < "$WORK/$f.vole.out" 2>/dev/null | tr -d ' ')
     v_sha=$(sha256sum "$WORK/$f.vole.out" 2>/dev/null | cut -d' ' -f1)
@@ -207,27 +248,33 @@ EOF
     vole_ok=false
     if [ "$v_rc" -eq 0 ] && [ "$len_ok" = true ] && [ "$sha_ok" = true ] && [ "$cmp_ok" = true ]; then vole_ok=true; fi
     sql_ok=false; cmp -s "$WORK/ref/$f" "$WORK/$f.sql.out" && sql_ok=true
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$vole_ok" "$sql_ok" "$len_ok" "$sha_ok" "$cmp_ok" "$v_us" "$s_us" >> "$RAW/exact.tsv"
+    sp_ok=false; cmp -s "$WORK/ref/$f" "$WORK/$f.sp.out" && sp_ok=true
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$vole_ok" "$sql_ok" "$sp_ok" "$len_ok" "$sha_ok" "$cmp_ok" "$v_us" "$s_us" "$p_us" >> "$RAW/exact.tsv"
     [ "$vole_ok" = true ] || echo "FINDING: VOLE not byte-exact for $f" >&2
 done
 
 # --- toolchain / environment -------------------------------------------------
 t0=$(now_ns); python3 -c pass; t1=$(now_ns); PY_STARTUP_US=$(( (t1 - t0) / 1000 ))
+SQLITE_INFO=$(python3 "$BASE" version)
+SQLITE_MODULE=$(python3 -c "import json,sys;print(json.loads(sys.argv[1])['module'])" "$SQLITE_INFO")
+SQLITE_VER=$(python3 -c "import json,sys;print(json.loads(sys.argv[1])['sqlite_version'])" "$SQLITE_INFO")
 FIX_JSON=$(python3 -c "import json,csv;rows=list(csv.DictReader(open('$RAW/fixtures.tsv'),delimiter='\t'));print(json.dumps({r['fixture']:{'len':int(r['src_bytes']),'sha256':r['src_sha256']} for r in rows},sort_keys=True))")
 cat > "$CAMPAIGN/environment.json" <<EOF
 {
   "campaign": "$CAMPAIGN",
-  "phase": "21.5.1 — JSON economic court (VOLE vs source-retaining SQLite)",
+  "phase": "21.5.3 — JSON economic court (VOLE vs SQLite-modern-JSONB + span-preserving Python)",
   "utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "measured_commit": "$(git rev-parse HEAD 2>/dev/null || echo unknown)",
   "tree_state": "$(git status --porcelain | tr '\n' ' ' | sed 's/"/\\"/g')",
-  "service": "doc-baseline",
+  "service": "analytical",
   "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
   "rustc": "$(rustc --version)",
   "cargo": "$(cargo --version)",
   "python": "$(python3 --version)",
-  "sqlite3": "$(sqlite3 --version)",
-  "sqlite_json1": "$(python3 -c 'import sqlite3;print(sqlite3.sqlite_version)')",
+  "sqlite3_cli": "$(sqlite3 --version)",
+  "sqlite_module": "$SQLITE_MODULE",
+  "sqlite_version": "$SQLITE_VER",
+  "pysqlite3_wheel": {"version": "0.5.4.post2", "arch": "x86_64-manylinux2014", "sha256": "$PYSQLITE3_WHEEL_SHA256"},
   "arch": "$(uname -m)",
   "python_startup_us": $PY_STARTUP_US,
   "cargo_lock_sha256": "$(sha256sum Cargo.lock | cut -d' ' -f1)",
@@ -236,15 +283,26 @@ cat > "$CAMPAIGN/environment.json" <<EOF
   "profile": "$PROFILE",
   "build_args": "$BUILD_ARGS",
   "vole_substrate": "--profile runtime --packed",
+  "spanpy_baseline_sha256": "$(sha256sum "$SPANPY" | cut -d' ' -f1)",
   "fixtures_len_sha256": $FIX_JSON,
   "reps": $REPS,
+  "supersedes": {
+    "campaign": "evidence/campaigns/2026-10-09-phase21-5-json-econ-0d94667",
+    "sqlite_version_then": "3.40.1",
+    "q4_then": "6 equal + 1 mismatch (hardcoded duplicate_count=1)",
+    "build_median_then_sqlite": 1.350,
+    "storage_median_then_sqlite": 0.599,
+    "cold_median_then_sqlite": 0.051,
+    "warm_median_then_sqlite": 0.527
+  },
   "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
   "env_affecting_semantics": {"LC_ALL": "C"}
 }
 EOF
 
 cat > "$CAMPAIGN/commands.txt" <<EOF
-docker compose run --rm --no-TTY doc-baseline bash tools/phase21-5-json-court.sh
+docker compose build analytical
+docker compose run --rm --no-TTY analytical bash tools/phase21-5-json-court.sh
 # PROFILE defaults to release (target/release/vole-document).
 # Inside the court:
 #   cargo build --release --locked --all-features
@@ -256,6 +314,10 @@ docker compose run --rm --no-TTY doc-baseline bash tools/phase21-5-json-court.sh
 #           python3 tools/fixtures/phase21-5-json-baseline.py query --db D --q Qn --plan ... --out OUT
 #           python3 tools/fixtures/phase21-5-json-baseline.py session --db D --queries Q1..Q8 --plan ... --out OUT
 #           python3 tools/fixtures/phase21-5-json-baseline.py materialize --db D --out OUT
+#           python3 tools/fixtures/phase21-5-json-baseline.py version
+#   spanpy: python3 tools/fixtures/phase21-5-json-spanpy.py build --source F.json --db D
+#           python3 tools/fixtures/phase21-5-json-spanpy.py query --db D --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-5-json-spanpy.py session --db D --queries Q1..Q8 --plan ... --out OUT
 #   aggregate: python3 tools/fixtures/phase21-5-json-baseline.py aggregate --raw RAW --campaign CAMPAIGN --env ENV
 # Full dev gate:
 #   cargo fmt --all --check
@@ -271,8 +333,8 @@ EXACT_OK=$(awk -F'\t' 'NR>1 && $2=="true"' "$RAW/exact.tsv" | wc -l | tr -d ' ')
 EXACT_N=$(awk -F'\t' 'NR>1' "$RAW/exact.tsv" | wc -l | tr -d ' ')
 echo
 if [ "$verdict_rc" -eq 0 ] && [ "$EXACT_OK" -eq "$EXACT_N" ] && [ "$EXACT_N" -gt 0 ]; then
-    echo "PHASE 21.5.2 JSON COURT: PASS — VOLE exactness ${EXACT_OK}/${EXACT_N} — campaign $CAMPAIGN"
+    echo "PHASE 21.5.3 JSON COURT: PASS — VOLE exactness ${EXACT_OK}/${EXACT_N} — campaign $CAMPAIGN"
     exit 0
 fi
-echo "PHASE 21.5.2 JSON COURT: FAIL — VOLE exactness ${EXACT_OK}/${EXACT_N} — campaign $CAMPAIGN" >&2
+echo "PHASE 21.5.3 JSON COURT: FAIL — VOLE exactness ${EXACT_OK}/${EXACT_N} — campaign $CAMPAIGN" >&2
 exit 1
