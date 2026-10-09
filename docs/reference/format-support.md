@@ -65,6 +65,7 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | PPTX economic court (vs source-retaining SQLite) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-pptx-054ce93/` |
 | ODS adapter (ODF surface + model) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-ods-ef26d97/` |
 | ODS economic court (vs source-retaining SQLite + DuckDB/Parquet) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-2-ods-3dd5827/` |
+| ODP adapter / economic court | exact 6/6 · 8/8 | `evidence/campaigns/2026-10-09-phase21-4-1-odp-957a800/`, `…/2026-10-09-phase21-4-odp-econ-957a800/` |
 
 See [Status ledger](../project/status.md) for the full mechanism table and
 [Conformance](../reference/conformance.md) for the courts.
@@ -138,12 +139,32 @@ separate fields; formulas are never evaluated. `table:number-columns-repeated`/
 `-rows-repeated` expansion is bounded (a bomb declines typed before allocation).
 See [Formats/ODS](../formats/ods.md).
 
+## ODP (OpenDocument Presentation)
+
+ODP enters through the bounded OpenDocument (ODF) inverse over the shared ZIP
+layer (not OPC), like ODT/ODS. The `odp = ["opc"]` feature is **non-default**.
+
+| Property | ODP |
+|---|---|
+| Byte-based detection | ODF package whose mandatory `mimetype` (or manifest) declares `application/vnd.oasis.opendocument.presentation` |
+| Physical authority | shared byte-authoritative ZIP; exact leaf is the raw member span |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `table`, `cell`, `find` |
+| Native observations | `odp-slide` (`--odp-slide N`), `odp-shape`, `odp-notes`, `odp-masters`, `odp-media`, `odp-tables`, `odp-find` |
+| `Page(n)` | — typed decline (slides are addressed by `--odp-slide`) |
+
+Slide order is `draw:page` **document order**, never page-name/file order. Chart
+data and rendering are not interpreted. See [Formats/ODP](../formats/odp.md).
+
+This completes the six office formats from two shared package substrates (OPC:
+DOCX/XLSX/PPTX; ODF: ODT/ODS/ODP). The Phase-21 Wave-2 families are `PROPOSED`.
+
 ## Feature gates
 
 The default build is `default = ["rans", "store", "field"]`. The ZIP/DOCX/EPUB/ODT
 adapters need `package,opc,docx,epub,odt`; the XLSX adapter needs `package,opc,xlsx`
 and the PPTX adapter `package,opc,pptx` (the non-default `xlsx`/`pptx` features);
-the ODS adapter needs `package,opc,ods`.
+the ODS adapter needs `package,opc,ods` and the ODP adapter `package,opc,odp`.
 `deflate-replay` is opt-in (pulls LGPL
 `cabac`). A descriptor that needs a capability the build lacks sets a mandatory
 feature bit and fails closed with `unsupported-feature` (exit 6).
@@ -166,6 +187,7 @@ ADR-0053); `--promote` is refuted on the tested corpus and default-off (ADR-0046
 
 ## Not supported
 
-Containers beyond PDF/DOCX/EPUB/ODT/XLSX/PPTX/ODS (e.g. ODP) are `PROPOSED`,
-not implemented (see [Roadmap](../project/roadmap.md)). Any source that is not a
+Beyond the six office formats (PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP) the
+Phase-21 Wave-2 families are `PROPOSED`, not implemented (see
+[Roadmap](../project/roadmap.md)). Any source that is not a
 recognized format still round-trips exactly through the opaque `RAW` lane.

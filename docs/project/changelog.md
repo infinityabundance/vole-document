@@ -2,7 +2,7 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
-## [0.1.0-alpha.30] — Phase 21.1 + 21.2 + 21.3: XLSX, PPTX and ODS adapters + economic courts
+## [0.1.0-alpha.30] — Phase 21 Wave 1: six office formats (XLSX, PPTX, ODS, ODP) + economic courts
 
 Opens the Phase-21 **format programme** by adding the fifth document format, XLSX,
 over the shared byte-authoritative OPC/ZIP layer, and judging it on the
@@ -57,6 +57,17 @@ equal-contract capability/cost frontier rather than by format count. Plan:
   medians: build **0.708×** SQLite / **0.334×** DuckDB (8/0/0), storage **0.175×**
   SQLite (8/0/0) but **1.356×** DuckDB, warm **0.477×** SQLite. Exactness 8/8.
   `2026-10-09-phase21-3-2-ods-3dd5827`.
+- **21.4 — ODP (OpenDocument Presentation) adapter + economic court.** Non-default
+  `odp = ["opc"]` feature over the ODF substrate: slides = `draw:page` in
+  **document order** (never page-name/file order), shapes (text boxes/runs,
+  images→`Pictures/`, bounded groups, tables), notes, masters, styles, media.
+  Native `--odp-slide`, `--odp-shape`, `--odp-notes`, `--odp-masters`,
+  `--odp-media`, `--odp-tables`, `--odp-find`. Economic court vs a source-retaining
+  SQLite baseline: paired medians build **1.018×** (~parity), storage **1.448×**
+  (VOLE larger here, stated), cold **0.123×**, warm **0.392×**; exactness 6/6
+  (adapter) and 8/8 (economic). This **completes Wave 1: six office formats from two
+  shared substrates**. `2026-10-09-phase21-4-1-odp-957a800`,
+  `2026-10-09-phase21-4-odp-econ-957a800`.
 
 ### Fixed (21.2.1 — from an independent audit; ADR-0060)
 

@@ -1,28 +1,26 @@
 # Phase 21 — Format programme
 
-> **IN PROGRESS.** Subphases **21.1 (XLSX)**, **21.2 (PPTX)** and **21.3 (ODS)** are
-> complete and shipped on the `staging` line —
+> **WAVE 1 COMPLETE.** Subphases **21.1 (XLSX)**, **21.2 (PPTX)**, **21.3 (ODS)** and
+> **21.4 (ODP)** are complete and shipped on the `staging` line — the **six office
+> formats** from two shared package substrates (OPC: DOCX/XLSX/PPTX; ODF:
+> ODT/ODS/ODP):
 > **21.1.1** (OPC/SpreadsheetML surface + exact closure),
 > **21.1.2** (the spreadsheet semantic model: styles, merges, comments,
 > hyperlinks, defined names, tables, drawings/charts, external relationships, and
 > a bounded deterministic *displayed-value* projection kept distinct from the
 > stored formula and cached result), **21.1.2b** (a hardening pass an adversarial
-> audit required: overflow/coordinate guards, precise DOCX-vs-XLSX detection, and
-> precise typed-decline wording), **21.1.3** (the XLSX economic court against
-> a source-retaining SQLite baseline **and** a DuckDB/Parquet comparator),
-> **21.2.1** (the PPTX/PresentationML adapter: slide order from `p:sldIdLst`,
-> shapes/runs/pictures/embedded tables/notes/layouts/masters/themes/media — plus a
-> correctness fix to source-scoped node identity an audit forced), **21.2.3**
-> (the PPTX economic court), **21.3.1** (the ODS/OpenDocument Spreadsheet adapter:
-> sheets/rows/cells with typed value + displayed text + stored formula + style kept
-> distinct, bounded repeated cells/rows, named expressions, styles, comments), and
-> **21.3.2** (the ODS economic court vs SQLite **and** DuckDB/Parquet).
-> Subphase **21.4 (ODP)** remains planned and not
-> started. The Wave-2 families below are a target, never a result. The whole
-> programme is judged by the capability/cost frontier on the same contract —
-> **not by format count**.
+> audit required), **21.1.3** (the XLSX economic court against SQLite **and**
+> DuckDB/Parquet), **21.2.1** (the PPTX/PresentationML adapter: slide order from
+> `p:sldIdLst` — plus a correctness fix to source-scoped node identity an audit
+> forced), **21.2.3** (the PPTX economic court), **21.3.1** (the ODS adapter),
+> **21.3.2** (the ODS economic court vs SQLite **and** DuckDB/Parquet),
+> **21.4.1** (the ODP adapter: slide order from `draw:page` document order), and
+> **21.4.2** (the ODP economic court).
+> The **Wave-2 families** below remain planned and not started; they are a target,
+> never a result. The whole programme is judged by the capability/cost frontier on
+> the same contract — **not by format count**.
 
-Branch: `staging` @ `v0.1.0-alpha.30` (Phase 21.1 + 21.2 + 21.3). The Phase-22 economic
+Branch: `staging` @ `v0.1.0-alpha.30` (Phase 21 Wave 1). The Phase-22 economic
 programme (22.1–22.7) is complete and released in `v0.1.0-alpha.29`.
 
 ## Why

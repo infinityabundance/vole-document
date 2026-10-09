@@ -113,7 +113,7 @@ Exact source closure is part of that model. A narrower observation never has to 
 
 ```mermaid
 flowchart TD
-    A["source bytes (PDF / DOCX / EPUB / ODT / XLSX / PPTX / ODS)"] --> B["native inverse compiler"]
+    A["source bytes (PDF / DOCX / EPUB / ODT / XLSX / PPTX / ODS / ODP)"] --> B["native inverse compiler"]
     B --> C["DocumentField: seed DAG + observation index"]
     C --> D["typed observations (text, structure, bytes, ...)"]
     C --> E["materialize --exact => original bytes"]
@@ -122,8 +122,8 @@ flowchart TD
 Source bytes enter a **format-native inverse compiler** (a PDF physical scanner,
 a WordprocessingML inverse, a bounded-XHTML/OCF inverse, a bounded
 OpenDocument (ODF) inverse, a SpreadsheetML (XLSX) inverse, a PresentationML
-(PPTX) inverse, or an OpenDocument Spreadsheet (ODS) inverse, over a shared
-byte-authoritative ZIP layer). The recovered state is persisted as a
+(PPTX) inverse, an OpenDocument Spreadsheet (ODS) inverse, or an OpenDocument
+Presentation (ODP) inverse, over a shared byte-authoritative ZIP layer). The recovered state is persisted as a
 content-addressed **procedural seed DAG** plus a bounded **observation index**.
 Queries resolve their minimum dependency closure and materialize as late as
 possible; the exact whole document is just one observation
@@ -144,7 +144,7 @@ for observations, indexes are advisory, and the derived cache is disposable
 | Provenance | Every answer carries a typed basis, scope, dependency ids, and exact source spans. |
 | `EXPLAIN` | `explain` shows the intended plan; `explain --analyze` reports the actual work (bytes read by class, nodes executed vs reused, decodes, wall/CPU). |
 | Partial materialization | Serves one byte range, object, stream, or revision from an advisory seek `DIRECTORY` + observation index without materializing the whole document. |
-| Multi-format | One field vocabulary over PDF, DOCX, EPUB, ODT, XLSX, PPTX and ODS, with retained native structure and `format=…;common;…` provenance. |
+| Multi-format | One field vocabulary over PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS and ODP, with retained native structure and `format=…;common;…` provenance. |
 | Hostile-input contract | Typed errors, checked arithmetic, bounded resources, fail-closed unknowns; the decoder never executes document content. |
 
 ## Supported formats
@@ -158,10 +158,10 @@ for observations, indexes are advisory, and the derived cache is disposable
 | XLSX | shared byte-authoritative ZIP + OPC | SpreadsheetML: workbook/sheets, rows, cells (stored formula, cached result, displayed value, style kept distinct), merges, comments, hyperlinks, defined names, tables, drawings/charts, external rels | yes | `metadata`, `text`, `table`, `cell` + native `sheet`, `xlsx-cell`, `xlsx-styles`, `xlsx-comments`, `xlsx-hyperlinks`, `xlsx-tables`, `xlsx-drawing`, `xlsx-defined-names`, `xlsx-external-rels` |
 | PPTX | shared byte-authoritative ZIP + OPC | PresentationML: presentation, slides (order from `sldIdLst`), shapes/runs, pictures→media, embedded tables, notes, layouts/masters/themes, charts (referenced) | yes | `metadata`, `text`, `table`, `cell` + native `slide`, `pptx-shape`, `pptx-notes`, `pptx-layouts`, `pptx-masters`, `pptx-theme`, `pptx-media`, `pptx-tables`, `pptx-find` |
 | ODS | shared byte-authoritative ZIP + ODF | OpenDocument Spreadsheet: sheets, rows, cells (stored formula, typed value, displayed text, style kept distinct), merges, repeated cells/rows, named expressions, comments, styles | yes | `metadata`, `text`, `table`, `cell` + native `ods-sheet`, `ods-cell`, `ods-styles`, `ods-named-expressions`, `ods-comments`, `ods-find` |
-| ODP, others | — | — | PROPOSED | — |
+| ODP | shared byte-authoritative ZIP + ODF | OpenDocument Presentation: slides (`draw:page` document order), shapes/text runs, pictures→media, embedded tables, notes, masters, styles | yes | `metadata`, `text`, `table`, `cell` + native `odp-slide`, `odp-shape`, `odp-notes`, `odp-masters`, `odp-media`, `odp-tables`, `odp-find` |
 
-"Universal" means the observation vocabulary is shared across the seven implemented
-formats — details and gaps: [Format support](docs/reference/format-support.md).
+"Universal" means the observation vocabulary is shared across the eight implemented
+formats — details and gaps: [Format support](docs/reference/format-support.md); the Phase-21 Wave-2 families (JSON/YAML/CSV/XML/HTML/…) are `PROPOSED`.
 
 ## Quick start (Docker only)
 
@@ -251,14 +251,14 @@ Current limitations:
   pathology is fixed in Phase 16 (`nasa-pdf-0001` completes byte-exactly; ADR-0041 extended), though its two largest peers still exceed the **wall** op budget, not memory.
   A real EPUB-content loss (the XHTML `DOCTYPE` the policy forbade) was found and fixed (13.7, ADR-0040); residual non-DOCTYPE EPUB declines remain
   ([frontier report](docs/evidence/real100-frontier-report.md)).
-- **Partial reusability.** Cross-document durable *work* reuse is a negative, and
-  ODP and other adapters remain `PROPOSED` (XLSX, PPTX and ODS shipped in Phase 21.1/21.2/21.3).
+- **Partial reusability.** Cross-document durable *work* reuse is a negative; the
+  Phase-21 Wave-2 families (JSON, YAML, CSV/TSV, Markdown, XML, HTML, …) remain `PROPOSED`.
 
 ## Documentation
 
 - [Documentation index](docs/README.md) — the map.
 - [Architecture](docs/architecture/overview.md) — what the system is today.
-- [Formats](docs/formats/pdf.md) — PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS authority boundaries.
+- [Formats](docs/formats/pdf.md) — PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP authority boundaries.
 - [Specification](docs/reference/specification.md) — the `.voldoc` wire format.
 - [Conformance](docs/reference/conformance.md) — courts, invariants, fuzzing.
 - [Findings](docs/project/findings.md) — consolidated positive and negative results.

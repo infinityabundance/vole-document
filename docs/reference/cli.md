@@ -79,7 +79,9 @@ vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--p
     --slide N | --pptx-shape N | --pptx-notes N | --pptx-layouts | --pptx-masters |
     --pptx-theme | --pptx-media N | --pptx-tables | --pptx-find PATTERN |
     --ods-sheet N | --ods-cell A1 [--ods-sheet N] | --ods-styles | --ods-named-expressions |
-    --ods-comments | --ods-find PATTERN)
+    --ods-comments | --ods-find PATTERN |
+    --odp-slide N | --odp-shape N | --odp-notes N | --odp-masters | --odp-media N |
+    --odp-tables | --odp-find PATTERN)
     --kind KIND
 vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
     [--requests FILE|-] [--repeat N]
@@ -110,6 +112,9 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
   `--ods-named-expressions`, `--ods-comments`, `--ods-find`) need the non-default
   `ods` feature. A cell's stored formula, typed value, displayed text, style and
   XML span are separate fields; formulas are never evaluated.
+- The ODP selectors (`--odp-slide`, `--odp-shape`, `--odp-notes`, `--odp-masters`,
+  `--odp-media`, `--odp-tables`, `--odp-find`) need the non-default `odp` feature.
+  Slide order is `draw:page` document order, never page-name/file order.
 - `field-ingest` inverse-proceduralizes one `.voldoc` into a persistent field
   and prints its field id (`HEX`) and roots. The format is detected from bytes.
 - `observe` / `find` / `explain` / `preview` answer typed observations with
