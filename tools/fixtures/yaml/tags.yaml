@@ -1,0 +1,6 @@
+version: !!str 1.0
+enabled: !!bool true
+widget: !<tag:example.com,2024:widget>
+  name: thing
+  size: 3
+payload: !mytype raw-bytes

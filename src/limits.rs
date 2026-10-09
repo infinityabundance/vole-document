@@ -275,6 +275,31 @@ pub struct Limits {
     /// fall back to [`crate::field::document_format::DocumentFormat::Opaque`]
     /// (Phase 21.5.1).
     pub max_json_document_bytes: u64,
+    // The YAML caps below bound the derived, span-preserving structured-tree model
+    // (Phase 21.6.1). Like JSON, YAML is not a package: the whole source parses as a
+    // bounded stream of documents beneath these caps, and everything derived is
+    // `Q_gen` only.
+    /// Maximum YAML container nesting depth accepted (mappings/sequences). A deeper
+    /// document is not detected as YAML (and any direct parse declines typed) rather
+    /// than risking unbounded recursion (Phase 21.6.1).
+    pub max_yaml_depth: u32,
+    /// Maximum YAML nodes (containers, scalars, aliases, empties) accepted in one
+    /// stream. An over-large document declines typed rather than allocating
+    /// (Phase 21.6.1).
+    pub max_yaml_nodes: u32,
+    /// Maximum YAML scalar nodes accepted in one stream (Phase 21.6.1).
+    pub max_yaml_scalars: u32,
+    /// Maximum YAML anchors (`&a`) accepted in one stream (Phase 21.6.1).
+    pub max_yaml_anchors: u32,
+    /// Maximum documents accepted in one YAML stream (Phase 21.6.1).
+    pub max_yaml_documents: u32,
+    /// Maximum total raw scalar-token bytes accepted across one YAML stream. A
+    /// conservative upper bound on the decoded text (Phase 21.6.1).
+    pub max_yaml_string_bytes: u64,
+    /// Maximum source length admitted for byte-based YAML detection. Larger inputs
+    /// fall back to [`crate::field::document_format::DocumentFormat::Opaque`]
+    /// (Phase 21.6.1).
+    pub max_yaml_document_bytes: u64,
 }
 
 impl Limits {
@@ -370,6 +395,13 @@ impl Limits {
         max_json_nodes: 1 << 24,
         max_json_string_bytes: 1 << 28,
         max_json_document_bytes: 1 << 34,
+        max_yaml_depth: 256,
+        max_yaml_nodes: 1 << 24,
+        max_yaml_scalars: 1 << 24,
+        max_yaml_anchors: 1 << 20,
+        max_yaml_documents: 1 << 16,
+        max_yaml_string_bytes: 1 << 28,
+        max_yaml_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -464,6 +496,13 @@ impl Limits {
         max_json_nodes: 1 << 16,
         max_json_string_bytes: 1 << 20,
         max_json_document_bytes: 1 << 26,
+        max_yaml_depth: 64,
+        max_yaml_nodes: 1 << 16,
+        max_yaml_scalars: 1 << 16,
+        max_yaml_anchors: 1 << 12,
+        max_yaml_documents: 1 << 10,
+        max_yaml_string_bytes: 1 << 20,
+        max_yaml_document_bytes: 1 << 26,
     };
 }
 

@@ -169,6 +169,14 @@ pub enum NodeKind {
     /// `sha256(source)` per ADR-0060). JSON has no package layer. Derived, never
     /// exact.
     JsonModel = 0x27,
+    /// The canonical, representation-preserving YAML structured-tree model
+    /// (Phase 21.6.1): every node's exact source span and kind/style, the anchored
+    /// graph (anchors preserved, aliases never expanded), literal tags, scalar
+    /// styles, ordered documents, merge keys, and comment spans. It is derived on
+    /// demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060). YAML has no package layer.
+    /// Derived, never exact.
+    YamlModel = 0x28,
 }
 
 impl NodeKind {
@@ -214,6 +222,7 @@ impl NodeKind {
             0x25 => NodeKind::OdpContent,
             0x26 => NodeKind::OdpStyles,
             0x27 => NodeKind::JsonModel,
+            0x28 => NodeKind::YamlModel,
             _ => return None,
         })
     }
@@ -260,6 +269,7 @@ impl NodeKind {
             NodeKind::OdpContent => "OdpContent",
             NodeKind::OdpStyles => "OdpStyles",
             NodeKind::JsonModel => "JsonModel",
+            NodeKind::YamlModel => "YamlModel",
         }
     }
 

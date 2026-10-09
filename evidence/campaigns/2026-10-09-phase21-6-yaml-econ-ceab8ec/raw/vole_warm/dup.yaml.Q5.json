@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {"documents": [{"doc_span": [0, 36], "explicit": false, "index": 0, "kind": "mapping", "root_span": [0, 36]}]}, "lane": "vole", "native": true, "q": "Q5", "value": 1}

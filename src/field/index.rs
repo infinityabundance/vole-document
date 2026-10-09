@@ -168,6 +168,16 @@ pub const SEL_ODP_MODEL: u8 = 18;
 /// source (its single dependency is the `DocumentExact` root, keyed by
 /// `sha256(source)` per ADR-0060); JSON has no package layer.
 pub const SEL_JSON_MODEL: u8 = 19;
+/// Selector kind: the canonical YAML structured-tree model (Phase 21.6.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as a bounded stream of YAML documents into a bounded,
+/// representation-preserving arena (node spans/kinds, mapping order, duplicate
+/// keys, anchors/aliases as a graph, tags, scalar styles, comments) as `Q_gen`
+/// derived state. It is computed on demand from the exact source (its single
+/// dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+/// ADR-0060); YAML has no package layer.
+pub const SEL_YAML_MODEL: u8 = 20;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

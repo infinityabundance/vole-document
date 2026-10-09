@@ -184,6 +184,13 @@ const ODP_NATIVE: &[&str] = &[
     "member",
 ];
 const JSON_NATIVE: &[&str] = &["json-pointer", "json-node", "json-find"];
+const YAML_NATIVE: &[&str] = &[
+    "yaml-path",
+    "yaml-node",
+    "yaml-documents",
+    "yaml-anchor",
+    "yaml-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -319,6 +326,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 JSON_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Yaml => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                YAML_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

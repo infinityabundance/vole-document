@@ -58,6 +58,10 @@ pub enum ErrorClass {
     /// an unterminated string/container, a bad escape, or a trailing byte after
     /// the single top-level value.
     InvalidJsonStructure,
+    /// A YAML structured-tree structure error (Phase 21.6+): a malformed or
+    /// unsupported construct (a bad indentation, an unterminated quoted scalar, a
+    /// declined directive/explicit key/flow-context block scalar).
+    InvalidYamlStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -86,6 +90,7 @@ impl ErrorClass {
             ErrorClass::InvalidXmlStructure => 19,
             ErrorClass::InvalidPackageStructure => 20,
             ErrorClass::InvalidJsonStructure => 21,
+            ErrorClass::InvalidYamlStructure => 22,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -113,6 +118,7 @@ impl ErrorClass {
             ErrorClass::InvalidXmlStructure => "InvalidXmlStructure",
             ErrorClass::InvalidPackageStructure => "InvalidPackageStructure",
             ErrorClass::InvalidJsonStructure => "InvalidJsonStructure",
+            ErrorClass::InvalidYamlStructure => "InvalidYamlStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -194,6 +200,7 @@ impl Error {
     ctor!(invalid_xml_structure, InvalidXmlStructure);
     ctor!(invalid_package_structure, InvalidPackageStructure);
     ctor!(invalid_json_structure, InvalidJsonStructure);
+    ctor!(invalid_yaml_structure, InvalidYamlStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

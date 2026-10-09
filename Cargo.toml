@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.31"
+version = "0.1.0-alpha.32"
 edition = "2024"
 rust-version = "1.89"
 description = "Persistent procedural document runtime: byte-exact reconstruction plus a content-addressed procedural seed DAG, queryable observations with provenance, and selective late materialization."
@@ -260,6 +260,19 @@ pptx = ["opc"]
 # bytes and exactness is untouched. Dependency-free (`json = []`) and never in
 # `default`.
 json = []
+# Phase 21.6.1: the YAML adapter — the second **Wave-2 structured-tree** format.
+# Like JSON, YAML is not a package (no OPC/ZIP layer): the exact leaf is the whole
+# source (a `DocumentExact`, RAW-like authority) and every derived observation is a
+# bounded, span-preserving (`Q_gen`) projection of it. It adds a bounded YAML 1.2
+# core-subset parser that preserves representation — exact byte spans, mapping
+# order, duplicate keys, anchors/aliases as a graph (never expanded), tags, scalar
+# styles (plain/single/double/literal/folded), multiple documents, merge keys, and
+# comments — and declines (typed, never guessing) the constructs it does not
+# support, so a declined document stays `Opaque`. It adds **no** decoder behavior:
+# the YAML model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. Dependency-free (`yaml = []`) and
+# never in `default`.
+yaml = []
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores. `quick-xml` only; adds **no** decoder behavior and is
 # never in `default` on its own (it is implied by `opc` and `epub`).

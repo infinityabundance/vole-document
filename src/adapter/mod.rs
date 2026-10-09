@@ -24,6 +24,8 @@ pub mod pdf;
 pub mod pptx;
 #[cfg(feature = "xlsx")]
 pub mod xlsx;
+#[cfg(feature = "yaml")]
+pub mod yaml;
 
 /// The source-format class decision for an input.
 ///

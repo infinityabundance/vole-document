@@ -159,6 +159,18 @@ problem preserves the exact bytes and declines only the decode.
   malformed → Opaque). The model node depends on the `DocumentExact` root
   (ADR-0060).
 
+## YAML adapter — structured tree (Phase 21 Wave 2)
+
+- The second **structured-tree** format; not a package — the whole source is the
+  document (RAW authority). Non-default, dependency-free `yaml` feature.
+- A bounded YAML subset that **preserves representation**: exact spans, anchors and
+  aliases as a graph (never expanded), tags as literal text, multiple documents,
+  scalar styles (plain/single/double/literal/folded), merge keys (`<<`), mapping
+  order, duplicate keys, comment spans. `--yaml-path`/`--yaml-node`/`--yaml-documents`/
+  `--yaml-anchor`/`--yaml-find`; common metadata/text/find.
+- Conservative detection (a mapping/sequence at every document root; plain text →
+  Opaque). The model node depends on the `DocumentExact` root (ADR-0060).
+
 ## Shared vocabulary (ADR-0031)
 
 Common selectors/representations are added additively: `metadata`, `text`,
