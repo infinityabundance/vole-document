@@ -1,0 +1,17 @@
+{
+  "fixtures": 3,
+  "exact_ok": 3,
+  "exact_fail": 0,
+  "typed_declines_ok": 3,
+  "merge_ref_ok": true,
+  "no_drawing_rc": 0,
+  "no_drawing_ok": true,
+  "display_ok": true,
+  "drawing_ok": true,
+  "external_ok": true,
+  "comment_ok": true,
+  "defined_ok": true,
+  "table_ok": true,
+  "link_ok": true,
+  "style_ok": true
+}

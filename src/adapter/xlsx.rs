@@ -525,27 +525,50 @@ impl SheetModel {
 
     /// The sheet rendered as TSV: rows joined by `\n`, cells (filled by column
     /// position) joined by `\t`. A deterministic projection of the cached values.
-    pub fn text(&self, mode: ValueMode) -> String {
+    ///
+    /// Before building, the **projected grid size** (the sum over rows of
+    /// `max_col + 1`, i.e. the number of tab-separated fields that will be
+    /// emitted, including empty ones) is compared against `max_projected_cells`;
+    /// a sheet whose projection would exceed the bound is declined typed rather
+    /// than expanded. Each row is merged-walked over its `col`-sorted cells, so
+    /// the cost is bounded by the projection rather than a per-column search.
+    pub fn text(&self, mode: ValueMode, max_projected_cells: u64) -> Result<String> {
+        let mut projected: u64 = 0;
+        for row in &self.rows {
+            if let Some(max_col) = row.cells.iter().map(|c| c.col).max() {
+                projected = projected.saturating_add(u64::from(max_col) + 1);
+                if projected > max_projected_cells {
+                    return Err(Error::resource_limit("sheet text projection exceeds bound"));
+                }
+            }
+        }
         let mut out = String::new();
         for (i, row) in self.rows.iter().enumerate() {
             if i > 0 {
                 out.push('\n');
             }
-            let max_col = row.cells.iter().map(|c| c.col).max();
-            if let Some(max_col) = max_col {
-                for col in 0..=max_col {
-                    if col > 0 {
-                        out.push('\t');
-                    }
-                    if let Some(c) = row.cells.iter().find(|c| c.col == col)
-                        && let Some(v) = self.facet(c, mode)
-                    {
-                        out.push_str(&v);
-                    }
+            let Some(max_col) = row.cells.iter().map(|c| c.col).max() else {
+                continue;
+            };
+            let mut cells: Vec<&XlsxCell> = row.cells.iter().collect();
+            cells.sort_by_key(|c| c.col);
+            let mut next = 0usize;
+            for col in 0..=max_col {
+                if col > 0 {
+                    out.push('\t');
+                }
+                while next < cells.len() && cells[next].col < col {
+                    next += 1;
+                }
+                if next < cells.len()
+                    && cells[next].col == col
+                    && let Some(v) = self.facet(cells[next], mode)
+                {
+                    out.push_str(&v);
                 }
             }
         }
-        out
+        Ok(out)
     }
 
     /// Encode canonically.
@@ -1836,7 +1859,7 @@ pub fn parse_worksheet(
                     b"c" => {
                         let attrs = read_attrs(&e, limits)?;
                         cell_pos_before = pos_before;
-                        cur_cell = Some(start_cell(&attrs, &cur_row)?);
+                        cur_cell = Some(start_cell(&attrs, &cur_row, limits)?);
                     }
                     b"is" => {
                         if let Some(c) = cur_cell.as_mut() {
@@ -1899,7 +1922,7 @@ pub fn parse_worksheet(
                         let attrs = read_attrs(&e, limits)?;
                         let start = u32::try_from(pos_before).unwrap_or(0);
                         let end = u32::try_from(reader.buffer_position()).unwrap_or(start);
-                        let mut cell = start_cell(&attrs, &cur_row)?;
+                        let mut cell = start_cell(&attrs, &cur_row, limits)?;
                         cell.span_start = start;
                         let cell = cell.finalize(shared, end.saturating_sub(start));
                         charge_cell(&mut total_cells, limits)?;
@@ -2075,6 +2098,7 @@ fn row_index(attrs: &[(String, String)]) -> Result<u32> {
 fn start_cell(
     attrs: &[(String, String)],
     cur_row: &Option<(u32, Vec<XlsxCell>)>,
+    limits: Limits,
 ) -> Result<CellBuilder> {
     let mut c = CellBuilder::new();
     if let Some(row) = cur_row {
@@ -2090,38 +2114,64 @@ fn start_cell(
     };
     if let Some(r) = attr_of(attrs, "r") {
         c.reference = r.to_string();
-        if let Some((col, row)) = a1_to_col_row(r) {
-            c.col = col;
-            c.row = row;
-        }
+        // A present-but-unparseable reference is declined typed, never silently
+        // rewritten to an implicit position (which would be a wrong answer).
+        let (col, row) = a1_to_col_row(r)
+            .ok_or_else(|| Error::invalid_package_structure("cell r is not an A1 reference"))?;
+        c.col = col;
+        c.row = row;
     } else if let Some((_, cells)) = cur_row {
         c.col = cells.iter().map(|c| c.col + 1).max().unwrap_or(0);
+    }
+    // Reject coordinates outside the Excel-conformant grid before they reach the
+    // derived model (a bounded coordinate can never drive a huge projection).
+    if c.col >= limits.max_xlsx_col || c.row >= limits.max_xlsx_row {
+        return Err(Error::resource_limit(
+            "cell coordinate exceeds max_xlsx_col/max_xlsx_row",
+        ));
     }
     Ok(c)
 }
 
-/// Parse an A1-style reference (`B7`) into a 0-based `(column, row)`.
+/// Parse an A1-style reference (`B7`) into a 0-based `(column, row)`. Absolute
+/// markers (`$A$1`, `A$1`, `$A1`) are tolerated. Returns `None` for anything that
+/// is not an A1 reference, including an over-long reference whose column or row
+/// would overflow `u64` (checked arithmetic, never a wrap).
 pub fn a1_to_col_row(reference: &str) -> Option<(u32, u32)> {
     let bytes = reference.as_bytes();
     let mut i = 0;
+    // Tolerate leading absolute-reference markers (`$A$1`, `$A1`).
+    while i < bytes.len() && bytes[i] == b'$' {
+        i += 1;
+    }
+    let letters_start = i;
     let mut col: u64 = 0;
     while i < bytes.len() && bytes[i].is_ascii_alphabetic() {
         let upper = bytes[i].to_ascii_uppercase();
-        col = col * 26 + u64::from(upper - b'A' + 1);
+        col = col
+            .checked_mul(26)?
+            .checked_add(u64::from(upper - b'A' + 1))?;
         i += 1;
     }
-    if i == 0 || i >= bytes.len() {
+    if i == letters_start || i >= bytes.len() {
         return None;
     }
+    // Tolerate an absolute marker before the row digits (`A$1`).
+    if bytes[i] == b'$' {
+        i += 1;
+    }
+    let row_start = i;
     let mut row: u64 = 0;
     while i < bytes.len() {
         if !bytes[i].is_ascii_digit() {
             return None;
         }
-        row = row * 10 + u64::from(bytes[i] - b'0');
+        row = row
+            .checked_mul(10)?
+            .checked_add(u64::from(bytes[i] - b'0'))?;
         i += 1;
     }
-    if col == 0 || row == 0 {
+    if i == row_start || col == 0 || row == 0 {
         return None;
     }
     let col = u32::try_from(col - 1).ok()?;
@@ -2872,8 +2922,20 @@ mod tests {
         assert_eq!(f.formula.as_deref(), Some("SUM(B1:B1)"));
         assert_eq!(f.value.as_deref(), Some("42"));
         assert!(f.span_len > 0);
-        assert_eq!(m.text(ValueMode::Cached), "hello\t42\n42");
-        assert_eq!(m.text(ValueMode::Formula), "\t\nSUM(B1:B1)");
+        assert_eq!(
+            m.text(ValueMode::Cached, u64::MAX).unwrap(),
+            "hello\t42\n42"
+        );
+        assert_eq!(
+            m.text(ValueMode::Formula, u64::MAX).unwrap(),
+            "\t\nSUM(B1:B1)"
+        );
+        // The projection is bounded: a bound below the projected grid size
+        // declines typed instead of building the string.
+        assert_eq!(
+            m.text(ValueMode::Cached, 2).unwrap_err().class(),
+            crate::ErrorClass::ResourceLimit
+        );
     }
 
     #[test]

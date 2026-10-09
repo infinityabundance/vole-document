@@ -31,9 +31,9 @@
 use std::path::PathBuf;
 
 use vole_document::adapter::xlsx::{
-    SheetModel, XlsxExtractProfile, XlsxModel, a1_to_col_row, build_xlsx_model, col_row_to_a1,
-    parse_comments, parse_drawing, parse_shared_strings, parse_styles_table, parse_table,
-    parse_vml_notes, parse_workbook, parse_worksheet,
+    SheetModel, ValueMode, XlsxCell, XlsxExtractProfile, XlsxModel, XlsxRow, a1_to_col_row,
+    build_xlsx_model, col_row_to_a1, parse_comments, parse_drawing, parse_shared_strings,
+    parse_styles_table, parse_table, parse_vml_notes, parse_workbook, parse_worksheet,
 };
 use vole_document::container::{Descriptor, ObjectSource};
 use vole_document::dra::{Op, Program};
@@ -468,7 +468,10 @@ fn shared_inline_numbers_booleans_errors_formula_style_and_merge() {
         Representation::Metadata,
     );
     let smj = answer_json(&sm);
-    assert!(smj.contains("\"merges\":1"), "{smj}");
+    // The merged-range REF is exposed (not merely a count), with the magnitude
+    // still machine-readable.
+    assert!(smj.contains("\"merges\":[\"A1:B1\"]"), "{smj}");
+    assert!(smj.contains("\"merge_count\":1"), "{smj}");
     assert!(smj.contains("A1:C3"), "{smj}");
 }
 
@@ -950,7 +953,8 @@ fn semantic_defined_names_comments_hyperlinks_tables_and_drawing() {
     assert!(js.contains("\"drawing\":true"), "{js}");
     assert!(js.contains("\"legacy_drawing\":true"), "{js}");
     assert!(js.contains("\"defined_names\":2"), "{js}");
-    assert!(js.contains("\"merges\":1"), "{js}");
+    assert!(js.contains("\"merges\":[\"A5:B5\"]"), "{js}");
+    assert!(js.contains("\"merge_count\":1"), "{js}");
     assert!(js.contains("Data"), "{js}");
 }
 
@@ -1065,4 +1069,153 @@ fn adapter_unit_roundtrips_are_stable() {
         .encode(),
     )
     .unwrap();
+}
+
+// ---------------------------------------------------------------------------
+// Hardening (21.1.2b): bounded references and typed declines.
+// ---------------------------------------------------------------------------
+
+/// FIX 1: an over-long reference declines (`None`), never overflowing.
+#[test]
+fn f1_a1_reference_overflow_declines_and_absolute_refs_are_tolerated() {
+    // 14+ letters overflow `u64`: `checked_mul`/`checked_add` return `None`.
+    assert_eq!(a1_to_col_row("ZZZZZZZZZZZZZZ1"), None);
+    assert_eq!(a1_to_col_row(&format!("{}1", "Z".repeat(40))), None);
+    // An over-long row number also declines.
+    assert_eq!(a1_to_col_row("A99999999999999999999999"), None);
+    // Absolute markers are tolerated.
+    assert_eq!(a1_to_col_row("$A$1"), Some((0, 0)));
+    assert_eq!(a1_to_col_row("A$1"), Some((0, 0)));
+    assert_eq!(a1_to_col_row("$A1"), Some((0, 0)));
+    // The Excel grid's last cell still resolves.
+    assert_eq!(a1_to_col_row("XFD1048576"), Some((16383, 1_048_575)));
+    // Non-references decline.
+    assert_eq!(a1_to_col_row(""), None);
+    assert_eq!(a1_to_col_row("$"), None);
+    assert_eq!(a1_to_col_row("A"), None);
+    assert_eq!(a1_to_col_row("1"), None);
+    assert_eq!(a1_to_col_row("A1B"), None);
+}
+
+/// FIX 2: a present-but-unparseable `r` is a typed structural decline.
+#[test]
+fn f2_malformed_cell_reference_declines_typed() {
+    let err = parse_worksheet(
+        br#"<worksheet><sheetData><row r="1"><c r="NOT-A-REF"><v>1</v></c></row></sheetData></worksheet>"#,
+        "/x",
+        "S",
+        None,
+        Limits::DEFAULT,
+    )
+    .unwrap_err();
+    assert_eq!(err.class(), ErrorClass::InvalidPackageStructure);
+}
+
+/// FIX 2: an in-range-but-oversized coordinate is a typed resource decline.
+#[test]
+fn f2_oversized_cell_coordinate_declines_typed() {
+    // `XFE` is column 16384 (0-based), one past the Excel maximum.
+    let err = parse_worksheet(
+        br#"<worksheet><sheetData><row r="1"><c r="XFE1"><v>1</v></c></row></sheetData></worksheet>"#,
+        "/x",
+        "S",
+        None,
+        Limits::DEFAULT,
+    )
+    .unwrap_err();
+    assert_eq!(err.class(), ErrorClass::ResourceLimit);
+    // `XFD` is the last valid column (16383) and is admitted.
+    let ok = parse_worksheet(
+        br#"<worksheet><sheetData><row r="1"><c r="XFD1"><v>1</v></c></row></sheetData></worksheet>"#,
+        "/x",
+        "S",
+        None,
+        Limits::DEFAULT,
+    )
+    .unwrap();
+    assert_eq!(ok.rows[0].cells[0].col, 16383);
+    // Row 1048577 (0-based 1048576) is one past the maximum.
+    let err = parse_worksheet(
+        br#"<worksheet><sheetData><row r="1"><c r="A1048577"><v>1</v></c></row></sheetData></worksheet>"#,
+        "/x",
+        "S",
+        None,
+        Limits::DEFAULT,
+    )
+    .unwrap_err();
+    assert_eq!(err.class(), ErrorClass::ResourceLimit);
+}
+
+/// FIX 3: the TSV projection is byte-identical and bounded before it is built.
+#[test]
+fn f3_sheet_text_projection_is_bounded_and_preserves_bytes() {
+    let cell = |col: u32, reference: &str, value: &str| XlsxCell {
+        reference: reference.to_string(),
+        col,
+        row: 0,
+        type_tag: None,
+        value: Some(value.to_string()),
+        formula: None,
+        style: None,
+        span_start: 0,
+        span_len: 0,
+    };
+    let sheet = SheetModel {
+        part_name: "/xl/worksheets/sheet1.xml".into(),
+        sheet_name: "S".into(),
+        dimension: None,
+        merges: vec![],
+        hyperlinks: vec![],
+        table_parts: vec![],
+        drawing_rel_id: None,
+        legacy_drawing_rel_id: None,
+        rows: vec![XlsxRow {
+            index: 0,
+            cells: vec![cell(0, "A1", "x"), cell(2, "C1", "z")],
+        }],
+    };
+    // Three projected fields (A, empty B, C): the bytes are unchanged.
+    assert_eq!(sheet.text(ValueMode::Cached, 3).unwrap(), "x\t\tz");
+    // A bound below the projection behaves like the old unbounded code would
+    // not have: it declines typed rather than expanding.
+    assert_eq!(
+        sheet.text(ValueMode::Cached, 2).unwrap_err().class(),
+        ErrorClass::ResourceLimit
+    );
+}
+
+/// FIX 5: a DOCX that embeds a workbook still detects as DOCX, not Opaque.
+#[test]
+fn f5_docx_embedding_a_workbook_is_detected_as_docx() {
+    let content_types = concat!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>"#,
+        r#"<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">"#,
+        r#"<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>"#,
+        r#"<Default Extension="xml" ContentType="application/xml"/>"#,
+        r#"<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>"#,
+        r#"<Override PartName="/word/embeddings/Book1.xlsx" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>"#,
+        r#"</Types>"#
+    );
+    let rels = concat!(
+        r#"<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">"#,
+        r#"<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>"#,
+        r#"</Relationships>"#
+    );
+    let entries = vec![
+        Entry::stored("[Content_Types].xml", content_types.as_bytes()),
+        Entry::stored("_rels/.rels", rels.as_bytes()),
+        Entry::stored(
+            "word/document.xml",
+            br#"<w:document xmlns:w="x"><w:body/></w:document>"#,
+        ),
+        Entry::stored(
+            "word/embeddings/Book1.xlsx",
+            b"PK\x03\x04not-a-real-embedded-workbook",
+        ),
+    ];
+    let zip = build_zip(&entries);
+    assert_eq!(
+        detect_document_format(&zip, Limits::DEFAULT),
+        DocumentFormat::Docx
+    );
 }

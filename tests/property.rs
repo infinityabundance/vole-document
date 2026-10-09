@@ -443,6 +443,8 @@ fn limits_never_change_reconstructed_bytes() {
         max_xlsx_defined_names: 1 << 24,
         max_xlsx_drawings: 1 << 24,
         max_xlsx_style_records: 1 << 24,
+        max_xlsx_col: 1 << 24,
+        max_xlsx_row: 1 << 24,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

@@ -1,18 +1,5 @@
 # Phase 21.1.2 — XLSX (SpreadsheetML) semantic court
 
-> **[SUPERSEDED: 2026-10-09]** This receipt records the *pre-hardening* run at
-> commit `796dc9d`. An independent adversarial audit then found defects since
-> fixed: the merged-range *refs* were count-only (now exposed), a hostile A1 cell
-> reference could overflow `u64` / drive an unbounded projection (now a typed
-> decline), a DOCX embedding an Excel workbook was misdetected as `Opaque` (now
-> `Docx`), and the "missing parts decline typed" wording was false (now stated
-> precisely: optional-absent parts answer an explicit absence at rc 0; only
-> unsupported pairs, missing-part *bytes* requests, and unrendered part
-> *references* decline, typed). The corrected run is
-> `evidence/campaigns/2026-10-09-phase21-2-xlsx-5802be9/` (hardening commit on
-> `staging`). The exactness result here — 3/3 after source + descriptor deletion
-> — is unchanged and reproduced there.
-
 **Question.** Does the XLSX field expose the *spreadsheet* structure — cell
 styles, merges, comments, hyperlinks, defined names, tables, drawings/charts,
 external relationships — as distinct observations, while still closing exactly
@@ -34,6 +21,12 @@ for and required to decline typed.
 | `multi.xlsx` | 3260 | 3260 | `ba56e76a2318` | true | true | true | 6 |
 | `semantic.xlsx` | 7027 | 7027 | `d641caf10f9d` | true | true | true | 6 |
 
+| contract check | result |
+| --- | --- |
+| merged-range REF exposed (semantic A5:B5) | true |
+| no-drawing explicit absence (single.xlsx, rc 0) | true |
+| unsupported-pair typed decline rc 6 (all 3 fixtures) | true |
+
 ## Counts
 
 ```
@@ -49,7 +42,10 @@ defined_ok true
 table_ok true
 drawing_ok true
 external_ok true
-binary edd200bf9e9ba80334f9ebc5f9c363b3165af484c5d09d27deb5e7d6b88252b3
+merge_ref_ok true
+no_drawing_rc 0
+no_drawing_ok true
+binary 108232e0839426d7cf1a0c621f1ce7affe007938b4d9e0de2b0527ce12558c71
 ```
 
 ## Observation surface (semantic.xlsx, raw/)
@@ -60,6 +56,9 @@ binary edd200bf9e9ba80334f9ebc5f9c363b3165af484c5d09d27deb5e7d6b88252b3
   "exact_ok": 3,
   "exact_fail": 0,
   "typed_declines_ok": 3,
+  "merge_ref_ok": true,
+  "no_drawing_rc": 0,
+  "no_drawing_ok": true,
   "display_ok": true,
   "drawing_ok": true,
   "external_ok": true,
@@ -94,6 +93,7 @@ binary edd200bf9e9ba80334f9ebc5f9c363b3165af484c5d09d27deb5e7d6b88252b3
 - `semantic.xlsx.observe_field.txt`
 - `semantic.xlsx.sheet0.json`
 - `semantic.xlsx.text.json`
+- `single.drawing.none.json`
 - `single.xlsx.field.txt`
 - `single.xlsx.metadata.json`
 - `single.xlsx.observe_field.txt`
@@ -121,8 +121,8 @@ binary edd200bf9e9ba80334f9ebc5f9c363b3165af484c5d09d27deb5e7d6b88252b3
   (e.g. a `tableParts` rel whose target is absent) declines typed as invalid
   package structure (rc 20); and a metadata observation for an OPTIONAL part
   that is simply absent (no styles part, no drawing element, no comments rel)
-  answers an explicit absence at rc 0 (a `present:false` / `null` value) — an
-  answer, not a decline.
+  answers an explicit absence at rc 0 (a `present:false` / `null` value) —
+  an answer, not a decline.
 - **Merged ranges** are exposed as their `ref` strings (a JSON array) with a
   machine-readable `merge_count`, not as a bare count.
 - **Exactness** is inherited from the Phase-12.2 ZIP member raw spans: every

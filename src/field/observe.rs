@@ -4742,11 +4742,14 @@ impl<S: SeedStore> Ctx<'_, S> {
             profile.fingerprint()
         );
         let value = match req.representation {
-            Representation::Text => AnswerValue::Text(sheet.text(profile.values)),
+            Representation::Text => {
+                AnswerValue::Text(sheet.text(profile.values, self.limits.max_xlsx_cells)?)
+            }
             Representation::Metadata => AnswerValue::Json(format!(
                 concat!(
                     "{{\"sheet\":\"{}\",\"index\":{},\"state\":\"{}\",\"part\":\"{}\",",
-                    "\"ordinal\":{},\"dimension\":{},\"merges\":{},\"hyperlinks\":{},\"tables\":{},",
+                    "\"ordinal\":{},\"dimension\":{},\"merges\":{},\"merge_count\":{},",
+                    "\"hyperlinks\":{},\"tables\":{},",
                     "\"drawing\":{},\"legacy_drawing\":{},\"defined_names\":{},\"rows\":{},\"cells\":{},",
                     "\"profile\":\"{}\"}}"
                 ),
@@ -4756,6 +4759,7 @@ impl<S: SeedStore> Ctx<'_, S> {
                 json_escape(&part.name),
                 part.ordinal,
                 opt_str_json(sheet.dimension.as_deref()),
+                xlsx_str_array(&sheet.merges),
                 sheet.merges.len(),
                 sheet.hyperlinks.len(),
                 sheet.table_parts.len(),
@@ -4769,9 +4773,11 @@ impl<S: SeedStore> Ctx<'_, S> {
             Representation::Structure => {
                 let rows = self.xlsx_rows_json(&sheet, &provenance, req)?;
                 AnswerValue::Json(format!(
-                    "{{\"sheet\":\"{}\",\"index\":{},\"rows\":[{}]}}",
+                    "{{\"sheet\":\"{}\",\"index\":{},\"merges\":{},\"merge_count\":{},\"rows\":[{}]}}",
                     json_escape(&sheet_name),
                     index,
+                    xlsx_str_array(&sheet.merges),
+                    sheet.merges.len(),
                     rows
                 ))
             }
@@ -4862,7 +4868,8 @@ impl<S: SeedStore> Ctx<'_, S> {
                 AnswerValue::Bytes(slice)
             }
             Representation::Metadata | Representation::Structure => {
-                let styles = self.xlsx_model().ok().and_then(|m| self.xlsx_styles(&m));
+                let model = self.xlsx_model()?;
+                let styles = self.xlsx_styles(&model);
                 let resolved = found
                     .style
                     .and_then(|s| styles.as_ref().and_then(|t| t.style_for(s)));
@@ -5359,6 +5366,19 @@ impl<S: SeedStore> Ctx<'_, S> {
             _ => Err(unsupported_common(req)),
         }
     }
+}
+
+/// A JSON array of the (escaped) strings, used for the merged-range references.
+#[cfg(feature = "xlsx")]
+fn xlsx_str_array(items: &[String]) -> String {
+    format!(
+        "[{}]",
+        items
+            .iter()
+            .map(|s| format!("\"{}\"", json_escape(s)))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
 }
 
 /// A relationship's JSON metadata for the external-relationship observation.
@@ -6496,7 +6516,7 @@ impl<S: SeedStore> Ctx<'_, S> {
         let mut count: u64 = 0;
         for index in indices {
             let (sheet, _part, _name, _span, _deps) = self.xlsx_sheet_view(index, profile)?;
-            let text = sheet.text(profile.values);
+            let text = sheet.text(profile.values, self.limits.max_xlsx_cells)?;
             if !out.is_empty() {
                 out.push('\n');
             }
@@ -6531,13 +6551,16 @@ impl<S: SeedStore> Ctx<'_, S> {
             profile.fingerprint()
         );
         let value = match req.representation {
-            Representation::Text => AnswerValue::Text(sheet.text(profile.values)),
+            Representation::Text => {
+                AnswerValue::Text(sheet.text(profile.values, self.limits.max_xlsx_cells)?)
+            }
             Representation::Metadata => AnswerValue::Json(format!(
-                "{{\"sheet\":\"{}\",\"index\":{},\"rows\":{},\"cells\":{},\"merges\":{},\"profile\":\"{}\"}}",
+                "{{\"sheet\":\"{}\",\"index\":{},\"rows\":{},\"cells\":{},\"merges\":{},\"merge_count\":{},\"profile\":\"{}\"}}",
                 json_escape(&sheet_name),
                 index,
                 sheet.rows.len(),
                 sheet.cell_count(),
+                xlsx_str_array(&sheet.merges),
                 sheet.merges.len(),
                 profile.fingerprint()
             )),

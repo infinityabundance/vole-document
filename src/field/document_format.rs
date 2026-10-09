@@ -45,6 +45,12 @@ const PACKAGE_RELS_MEMBER: &[u8] = b"_rels/.rels";
 /// The `officeDocument` relationship type fragment (transitional and strict).
 #[cfg(feature = "package")]
 const OFFICE_DOCUMENT_FRAGMENT: &[u8] = b"officeDocument";
+/// The WordprocessingML document main content-type fragment (Phase 21.1.2).
+#[cfg(feature = "package")]
+const DOCX_MAIN_FRAGMENT: &[u8] = b"wordprocessingml.document.main+xml";
+/// The canonical WordprocessingML main-part target fragment (Phase 21.1.2).
+#[cfg(feature = "package")]
+const DOCX_MAIN_TARGET: &[u8] = b"word/document.xml";
 /// The ODF package manifest member (Phase 13.3).
 #[cfg(feature = "odt")]
 const ODT_MANIFEST_MEMBER: &[u8] = b"META-INF/manifest.xml";
@@ -180,19 +186,23 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
         .is_some_and(|c| contains(c, CONTAINER_NS) && contains(c, OPF_MEDIA_TYPE));
     let is_epub = mimetype_ok || container_ok;
 
-    // DOCX: an OPC package (`[Content_Types].xml`) whose package relationships
-    // declare an `officeDocument` part. When the `xlsx` adapter is compiled, a
-    // SpreadsheetML package is not a Word document, so the workbook is not
-    // misclassified (mutual exclusivity); without `xlsx` the legacy rule stands.
+    // DOCX: an OPC package whose content types declare a WordprocessingML main
+    // part, or whose package relationships declare an `officeDocument` part that
+    // targets `word/document.xml`. The positive WordprocessingML signal (rather
+    // than the mere absence of a SpreadsheetML one) keeps DOCX and XLSX mutually
+    // exclusive without misclassifying a Word document that *embeds* an Excel
+    // workbook (whose package declares SpreadsheetML content types for the
+    // embedded part, but no SpreadsheetML workbook main part). Without `xlsx`
+    // the legacy relationship-only rule stands.
     let content_types = member_decoded(&physical, source, CONTENT_TYPES_MEMBER, limits);
     let rels = member_decoded(&physical, source, PACKAGE_RELS_MEMBER, limits);
     #[cfg(feature = "xlsx")]
     let is_docx = content_types
         .as_deref()
-        .is_some_and(|ct| !contains(ct, XLSX_NS_FRAGMENT))
-        && rels
-            .as_deref()
-            .is_some_and(|r| contains(r, OFFICE_DOCUMENT_FRAGMENT));
+        .is_some_and(|ct| contains(ct, DOCX_MAIN_FRAGMENT))
+        || rels.as_deref().is_some_and(|r| {
+            contains(r, OFFICE_DOCUMENT_FRAGMENT) && contains(r, DOCX_MAIN_TARGET)
+        });
     #[cfg(not(feature = "xlsx"))]
     let is_docx = content_types.is_some()
         && rels

@@ -160,6 +160,19 @@ pub struct Limits {
     pub max_xlsx_drawings: u32,
     /// Maximum style records (fonts/fills/`cellXfs`) accepted in `styles.xml` (Phase 21.1.2).
     pub max_xlsx_style_records: u32,
+    /// Maximum 0-based column index accepted in a cell reference (Phase 21.1.2).
+    ///
+    /// The Excel-conformant grid is 16,384 columns wide (A..XFD), so a valid
+    /// 0-based column is `< 16384`; a coordinate at or beyond this bound is a
+    /// typed resource-limit decline. Bounding the coordinate here keeps a single
+    /// hostile reference from driving an unbounded projection downstream.
+    pub max_xlsx_col: u32,
+    /// Maximum 0-based row index accepted in a cell/row reference (Phase 21.1.2).
+    ///
+    /// The Excel-conformant grid is 1,048,576 rows tall (1..1048576), so a valid
+    /// 0-based row is `< 1 << 20`; a coordinate at or beyond this bound is a typed
+    /// resource-limit decline.
+    pub max_xlsx_row: u32,
 }
 
 impl Limits {
@@ -223,6 +236,8 @@ impl Limits {
         max_xlsx_defined_names: 1 << 20,
         max_xlsx_drawings: 1 << 14,
         max_xlsx_style_records: 1 << 16,
+        max_xlsx_col: 16384,
+        max_xlsx_row: 1 << 20,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -285,6 +300,8 @@ impl Limits {
         max_xlsx_defined_names: 1 << 14,
         max_xlsx_drawings: 1 << 12,
         max_xlsx_style_records: 1 << 12,
+        max_xlsx_col: 16384,
+        max_xlsx_row: 1 << 20,
     };
 }
 

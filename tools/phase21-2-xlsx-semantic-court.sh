@@ -16,8 +16,15 @@
 #       deterministic number-format *display* projection, its style, and its
 #       comment are separate fields, never conflated; styles never merge with
 #       values.
-#   H4 (honest declines) — unsupported selector/representation pairs and missing
-#       parts decline typed with exit code 6, never a silent empty answer.
+#   H4 (honest declines and explicit absences) — the decline/absence contract is
+#       precise: (a) unsupported selector/representation pairs decline typed with
+#       exit code 6; (b) requesting BYTES for a part that does not exist declines
+#       typed; (c) an element that REFERENCES a missing part (e.g. a `tableParts`
+#       rel whose target is absent) declines typed as invalid package structure
+#       (rc 20); (d) a metadata observation for an OPTIONAL part that is simply
+#       absent (no styles part, no drawing element, no comments rel) answers an
+#       explicit, non-silent ABSENCE at rc 0 (`{"present":false}` / `null`) —
+#       that is an answer, not a decline.
 #
 # Runs in the pinned `doc-baseline` service (dev toolchain + python3 + sqlite):
 #   docker compose run --rm --no-TTY doc-baseline sh tools/phase21-2-xlsx-semantic-court.sh
@@ -192,6 +199,26 @@ if grep -q '"name":"Arial"' "$RAW/semantic.styles.json" \
     && grep -q '"horizontal":"center"' "$RAW/semantic.styles.json"; then
     style_ok=true
 fi
+# H2: the merged-range REF is exposed (not merely a count) in the sheet
+# metadata. semantic.xlsx sheet 0 declares one merge, `A5:B5`.
+merge_ref_ok=false
+if grep -q '"merges":\["A5:B5"\]' "$RAW/semantic.sheet0.metadata.json" \
+    && grep -q '"merge_count":1' "$RAW/semantic.sheet0.metadata.json"; then
+    merge_ref_ok=true
+fi
+# H4: a sheet with NO drawing answers an explicit, non-silent ABSENCE at rc 0
+# (`drawing:null`), which is an answer, not a decline. single.xlsx sheet 0 has no
+# drawing element.
+SINGLE_FIELD="$(cat "$RAW/single.xlsx.observe_field.txt")"
+set +e
+"$BIN" observe --store "$WORK/store" --field "$SINGLE_FIELD" --xlsx-drawing --sheet 0 --kind metadata \
+    > "$RAW/single.drawing.none.json" 2>/dev/null
+nodraw_rc=$?
+set -e
+nodraw_ok=false
+if [ "$nodraw_rc" -eq 0 ] && jq -e '.value.drawing == null' "$RAW/single.drawing.none.json" >/dev/null 2>&1; then
+    nodraw_ok=true
+fi
 
 echo "=== exactness after source + descriptor deletion ==="
 cat "$RAW/results.json" | jq -c '.[] | {fixture,exact,decline_rc}'
@@ -210,8 +237,12 @@ jq -n \
     --argjson table_ok "$table_ok" \
     --argjson link_ok "$link_ok" \
     --argjson style_ok "$style_ok" \
+    --argjson merge_ref_ok "$merge_ref_ok" \
+    --argjson nodraw_rc "$nodraw_rc" \
+    --argjson nodraw_ok "$nodraw_ok" \
     '{fixtures:$fixtures,exact_ok:$exact_ok,exact_fail:$exact_fail,
-      typed_declines_ok:$declines_ok,
+      typed_declines_ok:$declines_ok,merge_ref_ok:$merge_ref_ok,
+      no_drawing_rc:$nodraw_rc,no_drawing_ok:$nodraw_ok,
       display_ok:$display_ok,drawing_ok:$drawing_ok,external_ok:$external_ok,
       comment_ok:$comment_ok,defined_ok:$defined_ok,table_ok:$table_ok,
       link_ok:$link_ok,style_ok:$style_ok}' \
@@ -225,6 +256,12 @@ jq -n \
     echo "| --- | ---: | ---: | --- | --- | --- | --- | ---: |"
     jq -r '.[] | "| `\(.fixture)` | \(.src_len) | \(.out_len) | `\(.src_sha256[0:12])` | \(.src_sha256==.out_sha256) | \(.cmp_ok) | \(.exact) | \(.decline_rc) |"' \
         "$RAW/results.json"
+    echo
+    echo "| contract check | result |"
+    echo "| --- | --- |"
+    echo "| merged-range REF exposed (semantic A5:B5) | $merge_ref_ok |"
+    echo "| no-drawing explicit absence (single.xlsx, rc $nodraw_rc) | $nodraw_ok |"
+    echo "| unsupported-pair typed decline rc 6 (all $(( $(printf '%s' "$FIXTURES" | wc -w) )) fixtures) | $([ "$declines_ok" -eq $(( $(printf '%s' "$FIXTURES" | wc -w) )) ] && echo true || echo false) |"
 } > "$CAMPAIGN/MATRIX.md"
 
 # --- counts.txt -------------------------------------------------------------
@@ -241,6 +278,9 @@ jq -n \
     echo "table_ok $table_ok"
     echo "drawing_ok $drawing_ok"
     echo "external_ok $external_ok"
+    echo "merge_ref_ok $merge_ref_ok"
+    echo "no_drawing_rc $nodraw_rc"
+    echo "no_drawing_ok $nodraw_ok"
     echo "binary $(sha256sum "$BIN" | cut -d' ' -f1)"
 } > "$CAMPAIGN/counts.txt"
 
@@ -276,6 +316,8 @@ EOF
 # --- receipt.json -----------------------------------------------------------
 verdict="PASS"
 [ "$exact_fail" -eq 0 ] || verdict="FAIL"
+[ "$merge_ref_ok" = true ] || verdict="FAIL"
+[ "$nodraw_ok" = true ] || verdict="FAIL"
 cat > "$CAMPAIGN/receipt.json" <<EOF
 {
   "campaign": "$CAMPAIGN",
@@ -299,7 +341,7 @@ cat > "$CAMPAIGN/receipt.json" <<EOF
                    "xlsx-hyperlinks","xlsx-tables","xlsx-drawing"],
   "distinctions": "stored formula vs cached result vs deterministic display projection vs style vs comment are separate fields",
   "projection": "number-format rendering is a bounded deterministic projection (labelled); formulas are never evaluated",
-  "declines": "unsupported selector/representation pairs and missing parts decline typed (rc 6)",
+  "declines": "unsupported selector/representation pairs and requested BYTES for a missing part decline typed (rc 6); an element referencing a missing part declines typed as invalid package structure (rc 20); a metadata observation for an absent optional part answers an explicit absence at rc 0 (a present:false / null value), which is an answer, not a decline",
   "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
   "verdict": "$verdict"
 }
@@ -377,8 +419,18 @@ EOF
     echo "- **Distinctions:** a cell's stored formula, cached result, deterministic"
     echo "  number-format display projection, style, and comment are separate fields."
     echo "  The display projection is a bounded, labelled (\`deterministically-derived\`)"
-    echo "  computation over a small fixed set of format codes; formulas are never"
-    echo "  evaluated."
+    echo "  computation — a bounded grammar over a small set of number-format codes;"
+    echo "  formulas are never evaluated."
+    echo "- **Declines and absences (typed, never silent):** unsupported selector/"
+    echo "  representation pairs decline typed (rc 6); requesting BYTES for a part that"
+    echo "  does not exist declines typed; an element that *references* a missing part"
+    echo "  (e.g. a \`tableParts\` rel whose target is absent) declines typed as invalid"
+    echo "  package structure (rc 20); and a metadata observation for an OPTIONAL part"
+    echo "  that is simply absent (no styles part, no drawing element, no comments rel)"
+    echo "  answers an explicit absence at rc 0 (a \`present:false\` / \`null\` value) —"
+    echo "  an answer, not a decline."
+    echo "- **Merged ranges** are exposed as their \`ref\` strings (a JSON array) with a"
+    echo "  machine-readable \`merge_count\`, not as a bare count."
     echo "- **Exactness** is inherited from the Phase-12.2 ZIP member raw spans: every"
     echo "  XLSX model here is derived (\`Q_gen\`) and never on the exactness path."
     echo "- **Not claimed here:** formula evaluation, chart data/axis semantics, pivot"
@@ -389,7 +441,7 @@ EOF
 } > "$CAMPAIGN/SUMMARY.md"
 
 echo
-if [ "$exact_fail" -ne 0 ]; then
+if [ "$exact_fail" -ne 0 ] || [ "$merge_ref_ok" != true ] || [ "$nodraw_ok" != true ]; then
     echo "PHASE 21.1.2 COURT: FAIL" >&2
     exit 1
 fi
