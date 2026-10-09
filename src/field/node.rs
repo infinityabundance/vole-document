@@ -177,6 +177,13 @@ pub enum NodeKind {
     /// root, keyed by `sha256(source)` per ADR-0060). YAML has no package layer.
     /// Derived, never exact.
     YamlModel = 0x28,
+    /// The canonical, representation-preserving CSV/TSV tabular model
+    /// (Phase 21.7.1): every record's and field's exact source span, the recorded
+    /// dialect (delimiter/quote/line terminator/BOM), original quoting, and the
+    /// header row. It is derived on demand from the exact source (its single
+    /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+    /// ADR-0060). CSV/TSV has no package layer. Derived, never exact.
+    CsvModel = 0x29,
 }
 
 impl NodeKind {
@@ -223,6 +230,7 @@ impl NodeKind {
             0x26 => NodeKind::OdpStyles,
             0x27 => NodeKind::JsonModel,
             0x28 => NodeKind::YamlModel,
+            0x29 => NodeKind::CsvModel,
             _ => return None,
         })
     }
@@ -270,6 +278,7 @@ impl NodeKind {
             NodeKind::OdpStyles => "OdpStyles",
             NodeKind::JsonModel => "JsonModel",
             NodeKind::YamlModel => "YamlModel",
+            NodeKind::CsvModel => "CsvModel",
         }
     }
 

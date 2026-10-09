@@ -178,6 +178,15 @@ pub const SEL_JSON_MODEL: u8 = 19;
 /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per
 /// ADR-0060); YAML has no package layer.
 pub const SEL_YAML_MODEL: u8 = 20;
+/// Selector kind: the canonical CSV/TSV tabular model (Phase 21.7.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as a bounded CSV/TSV table into a bounded,
+/// representation-preserving arena (record/field spans, dialect, header) as
+/// `Q_gen` derived state. It is computed on demand from the exact source (its
+/// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+/// ADR-0060); CSV/TSV has no package layer.
+pub const SEL_CSV_MODEL: u8 = 21;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

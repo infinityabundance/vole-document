@@ -300,6 +300,31 @@ pub struct Limits {
     /// fall back to [`crate::field::document_format::DocumentFormat::Opaque`]
     /// (Phase 21.6.1).
     pub max_yaml_document_bytes: u64,
+    // The CSV/TSV caps below bound the derived, span-preserving tabular model and
+    // its streaming reads (Phase 21.7.1). CSV/TSV is not a package: the whole
+    // source is the exact leaf, and everything derived is `Q_gen` only.
+    /// Maximum records accepted in one CSV/TSV table for a **built** span model
+    /// (including the header row). A larger table declines typed rather than
+    /// allocating; the streaming read selectors (`csv-row`/`csv-cell`/...) are not
+    /// bounded by this (they are bounded by one record at a time) (Phase 21.7.1).
+    pub max_csv_rows: u32,
+    /// Maximum fields accepted in a single CSV/TSV record. A record above this
+    /// bound is a typed resource-limit decline, never an allocation (Phase 21.7.1).
+    pub max_csv_cols: u32,
+    /// Maximum byte length of a single CSV/TSV record (terminator included) when a
+    /// span is retained; a longer record declines typed (Phase 21.7.1).
+    pub max_csv_record_bytes: u32,
+    /// Maximum byte length of a single CSV/TSV field (quotes included); a longer
+    /// field declines typed (Phase 21.7.1).
+    pub max_csv_field_bytes: u32,
+    /// Maximum source length admitted for byte-based CSV/TSV detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.7.1).
+    pub max_csv_document_bytes: u64,
+    /// Maximum records scanned when deciding whether a source is a CSV/TSV table.
+    /// Detection is a bounded sample, so a huge source is classified in bounded
+    /// memory (Phase 21.7.1).
+    pub max_csv_sampled_records_for_detection: u32,
 }
 
 impl Limits {
@@ -402,6 +427,12 @@ impl Limits {
         max_yaml_documents: 1 << 16,
         max_yaml_string_bytes: 1 << 28,
         max_yaml_document_bytes: 1 << 34,
+        max_csv_rows: 1 << 24,
+        max_csv_cols: 1 << 16,
+        max_csv_record_bytes: 1 << 26,
+        max_csv_field_bytes: 1 << 24,
+        max_csv_document_bytes: 1 << 34,
+        max_csv_sampled_records_for_detection: 1024,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -503,6 +534,12 @@ impl Limits {
         max_yaml_documents: 1 << 10,
         max_yaml_string_bytes: 1 << 20,
         max_yaml_document_bytes: 1 << 26,
+        max_csv_rows: 1 << 16,
+        max_csv_cols: 1 << 12,
+        max_csv_record_bytes: 1 << 20,
+        max_csv_field_bytes: 1 << 18,
+        max_csv_document_bytes: 1 << 26,
+        max_csv_sampled_records_for_detection: 64,
     };
 }
 

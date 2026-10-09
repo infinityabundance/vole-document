@@ -482,6 +482,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_yaml_documents: 1 << 16,
         max_yaml_string_bytes: 1 << 50,
         max_yaml_document_bytes: 1 << 50,
+        max_csv_rows: 1 << 30,
+        max_csv_cols: 1 << 24,
+        max_csv_record_bytes: 1 << 30,
+        max_csv_field_bytes: 1 << 30,
+        max_csv_document_bytes: 1 << 50,
+        max_csv_sampled_records_for_detection: 1 << 20,
     };
 
     let mut rng = Rng::new(0x5EED_0006);
