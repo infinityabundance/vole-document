@@ -218,6 +218,34 @@ RUN apt-get update \
 WORKDIR /work
 
 # ---------------------------------------------------------------------------
+# Phase-21.1.3 analytical comparator. Derives from `doc-baseline` (same pinned
+# base digest and python3) and adds a **hash-pinned** DuckDB runtime — the
+# analytical baseline the Phase-21 plan *mandates* alongside SQLite for the
+# tabular formats (CSV/TSV, XLSX, ODS). Those engines already embody columnar
+# projection, predicate pushdown, compressed pages, and metadata indexes, so
+# winning only against SQLite there could just mean the wrong competitor was
+# chosen (the Phase-22 "maximize the competitor first" rule). DuckDB reads and
+# writes Parquet natively, so no `pyarrow` dependency is required.
+#
+# Hash-pinned cp311 wheels (bookworm ships Python 3.11.2; duckdb 1.5.6):
+#   x86_64  73b108c04c932b36c2fa4e41110cc1c3c8cd510eb49f065f92d050be8e6929fd
+#   aarch64 56c0f71c6bee982e9c30568bb12371bf66b26bf129c75d8d7f60bc69d6590a2c
+# ---------------------------------------------------------------------------
+FROM doc-baseline AS analytical
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      python3-pip \
+ && rm -rf /var/lib/apt/lists/*
+RUN printf 'duckdb==1.5.6 \
+  --hash=sha256:73b108c04c932b36c2fa4e41110cc1c3c8cd510eb49f065f92d050be8e6929fd \
+  --hash=sha256:56c0f71c6bee982e9c30568bb12371bf66b26bf129c75d8d7f60bc69d6590a2c\n' \
+      > /tmp/duckdb-requirements.txt \
+ && pip3 install --break-system-packages --no-cache-dir --no-deps --require-hashes -r /tmp/duckdb-requirements.txt \
+ && rm -f /tmp/duckdb-requirements.txt
+WORKDIR /work
+
+# ---------------------------------------------------------------------------
 # real100-v1 corpus-acquisition harness. A pinned, network-capable stage on the
 # same `debian:bookworm-slim` digest as `tools` (never the host). It carries:
 #   * `curl` + `ca-certificates` — HTTPS download with redirects and retries;
