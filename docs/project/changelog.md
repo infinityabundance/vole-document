@@ -2,6 +2,49 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.30] — Phase 21.1: XLSX (SpreadsheetML) adapter + economic court
+
+Opens the Phase-21 **format programme** by adding the fifth document format, XLSX,
+over the shared byte-authoritative OPC/ZIP layer, and judging it on the
+equal-contract capability/cost frontier rather than by format count. Plan:
+[phase-21-plan.md](../phases/phase-21-plan.md); decision:
+[ADR-0059](../adr/0059-xlsx-adapter-and-analytical-comparator.md).
+
+### Added
+
+- **21.1.1 — XLSX adapter (OPC surface + exact closure).** Non-default
+  `xlsx = ["opc"]` feature; byte-based `DocumentFormat::Xlsx` detection, mutually
+  exclusive with `docx`/`epub`/`odt`. Native selectors `--sheet`, `--xlsx-cell`,
+  `--xlsx-find`, plus common `metadata`/`text`/`table`/`cell`. Exactness 2/2 after
+  source + descriptor deletion. `2026-10-08-phase21-1-xlsx-4d26514`.
+- **21.1.2 — the SpreadsheetML semantic model.** Styles (number formats, fonts,
+  fills, alignment), merged ranges, comments (+VML note anchors), internal/external
+  hyperlinks, defined names, tables, drawings/charts/media as a relationship graph,
+  package external relationships, and a bounded deterministic **displayed-value**
+  projection kept distinct from the stored formula and cached result. Exactness
+  3/3. `2026-10-09-phase21-2-xlsx-5802be9`.
+- **21.1.3 — the XLSX economic court.** Three lanes (VOLE; a source-retaining
+  SQLite baseline; a **DuckDB/Parquet** comparator the plan mandates for tabular
+  formats) over a deterministic self-authored 8-workbook corpus; Q1–Q10 on
+  contract-equivalent terms. Paired ratios (median, fixed-seed cluster bootstrap by
+  fixture): build **0.637×** SQLite / **0.291×** DuckDB (8/0/0), storage **0.202×**
+  SQLite (8/0/0) but 1.610× DuckDB, warm 0.704× SQLite (5/0/3). VOLE records
+  formula-dependents and chart→table linkage as typed **capability gaps**. Exactness
+  8/8. `2026-10-09-phase21-3-xlsx-b2400f1`.
+- **Pinned analytical comparator.** New opt-in, hard-capped `analytical` service
+  (same pinned base digest as `doc-baseline`) with a hash-pinned duckdb 1.5.6 wheel;
+  smoke court `tools/phase21-3-analytical-smoke.sh`.
+
+### Fixed (21.1.2b — from an independent adversarial audit)
+
+- Checked arithmetic on A1 cell references (an over-long reference no longer
+  overflows `u64`) and bounded coordinates (`max_xlsx_col`/`max_xlsx_row`) and
+  bounded the sheet-text projection before building it.
+- DOCX detection now uses a **positive** WordprocessingML signal, so a Word
+  document that embeds an Excel workbook is no longer misdetected as `Opaque`.
+- Merged-range **refs** (not just a count) are exposed; "missing parts decline
+  typed" wording corrected to the precise four-part contract.
+
 ## [0.1.0-alpha.29] — Phase 22 economic programme complete (22.3–22.7)
 
 Completes the Phase-22 **economic programme** (P2–P6). **Every subphase is a

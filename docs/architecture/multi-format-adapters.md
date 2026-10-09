@@ -3,7 +3,7 @@
 Phase 12 makes the field format-universal across PDF, DOCX and EPUB: three
 native inverse compilers converge on one `DocumentField` with common
 observations and retained native structure. Phase 13.3 adds a fourth, ODT
-(OpenDocument). “Universal” means the observation
+(OpenDocument), and Phase 21.1 a fifth, XLSX (SpreadsheetML). “Universal” means the observation
 vocabulary is shared, not that every format is supported.
 
 ## Three representational layers (ADR-0029)
@@ -86,6 +86,29 @@ problem preserves the exact bytes and declines only the decode.
   member raw spans. A missing/malformed manifest is a typed decline with
   exactness preserved.
 
+## XLSX adapter (ADR-0059)
+
+- OPC package on the shared ZIP layer (`[Content_Types].xml`, `_rels/.rels`,
+  `xl/workbook.xml`, `xl/worksheets/sheetN.xml`, `xl/styles.xml`,
+  `xl/sharedStrings.xml`, `xl/comments*.xml`, `xl/tables/*`, `xl/drawings/*`,
+  `xl/charts/*`, `xl/media/*`). Gated behind the **non-default** `xlsx = ["opc"]`
+  feature; a build without it reports XLSX `Opaque`.
+- **Five distinct cell fields, never conflated:** stored formula (`<f>`), cached
+  result (`<v>`), a bounded deterministic **displayed value** (labelled
+  `deterministically-derived`; **formulas never evaluated**), resolved style
+  (`cellXfs`: number format, font, fill, alignment), and the exact XML span.
+- Bounded SpreadsheetML model: sheets (order/name/visibility), rows/cells (shared
+  vs inline, booleans, errors), merged ranges (their `ref` strings), comments
+  (+VML note anchors), internal/external hyperlinks via the sheet `_rels`,
+  defined/named ranges, tables, drawings/charts/media as a relationship graph,
+  and package external relationships as typed metadata never dereferenced.
+- Detection is byte-based and mutually exclusive with DOCX via a **positive**
+  WordprocessingML main-part signal, so a Word document that embeds a workbook is
+  not misclassified. Cell references use checked arithmetic and bounded
+  coordinates; the sheet-text projection is bounded before it is built.
+- Progressive inversion; exact leaves stay the 12.2 member raw spans. No intrinsic
+  pages: `Page(n)` is a typed decline.
+
 ## Shared vocabulary (ADR-0031)
 
 Common selectors/representations are added additively: `metadata`, `text`,
@@ -111,6 +134,8 @@ tagged `format=<fmt>;common;<native>`.
 | PDF no-regression (`N6`, A2 vs A11) | 32/32 exact, 0 regressions | `evidence/campaigns/2026-10-06-phase12-pdf-noregression-0d23a02/` |
 | Hostile ZIP/OPC/OCF/XML fixtures | 315/315 assertions | `evidence/campaigns/2026-10-06-phase12-security-33f6d04/` |
 | Lifetime + ablation ladder | small-doc win; A1 wins large frontier | `evidence/campaigns/2026-10-06-phase12-lifetime-ablations-06db12a/` |
+| XLSX adapter / semantic model | exact 2/2 · 3/3 | `evidence/campaigns/2026-10-08-phase21-1-xlsx-4d26514/`, `…/2026-10-09-phase21-2-xlsx-5802be9/` |
+| XLSX economic court (vs SQLite + DuckDB/Parquet) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-xlsx-b2400f1/` |
 
 Interpretation. The ablation ladder attributes the small-document win to the
 content adapters (A4→A5) and to persistent semantic reuse (A5→A6, which trades
@@ -135,4 +160,6 @@ flatters VOLE. Cross-document durable work reuse is a recorded negative
 [0031](../adr/0031-common-observation-model.md),
 [0032](../adr/0032-docx-adapter-scope.md),
 [0033](../adr/0033-epub-adapter-scope.md),
-[0035](../adr/0035-phase12-lifetime-benchmark.md).
+[0035](../adr/0035-phase12-lifetime-benchmark.md),
+[0038](../adr/0038-odt-adapter-scope.md),
+[0059](../adr/0059-xlsx-adapter-and-analytical-comparator.md).

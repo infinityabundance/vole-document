@@ -1,15 +1,21 @@
 # Phase 21 — Format programme
 
-> **PLANNED — not started.** Nothing in this document is implemented or measured.
-> It records the ordered sequence and the shared-substrate architecture for later
-> phases. Phase 21 begins **only after the [Phase-22 economic
-> programme](phase-22-plan.md) is honestly resolved** (22.1–22.7); its last
-> subphase, P7 (XLSX/PPTX economic validation), is judged by that thesis — a
-> better capability/cost frontier on the same contract — **not by format count**.
-> Every "observation" below is a proposed surface, not a shipped one.
+> **IN PROGRESS.** Subphase **21.1 (XLSX) is complete and shipped** on the
+> `staging` line — **21.1.1** (OPC/SpreadsheetML surface + exact closure),
+> **21.1.2** (the spreadsheet semantic model: styles, merges, comments,
+> hyperlinks, defined names, tables, drawings/charts, external relationships, and
+> a bounded deterministic *displayed-value* projection kept distinct from the
+> stored formula and cached result), **21.1.2b** (a hardening pass an adversarial
+> audit required: overflow/coordinate guards, precise DOCX-vs-XLSX detection, and
+> precise typed-decline wording), and **21.1.3** (the XLSX economic court against
+> a source-retaining SQLite baseline **and** a DuckDB/Parquet comparator).
+> Subphases **21.2 (PPTX), 21.3 (ODS), 21.4 (ODP)** remain planned and not
+> started. The Wave-2 families below are a target, never a result. The whole
+> programme is judged by the capability/cost frontier on the same contract —
+> **not by format count**.
 
-Branch (to be created): `phase21`. Base: `main` @ `v0.1.0-alpha.27` (Phase 23);
-gated behind the Phase-22 economic programme.
+Branch: `staging` @ `v0.1.0-alpha.30` (Phase 21.1). The Phase-22 economic
+programme (22.1–22.7) is complete and released in `v0.1.0-alpha.29`.
 
 ## Why
 

@@ -244,6 +244,21 @@ Re-sealed (`2026-10-08-phase23-durability-fc63436-phase25`): **32 cases, 20 PASS
 packed 22 → 34 ms (~1.55×). The residual is unchanged: a **model**, not a real
 power cut.
 
+## Phase-21 outcomes (format programme)
+
+Phase 21 adds new document-format adapters over the shared package substrates and
+judges them by the capability/cost frontier on the same contract, **not by format
+count**. Plan: [phase-21-plan.md](../phases/phase-21-plan.md); decision:
+[ADR-0059](../adr/0059-xlsx-adapter-and-analytical-comparator.md).
+
+| Item | Question | Outcome |
+|---|---|---|
+| 21.1 XLSX | Does a SpreadsheetML workbook enter exactly and queryably, exposing the spreadsheet structure as distinct observations, and how does it sit on the equal-contract frontier? | **Complete — adopted.** 21.1.1 OPC/SpreadsheetML surface + exact closure (exact 2/2); 21.1.2 the semantic model — styles, merges, comments(+VML), internal/external hyperlinks, defined names, tables, drawings/charts/media, external rels, and a bounded deterministic **displayed-value** projection kept distinct from the stored formula and cached result (exact 3/3); 21.1.2b a hardening pass an adversarial audit required (checked arithmetic on A1 refs, bounded coordinates/projection, positive DOCX-vs-XLSX detection, precise decline wording); 21.1.3 the **economic court vs a source-retaining SQLite baseline *and* a DuckDB/Parquet comparator** (exactness 8/8). Paired ratios on the 8-workbook self-authored corpus (VOLE/comparator, median): build **0.637×** SQLite / **0.291×** DuckDB (8/0/0 both); storage **0.202×** SQLite (8/0/0) but **1.610×** DuckDB (Parquet carries no provenance and declines Q8/Q9/Q10); warm **0.704×** SQLite (5/0/3, ratio-of-sums 4.18 — still a loss on the large fixture). VOLE records Q3 (formula dependents) and Q7 (chart→table linkage) as **capability gaps**, never equivalences. `2026-10-09-phase21-3-xlsx-b2400f1` |
+| 21.2 PPTX | The presentation counterpart from the same OPC substrate (slide/layout/media graph). | **Planned — not started.** |
+| 21.3 ODS | The spreadsheet counterpart from the ODF substrate (reuses ODT). | **Planned — not started.** |
+| 21.4 ODP | The presentation counterpart from the ODF substrate. | **Planned — not started.** |
+| Wave 2 | Structured (JSON/YAML/TOML/XML), tabular (CSV/TSV), docs/web (MD/HTML/XHTML), messaging (EML/MIME), analytical (Parquet/Arrow IPC). | **Planned — not started.** Tabular/analytical formats require a DuckDB/Parquet comparator as well as SQLite (ADR-0059). |
+
 ## Unmeasured gates
 
 - `N4` (decline-rate threshold): no pre-registered threshold exists, so it is

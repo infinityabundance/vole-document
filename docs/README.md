@@ -20,7 +20,7 @@ phase results.
 - [The document field](architecture/document-field.md) — persistent, queryable representation.
 - [Observations and provenance](architecture/observations-and-provenance.md) — the typed observation algebra, `EXPLAIN`, and partial materialization.
 - [Persistence and caching](architecture/persistence-and-caching.md) — the seed DAG, stores, indexes, and the derived cache.
-- [Multi-format adapters](architecture/multi-format-adapters.md) — the shared ZIP layer and the PDF/DOCX/EPUB/ODT natives.
+- [Multi-format adapters](architecture/multi-format-adapters.md) — the shared ZIP layer and the PDF/DOCX/EPUB/ODT/XLSX natives.
 
 ## Formats
 
@@ -30,6 +30,7 @@ Per-format authority boundaries, native inverse representation, and exactness.
 - [DOCX](formats/docx.md)
 - [EPUB](formats/epub.md)
 - [ODT](formats/odt.md)
+- [XLSX](formats/xlsx.md)
 
 ## Reference
 
@@ -42,7 +43,7 @@ Per-format authority boundaries, native inverse representation, and exactness.
 
 Frozen rationale and receipts, kept as a durable record (not rewritten).
 
-- [ADRs](adr/README.md) — every frozen decision (through ADR-0058).
+- [ADRs](adr/README.md) — every frozen decision (through ADR-0059).
 - [Phase plans and results](phases/) — the per-phase record. Recent results:
   [Phase 15](phases/phase-15-results.md), [Phase 16](phases/phase-16-results.md),
   [Phase 17](phases/phase-17-results.md), [Phase 18](phases/phase-18-results.md),
@@ -60,8 +61,11 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   [Phase 23](phases/phase-23-results.md) (durability: directory `fsync` + a
   model-based power-loss proxy),
   [Phase 25](phases/phase-25-results.md) (durability corrections: directory
-  ancestry + unpublished-segment recovery); planned (not started):
-  [Phase 21](phases/phase-21-plan.md); the Phase 22 programme is pre-registered in
+  ancestry + unpublished-segment recovery); **in progress**:
+  [Phase 21](phases/phase-21-plan.md) (format programme — **21.1 XLSX complete**:
+  21.1.1 OPC surface, 21.1.2 semantic model + hardening, 21.1.3 economic court vs
+  SQLite and DuckDB; 21.2 PPTX, 21.3 ODS, 21.4 ODP planned); the Phase 22
+  programme is pre-registered in
   [phase-22-plan.md](phases/phase-22-plan.md).
 - [Independent reviews](reviews/) — adversarial skeptic findings.
 - [Evidence index](evidence/README.md) — campaigns and measurement reports.

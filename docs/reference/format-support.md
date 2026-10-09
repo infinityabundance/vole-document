@@ -1,6 +1,6 @@
 # Format support
 
-Capability matrix for the four implemented formats. `✓` = supported and
+Capability matrix for the five implemented formats. `✓` = supported and
 answerable; `—` = a typed decline (`unsupported-feature`, exit 6), never a
 silent empty answer. The format is detected from bytes, never a file name.
 
@@ -58,14 +58,47 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | PDF no-regression (A2 vs A11) | 32/32 exact, 0 regressions | `evidence/campaigns/2026-10-06-phase12-pdf-noregression-0d23a02/` |
 | Hostile ZIP/OPC/OCF/XML fixtures | 315/315 assertions | `evidence/campaigns/2026-10-06-phase12-security-33f6d04/` |
 | ODT adapter (detection/content/profiles/exactness/removal/decline) | 9/9 | `evidence/campaigns/2026-10-07-phase13-odt-95c486d/` |
+| XLSX adapter (OPC surface + exact closure) | exact 2/2 | `evidence/campaigns/2026-10-08-phase21-1-xlsx-4d26514/` |
+| XLSX semantic model + exact closure | exact 3/3 | `evidence/campaigns/2026-10-09-phase21-2-xlsx-5802be9/` |
+| XLSX economic court (vs source-retaining SQLite + DuckDB/Parquet) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-xlsx-b2400f1/` |
 
 See [Status ledger](../project/status.md) for the full mechanism table and
 [Conformance](../reference/conformance.md) for the courts.
 
+## XLSX (SpreadsheetML)
+
+XLSX enters through the shared OPC layer (ADR-0030) with a **SpreadsheetML**
+native model. The `xlsx` feature is **non-default** (`xlsx = ["opc"]`); detection
+is byte-based and mutually exclusive with DOCX (a positive WordprocessingML
+main-part signal, so a Word document that *embeds* an Excel workbook is still
+`docx`).
+
+| Property | XLSX |
+|---|---|
+| Byte-based detection | OPC ZIP package declaring the SpreadsheetML workbook main content type (`...spreadsheetml.sheet.main+xml`) |
+| Physical authority | shared byte-authoritative ZIP; the exact leaf is the raw member span (no unzip/rezip) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `table`, `cell` |
+| Native observations | `xlsx-sheet` (`--sheet`), `xlsx-cell` (`--xlsx-cell A1`), `xlsx-styles`, `xlsx-comments`, `xlsx-hyperlinks`, `xlsx-tables`, `xlsx-drawing`, `xlsx-defined-names`, `xlsx-external-rels` |
+| `Page(n)` | — typed decline (a spreadsheet has no intrinsic pagination) |
+
+The **crucial distinctions** are never conflated: a cell's *stored formula*,
+its *cached result*, its deterministic number-format *displayed value*, its
+*style*, and its underlying *XML span* are separate fields with different
+provenance. The displayed value is a bounded, labelled
+(`deterministically-derived`) projection; formulas are **never evaluated**.
+Every non-exactness answer is a derived projection (`exact == false`); only
+the materialized workbook is a byte-authority claim. Declines are typed: an
+unsupported selector/representation pair, a BYTES request for a missing part,
+and a reference to a missing part all decline typed; a metadata observation for
+an optional part that is simply absent answers an explicit absence at exit 0.
+See [Formats/XLSX](../formats/xlsx.md) and [ADR-0059](../adr/0059-xlsx-adapter-and-analytical-comparator.md).
+
 ## Feature gates
 
 The default build is `default = ["rans", "store", "field"]`. The ZIP/DOCX/EPUB/ODT
-adapters need `package,opc,docx,epub,odt`. `deflate-replay` is opt-in (pulls LGPL
+adapters need `package,opc,docx,epub,odt`; the XLSX adapter needs `package,opc,xlsx`
+(the non-default `xlsx = ["opc"]` feature). `deflate-replay` is opt-in (pulls LGPL
 `cabac`). A descriptor that needs a capability the build lacks sets a mandatory
 feature bit and fails closed with `unsupported-feature` (exit 6).
 
@@ -87,6 +120,6 @@ ADR-0053); `--promote` is refuted on the tested corpus and default-off (ADR-0046
 
 ## Not supported
 
-Containers beyond PDF/DOCX/EPUB/ODT (e.g. XLSX, PPTX) are `PROPOSED`, not
-implemented (see [Roadmap](../project/roadmap.md)). Any source that is not a
+Containers beyond PDF/DOCX/EPUB/ODT/XLSX (e.g. PPTX, ODS, ODP) are `PROPOSED`,
+not implemented (see [Roadmap](../project/roadmap.md)). Any source that is not a
 recognized format still round-trips exactly through the opaque `RAW` lane.
