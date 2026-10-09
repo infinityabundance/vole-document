@@ -83,7 +83,8 @@ vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--p
     --odp-slide N | --odp-shape N | --odp-notes N | --odp-masters | --odp-media N |
     --odp-tables | --odp-find PATTERN |
     --json-pointer P | --json-node P | --json-find PATTERN |
-    --yaml-path P | --yaml-node | --yaml-documents | --yaml-anchor NAME | --yaml-find PATTERN)
+    --yaml-path P | --yaml-node | --yaml-documents | --yaml-anchor NAME | --yaml-find PATTERN |
+    --csv-row N | --csv-cell R:C | --csv-cell R:COLNAME | --csv-header | --csv-range | --csv-find PATTERN)
     --kind KIND
 vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
     [--requests FILE|-] [--repeat N]
@@ -125,6 +126,10 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
   `--yaml-anchor NAME`, `--yaml-find`) need the non-default `yaml` feature. Anchors
   and aliases are exposed as a graph (never expanded); tags, scalar styles, merge
   keys and comments are preserved.
+- The CSV/TSV selectors (`--csv-row`, `--csv-cell`, `--csv-header`, `--csv-range`,
+  `--csv-find`) need the non-default `csv` feature. Record/field bytes and the
+  dialect are preserved; there is no CSV index, so the row/cell selectors are
+  O(offset) bounded-memory scans.
 - `field-ingest` inverse-proceduralizes one `.voldoc` into a persistent field
   and prints its field id (`HEX`) and roots. The format is detected from bytes.
 - `observe` / `find` / `explain` / `preview` answer typed observations with
