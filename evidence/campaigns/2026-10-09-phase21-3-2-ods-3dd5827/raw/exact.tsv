@@ -1,0 +1,9 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+c01-basic.ods	true	true	true	true	true	30367	24126
+c02-typed.ods	true	true	true	true	true	39895	24604
+c03-repeated.ods	true	true	true	true	true	3721	24115
+c04-merged.ods	true	true	true	true	true	3337	24130
+c05-named.ods	true	true	true	true	true	3430	26214
+c06-comments.ods	true	true	true	true	true	3388	27244
+c07-styles.ods	true	true	true	true	true	3493	24920
+c08-large.ods	true	true	true	true	true	7203	25072
