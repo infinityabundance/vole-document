@@ -148,6 +148,17 @@ pub const SEL_PPTX_MODEL: u8 = 16;
 /// model are computed on demand from their decoded member nodes (no index entry of
 /// their own, mirroring `OdtContent`).
 pub const SEL_ODS_MODEL: u8 = 17;
+/// Selector kind: the canonical ODP (ODF presentation) discovery model
+/// (Phase 21.4.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// ODP package graph (`mimetype` facts and the parsed `META-INF/manifest.xml` file
+/// entries, with the main content part and the `Pictures/*` media parts resolved
+/// semantically) as `Q_gen` derived state, computed on demand from the exact
+/// package source — never via OPC (ODF has no `[Content_Types].xml`). The decoded
+/// presentation content model and the styles model are computed on demand from
+/// their decoded member nodes (no index entry of their own, mirroring `OdsContent`).
+pub const SEL_ODP_MODEL: u8 = 18;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

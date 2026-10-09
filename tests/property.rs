@@ -462,6 +462,15 @@ fn limits_never_change_reconstructed_bytes() {
         max_pptx_notes: 1 << 24,
         max_pptx_layouts: 1 << 24,
         max_pptx_masters: 1 << 24,
+        max_odp_slides: 1 << 12,
+        max_odp_shapes_per_slide: 1 << 30,
+        max_odp_text_runs: 1 << 30,
+        max_odp_group_depth: 1 << 10,
+        max_odp_media: 1 << 24,
+        max_odp_tables: 1 << 24,
+        max_odp_table_cells: 1 << 30,
+        max_odp_notes: 1 << 24,
+        max_odp_masters: 1 << 24,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

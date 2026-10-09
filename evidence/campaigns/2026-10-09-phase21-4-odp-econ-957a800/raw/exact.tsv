@@ -1,0 +1,9 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+c01-basic.odp	true	true	true	true	true	5279	23857
+c02-tables.odp	true	true	true	true	true	5405	22021
+c03-media.odp	true	true	true	true	true	6832	25225
+c04-notes.odp	true	true	true	true	true	6601	22694
+c05-order.odp	true	true	true	true	true	5823	22912
+c06-many.odp	true	true	true	true	true	7992	24453
+c07-mixed.odp	true	true	true	true	true	10737	23887
+c08-large.odp	true	true	true	true	true	12368	24170

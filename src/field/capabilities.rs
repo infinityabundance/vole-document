@@ -172,6 +172,17 @@ const PPTX_NATIVE: &[&str] = &[
     "relationship",
     "member",
 ];
+const ODP_NATIVE: &[&str] = &[
+    "odp-slide",
+    "odp-shape",
+    "odp-notes",
+    "odp-masters",
+    "odp-media",
+    "odp-tables",
+    "odp-find",
+    "package-part",
+    "member",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -288,6 +299,17 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 pptx_profiles(),
                 PPTX_NATIVE.to_vec(),
             ),
+            DocumentFormat::Odp => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                odp_profiles(),
+                ODP_NATIVE.to_vec(),
+            ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };
     Capabilities {
@@ -350,6 +372,15 @@ fn pptx_profiles() -> Vec<String> {
 }
 #[cfg(not(feature = "pptx"))]
 fn pptx_profiles() -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(feature = "odp")]
+fn odp_profiles() -> Vec<String> {
+    vec![crate::adapter::odp::OdpExtractProfile::DEFAULT.fingerprint()]
+}
+#[cfg(not(feature = "odp"))]
+fn odp_profiles() -> Vec<String> {
     Vec::new()
 }
 

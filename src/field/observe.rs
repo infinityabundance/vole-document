@@ -37,6 +37,11 @@ use crate::adapter::docx::wml::StoryModel;
 use crate::adapter::docx::{DocxExtractProfile, DocxModel, DocxPartRef, DocxStory, story_params};
 #[cfg(feature = "epub")]
 use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
+#[cfg(feature = "odp")]
+use crate::adapter::odp::{
+    ContentModel as OdpContentModel, OdpExtractProfile, OdpModel, OdpShape, OdpTable,
+    StylesModel as OdpStylesModel,
+};
 #[cfg(feature = "ods")]
 use crate::adapter::ods::{
     ContentModel as OdsContentModel, OdsExtractProfile, OdsModel, StylesModel as OdsStylesModel,
@@ -62,6 +67,8 @@ use crate::field::document_format::DocumentFormat;
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "odp")]
+use crate::field::index::SEL_ODP_MODEL;
 #[cfg(feature = "ods")]
 use crate::field::index::SEL_ODS_MODEL;
 #[cfg(feature = "odt")]
@@ -405,6 +412,63 @@ pub enum Selector {
         /// The 0-based document-order sheet index.
         sheet: u32,
     },
+    /// One ODP slide (`draw:page`) by 0-based document order (Phase 21.4.1). The
+    /// order is the `draw:page` document order, never a file/member name. Hidden
+    /// slides stay addressable by index; the profile governs whole-deck projections.
+    #[cfg(feature = "odp")]
+    OdpSlide {
+        /// The 0-based document-order slide index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdpExtractProfile,
+    },
+    /// One ODP shape, addressed by slide index and a flattened pre-order shape
+    /// index. A shape's text and its kind are a distinct observation from the
+    /// slide's XML span (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    OdpShape {
+        /// The 0-based document-order slide index.
+        slide: u32,
+        /// The flattened pre-order shape index within the slide.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdpExtractProfile,
+    },
+    /// The notes page text (`presentation:notes`) attached to a slide, by 0-based
+    /// slide index (Phase 21.4.1). A slide with no notes page is a typed decline.
+    #[cfg(feature = "odp")]
+    OdpNotes {
+        /// The 0-based document-order slide index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdpExtractProfile,
+    },
+    /// The presentation's `style:master-page` master pages (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    OdpMasters,
+    /// An ODP media resource (`Pictures/*`) by 0-based name-sorted ordinal
+    /// (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    OdpMedia {
+        /// The 0-based media-part index.
+        ordinal: u32,
+    },
+    /// The embedded tables of one slide (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    OdpTables {
+        /// The 0-based document-order slide index.
+        slide: u32,
+        /// The extraction profile identity.
+        profile: OdpExtractProfile,
+    },
+    /// A lexical text search over slides (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    OdpFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The extraction profile identity.
+        profile: OdpExtractProfile,
+    },
     /// An XLSX worksheet by 0-based workbook-order index (Phase 21.1.1). Hidden
     /// sheets are still addressable by index; the profile only governs whether a
     /// whole-workbook projection includes them.
@@ -716,6 +780,35 @@ impl Selector {
             Selector::OdsNamedExpressions => "ods-named-expressions".to_string(),
             #[cfg(feature = "ods")]
             Selector::OdsComments { sheet } => format!("ods-comments:{sheet}"),
+            #[cfg(feature = "odp")]
+            Selector::OdpSlide { index, profile } => {
+                format!("odp-slide:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "odp")]
+            Selector::OdpShape {
+                slide,
+                index,
+                profile,
+            } => format!(
+                "odp-shape:{slide}:{index};profile={}",
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "odp")]
+            Selector::OdpNotes { index, profile } => {
+                format!("odp-notes:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "odp")]
+            Selector::OdpMasters => "odp-masters".to_string(),
+            #[cfg(feature = "odp")]
+            Selector::OdpMedia { ordinal } => format!("odp-media:{ordinal}"),
+            #[cfg(feature = "odp")]
+            Selector::OdpTables { slide, profile } => {
+                format!("odp-tables:{slide};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "odp")]
+            Selector::OdpFind { pattern, profile } => {
+                format!("odp-find:{pattern};profile={}", profile.fingerprint())
+            }
             #[cfg(feature = "xlsx")]
             Selector::XlsxSheet { index, profile } => {
                 format!("xlsx-sheet:{index};profile={}", profile.fingerprint())
@@ -2430,6 +2523,38 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "ods")]
             (Selector::OdsComments { sheet }, R::Metadata | R::Structure) => {
                 self.ods_comments(req, *sheet)
+            }
+            #[cfg(feature = "odp")]
+            (Selector::OdpSlide { index, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.odp_slide(req, *index, profile)
+            }
+            #[cfg(feature = "odp")]
+            (
+                Selector::OdpShape {
+                    slide,
+                    index,
+                    profile,
+                },
+                R::Text | R::Structure | R::Metadata,
+            ) => self.odp_shape(req, *slide, *index, profile),
+            #[cfg(feature = "odp")]
+            (Selector::OdpNotes { index, profile }, R::Text | R::Metadata) => {
+                self.odp_notes(req, *index, profile)
+            }
+            #[cfg(feature = "odp")]
+            (Selector::OdpMasters, R::Metadata | R::Structure) => self.odp_masters(req),
+            #[cfg(feature = "odp")]
+            (
+                Selector::OdpMedia { ordinal },
+                R::Metadata | R::Structure | R::ExactBytes | R::DecodedBytes,
+            ) => self.odp_media(req, *ordinal),
+            #[cfg(feature = "odp")]
+            (Selector::OdpTables { slide, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.odp_tables(req, *slide, profile)
+            }
+            #[cfg(feature = "odp")]
+            (Selector::OdpFind { pattern, profile }, R::Text) => {
+                self.odp_find(req, pattern, profile)
             }
             #[cfg(feature = "xlsx")]
             (Selector::XlsxSheet { index, profile }, R::Text | R::Structure | R::Metadata) => {
@@ -5300,6 +5425,493 @@ impl<S: SeedStore> Ctx<'_, S> {
 }
 
 // ---------------------------------------------------------------------------
+// ODP (OpenDocument Presentation) observations (Phase 21.4.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "odp")]
+#[allow(clippy::type_complexity)]
+type OdpContentView = (
+    OdpContentModel,
+    crate::adapter::odp::PartRef,
+    Option<(u64, u64)>,
+    Vec<NodeId>,
+);
+
+#[cfg(feature = "odp")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the ODP discovery model (derived, `Q_gen`).
+    fn odp_model(&mut self) -> Result<OdpModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_ODP_MODEL, 0), "ODP model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        OdpModel::decode(&bytes)
+    }
+
+    fn odp_member_span(&mut self, ordinal: Option<u32>) -> Option<(u64, u64)> {
+        let o = ordinal?;
+        self.lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, o))
+            .ok()?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)))
+    }
+
+    fn odp_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Resolve the main content part to its parsed [`OdpContentModel`], parsing
+    /// **only** that part and persisting the derived node in the disposable cache.
+    fn odp_content_view(&mut self, profile: &OdpExtractProfile) -> Result<OdpContentView> {
+        let model = self.odp_model()?;
+        let part = model.content.clone().ok_or_else(|| {
+            Error::invalid_package_structure(
+                "ODF package has no resolvable OpenDocument content part",
+            )
+        })?;
+        if part.ordinal == u32::MAX {
+            return Err(Error::invalid_package_structure(
+                "ODF content part does not resolve to a package member",
+            ));
+        }
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "ODP content decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::OdpContent,
+            self.limits.max_output_bytes,
+            crate::adapter::odp::content_params(part.ordinal, &part.name, profile),
+            vec![dec.node_id],
+            "odp:content",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let cm = OdpContentModel::decode(&bytes)?;
+        let span = self.odp_member_span(Some(part.ordinal));
+        Ok((cm, part, span, vec![id, dec.node_id]))
+    }
+
+    /// Resolve the styles part to its parsed [`OdpStylesModel`], when present. A
+    /// missing styles part is not an error (accepting a presentation that declares
+    /// styles inline).
+    fn odp_styles_view(
+        &mut self,
+    ) -> Result<Option<(OdpStylesModel, crate::adapter::odp::PartRef, Vec<NodeId>)>> {
+        let model = self.odp_model()?;
+        let Some(part) = model.styles.clone() else {
+            return Ok(None);
+        };
+        if part.ordinal == u32::MAX {
+            return Ok(None);
+        }
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "ODP styles decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::OdpStyles,
+            self.limits.max_output_bytes,
+            crate::adapter::odp::styles_params(part.ordinal, &part.name),
+            vec![dec.node_id],
+            "odp:styles",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let sm = OdpStylesModel::decode(&bytes)?;
+        Ok(Some((sm, part, vec![id, dec.node_id])))
+    }
+
+    fn odp_slide(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let slide = m.slide(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no slide {index}"))
+        })?;
+        let name = slide.name.clone();
+        let hidden = slide.hidden;
+        let shapes = slide.shape_count();
+        let top = slide.top_level_count();
+        let tables = slide.tables.len();
+        let text_len = slide.text().len();
+        let has_notes = slide.notes.is_some();
+        let provenance = format!(
+            "odp;slide={index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(slide.text()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"index\":{},\"name\":\"{}\",\"hidden\":{},\"master\":{},",
+                    "\"shapes\":{},\"top_level\":{},\"tables\":{},\"notes\":{},",
+                    "\"text_len\":{},\"profile\":\"{}\"}}"
+                ),
+                index,
+                json_escape(&name),
+                hidden,
+                opt_str_json(slide.master_page.as_deref()),
+                shapes,
+                top,
+                tables,
+                has_notes,
+                text_len,
+                profile.fingerprint()
+            )),
+            Representation::Structure => {
+                let shapes = slide
+                    .shapes
+                    .iter()
+                    .map(odp_shape_json)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                AnswerValue::Json(format!(
+                    "{{\"index\":{index},\"hidden\":{hidden},\"shapes\":[{shapes}]}}"
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
+    }
+
+    fn odp_shape(
+        &mut self,
+        req: &ObserveRequest,
+        slide_index: u32,
+        shape_index: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let slide = m.slide(slide_index).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no slide {slide_index}"))
+        })?;
+        let shape = slide
+            .shape_by_flat_index(shape_index)
+            .cloned()
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "slide {slide_index} ({}) has no shape {shape_index}",
+                    part.name
+                ))
+            })?;
+        let provenance = format!(
+            "odp;slide={slide_index};shape={shape_index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(shape.text_deep()),
+            Representation::Metadata | Representation::Structure => {
+                AnswerValue::Json(odp_shape_json(&shape))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
+    }
+
+    fn odp_notes(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let slide = m.slide(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no slide {index}"))
+        })?;
+        let notes = slide.notes.clone().ok_or_else(|| {
+            Error::unsupported_feature(format!("slide {index} has no notes page"))
+        })?;
+        let shapes = slide.notes_shapes;
+        let provenance = format!(
+            "odp;notes={index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(notes.clone()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"slide\":{index},\"notes\":true,\"shapes\":{shapes},\"text_len\":{},\"profile\":\"{}\"}}",
+                notes.len(),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
+    }
+
+    fn odp_masters(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(&OdpExtractProfile::DEFAULT)?;
+        let styles = self.odp_styles_view()?;
+        let mut items: Vec<String> = Vec::new();
+        let mut all_deps = deps;
+        if let Some((sm, _spart, sdeps)) = styles {
+            for mp in &sm.master_pages {
+                items.push(format!(
+                    "{{\"name\":\"{}\",\"pageLayout\":{}}}",
+                    json_escape(&mp.name),
+                    opt_str_json(mp.page_layout.as_deref())
+                ));
+            }
+            all_deps.extend(sdeps);
+        }
+        // A presentation may also declare master pages in the content part.
+        for mp in &m.master_pages {
+            items.push(format!(
+                "{{\"name\":\"{}\",\"pageLayout\":{}}}",
+                json_escape(&mp.name),
+                opt_str_json(mp.page_layout.as_deref())
+            ));
+        }
+        let provenance = format!("odp;part={};masters", part.name);
+        Ok(self.odp_answer(
+            req,
+            AnswerValue::Json(format!(
+                "{{\"count\":{},\"masters\":[{}]}}",
+                items.len(),
+                items.join(",")
+            )),
+            provenance,
+            span,
+            all_deps,
+        ))
+    }
+
+    fn odp_media(&mut self, req: &ObserveRequest, ordinal: u32) -> Result<FieldAnswer> {
+        use Representation as R;
+        let model = self.odp_model()?;
+        let part = model.media.get(ordinal as usize).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no media {ordinal}"))
+        })?;
+        match req.representation {
+            R::ExactBytes => self.indexed_exact(
+                req,
+                SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal),
+                "media part",
+            ),
+            R::DecodedBytes => self.member_decoded(req, part.ordinal),
+            R::Metadata | R::Structure => {
+                let json = format!(
+                    "{{\"media\":{ordinal},\"part\":\"{}\",\"ordinal\":{},\"mediaType\":{}}}",
+                    json_escape(&part.name),
+                    part.ordinal,
+                    opt_str_json(part.media_type.as_deref())
+                );
+                Ok(self.odp_answer(
+                    req,
+                    AnswerValue::Json(json),
+                    format!("odp;media={ordinal}"),
+                    None,
+                    Vec::new(),
+                ))
+            }
+            _ => Err(unsupported_common(req)),
+        }
+    }
+
+    /// The `(slide_index, local_table_index)` of every embedded table across the
+    /// projected slides, in slide order.
+    fn odp_table_refs(&mut self, profile: &OdpExtractProfile) -> Result<Vec<(u32, u32)>> {
+        let (m, _part, _span, _deps) = self.odp_content_view(profile)?;
+        let mut out: Vec<(u32, u32)> = Vec::new();
+        for slide in &m.slides {
+            if slide.hidden && !profile.include_hidden {
+                continue;
+            }
+            for local in 0..slide.tables.len() {
+                out.push((slide.index, local as u32));
+            }
+        }
+        Ok(out)
+    }
+
+    fn odp_tables(
+        &mut self,
+        req: &ObserveRequest,
+        slide_index: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let slide = m.slide(slide_index).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no slide {slide_index}"))
+        })?;
+        let provenance = format!(
+            "odp;slide={slide_index};part={};tables;profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                let text = slide
+                    .tables
+                    .iter()
+                    .map(|t| t.text())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                AnswerValue::Text(text)
+            }
+            Representation::Metadata | Representation::Structure => {
+                let tables = slide
+                    .tables
+                    .iter()
+                    .map(odp_table_json)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                AnswerValue::Json(format!(
+                    "{{\"slide\":{slide_index},\"part\":\"{}\",\"count\":{},\"tables\":[{tables}]}}",
+                    json_escape(&part.name),
+                    slide.tables.len()
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
+    }
+
+    fn odp_find(
+        &mut self,
+        req: &ObserveRequest,
+        pattern: &str,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for slide in &m.slides {
+            if slide.hidden && !profile.include_hidden {
+                continue;
+            }
+            for shape in &slide.shapes {
+                let mut matched: Vec<&OdpShape> = Vec::new();
+                collect_matching_odp_shapes(shape, pattern, &mut matched);
+                for s in matched {
+                    let t = s.text_deep();
+                    estimated = estimated.saturating_add(t.len() as u64 + 64);
+                    if estimated > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "ODP find exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                    items.push(format!(
+                        "{{\"slide\":{},\"shape\":{},\"kind\":\"{}\",\"text\":\"{}\"}}",
+                        slide.index,
+                        s.index,
+                        s.kind.name(),
+                        json_escape(&t)
+                    ));
+                }
+            }
+        }
+        let provenance = format!("odp;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.odp_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+}
+
+/// The JSON for one ODP shape (recursive over group children).
+#[cfg(feature = "odp")]
+fn odp_shape_json(s: &OdpShape) -> String {
+    let table = match &s.table {
+        Some(t) => format!("{{\"rows\":{},\"cells\":{}}}", t.rows.len(), t.cell_count()),
+        None => "null".to_string(),
+    };
+    let children = s
+        .children
+        .iter()
+        .map(odp_shape_json)
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        concat!(
+            "{{\"index\":{},\"kind\":\"{}\",\"name\":{},\"placeholder\":{},",
+            "\"text\":\"{}\",\"media\":{},\"table\":{},\"children\":[{}]}}"
+        ),
+        s.index,
+        s.kind.name(),
+        opt_str_json(s.name.as_deref()),
+        opt_str_json(s.placeholder.as_deref()),
+        json_escape(&s.text),
+        opt_str_json(s.media_href.as_deref()),
+        table,
+        children
+    )
+}
+
+/// The JSON for one embedded table.
+#[cfg(feature = "odp")]
+fn odp_table_json(t: &OdpTable) -> String {
+    let rows = t
+        .rows
+        .iter()
+        .map(|r| {
+            let cells = r
+                .cells
+                .iter()
+                .map(|c| {
+                    format!(
+                        "{{\"text\":\"{}\",\"colsSpanned\":{},\"rowsSpanned\":{},\"covered\":{}}}",
+                        json_escape(&c.text),
+                        c.col_span,
+                        c.row_span,
+                        c.covered
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            format!("{{\"cells\":[{cells}]}}")
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"rows\":{},\"cells\":{},\"detail\":[{rows}]}}",
+        t.rows.len(),
+        t.cell_count()
+    )
+}
+
+#[cfg(feature = "odp")]
+fn collect_matching_odp_shapes<'a>(s: &'a OdpShape, pat: &str, out: &mut Vec<&'a OdpShape>) {
+    if s.text_deep().contains(pat) {
+        out.push(s);
+    }
+    for c in &s.children {
+        collect_matching_odp_shapes(c, pat, out);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // XLSX (Phase 21.1.1)
 // ---------------------------------------------------------------------------
 
@@ -7188,6 +7800,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Epub => self.common_epub(req)?,
             DocumentFormat::Odt => self.common_odt(req)?,
             DocumentFormat::Ods => self.common_ods(req)?,
+            DocumentFormat::Odp => self.common_odp(req)?,
             DocumentFormat::Xlsx => self.common_xlsx(req)?,
             DocumentFormat::Pptx => self.common_pptx(req)?,
             DocumentFormat::Opaque => {
@@ -7491,6 +8104,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_ods(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "ODS observations require a build with the ods feature",
+        ))
+    }
+
+    #[cfg(not(feature = "odp"))]
+    fn common_odp(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "ODP observations require a build with the odp feature",
         ))
     }
 
@@ -8137,6 +8757,195 @@ impl<S: SeedStore> Ctx<'_, S> {
             profile.fingerprint()
         );
         Ok(self.ods_answer(req, value, provenance, span, deps))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ODP common observations (Phase 21.4.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "odp")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn common_odp(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let profile = OdpExtractProfile::DEFAULT;
+        match &req.selector {
+            Selector::Metadata => self.odp_common_metadata(req, &profile),
+            Selector::Text => self.odp_content_text(req, &profile),
+            Selector::Table(i) => self.odp_common_table(req, *i, &profile),
+            Selector::Cell { table, row, col } => {
+                self.odp_common_cell(req, *table, *row, *col, &profile)
+            }
+            Selector::SearchMatch(p) => self.odp_find(req, p, &profile),
+            other => Err(Error::unsupported_feature(format!(
+                "ODP does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn odp_content_text(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let provenance = format!("odp;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.odp_answer(
+            req,
+            AnswerValue::Text(m.text(profile.include_notes, profile.include_hidden)),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+
+    fn odp_common_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let model = self.odp_model()?;
+        let part = model.content.as_ref().ok_or_else(|| {
+            Error::invalid_package_structure(
+                "ODF package has no resolvable OpenDocument content part",
+            )
+        })?;
+        let (m, _part, span, deps) = self.odp_content_view(profile)?;
+        let names = m
+            .slides
+            .iter()
+            .map(|s| format!("\"{}\"", json_escape(&s.name)))
+            .collect::<Vec<_>>()
+            .join(",");
+        let title = m.slides.first().and_then(|s| s.title());
+        let styles = self.odp_styles_view()?;
+        let masters = styles
+            .as_ref()
+            .map(|(sm, _, _)| sm.master_pages.len())
+            .unwrap_or(0);
+        let json = format!(
+            concat!(
+                "{{",
+                "\"format\":\"odp\",",
+                "\"part\":\"{}\",",
+                "\"ordinal\":{},",
+                "\"media_type\":{},",
+                "\"root\":\"{}\",",
+                "\"manifest_entries\":{},",
+                "\"slides\":{},",
+                "\"slide_names\":[{}],",
+                "\"title\":{},",
+                "\"shapes\":{},",
+                "\"tables\":{},",
+                "\"masters\":{},",
+                "\"media\":{},",
+                "\"images\":{},",
+                "\"styles\":{},",
+                "\"profile\":\"{}\"",
+                "}}"
+            ),
+            json_escape(&part.name),
+            part.ordinal,
+            opt_str_json(part.media_type.as_deref()),
+            json_escape(&m.root_local),
+            model.manifest.len(),
+            m.slides.len(),
+            names,
+            opt_str_json(title.as_deref()),
+            m.shape_count(),
+            m.table_count(),
+            masters,
+            model.media.len(),
+            m.images.len(),
+            m.styles.len(),
+            profile.fingerprint(),
+        );
+        let provenance = format!("odp;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.odp_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    fn odp_common_table(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let refs = self.odp_table_refs(profile)?;
+        let (slide_index, local) = *refs.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no projected table {ordinal}"))
+        })?;
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let table = m
+            .slide(slide_index)
+            .and_then(|s| s.tables.get(local as usize))
+            .cloned()
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!("slide {slide_index} has no table {local}"))
+            })?;
+        let provenance = format!(
+            "odp;slide={slide_index};table={local};ordinal={ordinal};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(table.text()),
+            Representation::Metadata => AnswerValue::Json(odp_table_json(&table)),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
+    }
+
+    fn odp_common_cell(
+        &mut self,
+        req: &ObserveRequest,
+        table_ordinal: u32,
+        row: u32,
+        col: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let refs = self.odp_table_refs(profile)?;
+        let (slide_index, local) = *refs.get(table_ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "presentation has no projected table {table_ordinal}"
+            ))
+        })?;
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let table = m
+            .slide(slide_index)
+            .and_then(|s| s.tables.get(local as usize))
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!("slide {slide_index} has no table {local}"))
+            })?;
+        let r = table.rows.get(row as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("table {table_ordinal} has no row {row}"))
+        })?;
+        let c = r.cells.get(col as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("table {table_ordinal} row {row} has no cell {col}"))
+        })?;
+        let provenance = format!(
+            "odp;slide={slide_index};table={local};row={row};col={col};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(c.text.clone()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"slide\":{},\"table\":{},\"row\":{},\"col\":{},",
+                    "\"colsSpanned\":{},\"rowsSpanned\":{},\"covered\":{},\"text_len\":{}}}"
+                ),
+                slide_index,
+                table_ordinal,
+                row,
+                col,
+                c.col_span,
+                c.row_span,
+                c.covered,
+                c.text.len()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
     }
 }
 

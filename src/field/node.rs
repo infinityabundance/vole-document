@@ -149,6 +149,19 @@ pub enum NodeKind {
     /// The OpenDocument styles part (`styles.xml`) parsed into its bounded cell-style
     /// and number-format model. Derived, never exact (Phase 21.3.1).
     OdsStyles = 0x23,
+    /// The canonical ODP (ODF presentation) discovery model: `mimetype` conformance
+    /// facts and the parsed `META-INF/manifest.xml` file entries with the main
+    /// content part and the `Pictures/*` media parts resolved semantically, derived
+    /// on demand from the exact package source. Derived, never exact (Phase 21.4.1).
+    OdpModel = 0x24,
+    /// The OpenDocument presentation main part (`content.xml`, `office:presentation`)
+    /// parsed into its bounded native model (`draw:page` slides in document order,
+    /// shapes/text runs, embedded tables, notes, styles, and image references),
+    /// honoring a declared extraction profile. Derived, never exact (Phase 21.4.1).
+    OdpContent = 0x25,
+    /// The OpenDocument styles part (`styles.xml`) parsed into its bounded style and
+    /// master-page model. Derived, never exact (Phase 21.4.1).
+    OdpStyles = 0x26,
 }
 
 impl NodeKind {
@@ -190,6 +203,9 @@ impl NodeKind {
             0x21 => NodeKind::OdsModel,
             0x22 => NodeKind::OdsContent,
             0x23 => NodeKind::OdsStyles,
+            0x24 => NodeKind::OdpModel,
+            0x25 => NodeKind::OdpContent,
+            0x26 => NodeKind::OdpStyles,
             _ => return None,
         })
     }
@@ -232,6 +248,9 @@ impl NodeKind {
             NodeKind::OdsModel => "OdsModel",
             NodeKind::OdsContent => "OdsContent",
             NodeKind::OdsStyles => "OdsStyles",
+            NodeKind::OdpModel => "OdpModel",
+            NodeKind::OdpContent => "OdpContent",
+            NodeKind::OdpStyles => "OdpStyles",
         }
     }
 

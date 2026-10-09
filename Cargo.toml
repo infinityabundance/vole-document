@@ -217,6 +217,18 @@ odt = ["opc"]
 # enabling it never changes `.voldoc` bytes and exactness is untouched. Never in
 # `default`.
 ods = ["opc"]
+# Phase 21.4.1: the OpenDocument Presentation (ODP) adapter built on the shared
+# byte-authoritative ZIP layer and the bounded-XML policy. Like ODT/ODS, ODF is
+# **not** OPC (no `[Content_Types].xml`, no `officeDocument` relationship), so it
+# discovers its main content part semantically from `META-INF/manifest.xml` (never
+# a hardcoded `content.xml`) and reuses the OPC *helpers* without routing through
+# the OPC graph. It adds a declared, versioned extraction profile and derived
+# (`Q_gen`) OpenDocument Presentation observations (slides/`draw:page` in document
+# order, shapes/text runs, embedded tables, notes, master pages, styles, media). It
+# adds **no** decoder behavior: an ODP source's exact leaf is still its 12.2 member
+# raw spans, so enabling it never changes `.voldoc` bytes and exactness is
+# untouched. Never in `default`.
+odp = ["opc"]
 # Phase 21.1.1: the SpreadsheetML (XLSX) adapter built on the generic OPC core. It
 # discovers the workbook by the `officeDocument` relationship and its
 # SpreadsheetML content type (never a hardcoded `/xl/workbook.xml`), resolves the

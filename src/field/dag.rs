@@ -834,6 +834,102 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::OdpModel => {
+            // The canonical ODP (ODF presentation) graph is derived on demand from
+            // the exact package source (the single dependency is the exact
+            // `PackageRoot`). It does not route through OPC (ODF has no
+            // `[Content_Types].xml`). XML parsing and all bounds live in
+            // `adapter::odp`.
+            #[cfg(feature = "odp")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("OdpModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let source = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::odp::build_odp_model(&source, limits)?
+            }
+            #[cfg(not(feature = "odp"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "ODP support is not compiled in (feature `odp`)",
+                ));
+            }
+        }
+        NodeKind::OdpContent => {
+            // The OpenDocument presentation main part (`content.xml`) parsed into
+            // its bounded native model. Its single dependency is the decoded member
+            // node; the parse is bounded entirely inside `adapter::odp`. No script
+            // execution, no remote fetch.
+            #[cfg(feature = "odp")]
+            {
+                let (_ordinal, part_name, profile) =
+                    crate::adapter::odp::read_content_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("OdpContent has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::odp::parse_content(&bytes, &part_name, &profile, limits)?.encode()
+            }
+            #[cfg(not(feature = "odp"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "ODP support is not compiled in (feature `odp`)",
+                ));
+            }
+        }
+        NodeKind::OdpStyles => {
+            // The OpenDocument styles part (`styles.xml`) parsed into its bounded
+            // style/master-page model. Its single dependency is the decoded styles
+            // member node.
+            #[cfg(feature = "odp")]
+            {
+                let (_ordinal, part_name) = crate::adapter::odp::read_styles_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("OdpStyles has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::odp::parse_styles(&bytes, &part_name, limits)?.encode()
+            }
+            #[cfg(not(feature = "odp"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "ODP support is not compiled in (feature `odp`)",
+                ));
+            }
+        }
         NodeKind::XlsxModel => {
             // The canonical XLSX (SpreadsheetML) discovery model is derived on
             // demand from the canonical OPC model (the single dependency). XML

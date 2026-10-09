@@ -1,0 +1,28 @@
+{
+  "campaign": "evidence/campaigns/2026-10-09-phase21-4-1-odp-957a800",
+  "phase": "21.4.1 — ODP ODF/XML surface + exact closure + model",
+  "utc": "2026-10-09T03:40:21Z",
+  "git_commit": "957a80087d94673227a245723e8e532cfa26a311",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest_package.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-09-phase21-4-1-odp-957a800/ ?? evidence/campaigns/2026-10-09-phase21-4-odp-econ-957a800/ ?? src/adapter/odp.rs ?? tests/odp_adapter.rs ?? tools/fixtures/make-odp.py ?? tools/fixtures/odp/ ?? tools/fixtures/phase21-4-odp-baseline.py ?? tools/fixtures/phase21-4-odp-vole.py ?? tools/phase21-4-1-odp-court.sh ?? tools/phase21-4-odp-court.sh ",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python3": "Python 3.11.2",
+  "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+  "cargo_lock_sha256": "80a6f5b83cf23098ed2533db4a34a0bf2ea481e29972aaa77353e39d713ae6fd",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "798a6c6d2585f389d72cb653c0a773675fc1ad36c0fc88c56b1867523a9892d5",
+  "profile": "debug",
+  "fixtures_tool": "tools/fixtures/make-odp.py",
+  "fixtures_sha256": {
+    "basic.odp": "1d1e258582dc5ca7235e832a5c2d37cfc8f966f1b2b9a5b60c8c83a10df52cce",
+    "table.odp": "3dc60c25124327cb0a8c1e3102964773b037ac312ff43379efa53dfcb3e46d67",
+    "picture.odp": "20f5987bd861802f95154e0ae6c9e1b7e489b2a295fee21468aba7c69b8a6545",
+    "notes.odp": "55647705cbee987e874e30d2a57b0b6ae3d5453efdba6128f413caea468e0559",
+    "order.odp": "6ab262306a45bad6676ba3a0fa487ecfd92bfcb191ef1e4c2c60eec204a32cb2",
+    "bomb.odp": "62502dd3f224443a65fed7ee922fbd3f47af5f9e8c6e3ec8e61865baa813e2af"
+  },
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

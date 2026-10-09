@@ -106,7 +106,9 @@ const USAGE_FIELD: &str = "\
         --pptx-masters | --pptx-theme | --pptx-media N | --pptx-tables |
         --pptx-find PATTERN |
         --ods-sheet N | --ods-cell B7|R:C | --ods-styles | --ods-named-expressions |
-        --ods-comments | --ods-find PATTERN) --kind metadata|text|structure|operators|
+        --ods-comments | --ods-find PATTERN |
+        --odp-slide N | --odp-shape I | --odp-notes N | --odp-masters |
+        --odp-media N | --odp-tables | --odp-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1549,6 +1551,28 @@ struct FieldArgs {
     /// `--ods-find`: a lexical text search over sheet cells (Phase 21.3.1).
     #[cfg(feature = "ods")]
     ods_find: Option<String>,
+    /// The ODP document-order slide index (`--odp-slide N`, Phase 21.4.1). Also used
+    /// as the slide of `--odp-shape`/`--odp-tables` when given.
+    #[cfg(feature = "odp")]
+    odp_slide: Option<u32>,
+    /// The ODP shape index (`--odp-shape I`, flattened pre-order within `--odp-slide`).
+    #[cfg(feature = "odp")]
+    odp_shape: Option<u32>,
+    /// The ODP notes-slide index (`--odp-notes N`, Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    odp_notes: Option<u32>,
+    /// `--odp-masters`: the master pages (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    odp_masters: bool,
+    /// `--odp-media N`: the N-th media resource (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    odp_media: Option<u32>,
+    /// `--odp-tables`: the embedded tables of the `--odp-slide` slide (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    odp_tables: bool,
+    /// `--odp-find`: a lexical text search over slides (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    odp_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -1901,6 +1925,48 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--ods-find" => {
                 out.ods_find = Some(field_arg_value(args, &mut i, "--ods-find", inline)?);
             }
+            #[cfg(feature = "odp")]
+            "--odp-slide" => {
+                out.odp_slide = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--odp-slide", inline)?,
+                    "--odp-slide",
+                )?);
+            }
+            #[cfg(feature = "odp")]
+            "--odp-shape" => {
+                out.odp_shape = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--odp-shape", inline)?,
+                    "--odp-shape",
+                )?);
+            }
+            #[cfg(feature = "odp")]
+            "--odp-notes" => {
+                out.odp_notes = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--odp-notes", inline)?,
+                    "--odp-notes",
+                )?);
+            }
+            #[cfg(feature = "odp")]
+            "--odp-masters" => {
+                out.odp_masters = true;
+                i += 1;
+            }
+            #[cfg(feature = "odp")]
+            "--odp-media" => {
+                out.odp_media = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--odp-media", inline)?,
+                    "--odp-media",
+                )?);
+            }
+            #[cfg(feature = "odp")]
+            "--odp-tables" => {
+                out.odp_tables = true;
+                i += 1;
+            }
+            #[cfg(feature = "odp")]
+            "--odp-find" => {
+                out.odp_find = Some(field_arg_value(args, &mut i, "--odp-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2193,6 +2259,51 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if !specific && let Some(index) = out.ods_sheet {
             chosen.push(Selector::OdsSheet { index, profile });
+        }
+    }
+    // ODP: `--odp-shape I` consumes `--odp-slide N`; `--odp-slide N` alone is the
+    // native slide selector. `--odp-tables` consumes `--odp-slide`. The list selectors
+    // and `--odp-notes`/`--odp-media` stand alone.
+    #[cfg(feature = "odp")]
+    {
+        let profile = vole_document::adapter::odp::OdpExtractProfile::DEFAULT;
+        let slide = out.odp_slide.unwrap_or(0);
+        let mut specific = false;
+        if out.odp_masters {
+            chosen.push(Selector::OdpMasters);
+            specific = true;
+        }
+        if out.odp_tables {
+            chosen.push(Selector::OdpTables { slide, profile });
+            specific = true;
+        }
+        if let Some(index) = out.odp_notes {
+            chosen.push(Selector::OdpNotes { index, profile });
+            specific = true;
+        }
+        if let Some(ordinal) = out.odp_media {
+            chosen.push(Selector::OdpMedia { ordinal });
+            specific = true;
+        }
+        if let Some(index) = out.odp_shape {
+            chosen.push(Selector::OdpShape {
+                slide,
+                index,
+                profile,
+            });
+            specific = true;
+        }
+        if let Some(pattern) = &out.odp_find {
+            chosen.push(Selector::OdpFind {
+                pattern: pattern.clone(),
+                profile,
+            });
+            specific = true;
+        }
+        // `--odp-slide N` alone is the native slide selector; when another ODP flag
+        // consumed it, it is not added again.
+        if !specific && let Some(index) = out.odp_slide {
+            chosen.push(Selector::OdpSlide { index, profile });
         }
     }
     match chosen.len() {

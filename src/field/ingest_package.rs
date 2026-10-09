@@ -31,6 +31,8 @@ use crate::error::{Error, Result};
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "odp")]
+use crate::field::index::SEL_ODP_MODEL;
 #[cfg(feature = "ods")]
 use crate::field::index::SEL_ODS_MODEL;
 #[cfg(feature = "odt")]
@@ -95,6 +97,9 @@ pub struct PackageIngestReport {
     /// Whether an ODS (ODF spreadsheet) discovery model node was registered
     /// (feature `ods`, Phase 21.3.1).
     pub ods_model_nodes: u64,
+    /// Whether an ODP (ODF presentation) discovery model node was registered
+    /// (feature `odp`, Phase 21.4.1).
+    pub odp_model_nodes: u64,
     /// Whether an XLSX (SpreadsheetML) discovery model node was registered
     /// (feature `xlsx`, Phase 21.1.1).
     pub xlsx_model_nodes: u64,
@@ -400,6 +405,7 @@ fn ingest_package_from_source(
     let epub_model_nodes: u64;
     let odt_model_nodes: u64;
     let ods_model_nodes: u64;
+    let odp_model_nodes: u64;
     let xlsx_model_nodes: u64;
     let pptx_model_nodes: u64;
     let opc_model_id: Option<NodeId>;
@@ -636,6 +642,41 @@ fn ingest_package_from_source(
         ods_model_nodes = 0;
     }
 
+    // The ODP (ODF presentation) discovery model (Phase 21.4.1): a single derived
+    // node that resolves the main content part semantically from
+    // `META-INF/manifest.xml` (never a hardcoded `content.xml`) and enumerates the
+    // `Pictures/*` media parts. Like ODT/ODS it does **not** route through OPC (ODF
+    // has no `[Content_Types].xml`). It is created for any package under the
+    // feature; a non-ODP package simply declines typed when the node is first
+    // materialized. Exactness is untouched.
+    #[cfg(feature = "odp")]
+    {
+        let mut odp_model = SeedNode::new(
+            NodeKind::OdpModel,
+            limits.max_output_bytes,
+            Vec::new(),
+            vec![root_id],
+            "pkg:odp-model",
+        );
+        odp_model.limits.max_output_bytes = limits.max_output_bytes;
+        charge_node(&mut node_count)?;
+        let (odp_id, _) = put_counted(store, &odp_model, &mut share)?;
+        push_entry(
+            &mut entries,
+            IndexEntry {
+                key: SelectorKey::new(SEL_ODP_MODEL, 0),
+                out_off: 0,
+                out_len: 0,
+                node_id: odp_id,
+            },
+        )?;
+        odp_model_nodes = 1;
+    }
+    #[cfg(not(feature = "odp"))]
+    {
+        odp_model_nodes = 0;
+    }
+
     // The XLSX (SpreadsheetML) discovery model (Phase 21.1.1): a single derived
     // node that resolves the workbook part by the `officeDocument` relationship
     // and its SpreadsheetML content type (never a hardcoded `/xl/workbook.xml`)
@@ -729,7 +770,7 @@ fn ingest_package_from_source(
         node_count,
         index_node_count,
         provenance: format!(
-            "{}id_shared={};res_shared={};field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={};odt={};ods={};xlsx={};pptx={};resource_blobs={}",
+            "{}id_shared={};res_shared={};field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={};odt={};ods={};odp={};xlsx={};pptx={};resource_blobs={}",
             detected_format.provenance_prefix(),
             share.nodes_id_shared,
             share.shared_resource_ids,
@@ -742,6 +783,7 @@ fn ingest_package_from_source(
             epub_model_nodes,
             odt_model_nodes,
             ods_model_nodes,
+            odp_model_nodes,
             xlsx_model_nodes,
             pptx_model_nodes,
             share.resource_blob_nodes,
@@ -766,6 +808,7 @@ fn ingest_package_from_source(
         epub_model_nodes,
         odt_model_nodes,
         ods_model_nodes,
+        odp_model_nodes,
         xlsx_model_nodes,
         pptx_model_nodes,
         resource_blob_nodes: share.resource_blob_nodes,

@@ -229,6 +229,33 @@ pub struct Limits {
     /// Maximum slide-master parts accepted in one presentation, and the bound
     /// applied to theme parts (Phase 21.2.1).
     pub max_pptx_masters: u32,
+    // The ODP/OpenDocument-Presentation caps below bound the derived presentation
+    // model (Phase 21.4.1). ODP semantics are derived (`Q_gen`) only.
+    /// Maximum `draw:page` slides accepted in one OpenDocument presentation
+    /// content part (Phase 21.4.1).
+    pub max_odp_slides: u32,
+    /// Maximum shapes accepted in one slide, including group descendants
+    /// (Phase 21.4.1).
+    pub max_odp_shapes_per_slide: u32,
+    /// Maximum text runs (`text:span`) accepted in one slide (Phase 21.4.1).
+    pub max_odp_text_runs: u32,
+    /// Maximum `draw:g` group nesting depth accepted in one slide (Phase 21.4.1).
+    pub max_odp_group_depth: u32,
+    /// Maximum `Pictures/*` media parts exposed by one presentation (Phase 21.4.1).
+    pub max_odp_media: u32,
+    /// Maximum embedded tables (`table:table`) accepted in one slide
+    /// (Phase 21.4.1).
+    pub max_odp_tables: u32,
+    /// Maximum table cells accepted across one slide's tables, after
+    /// `table:number-columns-repeated`/`table:number-rows-repeated` expansion
+    /// (Phase 21.4.1). An over-large repeat declines typed rather than allocating.
+    pub max_odp_table_cells: u32,
+    /// Maximum notes pages (`presentation:notes`) accepted in one presentation
+    /// (Phase 21.4.1).
+    pub max_odp_notes: u32,
+    /// Maximum `style:master-page` master pages accepted, and the bound applied to
+    /// `style:style` records, in one presentation (Phase 21.4.1).
+    pub max_odp_masters: u32,
 }
 
 impl Limits {
@@ -311,6 +338,15 @@ impl Limits {
         max_pptx_notes: 1 << 16,
         max_pptx_layouts: 1 << 14,
         max_pptx_masters: 1 << 14,
+        max_odp_slides: 4096,
+        max_odp_shapes_per_slide: 1 << 20,
+        max_odp_text_runs: 1 << 22,
+        max_odp_group_depth: 64,
+        max_odp_media: 1 << 14,
+        max_odp_tables: 1 << 14,
+        max_odp_table_cells: 1 << 20,
+        max_odp_notes: 1 << 16,
+        max_odp_masters: 1 << 14,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -392,6 +428,15 @@ impl Limits {
         max_pptx_notes: 1 << 12,
         max_pptx_layouts: 1 << 12,
         max_pptx_masters: 1 << 12,
+        max_odp_slides: 64,
+        max_odp_shapes_per_slide: 1 << 16,
+        max_odp_text_runs: 1 << 18,
+        max_odp_group_depth: 16,
+        max_odp_media: 1 << 12,
+        max_odp_tables: 1 << 12,
+        max_odp_table_cells: 1 << 16,
+        max_odp_notes: 1 << 12,
+        max_odp_masters: 1 << 12,
     };
 }
 

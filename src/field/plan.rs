@@ -385,6 +385,48 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["PptxModel", "PackageMemberRaw", "PackageMemberDecoded"]),
             will_not_materialize: kinds(&["other-parts", "whole-document"]),
         }),
+        #[cfg(feature = "odp")]
+        (Selector::OdpSlide { .. }, R::Text | R::Structure | R::Metadata)
+        | (Selector::OdpShape { .. }, R::Text | R::Metadata | R::Structure)
+        | (Selector::OdpNotes { .. }, R::Text | R::Metadata)
+        | (Selector::OdpTables { .. }, R::Text | R::Metadata | R::Structure)
+        | (Selector::OdpFind { .. }, R::Text) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 4,
+            will_materialize: kinds(&[
+                "OdpModel",
+                "OdpContent",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-slides", "whole-document"]),
+        }),
+        #[cfg(feature = "odp")]
+        (Selector::OdpMasters, R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 5,
+            will_materialize: kinds(&[
+                "OdpModel",
+                "OdpContent",
+                "OdpStyles",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-slides", "whole-document"]),
+        }),
+        #[cfg(feature = "odp")]
+        (
+            Selector::OdpMedia { .. },
+            R::Metadata | R::Structure | R::ExactBytes | R::DecodedBytes,
+        ) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 3,
+            will_materialize: kinds(&["OdpModel", "PackageMemberRaw", "PackageMemberDecoded"]),
+            will_not_materialize: kinds(&["other-parts", "whole-document"]),
+        }),
         _ => Err(Error::unsupported_feature(format!(
             "unsupported observation: selector {} with representation {}",
             req.selector.canonical(),
@@ -489,6 +531,12 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
             "PptxModel",
             "PptxPresentation",
             "PptxSlide",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Odp => &[
+            "OdpModel",
+            "OdpContent",
             "PackageMemberDecoded",
             "PackageMemberRaw",
         ],
