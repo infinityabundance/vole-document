@@ -1,0 +1,11 @@
+plain: a plain scalar
+single: 'single quoted'
+double: "double quoted"
+literal: |
+  line one
+  line two
+folded: >
+  folded one
+  folded two
+url: http://example.com/path
+empty:

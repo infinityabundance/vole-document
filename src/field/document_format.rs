@@ -123,6 +123,10 @@ pub enum DocumentFormat {
     /// A structured JSON document (the whole source parses as exactly one JSON
     /// value). Not a package: the exact leaf is the whole source (Phase 21.5.1).
     Json,
+    /// A structured YAML document (the whole source parses as a bounded YAML
+    /// stream whose every document root is a mapping or a sequence). Not a package:
+    /// the exact leaf is the whole source (Phase 21.6.1).
+    Yaml,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -140,6 +144,7 @@ impl DocumentFormat {
             DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Pptx => "pptx",
             DocumentFormat::Json => "json",
+            DocumentFormat::Yaml => "yaml",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -156,6 +161,7 @@ impl DocumentFormat {
             DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Pptx => "pptx",
             DocumentFormat::Json => "json",
+            DocumentFormat::Yaml => "yaml",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -172,6 +178,7 @@ impl DocumentFormat {
             DocumentFormat::Xlsx => cfg!(feature = "xlsx"),
             DocumentFormat::Pptx => cfg!(feature = "pptx"),
             DocumentFormat::Json => cfg!(feature = "json"),
+            DocumentFormat::Yaml => cfg!(feature = "yaml"),
         }
     }
 
@@ -198,6 +205,7 @@ impl DocumentFormat {
             "xlsx" => Some(DocumentFormat::Xlsx),
             "pptx" => Some(DocumentFormat::Pptx),
             "json" => Some(DocumentFormat::Json),
+            "yaml" => Some(DocumentFormat::Yaml),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -225,6 +233,14 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "json")]
     if crate::adapter::json::detect(source, limits) {
         return DocumentFormat::Json;
+    }
+    // YAML is the second Wave-2 structured-tree format (Phase 21.6.1), also with
+    // **no** package layer. It is detected directly and conservatively: the whole
+    // source must parse as a bounded YAML stream under the YAML caps, and every
+    // document root must be a mapping or a sequence, else the input stays Opaque.
+    #[cfg(feature = "yaml")]
+    if crate::adapter::yaml::detect(source, limits) {
+        return DocumentFormat::Yaml;
     }
     DocumentFormat::Opaque
 }
@@ -415,6 +431,7 @@ mod tests {
             DocumentFormat::Xlsx,
             DocumentFormat::Pptx,
             DocumentFormat::Json,
+            DocumentFormat::Yaml,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

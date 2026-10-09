@@ -1,0 +1,122 @@
+[
+{
+  "fixture": "anchors.yaml",
+  "format": "yaml",
+  "src_len": 208,
+  "src_sha256": "f57c57ab5742d57745c6424f85d52fda575297476bfeeb12886d519a968555d7",
+  "out_len": 208,
+  "out_sha256": "f57c57ab5742d57745c6424f85d52fda575297476bfeeb12886d519a968555d7",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "opaque_rc": -1
+},
+{
+  "fixture": "tags.yaml",
+  "format": "yaml",
+  "src_len": 130,
+  "src_sha256": "e6fc268d7ff96fbe9f202dc2cad86c04668d5face0798d547b39f4006eb9b9a2",
+  "out_len": 130,
+  "out_sha256": "e6fc268d7ff96fbe9f202dc2cad86c04668d5face0798d547b39f4006eb9b9a2",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "opaque_rc": -1
+},
+{
+  "fixture": "multidoc.yaml",
+  "format": "yaml",
+  "src_len": 76,
+  "src_sha256": "f3b439061f3fee66b21d8491aabf676abf5b4ac64e56dfba5f27d6f00dec5000",
+  "out_len": 76,
+  "out_sha256": "f3b439061f3fee66b21d8491aabf676abf5b4ac64e56dfba5f27d6f00dec5000",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "opaque_rc": -1
+},
+{
+  "fixture": "styles.yaml",
+  "format": "yaml",
+  "src_len": 175,
+  "src_sha256": "0ae79a85419b36445b4cf2753e9686e9f506a82fbc4b09afc37eaa8c86186325",
+  "out_len": 175,
+  "out_sha256": "0ae79a85419b36445b4cf2753e9686e9f506a82fbc4b09afc37eaa8c86186325",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "opaque_rc": -1
+},
+{
+  "fixture": "comments.yaml",
+  "format": "yaml",
+  "src_len": 116,
+  "src_sha256": "8b3e895ad038d4944d5e88e9360285378d1e2d129f20f323430349a1305dee2b",
+  "out_len": 116,
+  "out_sha256": "8b3e895ad038d4944d5e88e9360285378d1e2d129f20f323430349a1305dee2b",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "opaque_rc": -1
+},
+{
+  "fixture": "dup.yaml",
+  "format": "yaml",
+  "src_len": 37,
+  "src_sha256": "09ccc133fb8d70995938f2c707852cd471e1d6330ae860d029673058e087dd23",
+  "out_len": 37,
+  "out_sha256": "09ccc133fb8d70995938f2c707852cd471e1d6330ae860d029673058e087dd23",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "opaque_rc": -1
+},
+{
+  "fixture": "deep.yaml",
+  "format": "yaml",
+  "src_len": 6762,
+  "src_sha256": "60914ea5b58240ed8eb0b6bc394a58b6cdad97081e84e5ed97f2e6d6e07fe871",
+  "out_len": 6762,
+  "out_sha256": "60914ea5b58240ed8eb0b6bc394a58b6cdad97081e84e5ed97f2e6d6e07fe871",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "opaque_rc": -1
+},
+{
+  "fixture": "large.yaml",
+  "format": "yaml",
+  "src_len": 2097250,
+  "src_sha256": "a62012ba9e9cbaa82edf380bd1efef10634f8b927ab95a58ab4680c4836fa88c",
+  "out_len": 2097250,
+  "out_sha256": "a62012ba9e9cbaa82edf380bd1efef10634f8b927ab95a58ab4680c4836fa88c",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "opaque_rc": -1
+},
+{
+  "fixture": "plain.yaml",
+  "format": "opaque",
+  "src_len": 122,
+  "src_sha256": "f5b72fecab859652c5a2f615a8cf5b525a2dff6a1ed9727ad1814ef03f784038",
+  "out_len": 122,
+  "out_sha256": "f5b72fecab859652c5a2f615a8cf5b525a2dff6a1ed9727ad1814ef03f784038",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": -1,
+  "opaque_rc": 6
+},
+{
+  "fixture": "malformed.yaml",
+  "format": "opaque",
+  "src_len": 9,
+  "src_sha256": "8f4b64c9d54fefcd6a373306838cd19b8fddb9f03440eaa7a188a27a87670300",
+  "out_len": 9,
+  "out_sha256": "8f4b64c9d54fefcd6a373306838cd19b8fddb9f03440eaa7a188a27a87670300",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": -1,
+  "opaque_rc": 6
+}
+]

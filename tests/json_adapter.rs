@@ -189,7 +189,8 @@ fn detection_is_byte_based_and_conservative() {
         detect_document_format(&bin, Limits::DEFAULT),
         DocumentFormat::Opaque
     );
-    // Malformed JSON must never panic; it is simply not JSON.
+    // Malformed JSON must never panic; with the YAML adapter compiled it is
+    // simply not JSON (a few of these are valid YAML, e.g. `{"a":}`).
     for bad in [
         &b""[..],
         &b"{"[..],
@@ -198,9 +199,9 @@ fn detection_is_byte_based_and_conservative() {
         &b"01"[..],
         &b"nul"[..],
     ] {
-        assert_eq!(
+        assert_ne!(
             detect_document_format(bad, Limits::DEFAULT),
-            DocumentFormat::Opaque,
+            DocumentFormat::Json,
             "{bad:?}"
         );
     }

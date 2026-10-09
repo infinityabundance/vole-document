@@ -1,0 +1,1 @@
+{"decline": {"code": "style-normalized", "detail": "scalar styles are normalized away in the native object"}, "declined": true, "detail": {}, "lane": "sqlite", "native": true, "q": "Q6", "value": null}

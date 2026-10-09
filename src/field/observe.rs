@@ -65,6 +65,15 @@ use crate::adapter::pptx::{
 use crate::adapter::xlsx::{
     SheetModel as XlsxSheetModel, WorkbookModel as XlsxWorkbookModel, XlsxExtractProfile, XlsxModel,
 };
+#[cfg(feature = "yaml")]
+use crate::adapter::yaml::{
+    K_ALIAS as YAML_K_ALIAS, K_MAP as YAML_K_MAP, K_SCALAR as YAML_K_SCALAR, K_SEQ as YAML_K_SEQ,
+    YamlModel, canonical_text as yaml_canonical_text, decode_scalar_value as yaml_decode_scalar,
+    find as yaml_find_matches, find_parent as yaml_find_parent, kind_name as yaml_kind_name,
+    resolve_anchor as yaml_resolve_anchor, resolve_path as yaml_resolve_path,
+    style_name as yaml_style_name, subtree_text as yaml_subtree_text,
+    token_bytes as yaml_token_bytes,
+};
 use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, OutputCache, ReuseStats, SourceServer};
@@ -87,6 +96,8 @@ use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::SEL_PPTX_MODEL;
 #[cfg(feature = "xlsx")]
 use crate::field::index::SEL_XLSX_MODEL;
+#[cfg(feature = "yaml")]
+use crate::field::index::SEL_YAML_MODEL;
 use crate::field::index::{
     FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PACKAGE_MEMBER_DECODED, SEL_PACKAGE_MEMBER_RAW,
     SEL_PAGE, SEL_REVISION, SEL_REVISION_LINEAGE, SEL_REVISIONS, SEL_STREAM, SEL_STREAM_DECODED,
@@ -630,6 +641,42 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A YAML node addressed by a dotted path (Phase 21.6.1), e.g. `a.b.0`. The
+    /// optional first segment `docN` selects a document (default 0). The answer
+    /// reports the node's kind/style, its exact source span, and (for `ExactBytes`)
+    /// its exact token bytes. YAML has no package layer, so the source *is* the
+    /// whole document.
+    #[cfg(feature = "yaml")]
+    YamlPath {
+        /// The dotted path (`""` is the first document's root).
+        path: String,
+    },
+    /// A YAML node's structural view (Phase 21.6.1): kind, style, span,
+    /// parent/child spans, anchor/tag/alias, and, for mappings, each member's key
+    /// and key/value spans. Same addressing as [`Selector::YamlPath`].
+    #[cfg(feature = "yaml")]
+    YamlNode {
+        /// The dotted path (`""` is the first document's root).
+        path: String,
+    },
+    /// The YAML document list (Phase 21.6.1): each document's kind, span, and
+    /// whether it was introduced by an explicit `---` marker.
+    #[cfg(feature = "yaml")]
+    YamlDocuments,
+    /// Resolve a YAML anchor by name (Phase 21.6.1): the anchored node's kind/span
+    /// and the list of alias nodes that target it (never expanded).
+    #[cfg(feature = "yaml")]
+    YamlAnchor {
+        /// The anchor name (without the leading `&`).
+        name: String,
+    },
+    /// A lexical, case-sensitive search over YAML mapping keys and scalar values
+    /// (Phase 21.6.1). Never an embedding or a model call.
+    #[cfg(feature = "yaml")]
+    YamlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
 }
 
 impl Selector {
@@ -908,6 +955,16 @@ impl Selector {
             Selector::JsonNode { pointer } => format!("json-node:{pointer}"),
             #[cfg(feature = "json")]
             Selector::JsonFind { pattern } => format!("json-find:{pattern}"),
+            #[cfg(feature = "yaml")]
+            Selector::YamlPath { path } => format!("yaml-path:{path}"),
+            #[cfg(feature = "yaml")]
+            Selector::YamlNode { path } => format!("yaml-node:{path}"),
+            #[cfg(feature = "yaml")]
+            Selector::YamlDocuments => "yaml-documents".to_string(),
+            #[cfg(feature = "yaml")]
+            Selector::YamlAnchor { name } => format!("yaml-anchor:{name}"),
+            #[cfg(feature = "yaml")]
+            Selector::YamlFind { pattern } => format!("yaml-find:{pattern}"),
         }
     }
 
@@ -2687,6 +2744,27 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "json")]
             (Selector::JsonFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.json_find(req, pattern)
+            }
+            #[cfg(feature = "yaml")]
+            (Selector::YamlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.yaml_path(req, path)
+            }
+            #[cfg(feature = "yaml")]
+            (Selector::YamlNode { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.yaml_node(req, path)
+            }
+            #[cfg(feature = "yaml")]
+            (Selector::YamlDocuments, R::Text | R::Metadata | R::Structure) => {
+                self.yaml_documents(req)
+            }
+            #[cfg(feature = "yaml")]
+            (
+                Selector::YamlAnchor { name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.yaml_anchor(req, name),
+            #[cfg(feature = "yaml")]
+            (Selector::YamlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.yaml_find(req, pattern)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -7856,6 +7934,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Xlsx => self.common_xlsx(req)?,
             DocumentFormat::Pptx => self.common_pptx(req)?,
             DocumentFormat::Json => self.common_json(req)?,
+            DocumentFormat::Yaml => self.common_yaml(req)?,
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -8185,6 +8264,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_json(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "JSON observations require a build with the json feature",
+        ))
+    }
+
+    #[cfg(not(feature = "yaml"))]
+    fn common_yaml(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "YAML observations require a build with the yaml feature",
         ))
     }
 
@@ -9168,6 +9254,472 @@ impl<S: SeedStore> Ctx<'_, S> {
             span,
             vec![model_id, root],
         ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// YAML observations (Phase 21.6.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "yaml")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the YAML structured-tree model (derived, `Q_gen`).
+    fn yaml_model(&mut self) -> Result<(YamlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_YAML_MODEL, 0), "YAML model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((YamlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn yaml_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn yaml_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn yaml_node_text(
+        model: &YamlModel,
+        source: &[u8],
+        index: u32,
+        node: &crate::adapter::yaml::YNode,
+    ) -> Result<String> {
+        match node.kind {
+            YAML_K_SCALAR => yaml_decode_scalar(source, node),
+            YAML_K_MAP | YAML_K_SEQ => yaml_subtree_text(model, source, index),
+            YAML_K_ALIAS => Ok(format!("*{}", node.alias.as_deref().unwrap_or(""))),
+            _ => Ok("null".to_string()),
+        }
+    }
+
+    /// Resolve a YAML path and answer per representation: `ExactBytes` returns the
+    /// exact token bytes; `Text` the decoded scalar (or canonical subtree);
+    /// `Metadata`/`Structure` a descriptor with the kind, style, exact span, and the
+    /// duplicate-key match count.
+    fn yaml_path(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.yaml_model()?;
+        let (source, root) = self.yaml_source()?;
+        let r = yaml_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("YAML path resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "yaml;path={path};doc={};kind={};style={};matches={}",
+            r.doc,
+            yaml_kind_name(node.kind),
+            yaml_style_name(node.kind, node.style),
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(yaml_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::yaml_node_text(&model, &source, r.index, &node)?)
+            }
+            _ => {
+                let token = String::from_utf8_lossy(yaml_token_bytes(&source, &node)?).into_owned();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"path\":\"{}\",\"doc\":{},\"kind\":\"{}\",",
+                        "\"style\":\"{}\",\"span\":[{},{}],\"matches\":{},",
+                        "\"anchor\":{},\"tag\":{},\"alias\":{},\"token\":\"{}\",",
+                        "\"documents\":{}}}"
+                    ),
+                    json_escape(path),
+                    r.doc,
+                    yaml_kind_name(node.kind),
+                    yaml_style_name(node.kind, node.style),
+                    node.start,
+                    node.end,
+                    r.matches,
+                    opt_json(node.anchor.as_deref()),
+                    opt_json(node.tag.as_deref()),
+                    opt_json(node.alias.as_deref()),
+                    json_escape(&token),
+                    model.docs.len(),
+                ))
+            }
+        };
+        Ok(self.yaml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The structural view of a YAML node: kind, style, span, parent span, and (for
+    /// containers) child spans and mapping key/value spans with duplicate keys.
+    fn yaml_node(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.yaml_model()?;
+        let (source, root) = self.yaml_source()?;
+        let r = yaml_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("YAML node resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "yaml;node={path};doc={};kind={};style={};children={}",
+            r.doc,
+            yaml_kind_name(node.kind),
+            yaml_style_name(node.kind, node.style),
+            node.children.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(yaml_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::yaml_node_text(&model, &source, r.index, &node)?)
+            }
+            _ => AnswerValue::Json(self.yaml_node_structure(&model, &source, path, r, &node)?),
+        };
+        Ok(self.yaml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn yaml_node_structure(
+        &self,
+        model: &YamlModel,
+        source: &[u8],
+        path: &str,
+        r: crate::adapter::yaml::Resolved,
+        node: &crate::adapter::yaml::YNode,
+    ) -> Result<String> {
+        let parent_span = match yaml_find_parent(model, r.index) {
+            Some(p) => model
+                .node(p)
+                .map_or("null".to_string(), |n| format!("[{},{}]", n.start, n.end)),
+            None => "null".to_string(),
+        };
+        let mut extra = String::new();
+        if node.kind == YAML_K_MAP {
+            let mut members: Vec<String> = Vec::new();
+            let mut keys: Vec<String> = Vec::new();
+            let mut i = 0usize;
+            while i + 1 < node.children.len() {
+                let key_node = model
+                    .node(node.children[i])
+                    .ok_or_else(|| Error::internal_invariant("YAML key index out of range"))?;
+                let val_node = model
+                    .node(node.children[i + 1])
+                    .ok_or_else(|| Error::internal_invariant("YAML value index out of range"))?;
+                i += 2;
+                let key = yaml_decode_scalar(source, key_node)?;
+                keys.push(key.clone());
+                members.push(format!(
+                    concat!(
+                        "{{\"key\":\"{}\",\"key_span\":[{},{}],",
+                        "\"value_kind\":\"{}\",\"value_span\":[{},{}]}}"
+                    ),
+                    json_escape(&key),
+                    key_node.start,
+                    key_node.end,
+                    yaml_kind_name(val_node.kind),
+                    val_node.start,
+                    val_node.end,
+                ));
+            }
+            let mut dupes: Vec<String> = Vec::new();
+            for (idx, k) in keys.iter().enumerate() {
+                if keys[..idx].contains(k) && !dupes.contains(k) {
+                    dupes.push(k.clone());
+                }
+            }
+            let dupes_json = dupes
+                .iter()
+                .map(|d| format!("\"{}\"", json_escape(d)))
+                .collect::<Vec<_>>()
+                .join(",");
+            extra = format!(
+                ",\"members\":[{}],\"duplicate_keys\":[{}]",
+                members.join(","),
+                dupes_json
+            );
+        } else if node.kind == YAML_K_SEQ {
+            let mut elems: Vec<String> = Vec::new();
+            for (i, child) in node.children.iter().enumerate() {
+                let cn = model
+                    .node(*child)
+                    .ok_or_else(|| Error::internal_invariant("YAML element out of range"))?;
+                elems.push(format!(
+                    "{{\"index\":{},\"kind\":\"{}\",\"span\":[{},{}]}}",
+                    i,
+                    yaml_kind_name(cn.kind),
+                    cn.start,
+                    cn.end
+                ));
+            }
+            extra = format!(",\"elements\":[{}]", elems.join(","));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"path\":\"{}\",\"doc\":{},\"kind\":\"{}\",\"style\":\"{}\",",
+                "\"span\":[{},{}],\"parent_span\":{},\"children\":{},",
+                "\"anchor\":{},\"tag\":{},\"alias\":{}{}}}"
+            ),
+            json_escape(path),
+            r.doc,
+            yaml_kind_name(node.kind),
+            yaml_style_name(node.kind, node.style),
+            node.start,
+            node.end,
+            parent_span,
+            node.children.len(),
+            opt_json(node.anchor.as_deref()),
+            opt_json(node.tag.as_deref()),
+            opt_json(node.alias.as_deref()),
+            extra,
+        ))
+    }
+
+    /// The document list: each document's kind, span, and explicit-marker flag.
+    fn yaml_documents(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.yaml_model()?;
+        let (source, root) = self.yaml_source()?;
+        let mut docs: Vec<String> = Vec::new();
+        for (i, d) in model.docs.iter().enumerate() {
+            docs.push(format!(
+                concat!(
+                    "{{\"index\":{},\"explicit\":{},\"kind\":\"{}\",",
+                    "\"root_span\":[{},{}],\"doc_span\":[{},{}]}}"
+                ),
+                i,
+                d.explicit,
+                yaml_kind_name(d.root_kind),
+                model.node(d.root).map_or(0, |n| n.start),
+                model.node(d.root).map_or(0, |n| n.end),
+                d.start,
+                d.end,
+            ));
+        }
+        let value = AnswerValue::Json(format!(
+            "{{\"format\":\"yaml\",\"count\":{},\"documents\":[{}]}}",
+            model.docs.len(),
+            docs.join(",")
+        ));
+        let span = Some((0, source.len() as u64));
+        let provenance = format!("yaml;documents={}", model.docs.len());
+        Ok(self.yaml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// Resolve an anchor by name and report the anchored node plus every alias that
+    /// targets it (the anchor graph is never expanded).
+    fn yaml_anchor(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.yaml_model()?;
+        let (source, root) = self.yaml_source()?;
+        let target = yaml_resolve_anchor(&model, name).ok_or_else(|| {
+            Error::unsupported_feature(format!("YAML stream has no anchor {name:?}"))
+        })?;
+        let node = model
+            .node(target)
+            .ok_or_else(|| Error::internal_invariant("YAML anchor resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let mut aliases: Vec<String> = Vec::new();
+        for n in &model.nodes {
+            if n.kind == YAML_K_ALIAS && n.alias.as_deref() == Some(name) {
+                aliases.push(format!("[{},{}]", n.start, n.end));
+            }
+        }
+        let provenance = format!(
+            "yaml;anchor={name};kind={};aliases={}",
+            yaml_kind_name(node.kind),
+            aliases.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(yaml_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::yaml_node_text(&model, &source, target, &node)?)
+            }
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"anchor\":\"{}\",\"kind\":\"{}\",\"style\":\"{}\",",
+                    "\"span\":[{},{}],\"alias_count\":{},\"aliases\":[{}]}}"
+                ),
+                json_escape(name),
+                yaml_kind_name(node.kind),
+                yaml_style_name(node.kind, node.style),
+                node.start,
+                node.end,
+                aliases.len(),
+                aliases.join(","),
+            )),
+        };
+        Ok(self.yaml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over mapping keys and scalar values; each match
+    /// reports its dotted path, role (key/value), and exact source span.
+    fn yaml_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.yaml_model()?;
+        let (source, root) = self.yaml_source()?;
+        let matches = yaml_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "YAML find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"path\":\"{}\",\"role\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.path),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("yaml;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.yaml_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_yaml(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.yaml_common_metadata(req),
+            Selector::Text => self.yaml_common_text(req),
+            Selector::SearchMatch(p) => self.yaml_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "YAML does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn yaml_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.yaml_model()?;
+        let (source, root) = self.yaml_source()?;
+        let text = yaml_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.yaml_answer(
+            req,
+            AnswerValue::Text(text),
+            "yaml;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn yaml_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.yaml_model()?;
+        let (source, root) = self.yaml_source()?;
+        let mut maps = 0u64;
+        let mut seqs = 0u64;
+        let mut scalars = 0u64;
+        let mut aliases = 0u64;
+        let mut anchors = 0u64;
+        let mut tags = 0u64;
+        let mut empties = 0u64;
+        let mut dup_keys = 0u64;
+        for n in &model.nodes {
+            if n.anchor.is_some() {
+                anchors += 1;
+            }
+            if n.tag.is_some() {
+                tags += 1;
+            }
+            match n.kind {
+                YAML_K_MAP => {
+                    maps += 1;
+                    let mut seen: Vec<String> = Vec::new();
+                    let mut i = 0usize;
+                    while i + 1 < n.children.len() {
+                        if let Some(k) = model.node(n.children[i])
+                            && let Ok(s) = yaml_decode_scalar(&source, k)
+                        {
+                            if seen.contains(&s) {
+                                dup_keys += 1;
+                            } else {
+                                seen.push(s);
+                            }
+                        }
+                        i += 2;
+                    }
+                }
+                YAML_K_SEQ => seqs += 1,
+                YAML_K_SCALAR => scalars += 1,
+                YAML_K_ALIAS => aliases += 1,
+                _ => empties += 1,
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"yaml\",\"top_type\":\"{}\",",
+                "\"documents\":{},\"nodes\":{},\"max_depth\":{},\"bytes\":{},",
+                "\"mappings\":{},\"sequences\":{},\"scalars\":{},\"empties\":{},",
+                "\"anchors\":{},\"aliases\":{},\"tags\":{},\"comments\":{},",
+                "\"duplicate_keys\":{}}}"
+            ),
+            yaml_kind_name(model.top_type()),
+            model.docs.len(),
+            model.nodes.len(),
+            model.max_depth,
+            model.doc_len,
+            maps,
+            seqs,
+            scalars,
+            empties,
+            anchors,
+            aliases,
+            tags,
+            model.comments.len(),
+            dup_keys,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.yaml_answer(
+            req,
+            value,
+            "yaml;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// Render an optional string as JSON (`null` or a quoted escaped string).
+#[cfg(feature = "yaml")]
+fn opt_json(s: Option<&str>) -> String {
+    match s {
+        Some(x) => format!("\"{}\"", json_escape(x)),
+        None => "null".to_string(),
     }
 }
 

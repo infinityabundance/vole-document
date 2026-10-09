@@ -109,7 +109,9 @@ const USAGE_FIELD: &str = "\
         --ods-comments | --ods-find PATTERN |
         --odp-slide N | --odp-shape I | --odp-notes N | --odp-masters |
         --odp-media N | --odp-tables | --odp-find PATTERN |
-        --json-pointer PATH | --json-node PATH | --json-find PATTERN) --kind metadata|text|structure|operators|
+        --json-pointer PATH | --json-node PATH | --json-find PATTERN |
+        --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
+        --yaml-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1586,6 +1588,25 @@ struct FieldArgs {
     /// (Phase 21.5.1).
     #[cfg(feature = "json")]
     json_find: Option<String>,
+    /// `--yaml-path PATH`: resolve a dotted YAML path (optional leading `docN`),
+    /// returning the node's kind/style, exact source span, and exact token bytes
+    /// (Phase 21.6.1).
+    #[cfg(feature = "yaml")]
+    yaml_path: Option<String>,
+    /// `--yaml-node PATH`: the structural view of a YAML node (kind, style, span,
+    /// parent/child spans, anchor/tag/alias, member key/value spans) (Phase 21.6.1).
+    #[cfg(feature = "yaml")]
+    yaml_node: Option<String>,
+    /// `--yaml-documents`: the ordered YAML document list (Phase 21.6.1).
+    #[cfg(feature = "yaml")]
+    yaml_documents: bool,
+    /// `--yaml-anchor NAME`: resolve a YAML anchor and its aliases (Phase 21.6.1).
+    #[cfg(feature = "yaml")]
+    yaml_anchor: Option<String>,
+    /// `--yaml-find`: a lexical, case-sensitive search over YAML keys/scalars
+    /// (Phase 21.6.1).
+    #[cfg(feature = "yaml")]
+    yaml_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -1992,6 +2013,27 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--json-find" => {
                 out.json_find = Some(field_arg_value(args, &mut i, "--json-find", inline)?);
             }
+            #[cfg(feature = "yaml")]
+            "--yaml-path" => {
+                out.yaml_path = Some(field_arg_value(args, &mut i, "--yaml-path", inline)?);
+            }
+            #[cfg(feature = "yaml")]
+            "--yaml-node" => {
+                out.yaml_node = Some(field_arg_value(args, &mut i, "--yaml-node", inline)?);
+            }
+            #[cfg(feature = "yaml")]
+            "--yaml-documents" => {
+                out.yaml_documents = true;
+                i += 1;
+            }
+            #[cfg(feature = "yaml")]
+            "--yaml-anchor" => {
+                out.yaml_anchor = Some(field_arg_value(args, &mut i, "--yaml-anchor", inline)?);
+            }
+            #[cfg(feature = "yaml")]
+            "--yaml-find" => {
+                out.yaml_find = Some(field_arg_value(args, &mut i, "--yaml-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2347,6 +2389,29 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.json_find {
             chosen.push(Selector::JsonFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // YAML: `--yaml-path`/`--yaml-node` address a node by dotted path;
+    // `--yaml-documents` lists documents; `--yaml-anchor` resolves an anchor and its
+    // aliases; `--yaml-find` is a lexical search. Each stands alone (Phase 21.6.1).
+    #[cfg(feature = "yaml")]
+    {
+        if let Some(path) = &out.yaml_path {
+            chosen.push(Selector::YamlPath { path: path.clone() });
+        }
+        if let Some(path) = &out.yaml_node {
+            chosen.push(Selector::YamlNode { path: path.clone() });
+        }
+        if out.yaml_documents {
+            chosen.push(Selector::YamlDocuments);
+        }
+        if let Some(name) = &out.yaml_anchor {
+            chosen.push(Selector::YamlAnchor { name: name.clone() });
+        }
+        if let Some(pattern) = &out.yaml_find {
+            chosen.push(Selector::YamlFind {
                 pattern: pattern.clone(),
             });
         }

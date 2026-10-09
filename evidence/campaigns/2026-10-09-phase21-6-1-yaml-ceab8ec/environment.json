@@ -1,0 +1,20 @@
+{
+  "campaign": "evidence/campaigns/2026-10-09-phase21-6-1-yaml-ceab8ec",
+  "phase": "21.6.1 — YAML structured-tree surface + exact closure + model",
+  "utc": "2026-10-09T07:28:15Z",
+  "git_commit": "ceab8ecff0847db457d470ca10b46cfb21126c9a",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/json_adapter.rs  M tests/property.rs ?? evidence/campaigns/2026-10-09-phase21-6-1-yaml-ceab8ec/ ?? evidence/campaigns/2026-10-09-phase21-6-yaml-econ-ceab8ec/ ?? src/adapter/yaml.rs ?? tests/yaml_adapter.rs ?? tools/fixtures/make-yaml.py ?? tools/fixtures/phase21-6-yaml-baseline.py ?? tools/fixtures/phase21-6-yaml-vole.py ?? tools/fixtures/yaml/ ?? tools/phase21-6-1-yaml-court.sh ?? tools/phase21-6-yaml-court.sh ",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python3": "Python 3.11.2",
+  "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+  "cargo_lock_sha256": "2f122afe87bbaa2900e9cb939a403711f272af3a4a91d8ccf1c6a45bd2b40ee9",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "a56141f256863b5bde657d6a0086187a0788fdea4f5747f86d446288663abc00",
+  "profile": "debug",
+  "fixtures_tool": "tools/fixtures/make-yaml.py",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

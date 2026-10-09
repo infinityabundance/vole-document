@@ -475,6 +475,13 @@ fn limits_never_change_reconstructed_bytes() {
         max_json_nodes: 1 << 30,
         max_json_string_bytes: 1 << 50,
         max_json_document_bytes: 1 << 50,
+        max_yaml_depth: 1 << 12,
+        max_yaml_nodes: 1 << 30,
+        max_yaml_scalars: 1 << 30,
+        max_yaml_anchors: 1 << 24,
+        max_yaml_documents: 1 << 16,
+        max_yaml_string_bytes: 1 << 50,
+        max_yaml_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

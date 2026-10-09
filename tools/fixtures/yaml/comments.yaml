@@ -1,0 +1,9 @@
+# header comment
+a: 1  # trailing on a
+
+# a comment between entries
+b: 2
+c:
+  - x  # element comment
+  - y
+# footer

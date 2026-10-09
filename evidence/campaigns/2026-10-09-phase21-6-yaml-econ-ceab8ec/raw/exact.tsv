@@ -1,0 +1,9 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+anchors.yaml	true	true	true	true	true	3670	22371
+tags.yaml	true	true	true	true	true	4856	23841
+multidoc.yaml	true	true	true	true	true	3691	21642
+styles.yaml	true	true	true	true	true	3327	21909
+comments.yaml	true	true	true	true	true	3401	23440
+dup.yaml	true	true	true	true	true	3363	20264
+deep.yaml	true	true	true	true	true	4008	24958
+large.yaml	true	true	true	true	true	11831	23432
