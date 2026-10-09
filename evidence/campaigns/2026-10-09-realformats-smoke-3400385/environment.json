@@ -1,0 +1,17 @@
+{
+  "campaign": "evidence/campaigns/2026-10-09-realformats-smoke-3400385",
+  "phase": "21.5.3 — stratified real-world multi-format smoke",
+  "utc": "2026-10-09T08:12:23Z",
+  "measured_commit": "3400385f5527b670b64d6036cbe9837ce955ef2c",
+  "tree_state": " M .gitignore  M Dockerfile  M compose.yaml  M evidence/campaigns/2026-10-09-phase21-5-json-econ-0d94667/SUMMARY.md  M tools/fixtures/phase21-5-json-baseline.py  M tools/phase21-5-json-court.sh  M tools/realcorpus/README.md ?? evidence/campaigns/2026-10-09-identity-3400385/ ?? evidence/campaigns/2026-10-09-phase21-5-json-econ-3400385/ ?? evidence/campaigns/2026-10-09-realformats-smoke-3400385/ ?? tools/fixtures/docx/ ?? tools/fixtures/identity-court.py ?? tools/fixtures/make-docx.py ?? tools/fixtures/phase21-5-json-spanpy.py ?? tools/fixtures/realformats-smoke.py ?? tools/identity-court.sh ?? tools/realcorpus/fetch-formats.sh ?? tools/realcorpus/formats-manifest.tsv ?? tools/realformats-smoke-court.sh ",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "arch": "x86_64",
+  "bin": "./target/debug/vole-document",
+  "bin_sha256": "940be040a9e1a143721292a642fdd857f8c4fdcb19108fde6d16c32a0e7e06ac",
+  "manifest_sha256": "8e23e0a36d6ca5884e907904782f9d4260d8e6fe0365a1d51d100fb73648e7a9",
+  "driver_sha256": "72f7e68c3a98ec3d92548d5b24c69938fc6bb27721b751d80f9792eb0bb29568"
+}

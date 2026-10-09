@@ -36,6 +36,7 @@ Per-format authority boundaries, native inverse representation, and exactness.
 - [ODP](formats/odp.md)
 - [JSON](formats/json.md)
 - [YAML](formats/yaml.md)
+- [CSV/TSV](formats/csv.md)
 
 ## Reference
 
@@ -69,7 +70,8 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   ancestry + unpublished-segment recovery); **in progress**:
   [Phase 21](phases/phase-21-plan.md) (format programme — **Wave 1 complete**: XLSX,
   PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2 in
-  progress**: JSON and YAML done, CSV/Markdown/XML/… planned); the Phase 22
+  progress**: JSON, YAML and CSV/TSV done, Markdown/XML/… planned; also a
+  permanent cross-field identity court and a JSON-comparator correction); the Phase 22
   programme is pre-registered in
   [phase-22-plan.md](phases/phase-22-plan.md).
 - [Independent reviews](reviews/) — adversarial skeptic findings.

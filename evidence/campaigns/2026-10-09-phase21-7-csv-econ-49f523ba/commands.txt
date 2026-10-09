@@ -1,0 +1,20 @@
+docker compose run --rm --no-TTY analytical bash tools/phase21-7-csv-court.sh
+# PROFILE defaults to release (target/release/vole-document).
+# Inside the court:
+#   cargo build --release --locked --all-features
+#   python3 tools/fixtures/make-csv.py --corpus $WORK/corpus
+#   VOLE:   $BIN field-build F --store STORE --voldoc F.voldoc --profile runtime --packed
+#           python3 tools/fixtures/phase21-7-csv-vole.py run --bin $BIN --store STORE --field HEX --plan ... --outdir ... --packed
+#           rm source + descriptor ; $BIN materialize --store STORE --field HEX --exact --packed --output OUT ; cmp OUT source
+#   SQLite: python3 tools/fixtures/phase21-7-csv-sqlite.py build --source F --db D
+#           python3 tools/fixtures/phase21-7-csv-sqlite.py query --db D --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-7-csv-sqlite.py session --db D --queries Q1..Q8 --plan ... --out OUT
+#           python3 tools/fixtures/phase21-7-csv-sqlite.py read-cell --db D --row R --col C
+#   DuckDB: python3 tools/fixtures/phase21-7-csv-duckdb.py build --source F --dir DD
+#           python3 tools/fixtures/phase21-7-csv-duckdb.py query --dir DD --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-7-csv-duckdb.py read-cell --dir DD --row R --col C
+#   aggregate: python3 tools/fixtures/phase21-7-csv-sqlite.py aggregate --raw RAW --campaign CAMPAIGN --env ENV
+# Full dev gate:
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features

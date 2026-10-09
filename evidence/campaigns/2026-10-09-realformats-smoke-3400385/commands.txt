@@ -1,0 +1,8 @@
+# acquisition (network-capable, capped realcorpus lane):
+docker compose run --rm --no-TTY realcorpus sh tools/realcorpus/fetch-formats.sh
+# smoke court (pinned doc-baseline lane; VOLE + python3):
+docker compose run --rm --no-TTY doc-baseline bash tools/realformats-smoke-court.sh
+# inside the court:
+#   cargo build --locked --all-features
+#   python3 tools/fixtures/realformats-smoke.py --bin <BIN> --corpus realformats-v1 \
+#       --manifest tools/realcorpus/formats-manifest.tsv --out <RAW>

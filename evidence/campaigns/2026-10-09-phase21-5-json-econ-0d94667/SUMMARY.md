@@ -1,5 +1,22 @@
 # Phase 21.5.1 — JSON economic court
 
+> **[SUPERSEDED: re-sealed by `evidence/campaigns/2026-10-09-phase21-5-json-econ-3400385`]**
+> An external review established two defects in this receipt's comparator (FIX 1,
+> Phase 21.5.3):
+> 1. The SQLite lane's "uses `json1`/`jsonb`" claim was **false** — the image's
+>    SQLite is **3.40.1** (2022-12-28) and JSONB exists only from **3.45.0**, so
+>    JSONB was never used. The corrected lane runs the hash-pinned `pysqlite3`
+>    module (bundled **SQLite 3.51.1**).
+> 2. The duplicate-key count was **hardcoded to 1**, so "SQLite cannot count
+>    duplicate keys" was never established — `json_tree`/`json_each` DO enumerate
+>    duplicate members.
+>
+> Consequently the build/warm ratios below (**build median 1.350**, **warm median
+> 0.527**) and the Q4 "equal 6 / mismatch 1" result are **superseded**. Re-measured
+> against the modern-SQLite and (newly added) span-preserving Python comparators,
+> Q4 is **7/7 equal** and VOLE's Q2/Q4/Q8 representation advantages do not survive;
+> see the new campaign's SUMMARY for the corrected numbers and intervals.
+
 **Question.** Against a source-retaining SQLite baseline using its built-in JSON functions, on contract-equivalent terms, can VOLE answer the same eight questions (Q1–Q8) it can answer, while closing the original JSON byte-exactly — and does it add value by **preserving representation** (spelling, order, duplicate keys, source spans)?
 
 **Method.** A deterministic self-authored JSON corpus (`tools/fixtures/make-json.py --corpus`) is regenerated at court time; each fixture is ingested by two lanes (VOLE field CLI; a source-retaining SQLite baseline that keeps the raw bytes and uses `json1`/`jsonb`), Q1–Q8 are asked of each, and build/storage/cold/warm are measured. Persistent bytes are the **sum of regular-file sizes** (`find -type f -printf '%s'`), never `du -sb` (ADR-0049).

@@ -1,0 +1,97 @@
+{
+  "campaign": "evidence/campaigns/2026-10-09-identity-3400385",
+  "cases": [
+    "interleave",
+    "programs",
+    "edit",
+    "cache-clear",
+    "crash"
+  ],
+  "checks": {
+    "cache_clear_materialize_exact": true,
+    "cache_clear_same_answers": true,
+    "crash_recovery_build_exact": true,
+    "crash_store_reopens_no_wrong_bytes": true,
+    "edit_new_field_shows_marker": true,
+    "edit_no_other_field_affected": true,
+    "edit_original_field_unchanged": true,
+    "interleave_field_ids_independent": true,
+    "interleave_observations_equal": true,
+    "programs_identical_observations": true,
+    "programs_materialize_exact_source": true,
+    "programs_no_aliasing_other_document": true
+  },
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "./target/debug/vole-document",
+    "bin_sha256": "940be040a9e1a143721292a642fdd857f8c4fdcb19108fde6d16c32a0e7e06ac",
+    "campaign": "evidence/campaigns/2026-10-09-identity-3400385",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "acb1409ed7f76312d457727b84bb9a7d2309007f8cb47e457f68e333cb0906a5",
+    "driver_sha256": "cb205e62ee9aa29cb9de991638c7a6cf4f8f73e6714ce0859e33e8d49613d659",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_tsv_sha256": "4641a2e56151a47cba4f682e77f0cd92ea8965f65f2d7c98afc3313fe5f2a916",
+    "measured_commit": "3400385f5527b670b64d6036cbe9837ce955ef2c",
+    "phase": "ADR-0060 permanent cross-field identity court",
+    "python": "Python 3.11.2",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "tree_state": " M .gitignore  M Dockerfile  M compose.yaml  M evidence/campaigns/2026-10-09-phase21-5-json-econ-0d94667/SUMMARY.md  M tools/fixtures/phase21-5-json-baseline.py  M tools/phase21-5-json-court.sh  M tools/realcorpus/README.md ?? evidence/campaigns/2026-10-09-identity-3400385/ ?? evidence/campaigns/2026-10-09-phase21-5-json-econ-3400385/ ?? evidence/campaigns/2026-10-09-realformats-smoke-3400385/ ?? tools/fixtures/docx/ ?? tools/fixtures/identity-court.py ?? tools/fixtures/make-docx.py ?? tools/fixtures/phase21-5-json-spanpy.py ?? tools/fixtures/realformats-smoke.py ?? tools/identity-court.sh ?? tools/realcorpus/fetch-formats.sh ?? tools/realcorpus/formats-manifest.tsv ?? tools/realformats-smoke-court.sh ",
+    "utc": "2026-10-09T08:12:21Z"
+  },
+  "failures": [],
+  "fixtures": [
+    "doc.pdf",
+    "doc.docx",
+    "doc.xlsx",
+    "doc.pptx",
+    "doc.ods",
+    "doc.odp",
+    "doc.json",
+    "doc.yaml"
+  ],
+  "invariant": "observation is a pure function of the field content id (NodeId)",
+  "notes": {
+    "alone_field": {
+      "doc.docx": "169c5d8fc27619f4ef1f180dd65aca09b15a4738368892e4fc74a480563f5ea1",
+      "doc.json": "c3488fdd279ec2701c5c8b3ec0da6fbe2b6ba4ca8e24162873af34a65000ad76",
+      "doc.odp": "4f3d613d2fa60360ff5d3051b6653a447529515f511b5314ba07376ef7da88b6",
+      "doc.ods": "d9e818e166026ab972dba7e19539761e430dd050ce8c3da1c88d371b560ca9d6",
+      "doc.pdf": "7abe8609a9b5f20ac040ad2563abd1f9ba90f46f9707d65659dca51e1447bc90",
+      "doc.pptx": "73851b2d556168a84763398f42932cacb9033869f3316c6bf3a4ba44ae34629f",
+      "doc.xlsx": "fc4903ba5a320d79e9dd181e6659b2dbc3fc3594f730bb30156f2d496f70b77e",
+      "doc.yaml": "9f46a8c35f4fb5107682a1bb63dffd0ea775539efc5cdb2de5c529f0fc9a9468"
+    },
+    "crash": {
+      "killed_builds": 5,
+      "large_source": "large.pdf",
+      "note": "a partial field id is unknown and so is never fetched; every served answer after each SIGKILL equalled the pre-crash answer, and no read returned a wrong document"
+    },
+    "edit": {
+      "edited_field": "93c03967577a12aa00f71c134bbb7e5eef83ad9558f908b47b13505e643c1f0d",
+      "marker": "VOLE IDENTITY EDIT 21.5.3",
+      "original_field": "7abe8609a9b5f20ac040ad2563abd1f9ba90f46f9707d65659dca51e1447bc90"
+    },
+    "inter_field": {
+      "doc.docx": "169c5d8fc27619f4ef1f180dd65aca09b15a4738368892e4fc74a480563f5ea1",
+      "doc.json": "c3488fdd279ec2701c5c8b3ec0da6fbe2b6ba4ca8e24162873af34a65000ad76",
+      "doc.odp": "4f3d613d2fa60360ff5d3051b6653a447529515f511b5314ba07376ef7da88b6",
+      "doc.ods": "d9e818e166026ab972dba7e19539761e430dd050ce8c3da1c88d371b560ca9d6",
+      "doc.pdf": "7abe8609a9b5f20ac040ad2563abd1f9ba90f46f9707d65659dca51e1447bc90",
+      "doc.pptx": "73851b2d556168a84763398f42932cacb9033869f3316c6bf3a4ba44ae34629f",
+      "doc.xlsx": "fc4903ba5a320d79e9dd181e6659b2dbc3fc3594f730bb30156f2d496f70b77e",
+      "doc.yaml": "9f46a8c35f4fb5107682a1bb63dffd0ea775539efc5cdb2de5c529f0fc9a9468"
+    },
+    "programs": {
+      "direct_field": "7abe8609a9b5f20ac040ad2563abd1f9ba90f46f9707d65659dca51e1447bc90",
+      "fields_coincide": false,
+      "searching_field": "dcc92b5d5f0042ffbc8f40fc6a40f5667dc1523b6cddf14b9506f720e7a0b6de",
+      "second_doc_field": "c3488fdd279ec2701c5c8b3ec0da6fbe2b6ba4ca8e24162873af34a65000ad76"
+    }
+  },
+  "phase": "ADR-0060 permanent cross-field identity court",
+  "verdict": "PASS"
+}

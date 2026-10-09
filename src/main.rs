@@ -111,7 +111,9 @@ const USAGE_FIELD: &str = "\
         --odp-media N | --odp-tables | --odp-find PATTERN |
         --json-pointer PATH | --json-node PATH | --json-find PATTERN |
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
-        --yaml-find PATTERN) --kind metadata|text|structure|operators|
+        --yaml-find PATTERN |
+        --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
+        --csv-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1607,6 +1609,24 @@ struct FieldArgs {
     /// (Phase 21.6.1).
     #[cfg(feature = "yaml")]
     yaml_find: Option<String>,
+    /// `--csv-row N`: a CSV/TSV record by 0-based physical index (the header row is
+    /// index 0), returning its exact bytes, decoded text, or structural view
+    /// (Phase 21.7.1).
+    #[cfg(feature = "csv")]
+    csv_row: Option<u32>,
+    /// `--csv-cell R:C` or `--csv-cell R:COLNAME`: a CSV/TSV cell (Phase 21.7.1).
+    #[cfg(feature = "csv")]
+    csv_cell: Option<String>,
+    /// `--csv-header`: the CSV/TSV header row (record 0) (Phase 21.7.1).
+    #[cfg(feature = "csv")]
+    csv_header: bool,
+    /// `--csv-range R1:C1:R2:C2`: a CSV/TSV rectangular range of cells (Phase 21.7.1).
+    #[cfg(feature = "csv")]
+    csv_range: Option<String>,
+    /// `--csv-find`: a lexical, case-sensitive search over CSV/TSV field text
+    /// (Phase 21.7.1).
+    #[cfg(feature = "csv")]
+    csv_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -2034,6 +2054,32 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--yaml-find" => {
                 out.yaml_find = Some(field_arg_value(args, &mut i, "--yaml-find", inline)?);
             }
+            #[cfg(feature = "csv")]
+            "--csv-row" => {
+                let v = field_arg_value(args, &mut i, "--csv-row", inline)?;
+                out.csv_row = Some(v.parse().map_err(|_| {
+                    Error::usage(format!(
+                        "--csv-row value {v:?} is not a non-negative integer"
+                    ))
+                })?);
+            }
+            #[cfg(feature = "csv")]
+            "--csv-cell" => {
+                out.csv_cell = Some(field_arg_value(args, &mut i, "--csv-cell", inline)?);
+            }
+            #[cfg(feature = "csv")]
+            "--csv-header" => {
+                out.csv_header = true;
+                i += 1;
+            }
+            #[cfg(feature = "csv")]
+            "--csv-range" => {
+                out.csv_range = Some(field_arg_value(args, &mut i, "--csv-range", inline)?);
+            }
+            #[cfg(feature = "csv")]
+            "--csv-find" => {
+                out.csv_find = Some(field_arg_value(args, &mut i, "--csv-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2412,6 +2458,29 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.yaml_find {
             chosen.push(Selector::YamlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // CSV/TSV: `--csv-row`/`--csv-cell`/`--csv-range` address records, cells, and
+    // rectangles; `--csv-header` is the header row; `--csv-find` is a lexical
+    // search. Each stands alone (Phase 21.7.1).
+    #[cfg(feature = "csv")]
+    {
+        if let Some(index) = out.csv_row {
+            chosen.push(Selector::CsvRow { index });
+        }
+        if let Some(spec) = &out.csv_cell {
+            chosen.push(Selector::CsvCell { spec: spec.clone() });
+        }
+        if out.csv_header {
+            chosen.push(Selector::CsvHeader);
+        }
+        if let Some(spec) = &out.csv_range {
+            chosen.push(Selector::CsvRange { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.csv_find {
+            chosen.push(Selector::CsvFind {
                 pattern: pattern.clone(),
             });
         }

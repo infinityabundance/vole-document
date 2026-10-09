@@ -8,7 +8,7 @@
 # exactly like a real conventional stack, **expands anchors/aliases**, **merges**
 # `<<` keys, **strips** tags, **drops** comments, and **normalizes** scalar styles —
 # and the normalized value is then stored as JSON text and queried with SQLite's
-# `json1`/`jsonb`. What it therefore cannot answer is representation: source spans,
+# `json1` (SQLite 3.40.1; JSONB requires >= 3.45 and is NOT used here). What it therefore cannot answer is representation: source spans,
 # the anchor graph, tags, scalar styles, and merge-key handling. Those questions
 # decline (recorded honestly, never papered over).
 #
@@ -822,7 +822,8 @@ def aggregate(raw, campaign, env_path=None):
     lines.append("**Question.** Against a source-retaining SQLite baseline that runs a "
                  "conventional YAML → native-object normalization (the offline PyYAML "
                  "stand-in: expand aliases, merge `<<`, drop tags/comments, normalize "
-                 "styles) and queries `json1`/`jsonb`, can VOLE answer the same eight "
+                 "styles) and queries SQLite's `json1` functions (SQLite 3.40.1; "
+                 "JSONB is not used), can VOLE answer the same eight "
                  "questions (Q1–Q8) it can answer, while closing the original YAML "
                  "byte-exactly — and does it add value by **preserving representation** "
                  "(spans, the anchor graph, tags, styles, merge keys)?")

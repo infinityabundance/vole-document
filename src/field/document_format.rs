@@ -127,6 +127,11 @@ pub enum DocumentFormat {
     /// stream whose every document root is a mapping or a sequence). Not a package:
     /// the exact leaf is the whole source (Phase 21.6.1).
     Yaml,
+    /// A CSV/TSV table (the whole source parses under a comma or tab delimiter as a
+    /// table with a consistent field count across a sampled majority of at least
+    /// two records). Not a package: the exact leaf is the whole source, and the
+    /// recorded dialect distinguishes comma from tab (Phase 21.7.1).
+    Csv,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -145,6 +150,7 @@ impl DocumentFormat {
             DocumentFormat::Pptx => "pptx",
             DocumentFormat::Json => "json",
             DocumentFormat::Yaml => "yaml",
+            DocumentFormat::Csv => "csv",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -162,6 +168,7 @@ impl DocumentFormat {
             DocumentFormat::Pptx => "pptx",
             DocumentFormat::Json => "json",
             DocumentFormat::Yaml => "yaml",
+            DocumentFormat::Csv => "csv",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -179,6 +186,7 @@ impl DocumentFormat {
             DocumentFormat::Pptx => cfg!(feature = "pptx"),
             DocumentFormat::Json => cfg!(feature = "json"),
             DocumentFormat::Yaml => cfg!(feature = "yaml"),
+            DocumentFormat::Csv => cfg!(feature = "csv"),
         }
     }
 
@@ -206,6 +214,7 @@ impl DocumentFormat {
             "pptx" => Some(DocumentFormat::Pptx),
             "json" => Some(DocumentFormat::Json),
             "yaml" => Some(DocumentFormat::Yaml),
+            "csv" => Some(DocumentFormat::Csv),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -241,6 +250,16 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "yaml")]
     if crate::adapter::yaml::detect(source, limits) {
         return DocumentFormat::Yaml;
+    }
+    // CSV/TSV is the first **tabular** Wave-2 format (Phase 21.7.1). It has no
+    // magic bytes, so it is detected last and conservatively: only after the
+    // PDF/ZIP/JSON/YAML families are declined does a source qualify, and then only
+    // if it parses under a specific delimiter (`,` or tab) as a table with a
+    // consistent field count across a sampled majority of records and at least two
+    // columns. When in doubt the input stays Opaque.
+    #[cfg(feature = "csv")]
+    if crate::adapter::csv::detect(source, limits) {
+        return DocumentFormat::Csv;
     }
     DocumentFormat::Opaque
 }
@@ -432,6 +451,7 @@ mod tests {
             DocumentFormat::Pptx,
             DocumentFormat::Json,
             DocumentFormat::Yaml,
+            DocumentFormat::Csv,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

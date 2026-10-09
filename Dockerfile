@@ -230,6 +230,20 @@ WORKDIR /work
 # Hash-pinned cp311 wheels (bookworm ships Python 3.11.2; duckdb 1.5.6):
 #   x86_64  73b108c04c932b36c2fa4e41110cc1c3c8cd510eb49f065f92d050be8e6929fd
 #   aarch64 56c0f71c6bee982e9c30568bb12371bf66b26bf129c75d8d7f60bc69d6590a2c
+#
+# Phase 21.5.3 correction (FIX 1): the JSON economic court's SQLite lane must use a
+# *modern* SQLite that actually has the `jsonb` binary representation (JSONB exists
+# only from SQLite 3.45.0, 2024-04-15). The bookworm system SQLite is 3.40.1
+# (2022-12-28), so the original receipt's "uses json1/jsonb" wording was false. The
+# `pysqlite3-binary` wheel bundles a recent SQLite in a single hash-verified module:
+# the installed 0.5.4.post2 cp311 wheel reports `sqlite_version` **3.51.1**, so the
+# baseline can honestly use `jsonb(...)` and `json_tree`/`json_each`. Pinned by
+# SHA-256 (cp311 manylinux2014_x86_64 wheel:
+#   3060a56666ede382c9af3e4b086e30c9ffb65133b3fa606c2d1b9fbff512f241).
+# NOTE: upstream publishes ONLY x86_64 wheels for pysqlite3-binary (verified from
+# the PyPI JSON index: every release is `*_x86_64.whl`; there is no aarch64 wheel),
+# so this pin is x86_64-only. The court records the module name + `sqlite_version`
+# + wheel SHA-256 in its receipt, and `analytical` is the pinned x86_64 lane.
 # ---------------------------------------------------------------------------
 FROM doc-baseline AS analytical
 ENV DEBIAN_FRONTEND=noninteractive
@@ -243,6 +257,11 @@ RUN printf 'duckdb==1.5.6 \
       > /tmp/duckdb-requirements.txt \
  && pip3 install --break-system-packages --no-cache-dir --no-deps --require-hashes -r /tmp/duckdb-requirements.txt \
  && rm -f /tmp/duckdb-requirements.txt
+RUN printf 'pysqlite3-binary==0.5.4.post2 \
+  --hash=sha256:3060a56666ede382c9af3e4b086e30c9ffb65133b3fa606c2d1b9fbff512f241\n' \
+      > /tmp/pysqlite3-requirements.txt \
+ && pip3 install --break-system-packages --no-cache-dir --no-deps --require-hashes -r /tmp/pysqlite3-requirements.txt \
+ && rm -f /tmp/pysqlite3-requirements.txt
 WORKDIR /work
 
 # ---------------------------------------------------------------------------

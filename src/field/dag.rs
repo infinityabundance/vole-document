@@ -996,6 +996,39 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::CsvModel => {
+            // The canonical CSV/TSV tabular model is derived on demand from the
+            // exact source. CSV has no package layer, so its single dependency is
+            // the exact `DocumentExact` root (keyed by `sha256(source)` per
+            // ADR-0060): the model node *reads the source bytes*, so it must carry a
+            // source-identity input, never alias another field's source. Parsing and
+            // all bounds live in `adapter::csv`.
+            #[cfg(feature = "csv")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("CsvModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::csv::build_csv_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "csv"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "CSV support is not compiled in (feature `csv`)",
+                ));
+            }
+        }
         NodeKind::XlsxModel => {
             // The canonical XLSX (SpreadsheetML) discovery model is derived on
             // demand from the canonical OPC model (the single dependency). XML

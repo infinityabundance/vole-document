@@ -20,14 +20,18 @@
 > never a result. The whole programme is judged by the capability/cost frontier on
 > the same contract — **not by format count**.
 >
-> **Wave 2** has started: **JSON** and **YAML** (structured trees) are complete
-> (span/representation-preserving adapters + economic courts);
-> CSV/TSV, Markdown, XML, HTML, TOML, JSONL, and the other families below
-> remain planned.
-
-Branch: `phase21-wave2` @ `v0.1.0-alpha.31`+ (Wave 2). Wave 1 shipped as
-`v0.1.0-alpha.30` and JSON as `v0.1.0-alpha.31` on `main`. The Phase-22 economic
-programme (22.1–22.7) is complete and released in `v0.1.0-alpha.29`.
+> **Wave 2** has started: **JSON**, **YAML** and **CSV/TSV** are complete
+> (structured-tree adapters + an exact-preserving tabular adapter, each with an
+> economic court). Two review-driven corrections also landed on this branch: the
+> JSON comparator was **repaired** (modern SQLite+JSONB, fixed duplicate-key
+> accounting, an independent span-preserving baseline) and a permanent
+> cross-field identity court was added (ADR-0060).
+> Markdown, XML, HTML, TOML, JSONL, and the other families below remain planned.
+>
+> Branch: `phase21-wave2` @ `v0.1.0-alpha.32`+ (Wave 2). Wave 1 shipped as
+> `v0.1.0-alpha.30`, JSON as `v0.1.0-alpha.31`, YAML as `v0.1.0-alpha.32` on
+> `main`. The Phase-22 economic programme (22.1–22.7) is complete and released in
+> `v0.1.0-alpha.29`.
 
 ## Why
 

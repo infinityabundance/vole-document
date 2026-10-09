@@ -251,13 +251,13 @@ Current limitations:
   pathology is fixed in Phase 16 (`nasa-pdf-0001` completes byte-exactly; ADR-0041 extended), though its two largest peers still exceed the **wall** op budget, not memory.
   A real EPUB-content loss (the XHTML `DOCTYPE` the policy forbade) was found and fixed (13.7, ADR-0040); residual non-DOCTYPE EPUB declines remain
   ([frontier report](docs/evidence/real100-frontier-report.md)).
-- **Partial reusability.** Cross-document durable *work* reuse is a negative. Beyond the eight office formats, Phase 21 Wave 2 adds structured/tabular/web formats: **JSON** and **YAML** are shipped (span/representation-preserving structured trees); CSV/TSV, Markdown, XML, HTML, … remain `PROPOSED`.
+- **Partial reusability.** Cross-document durable *work* reuse is a negative. Beyond the eight office formats, Phase 21 Wave 2 adds structured/tabular/web formats: **JSON**, **YAML** and **CSV/TSV** are shipped (span/representation-preserving structured trees + exact-preserving tabular); Markdown, XML, HTML, … remain `PROPOSED`.
 
 ## Documentation
 
 - [Documentation index](docs/README.md) — the map.
 - [Architecture](docs/architecture/overview.md) — what the system is today.
-- [Formats](docs/formats/pdf.md) — PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP, JSON, YAML authority boundaries.
+- [Formats](docs/formats/pdf.md) — PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP, JSON, YAML, CSV/TSV authority boundaries.
 - [Specification](docs/reference/specification.md) — the `.voldoc` wire format.
 - [Conformance](docs/reference/conformance.md) — courts, invariants, fuzzing.
 - [Findings](docs/project/findings.md) — consolidated positive and negative results.

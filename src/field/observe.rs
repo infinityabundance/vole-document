@@ -31,6 +31,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
+#[cfg(feature = "csv")]
+use crate::adapter::csv::{
+    CsvModel, StreamRecord as CsvStreamRecord, canonical_text as csv_canonical_text,
+    decode_field as csv_decode_field, field_bytes as csv_field_bytes, find as csv_find_matches,
+    record_at as csv_record_at, record_bytes as csv_record_bytes,
+    sniff_dialect as csv_sniff_dialect,
+};
 #[cfg(feature = "docx")]
 use crate::adapter::docx::wml::StoryModel;
 #[cfg(feature = "docx")]
@@ -78,6 +85,8 @@ use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, OutputCache, ReuseStats, SourceServer};
 use crate::field::document_format::DocumentFormat;
+#[cfg(feature = "csv")]
+use crate::field::index::SEL_CSV_MODEL;
 #[cfg(feature = "docx")]
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "epub")]
@@ -677,6 +686,41 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A CSV/TSV record by 0-based physical index (record 0 is the header row),
+    /// returned with its exact source span and exact bytes (Phase 21.7.1). CSV has
+    /// no package layer, so the source *is* the whole document.
+    #[cfg(feature = "csv")]
+    CsvRow {
+        /// The 0-based record index (the header row is index 0).
+        index: u32,
+    },
+    /// A CSV/TSV cell addressed as `R:C` (0-based record and column indices) or
+    /// `R:COLNAME` (record `R`, the column whose header name is `COLNAME`)
+    /// (Phase 21.7.1). `ExactBytes` returns the field's exact source bytes (quotes
+    /// preserved); `Text` the decoded field; `Metadata`/`Structure` a descriptor.
+    #[cfg(feature = "csv")]
+    CsvCell {
+        /// The `R:C` or `R:COLNAME` reference.
+        spec: String,
+    },
+    /// The CSV/TSV header row (record 0): its field names and exact bytes
+    /// (Phase 21.7.1).
+    #[cfg(feature = "csv")]
+    CsvHeader,
+    /// A CSV/TSV rectangular range of cells addressed as `R1:C1:R2:C2` (0-based,
+    /// inclusive) (Phase 21.7.1).
+    #[cfg(feature = "csv")]
+    CsvRange {
+        /// The `R1:C1:R2:C2` reference.
+        spec: String,
+    },
+    /// A lexical, case-sensitive search over CSV/TSV field text (Phase 21.7.1).
+    /// Never an embedding or a model call.
+    #[cfg(feature = "csv")]
+    CsvFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
 }
 
 impl Selector {
@@ -965,6 +1009,16 @@ impl Selector {
             Selector::YamlAnchor { name } => format!("yaml-anchor:{name}"),
             #[cfg(feature = "yaml")]
             Selector::YamlFind { pattern } => format!("yaml-find:{pattern}"),
+            #[cfg(feature = "csv")]
+            Selector::CsvRow { index } => format!("csv-row:{index}"),
+            #[cfg(feature = "csv")]
+            Selector::CsvCell { spec } => format!("csv-cell:{spec}"),
+            #[cfg(feature = "csv")]
+            Selector::CsvHeader => "csv-header".to_string(),
+            #[cfg(feature = "csv")]
+            Selector::CsvRange { spec } => format!("csv-range:{spec}"),
+            #[cfg(feature = "csv")]
+            Selector::CsvFind { pattern } => format!("csv-find:{pattern}"),
         }
     }
 
@@ -2765,6 +2819,26 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "yaml")]
             (Selector::YamlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.yaml_find(req, pattern)
+            }
+            #[cfg(feature = "csv")]
+            (Selector::CsvRow { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.csv_row(req, *index)
+            }
+            #[cfg(feature = "csv")]
+            (Selector::CsvCell { spec }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.csv_cell(req, spec)
+            }
+            #[cfg(feature = "csv")]
+            (Selector::CsvHeader, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.csv_header(req)
+            }
+            #[cfg(feature = "csv")]
+            (Selector::CsvRange { spec }, R::Text | R::Metadata | R::Structure) => {
+                self.csv_range(req, spec)
+            }
+            #[cfg(feature = "csv")]
+            (Selector::CsvFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.csv_find(req, pattern)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -7935,6 +8009,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Pptx => self.common_pptx(req)?,
             DocumentFormat::Json => self.common_json(req)?,
             DocumentFormat::Yaml => self.common_yaml(req)?,
+            DocumentFormat::Csv => self.common_csv(req)?,
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -8271,6 +8346,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_yaml(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "YAML observations require a build with the yaml feature",
+        ))
+    }
+
+    #[cfg(not(feature = "csv"))]
+    fn common_csv(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "CSV observations require a build with the csv feature",
         ))
     }
 
@@ -9708,6 +9790,468 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "yaml;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CSV/TSV observations (Phase 21.7.1)
+// ---------------------------------------------------------------------------
+
+/// A parsed column reference for `csv-cell`: a 0-based index or a header name.
+#[cfg(feature = "csv")]
+enum CsvCol {
+    Index(u32),
+    Name(String),
+}
+
+#[cfg(feature = "csv")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the CSV/TSV tabular model (derived, `Q_gen`).
+    fn csv_model(&mut self) -> Result<(CsvModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_CSV_MODEL, 0), "CSV model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((CsvModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn csv_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn csv_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn csv_record_text(
+        source: &[u8],
+        dialect: crate::adapter::csv::Dialect,
+        rec: &CsvStreamRecord,
+    ) -> Result<String> {
+        let mut out = String::new();
+        for (i, f) in rec.fields.iter().enumerate() {
+            if i > 0 {
+                out.push(dialect.delimiter as char);
+            }
+            out.push_str(&csv_decode_field(source, f)?);
+        }
+        Ok(out)
+    }
+
+    fn csv_record_structure(
+        &self,
+        source: &[u8],
+        dialect: crate::adapter::csv::Dialect,
+        index: u32,
+        rec: &CsvStreamRecord,
+    ) -> Result<String> {
+        let mut fields: Vec<String> = Vec::new();
+        for (i, f) in rec.fields.iter().enumerate() {
+            let text = csv_decode_field(source, f)?;
+            fields.push(format!(
+                concat!(
+                    "{{\"column\":{},\"quoted\":{},\"span\":[{},{}],",
+                    "\"text\":\"{}\"}}"
+                ),
+                i,
+                f.quoted,
+                f.start,
+                f.end,
+                json_escape(&text),
+            ));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"record\":{},\"span\":[{},{}],\"terminator\":\"{}\",",
+                "\"columns\":{},\"fields\":[{}]}}"
+            ),
+            index,
+            rec.start,
+            rec.end,
+            dialect.terminator_name(),
+            rec.fields.len(),
+            fields.join(","),
+        ))
+    }
+
+    /// A record by physical index: `ExactBytes` returns its exact bytes (terminator
+    /// excluded); `Text` the decoded fields joined by the delimiter;
+    /// `Metadata`/`Structure` a descriptor with each field's span, kind, and text.
+    fn csv_row(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (source, root) = self.csv_source()?;
+        let dialect = csv_sniff_dialect(&source, self.limits)?;
+        let rec = csv_record_at(&source, dialect, index, self.limits)?;
+        let span = Some((rec.start, rec.end));
+        let provenance = format!(
+            "csv;row={index};columns={};terminator={}",
+            rec.fields.len(),
+            dialect.terminator_name()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(csv_record_bytes(&source, &rec)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::csv_record_text(&source, dialect, &rec)?)
+            }
+            _ => AnswerValue::Json(self.csv_record_structure(&source, dialect, index, &rec)?),
+        };
+        Ok(self.csv_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// Parse a `csv-cell` reference: `R:C` (0-based indices) or `R:COLNAME`.
+    fn csv_parse_cell(spec: &str) -> Result<(u32, CsvCol)> {
+        let (row_s, col_s) = spec
+            .split_once(':')
+            .ok_or_else(|| Error::usage(format!("csv-cell {spec:?} must be R:C or R:COLNAME")))?;
+        let row: u32 = row_s
+            .parse()
+            .map_err(|_| Error::usage(format!("csv-cell row {row_s:?} is not a u32")))?;
+        let col = match col_s.parse::<u32>() {
+            Ok(n) => CsvCol::Index(n),
+            Err(_) if !col_s.is_empty() => CsvCol::Name(col_s.to_string()),
+            Err(_) => {
+                return Err(Error::usage(format!(
+                    "csv-cell column {col_s:?} is neither an index nor a name"
+                )));
+            }
+        };
+        Ok((row, col))
+    }
+
+    /// Resolve a column reference to a 0-based index. A name is resolved against
+    /// the header row (record 0); an unknown name declines typed.
+    fn csv_resolve_col(
+        source: &[u8],
+        dialect: crate::adapter::csv::Dialect,
+        col: &CsvCol,
+        limits: Limits,
+    ) -> Result<u32> {
+        match col {
+            CsvCol::Index(n) => Ok(*n),
+            CsvCol::Name(name) => {
+                let header = csv_record_at(source, dialect, 0, limits)?;
+                for (i, f) in header.fields.iter().enumerate() {
+                    if csv_decode_field(source, f)? == *name {
+                        return Ok(i as u32);
+                    }
+                }
+                Err(Error::unsupported_feature(format!(
+                    "CSV header has no column named {name:?}"
+                )))
+            }
+        }
+    }
+
+    /// A cell addressed as `R:C` or `R:COLNAME`.
+    fn csv_cell(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (source, root) = self.csv_source()?;
+        let dialect = csv_sniff_dialect(&source, self.limits)?;
+        let (row, col) = Self::csv_parse_cell(spec)?;
+        let col = Self::csv_resolve_col(&source, dialect, &col, self.limits)?;
+        let rec = csv_record_at(&source, dialect, row, self.limits)?;
+        let field = *rec.fields.get(col as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "CSV record {row} has no column {col} ({} columns)",
+                rec.fields.len()
+            ))
+        })?;
+        let span = Some((field.start, field.end));
+        let provenance = format!(
+            "csv;cell={row}:{col};quoted={};columns={}",
+            field.quoted,
+            rec.fields.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(csv_field_bytes(&source, &field)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(csv_decode_field(&source, &field)?),
+            _ => {
+                let text = csv_decode_field(&source, &field)?;
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"row\":{},\"column\":{},\"quoted\":{},",
+                        "\"span\":[{},{}],\"text\":\"{}\"}}"
+                    ),
+                    row,
+                    col,
+                    field.quoted,
+                    field.start,
+                    field.end,
+                    json_escape(&text),
+                ))
+            }
+        };
+        Ok(self.csv_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// The header row (record 0): its field names, span, and exact bytes.
+    fn csv_header(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.csv_source()?;
+        let dialect = csv_sniff_dialect(&source, self.limits)?;
+        let rec = csv_record_at(&source, dialect, 0, self.limits)?;
+        let span = Some((rec.start, rec.end));
+        let provenance = format!("csv;header;columns={}", rec.fields.len());
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(csv_record_bytes(&source, &rec)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::csv_record_text(&source, dialect, &rec)?)
+            }
+            _ => {
+                let mut names: Vec<String> = Vec::new();
+                for f in &rec.fields {
+                    names.push(format!(
+                        "\"{}\"",
+                        json_escape(&csv_decode_field(&source, f)?)
+                    ));
+                }
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"count\":{},\"span\":[{},{}],",
+                        "\"terminator\":\"{}\",\"names\":[{}]}}"
+                    ),
+                    rec.fields.len(),
+                    rec.start,
+                    rec.end,
+                    dialect.terminator_name(),
+                    names.join(","),
+                ))
+            }
+        };
+        Ok(self.csv_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// A rectangular range `R1:C1:R2:C2` (0-based, inclusive).
+    fn csv_range(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let parts: Vec<&str> = spec.split(':').collect();
+        if parts.len() != 4 {
+            return Err(Error::usage(format!(
+                "csv-range {spec:?} must be R1:C1:R2:C2"
+            )));
+        }
+        let mut nums = [0u32; 4];
+        for (i, p) in parts.iter().enumerate() {
+            nums[i] = p
+                .parse()
+                .map_err(|_| Error::usage(format!("csv-range component {p:?} is not a u32")))?;
+        }
+        let (r1, c1, r2, c2) = (nums[0], nums[1], nums[2], nums[3]);
+        if r1 > r2 || c1 > c2 {
+            return Err(Error::usage(format!(
+                "csv-range {spec:?} has an inverted rectangle"
+            )));
+        }
+        let rows = (r2 - r1 + 1) as u64;
+        let cols = (c2 - c1 + 1) as u64;
+        const MAX_RANGE_CELLS: u64 = 1 << 20;
+        if rows.saturating_mul(cols) > MAX_RANGE_CELLS {
+            return Err(Error::resource_limit(format!(
+                "csv-range {spec:?} covers more than {MAX_RANGE_CELLS} cells"
+            )));
+        }
+        let (source, root) = self.csv_source()?;
+        let dialect = csv_sniff_dialect(&source, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        for r in r1..=r2 {
+            let rec = csv_record_at(&source, dialect, r, self.limits)?;
+            for c in c1..=c2 {
+                match rec.fields.get(c as usize) {
+                    Some(f) => {
+                        let text = csv_decode_field(&source, f)?;
+                        out.push(format!(
+                            concat!(
+                                "{{\"row\":{},\"column\":{},\"quoted\":{},",
+                                "\"span\":[{},{}],\"text\":\"{}\"}}"
+                            ),
+                            r,
+                            c,
+                            f.quoted,
+                            f.start,
+                            f.end,
+                            json_escape(&text),
+                        ));
+                    }
+                    None => {
+                        // A ragged row simply has no cell here; report it as null
+                        // rather than inventing one (representation preserved).
+                        out.push(format!("{{\"row\":{r},\"column\":{c},\"present\":false}}"));
+                    }
+                }
+                if out.len() as u64 * 32 > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "csv-range exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+            }
+        }
+        let span = Some((0, source.len() as u64));
+        let provenance = format!("csv;range={spec};cells={}", out.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"range\":\"{}\",\"cells\":[{}]}}",
+            json_escape(spec),
+            out.join(",")
+        ));
+        Ok(self.csv_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// A bounded lexical search over decoded field text.
+    fn csv_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (source, root) = self.csv_source()?;
+        let dialect = csv_sniff_dialect(&source, self.limits)?;
+        let matches = csv_find_matches(
+            &source,
+            dialect,
+            pattern,
+            self.limits,
+            req.budget.max_output_bytes,
+        )?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"record\":{},\"column\":{},\"quoted\":{},",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.record,
+                m.column,
+                m.quoted,
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("csv;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.csv_answer(req, value, provenance, None, vec![root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_csv(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.csv_common_metadata(req),
+            Selector::Text => self.csv_common_text(req),
+            Selector::Table(i) => {
+                if *i == 0 {
+                    self.csv_common_text(req)
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "CSV has a single table; table {i} does not exist"
+                    )))
+                }
+            }
+            Selector::Cell { table, row, col } => {
+                if *table == 0 {
+                    self.csv_cell(req, &format!("{row}:{col}"))
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "CSV has a single table; cell table {table} does not exist"
+                    )))
+                }
+            }
+            Selector::SearchMatch(p) => self.csv_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "CSV does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-table canonical text (exact field spelling, terminators normalized
+    /// to `\n`).
+    fn csv_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.csv_source()?;
+        let dialect = csv_sniff_dialect(&source, self.limits)?;
+        let text = csv_canonical_text(&source, dialect, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.csv_answer(
+            req,
+            AnswerValue::Text(text),
+            "csv;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// The whole-table structural metadata, computed from the canonical model so
+    /// ragged rows, the modal column count, the dialect, and the header are all
+    /// reported (declines typed when the table exceeds a build cap).
+    fn csv_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.csv_model()?;
+        let (source, root) = self.csv_source()?;
+        let rows = model.records.len();
+        let header_cols = model.header().map_or(0, |r| r.fields.len());
+        let mut modal = 0usize;
+        let mut modal_freq = 0usize;
+        let mut ragged = 0u64;
+        for r in &model.records {
+            let n = r.fields.len();
+            let freq = model.records.iter().filter(|x| x.fields.len() == n).count();
+            if freq > modal_freq || (freq == modal_freq && n > modal) {
+                modal = n;
+                modal_freq = freq;
+            }
+            if n != header_cols {
+                ragged += 1;
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"csv\",\"delimiter\":\"{}\",",
+                "\"terminator\":\"{}\",\"bom_bytes\":{},",
+                "\"mixed_terminators\":{},\"header\":{},",
+                "\"rows\":{},\"columns\":{},\"modal_columns\":{},",
+                "\"ragged_records\":{},\"bytes\":{}}}"
+            ),
+            model.dialect.delimiter_name(),
+            model.dialect.terminator_name(),
+            model.dialect.bom_len,
+            model.dialect.mixed_terminators,
+            model.has_header,
+            rows,
+            header_cols,
+            modal,
+            ragged,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.csv_answer(
+            req,
+            value,
+            "csv;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

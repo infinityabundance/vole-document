@@ -2,6 +2,37 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.33] — Phase 21 Wave 2: CSV/TSV + comparator repair + identity court — *unreleased*
+
+- **21.7 — CSV/TSV adapter + economic court.** Non-default, dependency-free
+  `csv = []`. RFC 4180 CSV + TSV with quoted fields / embedded delimiters,
+  newlines and `""`; CRLF/LF/CR; BOM; header. Exact record/field byte spans and
+  dialect preserved. Bounded memory; conservative detection (no magic bytes;
+  prose → Opaque). Native `--csv-row`, `--csv-cell` (`R:C`/`R:COLNAME`),
+  `--csv-header`, `--csv-range`, `--csv-find`; `InvalidCsvStructure` (exit 23).
+  Economic court (6 fixtures) vs a source-retaining SQLite baseline **and** a
+  DuckDB/Parquet comparator: build **0.927×** SQLite / **0.478×** DuckDB, storage
+  **0.234×** SQLite but **6.396×** DuckDB (Parquet/ZSTD ~6.4× smaller — a loss),
+  warm **0.685×**/0.016×. Large file (52 MB, 1.87M rows): VOLE 48.7 MB/s ingest
+  vs DuckDB 95.2 MB/s; no CSV index (O(offset) scans). Exact 10/10 · 6/6.
+  `2026-10-09-phase21-7-1-csv-49f523ba`, `…-phase21-7-csv-econ-49f523ba`.
+- **JSON comparator repaired** (review-driven). The receipt claimed SQLite `jsonb`
+  but the image had SQLite 3.40.1; added a pinned `pysqlite3-binary` wheel
+  (SQLite 3.51.1, JSONB verified). Duplicate-key accounting fixed
+  (`json_tree`/`json_each`) — VOLE's Q4 “advantage” does not survive (7/7 equal).
+  Added an independent **span-preserving** conventional baseline: VOLE matches it
+  on every question it answers; its remaining differentiators are exact closure
+  and economics. Re-sealed `2026-10-09-phase21-5-json-econ-3400385`; prior numbers
+  marked `[SUPERSEDED]`. The `v0.1.0-alpha.31` release text was corrected to match.
+- **Permanent cross-field identity court** (ADR-0060): `tools/identity-court.sh` —
+  interleaved multi-format stores, different reconstruction programs, edits, cache
+  clears, SIGKILL-during-build then reopen. PASS 12/12
+  (`2026-10-09-identity-3400385`).
+- **Real-format smoke** (bounded first step): 12 pinned, checksummed real samples
+  (Apache POI XLSX/PPTX, odfpy ODS/ODP, Natural Earth GeoJSON, Prometheus YAML)
+  fetched and byte-exact 12/12; pooled AND median reported
+  (`2026-10-09-realformats-smoke-3400385`). A 12-document smoke, not a population.
+
 ## [0.1.0-alpha.32] — Phase 21 Wave 2: YAML (structured tree) — *unreleased*
 
 - **21.6 — YAML adapter + economic court.** Non-default, dependency-free

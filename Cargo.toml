@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.32"
+version = "0.1.0-alpha.33"
 edition = "2024"
 rust-version = "1.89"
 description = "Persistent procedural document runtime: byte-exact reconstruction plus a content-addressed procedural seed DAG, queryable observations with provenance, and selective late materialization."
@@ -273,6 +273,19 @@ json = []
 # `.voldoc` bytes and exactness is untouched. Dependency-free (`yaml = []`) and
 # never in `default`.
 yaml = []
+# Phase 21.7.1: the CSV/TSV adapter — the first **tabular** Wave-2 format (the
+# same feature covers both comma- and tab-separated files). Like JSON/YAML it is
+# not a package (no OPC/ZIP layer): the exact leaf is the whole source (a
+# `DocumentExact`, RAW-like authority) and every derived observation is a bounded,
+# span-preserving (`Q_gen`) projection of it. It adds a bounded, streaming RFC 4180
+# CSV + TSV parser that preserves representation — exact record/field byte spans,
+# the recorded dialect (delimiter/quote/line terminator/BOM), original quoting
+# (quotes and `""` escapes kept), embedded delimiters/newlines, ragged rows, blank
+# lines, and the header row — and detects a table conservatively (no magic bytes;
+# a plain-text blob stays Opaque). It adds **no** decoder behavior: the CSV model is
+# never on the exactness path, so enabling it never changes `.voldoc` bytes and
+# exactness is untouched. Dependency-free (`csv = []`) and never in `default`.
+csv = []
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores. `quick-xml` only; adds **no** decoder behavior and is
 # never in `default` on its own (it is implied by `opc` and `epub`).
