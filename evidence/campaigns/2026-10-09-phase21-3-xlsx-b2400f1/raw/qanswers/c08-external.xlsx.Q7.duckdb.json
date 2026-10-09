@@ -1,0 +1,1 @@
+{"decline": {"code": "no-chart-linkage", "detail": "the columnar projection carries no chart or chart data reference"}, "declined": true, "detail": {}, "lane": "duckdb", "native": true, "q": "Q7", "value": null}

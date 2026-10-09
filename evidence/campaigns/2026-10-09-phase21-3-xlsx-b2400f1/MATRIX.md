@@ -1,0 +1,112 @@
+# Phase 21.1.3 — cross-lane Q1–Q10 answer matrix
+
+Derived / declined per lane, and the VOLE-vs-comparator equivalence. `g` = answered (derived), `D` = typed decline, `-` = not applicable.
+
+| fixture | Q | VOLE | SQLite | DuckDB | VOLE↔SQLite | VOLE↔DuckDB |
+|---|---|---|---|---|---|---|
+| c01-basic.xlsx | Q1 | g | g | g | equal | equal |
+| c01-basic.xlsx | Q2 | g | g | g | equal | equal |
+| c01-basic.xlsx | Q3 | D | g | g | capability-gap | capability-gap |
+| c01-basic.xlsx | Q4 | g | g | g | equal | equal |
+| c01-basic.xlsx | Q5 | g | g | g | equal | equal |
+| c01-basic.xlsx | Q6 | g | g | g | equal | equal |
+| c01-basic.xlsx | Q7 | D | D | D | both-decline | both-decline |
+| c01-basic.xlsx | Q8 | g | g | D | equal | capability-gap |
+| c01-basic.xlsx | Q9 | D | D | D | both-decline | both-decline |
+| c01-basic.xlsx | Q10 | g | g | D | equal | capability-gap |
+| c02-shared-table.xlsx | Q1 | g | g | g | equal | equal |
+| c02-shared-table.xlsx | Q2 | g | g | g | equal | equal |
+| c02-shared-table.xlsx | Q3 | D | g | g | capability-gap | capability-gap |
+| c02-shared-table.xlsx | Q4 | g | g | g | equal | equal |
+| c02-shared-table.xlsx | Q5 | g | g | g | equal | equal |
+| c02-shared-table.xlsx | Q6 | g | g | g | equal | equal |
+| c02-shared-table.xlsx | Q7 | D | g | D | capability-gap | both-decline |
+| c02-shared-table.xlsx | Q8 | g | g | D | equal | capability-gap |
+| c02-shared-table.xlsx | Q9 | g | g | D | equal | capability-gap |
+| c02-shared-table.xlsx | Q10 | g | g | D | equal | capability-gap |
+| c03-multisheet.xlsx | Q1 | g | g | g | equal | equal |
+| c03-multisheet.xlsx | Q2 | g | g | g | equal | equal |
+| c03-multisheet.xlsx | Q3 | D | g | g | capability-gap | capability-gap |
+| c03-multisheet.xlsx | Q4 | g | g | g | equal | equal |
+| c03-multisheet.xlsx | Q5 | g | g | g | equal | equal |
+| c03-multisheet.xlsx | Q6 | g | g | g | equal | equal |
+| c03-multisheet.xlsx | Q7 | D | D | D | both-decline | both-decline |
+| c03-multisheet.xlsx | Q8 | g | g | D | equal | capability-gap |
+| c03-multisheet.xlsx | Q9 | D | D | D | both-decline | both-decline |
+| c03-multisheet.xlsx | Q10 | g | g | D | equal | capability-gap |
+| c04-styles.xlsx | Q1 | g | g | g | equal | equal |
+| c04-styles.xlsx | Q2 | g | g | g | equal | equal |
+| c04-styles.xlsx | Q3 | D | g | g | capability-gap | capability-gap |
+| c04-styles.xlsx | Q4 | g | g | g | equal | equal |
+| c04-styles.xlsx | Q5 | g | g | g | equal | equal |
+| c04-styles.xlsx | Q6 | g | g | g | equal | equal |
+| c04-styles.xlsx | Q7 | D | D | D | both-decline | both-decline |
+| c04-styles.xlsx | Q8 | g | g | D | equal | capability-gap |
+| c04-styles.xlsx | Q9 | D | D | D | both-decline | both-decline |
+| c04-styles.xlsx | Q10 | g | g | D | equal | capability-gap |
+| c05-wide.xlsx | Q1 | g | g | g | equal | equal |
+| c05-wide.xlsx | Q2 | g | g | g | equal | equal |
+| c05-wide.xlsx | Q3 | D | g | g | capability-gap | capability-gap |
+| c05-wide.xlsx | Q4 | g | g | g | equal | equal |
+| c05-wide.xlsx | Q5 | g | g | g | equal | equal |
+| c05-wide.xlsx | Q6 | g | g | g | equal | equal |
+| c05-wide.xlsx | Q7 | D | g | D | capability-gap | both-decline |
+| c05-wide.xlsx | Q8 | g | g | D | equal | capability-gap |
+| c05-wide.xlsx | Q9 | g | g | D | equal | capability-gap |
+| c05-wide.xlsx | Q10 | g | g | D | equal | capability-gap |
+| c06-large.xlsx | Q1 | g | g | g | equal | equal |
+| c06-large.xlsx | Q2 | g | g | g | equal | equal |
+| c06-large.xlsx | Q3 | D | g | g | capability-gap | capability-gap |
+| c06-large.xlsx | Q4 | g | g | g | equal | equal |
+| c06-large.xlsx | Q5 | g | g | g | equal | equal |
+| c06-large.xlsx | Q6 | g | g | g | equal | equal |
+| c06-large.xlsx | Q7 | D | D | D | both-decline | both-decline |
+| c06-large.xlsx | Q8 | g | g | D | equal | capability-gap |
+| c06-large.xlsx | Q9 | D | D | D | both-decline | both-decline |
+| c06-large.xlsx | Q10 | g | g | D | equal | capability-gap |
+| c07-merges.xlsx | Q1 | g | g | g | equal | equal |
+| c07-merges.xlsx | Q2 | g | g | g | equal | equal |
+| c07-merges.xlsx | Q3 | D | g | g | capability-gap | capability-gap |
+| c07-merges.xlsx | Q4 | g | g | g | equal | equal |
+| c07-merges.xlsx | Q5 | g | g | g | equal | equal |
+| c07-merges.xlsx | Q6 | g | g | g | equal | equal |
+| c07-merges.xlsx | Q7 | D | D | D | both-decline | both-decline |
+| c07-merges.xlsx | Q8 | g | g | D | equal | capability-gap |
+| c07-merges.xlsx | Q9 | D | D | D | both-decline | both-decline |
+| c07-merges.xlsx | Q10 | g | g | D | equal | capability-gap |
+| c08-external.xlsx | Q1 | g | g | g | equal | equal |
+| c08-external.xlsx | Q2 | g | g | g | equal | equal |
+| c08-external.xlsx | Q3 | D | g | g | capability-gap | capability-gap |
+| c08-external.xlsx | Q4 | g | g | g | equal | equal |
+| c08-external.xlsx | Q5 | g | g | g | equal | equal |
+| c08-external.xlsx | Q6 | g | g | g | equal | equal |
+| c08-external.xlsx | Q7 | D | g | D | capability-gap | both-decline |
+| c08-external.xlsx | Q8 | g | g | D | equal | capability-gap |
+| c08-external.xlsx | Q9 | g | g | D | equal | capability-gap |
+| c08-external.xlsx | Q10 | g | g | D | equal | capability-gap |
+
+### Aggregate equivalence per Q
+
+| Q | comparator | equal | both-decline | capability-gap | mismatch | shape |
+|---|---|---:|---:|---:|---:|---:|
+| Q1 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q1 | duckdb | 8 | 0 | 0 | 0 | 0 |
+| Q2 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q2 | duckdb | 8 | 0 | 0 | 0 | 0 |
+| Q3 | sqlite | 0 | 0 | 8 | 0 | 0 |
+| Q3 | duckdb | 0 | 0 | 8 | 0 | 0 |
+| Q4 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q4 | duckdb | 8 | 0 | 0 | 0 | 0 |
+| Q5 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q5 | duckdb | 8 | 0 | 0 | 0 | 0 |
+| Q6 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q6 | duckdb | 8 | 0 | 0 | 0 | 0 |
+| Q7 | sqlite | 0 | 5 | 3 | 0 | 0 |
+| Q7 | duckdb | 0 | 8 | 0 | 0 | 0 |
+| Q8 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q8 | duckdb | 0 | 0 | 8 | 0 | 0 |
+| Q9 | sqlite | 3 | 5 | 0 | 0 | 0 |
+| Q9 | duckdb | 0 | 5 | 3 | 0 | 0 |
+| Q10 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q10 | duckdb | 0 | 0 | 8 | 0 | 0 |
+

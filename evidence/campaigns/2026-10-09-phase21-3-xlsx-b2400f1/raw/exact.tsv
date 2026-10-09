@@ -1,0 +1,9 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+c01-basic.xlsx	true	true	true	true	true	3597	28936
+c02-shared-table.xlsx	true	true	true	true	true	3647	28521
+c03-multisheet.xlsx	true	true	true	true	true	3760	28494
+c04-styles.xlsx	true	true	true	true	true	3577	28704
+c05-wide.xlsx	true	true	true	true	true	4679	28687
+c06-large.xlsx	true	true	true	true	true	5949	29107
+c07-merges.xlsx	true	true	true	true	true	3541	28260
+c08-external.xlsx	true	true	true	true	true	3480	28382

@@ -1,0 +1,151 @@
+{
+  "campaign": "evidence/campaigns/2026-10-09-phase21-3-xlsx-b2400f1",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "d2ed881568ddcc62ee27bc3eebd7d5c9607fc4cd8d3221dff6aed3757d40c470",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-09-phase21-3-xlsx-b2400f1",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "80a6f5b83cf23098ed2533db4a34a0bf2ea481e29972aaa77353e39d713ae6fd",
+    "derives_from": "doc-baseline (same pinned base digest)",
+    "duckdb_version": "1.5.6",
+    "duckdb_wheel_sha256": "73b108c04c932b36c2fa4e41110cc1c3c8cd510eb49f065f92d050be8e6929fd (cp311 x86_64); 56c0f71c6bee982e9c30568bb12371bf66b26bf129c75d8d7f60bc69d6590a2c (cp311 aarch64)",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "c01-basic.xlsx": {
+        "len": 5069,
+        "sha256": "732b63fac061c16235294a0562b00e39a639bb8014da04cbcf582799883c8bd4"
+      },
+      "c02-shared-table.xlsx": {
+        "len": 17929,
+        "sha256": "4907562ff075b9b261ece56148ce29190a71859518f32975fbd5a1dbf3dd3f8c"
+      },
+      "c03-multisheet.xlsx": {
+        "len": 7581,
+        "sha256": "ed9bb73f21121310378d32618b545b4252b9c9a9c47b48e37036a2f44d046845"
+      },
+      "c04-styles.xlsx": {
+        "len": 4056,
+        "sha256": "49135af9157100f5c4084787764590b66d4fcccc4eb84f39c3406fee63fe8819"
+      },
+      "c05-wide.xlsx": {
+        "len": 18282,
+        "sha256": "67d18061a4cf69da2eed533e137bbff15786f120e20cd06ce22782721846e7c0"
+      },
+      "c06-large.xlsx": {
+        "len": 575628,
+        "sha256": "4d0aea0752815764d1c3e1ff1689647f6c4b42e1882d0b247f0bf96a477a7f32"
+      },
+      "c07-merges.xlsx": {
+        "len": 4511,
+        "sha256": "d60300e97076522ce3afce3f9acba036adb6c82c89f5d7e202e47960a53f5e60"
+      },
+      "c08-external.xlsx": {
+        "len": 6330,
+        "sha256": "9aadd6036f7a6ed33e831e6048f376320a525977b065421c20c544f48bf17063"
+      }
+    },
+    "measured_commit": "b2400f1eed051e1dcd8a9bdb63e29740452c2cde",
+    "phase": "21.1.3 \u2014 XLSX economic court (VOLE vs SQLite vs DuckDB)",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 5967,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "analytical",
+    "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M tools/fixtures/make-xlsx.py ?? evidence/campaigns/2026-10-09-phase21-3-xlsx-b2400f1/ ?? tools/fixtures/phase21-3-xlsx-baseline.py ?? tools/fixtures/phase21-3-xlsx-duckdb.py ?? tools/fixtures/phase21-3-xlsx-vole.py ?? tools/phase21-3-xlsx-court.sh ",
+    "utc": "2026-10-09T00:53:45Z",
+    "vole_substrate": "--profile runtime --packed (packed seed segments in store/fieldpack/)"
+  },
+  "equivalence": {
+    "Q1.duckdb": {
+      "equal": 8
+    },
+    "Q1.sqlite": {
+      "equal": 8
+    },
+    "Q10.duckdb": {
+      "capability-gap": 8
+    },
+    "Q10.sqlite": {
+      "equal": 8
+    },
+    "Q2.duckdb": {
+      "equal": 8
+    },
+    "Q2.sqlite": {
+      "equal": 8
+    },
+    "Q3.duckdb": {
+      "capability-gap": 8
+    },
+    "Q3.sqlite": {
+      "capability-gap": 8
+    },
+    "Q4.duckdb": {
+      "equal": 8
+    },
+    "Q4.sqlite": {
+      "equal": 8
+    },
+    "Q5.duckdb": {
+      "equal": 8
+    },
+    "Q5.sqlite": {
+      "equal": 8
+    },
+    "Q6.duckdb": {
+      "equal": 8
+    },
+    "Q6.sqlite": {
+      "equal": 8
+    },
+    "Q7.duckdb": {
+      "both-decline": 8
+    },
+    "Q7.sqlite": {
+      "both-decline": 5,
+      "capability-gap": 3
+    },
+    "Q8.duckdb": {
+      "capability-gap": 8
+    },
+    "Q8.sqlite": {
+      "equal": 8
+    },
+    "Q9.duckdb": {
+      "both-decline": 5,
+      "capability-gap": 3
+    },
+    "Q9.sqlite": {
+      "both-decline": 5,
+      "equal": 3
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 21310); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 8,
+  "exact_ok": 8,
+  "fixtures": [
+    "c01-basic.xlsx",
+    "c02-shared-table.xlsx",
+    "c03-multisheet.xlsx",
+    "c04-styles.xlsx",
+    "c05-wide.xlsx",
+    "c06-large.xlsx",
+    "c07-merges.xlsx",
+    "c08-external.xlsx"
+  ],
+  "lanes": [
+    "vole",
+    "sqlite",
+    "duckdb"
+  ],
+  "phase": "21.1.3 \u2014 XLSX economic court (VOLE vs SQLite vs DuckDB)",
+  "verdict": "PASS"
+}
