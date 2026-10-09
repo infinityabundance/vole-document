@@ -1,0 +1,17 @@
+docker compose run --rm --no-TTY doc-baseline bash tools/phase21-5-json-court.sh
+# PROFILE defaults to release (target/release/vole-document).
+# Inside the court:
+#   cargo build --release --locked --all-features
+#   python3 tools/fixtures/make-json.py --corpus $WORK/corpus
+#   VOLE:   $BIN field-build F.json --store STORE --voldoc F.voldoc --profile runtime --packed
+#           python3 tools/fixtures/phase21-5-json-vole.py run --bin $BIN --store STORE --field HEX --plan ... --outdir ... --packed
+#           rm source + descriptor ; $BIN materialize --store STORE --field HEX --exact --packed --output OUT ; cmp OUT source
+#   SQLite: python3 tools/fixtures/phase21-5-json-baseline.py build --source F.json --db D
+#           python3 tools/fixtures/phase21-5-json-baseline.py query --db D --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-5-json-baseline.py session --db D --queries Q1..Q8 --plan ... --out OUT
+#           python3 tools/fixtures/phase21-5-json-baseline.py materialize --db D --out OUT
+#   aggregate: python3 tools/fixtures/phase21-5-json-baseline.py aggregate --raw RAW --campaign CAMPAIGN --env ENV
+# Full dev gate:
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features

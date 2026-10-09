@@ -427,6 +427,16 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["OdpModel", "PackageMemberRaw", "PackageMemberDecoded"]),
             will_not_materialize: kinds(&["other-parts", "whole-document"]),
         }),
+        #[cfg(feature = "json")]
+        (Selector::JsonPointer { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::JsonNode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::JsonFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["JsonModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-nodes", "whole-document"]),
+        }),
         _ => Err(Error::unsupported_feature(format!(
             "unsupported observation: selector {} with representation {}",
             req.selector.canonical(),
@@ -540,6 +550,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
             "PackageMemberDecoded",
             "PackageMemberRaw",
         ],
+        DocumentFormat::Json => &["JsonModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

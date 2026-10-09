@@ -1,0 +1,9 @@
+{
+  "name": "basic",
+  "count": 3,
+  "nested": {"a": [1, 2, {"b": true, "c": null}],
+             "d": "x"},
+	"list": [ 1,	2 , 3 ],
+  "empty_obj": {},
+  "empty_arr": []
+}

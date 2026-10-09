@@ -249,6 +249,17 @@ xlsx = ["opc"]
 # spans, so enabling it never changes `.voldoc` bytes and exactness is untouched.
 # Never in `default`.
 pptx = ["opc"]
+# Phase 21.5.1: the JSON adapter — the first **Wave-2 structured-tree** format. JSON
+# is not a package (no OPC/ZIP layer, no `mimetype`, no relationships): the exact
+# leaf is the whole source (a `DocumentExact`, RAW-like authority) and every derived
+# observation is a bounded, span-preserving (`Q_gen`) projection of it. It adds a
+# bounded JSON parser that preserves representation (exact byte spans, member
+# order, whitespace spans, numeric spelling, string-escape spelling, and duplicate
+# keys) and a canonical derived model. It adds **no** decoder behavior: the JSON
+# model is never on the exactness path, so enabling it never changes `.voldoc`
+# bytes and exactness is untouched. Dependency-free (`json = []`) and never in
+# `default`.
+json = []
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores. `quick-xml` only; adds **no** decoder behavior and is
 # never in `default` on its own (it is implied by `opc` and `epub`).

@@ -29,6 +29,10 @@
 //!   ODT/ODS (a presentation declares the presentation media type).
 //! * **Opaque** — everything else, including a ZIP that matches none of the above
 //!   (or more than one — an ambiguous ZIP fails safe).
+//! * **JSON** — the whole source parses as exactly one JSON value within the
+//!   JSON caps (Phase 21.5.1). JSON is a Wave-2 structured-tree format with no
+//!   package layer, so it is detected directly (never via `detect_zip_family`);
+//!   a malformed or oversized input stays `Opaque`.
 //!
 //! The detected format is recorded in the field manifest's provenance (a
 //! machine-readable `format=<name>;` prefix, see [`DocumentFormat::from_provenance`]),
@@ -116,6 +120,9 @@ pub enum DocumentFormat {
     Xlsx,
     /// An OPC package with a PresentationML presentation part.
     Pptx,
+    /// A structured JSON document (the whole source parses as exactly one JSON
+    /// value). Not a package: the exact leaf is the whole source (Phase 21.5.1).
+    Json,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -132,6 +139,7 @@ impl DocumentFormat {
             DocumentFormat::Odp => "odp",
             DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Pptx => "pptx",
+            DocumentFormat::Json => "json",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -147,6 +155,7 @@ impl DocumentFormat {
             DocumentFormat::Odp => "odp",
             DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Pptx => "pptx",
+            DocumentFormat::Json => "json",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -162,6 +171,7 @@ impl DocumentFormat {
             DocumentFormat::Odp => cfg!(feature = "odp"),
             DocumentFormat::Xlsx => cfg!(feature = "xlsx"),
             DocumentFormat::Pptx => cfg!(feature = "pptx"),
+            DocumentFormat::Json => cfg!(feature = "json"),
         }
     }
 
@@ -187,6 +197,7 @@ impl DocumentFormat {
             "odp" => Some(DocumentFormat::Odp),
             "xlsx" => Some(DocumentFormat::Xlsx),
             "pptx" => Some(DocumentFormat::Pptx),
+            "json" => Some(DocumentFormat::Json),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -206,6 +217,14 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
         if let Some(format) = detect_zip_family(source, limits) {
             return format;
         }
+    }
+    // JSON is a Wave-2 structured-tree format with **no** package layer, so it is
+    // detected directly from the whole source (never through `detect_zip_family`).
+    // Conservative: the entire source must parse as exactly one JSON value within
+    // the JSON caps, else the input stays Opaque (Phase 21.5.1).
+    #[cfg(feature = "json")]
+    if crate::adapter::json::detect(source, limits) {
+        return DocumentFormat::Json;
     }
     DocumentFormat::Opaque
 }
@@ -395,6 +414,7 @@ mod tests {
             DocumentFormat::Odp,
             DocumentFormat::Xlsx,
             DocumentFormat::Pptx,
+            DocumentFormat::Json,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

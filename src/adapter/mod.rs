@@ -8,6 +8,8 @@
 pub mod docx;
 #[cfg(feature = "epub")]
 pub mod epub;
+#[cfg(feature = "json")]
+pub mod json;
 #[cfg(feature = "odp")]
 pub mod odp;
 #[cfg(feature = "ods")]

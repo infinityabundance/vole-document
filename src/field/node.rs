@@ -162,6 +162,13 @@ pub enum NodeKind {
     /// The OpenDocument styles part (`styles.xml`) parsed into its bounded style and
     /// master-page model. Derived, never exact (Phase 21.4.1).
     OdpStyles = 0x26,
+    /// The canonical, representation-preserving JSON structured-tree model
+    /// (Phase 21.5.1): every token's exact source span, member order, duplicate
+    /// keys, and token spelling. It is derived on demand from the exact source
+    /// (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060). JSON has no package layer. Derived, never
+    /// exact.
+    JsonModel = 0x27,
 }
 
 impl NodeKind {
@@ -206,6 +213,7 @@ impl NodeKind {
             0x24 => NodeKind::OdpModel,
             0x25 => NodeKind::OdpContent,
             0x26 => NodeKind::OdpStyles,
+            0x27 => NodeKind::JsonModel,
             _ => return None,
         })
     }
@@ -251,6 +259,7 @@ impl NodeKind {
             NodeKind::OdpModel => "OdpModel",
             NodeKind::OdpContent => "OdpContent",
             NodeKind::OdpStyles => "OdpStyles",
+            NodeKind::JsonModel => "JsonModel",
         }
     }
 
