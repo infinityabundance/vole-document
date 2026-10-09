@@ -61,6 +61,8 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | XLSX adapter (OPC surface + exact closure) | exact 2/2 | `evidence/campaigns/2026-10-08-phase21-1-xlsx-4d26514/` |
 | XLSX semantic model + exact closure | exact 3/3 | `evidence/campaigns/2026-10-09-phase21-2-xlsx-5802be9/` |
 | XLSX economic court (vs source-retaining SQLite + DuckDB/Parquet) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-xlsx-b2400f1/` |
+| PPTX adapter (OPC/PresentationML + exact closure + model) | exact 5/5 | `evidence/campaigns/2026-10-09-phase21-2-pptx-8aab956/` |
+| PPTX economic court (vs source-retaining SQLite) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-pptx-054ce93/` |
 
 See [Status ledger](../project/status.md) for the full mechanism table and
 [Conformance](../reference/conformance.md) for the courts.
@@ -94,11 +96,33 @@ and a reference to a missing part all decline typed; a metadata observation for
 an optional part that is simply absent answers an explicit absence at exit 0.
 See [Formats/XLSX](../formats/xlsx.md) and [ADR-0059](../adr/0059-xlsx-adapter-and-analytical-comparator.md).
 
+## PPTX (PresentationML)
+
+PPTX enters through the shared OPC layer (ADR-0030) with a **PresentationML**
+native model. The `pptx = ["opc"]` feature is **non-default**; detection is
+byte-based (a positive PresentationML main-part content type) and mutually
+exclusive with DOCX/XLSX, so a Word or Excel document that embeds a deck is not
+misclassified.
+
+| Property | PPTX |
+|---|---|
+| Byte-based detection | OPC ZIP package declaring the PresentationML main content type (`...presentationml.presentation.main+xml`) |
+| Physical authority | shared byte-authoritative ZIP; exact leaf is the raw member span |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `table`, `cell` |
+| Native observations | `pptx-slide` (`--slide N`), `pptx-shape`, `pptx-notes`, `pptx-layouts`, `pptx-masters`, `pptx-theme`, `pptx-media`, `pptx-tables`, `pptx-find` |
+| `Page(n)` | — typed decline (slides are addressed by `--slide`, never synthesized) |
+
+Slide order comes from `p:sldIdLst`, never `slideN.xml` file-name order. Every
+non-exactness answer is a derived projection (`exact == false`); chart data is not
+parsed (the slide exposes the chart *reference*). See [Formats/PPTX](../formats/pptx.md).
+
 ## Feature gates
 
 The default build is `default = ["rans", "store", "field"]`. The ZIP/DOCX/EPUB/ODT
 adapters need `package,opc,docx,epub,odt`; the XLSX adapter needs `package,opc,xlsx`
-(the non-default `xlsx = ["opc"]` feature). `deflate-replay` is opt-in (pulls LGPL
+and the PPTX adapter `package,opc,pptx` (the non-default `xlsx`/`pptx` features).
+`deflate-replay` is opt-in (pulls LGPL
 `cabac`). A descriptor that needs a capability the build lacks sets a mandatory
 feature bit and fails closed with `unsupported-feature` (exit 6).
 
@@ -120,6 +144,6 @@ ADR-0053); `--promote` is refuted on the tested corpus and default-off (ADR-0046
 
 ## Not supported
 
-Containers beyond PDF/DOCX/EPUB/ODT/XLSX (e.g. PPTX, ODS, ODP) are `PROPOSED`,
+Containers beyond PDF/DOCX/EPUB/ODT/XLSX/PPTX (e.g. ODS, ODP) are `PROPOSED`,
 not implemented (see [Roadmap](../project/roadmap.md)). Any source that is not a
 recognized format still round-trips exactly through the opaque `RAW` lane.

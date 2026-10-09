@@ -75,7 +75,9 @@ vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--p
     --metadata | --doc-text | --heading N | --block N | --table N | --cell T:R:C |
     --resource N | --link N | --spine-item N | --text PATTERN |
     --sheet N | --xlsx-cell A1 [--sheet N] | --xlsx-styles | --xlsx-defined-names |
-    --xlsx-external-rels | --xlsx-comments | --xlsx-hyperlinks | --xlsx-tables | --xlsx-drawing)
+    --xlsx-external-rels | --xlsx-comments | --xlsx-hyperlinks | --xlsx-tables | --xlsx-drawing |
+    --slide N | --pptx-shape N | --pptx-notes N | --pptx-layouts | --pptx-masters |
+    --pptx-theme | --pptx-media N | --pptx-tables | --pptx-find PATTERN)
     --kind KIND
 vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
     [--requests FILE|-] [--repeat N]
@@ -97,6 +99,11 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
   `--xlsx-external-rels`) need the non-default `xlsx` feature; a build without it
   reports XLSX `Opaque`. A cell's stored formula, cached result, displayed value,
   style, and XML span are separate fields; formulas are never evaluated (ADR-0059).
+- The PPTX selectors (`--slide`, `--pptx-shape`, `--pptx-notes`, `--pptx-layouts`,
+  `--pptx-masters`, `--pptx-theme`, `--pptx-media`, `--pptx-tables`, `--pptx-find`)
+  need the non-default `pptx` feature. Slide order comes from `p:sldIdLst`, never
+  `slideN.xml` file order; chart data is not evaluated (`--slide` exposes the
+  chart *reference*).
 - `field-ingest` inverse-proceduralizes one `.voldoc` into a persistent field
   and prints its field id (`HEX`) and roots. The format is detected from bytes.
 - `observe` / `find` / `explain` / `preview` answer typed observations with

@@ -3,7 +3,8 @@
 Phase 12 makes the field format-universal across PDF, DOCX and EPUB: three
 native inverse compilers converge on one `DocumentField` with common
 observations and retained native structure. Phase 13.3 adds a fourth, ODT
-(OpenDocument), and Phase 21.1 a fifth, XLSX (SpreadsheetML). “Universal” means the observation
+(OpenDocument), Phase 21.1 a fifth, XLSX (SpreadsheetML), and Phase 21.2 a sixth,
+PPTX (PresentationML). “Universal” means the observation
 vocabulary is shared, not that every format is supported.
 
 ## Three representational layers (ADR-0029)
@@ -109,6 +110,19 @@ problem preserves the exact bytes and declines only the decode.
 - Progressive inversion; exact leaves stay the 12.2 member raw spans. No intrinsic
   pages: `Page(n)` is a typed decline.
 
+## PPTX adapter (ADR-0059/0060)
+
+- OPC package; gated behind the **non-default** `pptx = ["opc"]` feature.
+  Presentation part resolved semantically from `[Content_Types].xml` + rels; slide
+  order from `p:sldIdLst` (never `slideN.xml` order).
+- Shape tree: text shapes/run-level text, pictures (`a:blip` → media), graphic
+  frames (embedded `a:tbl` / chart rel), groups (bounded recursion), connectors;
+  notes, layouts, masters, themes, media, tables. Embedded-table text is part of
+  the deck text projection.
+- Chart data is not parsed (the reference is exposed); a decoded slide/shape XML
+  digest is not exposed. Progressive inversion; exact leaves stay the 12.2 member
+  raw spans.
+
 ## Shared vocabulary (ADR-0031)
 
 Common selectors/representations are added additively: `metadata`, `text`,
@@ -136,6 +150,7 @@ tagged `format=<fmt>;common;<native>`.
 | Lifetime + ablation ladder | small-doc win; A1 wins large frontier | `evidence/campaigns/2026-10-06-phase12-lifetime-ablations-06db12a/` |
 | XLSX adapter / semantic model | exact 2/2 · 3/3 | `evidence/campaigns/2026-10-08-phase21-1-xlsx-4d26514/`, `…/2026-10-09-phase21-2-xlsx-5802be9/` |
 | XLSX economic court (vs SQLite + DuckDB/Parquet) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-xlsx-b2400f1/` |
+| PPTX adapter / economic court | exact 5/5 · 8/8 | `evidence/campaigns/2026-10-09-phase21-2-pptx-8aab956/`, `…/2026-10-09-phase21-3-pptx-054ce93/` |
 
 Interpretation. The ablation ladder attributes the small-document win to the
 content adapters (A4→A5) and to persistent semantic reuse (A5→A6, which trades
@@ -162,4 +177,5 @@ flatters VOLE. Cross-document durable work reuse is a recorded negative
 [0033](../adr/0033-epub-adapter-scope.md),
 [0035](../adr/0035-phase12-lifetime-benchmark.md),
 [0038](../adr/0038-odt-adapter-scope.md),
-[0059](../adr/0059-xlsx-adapter-and-analytical-comparator.md).
+[0059](../adr/0059-xlsx-adapter-and-analytical-comparator.md),
+[0060](../adr/0060-source-scoped-node-identity.md).

@@ -2,7 +2,7 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
-## [0.1.0-alpha.30] — Phase 21.1: XLSX (SpreadsheetML) adapter + economic court
+## [0.1.0-alpha.30] — Phase 21.1 + 21.2: XLSX and PPTX adapters + economic courts
 
 Opens the Phase-21 **format programme** by adding the fifth document format, XLSX,
 over the shared byte-authoritative OPC/ZIP layer, and judging it on the
@@ -34,6 +34,29 @@ equal-contract capability/cost frontier rather than by format count. Plan:
 - **Pinned analytical comparator.** New opt-in, hard-capped `analytical` service
   (same pinned base digest as `doc-baseline`) with a hash-pinned duckdb 1.5.6 wheel;
   smoke court `tools/phase21-3-analytical-smoke.sh`.
+- **21.2.1 — PPTX (PresentationML) adapter.** Non-default `pptx = ["opc"]`
+  feature; byte-based detection mutually exclusive with DOCX/XLSX. Bounded model:
+  slide order from `p:sldIdLst` (never `slideN.xml` order), shapes (text/run-level,
+  pictures→media, embedded tables, groups, connectors), notes, layouts, masters,
+  themes, media. Native `--slide`, `--pptx-shape`, `--pptx-notes`, `--pptx-layouts`,
+  `--pptx-masters`, `--pptx-theme`, `--pptx-media`, `--pptx-tables`, `--pptx-find`.
+  Exactness 5/5. `2026-10-09-phase21-2-pptx-8aab956`.
+- **21.2.3 — the PPTX economic court.** 8 deterministic decks; Q1–Q8 vs a
+  source-retaining SQLite baseline (PPTX is not tabular, so no DuckDB lane).
+  Paired medians: build **0.879×** (4/4/0), storage **0.967×**, cold **0.094×**,
+  warm **0.447×**; exactness 8/8. `2026-10-09-phase21-3-pptx-054ce93`.
+
+### Fixed (21.2.1 — from an independent audit; ADR-0060)
+
+- **Source-scoped node identity.** Several nodes that read the source bytes
+  (`DocumentExact`, `SourceSlice`, `PdfObject`/`PdfRevision`/`PdfStreamEncoded`,
+  `PackageRoot`, `PackageMemberRaw`) did not include a source-identity input, so the
+  derived cache (keyed on `NodeId` alone, shared across fields) could serve one
+  document's bytes for another when two fields shared a store. Fixed by keying
+  exact roots on `sha256(source)` and making span nodes depend on the root; this
+  also makes field ids independent of store contents. Symptoms fixed: a PPTX deck's
+  common text collapsing to one slide, and `--byte-range --kind exact` returning
+  another field's bytes.
 
 ### Fixed (21.1.2b — from an independent adversarial audit)
 
