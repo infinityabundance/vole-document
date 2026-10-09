@@ -2,7 +2,7 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
-## [0.1.0-alpha.30] — Phase 21.1 + 21.2: XLSX and PPTX adapters + economic courts
+## [0.1.0-alpha.30] — Phase 21.1 + 21.2 + 21.3: XLSX, PPTX and ODS adapters + economic courts
 
 Opens the Phase-21 **format programme** by adding the fifth document format, XLSX,
 over the shared byte-authoritative OPC/ZIP layer, and judging it on the
@@ -45,6 +45,18 @@ equal-contract capability/cost frontier rather than by format count. Plan:
   source-retaining SQLite baseline (PPTX is not tabular, so no DuckDB lane).
   Paired medians: build **0.879×** (4/4/0), storage **0.967×**, cold **0.094×**,
   warm **0.447×**; exactness 8/8. `2026-10-09-phase21-3-pptx-054ce93`.
+- **21.3.1 — ODS (OpenDocument Spreadsheet) adapter.** Non-default `ods = ["opc"]`
+  feature over the ODF substrate (like ODT): `office:body/office:spreadsheet` —
+  sheets/rows/cells with typed values + displayed text + stored formula + style kept
+  distinct, merges, repeated cells/rows (bounded: a bomb declines typed before
+  allocation), named expressions, styles, comments. Native `--ods-sheet`,
+  `--ods-cell`, `--ods-styles`, `--ods-named-expressions`, `--ods-comments`,
+  `--ods-find`. Exactness 8/8. `2026-10-09-phase21-3-ods-ef26d97`.
+- **21.3.2 — the ODS economic court.** 8 deterministic workbooks; Q1–Q10 vs a
+  source-retaining SQLite baseline **and** a DuckDB/Parquet comparator. Paired
+  medians: build **0.708×** SQLite / **0.334×** DuckDB (8/0/0), storage **0.175×**
+  SQLite (8/0/0) but **1.356×** DuckDB, warm **0.477×** SQLite. Exactness 8/8.
+  `2026-10-09-phase21-3-2-ods-3dd5827`.
 
 ### Fixed (21.2.1 — from an independent audit; ADR-0060)
 

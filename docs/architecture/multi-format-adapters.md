@@ -3,8 +3,9 @@
 Phase 12 makes the field format-universal across PDF, DOCX and EPUB: three
 native inverse compilers converge on one `DocumentField` with common
 observations and retained native structure. Phase 13.3 adds a fourth, ODT
-(OpenDocument), Phase 21.1 a fifth, XLSX (SpreadsheetML), and Phase 21.2 a sixth,
-PPTX (PresentationML). “Universal” means the observation
+(OpenDocument), Phase 21.1 a fifth, XLSX (SpreadsheetML), Phase 21.2 a sixth,
+PPTX (PresentationML), and Phase 21.3 a seventh, ODS (OpenDocument Spreadsheet).
+“Universal” means the observation
 vocabulary is shared, not that every format is supported.
 
 ## Three representational layers (ADR-0029)
@@ -123,6 +124,17 @@ problem preserves the exact bytes and declines only the decode.
   digest is not exposed. Progressive inversion; exact leaves stay the 12.2 member
   raw spans.
 
+## ODS adapter (ADR-0060)
+
+- OpenDocument (ODF) package over the shared ZIP layer (not OPC), like ODT; main
+  part from `META-INF/manifest.xml`; non-default `ods` feature.
+- `office:body/office:spreadsheet`: sheets, rows, cells (typed value + displayed
+  text + stored formula + style, never conflated), merges, repeated cells/rows
+  (bounded — a bomb declines typed before allocation), named expressions, styles,
+  comments.
+- Formulas never evaluated; no ODS-native resource/media selector (recorded gap).
+  Progressive inversion; exact leaves stay the 12.2 member raw spans.
+
 ## Shared vocabulary (ADR-0031)
 
 Common selectors/representations are added additively: `metadata`, `text`,
@@ -151,6 +163,7 @@ tagged `format=<fmt>;common;<native>`.
 | XLSX adapter / semantic model | exact 2/2 · 3/3 | `evidence/campaigns/2026-10-08-phase21-1-xlsx-4d26514/`, `…/2026-10-09-phase21-2-xlsx-5802be9/` |
 | XLSX economic court (vs SQLite + DuckDB/Parquet) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-xlsx-b2400f1/` |
 | PPTX adapter / economic court | exact 5/5 · 8/8 | `evidence/campaigns/2026-10-09-phase21-2-pptx-8aab956/`, `…/2026-10-09-phase21-3-pptx-054ce93/` |
+| ODS adapter / economic court | exact 8/8 · 8/8 | `evidence/campaigns/2026-10-09-phase21-3-ods-ef26d97/`, `…/2026-10-09-phase21-3-2-ods-3dd5827/` |
 
 Interpretation. The ablation ladder attributes the small-document win to the
 content adapters (A4→A5) and to persistent semantic reuse (A5→A6, which trades

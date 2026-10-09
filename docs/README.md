@@ -32,6 +32,7 @@ Per-format authority boundaries, native inverse representation, and exactness.
 - [ODT](formats/odt.md)
 - [XLSX](formats/xlsx.md)
 - [PPTX](formats/pptx.md)
+- [ODS](formats/ods.md)
 
 ## Reference
 
@@ -63,8 +64,8 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   model-based power-loss proxy),
   [Phase 25](phases/phase-25-results.md) (durability corrections: directory
   ancestry + unpublished-segment recovery); **in progress**:
-  [Phase 21](phases/phase-21-plan.md) (format programme — **21.1 XLSX complete** and
-  **21.2 PPTX complete**: adapter + economic court; 21.3 ODS, 21.4 ODP planned); the Phase 22
+  [Phase 21](phases/phase-21-plan.md) (format programme — **21.1 XLSX**, **21.2 PPTX**
+  and **21.3 ODS** complete: adapter + economic court each; 21.4 ODP planned); the Phase 22
   programme is pre-registered in
   [phase-22-plan.md](phases/phase-22-plan.md).
 - [Independent reviews](reviews/) — adversarial skeptic findings.

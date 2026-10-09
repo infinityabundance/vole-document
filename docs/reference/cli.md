@@ -77,7 +77,9 @@ vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--p
     --sheet N | --xlsx-cell A1 [--sheet N] | --xlsx-styles | --xlsx-defined-names |
     --xlsx-external-rels | --xlsx-comments | --xlsx-hyperlinks | --xlsx-tables | --xlsx-drawing |
     --slide N | --pptx-shape N | --pptx-notes N | --pptx-layouts | --pptx-masters |
-    --pptx-theme | --pptx-media N | --pptx-tables | --pptx-find PATTERN)
+    --pptx-theme | --pptx-media N | --pptx-tables | --pptx-find PATTERN |
+    --ods-sheet N | --ods-cell A1 [--ods-sheet N] | --ods-styles | --ods-named-expressions |
+    --ods-comments | --ods-find PATTERN)
     --kind KIND
 vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
     [--requests FILE|-] [--repeat N]
@@ -104,6 +106,10 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
   need the non-default `pptx` feature. Slide order comes from `p:sldIdLst`, never
   `slideN.xml` file order; chart data is not evaluated (`--slide` exposes the
   chart *reference*).
+- The ODS selectors (`--ods-sheet`, `--ods-cell`, `--ods-styles`,
+  `--ods-named-expressions`, `--ods-comments`, `--ods-find`) need the non-default
+  `ods` feature. A cell's stored formula, typed value, displayed text, style and
+  XML span are separate fields; formulas are never evaluated.
 - `field-ingest` inverse-proceduralizes one `.voldoc` into a persistent field
   and prints its field id (`HEX`) and roots. The format is detected from bytes.
 - `observe` / `find` / `explain` / `preview` answer typed observations with

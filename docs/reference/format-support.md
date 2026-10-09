@@ -63,6 +63,8 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | XLSX economic court (vs source-retaining SQLite + DuckDB/Parquet) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-xlsx-b2400f1/` |
 | PPTX adapter (OPC/PresentationML + exact closure + model) | exact 5/5 | `evidence/campaigns/2026-10-09-phase21-2-pptx-8aab956/` |
 | PPTX economic court (vs source-retaining SQLite) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-pptx-054ce93/` |
+| ODS adapter (ODF surface + model) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-ods-ef26d97/` |
+| ODS economic court (vs source-retaining SQLite + DuckDB/Parquet) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-2-ods-3dd5827/` |
 
 See [Status ledger](../project/status.md) for the full mechanism table and
 [Conformance](../reference/conformance.md) for the courts.
@@ -117,11 +119,31 @@ Slide order comes from `p:sldIdLst`, never `slideN.xml` file-name order. Every
 non-exactness answer is a derived projection (`exact == false`); chart data is not
 parsed (the slide exposes the chart *reference*). See [Formats/PPTX](../formats/pptx.md).
 
+## ODS (OpenDocument Spreadsheet)
+
+ODS enters through the bounded OpenDocument (ODF) inverse over the shared ZIP
+layer (not OPC), exactly like ODT. The `ods = ["opc"]` feature is **non-default**.
+
+| Property | ODS |
+|---|---|
+| Byte-based detection | ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`) declares `application/vnd.oasis.opendocument.spreadsheet` |
+| Physical authority | shared byte-authoritative ZIP; exact leaf is the raw member span |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `table`, `cell`, `find` |
+| Native observations | `ods-sheet` (`--ods-sheet N`), `ods-cell`, `ods-styles`, `ods-named-expressions`, `ods-comments`, `ods-find` |
+| `Page(n)` | — typed decline (no intrinsic pagination) |
+
+A cell's stored formula, typed value, displayed text, style, and XML span are
+separate fields; formulas are never evaluated. `table:number-columns-repeated`/
+`-rows-repeated` expansion is bounded (a bomb declines typed before allocation).
+See [Formats/ODS](../formats/ods.md).
+
 ## Feature gates
 
 The default build is `default = ["rans", "store", "field"]`. The ZIP/DOCX/EPUB/ODT
 adapters need `package,opc,docx,epub,odt`; the XLSX adapter needs `package,opc,xlsx`
-and the PPTX adapter `package,opc,pptx` (the non-default `xlsx`/`pptx` features).
+and the PPTX adapter `package,opc,pptx` (the non-default `xlsx`/`pptx` features);
+the ODS adapter needs `package,opc,ods`.
 `deflate-replay` is opt-in (pulls LGPL
 `cabac`). A descriptor that needs a capability the build lacks sets a mandatory
 feature bit and fails closed with `unsupported-feature` (exit 6).
@@ -144,6 +166,6 @@ ADR-0053); `--promote` is refuted on the tested corpus and default-off (ADR-0046
 
 ## Not supported
 
-Containers beyond PDF/DOCX/EPUB/ODT/XLSX/PPTX (e.g. ODS, ODP) are `PROPOSED`,
+Containers beyond PDF/DOCX/EPUB/ODT/XLSX/PPTX/ODS (e.g. ODP) are `PROPOSED`,
 not implemented (see [Roadmap](../project/roadmap.md)). Any source that is not a
 recognized format still round-trips exactly through the opaque `RAW` lane.
