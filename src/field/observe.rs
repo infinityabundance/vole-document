@@ -41,6 +41,11 @@ use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageD
 use crate::adapter::odt::{
     Block as OdtBlock, ContentModel as OdtContentModel, OdtExtractProfile, OdtModel,
 };
+#[cfg(feature = "pptx")]
+use crate::adapter::pptx::{
+    NotesModel as PptxNotesModel, PptxExtractProfile, PptxModel, PptxShape, PptxTable,
+    PresentationModel as PptxPresentationModel, SlideModel as PptxSlideModel,
+};
 #[cfg(feature = "xlsx")]
 use crate::adapter::xlsx::{
     SheetModel as XlsxSheetModel, WorkbookModel as XlsxWorkbookModel, XlsxExtractProfile, XlsxModel,
@@ -57,6 +62,8 @@ use crate::field::index::SEL_EPUB_MODEL;
 use crate::field::index::SEL_ODT_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
+#[cfg(feature = "pptx")]
+use crate::field::index::SEL_PPTX_MODEL;
 #[cfg(feature = "xlsx")]
 use crate::field::index::SEL_XLSX_MODEL;
 use crate::field::index::{
@@ -414,6 +421,67 @@ pub enum Selector {
         /// The 0-based workbook-order sheet index.
         sheet: u32,
     },
+    /// One PPTX slide by 0-based presentation-order index (Phase 21.2.1). Hidden
+    /// slides are still addressable by index; the profile only governs whether a
+    /// whole-deck projection includes them.
+    #[cfg(feature = "pptx")]
+    PptxSlide {
+        /// The 0-based presentation-order slide index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: PptxExtractProfile,
+    },
+    /// One PPTX shape, addressed by slide index and a flattened pre-order shape
+    /// index. A shape's text and its kind are a distinct observation from the
+    /// slide's XML span.
+    #[cfg(feature = "pptx")]
+    PptxShape {
+        /// The 0-based presentation-order slide index.
+        slide: u32,
+        /// The flattened pre-order shape index within the slide.
+        index: u32,
+        /// The extraction profile identity.
+        profile: PptxExtractProfile,
+    },
+    /// One PPTX notes slide by 0-based notes-part index (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxNotes {
+        /// The 0-based notes-slide index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: PptxExtractProfile,
+    },
+    /// The presentation's slide-layout parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxLayouts,
+    /// The presentation's slide-master parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxMasters,
+    /// The presentation's theme parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxTheme,
+    /// A PPTX media resource by 0-based ordinal (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxMedia {
+        /// The 0-based media-part index.
+        ordinal: u32,
+    },
+    /// The embedded tables of one slide (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxTables {
+        /// The 0-based presentation-order slide index.
+        slide: u32,
+        /// The extraction profile identity.
+        profile: PptxExtractProfile,
+    },
+    /// A lexical text search over slides (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The extraction profile identity.
+        profile: PptxExtractProfile,
+    },
 }
 
 impl Selector {
@@ -604,6 +672,39 @@ impl Selector {
             Selector::XlsxTables { sheet } => format!("xlsx-tables:{sheet}"),
             #[cfg(feature = "xlsx")]
             Selector::XlsxDrawing { sheet } => format!("xlsx-drawing:{sheet}"),
+            #[cfg(feature = "pptx")]
+            Selector::PptxSlide { index, profile } => {
+                format!("pptx-slide:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "pptx")]
+            Selector::PptxShape {
+                slide,
+                index,
+                profile,
+            } => format!(
+                "pptx-shape:{slide}:{index};profile={}",
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "pptx")]
+            Selector::PptxNotes { index, profile } => {
+                format!("pptx-notes:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "pptx")]
+            Selector::PptxLayouts => "pptx-layouts".to_string(),
+            #[cfg(feature = "pptx")]
+            Selector::PptxMasters => "pptx-masters".to_string(),
+            #[cfg(feature = "pptx")]
+            Selector::PptxTheme => "pptx-theme".to_string(),
+            #[cfg(feature = "pptx")]
+            Selector::PptxMedia { ordinal } => format!("pptx-media:{ordinal}"),
+            #[cfg(feature = "pptx")]
+            Selector::PptxTables { slide, profile } => {
+                format!("pptx-tables:{slide};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "pptx")]
+            Selector::PptxFind { pattern, profile } => {
+                format!("pptx-find:{pattern};profile={}", profile.fingerprint())
+            }
         }
     }
 
@@ -1876,7 +1977,7 @@ fn opt_u8_json(v: Option<u8>) -> String {
     }
 }
 
-#[cfg(any(feature = "docx", feature = "odt", feature = "xlsx"))]
+#[cfg(any(feature = "docx", feature = "odt", feature = "xlsx", feature = "pptx"))]
 fn opt_str_json(v: Option<&str>) -> String {
     match v {
         Some(s) => format!("\"{}\"", json_escape(s)),
@@ -1884,7 +1985,7 @@ fn opt_str_json(v: Option<&str>) -> String {
     }
 }
 
-#[cfg(feature = "xlsx")]
+#[cfg(any(feature = "xlsx", feature = "pptx"))]
 fn opt_u32_json(v: Option<u32>) -> String {
     match v {
         Some(n) => n.to_string(),
@@ -1935,7 +2036,11 @@ impl<S: SeedStore> Ctx<'_, S> {
             | NodeKind::OdtContent
             | NodeKind::XlsxModel
             | NodeKind::XlsxWorkbook
-            | NodeKind::XlsxSheet => {
+            | NodeKind::XlsxSheet
+            | NodeKind::PptxModel
+            | NodeKind::PptxPresentation
+            | NodeKind::PptxSlide
+            | NodeKind::PptxNotes => {
                 self.stats.xml_parses = self.stats.xml_parses.saturating_add(1);
             }
             _ => {}
@@ -2262,6 +2367,42 @@ impl<S: SeedStore> Ctx<'_, S> {
                 Selector::XlsxDrawing { sheet },
                 R::Metadata | R::Structure | R::ExactBytes | R::DecodedBytes,
             ) => self.xlsx_drawing(req, *sheet),
+            #[cfg(feature = "pptx")]
+            (Selector::PptxSlide { index, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.pptx_slide(req, *index, profile)
+            }
+            #[cfg(feature = "pptx")]
+            (
+                Selector::PptxShape {
+                    slide,
+                    index,
+                    profile,
+                },
+                R::Text | R::Structure | R::Metadata,
+            ) => self.pptx_shape(req, *slide, *index, profile),
+            #[cfg(feature = "pptx")]
+            (Selector::PptxNotes { index, profile }, R::Text | R::Metadata) => {
+                self.pptx_notes(req, *index, profile)
+            }
+            #[cfg(feature = "pptx")]
+            (Selector::PptxLayouts, R::Metadata | R::Structure) => self.pptx_layouts(req),
+            #[cfg(feature = "pptx")]
+            (Selector::PptxMasters, R::Metadata | R::Structure) => self.pptx_masters(req),
+            #[cfg(feature = "pptx")]
+            (Selector::PptxTheme, R::Metadata | R::Structure) => self.pptx_theme(req),
+            #[cfg(feature = "pptx")]
+            (
+                Selector::PptxMedia { ordinal },
+                R::Metadata | R::Structure | R::ExactBytes | R::DecodedBytes,
+            ) => self.pptx_media(req, *ordinal),
+            #[cfg(feature = "pptx")]
+            (Selector::PptxTables { slide, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.pptx_tables(req, *slide, profile)
+            }
+            #[cfg(feature = "pptx")]
+            (Selector::PptxFind { pattern, profile }, R::Text) => {
+                self.pptx_find(req, pattern, profile)
+            }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
                 req.selector.canonical(),
@@ -2319,11 +2460,16 @@ impl<S: SeedStore> Ctx<'_, S> {
         let end = offset
             .checked_add(len)
             .ok_or_else(|| Error::usage("byte-range end overflows"))?;
+        // A `SourceSlice`'s output is `source[offset..offset+len]`, so its span
+        // coordinates alone are not an identity: the field's exact-authority root
+        // (source-scoped) is a dependency, so the same `(offset, len)` in two
+        // different sources gets **distinct** ids and can never alias in the
+        // shared derived cache.
         let node = SeedNode::new(
             NodeKind::SourceSlice,
             len,
             span_params(offset, len),
-            Vec::new(),
+            vec![self.manifest.root_node],
             "field:observe;source-slice",
         );
         let bytes = self.materialize(&node)?;
@@ -5368,6 +5514,806 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// PPTX (Phase 21.2.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "pptx")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the PPTX discovery model (derived, `Q_gen`).
+    fn pptx_model(&mut self) -> Result<PptxModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_PPTX_MODEL, 0), "PPTX model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        PptxModel::decode(&bytes)
+    }
+
+    /// Materialize and decode the parsed presentation inventory.
+    fn pptx_presentation(&mut self) -> Result<PptxPresentationModel> {
+        let model = self.pptx_model()?;
+        let part = model.presentation.clone();
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "PPTX presentation decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::PptxPresentation,
+            self.limits.max_output_bytes,
+            crate::adapter::pptx::presentation_params(part.ordinal, &part.name),
+            vec![dec.node_id],
+            "pptx:presentation",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        PptxPresentationModel::decode(&bytes)
+    }
+
+    /// Resolve the slide part for a 0-based presentation-order index.
+    fn pptx_slide_part(
+        &self,
+        model: &PptxModel,
+        pres: &PptxPresentationModel,
+        index: u32,
+    ) -> Result<crate::adapter::pptx::PptxPartRef> {
+        let s = pres.slides.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no slide {index}"))
+        })?;
+        if let Some(rid) = s.rel_id.as_deref()
+            && let Some(m) = model
+                .slides
+                .iter()
+                .find(|m| m.rel_id.as_deref() == Some(rid))
+        {
+            return Ok(m.part.clone());
+        }
+        model
+            .slides
+            .get(index as usize)
+            .map(|m| m.part.clone())
+            .ok_or_else(|| Error::unsupported_feature(format!("presentation has no slide {index}")))
+    }
+
+    /// Parse one slide into its derived [`PptxSlideModel`], persisting the canonical
+    /// result in the disposable cache. Only that slide's part is decoded.
+    #[allow(clippy::type_complexity)]
+    fn pptx_slide_view(
+        &mut self,
+        index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<(
+        PptxSlideModel,
+        crate::adapter::pptx::PptxPartRef,
+        Option<(u64, u64)>,
+        Vec<NodeId>,
+    )> {
+        let model = self.pptx_model()?;
+        let pres = self.pptx_presentation()?;
+        let part = self.pptx_slide_part(&model, &pres, index)?;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "PPTX slide decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let span = self
+            .lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal))?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)));
+        let mut node = SeedNode::new(
+            NodeKind::PptxSlide,
+            self.limits.max_output_bytes,
+            crate::adapter::pptx::slide_params(part.ordinal, &part.name, profile),
+            vec![dec.node_id],
+            "pptx:slide",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        let slide = PptxSlideModel::decode(&bytes)?;
+        Ok((slide, part, span, vec![node.content_id(), dec.node_id]))
+    }
+
+    /// The presentation-order indices of the slides a whole-deck projection would
+    /// visit (all of them; hidden slides are filtered after each is parsed).
+    fn pptx_slide_count(&mut self) -> Result<u32> {
+        let pres = self.pptx_presentation()?;
+        Ok(pres.slides.len() as u32)
+    }
+
+    /// Resolve the notes-slide parts (content type `…presentationml.notesSlide+xml`).
+    fn pptx_notes_parts(&mut self) -> Result<Vec<crate::adapter::pptx::PptxPartRef>> {
+        let opc = self.opc_model()?;
+        let mut parts: Vec<crate::adapter::pptx::PptxPartRef> = opc
+            .parts
+            .iter()
+            .filter(|p| {
+                p.content_type
+                    .as_deref()
+                    .is_some_and(|ct| ct.ends_with("presentationml.notesSlide+xml"))
+            })
+            .map(|p| crate::adapter::pptx::PptxPartRef {
+                name: p.name.clone(),
+                ordinal: p.ordinal,
+                content_type: p.content_type.clone(),
+            })
+            .collect();
+        parts.sort_by(|a, b| {
+            a.name
+                .to_ascii_lowercase()
+                .cmp(&b.name.to_ascii_lowercase())
+        });
+        Ok(parts)
+    }
+
+    /// Parse one notes slide into its derived [`PptxNotesModel`].
+    #[allow(clippy::type_complexity)]
+    fn pptx_notes_view(
+        &mut self,
+        index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<(
+        PptxNotesModel,
+        crate::adapter::pptx::PptxPartRef,
+        Option<(u64, u64)>,
+        Vec<NodeId>,
+    )> {
+        let parts = self.pptx_notes_parts()?;
+        if parts.len() as u64 > u64::from(self.limits.max_pptx_notes) {
+            return Err(Error::resource_limit(
+                "presentation has more notes slides than max_pptx_notes",
+            ));
+        }
+        let part = parts.get(index as usize).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no notes slide {index}"))
+        })?;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "PPTX notes decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let span = self
+            .lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal))?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)));
+        let mut node = SeedNode::new(
+            NodeKind::PptxNotes,
+            self.limits.max_output_bytes,
+            crate::adapter::pptx::notes_params(part.ordinal, &part.name, profile),
+            vec![dec.node_id],
+            "pptx:notes",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        let notes = PptxNotesModel::decode(&bytes)?;
+        Ok((notes, part, span, vec![node.content_id(), dec.node_id]))
+    }
+
+    /// The notes text attached to a slide, resolved through the slide's
+    /// relationships (`notesSlide`), when present.
+    fn pptx_slide_notes_text(
+        &mut self,
+        owner: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<Option<String>> {
+        let opc = self.opc_model()?;
+        let Some(rel) = opc
+            .part_rels
+            .iter()
+            .find(|(o, _)| *o == owner)
+            .and_then(|(_, rels)| {
+                rels.iter()
+                    .find(|r| r.rel_type == "notesSlide" || r.rel_type.ends_with("/notesSlide"))
+            })
+        else {
+            return Ok(None);
+        };
+        let Some(resolved) = rel.resolved.clone() else {
+            return Ok(None);
+        };
+        let Some(p) = opc.part_by_name(&resolved) else {
+            return Ok(None);
+        };
+        let ordinal = p.ordinal;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, ordinal),
+            "PPTX notes decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::PptxNotes,
+            self.limits.max_output_bytes,
+            crate::adapter::pptx::notes_params(ordinal, &resolved, profile),
+            vec![dec.node_id],
+            "pptx:notes",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        let notes = PptxNotesModel::decode(&bytes)?;
+        Ok(Some(notes.text))
+    }
+
+    fn pptx_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn pptx_slide(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (slide, part, span, deps) = self.pptx_slide_view(index, profile)?;
+        let provenance = format!(
+            "pptx;slide={index};part={};hidden={};profile={}",
+            part.name,
+            slide.hidden,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(slide.text()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"index\":{},\"part\":\"{}\",\"ordinal\":{},\"hidden\":{},",
+                    "\"shapes\":{},\"top_level\":{},\"tables\":{},\"text_len\":{},\"profile\":\"{}\"}}"
+                ),
+                index,
+                json_escape(&part.name),
+                part.ordinal,
+                slide.hidden,
+                slide.shape_count(),
+                slide.top_level_count(),
+                slide.tables.len(),
+                slide.text().len(),
+                profile.fingerprint()
+            )),
+            Representation::Structure => {
+                let shapes = slide
+                    .shapes
+                    .iter()
+                    .map(pptx_shape_json)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                AnswerValue::Json(format!(
+                    "{{\"index\":{index},\"hidden\":{},\"shapes\":[{shapes}]}}",
+                    slide.hidden
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+
+    fn pptx_shape(
+        &mut self,
+        req: &ObserveRequest,
+        slide_index: u32,
+        shape_index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (slide, part, span, deps) = self.pptx_slide_view(slide_index, profile)?;
+        let shape = slide
+            .shape_by_flat_index(shape_index)
+            .cloned()
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "slide {slide_index} ({}) has no shape {shape_index}",
+                    part.name
+                ))
+            })?;
+        let provenance = format!(
+            "pptx;slide={slide_index};shape={shape_index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(shape.text_deep()),
+            Representation::Metadata | Representation::Structure => {
+                AnswerValue::Json(pptx_shape_json(&shape))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+
+    fn pptx_notes(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (notes, part, span, deps) = self.pptx_notes_view(index, profile)?;
+        let provenance = format!(
+            "pptx;notes={index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(notes.text.clone()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"notes\":{index},\"part\":\"{}\",\"ordinal\":{},\"shapes\":{},\"text_len\":{},\"profile\":\"{}\"}}",
+                json_escape(&part.name),
+                part.ordinal,
+                notes.shapes,
+                notes.text.len(),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+
+    fn pptx_layouts(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.pptx_model()?;
+        let json = pptx_parts_json("layouts", &model.layouts);
+        Ok(self.pptx_answer(
+            req,
+            AnswerValue::Json(json),
+            "pptx;layouts".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    fn pptx_masters(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.pptx_model()?;
+        let json = pptx_parts_json("masters", &model.slide_masters);
+        Ok(self.pptx_answer(
+            req,
+            AnswerValue::Json(json),
+            "pptx;masters".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    fn pptx_theme(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.pptx_model()?;
+        let json = pptx_parts_json("themes", &model.themes);
+        Ok(self.pptx_answer(
+            req,
+            AnswerValue::Json(json),
+            "pptx;theme".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    fn pptx_media(&mut self, req: &ObserveRequest, ordinal: u32) -> Result<FieldAnswer> {
+        use Representation as R;
+        let model = self.pptx_model()?;
+        let part = model.media.get(ordinal as usize).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no media {ordinal}"))
+        })?;
+        match req.representation {
+            R::ExactBytes => self.indexed_exact(
+                req,
+                SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal),
+                "media part",
+            ),
+            R::DecodedBytes => self.member_decoded(req, part.ordinal),
+            R::Metadata | R::Structure => {
+                let json = format!(
+                    "{{\"media\":{ordinal},\"part\":\"{}\",\"ordinal\":{},\"contentType\":{}}}",
+                    json_escape(&part.name),
+                    part.ordinal,
+                    opt_str_json(part.content_type.as_deref())
+                );
+                Ok(self.pptx_answer(
+                    req,
+                    AnswerValue::Json(json),
+                    format!("pptx;media={ordinal}"),
+                    None,
+                    Vec::new(),
+                ))
+            }
+            _ => Err(unsupported_common(req)),
+        }
+    }
+
+    /// The `(slide_index, local_table_index)` of every embedded table across the
+    /// projected slides, in slide order.
+    fn pptx_table_refs(&mut self, profile: &PptxExtractProfile) -> Result<Vec<(u32, u32)>> {
+        let count = self.pptx_slide_count()?;
+        let mut out: Vec<(u32, u32)> = Vec::new();
+        for i in 0..count {
+            let (slide, _part, _span, _deps) = self.pptx_slide_view(i, profile)?;
+            if slide.hidden && !profile.include_hidden {
+                continue;
+            }
+            for local in 0..slide.tables.len() {
+                out.push((i, local as u32));
+            }
+        }
+        Ok(out)
+    }
+
+    fn pptx_tables(
+        &mut self,
+        req: &ObserveRequest,
+        slide_index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (slide, part, span, deps) = self.pptx_slide_view(slide_index, profile)?;
+        let provenance = format!(
+            "pptx;slide={slide_index};part={};tables;profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                let text = slide
+                    .tables
+                    .iter()
+                    .map(|t| t.text())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                AnswerValue::Text(text)
+            }
+            Representation::Metadata | Representation::Structure => {
+                let tables = slide
+                    .tables
+                    .iter()
+                    .map(pptx_table_json)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                AnswerValue::Json(format!(
+                    "{{\"slide\":{slide_index},\"part\":\"{}\",\"count\":{},\"tables\":[{tables}]}}",
+                    json_escape(&part.name),
+                    slide.tables.len()
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+
+    fn pptx_find(
+        &mut self,
+        req: &ObserveRequest,
+        pattern: &str,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let count = self.pptx_slide_count()?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for i in 0..count {
+            let (slide, _part, _span, _deps) = self.pptx_slide_view(i, profile)?;
+            if slide.hidden && !profile.include_hidden {
+                continue;
+            }
+            for shape in &slide.shapes {
+                let mut matched: Vec<&PptxShape> = Vec::new();
+                collect_matching_shapes(shape, pattern, &mut matched);
+                for s in matched {
+                    let t = s.text_deep();
+                    estimated = estimated.saturating_add(t.len() as u64 + 64);
+                    if estimated > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "PPTX find exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                    items.push(format!(
+                        "{{\"slide\":{i},\"shape\":{},\"kind\":\"{}\",\"text\":\"{}\"}}",
+                        s.index,
+                        s.kind.name(),
+                        json_escape(&t)
+                    ));
+                }
+            }
+        }
+        let provenance = format!("pptx;find;profile={}", profile.fingerprint());
+        Ok(self.pptx_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            None,
+            Vec::new(),
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PPTX common observations (Phase 21.2.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "pptx")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn common_pptx(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let profile = PptxExtractProfile::DEFAULT;
+        match &req.selector {
+            Selector::Metadata => self.pptx_common_metadata(req, &profile),
+            Selector::Text => self.pptx_common_text(req, &profile),
+            Selector::Table(i) => self.pptx_common_table(req, *i, &profile),
+            Selector::Cell { table, row, col } => {
+                self.pptx_common_cell(req, *table, *row, *col, &profile)
+            }
+            Selector::SearchMatch(p) => self.pptx_find(req, p, &profile),
+            other => Err(Error::unsupported_feature(format!(
+                "PPTX does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn pptx_common_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let model = self.pptx_model()?;
+        let pres = self.pptx_presentation()?;
+        let count = pres.slides.len() as u32;
+        let title = if count > 0 {
+            self.pptx_slide_view(0, profile)
+                .ok()
+                .and_then(|(s, _, _, _)| s.title())
+        } else {
+            None
+        };
+        let (cx, cy) = match pres.slide_size {
+            Some((cx, cy)) => (Some(cx), Some(cy)),
+            None => (None, None),
+        };
+        let json = format!(
+            concat!(
+                "{{\"format\":\"pptx\",\"presentation\":\"{}\",\"ordinal\":{},",
+                "\"slides\":{},\"slide_size_cx\":{},\"slide_size_cy\":{},\"title\":{},",
+                "\"masters\":{},\"layouts\":{},\"themes\":{},\"media\":{},\"profile\":\"{}\"}}"
+            ),
+            json_escape(&model.presentation.name),
+            model.presentation.ordinal,
+            count,
+            opt_u64_json(cx),
+            opt_u64_json(cy),
+            opt_str_json(title.as_deref()),
+            model.slide_masters.len(),
+            model.layouts.len(),
+            model.themes.len(),
+            model.media.len(),
+            profile.fingerprint()
+        );
+        let provenance = format!(
+            "pptx;presentation={};profile={}",
+            model.presentation.name,
+            profile.fingerprint()
+        );
+        Ok(self.pptx_answer(req, AnswerValue::Json(json), provenance, None, Vec::new()))
+    }
+
+    fn pptx_common_text(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let count = self.pptx_slide_count()?;
+        let mut out = String::new();
+        let mut slides: u64 = 0;
+        for i in 0..count {
+            let (slide, part, _span, _deps) = self.pptx_slide_view(i, profile)?;
+            if slide.hidden && !profile.include_hidden {
+                continue;
+            }
+            if !out.is_empty() {
+                out.push('\n');
+            }
+            out.push_str(&slide.text());
+            if profile.include_notes
+                && let Some(notes) = self.pptx_slide_notes_text(part.ordinal, profile)?
+                && !notes.is_empty()
+            {
+                out.push('\n');
+                out.push_str(&notes);
+            }
+            if out.len() as u64 > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "whole-deck text exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            slides += 1;
+        }
+        let provenance = format!("pptx;slides={slides};profile={}", profile.fingerprint());
+        Ok(self.pptx_answer(req, AnswerValue::Text(out), provenance, None, Vec::new()))
+    }
+
+    fn pptx_common_table(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let refs = self.pptx_table_refs(profile)?;
+        let (slide_index, local) = *refs.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("deck has no projected table {ordinal}"))
+        })?;
+        let (slide, part, span, deps) = self.pptx_slide_view(slide_index, profile)?;
+        let table = slide.tables.get(local as usize).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!("slide {slide_index} has no table {local}"))
+        })?;
+        let provenance = format!(
+            "pptx;slide={slide_index};table={local};ordinal={ordinal};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(table.text()),
+            Representation::Metadata => AnswerValue::Json(pptx_table_json(&table)),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+
+    fn pptx_common_cell(
+        &mut self,
+        req: &ObserveRequest,
+        table_ordinal: u32,
+        row: u32,
+        col: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let refs = self.pptx_table_refs(profile)?;
+        let (slide_index, local) = *refs.get(table_ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("deck has no projected table {table_ordinal}"))
+        })?;
+        let (slide, part, span, deps) = self.pptx_slide_view(slide_index, profile)?;
+        let table = slide.tables.get(local as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("slide {slide_index} has no table {local}"))
+        })?;
+        let r = table.rows.get(row as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("table {table_ordinal} has no row {row}"))
+        })?;
+        let c = r.cells.get(col as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("table {table_ordinal} row {row} has no cell {col}"))
+        })?;
+        let provenance = format!(
+            "pptx;slide={slide_index};table={local};row={row};col={col};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(c.text.clone()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"slide\":{},\"table\":{},\"row\":{},\"col\":{},",
+                    "\"grid_span\":{},\"row_span\":{},\"text_len\":{}}}"
+                ),
+                slide_index,
+                table_ordinal,
+                row,
+                col,
+                c.grid_span,
+                c.row_span,
+                c.text.len()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+}
+
+/// The JSON for one shape (recursive over group children).
+#[cfg(feature = "pptx")]
+fn pptx_shape_json(s: &PptxShape) -> String {
+    let table = match &s.table {
+        Some(t) => format!("{{\"rows\":{},\"cells\":{}}}", t.rows.len(), t.cell_count()),
+        None => "null".to_string(),
+    };
+    let children = s
+        .children
+        .iter()
+        .map(pptx_shape_json)
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        concat!(
+            "{{\"index\":{},\"kind\":\"{}\",\"name\":{},\"shapeId\":{},",
+            "\"placeholder\":{},\"text\":\"{}\",\"media\":{},\"chart\":{},",
+            "\"table\":{},\"children\":[{}]}}"
+        ),
+        s.index,
+        s.kind.name(),
+        opt_str_json(s.name.as_deref()),
+        opt_u32_json(s.shape_id),
+        opt_str_json(s.placeholder.as_deref()),
+        json_escape(&s.text),
+        opt_str_json(s.media_rel_id.as_deref()),
+        opt_str_json(s.chart_rel_id.as_deref()),
+        table,
+        children
+    )
+}
+
+/// The JSON for one embedded table.
+#[cfg(feature = "pptx")]
+fn pptx_table_json(t: &PptxTable) -> String {
+    let rows = t
+        .rows
+        .iter()
+        .map(|r| {
+            let cells = r
+                .cells
+                .iter()
+                .map(|c| {
+                    format!(
+                        "{{\"text\":\"{}\",\"gridSpan\":{},\"rowSpan\":{},\"hMerge\":{},\"vMerge\":{}}}",
+                        json_escape(&c.text),
+                        c.grid_span,
+                        c.row_span,
+                        c.h_merge,
+                        c.v_merge
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            format!("{{\"cells\":[{cells}]}}")
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"rows\":{},\"cells\":{},\"detail\":[{rows}]}}",
+        t.rows.len(),
+        t.cell_count()
+    )
+}
+
+/// The JSON for a list of parts (`layouts`/`masters`/`themes`).
+#[cfg(feature = "pptx")]
+fn pptx_parts_json(field: &str, parts: &[crate::adapter::pptx::PptxPartRef]) -> String {
+    let items = parts
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            format!(
+                "{{\"index\":{},\"part\":\"{}\",\"ordinal\":{},\"contentType\":{}}}",
+                i,
+                json_escape(&p.name),
+                p.ordinal,
+                opt_str_json(p.content_type.as_deref())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{{\"count\":{},\"{field}\":[{items}]}}", parts.len())
+}
+
+#[cfg(feature = "pptx")]
+fn opt_u64_json(v: Option<u64>) -> String {
+    match v {
+        Some(n) => n.to_string(),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "pptx")]
+fn collect_matching_shapes<'a>(s: &'a PptxShape, pattern: &str, out: &mut Vec<&'a PptxShape>) {
+    let own = s.own_text();
+    if !own.is_empty() && own.contains(pattern) {
+        out.push(s);
+    }
+    for c in &s.children {
+        collect_matching_shapes(c, pattern, out);
+    }
+}
+
 /// A JSON array of the (escaped) strings, used for the merged-range references.
 #[cfg(feature = "xlsx")]
 fn xlsx_str_array(items: &[String]) -> String {
@@ -5636,6 +6582,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Epub => self.common_epub(req)?,
             DocumentFormat::Odt => self.common_odt(req)?,
             DocumentFormat::Xlsx => self.common_xlsx(req)?,
+            DocumentFormat::Pptx => self.common_pptx(req)?,
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -5937,6 +6884,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_xlsx(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "XLSX observations require a build with the xlsx feature",
+        ))
+    }
+
+    #[cfg(not(feature = "pptx"))]
+    fn common_pptx(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "PPTX observations require a build with the pptx feature",
         ))
     }
 
@@ -6621,7 +7575,13 @@ impl<S: SeedStore> Ctx<'_, S> {
 
 /// The standard `unsupported observation` error for a common pair that reached a
 /// representation the capability guard admitted but the adapter does not serve.
-#[cfg(any(feature = "docx", feature = "epub", feature = "odt", feature = "xlsx"))]
+#[cfg(any(
+    feature = "docx",
+    feature = "epub",
+    feature = "odt",
+    feature = "xlsx",
+    feature = "pptx"
+))]
 fn unsupported_common(req: &ObserveRequest) -> Error {
     Error::unsupported_feature(format!(
         "unsupported observation: selector {} with representation {}",

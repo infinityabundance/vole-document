@@ -120,6 +120,22 @@ pub enum NodeKind {
     /// model, honoring a declared extraction profile and resolving shared strings
     /// from the decoded shared-strings member. Derived, never exact (Phase 21.1.1).
     XlsxSheet = 0x1C,
+    /// The canonical PPTX (PresentationML) discovery model (Phase 21.2.1): the main
+    /// presentation part (resolved via the `officeDocument` relationship and its
+    /// PresentationML content type), the notes/slide masters, the layouts, themes
+    /// and media parts, and the discovered slide parts. Derived on demand from the
+    /// canonical OPC model. Derived, never exact.
+    PptxModel = 0x1D,
+    /// The parsed `ppt/presentation.xml` slide inventory (slide size and the
+    /// `p:sldIdLst` order), parsed from the decoded presentation member. Derived,
+    /// never exact (Phase 21.2.1).
+    PptxPresentation = 0x1E,
+    /// One slide part (`ppt/slides/slideN.xml`) parsed into its bounded shape model,
+    /// honoring a declared extraction profile. Derived, never exact (Phase 21.2.1).
+    PptxSlide = 0x1F,
+    /// One notes-slide part (`ppt/notesSlides/notesSlideN.xml`) parsed into its
+    /// bounded text model. Derived, never exact (Phase 21.2.1).
+    PptxNotes = 0x20,
 }
 
 impl NodeKind {
@@ -154,6 +170,10 @@ impl NodeKind {
             0x1A => NodeKind::XlsxModel,
             0x1B => NodeKind::XlsxWorkbook,
             0x1C => NodeKind::XlsxSheet,
+            0x1D => NodeKind::PptxModel,
+            0x1E => NodeKind::PptxPresentation,
+            0x1F => NodeKind::PptxSlide,
+            0x20 => NodeKind::PptxNotes,
             _ => return None,
         })
     }
@@ -189,6 +209,10 @@ impl NodeKind {
             NodeKind::XlsxModel => "XlsxModel",
             NodeKind::XlsxWorkbook => "XlsxWorkbook",
             NodeKind::XlsxSheet => "XlsxSheet",
+            NodeKind::PptxModel => "PptxModel",
+            NodeKind::PptxPresentation => "PptxPresentation",
+            NodeKind::PptxSlide => "PptxSlide",
+            NodeKind::PptxNotes => "PptxNotes",
         }
     }
 

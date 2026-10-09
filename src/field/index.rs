@@ -129,6 +129,14 @@ pub const SEL_REVISION_LINEAGE: u8 = 14;
 /// and each worksheet's cell model are computed on demand from their decoded
 /// member nodes (no index entry of their own, mirroring `DocxStory`).
 pub const SEL_XLSX_MODEL: u8 = 15;
+/// Selector kind: the canonical PPTX (PresentationML) discovery model (Phase 21.2.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// PPTX presentation-part/masters/layouts/themes/media/slide discovery as `Q_gen`
+/// derived state, computed on demand from the OPC model. The parsed presentation
+/// inventory and each slide's shape model are computed on demand from their
+/// decoded member nodes (no index entry of their own, mirroring `XlsxSheet`).
+pub const SEL_PPTX_MODEL: u8 = 16;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

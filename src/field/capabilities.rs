@@ -148,6 +148,20 @@ const XLSX_NATIVE: &[&str] = &[
     "relationship",
     "member",
 ];
+const PPTX_NATIVE: &[&str] = &[
+    "pptx-slide",
+    "pptx-shape",
+    "pptx-notes",
+    "pptx-layouts",
+    "pptx-masters",
+    "pptx-theme",
+    "pptx-media",
+    "pptx-tables",
+    "pptx-find",
+    "package-part",
+    "relationship",
+    "member",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -242,6 +256,17 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 xlsx_profiles(),
                 XLSX_NATIVE.to_vec(),
             ),
+            DocumentFormat::Pptx => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                pptx_profiles(),
+                PPTX_NATIVE.to_vec(),
+            ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };
     Capabilities {
@@ -286,6 +311,15 @@ fn xlsx_profiles() -> Vec<String> {
 }
 #[cfg(not(feature = "xlsx"))]
 fn xlsx_profiles() -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(feature = "pptx")]
+fn pptx_profiles() -> Vec<String> {
+    vec![crate::adapter::pptx::PptxExtractProfile::DEFAULT.fingerprint()]
+}
+#[cfg(not(feature = "pptx"))]
+fn pptx_profiles() -> Vec<String> {
     Vec::new()
 }
 

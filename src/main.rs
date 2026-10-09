@@ -101,7 +101,10 @@ const USAGE_FIELD: &str = "\
         --block N | --table N | --cell T:R:C | --resource N | --link N |
         --spine-item N | --sheet N | --xlsx-cell A1 | --text PATTERN |
         --xlsx-styles | --xlsx-defined-names | --xlsx-external-rels |
-        --xlsx-comments | --xlsx-hyperlinks | --xlsx-tables | --xlsx-drawing) --kind metadata|text|structure|operators|
+        --xlsx-comments | --xlsx-hyperlinks | --xlsx-tables | --xlsx-drawing |
+        --slide N | --pptx-shape I | --pptx-notes N | --pptx-layouts |
+        --pptx-masters | --pptx-theme | --pptx-media N | --pptx-tables |
+        --pptx-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1496,6 +1499,34 @@ struct FieldArgs {
     /// `--xlsx-drawing`: the drawing of the `--sheet` worksheet (Phase 21.1.2).
     #[cfg(feature = "xlsx")]
     xlsx_drawing: bool,
+    /// The PPTX presentation-order slide index (`--slide N`, Phase 21.2.1). Also
+    /// used as the slide of `--pptx-shape`/`--pptx-tables` when given.
+    #[cfg(feature = "pptx")]
+    slide: Option<u32>,
+    /// The PPTX shape index (`--pptx-shape I`, flattened pre-order within `--slide`).
+    #[cfg(feature = "pptx")]
+    pptx_shape: Option<u32>,
+    /// The PPTX notes-slide index (`--pptx-notes N`, Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_notes: Option<u32>,
+    /// `--pptx-layouts`: the slide-layout parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_layouts: bool,
+    /// `--pptx-masters`: the slide-master parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_masters: bool,
+    /// `--pptx-theme`: the theme parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_theme: bool,
+    /// `--pptx-media N`: the N-th media resource (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_media: Option<u32>,
+    /// `--pptx-tables`: the embedded tables of the `--slide` slide (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_tables: bool,
+    /// `--pptx-find`: a lexical text search over slides (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -1766,6 +1797,58 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                 out.xlsx_drawing = true;
                 i += 1;
             }
+            #[cfg(feature = "pptx")]
+            "--slide" => {
+                out.slide = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--slide", inline)?,
+                    "--slide",
+                )?);
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-shape" => {
+                out.pptx_shape = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--pptx-shape", inline)?,
+                    "--pptx-shape",
+                )?);
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-notes" => {
+                out.pptx_notes = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--pptx-notes", inline)?,
+                    "--pptx-notes",
+                )?);
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-layouts" => {
+                out.pptx_layouts = true;
+                i += 1;
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-masters" => {
+                out.pptx_masters = true;
+                i += 1;
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-theme" => {
+                out.pptx_theme = true;
+                i += 1;
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-media" => {
+                out.pptx_media = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--pptx-media", inline)?,
+                    "--pptx-media",
+                )?);
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-tables" => {
+                out.pptx_tables = true;
+                i += 1;
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-find" => {
+                out.pptx_find = Some(field_arg_value(args, &mut i, "--pptx-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -1966,6 +2049,59 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         // consumed it, it is not added again.
         if !specific && let Some(index) = out.sheet {
             chosen.push(Selector::XlsxSheet { index, profile });
+        }
+    }
+    // PPTX: `--pptx-shape I` consumes `--slide N`; `--slide N` alone is the native
+    // slide selector. `--pptx-tables` consumes `--slide N`. The list selectors and
+    // `--pptx-notes`/`--pptx-media` stand alone.
+    #[cfg(feature = "pptx")]
+    {
+        let profile = vole_document::adapter::pptx::PptxExtractProfile::DEFAULT;
+        let slide = out.slide.unwrap_or(0);
+        let mut specific = false;
+        if out.pptx_layouts {
+            chosen.push(Selector::PptxLayouts);
+            specific = true;
+        }
+        if out.pptx_masters {
+            chosen.push(Selector::PptxMasters);
+            specific = true;
+        }
+        if out.pptx_theme {
+            chosen.push(Selector::PptxTheme);
+            specific = true;
+        }
+        if out.pptx_tables {
+            chosen.push(Selector::PptxTables { slide, profile });
+            specific = true;
+        }
+        if let Some(index) = out.pptx_notes {
+            chosen.push(Selector::PptxNotes { index, profile });
+            specific = true;
+        }
+        if let Some(ordinal) = out.pptx_media {
+            chosen.push(Selector::PptxMedia { ordinal });
+            specific = true;
+        }
+        if let Some(index) = out.pptx_shape {
+            chosen.push(Selector::PptxShape {
+                slide,
+                index,
+                profile,
+            });
+            specific = true;
+        }
+        if let Some(pattern) = &out.pptx_find {
+            chosen.push(Selector::PptxFind {
+                pattern: pattern.clone(),
+                profile,
+            });
+            specific = true;
+        }
+        // `--slide N` alone is the native slide selector; when another PPTX flag
+        // consumed it, it is not added again.
+        if !specific && let Some(index) = out.slide {
+            chosen.push(Selector::PptxSlide { index, profile });
         }
     }
     match chosen.len() {
@@ -2418,6 +2554,7 @@ fn package_ingest_json(r: &vole_document::field::ingest_package::PackageIngestRe
             "\"docx_model_nodes\":{},",
             "\"epub_model_nodes\":{},",
             "\"xlsx_model_nodes\":{},",
+            "\"pptx_model_nodes\":{},",
             "\"resource_blob_nodes\":{},",
             "\"shared_resource_ids\":{},",
             "\"shared_resource_bytes\":{},",
@@ -2441,6 +2578,7 @@ fn package_ingest_json(r: &vole_document::field::ingest_package::PackageIngestRe
         r.docx_model_nodes,
         r.epub_model_nodes,
         r.xlsx_model_nodes,
+        r.pptx_model_nodes,
         r.resource_blob_nodes,
         r.shared_resource_ids,
         r.shared_resource_bytes,

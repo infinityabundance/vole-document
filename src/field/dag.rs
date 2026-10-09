@@ -862,6 +862,132 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::PptxModel => {
+            // The canonical PPTX (PresentationML) discovery model is derived on
+            // demand from the canonical OPC model (the single dependency). XML
+            // parsing and all bounds live in `adapter::pptx`.
+            #[cfg(feature = "pptx")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PptxModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let opc_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::pptx::build_pptx_model(&opc_bytes, limits)?
+            }
+            #[cfg(not(feature = "pptx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "PPTX support is not compiled in (feature `pptx`)",
+                ));
+            }
+        }
+        NodeKind::PptxPresentation => {
+            // The parsed `ppt/presentation.xml` slide inventory. Its single
+            // dependency is the decoded presentation member; the parse is bounded
+            // in `adapter::pptx`.
+            #[cfg(feature = "pptx")]
+            {
+                let (_ordinal, part_name) =
+                    crate::adapter::pptx::read_presentation_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PptxPresentation has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                let presentation = crate::adapter::pptx::parse_presentation(&bytes, limits)?;
+                let _ = part_name;
+                presentation.encode()
+            }
+            #[cfg(not(feature = "pptx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "PPTX support is not compiled in (feature `pptx`)",
+                ));
+            }
+        }
+        NodeKind::PptxSlide => {
+            // One slide parsed into its bounded shape model. Its single dependency
+            // is the decoded slide member.
+            #[cfg(feature = "pptx")]
+            {
+                let (_ordinal, profile, part_name) =
+                    crate::adapter::pptx::read_slide_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PptxSlide has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::pptx::parse_slide(&bytes, &part_name, &profile, limits)?.encode()
+            }
+            #[cfg(not(feature = "pptx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "PPTX support is not compiled in (feature `pptx`)",
+                ));
+            }
+        }
+        NodeKind::PptxNotes => {
+            // One notes-slide parsed into its bounded text model. Its single
+            // dependency is the decoded notes member.
+            #[cfg(feature = "pptx")]
+            {
+                let (_ordinal, profile, part_name) =
+                    crate::adapter::pptx::read_notes_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PptxNotes has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::pptx::parse_notes(&bytes, &part_name, &profile, limits)?.encode()
+            }
+            #[cfg(not(feature = "pptx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "PPTX support is not compiled in (feature `pptx`)",
+                ));
+            }
+        }
         NodeKind::PdfStreamDecoded => {
             let dep = node
                 .deps

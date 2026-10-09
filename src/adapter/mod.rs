@@ -14,6 +14,8 @@ pub mod opaque;
 #[cfg(feature = "package")]
 pub mod package;
 pub mod pdf;
+#[cfg(feature = "pptx")]
+pub mod pptx;
 #[cfg(feature = "xlsx")]
 pub mod xlsx;
 

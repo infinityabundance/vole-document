@@ -170,9 +170,34 @@ pub struct Limits {
     /// Maximum 0-based row index accepted in a cell/row reference (Phase 21.1.2).
     ///
     /// The Excel-conformant grid is 1,048,576 rows tall (1..1048576), so a valid
-    /// 0-based row is `< 1 << 20`; a coordinate at or beyond this bound is a typed
-    /// resource-limit decline.
+    /// 0-based row is `< 1 << 20`; a coordinate at or beyond this bound is a
+    /// typed resource-limit decline.
     pub max_xlsx_row: u32,
+    // The PPTX/PresentationML caps below bound the derived semantic model
+    // (Phase 21.2.1). PPTX semantics are derived (`Q_gen`) only.
+    /// Maximum slides accepted in one presentation (Phase 21.2.1).
+    pub max_pptx_slides: u32,
+    /// Maximum shapes accepted in one slide's shape tree, including group
+    /// descendants (Phase 21.2.1).
+    pub max_pptx_shapes_per_slide: u32,
+    /// Maximum text runs (`a:t`) accepted in one slide (Phase 21.2.1).
+    pub max_pptx_text_runs: u32,
+    /// Maximum group-shape nesting depth accepted in one slide (Phase 21.2.1).
+    pub max_pptx_group_depth: u32,
+    /// Maximum media parts (images/audio/video) exposed by one presentation
+    /// (Phase 21.2.1).
+    pub max_pptx_media: u32,
+    /// Maximum embedded tables accepted in one slide (Phase 21.2.1).
+    pub max_pptx_tables: u32,
+    /// Maximum table cells accepted across one slide's tables (Phase 21.2.1).
+    pub max_pptx_table_cells: u32,
+    /// Maximum notes-slide parts accepted in one presentation (Phase 21.2.1).
+    pub max_pptx_notes: u32,
+    /// Maximum slide-layout parts accepted in one presentation (Phase 21.2.1).
+    pub max_pptx_layouts: u32,
+    /// Maximum slide-master parts accepted in one presentation, and the bound
+    /// applied to theme parts (Phase 21.2.1).
+    pub max_pptx_masters: u32,
 }
 
 impl Limits {
@@ -238,6 +263,16 @@ impl Limits {
         max_xlsx_style_records: 1 << 16,
         max_xlsx_col: 16384,
         max_xlsx_row: 1 << 20,
+        max_pptx_slides: 4096,
+        max_pptx_shapes_per_slide: 1 << 20,
+        max_pptx_text_runs: 1 << 22,
+        max_pptx_group_depth: 64,
+        max_pptx_media: 1 << 14,
+        max_pptx_tables: 1 << 14,
+        max_pptx_table_cells: 1 << 20,
+        max_pptx_notes: 1 << 16,
+        max_pptx_layouts: 1 << 14,
+        max_pptx_masters: 1 << 14,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -302,6 +337,16 @@ impl Limits {
         max_xlsx_style_records: 1 << 12,
         max_xlsx_col: 16384,
         max_xlsx_row: 1 << 20,
+        max_pptx_slides: 64,
+        max_pptx_shapes_per_slide: 1 << 16,
+        max_pptx_text_runs: 1 << 18,
+        max_pptx_group_depth: 16,
+        max_pptx_media: 1 << 12,
+        max_pptx_tables: 1 << 12,
+        max_pptx_table_cells: 1 << 16,
+        max_pptx_notes: 1 << 12,
+        max_pptx_layouts: 1 << 12,
+        max_pptx_masters: 1 << 12,
     };
 }
 

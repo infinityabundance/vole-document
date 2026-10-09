@@ -66,6 +66,15 @@ const XLSX_NS_FRAGMENT: &[u8] = b"spreadsheetml";
 /// A SpreadsheetML workbook part-target fragment (Phase 21.1.1).
 #[cfg(feature = "xlsx")]
 const XLSX_WORKBOOK_TARGET: &[u8] = b"xl/workbook.xml";
+/// The PresentationML presentation main content-type fragment (Phase 21.2.1).
+#[cfg(feature = "pptx")]
+const PPTX_MAIN_FRAGMENT: &[u8] = b"presentationml.presentation.main+xml";
+/// The PresentationML content-type namespace fragment (Phase 21.2.1).
+#[cfg(feature = "pptx")]
+const PPTX_NS_FRAGMENT: &[u8] = b"presentationml";
+/// The canonical PresentationML main-part target fragment (Phase 21.2.1).
+#[cfg(feature = "pptx")]
+const PPTX_MAIN_TARGET: &[u8] = b"ppt/presentation.xml";
 
 /// A detected document format (the class of the field's source bytes).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,6 +89,8 @@ pub enum DocumentFormat {
     Odt,
     /// An OPC package with a SpreadsheetML workbook part.
     Xlsx,
+    /// An OPC package with a PresentationML presentation part.
+    Pptx,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -93,6 +104,7 @@ impl DocumentFormat {
             DocumentFormat::Epub => "epub",
             DocumentFormat::Odt => "odt",
             DocumentFormat::Xlsx => "xlsx",
+            DocumentFormat::Pptx => "pptx",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -105,6 +117,7 @@ impl DocumentFormat {
             DocumentFormat::Epub => "epub",
             DocumentFormat::Odt => "odt",
             DocumentFormat::Xlsx => "xlsx",
+            DocumentFormat::Pptx => "pptx",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -117,6 +130,7 @@ impl DocumentFormat {
             DocumentFormat::Epub => cfg!(feature = "epub"),
             DocumentFormat::Odt => cfg!(feature = "odt"),
             DocumentFormat::Xlsx => cfg!(feature = "xlsx"),
+            DocumentFormat::Pptx => cfg!(feature = "pptx"),
         }
     }
 
@@ -139,6 +153,7 @@ impl DocumentFormat {
             "epub" => Some(DocumentFormat::Epub),
             "odt" => Some(DocumentFormat::Odt),
             "xlsx" => Some(DocumentFormat::Xlsx),
+            "pptx" => Some(DocumentFormat::Pptx),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -193,17 +208,17 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
     // exclusive without misclassifying a Word document that *embeds* an Excel
     // workbook (whose package declares SpreadsheetML content types for the
     // embedded part, but no SpreadsheetML workbook main part). Without `xlsx`
-    // the legacy relationship-only rule stands.
+    // and `pptx` the legacy relationship-only rule stands.
     let content_types = member_decoded(&physical, source, CONTENT_TYPES_MEMBER, limits);
     let rels = member_decoded(&physical, source, PACKAGE_RELS_MEMBER, limits);
-    #[cfg(feature = "xlsx")]
+    #[cfg(any(feature = "xlsx", feature = "pptx"))]
     let is_docx = content_types
         .as_deref()
         .is_some_and(|ct| contains(ct, DOCX_MAIN_FRAGMENT))
         || rels.as_deref().is_some_and(|r| {
             contains(r, OFFICE_DOCUMENT_FRAGMENT) && contains(r, DOCX_MAIN_TARGET)
         });
-    #[cfg(not(feature = "xlsx"))]
+    #[cfg(not(any(feature = "xlsx", feature = "pptx")))]
     let is_docx = content_types.is_some()
         && rels
             .as_deref()
@@ -222,6 +237,25 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
     #[cfg(not(feature = "xlsx"))]
     let is_xlsx = false;
 
+    // PPTX: an OPC package whose content types declare a PresentationML main part
+    // (or whose content types name PresentationML and whose `officeDocument`
+    // relationship targets `ppt/presentation.xml`). The positive PresentationML
+    // signal keeps it mutually exclusive with DOCX and XLSX: a Word/Excel document
+    // that *embeds* a PowerPoint part declares only the PresentationML embed type
+    // (`…presentationml.presentation`, not the `.main+xml` main part) and its
+    // `officeDocument` relationship targets `word/document.xml`/`xl/workbook.xml`,
+    // so it is never misclassified as PPTX.
+    #[cfg(feature = "pptx")]
+    let is_pptx = content_types.as_deref().is_some_and(|ct| {
+        contains(ct, PPTX_MAIN_FRAGMENT)
+            || (contains(ct, PPTX_NS_FRAGMENT)
+                && rels
+                    .as_deref()
+                    .is_some_and(|r| contains(r, PPTX_MAIN_TARGET)))
+    });
+    #[cfg(not(feature = "pptx"))]
+    let is_pptx = false;
+
     // ODT: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
     // declares an OpenDocument text media type.
     #[cfg(feature = "odt")]
@@ -235,7 +269,7 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
     let is_odt = false;
 
     // A ZIP matching more than one native signature is ambiguous: fail safe.
-    let matches = [is_docx, is_epub, is_odt, is_xlsx]
+    let matches = [is_docx, is_epub, is_odt, is_xlsx, is_pptx]
         .iter()
         .filter(|b| **b)
         .count();
@@ -244,6 +278,7 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
         1 if is_epub => Some(DocumentFormat::Epub),
         1 if is_odt => Some(DocumentFormat::Odt),
         1 if is_xlsx => Some(DocumentFormat::Xlsx),
+        1 if is_pptx => Some(DocumentFormat::Pptx),
         _ => None,
     }
 }
@@ -295,6 +330,7 @@ mod tests {
             DocumentFormat::Epub,
             DocumentFormat::Odt,
             DocumentFormat::Xlsx,
+            DocumentFormat::Pptx,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

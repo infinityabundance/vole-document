@@ -35,6 +35,8 @@ use crate::field::index::SEL_EPUB_MODEL;
 use crate::field::index::SEL_ODT_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
+#[cfg(feature = "pptx")]
+use crate::field::index::SEL_PPTX_MODEL;
 #[cfg(feature = "xlsx")]
 use crate::field::index::SEL_XLSX_MODEL;
 use crate::field::index::{
@@ -91,6 +93,9 @@ pub struct PackageIngestReport {
     /// Whether an XLSX (SpreadsheetML) discovery model node was registered
     /// (feature `xlsx`, Phase 21.1.1).
     pub xlsx_model_nodes: u64,
+    /// Whether a PPTX (PresentationML) discovery model node was registered
+    /// (feature `pptx`, Phase 21.2.1).
+    pub pptx_model_nodes: u64,
     /// Content-addressed shared-resource blobs registered (Phase 12.8).
     pub resource_blob_nodes: u64,
     /// Resource blobs whose content id already existed in the store, i.e. bytes
@@ -184,8 +189,10 @@ fn push_entry(entries: &mut Vec<IndexEntry>, entry: IndexEntry) -> Result<()> {
 }
 
 /// The pure, store-free encodings of one member's nodes. Every identity is a
-/// function of the member's immutable inputs, so the same member always yields
-/// the same bytes regardless of scheduling.
+/// function of the member's immutable inputs **and its source identity** (the
+/// package root it belongs to), so the same member of the same source always
+/// yields the same bytes regardless of scheduling, while the same *span* of a
+/// different source never aliases it.
 struct MemberEncoded {
     /// The exact raw leaf (the compressed/stored span).
     raw: Encoded,
@@ -200,16 +207,22 @@ struct MemberEncoded {
 /// Encode one member's nodes purely: no store, no counters, no I/O. The decode
 /// decision (method/flag/length) and the resource-recognition decision are pure
 /// byte facts, so they are made here rather than in the serial merge.
-fn encode_member(source: &[u8], member: &ZipMember) -> MemberEncoded {
+fn encode_member(source: &[u8], member: &ZipMember, root_id: NodeId) -> MemberEncoded {
     let ordinal = member.id.ordinal;
     let (data_off, data_len) = member.data;
 
-    // The exact leaf: the member's raw compressed/stored span.
+    // The exact leaf: the member's raw compressed/stored span. Its output is
+    // `source[data_off..data_off+data_len]`, which depends on *which* source the
+    // span is read against — so the span coordinates alone are not an identity.
+    // The package `root_id` (a function of the source bytes) is a dependency, so
+    // two byte-different members that happen to share an `(offset, len)` in two
+    // different sources get **distinct** ids and can never alias in the shared
+    // derived cache.
     let mut raw = SeedNode::new(
         NodeKind::PackageMemberRaw,
         data_len,
         span_params(data_off, data_len),
-        Vec::new(),
+        vec![root_id],
         "pkg:member-raw",
     );
     raw.limits.max_output_bytes = raw.limits.max_output_bytes.max(data_len);
@@ -261,8 +274,9 @@ fn encode_members(
     pool: Option<&WorkerPool>,
     source: &[u8],
     members: &[ZipMember],
+    root_id: NodeId,
 ) -> Vec<MemberEncoded> {
-    let compute = |m: &ZipMember| encode_member(source, m);
+    let compute = |m: &ZipMember| encode_member(source, m, root_id);
     #[cfg(feature = "parallel")]
     if let Some(p) = pool.filter(|p| p.workers() > 1) {
         return p.install(|| members.par_iter().map(compute).collect());
@@ -355,11 +369,15 @@ fn ingest_package_from_source(
     physical.validate(source_len)?;
     physical.reemits(source)?;
 
-    // The package field's root is the exact whole source.
+    // The package field's root is the exact whole source. Its params are the
+    // source's SHA-256 (a function of the source *bytes*, not of the
+    // reconstruction program): two distinct sources must never share a root id,
+    // because the root's output is the whole source and the shared derived cache
+    // keys on the node id alone.
     let mut root = SeedNode::new(
         NodeKind::PackageRoot,
         source_len,
-        Vec::new(),
+        crate::integrity::sha256(source).to_vec(),
         Vec::new(),
         "pkg:root",
     );
@@ -377,13 +395,14 @@ fn ingest_package_from_source(
     let epub_model_nodes: u64;
     let odt_model_nodes: u64;
     let xlsx_model_nodes: u64;
+    let pptx_model_nodes: u64;
     let opc_model_id: Option<NodeId>;
 
     // Pure member encoding (canonical bytes + content ids) may run on the pool;
     // every store probe, write, counter, and index append stays in the serial
     // merge below, in member order. Indexed `par_iter().collect()` is ordered, so
     // `encoded[i]` is member `i` whether the pool is used or not.
-    let encoded = encode_members(pool, source, &physical.members);
+    let encoded = encode_members(pool, source, &physical.members, root_id);
     for (member, enc) in physical.members.iter().zip(encoded.iter()) {
         let ordinal = member.id.ordinal;
         let (data_off, data_len) = member.data;
@@ -613,6 +632,42 @@ fn ingest_package_from_source(
         xlsx_model_nodes = 0;
     }
 
+    // The PPTX (PresentationML) discovery model (Phase 21.2.1): a single derived
+    // node that resolves the presentation part by the `officeDocument` relationship
+    // and its PresentationML content type (never a hardcoded `/ppt/presentation.xml`)
+    // and enumerates the slide parts, computed on demand from the OPC model. It is
+    // created for any package under the feature; a non-PPTX package simply declines
+    // typed when the node is first materialized. Exactness is untouched.
+    #[cfg(feature = "pptx")]
+    {
+        let model_id = opc_model_id
+            .ok_or_else(|| Error::internal_invariant("pptx requires the OPC model node"))?;
+        let mut pptx_model = SeedNode::new(
+            NodeKind::PptxModel,
+            limits.max_output_bytes,
+            Vec::new(),
+            vec![model_id],
+            "pkg:pptx-model",
+        );
+        pptx_model.limits.max_output_bytes = limits.max_output_bytes;
+        charge_node(&mut node_count)?;
+        let (pptx_id, _) = put_counted(store, &pptx_model, &mut share)?;
+        push_entry(
+            &mut entries,
+            IndexEntry {
+                key: SelectorKey::new(SEL_PPTX_MODEL, 0),
+                out_off: 0,
+                out_len: 0,
+                node_id: pptx_id,
+            },
+        )?;
+        pptx_model_nodes = 1;
+    }
+    #[cfg(not(feature = "pptx"))]
+    {
+        pptx_model_nodes = 0;
+    }
+
     let index_before = dir_bytes(&store.root().join("index"));
     let (index_root, index_node_count) = if entries.is_empty() {
         (None, 0)
@@ -634,7 +689,7 @@ fn ingest_package_from_source(
         node_count,
         index_node_count,
         provenance: format!(
-            "{}id_shared={};res_shared={};field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={};odt={};xlsx={};resource_blobs={}",
+            "{}id_shared={};res_shared={};field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={};odt={};xlsx={};pptx={};resource_blobs={}",
             detected_format.provenance_prefix(),
             share.nodes_id_shared,
             share.shared_resource_ids,
@@ -647,6 +702,7 @@ fn ingest_package_from_source(
             epub_model_nodes,
             odt_model_nodes,
             xlsx_model_nodes,
+            pptx_model_nodes,
             share.resource_blob_nodes,
         ),
     };
@@ -669,6 +725,7 @@ fn ingest_package_from_source(
         epub_model_nodes,
         odt_model_nodes,
         xlsx_model_nodes,
+        pptx_model_nodes,
         resource_blob_nodes: share.resource_blob_nodes,
         shared_resource_ids: share.shared_resource_ids,
         shared_resource_bytes: share.shared_resource_bytes,
