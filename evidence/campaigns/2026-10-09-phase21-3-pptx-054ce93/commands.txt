@@ -1,0 +1,20 @@
+docker compose run --rm --no-TTY doc-baseline bash tools/phase21-3-pptx-court.sh
+# PROFILE defaults to release (target/release/vole-document); the comparator is
+# unaffected by the Rust profile (same convention as tools/phase21-3-xlsx-court.sh).
+# Inside the court:
+#   cargo build --release --locked --all-features            # release: --release --locked --all-features
+#   python3 tools/fixtures/make-pptx.py --corpus evidence/scratch/phase21-3-pptx/corpus
+#   VOLE:   target/release/vole-document field-build F.pptx --store STORE --voldoc F.voldoc --profile runtime --packed
+#           python3 tools/fixtures/phase21-3-pptx-vole.py run --bin target/release/vole-document --store STORE --field HEX --plan ... --outdir ... --packed
+#           rm source + descriptor ; target/release/vole-document materialize --store STORE --field HEX --exact --packed --output OUT ; cmp OUT source
+#   SQLite: python3 tools/fixtures/phase21-3-pptx-baseline.py build --source F.pptx --db D
+#           python3 tools/fixtures/phase21-3-pptx-baseline.py query --db D --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-3-pptx-baseline.py session --db D --queries Q1..Q8 --plan ... --out OUT
+#           python3 tools/fixtures/phase21-3-pptx-baseline.py materialize --db D --out OUT
+#   aggregate: python3 tools/fixtures/phase21-3-pptx-baseline.py aggregate --raw RAW --campaign CAMPAIGN --env ENV
+# Warm session: observe-batch accepts --packed, so the warm lane is served from the
+#   SAME packed substrate as the cold lane.
+# Full dev gate:
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features
