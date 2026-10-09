@@ -171,8 +171,20 @@ problem preserves the exact bytes and declines only the decode.
 - Conservative detection (a mapping/sequence at every document root; plain text →
   Opaque). The model node depends on the `DocumentExact` root (ADR-0060).
 
-## Shared vocabulary (ADR-0031)
+## CSV/TSV adapter — tabular (Phase 21 Wave 2)
 
+- The tabular format; not a package — the whole source is the document (RAW
+  authority). Non-default, dependency-free `csv` feature.
+- RFC 4180 CSV + TSV: quoted fields (`""`), embedded delimiters/newlines/quotes,
+  CRLF/LF/CR, BOM, header. **Preserves exact bytes**: record/field spans + dialect;
+  quoting/whitespace not normalized. Bounded memory (no full-file structure).
+  `--csv-row`/`--csv-cell`/`--csv-header`/`--csv-range`/`--csv-find`.
+- Conservative detection (no magic bytes; prose → Opaque). No CSV index — row/cell
+  reads are O(offset) scans. Model node depends on the `DocumentExact` root
+  (ADR-0060). A tabular format requires the DuckDB/Parquet comparator (ADR-0059),
+  which wins storage/ingest/indexed reads on the tested corpus (recorded).
+
+## Shared vocabulary (ADR-0031)
 Common selectors/representations are added additively: `metadata`, `text`,
 `heading`, `block`, `table`, `cell`, `resource`, `link`, `find`. Native selectors
 remain first-class peers. Widening the enums fails closed on unknown
