@@ -99,7 +99,16 @@ const USAGE_FIELD: &str = "\
     vole-document observe --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]] (--page N | --object N | --stream N |
         --revision N | --revisions | --external-lineage | --byte-range A..B | --metadata | --doc-text | --heading N |
         --block N | --table N | --cell T:R:C | --resource N | --link N |
-        --spine-item N | --text PATTERN) --kind metadata|text|structure|operators|
+        --spine-item N | --sheet N | --xlsx-cell A1 | --text PATTERN |
+        --xlsx-styles | --xlsx-defined-names | --xlsx-external-rels |
+        --xlsx-comments | --xlsx-hyperlinks | --xlsx-tables | --xlsx-drawing |
+        --slide N | --pptx-shape I | --pptx-notes N | --pptx-layouts |
+        --pptx-masters | --pptx-theme | --pptx-media N | --pptx-tables |
+        --pptx-find PATTERN |
+        --ods-sheet N | --ods-cell B7|R:C | --ods-styles | --ods-named-expressions |
+        --ods-comments | --ods-find PATTERN |
+        --odp-slide N | --odp-shape I | --odp-notes N | --odp-masters |
+        --odp-media N | --odp-tables | --odp-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1466,6 +1475,104 @@ struct FieldArgs {
     /// no intrinsic pages, so this is the native reading coordinate (plan DEC-5).
     #[cfg(feature = "epub")]
     spine_item: Option<u32>,
+    /// The XLSX workbook-order sheet index (`--sheet N`, Phase 21.1.1). Also used
+    /// as the sheet of an `--xlsx-cell` when both are given.
+    #[cfg(feature = "xlsx")]
+    sheet: Option<u32>,
+    /// The XLSX cell reference (`--xlsx-cell A1`, Phase 21.1.1).
+    #[cfg(feature = "xlsx")]
+    xlsx_cell: Option<String>,
+    /// `--xlsx-styles`: the parsed style table (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_styles: bool,
+    /// `--xlsx-defined-names`: the workbook defined/named ranges (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_defined_names: bool,
+    /// `--xlsx-external-rels`: the package external relationships (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_external_rels: bool,
+    /// `--xlsx-comments`: the comments of the `--sheet` worksheet (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_comments: bool,
+    /// `--xlsx-hyperlinks`: the hyperlinks of the `--sheet` worksheet (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_hyperlinks: bool,
+    /// `--xlsx-tables`: the tables of the `--sheet` worksheet (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_tables: bool,
+    /// `--xlsx-drawing`: the drawing of the `--sheet` worksheet (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    xlsx_drawing: bool,
+    /// The PPTX presentation-order slide index (`--slide N`, Phase 21.2.1). Also
+    /// used as the slide of `--pptx-shape`/`--pptx-tables` when given.
+    #[cfg(feature = "pptx")]
+    slide: Option<u32>,
+    /// The PPTX shape index (`--pptx-shape I`, flattened pre-order within `--slide`).
+    #[cfg(feature = "pptx")]
+    pptx_shape: Option<u32>,
+    /// The PPTX notes-slide index (`--pptx-notes N`, Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_notes: Option<u32>,
+    /// `--pptx-layouts`: the slide-layout parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_layouts: bool,
+    /// `--pptx-masters`: the slide-master parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_masters: bool,
+    /// `--pptx-theme`: the theme parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_theme: bool,
+    /// `--pptx-media N`: the N-th media resource (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_media: Option<u32>,
+    /// `--pptx-tables`: the embedded tables of the `--slide` slide (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_tables: bool,
+    /// `--pptx-find`: a lexical text search over slides (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    pptx_find: Option<String>,
+    /// The ODS document-order sheet index (`--ods-sheet N`, Phase 21.3.1). Also
+    /// used as the sheet of `--ods-cell`/`--ods-comments` when given.
+    #[cfg(feature = "ods")]
+    ods_sheet: Option<u32>,
+    /// The ODS cell reference (`--ods-cell B7` or `--ods-cell row:col`, Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    ods_cell: Option<String>,
+    /// `--ods-styles`: the parsed cell styles and number formats (Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    ods_styles: bool,
+    /// `--ods-named-expressions`: the spreadsheet's named ranges/expressions
+    /// (Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    ods_named_expressions: bool,
+    /// `--ods-comments`: the cell comments of the `--ods-sheet` sheet (Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    ods_comments: bool,
+    /// `--ods-find`: a lexical text search over sheet cells (Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    ods_find: Option<String>,
+    /// The ODP document-order slide index (`--odp-slide N`, Phase 21.4.1). Also used
+    /// as the slide of `--odp-shape`/`--odp-tables` when given.
+    #[cfg(feature = "odp")]
+    odp_slide: Option<u32>,
+    /// The ODP shape index (`--odp-shape I`, flattened pre-order within `--odp-slide`).
+    #[cfg(feature = "odp")]
+    odp_shape: Option<u32>,
+    /// The ODP notes-slide index (`--odp-notes N`, Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    odp_notes: Option<u32>,
+    /// `--odp-masters`: the master pages (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    odp_masters: bool,
+    /// `--odp-media N`: the N-th media resource (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    odp_media: Option<u32>,
+    /// `--odp-tables`: the embedded tables of the `--odp-slide` slide (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    odp_tables: bool,
+    /// `--odp-find`: a lexical text search over slides (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    odp_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -1690,6 +1797,176 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                     "--spine-item",
                 )?);
             }
+            #[cfg(feature = "xlsx")]
+            "--sheet" => {
+                out.sheet = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--sheet", inline)?,
+                    "--sheet",
+                )?);
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-cell" => {
+                out.xlsx_cell = Some(field_arg_value(args, &mut i, "--xlsx-cell", inline)?);
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-styles" => {
+                out.xlsx_styles = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-defined-names" => {
+                out.xlsx_defined_names = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-external-rels" => {
+                out.xlsx_external_rels = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-comments" => {
+                out.xlsx_comments = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-hyperlinks" => {
+                out.xlsx_hyperlinks = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-tables" => {
+                out.xlsx_tables = true;
+                i += 1;
+            }
+            #[cfg(feature = "xlsx")]
+            "--xlsx-drawing" => {
+                out.xlsx_drawing = true;
+                i += 1;
+            }
+            #[cfg(feature = "pptx")]
+            "--slide" => {
+                out.slide = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--slide", inline)?,
+                    "--slide",
+                )?);
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-shape" => {
+                out.pptx_shape = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--pptx-shape", inline)?,
+                    "--pptx-shape",
+                )?);
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-notes" => {
+                out.pptx_notes = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--pptx-notes", inline)?,
+                    "--pptx-notes",
+                )?);
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-layouts" => {
+                out.pptx_layouts = true;
+                i += 1;
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-masters" => {
+                out.pptx_masters = true;
+                i += 1;
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-theme" => {
+                out.pptx_theme = true;
+                i += 1;
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-media" => {
+                out.pptx_media = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--pptx-media", inline)?,
+                    "--pptx-media",
+                )?);
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-tables" => {
+                out.pptx_tables = true;
+                i += 1;
+            }
+            #[cfg(feature = "pptx")]
+            "--pptx-find" => {
+                out.pptx_find = Some(field_arg_value(args, &mut i, "--pptx-find", inline)?);
+            }
+            #[cfg(feature = "ods")]
+            "--ods-sheet" => {
+                out.ods_sheet = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--ods-sheet", inline)?,
+                    "--ods-sheet",
+                )?);
+            }
+            #[cfg(feature = "ods")]
+            "--ods-cell" => {
+                out.ods_cell = Some(field_arg_value(args, &mut i, "--ods-cell", inline)?);
+            }
+            #[cfg(feature = "ods")]
+            "--ods-styles" => {
+                out.ods_styles = true;
+                i += 1;
+            }
+            #[cfg(feature = "ods")]
+            "--ods-named-expressions" => {
+                out.ods_named_expressions = true;
+                i += 1;
+            }
+            #[cfg(feature = "ods")]
+            "--ods-comments" => {
+                out.ods_comments = true;
+                i += 1;
+            }
+            #[cfg(feature = "ods")]
+            "--ods-find" => {
+                out.ods_find = Some(field_arg_value(args, &mut i, "--ods-find", inline)?);
+            }
+            #[cfg(feature = "odp")]
+            "--odp-slide" => {
+                out.odp_slide = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--odp-slide", inline)?,
+                    "--odp-slide",
+                )?);
+            }
+            #[cfg(feature = "odp")]
+            "--odp-shape" => {
+                out.odp_shape = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--odp-shape", inline)?,
+                    "--odp-shape",
+                )?);
+            }
+            #[cfg(feature = "odp")]
+            "--odp-notes" => {
+                out.odp_notes = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--odp-notes", inline)?,
+                    "--odp-notes",
+                )?);
+            }
+            #[cfg(feature = "odp")]
+            "--odp-masters" => {
+                out.odp_masters = true;
+                i += 1;
+            }
+            #[cfg(feature = "odp")]
+            "--odp-media" => {
+                out.odp_media = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--odp-media", inline)?,
+                    "--odp-media",
+                )?);
+            }
+            #[cfg(feature = "odp")]
+            "--odp-tables" => {
+                out.odp_tables = true;
+                i += 1;
+            }
+            #[cfg(feature = "odp")]
+            "--odp-find" => {
+                out.odp_find = Some(field_arg_value(args, &mut i, "--odp-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -1840,6 +2117,194 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
             index: n,
             profile: vole_document::adapter::epub::EpubExtractProfile::DEFAULT,
         });
+    }
+    // XLSX: `--xlsx-cell A1` is the cell selector and consumes `--sheet N` as its
+    // sheet; `--sheet N` alone is the native sheet selector. The Phase-21.1.2
+    // flags select the styles table, defined names, external relationships, or a
+    // per-sheet comments/hyperlinks/tables/drawing observation (each with `--sheet`).
+    #[cfg(feature = "xlsx")]
+    {
+        let profile = vole_document::adapter::xlsx::XlsxExtractProfile::DEFAULT;
+        let sheet = out.sheet.unwrap_or(0);
+        let mut specific = false;
+        if out.xlsx_styles {
+            chosen.push(Selector::XlsxStyles);
+            specific = true;
+        }
+        if out.xlsx_defined_names {
+            chosen.push(Selector::XlsxDefinedNames);
+            specific = true;
+        }
+        if out.xlsx_external_rels {
+            chosen.push(Selector::XlsxExternalRels);
+            specific = true;
+        }
+        if out.xlsx_comments {
+            chosen.push(Selector::XlsxComments { sheet });
+            specific = true;
+        }
+        if out.xlsx_hyperlinks {
+            chosen.push(Selector::XlsxHyperlinks { sheet });
+            specific = true;
+        }
+        if out.xlsx_tables {
+            chosen.push(Selector::XlsxTables { sheet });
+            specific = true;
+        }
+        if out.xlsx_drawing {
+            chosen.push(Selector::XlsxDrawing { sheet });
+            specific = true;
+        }
+        if let Some(cell) = &out.xlsx_cell {
+            chosen.push(Selector::XlsxCell {
+                sheet,
+                cell: cell.clone(),
+                profile,
+            });
+            specific = true;
+        }
+        // `--sheet N` alone is the native sheet selector; when any other XLSX flag
+        // consumed it, it is not added again.
+        if !specific && let Some(index) = out.sheet {
+            chosen.push(Selector::XlsxSheet { index, profile });
+        }
+    }
+    // PPTX: `--pptx-shape I` consumes `--slide N`; `--slide N` alone is the native
+    // slide selector. `--pptx-tables` consumes `--slide N`. The list selectors and
+    // `--pptx-notes`/`--pptx-media` stand alone.
+    #[cfg(feature = "pptx")]
+    {
+        let profile = vole_document::adapter::pptx::PptxExtractProfile::DEFAULT;
+        let slide = out.slide.unwrap_or(0);
+        let mut specific = false;
+        if out.pptx_layouts {
+            chosen.push(Selector::PptxLayouts);
+            specific = true;
+        }
+        if out.pptx_masters {
+            chosen.push(Selector::PptxMasters);
+            specific = true;
+        }
+        if out.pptx_theme {
+            chosen.push(Selector::PptxTheme);
+            specific = true;
+        }
+        if out.pptx_tables {
+            chosen.push(Selector::PptxTables { slide, profile });
+            specific = true;
+        }
+        if let Some(index) = out.pptx_notes {
+            chosen.push(Selector::PptxNotes { index, profile });
+            specific = true;
+        }
+        if let Some(ordinal) = out.pptx_media {
+            chosen.push(Selector::PptxMedia { ordinal });
+            specific = true;
+        }
+        if let Some(index) = out.pptx_shape {
+            chosen.push(Selector::PptxShape {
+                slide,
+                index,
+                profile,
+            });
+            specific = true;
+        }
+        if let Some(pattern) = &out.pptx_find {
+            chosen.push(Selector::PptxFind {
+                pattern: pattern.clone(),
+                profile,
+            });
+            specific = true;
+        }
+        // `--slide N` alone is the native slide selector; when another PPTX flag
+        // consumed it, it is not added again.
+        if !specific && let Some(index) = out.slide {
+            chosen.push(Selector::PptxSlide { index, profile });
+        }
+    }
+    // ODS: `--ods-cell B7` is the cell selector and consumes `--ods-sheet N` as its
+    // sheet; `--ods-sheet N` alone is the native sheet selector. `--ods-comments`
+    // consumes `--ods-sheet`; the styles/named-expressions/find flags stand alone.
+    #[cfg(feature = "ods")]
+    {
+        let profile = vole_document::adapter::ods::OdsExtractProfile::DEFAULT;
+        let sheet = out.ods_sheet.unwrap_or(0);
+        let mut specific = false;
+        if out.ods_styles {
+            chosen.push(Selector::OdsStyles);
+            specific = true;
+        }
+        if out.ods_named_expressions {
+            chosen.push(Selector::OdsNamedExpressions);
+            specific = true;
+        }
+        if out.ods_comments {
+            chosen.push(Selector::OdsComments { sheet });
+            specific = true;
+        }
+        if let Some(cell) = &out.ods_cell {
+            chosen.push(Selector::OdsCell {
+                sheet,
+                cell: cell.clone(),
+                profile,
+            });
+            specific = true;
+        }
+        if let Some(pattern) = &out.ods_find {
+            chosen.push(Selector::OdsFind {
+                pattern: pattern.clone(),
+                profile,
+            });
+            specific = true;
+        }
+        if !specific && let Some(index) = out.ods_sheet {
+            chosen.push(Selector::OdsSheet { index, profile });
+        }
+    }
+    // ODP: `--odp-shape I` consumes `--odp-slide N`; `--odp-slide N` alone is the
+    // native slide selector. `--odp-tables` consumes `--odp-slide`. The list selectors
+    // and `--odp-notes`/`--odp-media` stand alone.
+    #[cfg(feature = "odp")]
+    {
+        let profile = vole_document::adapter::odp::OdpExtractProfile::DEFAULT;
+        let slide = out.odp_slide.unwrap_or(0);
+        let mut specific = false;
+        if out.odp_masters {
+            chosen.push(Selector::OdpMasters);
+            specific = true;
+        }
+        if out.odp_tables {
+            chosen.push(Selector::OdpTables { slide, profile });
+            specific = true;
+        }
+        if let Some(index) = out.odp_notes {
+            chosen.push(Selector::OdpNotes { index, profile });
+            specific = true;
+        }
+        if let Some(ordinal) = out.odp_media {
+            chosen.push(Selector::OdpMedia { ordinal });
+            specific = true;
+        }
+        if let Some(index) = out.odp_shape {
+            chosen.push(Selector::OdpShape {
+                slide,
+                index,
+                profile,
+            });
+            specific = true;
+        }
+        if let Some(pattern) = &out.odp_find {
+            chosen.push(Selector::OdpFind {
+                pattern: pattern.clone(),
+                profile,
+            });
+            specific = true;
+        }
+        // `--odp-slide N` alone is the native slide selector; when another ODP flag
+        // consumed it, it is not added again.
+        if !specific && let Some(index) = out.odp_slide {
+            chosen.push(Selector::OdpSlide { index, profile });
+        }
     }
     match chosen.len() {
         0 => Err(Error::usage("exactly one selector flag is required")),
@@ -2290,6 +2755,9 @@ fn package_ingest_json(r: &vole_document::field::ingest_package::PackageIngestRe
             "\"opc_model_nodes\":{},",
             "\"docx_model_nodes\":{},",
             "\"epub_model_nodes\":{},",
+            "\"ods_model_nodes\":{},",
+            "\"xlsx_model_nodes\":{},",
+            "\"pptx_model_nodes\":{},",
             "\"resource_blob_nodes\":{},",
             "\"shared_resource_ids\":{},",
             "\"shared_resource_bytes\":{},",
@@ -2312,6 +2780,9 @@ fn package_ingest_json(r: &vole_document::field::ingest_package::PackageIngestRe
         r.opc_model_nodes,
         r.docx_model_nodes,
         r.epub_model_nodes,
+        r.ods_model_nodes,
+        r.xlsx_model_nodes,
+        r.pptx_model_nodes,
         r.resource_blob_nodes,
         r.shared_resource_ids,
         r.shared_resource_bytes,

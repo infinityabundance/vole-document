@@ -1,0 +1,27 @@
+{
+  "campaign": "evidence/campaigns/2026-10-09-phase21-2-pptx-8aab956",
+  "phase": "21.2.1 — PPTX OPC/XML surface + exact closure + model",
+  "utc": "2026-10-09T01:55:41Z",
+  "git_commit": "8aab9564a63e63e9ae93835cfdc892db9ea4a595",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/ingest_package.rs  M src/field/mod.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-09-phase12-removal-8aab956/ ?? evidence/campaigns/2026-10-09-phase13-pdf-length-revision-8aab956/ ?? evidence/campaigns/2026-10-09-phase17-direct-field-8aab956/ ?? evidence/campaigns/2026-10-09-phase21-1-xlsx-8aab956/ ?? evidence/campaigns/2026-10-09-phase21-2-pptx-8aab956/ ?? evidence/campaigns/2026-10-09-phase21-2-xlsx-8aab956/ ?? src/adapter/pptx.rs ?? tests/byte_range_identity.rs ?? tests/pptx_adapter.rs ?? tools/fixtures/make-pptx.py ?? tools/fixtures/pptx/ ?? tools/phase21-2-pptx-court.sh ",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python3": "Python 3.11.2",
+  "cargo_lock_sha256": "80a6f5b83cf23098ed2533db4a34a0bf2ea481e29972aaa77353e39d713ae6fd",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "4b06d8871ee5da256d6ec64ed72fd8ce57b6ca8f78afc21d4f60b8b67b5cc538",
+  "profile": "debug",
+  "fixtures_tool": "tools/fixtures/make-pptx.py",
+  "fixtures_sha256": {
+    "basic.pptx": "f7bc75b22018dfbbc21bef507e90f67f0f000e8258ac53348b08958f6736dd67",
+    "table.pptx": "006cf59580f9bde3484858c44847f10bf2308a6885be217fd122093508a659cd",
+    "picture.pptx": "488ab8309673d25544266d93eab069a684e62b2c5de8aa81c6ff7cffb5d26ce1",
+    "notes.pptx": "685dcf91e40738ea7de32b7fce8deaf2e538bd7541fec47e3e048d251aebaf2a",
+    "order.pptx": "9ff794588eb868c615f9396b48d1a3e099c64ed785152785f3d2d7e4adaea7f1"
+  },
+  "storage_accounting": "sum of regular-file sizes under the store (never du -sb)",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

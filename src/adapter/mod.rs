@@ -8,12 +8,20 @@
 pub mod docx;
 #[cfg(feature = "epub")]
 pub mod epub;
+#[cfg(feature = "odp")]
+pub mod odp;
+#[cfg(feature = "ods")]
+pub mod ods;
 #[cfg(feature = "odt")]
 pub mod odt;
 pub mod opaque;
 #[cfg(feature = "package")]
 pub mod package;
 pub mod pdf;
+#[cfg(feature = "pptx")]
+pub mod pptx;
+#[cfg(feature = "xlsx")]
+pub mod xlsx;
 
 /// The source-format class decision for an input.
 ///

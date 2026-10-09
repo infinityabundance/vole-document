@@ -1,16 +1,18 @@
 # Phase 22 — Economic programme: a strong competitor, shared execution, lifetime cost
 
-> **IN PROGRESS.** Subphases **22.1 (competitor envelope) and 22.2 (compact
-> query-native directory — profiling gate) are complete** — 22.1 was released in
-> `v0.1.0-alpha.26`, 22.2 in `v0.1.0-alpha.27` (both sealed; see
-> [phase-22-results.md](phase-22-results.md)). **22.2 shipped *nothing*
-> structurally**: the index/selector layer is 10.6 % of the warm session and
-> sub-resolution, so the phase is a **publishable negative**. Subphases
-> **22.3–22.7 remain planned and not started.** Everything below that is not 22.1
-> or 22.2 is a **target** or a **gate**, never a result. (The format programme,
-> [Phase 21](phase-21-plan.md), remains deferred and unstarted; this programme
-> runs on the already-shipped PDF/DOCX/EPUB/ODT surface, and its last format
-> subphase (P7) is **Phase 21's** work evaluated through this thesis.)
+> **COMPLETE.** Subphases **22.1–22.7 are all complete and released** — 22.1 in
+> `v0.1.0-alpha.26`, 22.2 in `v0.1.0-alpha.27`, and 22.3–22.7 in
+> `v0.1.0-alpha.29` (all sealed; see [phase-22-results.md](phase-22-results.md)
+> and the per-subphase `phase-22-*-results.md`). The programme was a sequence of
+> **measurement/court results that shipped no production mechanism**: 22.2 shipped
+> nothing structurally (the index/selector layer is only 10.6 % of the warm
+> session and sub-resolution — a **publishable negative**); 22.3.0 found
+> `SESSION-ALREADY-CAPTURES`; 22.5 (remote selective materialization), 22.6
+> (compact structural representation) and 22.7 (agent cost per correct grounded
+> task, VOLE 1.42×) are recorded negatives, and 22.4 found a resolved VOLE **win**
+> in the PDF region of the unknown-query lifetime frontier (0.73–0.83×) alongside
+> a resolved EPUB loss. The format programme, [Phase 21](phase-21-plan.md), is now
+> **in progress** (21.1 XLSX complete).
 >
 > This plan synthesises an **external technical review** into the repo's plan
 > style. Where the review's claim could not be rendered exactly, the deviation is

@@ -1,0 +1,1 @@
+{"decline": {"code": "no-formula-eval", "detail": "VOLE does not evaluate formulas and exposes no dependency graph"}, "declined": true, "detail": {}, "lane": "vole", "native": true, "q": "Q3", "value": null}

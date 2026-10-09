@@ -106,6 +106,62 @@ pub enum NodeKind {
     /// exact. There is one document-level node (the whole lineage) and one
     /// per-revision node.
     PdfRevisionLineage = 0x19,
+    /// The canonical XLSX (SpreadsheetML) discovery model (Phase 21.1.1): the
+    /// workbook part (resolved via the `officeDocument` relationship and its
+    /// SpreadsheetML content type), the styles and shared-strings parts, and the
+    /// discovered worksheet parts. Derived on demand from the canonical OPC model.
+    /// Derived, never exact.
+    XlsxModel = 0x1A,
+    /// The parsed `xl/workbook.xml` sheet inventory (name, sheetId, r:id, state,
+    /// document order), parsed from the decoded workbook member. Derived, never
+    /// exact (Phase 21.1.1).
+    XlsxWorkbook = 0x1B,
+    /// One worksheet part (`xl/worksheets/sheetN.xml`) parsed into its bounded cell
+    /// model, honoring a declared extraction profile and resolving shared strings
+    /// from the decoded shared-strings member. Derived, never exact (Phase 21.1.1).
+    XlsxSheet = 0x1C,
+    /// The canonical PPTX (PresentationML) discovery model (Phase 21.2.1): the main
+    /// presentation part (resolved via the `officeDocument` relationship and its
+    /// PresentationML content type), the notes/slide masters, the layouts, themes
+    /// and media parts, and the discovered slide parts. Derived on demand from the
+    /// canonical OPC model. Derived, never exact.
+    PptxModel = 0x1D,
+    /// The parsed `ppt/presentation.xml` slide inventory (slide size and the
+    /// `p:sldIdLst` order), parsed from the decoded presentation member. Derived,
+    /// never exact (Phase 21.2.1).
+    PptxPresentation = 0x1E,
+    /// One slide part (`ppt/slides/slideN.xml`) parsed into its bounded shape model,
+    /// honoring a declared extraction profile. Derived, never exact (Phase 21.2.1).
+    PptxSlide = 0x1F,
+    /// One notes-slide part (`ppt/notesSlides/notesSlideN.xml`) parsed into its
+    /// bounded text model. Derived, never exact (Phase 21.2.1).
+    PptxNotes = 0x20,
+    /// The canonical ODS (ODF spreadsheet) discovery model: `mimetype` conformance
+    /// facts and the parsed `META-INF/manifest.xml` file entries with the main
+    /// content part resolved semantically, derived on demand from the exact package
+    /// source. Derived, never exact (Phase 21.3.1).
+    OdsModel = 0x21,
+    /// The OpenDocument spreadsheet main part (`content.xml`, `office:spreadsheet`)
+    /// parsed into its bounded native model (sheets/rows/cells with typed values,
+    /// stored formulas, cell styles, named expressions, and annotations), honoring a
+    /// declared extraction profile. Derived, never exact (Phase 21.3.1).
+    OdsContent = 0x22,
+    /// The OpenDocument styles part (`styles.xml`) parsed into its bounded cell-style
+    /// and number-format model. Derived, never exact (Phase 21.3.1).
+    OdsStyles = 0x23,
+    /// The canonical ODP (ODF presentation) discovery model: `mimetype` conformance
+    /// facts and the parsed `META-INF/manifest.xml` file entries with the main
+    /// content part and the `Pictures/*` media parts resolved semantically, derived
+    /// on demand from the exact package source. Derived, never exact (Phase 21.4.1).
+    OdpModel = 0x24,
+    /// The OpenDocument presentation main part (`content.xml`, `office:presentation`)
+    /// parsed into its bounded native model (`draw:page` slides in document order,
+    /// shapes/text runs, embedded tables, notes, styles, and image references),
+    /// honoring a declared extraction profile. Derived, never exact (Phase 21.4.1).
+    OdpContent = 0x25,
+    /// The OpenDocument styles part (`styles.xml`) parsed into its bounded style and
+    /// master-page model. Derived, never exact (Phase 21.4.1).
+    OdpStyles = 0x26,
 }
 
 impl NodeKind {
@@ -137,6 +193,19 @@ impl NodeKind {
             0x17 => NodeKind::OdtModel,
             0x18 => NodeKind::OdtContent,
             0x19 => NodeKind::PdfRevisionLineage,
+            0x1A => NodeKind::XlsxModel,
+            0x1B => NodeKind::XlsxWorkbook,
+            0x1C => NodeKind::XlsxSheet,
+            0x1D => NodeKind::PptxModel,
+            0x1E => NodeKind::PptxPresentation,
+            0x1F => NodeKind::PptxSlide,
+            0x20 => NodeKind::PptxNotes,
+            0x21 => NodeKind::OdsModel,
+            0x22 => NodeKind::OdsContent,
+            0x23 => NodeKind::OdsStyles,
+            0x24 => NodeKind::OdpModel,
+            0x25 => NodeKind::OdpContent,
+            0x26 => NodeKind::OdpStyles,
             _ => return None,
         })
     }
@@ -169,6 +238,19 @@ impl NodeKind {
             NodeKind::OdtModel => "OdtModel",
             NodeKind::OdtContent => "OdtContent",
             NodeKind::PdfRevisionLineage => "PdfRevisionLineage",
+            NodeKind::XlsxModel => "XlsxModel",
+            NodeKind::XlsxWorkbook => "XlsxWorkbook",
+            NodeKind::XlsxSheet => "XlsxSheet",
+            NodeKind::PptxModel => "PptxModel",
+            NodeKind::PptxPresentation => "PptxPresentation",
+            NodeKind::PptxSlide => "PptxSlide",
+            NodeKind::PptxNotes => "PptxNotes",
+            NodeKind::OdsModel => "OdsModel",
+            NodeKind::OdsContent => "OdsContent",
+            NodeKind::OdsStyles => "OdsStyles",
+            NodeKind::OdpModel => "OdpModel",
+            NodeKind::OdpContent => "OdpContent",
+            NodeKind::OdpStyles => "OdpStyles",
         }
     }
 

@@ -1,6 +1,6 @@
 # Format support
 
-Capability matrix for the four implemented formats. `✓` = supported and
+Capability matrix for the five implemented formats. `✓` = supported and
 answerable; `—` = a typed decline (`unsupported-feature`, exit 6), never a
 silent empty answer. The format is detected from bytes, never a file name.
 
@@ -58,14 +58,114 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | PDF no-regression (A2 vs A11) | 32/32 exact, 0 regressions | `evidence/campaigns/2026-10-06-phase12-pdf-noregression-0d23a02/` |
 | Hostile ZIP/OPC/OCF/XML fixtures | 315/315 assertions | `evidence/campaigns/2026-10-06-phase12-security-33f6d04/` |
 | ODT adapter (detection/content/profiles/exactness/removal/decline) | 9/9 | `evidence/campaigns/2026-10-07-phase13-odt-95c486d/` |
+| XLSX adapter (OPC surface + exact closure) | exact 2/2 | `evidence/campaigns/2026-10-08-phase21-1-xlsx-4d26514/` |
+| XLSX semantic model + exact closure | exact 3/3 | `evidence/campaigns/2026-10-09-phase21-2-xlsx-5802be9/` |
+| XLSX economic court (vs source-retaining SQLite + DuckDB/Parquet) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-xlsx-b2400f1/` |
+| PPTX adapter (OPC/PresentationML + exact closure + model) | exact 5/5 | `evidence/campaigns/2026-10-09-phase21-2-pptx-8aab956/` |
+| PPTX economic court (vs source-retaining SQLite) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-pptx-054ce93/` |
+| ODS adapter (ODF surface + model) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-ods-ef26d97/` |
+| ODS economic court (vs source-retaining SQLite + DuckDB/Parquet) | exact 8/8 | `evidence/campaigns/2026-10-09-phase21-3-2-ods-3dd5827/` |
+| ODP adapter / economic court | exact 6/6 · 8/8 | `evidence/campaigns/2026-10-09-phase21-4-1-odp-957a800/`, `…/2026-10-09-phase21-4-odp-econ-957a800/` |
 
 See [Status ledger](../project/status.md) for the full mechanism table and
 [Conformance](../reference/conformance.md) for the courts.
 
+## XLSX (SpreadsheetML)
+
+XLSX enters through the shared OPC layer (ADR-0030) with a **SpreadsheetML**
+native model. The `xlsx` feature is **non-default** (`xlsx = ["opc"]`); detection
+is byte-based and mutually exclusive with DOCX (a positive WordprocessingML
+main-part signal, so a Word document that *embeds* an Excel workbook is still
+`docx`).
+
+| Property | XLSX |
+|---|---|
+| Byte-based detection | OPC ZIP package declaring the SpreadsheetML workbook main content type (`...spreadsheetml.sheet.main+xml`) |
+| Physical authority | shared byte-authoritative ZIP; the exact leaf is the raw member span (no unzip/rezip) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `table`, `cell` |
+| Native observations | `xlsx-sheet` (`--sheet`), `xlsx-cell` (`--xlsx-cell A1`), `xlsx-styles`, `xlsx-comments`, `xlsx-hyperlinks`, `xlsx-tables`, `xlsx-drawing`, `xlsx-defined-names`, `xlsx-external-rels` |
+| `Page(n)` | — typed decline (a spreadsheet has no intrinsic pagination) |
+
+The **crucial distinctions** are never conflated: a cell's *stored formula*,
+its *cached result*, its deterministic number-format *displayed value*, its
+*style*, and its underlying *XML span* are separate fields with different
+provenance. The displayed value is a bounded, labelled
+(`deterministically-derived`) projection; formulas are **never evaluated**.
+Every non-exactness answer is a derived projection (`exact == false`); only
+the materialized workbook is a byte-authority claim. Declines are typed: an
+unsupported selector/representation pair, a BYTES request for a missing part,
+and a reference to a missing part all decline typed; a metadata observation for
+an optional part that is simply absent answers an explicit absence at exit 0.
+See [Formats/XLSX](../formats/xlsx.md) and [ADR-0059](../adr/0059-xlsx-adapter-and-analytical-comparator.md).
+
+## PPTX (PresentationML)
+
+PPTX enters through the shared OPC layer (ADR-0030) with a **PresentationML**
+native model. The `pptx = ["opc"]` feature is **non-default**; detection is
+byte-based (a positive PresentationML main-part content type) and mutually
+exclusive with DOCX/XLSX, so a Word or Excel document that embeds a deck is not
+misclassified.
+
+| Property | PPTX |
+|---|---|
+| Byte-based detection | OPC ZIP package declaring the PresentationML main content type (`...presentationml.presentation.main+xml`) |
+| Physical authority | shared byte-authoritative ZIP; exact leaf is the raw member span |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `table`, `cell` |
+| Native observations | `pptx-slide` (`--slide N`), `pptx-shape`, `pptx-notes`, `pptx-layouts`, `pptx-masters`, `pptx-theme`, `pptx-media`, `pptx-tables`, `pptx-find` |
+| `Page(n)` | — typed decline (slides are addressed by `--slide`, never synthesized) |
+
+Slide order comes from `p:sldIdLst`, never `slideN.xml` file-name order. Every
+non-exactness answer is a derived projection (`exact == false`); chart data is not
+parsed (the slide exposes the chart *reference*). See [Formats/PPTX](../formats/pptx.md).
+
+## ODS (OpenDocument Spreadsheet)
+
+ODS enters through the bounded OpenDocument (ODF) inverse over the shared ZIP
+layer (not OPC), exactly like ODT. The `ods = ["opc"]` feature is **non-default**.
+
+| Property | ODS |
+|---|---|
+| Byte-based detection | ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`) declares `application/vnd.oasis.opendocument.spreadsheet` |
+| Physical authority | shared byte-authoritative ZIP; exact leaf is the raw member span |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `table`, `cell`, `find` |
+| Native observations | `ods-sheet` (`--ods-sheet N`), `ods-cell`, `ods-styles`, `ods-named-expressions`, `ods-comments`, `ods-find` |
+| `Page(n)` | — typed decline (no intrinsic pagination) |
+
+A cell's stored formula, typed value, displayed text, style, and XML span are
+separate fields; formulas are never evaluated. `table:number-columns-repeated`/
+`-rows-repeated` expansion is bounded (a bomb declines typed before allocation).
+See [Formats/ODS](../formats/ods.md).
+
+## ODP (OpenDocument Presentation)
+
+ODP enters through the bounded OpenDocument (ODF) inverse over the shared ZIP
+layer (not OPC), like ODT/ODS. The `odp = ["opc"]` feature is **non-default**.
+
+| Property | ODP |
+|---|---|
+| Byte-based detection | ODF package whose mandatory `mimetype` (or manifest) declares `application/vnd.oasis.opendocument.presentation` |
+| Physical authority | shared byte-authoritative ZIP; exact leaf is the raw member span |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `table`, `cell`, `find` |
+| Native observations | `odp-slide` (`--odp-slide N`), `odp-shape`, `odp-notes`, `odp-masters`, `odp-media`, `odp-tables`, `odp-find` |
+| `Page(n)` | — typed decline (slides are addressed by `--odp-slide`) |
+
+Slide order is `draw:page` **document order**, never page-name/file order. Chart
+data and rendering are not interpreted. See [Formats/ODP](../formats/odp.md).
+
+This completes the six office formats from two shared package substrates (OPC:
+DOCX/XLSX/PPTX; ODF: ODT/ODS/ODP). The Phase-21 Wave-2 families are `PROPOSED`.
+
 ## Feature gates
 
 The default build is `default = ["rans", "store", "field"]`. The ZIP/DOCX/EPUB/ODT
-adapters need `package,opc,docx,epub,odt`. `deflate-replay` is opt-in (pulls LGPL
+adapters need `package,opc,docx,epub,odt`; the XLSX adapter needs `package,opc,xlsx`
+and the PPTX adapter `package,opc,pptx` (the non-default `xlsx`/`pptx` features);
+the ODS adapter needs `package,opc,ods` and the ODP adapter `package,opc,odp`.
+`deflate-replay` is opt-in (pulls LGPL
 `cabac`). A descriptor that needs a capability the build lacks sets a mandatory
 feature bit and fails closed with `unsupported-feature` (exit 6).
 
@@ -87,6 +187,7 @@ ADR-0053); `--promote` is refuted on the tested corpus and default-off (ADR-0046
 
 ## Not supported
 
-Containers beyond PDF/DOCX/EPUB/ODT (e.g. XLSX, PPTX) are `PROPOSED`, not
-implemented (see [Roadmap](../project/roadmap.md)). Any source that is not a
+Beyond the six office formats (PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP) the
+Phase-21 Wave-2 families are `PROPOSED`, not implemented (see
+[Roadmap](../project/roadmap.md)). Any source that is not a
 recognized format still round-trips exactly through the opaque `RAW` lane.

@@ -136,6 +136,126 @@ pub struct Limits {
     pub max_odt_blocks: u32,
     /// Maximum notes accepted in one OpenDocument content part (Phase 13.3).
     pub max_odt_notes: u32,
+    // The ODS/OpenDocument-Spreadsheet caps below bound the derived spreadsheet
+    // model (Phase 21.3.1). ODS semantics are derived (`Q_gen`) only.
+    /// Maximum `table:table` sheets accepted in one OpenDocument spreadsheet
+    /// content part (Phase 21.3.1).
+    pub max_ods_sheets: u32,
+    /// Maximum *expanded* grid slots accepted across one spreadsheet, after
+    /// `table:number-rows-repeated`/`table:number-columns-repeated` expansion
+    /// (Phase 21.3.1). Each expanded row charges at least one slot even when it
+    /// declares no cells, so an empty-row repeat bomb still declines. This is the
+    /// ODS analogue of the XLSX coordinate bound (ADR-0059): a repeated span is
+    /// bounded and the *expanded* count declines typed rather than allocating.
+    pub max_ods_cells: u64,
+    /// Maximum repeat count admitted for a single
+    /// `table:number-columns-repeated`/`table:number-rows-repeated` attribute
+    /// (Phase 21.3.1). A declaration above this bound is a typed resource-limit
+    /// decline, never an allocation.
+    pub max_ods_repeated_span: u32,
+    /// Maximum merged spans (`table:number-columns-spanned`>1 or
+    /// `table:number-rows-spanned`>1) accepted across one spreadsheet
+    /// (Phase 21.3.1).
+    pub max_ods_merges: u32,
+    /// Maximum named expressions
+    /// (`table:named-range`/`table:named-expression`) accepted across one
+    /// spreadsheet (Phase 21.3.1).
+    pub max_ods_named_expressions: u32,
+    /// Maximum `style:style` cell-style records accepted in one spreadsheet's
+    /// automatic styles or styles part (Phase 21.3.1).
+    pub max_ods_styles: u32,
+    /// Maximum `office:annotation` cell comments accepted across one spreadsheet
+    /// (Phase 21.3.1).
+    pub max_ods_comments: u32,
+    // The XLSX/SpreadsheetML caps below bound the derived semantic model
+    // (Phase 21.1.1). XLSX semantics are derived (`Q_gen`) only.
+    /// Maximum `<sheet>` declarations accepted in one workbook (Phase 21.1.1).
+    pub max_xlsx_sheets: u32,
+    /// Maximum cells accepted in one worksheet part (Phase 21.1.1).
+    pub max_xlsx_cells: u64,
+    /// Maximum shared strings accepted in `xl/sharedStrings.xml` (Phase 21.1.1).
+    pub max_xlsx_shared_strings: u32,
+    /// Maximum merged ranges accepted in one worksheet (Phase 21.1.1).
+    pub max_xlsx_merges: u32,
+    /// Maximum hyperlinks accepted in one worksheet (Phase 21.1.2).
+    pub max_xlsx_hyperlinks: u32,
+    /// Maximum comments accepted in one comments part (Phase 21.1.2).
+    pub max_xlsx_comments: u32,
+    /// Maximum table parts accepted across a workbook (Phase 21.1.2).
+    pub max_xlsx_tables: u32,
+    /// Maximum columns accepted in one table part (Phase 21.1.2).
+    pub max_xlsx_table_columns: u32,
+    /// Maximum defined/named ranges accepted in one workbook (Phase 21.1.2).
+    pub max_xlsx_defined_names: u32,
+    /// Maximum drawing parts accepted across a workbook (Phase 21.1.2).
+    pub max_xlsx_drawings: u32,
+    /// Maximum style records (fonts/fills/`cellXfs`) accepted in `styles.xml` (Phase 21.1.2).
+    pub max_xlsx_style_records: u32,
+    /// Maximum 0-based column index accepted in a cell reference (Phase 21.1.2).
+    ///
+    /// The Excel-conformant grid is 16,384 columns wide (A..XFD), so a valid
+    /// 0-based column is `< 16384`; a coordinate at or beyond this bound is a
+    /// typed resource-limit decline. Bounding the coordinate here keeps a single
+    /// hostile reference from driving an unbounded projection downstream.
+    pub max_xlsx_col: u32,
+    /// Maximum 0-based row index accepted in a cell/row reference (Phase 21.1.2).
+    ///
+    /// The Excel-conformant grid is 1,048,576 rows tall (1..1048576), so a valid
+    /// 0-based row is `< 1 << 20`; a coordinate at or beyond this bound is a
+    /// typed resource-limit decline.
+    pub max_xlsx_row: u32,
+    // The PPTX/PresentationML caps below bound the derived semantic model
+    // (Phase 21.2.1). PPTX semantics are derived (`Q_gen`) only.
+    /// Maximum slides accepted in one presentation (Phase 21.2.1).
+    pub max_pptx_slides: u32,
+    /// Maximum shapes accepted in one slide's shape tree, including group
+    /// descendants (Phase 21.2.1).
+    pub max_pptx_shapes_per_slide: u32,
+    /// Maximum text runs (`a:t`) accepted in one slide (Phase 21.2.1).
+    pub max_pptx_text_runs: u32,
+    /// Maximum group-shape nesting depth accepted in one slide (Phase 21.2.1).
+    pub max_pptx_group_depth: u32,
+    /// Maximum media parts (images/audio/video) exposed by one presentation
+    /// (Phase 21.2.1).
+    pub max_pptx_media: u32,
+    /// Maximum embedded tables accepted in one slide (Phase 21.2.1).
+    pub max_pptx_tables: u32,
+    /// Maximum table cells accepted across one slide's tables (Phase 21.2.1).
+    pub max_pptx_table_cells: u32,
+    /// Maximum notes-slide parts accepted in one presentation (Phase 21.2.1).
+    pub max_pptx_notes: u32,
+    /// Maximum slide-layout parts accepted in one presentation (Phase 21.2.1).
+    pub max_pptx_layouts: u32,
+    /// Maximum slide-master parts accepted in one presentation, and the bound
+    /// applied to theme parts (Phase 21.2.1).
+    pub max_pptx_masters: u32,
+    // The ODP/OpenDocument-Presentation caps below bound the derived presentation
+    // model (Phase 21.4.1). ODP semantics are derived (`Q_gen`) only.
+    /// Maximum `draw:page` slides accepted in one OpenDocument presentation
+    /// content part (Phase 21.4.1).
+    pub max_odp_slides: u32,
+    /// Maximum shapes accepted in one slide, including group descendants
+    /// (Phase 21.4.1).
+    pub max_odp_shapes_per_slide: u32,
+    /// Maximum text runs (`text:span`) accepted in one slide (Phase 21.4.1).
+    pub max_odp_text_runs: u32,
+    /// Maximum `draw:g` group nesting depth accepted in one slide (Phase 21.4.1).
+    pub max_odp_group_depth: u32,
+    /// Maximum `Pictures/*` media parts exposed by one presentation (Phase 21.4.1).
+    pub max_odp_media: u32,
+    /// Maximum embedded tables (`table:table`) accepted in one slide
+    /// (Phase 21.4.1).
+    pub max_odp_tables: u32,
+    /// Maximum table cells accepted across one slide's tables, after
+    /// `table:number-columns-repeated`/`table:number-rows-repeated` expansion
+    /// (Phase 21.4.1). An over-large repeat declines typed rather than allocating.
+    pub max_odp_table_cells: u32,
+    /// Maximum notes pages (`presentation:notes`) accepted in one presentation
+    /// (Phase 21.4.1).
+    pub max_odp_notes: u32,
+    /// Maximum `style:master-page` master pages accepted, and the bound applied to
+    /// `style:style` records, in one presentation (Phase 21.4.1).
+    pub max_odp_masters: u32,
 }
 
 impl Limits {
@@ -188,6 +308,45 @@ impl Limits {
         max_odt_manifest_entries: 1 << 20,
         max_odt_blocks: 1 << 20,
         max_odt_notes: 1 << 20,
+        max_ods_sheets: 4096,
+        max_ods_cells: 1 << 24,
+        max_ods_repeated_span: 1 << 20,
+        max_ods_merges: 1 << 20,
+        max_ods_named_expressions: 1 << 20,
+        max_ods_styles: 1 << 16,
+        max_ods_comments: 1 << 20,
+        max_xlsx_sheets: 4096,
+        max_xlsx_cells: 1 << 24,
+        max_xlsx_shared_strings: 1 << 20,
+        max_xlsx_merges: 1 << 20,
+        max_xlsx_hyperlinks: 1 << 20,
+        max_xlsx_comments: 1 << 20,
+        max_xlsx_tables: 1 << 20,
+        max_xlsx_table_columns: 1 << 16,
+        max_xlsx_defined_names: 1 << 20,
+        max_xlsx_drawings: 1 << 14,
+        max_xlsx_style_records: 1 << 16,
+        max_xlsx_col: 16384,
+        max_xlsx_row: 1 << 20,
+        max_pptx_slides: 4096,
+        max_pptx_shapes_per_slide: 1 << 20,
+        max_pptx_text_runs: 1 << 22,
+        max_pptx_group_depth: 64,
+        max_pptx_media: 1 << 14,
+        max_pptx_tables: 1 << 14,
+        max_pptx_table_cells: 1 << 20,
+        max_pptx_notes: 1 << 16,
+        max_pptx_layouts: 1 << 14,
+        max_pptx_masters: 1 << 14,
+        max_odp_slides: 4096,
+        max_odp_shapes_per_slide: 1 << 20,
+        max_odp_text_runs: 1 << 22,
+        max_odp_group_depth: 64,
+        max_odp_media: 1 << 14,
+        max_odp_tables: 1 << 14,
+        max_odp_table_cells: 1 << 20,
+        max_odp_notes: 1 << 16,
+        max_odp_masters: 1 << 14,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -239,6 +398,45 @@ impl Limits {
         max_odt_manifest_entries: 1 << 14,
         max_odt_blocks: 1 << 14,
         max_odt_notes: 1 << 12,
+        max_ods_sheets: 64,
+        max_ods_cells: 1 << 16,
+        max_ods_repeated_span: 1 << 14,
+        max_ods_merges: 1 << 14,
+        max_ods_named_expressions: 1 << 14,
+        max_ods_styles: 1 << 12,
+        max_ods_comments: 1 << 14,
+        max_xlsx_sheets: 64,
+        max_xlsx_cells: 1 << 16,
+        max_xlsx_shared_strings: 1 << 14,
+        max_xlsx_merges: 1 << 14,
+        max_xlsx_hyperlinks: 1 << 14,
+        max_xlsx_comments: 1 << 14,
+        max_xlsx_tables: 1 << 14,
+        max_xlsx_table_columns: 1 << 12,
+        max_xlsx_defined_names: 1 << 14,
+        max_xlsx_drawings: 1 << 12,
+        max_xlsx_style_records: 1 << 12,
+        max_xlsx_col: 16384,
+        max_xlsx_row: 1 << 20,
+        max_pptx_slides: 64,
+        max_pptx_shapes_per_slide: 1 << 16,
+        max_pptx_text_runs: 1 << 18,
+        max_pptx_group_depth: 16,
+        max_pptx_media: 1 << 12,
+        max_pptx_tables: 1 << 12,
+        max_pptx_table_cells: 1 << 16,
+        max_pptx_notes: 1 << 12,
+        max_pptx_layouts: 1 << 12,
+        max_pptx_masters: 1 << 12,
+        max_odp_slides: 64,
+        max_odp_shapes_per_slide: 1 << 16,
+        max_odp_text_runs: 1 << 18,
+        max_odp_group_depth: 16,
+        max_odp_media: 1 << 12,
+        max_odp_tables: 1 << 12,
+        max_odp_table_cells: 1 << 16,
+        max_odp_notes: 1 << 12,
+        max_odp_masters: 1 << 12,
     };
 }
 

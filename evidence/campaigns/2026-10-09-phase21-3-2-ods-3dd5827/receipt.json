@@ -1,0 +1,149 @@
+{
+  "campaign": "evidence/campaigns/2026-10-09-phase21-3-2-ods-3dd5827",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "dee88ea1f0ca88674de17dcb2af99e18e53f06b423b25b062b67a9e9ddea08ad",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-09-phase21-3-2-ods-3dd5827",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "80a6f5b83cf23098ed2533db4a34a0bf2ea481e29972aaa77353e39d713ae6fd",
+    "derives_from": "doc-baseline (same pinned base digest)",
+    "duckdb_version": "1.5.6",
+    "duckdb_wheel_sha256": "73b108c04c932b36c2fa4e41110cc1c3c8cd510eb49f065f92d050be8e6929fd (cp311 x86_64); 56c0f71c6bee982e9c30568bb12371bf66b26bf129c75d8d7f60bc69d6590a2c (cp311 aarch64)",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "c01-basic.ods": {
+        "len": 2025,
+        "sha256": "ed8648218f987850e10fdcc5659d0380a8cd5568af8938ccb2fbb3db8b22d459"
+      },
+      "c02-typed.ods": {
+        "len": 2530,
+        "sha256": "b54dedfcce5c1bb398db829053ed61ed1472070af7cac5c2bbc41c0a0a7cc0f5"
+      },
+      "c03-repeated.ods": {
+        "len": 1593,
+        "sha256": "9671008ca0e6511e7fcf4f9129bd8a7af18503c11f3afa68cd781ee84421a13e"
+      },
+      "c04-merged.ods": {
+        "len": 1600,
+        "sha256": "b8ecd0365dc0dee31ebae2e81cf3994103c058fe47d2adde9f2bacf414ff6124"
+      },
+      "c05-named.ods": {
+        "len": 1739,
+        "sha256": "e094e1cacb71a13e6c2f4f5fdc0441ea9a5ab2afee90b03e6ce71d67b1e84ea2"
+      },
+      "c06-comments.ods": {
+        "len": 1953,
+        "sha256": "da2257e55b35b08cb35a989484fb1ace578806cd4891d8eedaee99569c99b78b"
+      },
+      "c07-styles.ods": {
+        "len": 2515,
+        "sha256": "60cc93f492f648b781797fde55f9804c0b2ef32ddd6e47c4c133e48f5659cc6b"
+      },
+      "c08-large.ods": {
+        "len": 1085182,
+        "sha256": "d3e5872e8c7aa8e80ecd7af148d8d2722e86f091b31aa04c2de84c1bc2a5ed8d"
+      }
+    },
+    "measured_commit": "3dd5827de464bbceff417da874111a6bf05f1e0b",
+    "phase": "21.3.2 \u2014 ODS economic court (VOLE vs SQLite vs DuckDB)",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 4914,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "analytical",
+    "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M tools/fixtures/make-ods.py  M tools/phase21-3-ods-court.sh ?? evidence/campaigns/2026-10-09-phase21-3-2-ods-3dd5827/ ?? evidence/campaigns/2026-10-09-phase21-3-ods-3dd5827/ ?? tools/fixtures/phase21-3-ods-baseline.py ?? tools/fixtures/phase21-3-ods-duckdb.py ?? tools/fixtures/phase21-3-ods-vole.py ?? tools/phase21-3-1-ods-court.sh ",
+    "utc": "2026-10-09T03:09:38Z",
+    "vole_substrate": "--profile runtime --packed (packed seed segments in store/fieldpack/)"
+  },
+  "equivalence": {
+    "Q1.duckdb": {
+      "equal": 8
+    },
+    "Q1.sqlite": {
+      "equal": 8
+    },
+    "Q10.duckdb": {
+      "capability-gap": 8
+    },
+    "Q10.sqlite": {
+      "equal": 8
+    },
+    "Q2.duckdb": {
+      "equal": 8
+    },
+    "Q2.sqlite": {
+      "equal": 8
+    },
+    "Q3.duckdb": {
+      "capability-gap": 8
+    },
+    "Q3.sqlite": {
+      "capability-gap": 8
+    },
+    "Q4.duckdb": {
+      "equal": 8
+    },
+    "Q4.sqlite": {
+      "equal": 8
+    },
+    "Q5.duckdb": {
+      "equal": 8
+    },
+    "Q5.sqlite": {
+      "equal": 8
+    },
+    "Q6.duckdb": {
+      "equal": 8
+    },
+    "Q6.sqlite": {
+      "equal": 8
+    },
+    "Q7.duckdb": {
+      "equal": 8
+    },
+    "Q7.sqlite": {
+      "equal": 8
+    },
+    "Q8.duckdb": {
+      "capability-gap": 8
+    },
+    "Q8.sqlite": {
+      "equal": 8
+    },
+    "Q9.duckdb": {
+      "both-decline": 8
+    },
+    "Q9.sqlite": {
+      "both-decline": 7,
+      "capability-gap": 1
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 21320); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 8,
+  "exact_ok": 8,
+  "fixtures": [
+    "c01-basic.ods",
+    "c02-typed.ods",
+    "c03-repeated.ods",
+    "c04-merged.ods",
+    "c05-named.ods",
+    "c06-comments.ods",
+    "c07-styles.ods",
+    "c08-large.ods"
+  ],
+  "lanes": [
+    "vole",
+    "sqlite",
+    "duckdb"
+  ],
+  "phase": "21.3.2 \u2014 ODS economic court (VOLE vs SQLite vs DuckDB)",
+  "verdict": "PASS"
+}

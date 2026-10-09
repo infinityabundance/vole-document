@@ -37,9 +37,27 @@ use crate::adapter::docx::wml::StoryModel;
 use crate::adapter::docx::{DocxExtractProfile, DocxModel, DocxPartRef, DocxStory, story_params};
 #[cfg(feature = "epub")]
 use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
+#[cfg(feature = "odp")]
+use crate::adapter::odp::{
+    ContentModel as OdpContentModel, OdpExtractProfile, OdpModel, OdpShape, OdpTable,
+    StylesModel as OdpStylesModel,
+};
+#[cfg(feature = "ods")]
+use crate::adapter::ods::{
+    ContentModel as OdsContentModel, OdsExtractProfile, OdsModel, StylesModel as OdsStylesModel,
+};
 #[cfg(feature = "odt")]
 use crate::adapter::odt::{
     Block as OdtBlock, ContentModel as OdtContentModel, OdtExtractProfile, OdtModel,
+};
+#[cfg(feature = "pptx")]
+use crate::adapter::pptx::{
+    NotesModel as PptxNotesModel, PptxExtractProfile, PptxModel, PptxShape, PptxTable,
+    PresentationModel as PptxPresentationModel, SlideModel as PptxSlideModel,
+};
+#[cfg(feature = "xlsx")]
+use crate::adapter::xlsx::{
+    SheetModel as XlsxSheetModel, WorkbookModel as XlsxWorkbookModel, XlsxExtractProfile, XlsxModel,
 };
 use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
@@ -49,10 +67,18 @@ use crate::field::document_format::DocumentFormat;
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "odp")]
+use crate::field::index::SEL_ODP_MODEL;
+#[cfg(feature = "ods")]
+use crate::field::index::SEL_ODS_MODEL;
 #[cfg(feature = "odt")]
 use crate::field::index::SEL_ODT_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
+#[cfg(feature = "pptx")]
+use crate::field::index::SEL_PPTX_MODEL;
+#[cfg(feature = "xlsx")]
+use crate::field::index::SEL_XLSX_MODEL;
 use crate::field::index::{
     FsIndexStore, IndexEntry, SEL_OBJECT, SEL_PACKAGE_MEMBER_DECODED, SEL_PACKAGE_MEMBER_RAW,
     SEL_PAGE, SEL_REVISION, SEL_REVISION_LINEAGE, SEL_REVISIONS, SEL_STREAM, SEL_STREAM_DECODED,
@@ -332,13 +358,245 @@ pub enum Selector {
         /// The extraction profile identity.
         profile: OdtExtractProfile,
     },
-    /// A text search over the OpenDocument blocks, scoped by the extraction profile.
+    /// A lexical text search over the OpenDocument blocks, scoped by the extraction profile.
     #[cfg(feature = "odt")]
     OdtFind {
         /// The pattern (case-sensitive substring).
         pattern: String,
         /// The extraction profile identity.
         profile: OdtExtractProfile,
+    },
+    /// An ODS sheet by 0-based document-order index (Phase 21.3.1). Hidden sheets
+    /// are still addressable by index; the profile only governs whether a
+    /// whole-spreadsheet projection includes them.
+    #[cfg(feature = "ods")]
+    OdsSheet {
+        /// The 0-based document-order sheet index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdsExtractProfile,
+    },
+    /// One ODS cell, addressed by an A1-style reference (`B7`) or an explicit
+    /// zero-based `row:col`. The stored formula, typed value, displayed text, style
+    /// name, and decoded-part span are distinct facets of the same cell, never
+    /// conflated.
+    #[cfg(feature = "ods")]
+    OdsCell {
+        /// The 0-based document-order sheet index.
+        sheet: u32,
+        /// The cell reference (`B7` or `row:col`).
+        cell: String,
+        /// The extraction profile identity.
+        profile: OdsExtractProfile,
+    },
+    /// A text search over sheet cells, scoped by the extraction profile.
+    #[cfg(feature = "ods")]
+    OdsFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The extraction profile identity.
+        profile: OdsExtractProfile,
+    },
+    /// The parsed OpenDocument cell styles (automatic styles from `content.xml`
+    /// plus the named styles from the styles part, Phase 21.3.1). A distinct
+    /// observation from a cell's value, formula, or span.
+    #[cfg(feature = "ods")]
+    OdsStyles,
+    /// The spreadsheet's named expressions (Phase 21.3.1). Formulas are never
+    /// evaluated; only the stored text is reported.
+    #[cfg(feature = "ods")]
+    OdsNamedExpressions,
+    /// The cell comments (`office:annotation`) of one sheet (Phase 21.3.1).
+    #[cfg(feature = "ods")]
+    OdsComments {
+        /// The 0-based document-order sheet index.
+        sheet: u32,
+    },
+    /// One ODP slide (`draw:page`) by 0-based document order (Phase 21.4.1). The
+    /// order is the `draw:page` document order, never a file/member name. Hidden
+    /// slides stay addressable by index; the profile governs whole-deck projections.
+    #[cfg(feature = "odp")]
+    OdpSlide {
+        /// The 0-based document-order slide index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdpExtractProfile,
+    },
+    /// One ODP shape, addressed by slide index and a flattened pre-order shape
+    /// index. A shape's text and its kind are a distinct observation from the
+    /// slide's XML span (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    OdpShape {
+        /// The 0-based document-order slide index.
+        slide: u32,
+        /// The flattened pre-order shape index within the slide.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdpExtractProfile,
+    },
+    /// The notes page text (`presentation:notes`) attached to a slide, by 0-based
+    /// slide index (Phase 21.4.1). A slide with no notes page is a typed decline.
+    #[cfg(feature = "odp")]
+    OdpNotes {
+        /// The 0-based document-order slide index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: OdpExtractProfile,
+    },
+    /// The presentation's `style:master-page` master pages (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    OdpMasters,
+    /// An ODP media resource (`Pictures/*`) by 0-based name-sorted ordinal
+    /// (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    OdpMedia {
+        /// The 0-based media-part index.
+        ordinal: u32,
+    },
+    /// The embedded tables of one slide (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    OdpTables {
+        /// The 0-based document-order slide index.
+        slide: u32,
+        /// The extraction profile identity.
+        profile: OdpExtractProfile,
+    },
+    /// A lexical text search over slides (Phase 21.4.1).
+    #[cfg(feature = "odp")]
+    OdpFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The extraction profile identity.
+        profile: OdpExtractProfile,
+    },
+    /// An XLSX worksheet by 0-based workbook-order index (Phase 21.1.1). Hidden
+    /// sheets are still addressable by index; the profile only governs whether a
+    /// whole-workbook projection includes them.
+    #[cfg(feature = "xlsx")]
+    XlsxSheet {
+        /// The 0-based workbook-order sheet index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: XlsxExtractProfile,
+    },
+    /// One XLSX cell, addressed by an A1-style reference (`B7`) and its sheet.
+    /// The stored formula and the cached result are distinct facets of the same
+    /// cell, never conflated.
+    #[cfg(feature = "xlsx")]
+    XlsxCell {
+        /// The 0-based workbook-order sheet index.
+        sheet: u32,
+        /// The cell reference (`B7`).
+        cell: String,
+        /// The extraction profile identity.
+        profile: XlsxExtractProfile,
+    },
+    /// A text search over worksheet cells, scoped by the extraction profile.
+    #[cfg(feature = "xlsx")]
+    XlsxFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The extraction profile identity.
+        profile: XlsxExtractProfile,
+    },
+    /// The parsed SpreadsheetML style table (Phase 21.1.2): custom number formats,
+    /// fonts, fills, and the `cellXfs` composition. A distinct observation from a
+    /// cell's value, formula, or span.
+    #[cfg(feature = "xlsx")]
+    XlsxStyles,
+    /// The workbook's defined/named ranges (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    XlsxDefinedNames,
+    /// The package's external relationships (Phase 21.1.2). Typed metadata only;
+    /// an external target is an inert identifier and is never dereferenced.
+    #[cfg(feature = "xlsx")]
+    XlsxExternalRels,
+    /// The cell comments of one worksheet, keyed by cell (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    XlsxComments {
+        /// The 0-based workbook-order sheet index.
+        sheet: u32,
+    },
+    /// The hyperlinks declared in one worksheet (Phase 21.1.2). Internal
+    /// (`location`) and external (`r:id`) links are distinct observations.
+    #[cfg(feature = "xlsx")]
+    XlsxHyperlinks {
+        /// The 0-based workbook-order sheet index.
+        sheet: u32,
+    },
+    /// The tables referenced by one worksheet's `tableParts` (Phase 21.1.2).
+    #[cfg(feature = "xlsx")]
+    XlsxTables {
+        /// The 0-based workbook-order sheet index.
+        sheet: u32,
+    },
+    /// The drawing(s) referenced by one worksheet (Phase 21.1.2). Charts are never
+    /// evaluated; only the drawing part and its relationship graph are exposed.
+    #[cfg(feature = "xlsx")]
+    XlsxDrawing {
+        /// The 0-based workbook-order sheet index.
+        sheet: u32,
+    },
+    /// One PPTX slide by 0-based presentation-order index (Phase 21.2.1). Hidden
+    /// slides are still addressable by index; the profile only governs whether a
+    /// whole-deck projection includes them.
+    #[cfg(feature = "pptx")]
+    PptxSlide {
+        /// The 0-based presentation-order slide index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: PptxExtractProfile,
+    },
+    /// One PPTX shape, addressed by slide index and a flattened pre-order shape
+    /// index. A shape's text and its kind are a distinct observation from the
+    /// slide's XML span.
+    #[cfg(feature = "pptx")]
+    PptxShape {
+        /// The 0-based presentation-order slide index.
+        slide: u32,
+        /// The flattened pre-order shape index within the slide.
+        index: u32,
+        /// The extraction profile identity.
+        profile: PptxExtractProfile,
+    },
+    /// One PPTX notes slide by 0-based notes-part index (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxNotes {
+        /// The 0-based notes-slide index.
+        index: u32,
+        /// The extraction profile identity.
+        profile: PptxExtractProfile,
+    },
+    /// The presentation's slide-layout parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxLayouts,
+    /// The presentation's slide-master parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxMasters,
+    /// The presentation's theme parts (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxTheme,
+    /// A PPTX media resource by 0-based ordinal (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxMedia {
+        /// The 0-based media-part index.
+        ordinal: u32,
+    },
+    /// The embedded tables of one slide (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxTables {
+        /// The 0-based presentation-order slide index.
+        slide: u32,
+        /// The extraction profile identity.
+        profile: PptxExtractProfile,
+    },
+    /// A lexical text search over slides (Phase 21.2.1).
+    #[cfg(feature = "pptx")]
+    PptxFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+        /// The extraction profile identity.
+        profile: PptxExtractProfile,
     },
 }
 
@@ -501,6 +759,116 @@ impl Selector {
             #[cfg(feature = "odt")]
             Selector::OdtFind { pattern, profile } => {
                 format!("odt-find:{pattern};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "ods")]
+            Selector::OdsSheet { index, profile } => {
+                format!("ods-sheet:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "ods")]
+            Selector::OdsCell {
+                sheet,
+                cell,
+                profile,
+            } => format!("ods-cell:{sheet}:{cell};profile={}", profile.fingerprint()),
+            #[cfg(feature = "ods")]
+            Selector::OdsFind { pattern, profile } => {
+                format!("ods-find:{pattern};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "ods")]
+            Selector::OdsStyles => "ods-styles".to_string(),
+            #[cfg(feature = "ods")]
+            Selector::OdsNamedExpressions => "ods-named-expressions".to_string(),
+            #[cfg(feature = "ods")]
+            Selector::OdsComments { sheet } => format!("ods-comments:{sheet}"),
+            #[cfg(feature = "odp")]
+            Selector::OdpSlide { index, profile } => {
+                format!("odp-slide:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "odp")]
+            Selector::OdpShape {
+                slide,
+                index,
+                profile,
+            } => format!(
+                "odp-shape:{slide}:{index};profile={}",
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "odp")]
+            Selector::OdpNotes { index, profile } => {
+                format!("odp-notes:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "odp")]
+            Selector::OdpMasters => "odp-masters".to_string(),
+            #[cfg(feature = "odp")]
+            Selector::OdpMedia { ordinal } => format!("odp-media:{ordinal}"),
+            #[cfg(feature = "odp")]
+            Selector::OdpTables { slide, profile } => {
+                format!("odp-tables:{slide};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "odp")]
+            Selector::OdpFind { pattern, profile } => {
+                format!("odp-find:{pattern};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxSheet { index, profile } => {
+                format!("xlsx-sheet:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxCell {
+                sheet,
+                cell,
+                profile,
+            } => format!("xlsx-cell:{sheet}:{cell};profile={}", profile.fingerprint()),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxFind { pattern, profile } => {
+                format!("xlsx-find:{pattern};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxStyles => "xlsx-styles".to_string(),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxDefinedNames => "xlsx-defined-names".to_string(),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxExternalRels => "xlsx-external-rels".to_string(),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxComments { sheet } => format!("xlsx-comments:{sheet}"),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxHyperlinks { sheet } => format!("xlsx-hyperlinks:{sheet}"),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxTables { sheet } => format!("xlsx-tables:{sheet}"),
+            #[cfg(feature = "xlsx")]
+            Selector::XlsxDrawing { sheet } => format!("xlsx-drawing:{sheet}"),
+            #[cfg(feature = "pptx")]
+            Selector::PptxSlide { index, profile } => {
+                format!("pptx-slide:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "pptx")]
+            Selector::PptxShape {
+                slide,
+                index,
+                profile,
+            } => format!(
+                "pptx-shape:{slide}:{index};profile={}",
+                profile.fingerprint()
+            ),
+            #[cfg(feature = "pptx")]
+            Selector::PptxNotes { index, profile } => {
+                format!("pptx-notes:{index};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "pptx")]
+            Selector::PptxLayouts => "pptx-layouts".to_string(),
+            #[cfg(feature = "pptx")]
+            Selector::PptxMasters => "pptx-masters".to_string(),
+            #[cfg(feature = "pptx")]
+            Selector::PptxTheme => "pptx-theme".to_string(),
+            #[cfg(feature = "pptx")]
+            Selector::PptxMedia { ordinal } => format!("pptx-media:{ordinal}"),
+            #[cfg(feature = "pptx")]
+            Selector::PptxTables { slide, profile } => {
+                format!("pptx-tables:{slide};profile={}", profile.fingerprint())
+            }
+            #[cfg(feature = "pptx")]
+            Selector::PptxFind { pattern, profile } => {
+                format!("pptx-find:{pattern};profile={}", profile.fingerprint())
             }
         }
     }
@@ -1765,7 +2133,8 @@ struct DocxStoryView {
     span: Option<(u64, u64)>,
 }
 
-#[cfg(feature = "docx")]
+#[cfg(any(feature = "docx", feature = "odt"))]
+#[cfg(any(feature = "docx", feature = "odt"))]
 fn opt_u8_json(v: Option<u8>) -> String {
     match v {
         Some(n) => n.to_string(),
@@ -1773,10 +2142,24 @@ fn opt_u8_json(v: Option<u8>) -> String {
     }
 }
 
-#[cfg(feature = "docx")]
+#[cfg(any(
+    feature = "docx",
+    feature = "odt",
+    feature = "ods",
+    feature = "xlsx",
+    feature = "pptx"
+))]
 fn opt_str_json(v: Option<&str>) -> String {
     match v {
         Some(s) => format!("\"{}\"", json_escape(s)),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(any(feature = "ods", feature = "xlsx", feature = "pptx"))]
+fn opt_u32_json(v: Option<u32>) -> String {
+    match v {
+        Some(n) => n.to_string(),
         None => "null".to_string(),
     }
 }
@@ -1821,7 +2204,17 @@ impl<S: SeedStore> Ctx<'_, S> {
             | NodeKind::EpubModel
             | NodeKind::EpubContent
             | NodeKind::OdtModel
-            | NodeKind::OdtContent => {
+            | NodeKind::OdtContent
+            | NodeKind::OdsModel
+            | NodeKind::OdsContent
+            | NodeKind::OdsStyles
+            | NodeKind::XlsxModel
+            | NodeKind::XlsxWorkbook
+            | NodeKind::XlsxSheet
+            | NodeKind::PptxModel
+            | NodeKind::PptxPresentation
+            | NodeKind::PptxSlide
+            | NodeKind::PptxNotes => {
                 self.stats.xml_parses = self.stats.xml_parses.saturating_add(1);
             }
             _ => {}
@@ -2104,6 +2497,145 @@ impl<S: SeedStore> Ctx<'_, S> {
             (Selector::OdtFind { pattern, profile }, R::Text) => {
                 self.odt_find(req, pattern, profile)
             }
+            #[cfg(feature = "ods")]
+            (Selector::OdsSheet { index, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.ods_sheet(req, *index, profile)
+            }
+            #[cfg(feature = "ods")]
+            (
+                Selector::OdsCell {
+                    sheet,
+                    cell,
+                    profile,
+                },
+                R::Text | R::Structure | R::Metadata | R::ExactBytes,
+            ) => self.ods_cell(req, *sheet, cell, profile),
+            #[cfg(feature = "ods")]
+            (Selector::OdsFind { pattern, profile }, R::Text) => {
+                self.ods_find(req, pattern, profile)
+            }
+            #[cfg(feature = "ods")]
+            (Selector::OdsStyles, R::Metadata | R::Structure) => self.ods_styles_answer(req),
+            #[cfg(feature = "ods")]
+            (Selector::OdsNamedExpressions, R::Metadata | R::Structure) => {
+                self.ods_named_expressions(req)
+            }
+            #[cfg(feature = "ods")]
+            (Selector::OdsComments { sheet }, R::Metadata | R::Structure) => {
+                self.ods_comments(req, *sheet)
+            }
+            #[cfg(feature = "odp")]
+            (Selector::OdpSlide { index, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.odp_slide(req, *index, profile)
+            }
+            #[cfg(feature = "odp")]
+            (
+                Selector::OdpShape {
+                    slide,
+                    index,
+                    profile,
+                },
+                R::Text | R::Structure | R::Metadata,
+            ) => self.odp_shape(req, *slide, *index, profile),
+            #[cfg(feature = "odp")]
+            (Selector::OdpNotes { index, profile }, R::Text | R::Metadata) => {
+                self.odp_notes(req, *index, profile)
+            }
+            #[cfg(feature = "odp")]
+            (Selector::OdpMasters, R::Metadata | R::Structure) => self.odp_masters(req),
+            #[cfg(feature = "odp")]
+            (
+                Selector::OdpMedia { ordinal },
+                R::Metadata | R::Structure | R::ExactBytes | R::DecodedBytes,
+            ) => self.odp_media(req, *ordinal),
+            #[cfg(feature = "odp")]
+            (Selector::OdpTables { slide, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.odp_tables(req, *slide, profile)
+            }
+            #[cfg(feature = "odp")]
+            (Selector::OdpFind { pattern, profile }, R::Text) => {
+                self.odp_find(req, pattern, profile)
+            }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxSheet { index, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.xlsx_sheet(req, *index, profile)
+            }
+            #[cfg(feature = "xlsx")]
+            (
+                Selector::XlsxCell {
+                    sheet,
+                    cell,
+                    profile,
+                },
+                R::Text | R::Structure | R::Metadata | R::ExactBytes,
+            ) => self.xlsx_cell(req, *sheet, cell, profile),
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxFind { pattern, profile }, R::Text) => {
+                self.xlsx_find(req, pattern, profile)
+            }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxStyles, R::Metadata | R::Structure) => self.xlsx_styles_answer(req),
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxDefinedNames, R::Metadata | R::Structure) => {
+                self.xlsx_defined_names(req)
+            }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxExternalRels, R::Metadata | R::Structure) => {
+                self.xlsx_external_rels(req)
+            }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxComments { sheet }, R::Metadata | R::Structure) => {
+                self.xlsx_comments(req, *sheet)
+            }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxHyperlinks { sheet }, R::Metadata | R::Structure) => {
+                self.xlsx_hyperlinks(req, *sheet)
+            }
+            #[cfg(feature = "xlsx")]
+            (Selector::XlsxTables { sheet }, R::Metadata | R::Structure) => {
+                self.xlsx_tables(req, *sheet)
+            }
+            #[cfg(feature = "xlsx")]
+            (
+                Selector::XlsxDrawing { sheet },
+                R::Metadata | R::Structure | R::ExactBytes | R::DecodedBytes,
+            ) => self.xlsx_drawing(req, *sheet),
+            #[cfg(feature = "pptx")]
+            (Selector::PptxSlide { index, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.pptx_slide(req, *index, profile)
+            }
+            #[cfg(feature = "pptx")]
+            (
+                Selector::PptxShape {
+                    slide,
+                    index,
+                    profile,
+                },
+                R::Text | R::Structure | R::Metadata,
+            ) => self.pptx_shape(req, *slide, *index, profile),
+            #[cfg(feature = "pptx")]
+            (Selector::PptxNotes { index, profile }, R::Text | R::Metadata) => {
+                self.pptx_notes(req, *index, profile)
+            }
+            #[cfg(feature = "pptx")]
+            (Selector::PptxLayouts, R::Metadata | R::Structure) => self.pptx_layouts(req),
+            #[cfg(feature = "pptx")]
+            (Selector::PptxMasters, R::Metadata | R::Structure) => self.pptx_masters(req),
+            #[cfg(feature = "pptx")]
+            (Selector::PptxTheme, R::Metadata | R::Structure) => self.pptx_theme(req),
+            #[cfg(feature = "pptx")]
+            (
+                Selector::PptxMedia { ordinal },
+                R::Metadata | R::Structure | R::ExactBytes | R::DecodedBytes,
+            ) => self.pptx_media(req, *ordinal),
+            #[cfg(feature = "pptx")]
+            (Selector::PptxTables { slide, profile }, R::Text | R::Structure | R::Metadata) => {
+                self.pptx_tables(req, *slide, profile)
+            }
+            #[cfg(feature = "pptx")]
+            (Selector::PptxFind { pattern, profile }, R::Text) => {
+                self.pptx_find(req, pattern, profile)
+            }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
                 req.selector.canonical(),
@@ -2161,11 +2693,16 @@ impl<S: SeedStore> Ctx<'_, S> {
         let end = offset
             .checked_add(len)
             .ok_or_else(|| Error::usage("byte-range end overflows"))?;
+        // A `SourceSlice`'s output is `source[offset..offset+len]`, so its span
+        // coordinates alone are not an identity: the field's exact-authority root
+        // (source-scoped) is a dependency, so the same `(offset, len)` in two
+        // different sources gets **distinct** ids and can never alias in the
+        // shared derived cache.
         let node = SeedNode::new(
             NodeKind::SourceSlice,
             len,
             span_params(offset, len),
-            Vec::new(),
+            vec![self.manifest.root_node],
             "field:observe;source-slice",
         );
         let bytes = self.materialize(&node)?;
@@ -4390,6 +4927,2842 @@ impl<S: SeedStore> Ctx<'_, S> {
 }
 
 // ---------------------------------------------------------------------------
+// ODS (OpenDocument Spreadsheet) observations (Phase 21.3.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "ods")]
+type OdsContentView = (
+    OdsContentModel,
+    crate::adapter::ods::PartRef,
+    Option<(u64, u64)>,
+    Vec<NodeId>,
+);
+
+#[cfg(feature = "ods")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the ODS discovery model (derived, `Q_gen`).
+    fn ods_model(&mut self) -> Result<OdsModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_ODS_MODEL, 0), "ODS model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        OdsModel::decode(&bytes)
+    }
+
+    fn ods_member_span(&mut self, ordinal: Option<u32>) -> Option<(u64, u64)> {
+        let o = ordinal?;
+        self.lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, o))
+            .ok()?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)))
+    }
+
+    fn ods_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Resolve the main content part to its parsed [`OdsContentModel`], parsing
+    /// **only** that part and persisting the derived node in the disposable cache.
+    fn ods_content_view(&mut self, profile: &OdsExtractProfile) -> Result<OdsContentView> {
+        let model = self.ods_model()?;
+        let part = model.content.clone().ok_or_else(|| {
+            Error::invalid_package_structure(
+                "ODF package has no resolvable OpenDocument content part",
+            )
+        })?;
+        if part.ordinal == u32::MAX {
+            return Err(Error::invalid_package_structure(
+                "ODF content part does not resolve to a package member",
+            ));
+        }
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "ODS content decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::OdsContent,
+            self.limits.max_output_bytes,
+            crate::adapter::ods::content_params(part.ordinal, &part.name, profile),
+            vec![dec.node_id],
+            "ods:content",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let cm = OdsContentModel::decode(&bytes)?;
+        let span = self.ods_member_span(Some(part.ordinal));
+        Ok((cm, part, span, vec![id, dec.node_id]))
+    }
+
+    /// Resolve the styles part to its parsed [`OdsStylesModel`], when present. A
+    /// missing styles part is not an error (an ODS may declare styles inline).
+    fn ods_styles_view(
+        &mut self,
+    ) -> Result<Option<(OdsStylesModel, crate::adapter::ods::PartRef, Vec<NodeId>)>> {
+        let model = self.ods_model()?;
+        let Some(part) = model.styles.clone() else {
+            return Ok(None);
+        };
+        if part.ordinal == u32::MAX {
+            return Ok(None);
+        }
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "ODS styles decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::OdsStyles,
+            self.limits.max_output_bytes,
+            crate::adapter::ods::styles_params(part.ordinal, &part.name),
+            vec![dec.node_id],
+            "ods:styles",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let sm = OdsStylesModel::decode(&bytes)?;
+        Ok(Some((sm, part, vec![id, dec.node_id])))
+    }
+
+    fn ods_a1(col: u32, row: u32) -> String {
+        let mut n = col as u64 + 1;
+        let mut letters: Vec<u8> = Vec::new();
+        while n > 0 {
+            let rem = ((n - 1) % 26) as u8;
+            letters.push(b'A' + rem);
+            n = (n - 1) / 26;
+        }
+        letters.reverse();
+        format!("{}{}", String::from_utf8_lossy(&letters), row + 1)
+    }
+
+    fn ods_cell_json(c: &crate::adapter::ods::Cell, sheet: u32, row: u32) -> String {
+        format!(
+            concat!(
+                "{{\"sheet\":{},\"ref\":\"{}\",\"col\":{},\"row\":{},\"covered\":{},",
+                "\"value_type\":{},\"value\":{},\"boolean_value\":{},\"date_value\":{},",
+                "\"string_value\":{},\"formula\":{},\"style\":{},\"text\":\"{}\",",
+                "\"cols_spanned\":{},\"rows_spanned\":{},\"span_start\":{},\"span_len\":{}}}"
+            ),
+            sheet,
+            Self::ods_a1(c.grid_col, row),
+            c.grid_col,
+            row,
+            c.covered,
+            opt_str_json(c.value_type.as_deref()),
+            opt_str_json(c.value.as_deref()),
+            opt_str_json(c.boolean_value.as_deref()),
+            opt_str_json(c.date_value.as_deref()),
+            opt_str_json(c.string_value.as_deref()),
+            opt_str_json(c.formula.as_deref()),
+            opt_str_json(c.style_name.as_deref()),
+            json_escape(&c.text),
+            c.col_span,
+            c.row_span,
+            c.span_start,
+            c.span_len,
+        )
+    }
+
+    fn ods_rows_json(
+        &self,
+        sheet: &crate::adapter::ods::Sheet,
+        req: &ObserveRequest,
+    ) -> Result<String> {
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for row in &sheet.rows {
+            let mut cells: Vec<String> = Vec::new();
+            for c in &row.cells {
+                estimated = estimated.saturating_add(96 + c.text.len() as u64);
+                if estimated > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "ODS sheet structure exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                cells.push(Self::ods_cell_json(c, sheet.index, row.index));
+            }
+            out.push(format!(
+                "{{\"index\":{},\"cells\":[{}]}}",
+                row.index,
+                cells.join(",")
+            ));
+        }
+        Ok(out.join(","))
+    }
+
+    fn ods_sheet(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(profile)?;
+        let sheet = m.sheet(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("spreadsheet has no sheet {index}"))
+        })?;
+        let name = sheet.name.clone();
+        let display = sheet.display;
+        let rows = sheet.rows.len();
+        let cells = sheet.cell_count();
+        let provenance = format!(
+            "ods;sheet={name};index={index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(sheet.text()),
+            Representation::Structure => {
+                let rows_json = self.ods_rows_json(sheet, req)?;
+                AnswerValue::Json(format!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"rows\":[{}]}}",
+                    json_escape(&name),
+                    index,
+                    rows_json
+                ))
+            }
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"display\":{},\"part\":\"{}\",",
+                    "\"ordinal\":{},\"rows\":{},\"cells\":{},\"styles\":{},",
+                    "\"named_expressions\":{},\"comments\":{},\"profile\":\"{}\"}}"
+                ),
+                json_escape(&name),
+                index,
+                display,
+                json_escape(&part.name),
+                part.ordinal,
+                rows,
+                cells,
+                m.styles.len(),
+                m.named_expressions.len(),
+                m.comments.iter().filter(|c| c.sheet == index).count(),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.ods_answer(req, value, provenance, span, deps))
+    }
+
+    fn ods_cell(
+        &mut self,
+        req: &ObserveRequest,
+        sheet_index: u32,
+        cell: &str,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (col, row) = crate::adapter::ods::parse_cell_position(cell).ok_or_else(|| {
+            Error::usage(format!(
+                "cell reference {cell:?} is not A1-style (e.g. B7) or row:col"
+            ))
+        })?;
+        let (m, part, span, deps) = self.ods_content_view(profile)?;
+        let sheet = m.sheet(sheet_index).ok_or_else(|| {
+            Error::unsupported_feature(format!("spreadsheet has no sheet {sheet_index}"))
+        })?;
+        let found = sheet.cell_at(row, col).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "sheet {sheet_index} ({}) has no cell {cell}",
+                sheet.name
+            ))
+        })?;
+        let sheet_name = sheet.name.clone();
+        let provenance = format!(
+            "ods;sheet={sheet_name};index={sheet_index};cell={cell};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(found.text.clone()),
+            Representation::ExactBytes => {
+                // The decoded-part byte span of the `<table:table-cell>` element. A
+                // derived (decompressed) span, not a source span; the raw member
+                // span stays on the answer for traceability.
+                let dec = self.require_entry(
+                    SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+                    "ODS content decoded bytes",
+                )?;
+                let node = self.load(&dec.node_id)?;
+                let bytes = self.materialize(&node)?;
+                let start = found.span_start as usize;
+                let end = start.saturating_add(found.span_len as usize);
+                AnswerValue::Bytes(bytes.get(start..end).unwrap_or_default().to_vec())
+            }
+            Representation::Metadata | Representation::Structure => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                    "\"cell\":\"{}\",\"col\":{},\"row\":{},\"covered\":{},",
+                    "\"value_type\":{},\"value\":{},\"boolean_value\":{},",
+                    "\"date_value\":{},\"string_value\":{},\"formula\":{},",
+                    "\"style\":{},\"text\":\"{}\",",
+                    "\"cols_spanned\":{},\"rows_spanned\":{},",
+                    "\"span_start\":{},\"span_len\":{},\"profile\":\"{}\"}}"
+                ),
+                json_escape(&sheet_name),
+                sheet_index,
+                json_escape(&part.name),
+                json_escape(cell),
+                found.grid_col,
+                row,
+                found.covered,
+                opt_str_json(found.value_type.as_deref()),
+                opt_str_json(found.value.as_deref()),
+                opt_str_json(found.boolean_value.as_deref()),
+                opt_str_json(found.date_value.as_deref()),
+                opt_str_json(found.string_value.as_deref()),
+                opt_str_json(found.formula.as_deref()),
+                opt_str_json(found.style_name.as_deref()),
+                json_escape(&found.text),
+                found.col_span,
+                found.row_span,
+                found.span_start,
+                found.span_len,
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.ods_answer(req, value, provenance, span, deps))
+    }
+
+    fn ods_style_json(s: &crate::adapter::ods::CellStyle) -> String {
+        let attrs = |pairs: &[(String, String)]| {
+            format!(
+                "{{{}}}",
+                pairs
+                    .iter()
+                    .map(|(k, v)| format!("\"{}\":\"{}\"", json_escape(k), json_escape(v)))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            )
+        };
+        format!(
+            concat!(
+                "{{\"name\":\"{}\",\"family\":\"{}\",\"parent\":{},\"data_style\":{},",
+                "\"table_cell_properties\":{},\"text_properties\":{}}}"
+            ),
+            json_escape(&s.name),
+            json_escape(&s.family),
+            opt_str_json(s.parent.as_deref()),
+            opt_str_json(s.data_style.as_deref()),
+            attrs(&s.table_cell_properties),
+            attrs(&s.text_properties),
+        )
+    }
+
+    fn ods_styles_answer(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(&OdsExtractProfile::DEFAULT)?;
+        let styles_view = self.ods_styles_view()?;
+        let auto: Vec<String> = m.styles.iter().map(Self::ods_style_json).collect();
+        let mut named: Vec<String> = Vec::new();
+        let mut formats: Vec<String> = m
+            .number_formats
+            .iter()
+            .map(|f| {
+                format!(
+                    "{{\"name\":\"{}\",\"kind\":\"{}\"}}",
+                    json_escape(&f.name),
+                    json_escape(&f.kind)
+                )
+            })
+            .collect();
+        let mut all_deps = deps;
+        if let Some((sm, _spart, sdeps)) = styles_view {
+            named = sm.styles.iter().map(Self::ods_style_json).collect();
+            for f in &sm.number_formats {
+                formats.push(format!(
+                    "{{\"name\":\"{}\",\"kind\":\"{}\"}}",
+                    json_escape(&f.name),
+                    json_escape(&f.kind)
+                ));
+            }
+            all_deps.extend(sdeps);
+        }
+        let provenance = format!("ods;part={};styles", part.name);
+        Ok(self.ods_answer(
+            req,
+            AnswerValue::Json(format!(
+                "{{\"automatic_styles\":[{}],\"named_styles\":[{}],\"number_formats\":[{}]}}",
+                auto.join(","),
+                named.join(","),
+                formats.join(",")
+            )),
+            provenance,
+            span,
+            all_deps,
+        ))
+    }
+
+    fn ods_named_expressions(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(&OdsExtractProfile::DEFAULT)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for n in &m.named_expressions {
+            estimated = estimated.saturating_add(96 + n.name.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "ODS named expressions exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            items.push(format!(
+                concat!(
+                    "{{\"name\":\"{}\",\"kind\":\"{}\",\"base_cell_address\":{},",
+                    "\"cell_range_address\":{},\"expression\":{}}}"
+                ),
+                json_escape(&n.name),
+                json_escape(&n.kind),
+                opt_str_json(n.base_cell_address.as_deref()),
+                opt_str_json(n.cell_range_address.as_deref()),
+                opt_str_json(n.expression.as_deref()),
+            ));
+        }
+        let provenance = format!("ods;part={};named-expressions", part.name);
+        Ok(self.ods_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+
+    fn ods_comments(&mut self, req: &ObserveRequest, sheet: u32) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(&OdsExtractProfile::DEFAULT)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for c in m.comments.iter().filter(|c| c.sheet == sheet) {
+            estimated = estimated.saturating_add(96 + c.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "ODS comments exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            items.push(format!(
+                concat!(
+                    "{{\"ref\":\"{}\",\"row\":{},\"col\":{},\"author\":{},",
+                    "\"date\":{},\"text\":\"{}\"}}"
+                ),
+                Self::ods_a1(c.col, c.row),
+                c.row,
+                c.col,
+                opt_str_json(c.author.as_deref()),
+                opt_str_json(c.date.as_deref()),
+                json_escape(&c.text),
+            ));
+        }
+        let provenance = format!("ods;part={};sheet={sheet};comments", part.name);
+        Ok(self.ods_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+
+    fn ods_find(
+        &mut self,
+        req: &ObserveRequest,
+        pattern: &str,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(profile)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for sheet in &m.sheets {
+            for row in &sheet.rows {
+                for c in &row.cells {
+                    if !c.text.contains(pattern) {
+                        continue;
+                    }
+                    estimated = estimated.saturating_add(96 + c.text.len() as u64);
+                    if estimated > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "ODS find exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                    items.push(format!(
+                        "{{\"sheet\":{},\"row\":{},\"col\":{},\"text\":\"{}\"}}",
+                        sheet.index,
+                        row.index,
+                        c.grid_col,
+                        json_escape(&c.text)
+                    ));
+                }
+            }
+        }
+        let provenance = format!("ods;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.ods_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ODP (OpenDocument Presentation) observations (Phase 21.4.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "odp")]
+#[allow(clippy::type_complexity)]
+type OdpContentView = (
+    OdpContentModel,
+    crate::adapter::odp::PartRef,
+    Option<(u64, u64)>,
+    Vec<NodeId>,
+);
+
+#[cfg(feature = "odp")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the ODP discovery model (derived, `Q_gen`).
+    fn odp_model(&mut self) -> Result<OdpModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_ODP_MODEL, 0), "ODP model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        OdpModel::decode(&bytes)
+    }
+
+    fn odp_member_span(&mut self, ordinal: Option<u32>) -> Option<(u64, u64)> {
+        let o = ordinal?;
+        self.lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, o))
+            .ok()?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)))
+    }
+
+    fn odp_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Resolve the main content part to its parsed [`OdpContentModel`], parsing
+    /// **only** that part and persisting the derived node in the disposable cache.
+    fn odp_content_view(&mut self, profile: &OdpExtractProfile) -> Result<OdpContentView> {
+        let model = self.odp_model()?;
+        let part = model.content.clone().ok_or_else(|| {
+            Error::invalid_package_structure(
+                "ODF package has no resolvable OpenDocument content part",
+            )
+        })?;
+        if part.ordinal == u32::MAX {
+            return Err(Error::invalid_package_structure(
+                "ODF content part does not resolve to a package member",
+            ));
+        }
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "ODP content decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::OdpContent,
+            self.limits.max_output_bytes,
+            crate::adapter::odp::content_params(part.ordinal, &part.name, profile),
+            vec![dec.node_id],
+            "odp:content",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let cm = OdpContentModel::decode(&bytes)?;
+        let span = self.odp_member_span(Some(part.ordinal));
+        Ok((cm, part, span, vec![id, dec.node_id]))
+    }
+
+    /// Resolve the styles part to its parsed [`OdpStylesModel`], when present. A
+    /// missing styles part is not an error (accepting a presentation that declares
+    /// styles inline).
+    fn odp_styles_view(
+        &mut self,
+    ) -> Result<Option<(OdpStylesModel, crate::adapter::odp::PartRef, Vec<NodeId>)>> {
+        let model = self.odp_model()?;
+        let Some(part) = model.styles.clone() else {
+            return Ok(None);
+        };
+        if part.ordinal == u32::MAX {
+            return Ok(None);
+        }
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "ODP styles decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::OdpStyles,
+            self.limits.max_output_bytes,
+            crate::adapter::odp::styles_params(part.ordinal, &part.name),
+            vec![dec.node_id],
+            "odp:styles",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let id = node.content_id();
+        let bytes = self.materialize(&node)?;
+        let sm = OdpStylesModel::decode(&bytes)?;
+        Ok(Some((sm, part, vec![id, dec.node_id])))
+    }
+
+    fn odp_slide(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let slide = m.slide(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no slide {index}"))
+        })?;
+        let name = slide.name.clone();
+        let hidden = slide.hidden;
+        let shapes = slide.shape_count();
+        let top = slide.top_level_count();
+        let tables = slide.tables.len();
+        let text_len = slide.text().len();
+        let has_notes = slide.notes.is_some();
+        let provenance = format!(
+            "odp;slide={index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(slide.text()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"index\":{},\"name\":\"{}\",\"hidden\":{},\"master\":{},",
+                    "\"shapes\":{},\"top_level\":{},\"tables\":{},\"notes\":{},",
+                    "\"text_len\":{},\"profile\":\"{}\"}}"
+                ),
+                index,
+                json_escape(&name),
+                hidden,
+                opt_str_json(slide.master_page.as_deref()),
+                shapes,
+                top,
+                tables,
+                has_notes,
+                text_len,
+                profile.fingerprint()
+            )),
+            Representation::Structure => {
+                let shapes = slide
+                    .shapes
+                    .iter()
+                    .map(odp_shape_json)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                AnswerValue::Json(format!(
+                    "{{\"index\":{index},\"hidden\":{hidden},\"shapes\":[{shapes}]}}"
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
+    }
+
+    fn odp_shape(
+        &mut self,
+        req: &ObserveRequest,
+        slide_index: u32,
+        shape_index: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let slide = m.slide(slide_index).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no slide {slide_index}"))
+        })?;
+        let shape = slide
+            .shape_by_flat_index(shape_index)
+            .cloned()
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "slide {slide_index} ({}) has no shape {shape_index}",
+                    part.name
+                ))
+            })?;
+        let provenance = format!(
+            "odp;slide={slide_index};shape={shape_index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(shape.text_deep()),
+            Representation::Metadata | Representation::Structure => {
+                AnswerValue::Json(odp_shape_json(&shape))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
+    }
+
+    fn odp_notes(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let slide = m.slide(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no slide {index}"))
+        })?;
+        let notes = slide.notes.clone().ok_or_else(|| {
+            Error::unsupported_feature(format!("slide {index} has no notes page"))
+        })?;
+        let shapes = slide.notes_shapes;
+        let provenance = format!(
+            "odp;notes={index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(notes.clone()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"slide\":{index},\"notes\":true,\"shapes\":{shapes},\"text_len\":{},\"profile\":\"{}\"}}",
+                notes.len(),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
+    }
+
+    fn odp_masters(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(&OdpExtractProfile::DEFAULT)?;
+        let styles = self.odp_styles_view()?;
+        let mut items: Vec<String> = Vec::new();
+        let mut all_deps = deps;
+        if let Some((sm, _spart, sdeps)) = styles {
+            for mp in &sm.master_pages {
+                items.push(format!(
+                    "{{\"name\":\"{}\",\"pageLayout\":{}}}",
+                    json_escape(&mp.name),
+                    opt_str_json(mp.page_layout.as_deref())
+                ));
+            }
+            all_deps.extend(sdeps);
+        }
+        // A presentation may also declare master pages in the content part.
+        for mp in &m.master_pages {
+            items.push(format!(
+                "{{\"name\":\"{}\",\"pageLayout\":{}}}",
+                json_escape(&mp.name),
+                opt_str_json(mp.page_layout.as_deref())
+            ));
+        }
+        let provenance = format!("odp;part={};masters", part.name);
+        Ok(self.odp_answer(
+            req,
+            AnswerValue::Json(format!(
+                "{{\"count\":{},\"masters\":[{}]}}",
+                items.len(),
+                items.join(",")
+            )),
+            provenance,
+            span,
+            all_deps,
+        ))
+    }
+
+    fn odp_media(&mut self, req: &ObserveRequest, ordinal: u32) -> Result<FieldAnswer> {
+        use Representation as R;
+        let model = self.odp_model()?;
+        let part = model.media.get(ordinal as usize).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no media {ordinal}"))
+        })?;
+        match req.representation {
+            R::ExactBytes => self.indexed_exact(
+                req,
+                SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal),
+                "media part",
+            ),
+            R::DecodedBytes => self.member_decoded(req, part.ordinal),
+            R::Metadata | R::Structure => {
+                let json = format!(
+                    "{{\"media\":{ordinal},\"part\":\"{}\",\"ordinal\":{},\"mediaType\":{}}}",
+                    json_escape(&part.name),
+                    part.ordinal,
+                    opt_str_json(part.media_type.as_deref())
+                );
+                Ok(self.odp_answer(
+                    req,
+                    AnswerValue::Json(json),
+                    format!("odp;media={ordinal}"),
+                    None,
+                    Vec::new(),
+                ))
+            }
+            _ => Err(unsupported_common(req)),
+        }
+    }
+
+    /// The `(slide_index, local_table_index)` of every embedded table across the
+    /// projected slides, in slide order.
+    fn odp_table_refs(&mut self, profile: &OdpExtractProfile) -> Result<Vec<(u32, u32)>> {
+        let (m, _part, _span, _deps) = self.odp_content_view(profile)?;
+        let mut out: Vec<(u32, u32)> = Vec::new();
+        for slide in &m.slides {
+            if slide.hidden && !profile.include_hidden {
+                continue;
+            }
+            for local in 0..slide.tables.len() {
+                out.push((slide.index, local as u32));
+            }
+        }
+        Ok(out)
+    }
+
+    fn odp_tables(
+        &mut self,
+        req: &ObserveRequest,
+        slide_index: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let slide = m.slide(slide_index).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no slide {slide_index}"))
+        })?;
+        let provenance = format!(
+            "odp;slide={slide_index};part={};tables;profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                let text = slide
+                    .tables
+                    .iter()
+                    .map(|t| t.text())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                AnswerValue::Text(text)
+            }
+            Representation::Metadata | Representation::Structure => {
+                let tables = slide
+                    .tables
+                    .iter()
+                    .map(odp_table_json)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                AnswerValue::Json(format!(
+                    "{{\"slide\":{slide_index},\"part\":\"{}\",\"count\":{},\"tables\":[{tables}]}}",
+                    json_escape(&part.name),
+                    slide.tables.len()
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
+    }
+
+    fn odp_find(
+        &mut self,
+        req: &ObserveRequest,
+        pattern: &str,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for slide in &m.slides {
+            if slide.hidden && !profile.include_hidden {
+                continue;
+            }
+            for shape in &slide.shapes {
+                let mut matched: Vec<&OdpShape> = Vec::new();
+                collect_matching_odp_shapes(shape, pattern, &mut matched);
+                for s in matched {
+                    let t = s.text_deep();
+                    estimated = estimated.saturating_add(t.len() as u64 + 64);
+                    if estimated > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "ODP find exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                    items.push(format!(
+                        "{{\"slide\":{},\"shape\":{},\"kind\":\"{}\",\"text\":\"{}\"}}",
+                        slide.index,
+                        s.index,
+                        s.kind.name(),
+                        json_escape(&t)
+                    ));
+                }
+            }
+        }
+        let provenance = format!("odp;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.odp_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+}
+
+/// The JSON for one ODP shape (recursive over group children).
+#[cfg(feature = "odp")]
+fn odp_shape_json(s: &OdpShape) -> String {
+    let table = match &s.table {
+        Some(t) => format!("{{\"rows\":{},\"cells\":{}}}", t.rows.len(), t.cell_count()),
+        None => "null".to_string(),
+    };
+    let children = s
+        .children
+        .iter()
+        .map(odp_shape_json)
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        concat!(
+            "{{\"index\":{},\"kind\":\"{}\",\"name\":{},\"placeholder\":{},",
+            "\"text\":\"{}\",\"media\":{},\"table\":{},\"children\":[{}]}}"
+        ),
+        s.index,
+        s.kind.name(),
+        opt_str_json(s.name.as_deref()),
+        opt_str_json(s.placeholder.as_deref()),
+        json_escape(&s.text),
+        opt_str_json(s.media_href.as_deref()),
+        table,
+        children
+    )
+}
+
+/// The JSON for one embedded table.
+#[cfg(feature = "odp")]
+fn odp_table_json(t: &OdpTable) -> String {
+    let rows = t
+        .rows
+        .iter()
+        .map(|r| {
+            let cells = r
+                .cells
+                .iter()
+                .map(|c| {
+                    format!(
+                        "{{\"text\":\"{}\",\"colsSpanned\":{},\"rowsSpanned\":{},\"covered\":{}}}",
+                        json_escape(&c.text),
+                        c.col_span,
+                        c.row_span,
+                        c.covered
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            format!("{{\"cells\":[{cells}]}}")
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"rows\":{},\"cells\":{},\"detail\":[{rows}]}}",
+        t.rows.len(),
+        t.cell_count()
+    )
+}
+
+#[cfg(feature = "odp")]
+fn collect_matching_odp_shapes<'a>(s: &'a OdpShape, pat: &str, out: &mut Vec<&'a OdpShape>) {
+    if s.text_deep().contains(pat) {
+        out.push(s);
+    }
+    for c in &s.children {
+        collect_matching_odp_shapes(c, pat, out);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// XLSX (Phase 21.1.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "xlsx")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the XLSX discovery model (derived, `Q_gen`).
+    fn xlsx_model(&mut self) -> Result<XlsxModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_XLSX_MODEL, 0), "XLSX model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        XlsxModel::decode(&bytes)
+    }
+
+    /// Resolve the decoded workbook inventory (`xl/workbook.xml`).
+    fn xlsx_workbook(&mut self) -> Result<XlsxWorkbookModel> {
+        let model = self.xlsx_model()?;
+        let part = model.workbook.clone();
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "XLSX workbook decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::XlsxWorkbook,
+            self.limits.max_output_bytes,
+            crate::adapter::xlsx::workbook_params(part.ordinal, &part.name),
+            vec![dec.node_id],
+            "xlsx:workbook",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        XlsxWorkbookModel::decode(&bytes)
+    }
+
+    /// Resolve the worksheet part and sheet name for a 0-based workbook-order
+    /// index. Hidden sheets are still addressable by index.
+    fn xlsx_sheet_part(
+        &self,
+        model: &XlsxModel,
+        workbook: &XlsxWorkbookModel,
+        index: u32,
+    ) -> Result<(crate::adapter::xlsx::XlsxPartRef, String)> {
+        let ws = workbook
+            .sheets
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("workbook has no sheet {index}")))?;
+        if let Some(rid) = ws.rel_id.as_deref()
+            && let Some(s) = model
+                .sheets
+                .iter()
+                .find(|s| s.rel_id.as_deref() == Some(rid))
+        {
+            return Ok((s.part.clone(), ws.name.clone()));
+        }
+        let s = model
+            .sheets
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("workbook has no sheet {index}")))?;
+        Ok((s.part.clone(), ws.name.clone()))
+    }
+
+    /// Parse one worksheet into its derived [`XlsxSheetModel`], persisting the
+    /// canonical result in the disposable cache. Only that sheet's part (and the
+    /// shared-strings part) is decoded; no other worksheet is read.
+    #[allow(clippy::type_complexity)]
+    fn xlsx_sheet_view(
+        &mut self,
+        index: u32,
+        profile: &XlsxExtractProfile,
+    ) -> Result<(
+        XlsxSheetModel,
+        crate::adapter::xlsx::XlsxPartRef,
+        String,
+        Option<(u64, u64)>,
+        Vec<NodeId>,
+    )> {
+        let model = self.xlsx_model()?;
+        let workbook = self.xlsx_workbook()?;
+        let (part, sheet_name) = self.xlsx_sheet_part(&model, &workbook, index)?;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "XLSX worksheet decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut deps = vec![dec.node_id];
+        let mut shared_ordinal = None;
+        if let Some(shared) = &model.shared_strings
+            && let Ok(e) = self.require_entry(
+                SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, shared.ordinal),
+                "XLSX shared-strings decoded bytes",
+            )
+        {
+            deps.push(e.node_id);
+            shared_ordinal = Some(shared.ordinal);
+            self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        }
+        let span = self
+            .lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal))?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)));
+        let mut node = SeedNode::new(
+            NodeKind::XlsxSheet,
+            self.limits.max_output_bytes,
+            crate::adapter::xlsx::sheet_params(
+                part.ordinal,
+                &part.name,
+                &sheet_name,
+                profile,
+                shared_ordinal,
+            ),
+            deps.clone(),
+            "xlsx:sheet",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        let sheet = XlsxSheetModel::decode(&bytes)?;
+        let mut ids = vec![node.content_id()];
+        ids.extend(deps);
+        Ok((sheet, part, sheet_name, span, ids))
+    }
+
+    fn xlsx_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Workbook-order indices of the sheets a whole-workbook projection includes.
+    fn xlsx_projected_indices(
+        &self,
+        workbook: &XlsxWorkbookModel,
+        profile: &XlsxExtractProfile,
+    ) -> Vec<u32> {
+        workbook
+            .sheets
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| {
+                profile.include_hidden
+                    || matches!(s.state, crate::adapter::xlsx::SheetState::Visible)
+            })
+            .map(|(i, _)| i as u32)
+            .collect()
+    }
+
+    /// The minimal styles table, when the package carries a decoded styles part.
+    fn xlsx_styles(&mut self, model: &XlsxModel) -> Option<crate::adapter::xlsx::StylesTable> {
+        let styles = model.styles.as_ref()?;
+        let e = self
+            .require_entry(
+                SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, styles.ordinal),
+                "XLSX styles decoded bytes",
+            )
+            .ok()?;
+        let node = self.load(&e.node_id).ok()?;
+        let bytes = self.materialize(&node).ok()?;
+        crate::adapter::xlsx::parse_styles_table(&bytes, self.limits).ok()
+    }
+
+    fn xlsx_sheet(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(index, profile)?;
+        let workbook = self.xlsx_workbook()?;
+        let state = workbook
+            .sheets
+            .get(index as usize)
+            .map(|s| s.state)
+            .unwrap_or(crate::adapter::xlsx::SheetState::Visible);
+        let provenance = format!(
+            "xlsx;sheet={sheet_name};index={index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                AnswerValue::Text(sheet.text(profile.values, self.limits.max_xlsx_cells)?)
+            }
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"state\":\"{}\",\"part\":\"{}\",",
+                    "\"ordinal\":{},\"dimension\":{},\"merges\":{},\"merge_count\":{},",
+                    "\"hyperlinks\":{},\"tables\":{},",
+                    "\"drawing\":{},\"legacy_drawing\":{},\"defined_names\":{},\"rows\":{},\"cells\":{},",
+                    "\"profile\":\"{}\"}}"
+                ),
+                json_escape(&sheet_name),
+                index,
+                state.name(),
+                json_escape(&part.name),
+                part.ordinal,
+                opt_str_json(sheet.dimension.as_deref()),
+                xlsx_str_array(&sheet.merges),
+                sheet.merges.len(),
+                sheet.hyperlinks.len(),
+                sheet.table_parts.len(),
+                sheet.drawing_rel_id.is_some(),
+                sheet.legacy_drawing_rel_id.is_some(),
+                workbook.defined_names.len(),
+                sheet.rows.len(),
+                sheet.cell_count(),
+                profile.fingerprint()
+            )),
+            Representation::Structure => {
+                let rows = self.xlsx_rows_json(&sheet, &provenance, req)?;
+                AnswerValue::Json(format!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"merges\":{},\"merge_count\":{},\"rows\":[{}]}}",
+                    json_escape(&sheet_name),
+                    index,
+                    xlsx_str_array(&sheet.merges),
+                    sheet.merges.len(),
+                    rows
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.xlsx_answer(req, value, provenance, span, deps))
+    }
+
+    fn xlsx_rows_json(
+        &mut self,
+        sheet: &XlsxSheetModel,
+        provenance: &str,
+        req: &ObserveRequest,
+    ) -> Result<String> {
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for row in &sheet.rows {
+            let mut cells: Vec<String> = Vec::new();
+            for c in &row.cells {
+                estimated =
+                    estimated.saturating_add(64 + c.value.as_deref().unwrap_or("").len() as u64);
+                if estimated > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "XLSX sheet structure exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                cells.push(format!(
+                    "{{\"ref\":\"{}\",\"col\":{},\"row\":{},\"kind\":\"{}\",\"type\":{},\"value\":{},\"formula\":{},\"style\":{}}}",
+                    json_escape(&c.reference),
+                    c.col,
+                    c.row,
+                    c.kind(),
+                    opt_str_json(c.type_tag.as_deref()),
+                    opt_str_json(c.value.as_deref()),
+                    opt_str_json(c.formula.as_deref()),
+                    opt_u32_json(c.style),
+                ));
+            }
+            out.push(format!(
+                "{{\"index\":{},\"cells\":[{}]}}",
+                row.index,
+                cells.join(",")
+            ));
+        }
+        let _ = provenance;
+        Ok(out.join(","))
+    }
+
+    fn xlsx_cell(
+        &mut self,
+        req: &ObserveRequest,
+        sheet_index: u32,
+        cell: &str,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (col, row) = crate::adapter::xlsx::a1_to_col_row(cell).ok_or_else(|| {
+            Error::usage(format!("cell reference {cell:?} is not A1-style (e.g. B7)"))
+        })?;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(sheet_index, profile)?;
+        let found = sheet.cell_at(row, col).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "sheet {sheet_index} ({sheet_name}) has no cell {cell}"
+            ))
+        })?;
+        let provenance = format!(
+            "xlsx;sheet={sheet_name};index={sheet_index};cell={cell};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                AnswerValue::Text(sheet.facet(&found, profile.values).unwrap_or_default())
+            }
+            Representation::ExactBytes => {
+                // The exact decoded-part byte span of the `<c>` element. This is a
+                // derived (decompressed) span, not a source span; the answer keeps
+                // the worksheet member's raw span for traceability.
+                let dec = self.require_entry(
+                    SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+                    "XLSX worksheet decoded bytes",
+                )?;
+                let node = self.load(&dec.node_id)?;
+                let bytes = self.materialize(&node)?;
+                let start = found.span_start as usize;
+                let end = start.saturating_add(found.span_len as usize);
+                let slice = bytes.get(start..end).unwrap_or_default().to_vec();
+                AnswerValue::Bytes(slice)
+            }
+            Representation::Metadata | Representation::Structure => {
+                let model = self.xlsx_model()?;
+                let styles = self.xlsx_styles(&model);
+                let resolved = found
+                    .style
+                    .and_then(|s| styles.as_ref().and_then(|t| t.style_for(s)));
+                let style_json = xlsx_cell_style_json(found.style, resolved.as_ref());
+                // The displayed value is a *deterministic projection* of the cached
+                // value under the cell's number format — never a formula evaluation.
+                // It is reported only where it differs from the cached value, with a
+                // basis label so the distinction is explicit.
+                let (displayed, display_basis) = match (
+                    found.value.as_deref(),
+                    resolved.as_ref().and_then(|s| s.format_code.as_deref()),
+                ) {
+                    (Some(v), Some(code)) => {
+                        match crate::adapter::xlsx::format_displayed(v, code) {
+                            Some(d) if d != v => (Some(d), format!("numFmt:{code}")),
+                            Some(_) => (None, "identical".to_string()),
+                            None => (None, "unsupported-format".to_string()),
+                        }
+                    }
+                    (Some(_), None) => (None, "no-format".to_string()),
+                    (None, _) => (None, "no-value".to_string()),
+                };
+                let comment = self.xlsx_cell_comment(part.ordinal, &found.reference)?;
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                        "\"cell\":\"{}\",\"col\":{},\"row\":{},\"kind\":\"{}\",\"type\":{},",
+                        "\"value\":{},\"formula\":{},\"displayed\":{},\"display_basis\":\"{}\",",
+                        "\"style\":{},\"comment\":{},\"profile\":\"{}\"}}"
+                    ),
+                    json_escape(&sheet_name),
+                    sheet_index,
+                    json_escape(&part.name),
+                    json_escape(&found.reference),
+                    found.col,
+                    found.row,
+                    found.kind(),
+                    opt_str_json(found.type_tag.as_deref()),
+                    opt_str_json(found.value.as_deref()),
+                    opt_str_json(found.formula.as_deref()),
+                    opt_str_json(displayed.as_deref()),
+                    display_basis,
+                    style_json,
+                    comment,
+                    profile.fingerprint()
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.xlsx_answer(req, value, provenance, span, deps))
+    }
+
+    /// The comment on one cell, as JSON (`null` when the sheet has no comment for
+    /// it). Keyed by the cell reference; a distinct observation from the value.
+    fn xlsx_cell_comment(&mut self, owner: u32, reference: &str) -> Result<String> {
+        let opc = self.opc_model()?;
+        let Some(rel) = xlsx_find_rel(&opc, owner, "comments") else {
+            return Ok("null".to_string());
+        };
+        let Some(resolved) = rel.resolved.as_deref() else {
+            return Ok("null".to_string());
+        };
+        let Some(p) = opc.part_by_name(resolved) else {
+            return Ok("null".to_string());
+        };
+        let bytes = self.xlsx_member_bytes(p.ordinal)?;
+        let comments = crate::adapter::xlsx::parse_comments(&bytes, self.limits)?;
+        Ok(match comments.iter().find(|c| c.cell == reference) {
+            Some(c) => format!(
+                "{{\"author\":{},\"text\":\"{}\"}}",
+                opt_str_json(c.author.as_deref()),
+                json_escape(&c.text)
+            ),
+            None => "null".to_string(),
+        })
+    }
+
+    fn xlsx_find(
+        &mut self,
+        req: &ObserveRequest,
+        pattern: &str,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let workbook = self.xlsx_workbook()?;
+        let indices = self.xlsx_projected_indices(&workbook, profile);
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for index in indices {
+            let (sheet, _part, sheet_name, _span, _deps) = self.xlsx_sheet_view(index, profile)?;
+            for row in &sheet.rows {
+                for c in &row.cells {
+                    let Some(text) = sheet.facet(c, profile.values) else {
+                        continue;
+                    };
+                    if text.contains(pattern) {
+                        estimated = estimated.saturating_add(text.len() as u64 + 64);
+                        if estimated > req.budget.max_output_bytes {
+                            return Err(Error::resource_limit(format!(
+                                "XLSX find exceeded the {}-byte budget",
+                                req.budget.max_output_bytes
+                            )));
+                        }
+                        items.push(format!(
+                            "{{\"sheet\":\"{}\",\"index\":{},\"cell\":\"{}\",\"text\":\"{}\"}}",
+                            json_escape(&sheet_name),
+                            index,
+                            json_escape(&c.reference),
+                            json_escape(&text)
+                        ));
+                    }
+                }
+            }
+        }
+        let provenance = format!("xlsx;find;profile={}", profile.fingerprint());
+        Ok(self.xlsx_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            None,
+            Vec::new(),
+        ))
+    }
+
+    /// Resolve the worksheet part and sheet name for a 0-based index.
+    fn xlsx_sheet_scope(
+        &mut self,
+        index: u32,
+    ) -> Result<(
+        XlsxModel,
+        XlsxWorkbookModel,
+        crate::adapter::xlsx::XlsxPartRef,
+        String,
+    )> {
+        let model = self.xlsx_model()?;
+        let workbook = self.xlsx_workbook()?;
+        let (part, name) = self.xlsx_sheet_part(&model, &workbook, index)?;
+        Ok((model, workbook, part, name))
+    }
+
+    /// Materialize the decoded bytes of a package member by ordinal.
+    fn xlsx_member_bytes(&mut self, ordinal: u32) -> Result<Vec<u8>> {
+        let e = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, ordinal),
+            "XLSX related part decoded bytes",
+        )?;
+        let node = self.load(&e.node_id)?;
+        self.materialize(&node)
+    }
+
+    /// The parsed style table as a metadata observation (Phase 21.1.2).
+    fn xlsx_styles_answer(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.xlsx_model()?;
+        let table = self.xlsx_styles(&model);
+        let json = match &table {
+            Some(t) => xlsx_styles_json(t),
+            None => "{\"present\":false}".to_string(),
+        };
+        Ok(self.xlsx_answer(
+            req,
+            AnswerValue::Json(json),
+            "xlsx;styles".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    /// The workbook's defined/named ranges (Phase 21.1.2).
+    fn xlsx_defined_names(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let workbook = self.xlsx_workbook()?;
+        let names = workbook
+            .defined_names
+            .iter()
+            .map(|d| {
+                format!(
+                    concat!(
+                        "{{\"name\":\"{}\",\"localSheetId\":{},\"hidden\":{},",
+                        "\"function\":{},\"refersTo\":\"{}\"}}"
+                    ),
+                    json_escape(&d.name),
+                    opt_u32_json(d.local_sheet_id),
+                    d.hidden,
+                    d.function,
+                    json_escape(&d.refers_to)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let json = format!(
+            "{{\"count\":{},\"names\":[{}]}}",
+            workbook.defined_names.len(),
+            names
+        );
+        Ok(self.xlsx_answer(
+            req,
+            AnswerValue::Json(json),
+            "xlsx;defined-names".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    /// The package's external relationships (Phase 21.1.2). Typed metadata only;
+    /// external targets are inert identifiers and are never dereferenced.
+    fn xlsx_external_rels(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.opc_model()?;
+        let mut items: Vec<String> = Vec::new();
+        for r in &model.package_rels {
+            if r.is_external() {
+                items.push(xlsx_rel_json(r, None));
+            }
+        }
+        for (owner, rels) in &model.part_rels {
+            for r in rels {
+                if r.is_external() {
+                    items.push(xlsx_rel_json(r, Some(*owner)));
+                }
+            }
+        }
+        let json = format!(
+            "{{\"count\":{},\"relationships\":[{}]}}",
+            items.len(),
+            items.join(",")
+        );
+        Ok(self.xlsx_answer(
+            req,
+            AnswerValue::Json(json),
+            "xlsx;external-rels".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    /// The cell comments of one worksheet, keyed by cell (Phase 21.1.2).
+    fn xlsx_comments(&mut self, req: &ObserveRequest, sheet_index: u32) -> Result<FieldAnswer> {
+        let (_model, _wb, part, sheet_name) = self.xlsx_sheet_scope(sheet_index)?;
+        let opc = self.opc_model()?;
+        let mut comments_json = "null".to_string();
+        let mut vml_json = "null".to_string();
+        if let Some(rel) = xlsx_find_rel(&opc, part.ordinal, "comments")
+            && let Some(resolved) = rel.resolved.as_deref()
+            && let Some(p) = opc.part_by_name(resolved)
+        {
+            let bytes = self.xlsx_member_bytes(p.ordinal)?;
+            let comments = crate::adapter::xlsx::parse_comments(&bytes, self.limits)?;
+            comments_json = format!(
+                "[{}]",
+                comments
+                    .iter()
+                    .map(|c| format!(
+                        "{{\"cell\":\"{}\",\"author\":{},\"text\":\"{}\"}}",
+                        json_escape(&c.cell),
+                        opt_str_json(c.author.as_deref()),
+                        json_escape(&c.text)
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
+        }
+        if let Some(rel) = xlsx_find_rel(&opc, part.ordinal, "vmlDrawing")
+            && let Some(resolved) = rel.resolved.as_deref()
+            && let Some(p) = opc.part_by_name(resolved)
+        {
+            let bytes = self.xlsx_member_bytes(p.ordinal)?;
+            let notes = crate::adapter::xlsx::parse_vml_notes(&bytes, self.limits)?;
+            vml_json = format!(
+                "[{}]",
+                notes
+                    .iter()
+                    .map(|n| format!(
+                        "{{\"cell\":\"{}\",\"shapeId\":{}}}",
+                        json_escape(&n.cell),
+                        opt_str_json(n.shape_id.as_deref())
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
+        }
+        let json = format!(
+            concat!(
+                "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                "\"comments\":{},\"vml_notes\":{}}}"
+            ),
+            json_escape(&sheet_name),
+            sheet_index,
+            json_escape(&part.name),
+            comments_json,
+            vml_json
+        );
+        let provenance = format!("xlsx;sheet={sheet_name};index={sheet_index};comments");
+        Ok(self.xlsx_answer(req, AnswerValue::Json(json), provenance, None, Vec::new()))
+    }
+
+    /// The hyperlinks declared in one worksheet (Phase 21.1.2), resolved through
+    /// the sheet's relationships. Internal (`location`) and external (`r:id`) links
+    /// are kept distinct; external targets are never dereferenced.
+    fn xlsx_hyperlinks(&mut self, req: &ObserveRequest, sheet_index: u32) -> Result<FieldAnswer> {
+        let profile = XlsxExtractProfile::DEFAULT;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(sheet_index, &profile)?;
+        let opc = self.opc_model()?;
+        let mut items: Vec<String> = Vec::new();
+        for h in &sheet.hyperlinks {
+            let (external, target, resolved) = match h.rel_id.as_deref() {
+                Some(id) => match xlsx_part_rel(&opc, part.ordinal, id) {
+                    Some(rel) => (
+                        rel.is_external(),
+                        Some(rel.target.clone()),
+                        rel.resolved.clone(),
+                    ),
+                    None => (false, None, None),
+                },
+                None => (false, None, None),
+            };
+            items.push(format!(
+                concat!(
+                    "{{\"ref\":\"{}\",\"relId\":{},\"location\":{},\"display\":{},",
+                    "\"tooltip\":{},\"external\":{},\"target\":{},\"resolved\":{}}}"
+                ),
+                json_escape(&h.reference),
+                opt_str_json(h.rel_id.as_deref()),
+                opt_str_json(h.location.as_deref()),
+                opt_str_json(h.display.as_deref()),
+                opt_str_json(h.tooltip.as_deref()),
+                external,
+                opt_str_json(target.as_deref()),
+                opt_str_json(resolved.as_deref())
+            ));
+        }
+        let json = format!(
+            concat!(
+                "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                "\"count\":{},\"hyperlinks\":[{}]}}"
+            ),
+            json_escape(&sheet_name),
+            sheet_index,
+            json_escape(&part.name),
+            items.len(),
+            items.join(",")
+        );
+        let provenance = format!("xlsx;sheet={sheet_name};index={sheet_index};hyperlinks");
+        Ok(self.xlsx_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    /// The tables referenced by one worksheet's `tableParts` (Phase 21.1.2).
+    fn xlsx_tables(&mut self, req: &ObserveRequest, sheet_index: u32) -> Result<FieldAnswer> {
+        let profile = XlsxExtractProfile::DEFAULT;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(sheet_index, &profile)?;
+        let opc = self.opc_model()?;
+        let mut tables: Vec<String> = Vec::new();
+        for rid in &sheet.table_parts {
+            let rel = xlsx_part_rel(&opc, part.ordinal, rid).ok_or_else(|| {
+                Error::invalid_package_structure(format!(
+                    "worksheet tablePart {rid:?} has no relationship"
+                ))
+            })?;
+            let resolved = rel.resolved.clone().ok_or_else(|| {
+                Error::invalid_package_structure(format!(
+                    "worksheet tablePart {rid:?} target is external"
+                ))
+            })?;
+            let p = opc.part_by_name(&resolved).ok_or_else(|| {
+                Error::invalid_package_structure(format!(
+                    "worksheet tablePart {rid:?} targets {resolved:?}, not a part"
+                ))
+            })?;
+            let bytes = self.xlsx_member_bytes(p.ordinal)?;
+            let table = crate::adapter::xlsx::parse_table(&bytes, self.limits)?;
+            let columns = table
+                .columns
+                .iter()
+                .map(|c| {
+                    format!(
+                        "{{\"id\":{},\"name\":\"{}\"}}",
+                        opt_u32_json(c.id),
+                        json_escape(&c.name)
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            tables.push(format!(
+                concat!(
+                    "{{\"relId\":\"{}\",\"part\":\"{}\",\"ordinal\":{},",
+                    "\"name\":{},\"displayName\":{},\"ref\":{},\"columns\":[{}]}}"
+                ),
+                json_escape(rid),
+                json_escape(&p.name),
+                p.ordinal,
+                opt_str_json(table.name.as_deref()),
+                opt_str_json(table.display_name.as_deref()),
+                opt_str_json(table.reference.as_deref()),
+                columns
+            ));
+        }
+        let json = format!(
+            concat!(
+                "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                "\"count\":{},\"tables\":[{}]}}"
+            ),
+            json_escape(&sheet_name),
+            sheet_index,
+            json_escape(&part.name),
+            tables.len(),
+            tables.join(",")
+        );
+        let provenance = format!("xlsx;sheet={sheet_name};index={sheet_index};tables");
+        Ok(self.xlsx_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    /// The drawing(s) referenced by one worksheet (Phase 21.1.2). Charts are never
+    /// evaluated; `ExactBytes`/`DecodedBytes` resolve the drawing part itself.
+    fn xlsx_drawing(&mut self, req: &ObserveRequest, sheet_index: u32) -> Result<FieldAnswer> {
+        use Representation as R;
+        let profile = XlsxExtractProfile::DEFAULT;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(sheet_index, &profile)?;
+        let provenance = format!("xlsx;sheet={sheet_name};index={sheet_index};drawing");
+        match req.representation {
+            R::ExactBytes | R::DecodedBytes => {
+                let rid = sheet.drawing_rel_id.as_deref().ok_or_else(|| {
+                    Error::unsupported_feature(format!(
+                        "sheet {sheet_index} ({sheet_name}) has no drawing"
+                    ))
+                })?;
+                let opc = self.opc_model()?;
+                let rel = xlsx_part_rel(&opc, part.ordinal, rid).ok_or_else(|| {
+                    Error::invalid_package_structure(format!(
+                        "worksheet drawing {rid:?} has no relationship"
+                    ))
+                })?;
+                let resolved = rel.resolved.clone().ok_or_else(|| {
+                    Error::invalid_package_structure("worksheet drawing target is external")
+                })?;
+                let p = opc.part_by_name(&resolved).ok_or_else(|| {
+                    Error::invalid_package_structure(format!(
+                        "worksheet drawing targets {resolved:?}, not a part"
+                    ))
+                })?;
+                if req.representation == R::ExactBytes {
+                    self.indexed_exact(
+                        req,
+                        SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, p.ordinal),
+                        "drawing part",
+                    )
+                } else {
+                    self.member_decoded(req, p.ordinal)
+                }
+            }
+            R::Metadata | R::Structure => {
+                let opc = self.opc_model()?;
+                let mut drawing_json = "null".to_string();
+                let mut charts: Vec<String> = Vec::new();
+                let mut media: Vec<String> = Vec::new();
+                if let Some(rid) = sheet.drawing_rel_id.as_deref()
+                    && let Some(rel) = xlsx_part_rel(&opc, part.ordinal, rid)
+                    && let Some(resolved) = rel.resolved.as_deref()
+                    && let Some(p) = opc.part_by_name(resolved)
+                {
+                    let bytes = self.xlsx_member_bytes(p.ordinal)?;
+                    let d = crate::adapter::xlsx::parse_drawing(&bytes, self.limits)?;
+                    for cid in &d.chart_rel_ids {
+                        if let Some(crel) = xlsx_part_rel(&opc, p.ordinal, cid) {
+                            charts.push(xlsx_rel_part_json(crel, &opc));
+                        }
+                    }
+                    for iid in &d.image_rel_ids {
+                        if let Some(irel) = xlsx_part_rel(&opc, p.ordinal, iid) {
+                            media.push(xlsx_rel_part_json(irel, &opc));
+                        }
+                    }
+                    drawing_json = format!(
+                        "{{\"part\":\"{}\",\"ordinal\":{},\"anchors\":{}}}",
+                        json_escape(&p.name),
+                        p.ordinal,
+                        d.anchors
+                    );
+                }
+                let legacy = match &sheet.legacy_drawing_rel_id {
+                    Some(id) => format!("\"{}\"", json_escape(id)),
+                    None => "null".to_string(),
+                };
+                let json = format!(
+                    concat!(
+                        "{{\"sheet\":\"{}\",\"index\":{},\"part\":\"{}\",",
+                        "\"drawing\":{},\"charts\":[{}],\"media\":[{}],\"legacyDrawing\":{}}}"
+                    ),
+                    json_escape(&sheet_name),
+                    sheet_index,
+                    json_escape(&part.name),
+                    drawing_json,
+                    charts.join(","),
+                    media.join(","),
+                    legacy
+                );
+                Ok(self.xlsx_answer(req, AnswerValue::Json(json), provenance, span, deps))
+            }
+            _ => Err(unsupported_common(req)),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PPTX (Phase 21.2.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "pptx")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the PPTX discovery model (derived, `Q_gen`).
+    fn pptx_model(&mut self) -> Result<PptxModel> {
+        let entry = self.require_entry(SelectorKey::new(SEL_PPTX_MODEL, 0), "PPTX model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        PptxModel::decode(&bytes)
+    }
+
+    /// Materialize and decode the parsed presentation inventory.
+    fn pptx_presentation(&mut self) -> Result<PptxPresentationModel> {
+        let model = self.pptx_model()?;
+        let part = model.presentation.clone();
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "PPTX presentation decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::PptxPresentation,
+            self.limits.max_output_bytes,
+            crate::adapter::pptx::presentation_params(part.ordinal, &part.name),
+            vec![dec.node_id],
+            "pptx:presentation",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        PptxPresentationModel::decode(&bytes)
+    }
+
+    /// Resolve the slide part for a 0-based presentation-order index.
+    fn pptx_slide_part(
+        &self,
+        model: &PptxModel,
+        pres: &PptxPresentationModel,
+        index: u32,
+    ) -> Result<crate::adapter::pptx::PptxPartRef> {
+        let s = pres.slides.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no slide {index}"))
+        })?;
+        if let Some(rid) = s.rel_id.as_deref()
+            && let Some(m) = model
+                .slides
+                .iter()
+                .find(|m| m.rel_id.as_deref() == Some(rid))
+        {
+            return Ok(m.part.clone());
+        }
+        model
+            .slides
+            .get(index as usize)
+            .map(|m| m.part.clone())
+            .ok_or_else(|| Error::unsupported_feature(format!("presentation has no slide {index}")))
+    }
+
+    /// Parse one slide into its derived [`PptxSlideModel`], persisting the canonical
+    /// result in the disposable cache. Only that slide's part is decoded.
+    #[allow(clippy::type_complexity)]
+    fn pptx_slide_view(
+        &mut self,
+        index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<(
+        PptxSlideModel,
+        crate::adapter::pptx::PptxPartRef,
+        Option<(u64, u64)>,
+        Vec<NodeId>,
+    )> {
+        let model = self.pptx_model()?;
+        let pres = self.pptx_presentation()?;
+        let part = self.pptx_slide_part(&model, &pres, index)?;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "PPTX slide decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let span = self
+            .lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal))?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)));
+        let mut node = SeedNode::new(
+            NodeKind::PptxSlide,
+            self.limits.max_output_bytes,
+            crate::adapter::pptx::slide_params(part.ordinal, &part.name, profile),
+            vec![dec.node_id],
+            "pptx:slide",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        let slide = PptxSlideModel::decode(&bytes)?;
+        Ok((slide, part, span, vec![node.content_id(), dec.node_id]))
+    }
+
+    /// The presentation-order indices of the slides a whole-deck projection would
+    /// visit (all of them; hidden slides are filtered after each is parsed).
+    fn pptx_slide_count(&mut self) -> Result<u32> {
+        let pres = self.pptx_presentation()?;
+        Ok(pres.slides.len() as u32)
+    }
+
+    /// Resolve the notes-slide parts (content type `…presentationml.notesSlide+xml`).
+    fn pptx_notes_parts(&mut self) -> Result<Vec<crate::adapter::pptx::PptxPartRef>> {
+        let opc = self.opc_model()?;
+        let mut parts: Vec<crate::adapter::pptx::PptxPartRef> = opc
+            .parts
+            .iter()
+            .filter(|p| {
+                p.content_type
+                    .as_deref()
+                    .is_some_and(|ct| ct.ends_with("presentationml.notesSlide+xml"))
+            })
+            .map(|p| crate::adapter::pptx::PptxPartRef {
+                name: p.name.clone(),
+                ordinal: p.ordinal,
+                content_type: p.content_type.clone(),
+            })
+            .collect();
+        parts.sort_by(|a, b| {
+            a.name
+                .to_ascii_lowercase()
+                .cmp(&b.name.to_ascii_lowercase())
+        });
+        Ok(parts)
+    }
+
+    /// Parse one notes slide into its derived [`PptxNotesModel`].
+    #[allow(clippy::type_complexity)]
+    fn pptx_notes_view(
+        &mut self,
+        index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<(
+        PptxNotesModel,
+        crate::adapter::pptx::PptxPartRef,
+        Option<(u64, u64)>,
+        Vec<NodeId>,
+    )> {
+        let parts = self.pptx_notes_parts()?;
+        if parts.len() as u64 > u64::from(self.limits.max_pptx_notes) {
+            return Err(Error::resource_limit(
+                "presentation has more notes slides than max_pptx_notes",
+            ));
+        }
+        let part = parts.get(index as usize).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no notes slide {index}"))
+        })?;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, part.ordinal),
+            "PPTX notes decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let span = self
+            .lookup(SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal))?
+            .into_iter()
+            .next()
+            .map(|e| (e.out_off, e.out_off.saturating_add(e.out_len)));
+        let mut node = SeedNode::new(
+            NodeKind::PptxNotes,
+            self.limits.max_output_bytes,
+            crate::adapter::pptx::notes_params(part.ordinal, &part.name, profile),
+            vec![dec.node_id],
+            "pptx:notes",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        let notes = PptxNotesModel::decode(&bytes)?;
+        Ok((notes, part, span, vec![node.content_id(), dec.node_id]))
+    }
+
+    /// The notes text attached to a slide, resolved through the slide's
+    /// relationships (`notesSlide`), when present.
+    fn pptx_slide_notes_text(
+        &mut self,
+        owner: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<Option<String>> {
+        let opc = self.opc_model()?;
+        let Some(rel) = opc
+            .part_rels
+            .iter()
+            .find(|(o, _)| *o == owner)
+            .and_then(|(_, rels)| {
+                rels.iter()
+                    .find(|r| r.rel_type == "notesSlide" || r.rel_type.ends_with("/notesSlide"))
+            })
+        else {
+            return Ok(None);
+        };
+        let Some(resolved) = rel.resolved.clone() else {
+            return Ok(None);
+        };
+        let Some(p) = opc.part_by_name(&resolved) else {
+            return Ok(None);
+        };
+        let ordinal = p.ordinal;
+        let dec = self.require_entry(
+            SelectorKey::new(SEL_PACKAGE_MEMBER_DECODED, ordinal),
+            "PPTX notes decoded bytes",
+        )?;
+        self.stats.member_decodes = self.stats.member_decodes.saturating_add(1);
+        let mut node = SeedNode::new(
+            NodeKind::PptxNotes,
+            self.limits.max_output_bytes,
+            crate::adapter::pptx::notes_params(ordinal, &resolved, profile),
+            vec![dec.node_id],
+            "pptx:notes",
+        );
+        node.limits.max_output_bytes = self.limits.max_output_bytes;
+        let bytes = self.materialize(&node)?;
+        let notes = PptxNotesModel::decode(&bytes)?;
+        Ok(Some(notes.text))
+    }
+
+    fn pptx_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn pptx_slide(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (slide, part, span, deps) = self.pptx_slide_view(index, profile)?;
+        let provenance = format!(
+            "pptx;slide={index};part={};hidden={};profile={}",
+            part.name,
+            slide.hidden,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(slide.text()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"index\":{},\"part\":\"{}\",\"ordinal\":{},\"hidden\":{},",
+                    "\"shapes\":{},\"top_level\":{},\"tables\":{},\"text_len\":{},\"profile\":\"{}\"}}"
+                ),
+                index,
+                json_escape(&part.name),
+                part.ordinal,
+                slide.hidden,
+                slide.shape_count(),
+                slide.top_level_count(),
+                slide.tables.len(),
+                slide.text().len(),
+                profile.fingerprint()
+            )),
+            Representation::Structure => {
+                let shapes = slide
+                    .shapes
+                    .iter()
+                    .map(pptx_shape_json)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                AnswerValue::Json(format!(
+                    "{{\"index\":{index},\"hidden\":{},\"shapes\":[{shapes}]}}",
+                    slide.hidden
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+
+    fn pptx_shape(
+        &mut self,
+        req: &ObserveRequest,
+        slide_index: u32,
+        shape_index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (slide, part, span, deps) = self.pptx_slide_view(slide_index, profile)?;
+        let shape = slide
+            .shape_by_flat_index(shape_index)
+            .cloned()
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "slide {slide_index} ({}) has no shape {shape_index}",
+                    part.name
+                ))
+            })?;
+        let provenance = format!(
+            "pptx;slide={slide_index};shape={shape_index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(shape.text_deep()),
+            Representation::Metadata | Representation::Structure => {
+                AnswerValue::Json(pptx_shape_json(&shape))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+
+    fn pptx_notes(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (notes, part, span, deps) = self.pptx_notes_view(index, profile)?;
+        let provenance = format!(
+            "pptx;notes={index};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(notes.text.clone()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"notes\":{index},\"part\":\"{}\",\"ordinal\":{},\"shapes\":{},\"text_len\":{},\"profile\":\"{}\"}}",
+                json_escape(&part.name),
+                part.ordinal,
+                notes.shapes,
+                notes.text.len(),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+
+    fn pptx_layouts(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.pptx_model()?;
+        let json = pptx_parts_json("layouts", &model.layouts);
+        Ok(self.pptx_answer(
+            req,
+            AnswerValue::Json(json),
+            "pptx;layouts".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    fn pptx_masters(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.pptx_model()?;
+        let json = pptx_parts_json("masters", &model.slide_masters);
+        Ok(self.pptx_answer(
+            req,
+            AnswerValue::Json(json),
+            "pptx;masters".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    fn pptx_theme(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let model = self.pptx_model()?;
+        let json = pptx_parts_json("themes", &model.themes);
+        Ok(self.pptx_answer(
+            req,
+            AnswerValue::Json(json),
+            "pptx;theme".to_string(),
+            None,
+            Vec::new(),
+        ))
+    }
+
+    fn pptx_media(&mut self, req: &ObserveRequest, ordinal: u32) -> Result<FieldAnswer> {
+        use Representation as R;
+        let model = self.pptx_model()?;
+        let part = model.media.get(ordinal as usize).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no media {ordinal}"))
+        })?;
+        match req.representation {
+            R::ExactBytes => self.indexed_exact(
+                req,
+                SelectorKey::new(SEL_PACKAGE_MEMBER_RAW, part.ordinal),
+                "media part",
+            ),
+            R::DecodedBytes => self.member_decoded(req, part.ordinal),
+            R::Metadata | R::Structure => {
+                let json = format!(
+                    "{{\"media\":{ordinal},\"part\":\"{}\",\"ordinal\":{},\"contentType\":{}}}",
+                    json_escape(&part.name),
+                    part.ordinal,
+                    opt_str_json(part.content_type.as_deref())
+                );
+                Ok(self.pptx_answer(
+                    req,
+                    AnswerValue::Json(json),
+                    format!("pptx;media={ordinal}"),
+                    None,
+                    Vec::new(),
+                ))
+            }
+            _ => Err(unsupported_common(req)),
+        }
+    }
+
+    /// The `(slide_index, local_table_index)` of every embedded table across the
+    /// projected slides, in slide order.
+    fn pptx_table_refs(&mut self, profile: &PptxExtractProfile) -> Result<Vec<(u32, u32)>> {
+        let count = self.pptx_slide_count()?;
+        let mut out: Vec<(u32, u32)> = Vec::new();
+        for i in 0..count {
+            let (slide, _part, _span, _deps) = self.pptx_slide_view(i, profile)?;
+            if slide.hidden && !profile.include_hidden {
+                continue;
+            }
+            for local in 0..slide.tables.len() {
+                out.push((i, local as u32));
+            }
+        }
+        Ok(out)
+    }
+
+    fn pptx_tables(
+        &mut self,
+        req: &ObserveRequest,
+        slide_index: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (slide, part, span, deps) = self.pptx_slide_view(slide_index, profile)?;
+        let provenance = format!(
+            "pptx;slide={slide_index};part={};tables;profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                let text = slide
+                    .tables
+                    .iter()
+                    .map(|t| t.text())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                AnswerValue::Text(text)
+            }
+            Representation::Metadata | Representation::Structure => {
+                let tables = slide
+                    .tables
+                    .iter()
+                    .map(pptx_table_json)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                AnswerValue::Json(format!(
+                    "{{\"slide\":{slide_index},\"part\":\"{}\",\"count\":{},\"tables\":[{tables}]}}",
+                    json_escape(&part.name),
+                    slide.tables.len()
+                ))
+            }
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+
+    fn pptx_find(
+        &mut self,
+        req: &ObserveRequest,
+        pattern: &str,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let count = self.pptx_slide_count()?;
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for i in 0..count {
+            let (slide, _part, _span, _deps) = self.pptx_slide_view(i, profile)?;
+            if slide.hidden && !profile.include_hidden {
+                continue;
+            }
+            for shape in &slide.shapes {
+                let mut matched: Vec<&PptxShape> = Vec::new();
+                collect_matching_shapes(shape, pattern, &mut matched);
+                for s in matched {
+                    let t = s.text_deep();
+                    estimated = estimated.saturating_add(t.len() as u64 + 64);
+                    if estimated > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "PPTX find exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                    items.push(format!(
+                        "{{\"slide\":{i},\"shape\":{},\"kind\":\"{}\",\"text\":\"{}\"}}",
+                        s.index,
+                        s.kind.name(),
+                        json_escape(&t)
+                    ));
+                }
+            }
+        }
+        let provenance = format!("pptx;find;profile={}", profile.fingerprint());
+        Ok(self.pptx_answer(
+            req,
+            AnswerValue::Json(format!("[{}]", items.join(","))),
+            provenance,
+            None,
+            Vec::new(),
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PPTX common observations (Phase 21.2.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "pptx")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn common_pptx(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let profile = PptxExtractProfile::DEFAULT;
+        match &req.selector {
+            Selector::Metadata => self.pptx_common_metadata(req, &profile),
+            Selector::Text => self.pptx_common_text(req, &profile),
+            Selector::Table(i) => self.pptx_common_table(req, *i, &profile),
+            Selector::Cell { table, row, col } => {
+                self.pptx_common_cell(req, *table, *row, *col, &profile)
+            }
+            Selector::SearchMatch(p) => self.pptx_find(req, p, &profile),
+            other => Err(Error::unsupported_feature(format!(
+                "PPTX does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn pptx_common_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let model = self.pptx_model()?;
+        let pres = self.pptx_presentation()?;
+        let count = pres.slides.len() as u32;
+        let title = if count > 0 {
+            self.pptx_slide_view(0, profile)
+                .ok()
+                .and_then(|(s, _, _, _)| s.title())
+        } else {
+            None
+        };
+        let (cx, cy) = match pres.slide_size {
+            Some((cx, cy)) => (Some(cx), Some(cy)),
+            None => (None, None),
+        };
+        let json = format!(
+            concat!(
+                "{{\"format\":\"pptx\",\"presentation\":\"{}\",\"ordinal\":{},",
+                "\"slides\":{},\"slide_size_cx\":{},\"slide_size_cy\":{},\"title\":{},",
+                "\"masters\":{},\"layouts\":{},\"themes\":{},\"media\":{},\"profile\":\"{}\"}}"
+            ),
+            json_escape(&model.presentation.name),
+            model.presentation.ordinal,
+            count,
+            opt_u64_json(cx),
+            opt_u64_json(cy),
+            opt_str_json(title.as_deref()),
+            model.slide_masters.len(),
+            model.layouts.len(),
+            model.themes.len(),
+            model.media.len(),
+            profile.fingerprint()
+        );
+        let provenance = format!(
+            "pptx;presentation={};profile={}",
+            model.presentation.name,
+            profile.fingerprint()
+        );
+        Ok(self.pptx_answer(req, AnswerValue::Json(json), provenance, None, Vec::new()))
+    }
+
+    fn pptx_common_text(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let count = self.pptx_slide_count()?;
+        let mut out = String::new();
+        let mut slides: u64 = 0;
+        for i in 0..count {
+            let (slide, part, _span, _deps) = self.pptx_slide_view(i, profile)?;
+            if slide.hidden && !profile.include_hidden {
+                continue;
+            }
+            if !out.is_empty() {
+                out.push('\n');
+            }
+            out.push_str(&slide.text());
+            if profile.include_notes
+                && let Some(notes) = self.pptx_slide_notes_text(part.ordinal, profile)?
+                && !notes.is_empty()
+            {
+                out.push('\n');
+                out.push_str(&notes);
+            }
+            if out.len() as u64 > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "whole-deck text exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            slides += 1;
+        }
+        let provenance = format!("pptx;slides={slides};profile={}", profile.fingerprint());
+        Ok(self.pptx_answer(req, AnswerValue::Text(out), provenance, None, Vec::new()))
+    }
+
+    fn pptx_common_table(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let refs = self.pptx_table_refs(profile)?;
+        let (slide_index, local) = *refs.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("deck has no projected table {ordinal}"))
+        })?;
+        let (slide, part, span, deps) = self.pptx_slide_view(slide_index, profile)?;
+        let table = slide.tables.get(local as usize).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!("slide {slide_index} has no table {local}"))
+        })?;
+        let provenance = format!(
+            "pptx;slide={slide_index};table={local};ordinal={ordinal};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(table.text()),
+            Representation::Metadata => AnswerValue::Json(pptx_table_json(&table)),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+
+    fn pptx_common_cell(
+        &mut self,
+        req: &ObserveRequest,
+        table_ordinal: u32,
+        row: u32,
+        col: u32,
+        profile: &PptxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let refs = self.pptx_table_refs(profile)?;
+        let (slide_index, local) = *refs.get(table_ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("deck has no projected table {table_ordinal}"))
+        })?;
+        let (slide, part, span, deps) = self.pptx_slide_view(slide_index, profile)?;
+        let table = slide.tables.get(local as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("slide {slide_index} has no table {local}"))
+        })?;
+        let r = table.rows.get(row as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("table {table_ordinal} has no row {row}"))
+        })?;
+        let c = r.cells.get(col as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("table {table_ordinal} row {row} has no cell {col}"))
+        })?;
+        let provenance = format!(
+            "pptx;slide={slide_index};table={local};row={row};col={col};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(c.text.clone()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"slide\":{},\"table\":{},\"row\":{},\"col\":{},",
+                    "\"grid_span\":{},\"row_span\":{},\"text_len\":{}}}"
+                ),
+                slide_index,
+                table_ordinal,
+                row,
+                col,
+                c.grid_span,
+                c.row_span,
+                c.text.len()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.pptx_answer(req, value, provenance, span, deps))
+    }
+}
+
+/// The JSON for one shape (recursive over group children).
+#[cfg(feature = "pptx")]
+fn pptx_shape_json(s: &PptxShape) -> String {
+    let table = match &s.table {
+        Some(t) => format!("{{\"rows\":{},\"cells\":{}}}", t.rows.len(), t.cell_count()),
+        None => "null".to_string(),
+    };
+    let children = s
+        .children
+        .iter()
+        .map(pptx_shape_json)
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        concat!(
+            "{{\"index\":{},\"kind\":\"{}\",\"name\":{},\"shapeId\":{},",
+            "\"placeholder\":{},\"text\":\"{}\",\"media\":{},\"chart\":{},",
+            "\"table\":{},\"children\":[{}]}}"
+        ),
+        s.index,
+        s.kind.name(),
+        opt_str_json(s.name.as_deref()),
+        opt_u32_json(s.shape_id),
+        opt_str_json(s.placeholder.as_deref()),
+        json_escape(&s.text),
+        opt_str_json(s.media_rel_id.as_deref()),
+        opt_str_json(s.chart_rel_id.as_deref()),
+        table,
+        children
+    )
+}
+
+/// The JSON for one embedded table.
+#[cfg(feature = "pptx")]
+fn pptx_table_json(t: &PptxTable) -> String {
+    let rows = t
+        .rows
+        .iter()
+        .map(|r| {
+            let cells = r
+                .cells
+                .iter()
+                .map(|c| {
+                    format!(
+                        "{{\"text\":\"{}\",\"gridSpan\":{},\"rowSpan\":{},\"hMerge\":{},\"vMerge\":{}}}",
+                        json_escape(&c.text),
+                        c.grid_span,
+                        c.row_span,
+                        c.h_merge,
+                        c.v_merge
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            format!("{{\"cells\":[{cells}]}}")
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"rows\":{},\"cells\":{},\"detail\":[{rows}]}}",
+        t.rows.len(),
+        t.cell_count()
+    )
+}
+
+/// The JSON for a list of parts (`layouts`/`masters`/`themes`).
+#[cfg(feature = "pptx")]
+fn pptx_parts_json(field: &str, parts: &[crate::adapter::pptx::PptxPartRef]) -> String {
+    let items = parts
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            format!(
+                "{{\"index\":{},\"part\":\"{}\",\"ordinal\":{},\"contentType\":{}}}",
+                i,
+                json_escape(&p.name),
+                p.ordinal,
+                opt_str_json(p.content_type.as_deref())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{{\"count\":{},\"{field}\":[{items}]}}", parts.len())
+}
+
+#[cfg(feature = "pptx")]
+fn opt_u64_json(v: Option<u64>) -> String {
+    match v {
+        Some(n) => n.to_string(),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "pptx")]
+fn collect_matching_shapes<'a>(s: &'a PptxShape, pattern: &str, out: &mut Vec<&'a PptxShape>) {
+    let own = s.own_text();
+    if !own.is_empty() && own.contains(pattern) {
+        out.push(s);
+    }
+    for c in &s.children {
+        collect_matching_shapes(c, pattern, out);
+    }
+}
+
+/// A JSON array of the (escaped) strings, used for the merged-range references.
+#[cfg(feature = "xlsx")]
+fn xlsx_str_array(items: &[String]) -> String {
+    format!(
+        "[{}]",
+        items
+            .iter()
+            .map(|s| format!("\"{}\"", json_escape(s)))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
+}
+
+/// A relationship's JSON metadata for the external-relationship observation.
+#[cfg(feature = "xlsx")]
+fn xlsx_rel_json(r: &crate::adapter::package::opc::Relationship, owner: Option<u32>) -> String {
+    format!(
+        concat!(
+            "{{\"id\":\"{}\",\"type\":\"{}\",\"target\":\"{}\",",
+            "\"target_mode\":\"{}\",\"owner\":{}}}"
+        ),
+        json_escape(&r.id),
+        json_escape(&r.rel_type),
+        json_escape(&r.target),
+        r.mode.name(),
+        match owner {
+            Some(o) => o.to_string(),
+            None => "null".to_string(),
+        }
+    )
+}
+
+/// The JSON for a relationship's resolved target part (a chart or image).
+#[cfg(feature = "xlsx")]
+fn xlsx_rel_part_json(
+    r: &crate::adapter::package::opc::Relationship,
+    model: &crate::adapter::package::opc::OpcModel,
+) -> String {
+    let (part, ordinal, ct) = match r.resolved.as_deref().and_then(|n| model.part_by_name(n)) {
+        Some(p) => (
+            format!("\"{}\"", json_escape(&p.name)),
+            p.ordinal.to_string(),
+            opt_str_json(p.content_type.as_deref()),
+        ),
+        None => ("null".to_string(), "null".to_string(), "null".to_string()),
+    };
+    format!(
+        "{{\"relId\":\"{}\",\"part\":{},\"ordinal\":{},\"contentType\":{}}}",
+        json_escape(&r.id),
+        part,
+        ordinal,
+        ct
+    )
+}
+
+/// The style table as deterministic JSON (Phase 21.1.2).
+#[cfg(feature = "xlsx")]
+fn xlsx_styles_json(t: &crate::adapter::xlsx::StylesTable) -> String {
+    let fonts = t
+        .fonts
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            format!(
+                concat!(
+                    "{{\"index\":{},\"bold\":{},\"italic\":{},",
+                    "\"size\":{},\"name\":{}}}"
+                ),
+                i,
+                f.bold,
+                f.italic,
+                opt_str_json(f.size.as_deref()),
+                opt_str_json(f.name.as_deref())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let fills = t
+        .fills
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            format!(
+                concat!(
+                    "{{\"index\":{},\"patternType\":{},",
+                    "\"fgColor\":{},\"bgColor\":{}}}"
+                ),
+                i,
+                opt_str_json(f.pattern_type.as_deref()),
+                opt_str_json(f.fg_color.as_deref()),
+                opt_str_json(f.bg_color.as_deref())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let fmts = t
+        .num_fmts
+        .iter()
+        .map(|(id, code)| format!("{{\"id\":{id},\"formatCode\":\"{}\"}}", json_escape(code)))
+        .collect::<Vec<_>>()
+        .join(",");
+    let xfs = t
+        .cell_xfs
+        .iter()
+        .enumerate()
+        .map(|(i, xf)| {
+            format!(
+                concat!(
+                    "{{\"index\":{},\"numFmtId\":{},\"fontId\":{},\"fillId\":{},",
+                    "\"alignment\":{}}}"
+                ),
+                i,
+                xf.num_fmt_id,
+                xf.font_id,
+                xf.fill_id,
+                xlsx_alignment_json(xf.alignment.as_ref())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        concat!(
+            "{{\"present\":true,\"fonts\":{},\"fills\":{},\"num_fmts\":{},\"cell_xfs\":{},",
+            "\"fonts_detail\":[{}],\"fills_detail\":[{}],\"num_fmts_detail\":[{}],\"cell_xfs_detail\":[{}]}}"
+        ),
+        t.fonts.len(),
+        t.fills.len(),
+        t.num_fmts.len(),
+        t.cell_xfs.len(),
+        fonts,
+        fills,
+        fmts,
+        xfs
+    )
+}
+
+/// A resolved alignment as JSON, or `null`.
+#[cfg(feature = "xlsx")]
+fn xlsx_alignment_json(a: Option<&crate::adapter::xlsx::Alignment>) -> String {
+    match a {
+        Some(a) => format!(
+            "{{\"horizontal\":{},\"vertical\":{},\"wrapText\":{}}}",
+            opt_str_json(a.horizontal.as_deref()),
+            opt_str_json(a.vertical.as_deref()),
+            a.wrap_text
+        ),
+        None => "null".to_string(),
+    }
+}
+
+/// A cell's resolved style as JSON, or `null` (Phase 21.1.2). Distinct from the
+/// cell's value, formula, and span.
+#[cfg(feature = "xlsx")]
+fn xlsx_cell_style_json(
+    style_index: Option<u32>,
+    style: Option<&crate::adapter::xlsx::CellStyle>,
+) -> String {
+    match (style_index, style) {
+        (Some(i), Some(s)) => {
+            let font = match &s.font {
+                Some(f) => format!(
+                    concat!("{{\"bold\":{},\"italic\":{},", "\"size\":{},\"name\":{}}}"),
+                    f.bold,
+                    f.italic,
+                    opt_str_json(f.size.as_deref()),
+                    opt_str_json(f.name.as_deref())
+                ),
+                None => "null".to_string(),
+            };
+            let fill = match &s.fill {
+                Some(f) => format!(
+                    concat!("{{\"patternType\":{},", "\"fgColor\":{},\"bgColor\":{}}}"),
+                    opt_str_json(f.pattern_type.as_deref()),
+                    opt_str_json(f.fg_color.as_deref()),
+                    opt_str_json(f.bg_color.as_deref())
+                ),
+                None => "null".to_string(),
+            };
+            format!(
+                concat!(
+                    "{{\"index\":{},\"numFmtId\":{},\"formatCode\":{},",
+                    "\"font\":{},\"fill\":{},\"alignment\":{}}}"
+                ),
+                i,
+                s.num_fmt_id,
+                opt_str_json(s.format_code.as_deref()),
+                font,
+                fill,
+                xlsx_alignment_json(s.alignment.as_ref())
+            )
+        }
+        (Some(i), None) => format!("{{\"index\":{i}}}"),
+        _ => "null".to_string(),
+    }
+}
+
+/// A relationship scoped to one owner part ordinal (ids are only unique within a
+/// `.rels` part, so the global lookup is deliberately not used here).
+#[cfg(feature = "xlsx")]
+fn xlsx_part_rel<'a>(
+    model: &'a crate::adapter::package::opc::OpcModel,
+    owner: u32,
+    id: &str,
+) -> Option<&'a crate::adapter::package::opc::Relationship> {
+    model
+        .part_rels
+        .iter()
+        .find(|(o, _)| *o == owner)?
+        .1
+        .iter()
+        .find(|r| r.id == id)
+}
+
+/// The first relationship of `owner` whose type ends with `suffix`.
+#[cfg(feature = "xlsx")]
+fn xlsx_find_rel<'a>(
+    model: &'a crate::adapter::package::opc::OpcModel,
+    owner: u32,
+    suffix: &str,
+) -> Option<&'a crate::adapter::package::opc::Relationship> {
+    let tail = format!("/{suffix}");
+    model
+        .part_rels
+        .iter()
+        .find(|(o, _)| *o == owner)?
+        .1
+        .iter()
+        .find(|r| r.rel_type == suffix || r.rel_type.ends_with(&tail))
+}
+
+// ---------------------------------------------------------------------------
 // Common (format-neutral) observations (Phase 12.7)
 // ---------------------------------------------------------------------------
 
@@ -4426,6 +7799,10 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Docx => self.common_docx(req)?,
             DocumentFormat::Epub => self.common_epub(req)?,
             DocumentFormat::Odt => self.common_odt(req)?,
+            DocumentFormat::Ods => self.common_ods(req)?,
+            DocumentFormat::Odp => self.common_odp(req)?,
+            DocumentFormat::Xlsx => self.common_xlsx(req)?,
+            DocumentFormat::Pptx => self.common_pptx(req)?,
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -4720,6 +8097,34 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_odt(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "ODT observations require a build with the odt feature",
+        ))
+    }
+
+    #[cfg(not(feature = "ods"))]
+    fn common_ods(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "ODS observations require a build with the ods feature",
+        ))
+    }
+
+    #[cfg(not(feature = "odp"))]
+    fn common_odp(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "ODP observations require a build with the odp feature",
+        ))
+    }
+
+    #[cfg(not(feature = "xlsx"))]
+    fn common_xlsx(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "XLSX observations require a build with the xlsx feature",
+        ))
+    }
+
+    #[cfg(not(feature = "pptx"))]
+    fn common_pptx(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "PPTX observations require a build with the pptx feature",
         ))
     }
 
@@ -5214,9 +8619,533 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// ODS common observations (Phase 21.3.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "ods")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn common_ods(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let profile = OdsExtractProfile::DEFAULT;
+        match &req.selector {
+            Selector::Metadata => self.ods_common_metadata(req, &profile),
+            Selector::Text => self.ods_content_text(req, &profile),
+            Selector::Table(i) => self.ods_sheet(req, *i, &profile),
+            Selector::Cell { table, row, col } => {
+                self.ods_common_cell(req, *table, *row, *col, &profile)
+            }
+            Selector::SearchMatch(p) => self.ods_find(req, p, &profile),
+            other => Err(Error::unsupported_feature(format!(
+                "ODS does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn ods_content_text(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(profile)?;
+        let provenance = format!("ods;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.ods_answer(
+            req,
+            AnswerValue::Text(m.text(profile.hidden)),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+
+    fn ods_common_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let model = self.ods_model()?;
+        let part = model.content.as_ref().ok_or_else(|| {
+            Error::invalid_package_structure(
+                "ODF package has no resolvable OpenDocument content part",
+            )
+        })?;
+        let (m, _part, span, deps) = self.ods_content_view(profile)?;
+        let names = m
+            .sheets
+            .iter()
+            .map(|s| format!("\"{}\"", json_escape(&s.name)))
+            .collect::<Vec<_>>()
+            .join(",");
+        let json = format!(
+            concat!(
+                "{{",
+                "\"format\":\"ods\",",
+                "\"part\":\"{}\",",
+                "\"ordinal\":{},",
+                "\"media_type\":{},",
+                "\"root\":\"{}\",",
+                "\"manifest_entries\":{},",
+                "\"sheets\":{},",
+                "\"sheet_names\":[{}],",
+                "\"cells\":{},",
+                "\"styles\":{},",
+                "\"number_formats\":{},",
+                "\"named_expressions\":{},",
+                "\"comments\":{},",
+                "\"profile\":\"{}\"",
+                "}}"
+            ),
+            json_escape(&part.name),
+            part.ordinal,
+            opt_str_json(part.media_type.as_deref()),
+            json_escape(&m.root_local),
+            model.manifest.len(),
+            m.sheets.len(),
+            names,
+            m.cell_count(),
+            m.styles.len(),
+            m.number_formats.len(),
+            m.named_expressions.len(),
+            m.comments.len(),
+            profile.fingerprint(),
+        );
+        let provenance = format!("ods;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.ods_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    fn ods_common_cell(
+        &mut self,
+        req: &ObserveRequest,
+        table: u32,
+        row: u32,
+        col: u32,
+        profile: &OdsExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.ods_content_view(profile)?;
+        let sheet = m.sheet(table).ok_or_else(|| {
+            Error::unsupported_feature(format!("spreadsheet has no sheet {table}"))
+        })?;
+        let found = sheet.cell_at(row, col).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "sheet {table} ({}) has no cell at row {row} col {col}",
+                sheet.name
+            ))
+        })?;
+        let sheet_name = sheet.name.clone();
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(found.text.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"cell\":\"{}\",\"row\":{},\"col\":{},",
+                    "\"value_type\":{},\"value\":{},\"formula\":{},\"style\":{},\"text\":\"{}\"}}"
+                ),
+                json_escape(&sheet_name),
+                table,
+                Self::ods_a1(col, row),
+                row,
+                col,
+                opt_str_json(found.value_type.as_deref()),
+                opt_str_json(found.value.as_deref()),
+                opt_str_json(found.formula.as_deref()),
+                opt_str_json(found.style_name.as_deref()),
+                json_escape(&found.text),
+            )),
+        };
+        let provenance = format!(
+            "ods;part={};sheet={table};row={row};cell={col};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        Ok(self.ods_answer(req, value, provenance, span, deps))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ODP common observations (Phase 21.4.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "odp")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn common_odp(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let profile = OdpExtractProfile::DEFAULT;
+        match &req.selector {
+            Selector::Metadata => self.odp_common_metadata(req, &profile),
+            Selector::Text => self.odp_content_text(req, &profile),
+            Selector::Table(i) => self.odp_common_table(req, *i, &profile),
+            Selector::Cell { table, row, col } => {
+                self.odp_common_cell(req, *table, *row, *col, &profile)
+            }
+            Selector::SearchMatch(p) => self.odp_find(req, p, &profile),
+            other => Err(Error::unsupported_feature(format!(
+                "ODP does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn odp_content_text(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let provenance = format!("odp;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.odp_answer(
+            req,
+            AnswerValue::Text(m.text(profile.include_notes, profile.include_hidden)),
+            provenance,
+            span,
+            deps,
+        ))
+    }
+
+    fn odp_common_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let model = self.odp_model()?;
+        let part = model.content.as_ref().ok_or_else(|| {
+            Error::invalid_package_structure(
+                "ODF package has no resolvable OpenDocument content part",
+            )
+        })?;
+        let (m, _part, span, deps) = self.odp_content_view(profile)?;
+        let names = m
+            .slides
+            .iter()
+            .map(|s| format!("\"{}\"", json_escape(&s.name)))
+            .collect::<Vec<_>>()
+            .join(",");
+        let title = m.slides.first().and_then(|s| s.title());
+        let styles = self.odp_styles_view()?;
+        let masters = styles
+            .as_ref()
+            .map(|(sm, _, _)| sm.master_pages.len())
+            .unwrap_or(0);
+        let json = format!(
+            concat!(
+                "{{",
+                "\"format\":\"odp\",",
+                "\"part\":\"{}\",",
+                "\"ordinal\":{},",
+                "\"media_type\":{},",
+                "\"root\":\"{}\",",
+                "\"manifest_entries\":{},",
+                "\"slides\":{},",
+                "\"slide_names\":[{}],",
+                "\"title\":{},",
+                "\"shapes\":{},",
+                "\"tables\":{},",
+                "\"masters\":{},",
+                "\"media\":{},",
+                "\"images\":{},",
+                "\"styles\":{},",
+                "\"profile\":\"{}\"",
+                "}}"
+            ),
+            json_escape(&part.name),
+            part.ordinal,
+            opt_str_json(part.media_type.as_deref()),
+            json_escape(&m.root_local),
+            model.manifest.len(),
+            m.slides.len(),
+            names,
+            opt_str_json(title.as_deref()),
+            m.shape_count(),
+            m.table_count(),
+            masters,
+            model.media.len(),
+            m.images.len(),
+            m.styles.len(),
+            profile.fingerprint(),
+        );
+        let provenance = format!("odp;part={};profile={}", part.name, profile.fingerprint());
+        Ok(self.odp_answer(req, AnswerValue::Json(json), provenance, span, deps))
+    }
+
+    fn odp_common_table(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let refs = self.odp_table_refs(profile)?;
+        let (slide_index, local) = *refs.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("presentation has no projected table {ordinal}"))
+        })?;
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let table = m
+            .slide(slide_index)
+            .and_then(|s| s.tables.get(local as usize))
+            .cloned()
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!("slide {slide_index} has no table {local}"))
+            })?;
+        let provenance = format!(
+            "odp;slide={slide_index};table={local};ordinal={ordinal};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(table.text()),
+            Representation::Metadata => AnswerValue::Json(odp_table_json(&table)),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
+    }
+
+    fn odp_common_cell(
+        &mut self,
+        req: &ObserveRequest,
+        table_ordinal: u32,
+        row: u32,
+        col: u32,
+        profile: &OdpExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let refs = self.odp_table_refs(profile)?;
+        let (slide_index, local) = *refs.get(table_ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "presentation has no projected table {table_ordinal}"
+            ))
+        })?;
+        let (m, part, span, deps) = self.odp_content_view(profile)?;
+        let table = m
+            .slide(slide_index)
+            .and_then(|s| s.tables.get(local as usize))
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!("slide {slide_index} has no table {local}"))
+            })?;
+        let r = table.rows.get(row as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("table {table_ordinal} has no row {row}"))
+        })?;
+        let c = r.cells.get(col as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("table {table_ordinal} row {row} has no cell {col}"))
+        })?;
+        let provenance = format!(
+            "odp;slide={slide_index};table={local};row={row};col={col};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(c.text.clone()),
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"slide\":{},\"table\":{},\"row\":{},\"col\":{},",
+                    "\"colsSpanned\":{},\"rowsSpanned\":{},\"covered\":{},\"text_len\":{}}}"
+                ),
+                slide_index,
+                table_ordinal,
+                row,
+                col,
+                c.col_span,
+                c.row_span,
+                c.covered,
+                c.text.len()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.odp_answer(req, value, provenance, span, deps))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// XLSX common observations (Phase 21.1.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "xlsx")]
+impl<S: SeedStore> Ctx<'_, S> {
+    fn common_xlsx(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let profile = XlsxExtractProfile::DEFAULT;
+        match &req.selector {
+            Selector::Metadata => self.xlsx_common_metadata(req, &profile),
+            Selector::Text => self.xlsx_common_text(req, &profile),
+            Selector::Table(i) => self.xlsx_table(req, *i, &profile),
+            Selector::Cell { table, row, col } => {
+                self.xlsx_common_cell(req, *table, *row, *col, &profile)
+            }
+            Selector::SearchMatch(p) => self.xlsx_find(req, p, &profile),
+            other => Err(Error::unsupported_feature(format!(
+                "XLSX does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn xlsx_common_metadata(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let model = self.xlsx_model()?;
+        let workbook = self.xlsx_workbook()?;
+        let detail = workbook
+            .sheets
+            .iter()
+            .enumerate()
+            .map(|(i, s)| {
+                format!(
+                    "{{\"index\":{i},\"name\":\"{}\",\"state\":\"{}\",\"sheetId\":{}}}",
+                    json_escape(&s.name),
+                    s.state.name(),
+                    opt_u32_json(s.sheet_id),
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let names = workbook
+            .sheets
+            .iter()
+            .map(|s| format!("\"{}\"", json_escape(&s.name)))
+            .collect::<Vec<_>>()
+            .join(",");
+        let json = format!(
+            concat!(
+                "{{\"format\":\"xlsx\",\"workbook\":\"{}\",\"ordinal\":{},",
+                "\"styles\":{},\"shared_strings\":{},\"defined_names\":{},",
+                "\"sheets\":{},\"sheet_names\":[{}],\"sheets_detail\":[{}],\"profile\":\"{}\"}}"
+            ),
+            json_escape(&model.workbook.name),
+            model.workbook.ordinal,
+            model.styles.is_some(),
+            model.shared_strings.is_some(),
+            workbook.defined_names.len(),
+            workbook.sheets.len(),
+            names,
+            detail,
+            profile.fingerprint()
+        );
+        let provenance = format!(
+            "xlsx;workbook={};profile={}",
+            model.workbook.name,
+            profile.fingerprint()
+        );
+        Ok(self.xlsx_answer(req, AnswerValue::Json(json), provenance, None, Vec::new()))
+    }
+
+    fn xlsx_common_text(
+        &mut self,
+        req: &ObserveRequest,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let workbook = self.xlsx_workbook()?;
+        let indices = self.xlsx_projected_indices(&workbook, profile);
+        let mut out = String::new();
+        let mut count: u64 = 0;
+        for index in indices {
+            let (sheet, _part, _name, _span, _deps) = self.xlsx_sheet_view(index, profile)?;
+            let text = sheet.text(profile.values, self.limits.max_xlsx_cells)?;
+            if !out.is_empty() {
+                out.push('\n');
+            }
+            out.push_str(&text);
+            if out.len() as u64 > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "whole-workbook text exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            count += 1;
+        }
+        let provenance = format!("xlsx;sheets={count};profile={}", profile.fingerprint());
+        Ok(self.xlsx_answer(req, AnswerValue::Text(out), provenance, None, Vec::new()))
+    }
+
+    fn xlsx_table(
+        &mut self,
+        req: &ObserveRequest,
+        ordinal: u32,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let workbook = self.xlsx_workbook()?;
+        let indices = self.xlsx_projected_indices(&workbook, profile);
+        let index = *indices.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("workbook has no projected sheet {ordinal}"))
+        })?;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(index, profile)?;
+        let provenance = format!(
+            "xlsx;sheet={sheet_name};index={index};table={ordinal};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                AnswerValue::Text(sheet.text(profile.values, self.limits.max_xlsx_cells)?)
+            }
+            Representation::Metadata => AnswerValue::Json(format!(
+                "{{\"sheet\":\"{}\",\"index\":{},\"rows\":{},\"cells\":{},\"merges\":{},\"merge_count\":{},\"profile\":\"{}\"}}",
+                json_escape(&sheet_name),
+                index,
+                sheet.rows.len(),
+                sheet.cell_count(),
+                xlsx_str_array(&sheet.merges),
+                sheet.merges.len(),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.xlsx_answer(req, value, provenance, span, deps))
+    }
+
+    fn xlsx_common_cell(
+        &mut self,
+        req: &ObserveRequest,
+        table: u32,
+        row: u32,
+        col: u32,
+        profile: &XlsxExtractProfile,
+    ) -> Result<FieldAnswer> {
+        let workbook = self.xlsx_workbook()?;
+        let indices = self.xlsx_projected_indices(&workbook, profile);
+        let index = *indices.get(table as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("workbook has no projected sheet {table}"))
+        })?;
+        let (sheet, part, sheet_name, span, deps) = self.xlsx_sheet_view(index, profile)?;
+        let reference = crate::adapter::xlsx::col_row_to_a1(col, row);
+        let found = sheet.cell_at(row, col).cloned().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "sheet {index} ({sheet_name}) has no cell {reference}"
+            ))
+        })?;
+        let provenance = format!(
+            "xlsx;sheet={sheet_name};index={index};cell={reference};part={};profile={}",
+            part.name,
+            profile.fingerprint()
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                AnswerValue::Text(sheet.facet(&found, profile.values).unwrap_or_default())
+            }
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"sheet\":\"{}\",\"index\":{},\"cell\":\"{}\",\"col\":{},\"row\":{},",
+                    "\"kind\":\"{}\",\"value\":{},\"formula\":{},\"profile\":\"{}\"}}"
+                ),
+                json_escape(&sheet_name),
+                index,
+                json_escape(&found.reference),
+                found.col,
+                found.row,
+                found.kind(),
+                opt_str_json(found.value.as_deref()),
+                opt_str_json(found.formula.as_deref()),
+                profile.fingerprint()
+            )),
+            _ => return Err(unsupported_common(req)),
+        };
+        Ok(self.xlsx_answer(req, value, provenance, span, deps))
+    }
+}
+
 /// The standard `unsupported observation` error for a common pair that reached a
 /// representation the capability guard admitted but the adapter does not serve.
-#[cfg(any(feature = "docx", feature = "epub", feature = "odt"))]
+#[cfg(any(
+    feature = "docx",
+    feature = "epub",
+    feature = "odt",
+    feature = "xlsx",
+    feature = "pptx"
+))]
 fn unsupported_common(req: &ObserveRequest) -> Error {
     Error::unsupported_feature(format!(
         "unsupported observation: selector {} with representation {}",

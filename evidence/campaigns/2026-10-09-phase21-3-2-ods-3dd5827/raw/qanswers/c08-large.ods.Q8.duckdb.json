@@ -1,0 +1,1 @@
+{"decline": {"code": "no-exact-span", "detail": "the exact OpenDocument cell span is not in the columnar projection"}, "declined": true, "detail": {}, "lane": "duckdb", "native": true, "q": "Q8", "value": null}

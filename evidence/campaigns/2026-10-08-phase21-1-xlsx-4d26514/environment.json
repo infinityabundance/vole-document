@@ -1,0 +1,24 @@
+{
+  "campaign": "evidence/campaigns/2026-10-08-phase21-1-xlsx-4d26514",
+  "phase": "21.1.1 — XLSX OPC/XML surface + exact closure + model",
+  "utc": "2026-10-08T22:43:47Z",
+  "git_commit": "4d265142d6f8f4511021a41f80ec9c8392ca22d3",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest_package.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-08-phase21-1-xlsx-4d26514/ ?? src/adapter/xlsx.rs ?? tests/xlsx_adapter.rs ?? tools/fixtures/make-xlsx.py ?? tools/fixtures/xlsx/ ?? tools/phase21-1-xlsx-court.sh ",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python3": "Python 3.11.2",
+  "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+  "cargo_lock_sha256": "80a6f5b83cf23098ed2533db4a34a0bf2ea481e29972aaa77353e39d713ae6fd",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "6e299e9b8021ad9866666fdbd97a405221db45b1c3efa86dd7a32f7684d7bfe4",
+  "profile": "debug",
+  "fixtures_tool": "tools/fixtures/make-xlsx.py",
+  "fixtures_sha256": {
+    "single.xlsx": "0c79770deb946471b2248ae6c65416e8b57e214e451d07a07ed0952430556603",
+    "multi.xlsx": "ba56e76a23189c4c97d887128197571fc82b709c5385837f29237c11a4d8f00b"
+  },
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

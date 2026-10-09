@@ -299,6 +299,134 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["OdtModel", "PackageMemberRaw", "PackageMemberDecoded"]),
             will_not_materialize: kinds(&["other-parts", "whole-document"]),
         }),
+        #[cfg(feature = "ods")]
+        (Selector::OdsSheet { .. }, R::Text | R::Structure | R::Metadata)
+        | (Selector::OdsCell { .. }, R::Text | R::Metadata | R::Structure | R::ExactBytes)
+        | (Selector::OdsFind { .. }, R::Text)
+        | (Selector::OdsComments { .. }, R::Metadata | R::Structure)
+        | (Selector::OdsNamedExpressions, R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 4,
+            will_materialize: kinds(&[
+                "OdsModel",
+                "OdsContent",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-sheets", "whole-document"]),
+        }),
+        #[cfg(feature = "ods")]
+        (Selector::OdsStyles, R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 5,
+            will_materialize: kinds(&[
+                "OdsModel",
+                "OdsContent",
+                "OdsStyles",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-sheets", "whole-document"]),
+        }),
+        #[cfg(feature = "xlsx")]
+        (Selector::XlsxSheet { .. }, R::Text | R::Structure | R::Metadata)
+        | (Selector::XlsxCell { .. }, R::Text | R::Metadata | R::Structure | R::ExactBytes)
+        | (Selector::XlsxFind { .. }, R::Text) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 5,
+            will_materialize: kinds(&[
+                "XlsxModel",
+                "XlsxWorkbook",
+                "XlsxSheet",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-sheets", "whole-document"]),
+        }),
+        #[cfg(feature = "pptx")]
+        (Selector::PptxSlide { .. }, R::Text | R::Structure | R::Metadata)
+        | (Selector::PptxShape { .. }, R::Text | R::Metadata | R::Structure | R::ExactBytes)
+        | (Selector::PptxNotes { .. }, R::Text | R::Metadata)
+        | (Selector::PptxTables { .. }, R::Text | R::Metadata)
+        | (Selector::PptxFind { .. }, R::Text) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 5,
+            will_materialize: kinds(&[
+                "PptxModel",
+                "PptxPresentation",
+                "PptxSlide",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-slides", "whole-document"]),
+        }),
+        #[cfg(feature = "pptx")]
+        (Selector::PptxLayouts, R::Metadata | R::Structure)
+        | (Selector::PptxMasters, R::Metadata | R::Structure)
+        | (Selector::PptxTheme, R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["PptxModel"]),
+            will_not_materialize: kinds(&["other-parts", "whole-document"]),
+        }),
+        #[cfg(feature = "pptx")]
+        (
+            Selector::PptxMedia { .. },
+            R::Metadata | R::Structure | R::ExactBytes | R::DecodedBytes,
+        ) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 3,
+            will_materialize: kinds(&["PptxModel", "PackageMemberRaw", "PackageMemberDecoded"]),
+            will_not_materialize: kinds(&["other-parts", "whole-document"]),
+        }),
+        #[cfg(feature = "odp")]
+        (Selector::OdpSlide { .. }, R::Text | R::Structure | R::Metadata)
+        | (Selector::OdpShape { .. }, R::Text | R::Metadata | R::Structure)
+        | (Selector::OdpNotes { .. }, R::Text | R::Metadata)
+        | (Selector::OdpTables { .. }, R::Text | R::Metadata | R::Structure)
+        | (Selector::OdpFind { .. }, R::Text) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 4,
+            will_materialize: kinds(&[
+                "OdpModel",
+                "OdpContent",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-slides", "whole-document"]),
+        }),
+        #[cfg(feature = "odp")]
+        (Selector::OdpMasters, R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 3,
+            required_nodes: 5,
+            will_materialize: kinds(&[
+                "OdpModel",
+                "OdpContent",
+                "OdpStyles",
+                "PackageMemberDecoded",
+                "PackageMemberRaw",
+            ]),
+            will_not_materialize: kinds(&["other-slides", "whole-document"]),
+        }),
+        #[cfg(feature = "odp")]
+        (
+            Selector::OdpMedia { .. },
+            R::Metadata | R::Structure | R::ExactBytes | R::DecodedBytes,
+        ) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 2,
+            required_nodes: 3,
+            will_materialize: kinds(&["OdpModel", "PackageMemberRaw", "PackageMemberDecoded"]),
+            will_not_materialize: kinds(&["other-parts", "whole-document"]),
+        }),
         _ => Err(Error::unsupported_feature(format!(
             "unsupported observation: selector {} with representation {}",
             req.selector.canonical(),
@@ -383,6 +511,32 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Odt => &[
             "OdtModel",
             "OdtContent",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Ods => &[
+            "OdsModel",
+            "OdsContent",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Xlsx => &[
+            "XlsxModel",
+            "XlsxWorkbook",
+            "XlsxSheet",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Pptx => &[
+            "PptxModel",
+            "PptxPresentation",
+            "PptxSlide",
+            "PackageMemberDecoded",
+            "PackageMemberRaw",
+        ],
+        DocumentFormat::Odp => &[
+            "OdpModel",
+            "OdpContent",
             "PackageMemberDecoded",
             "PackageMemberRaw",
         ],

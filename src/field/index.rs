@@ -121,6 +121,44 @@ pub const SEL_REVISIONS: u8 = 13;
 /// revision's 0-based index. Its node materializes that revision's lineage JSON;
 /// the entry's span is the revision's exact source span.
 pub const SEL_REVISION_LINEAGE: u8 = 14;
+/// Selector kind: the canonical XLSX (SpreadsheetML) discovery model (Phase 21.1.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// XLSX workbook-part/styles/shared-strings/worksheet discovery as `Q_gen` derived
+/// state, computed on demand from the OPC model. The decoded workbook inventory
+/// and each worksheet's cell model are computed on demand from their decoded
+/// member nodes (no index entry of their own, mirroring `DocxStory`).
+pub const SEL_XLSX_MODEL: u8 = 15;
+/// Selector kind: the canonical PPTX (PresentationML) discovery model (Phase 21.2.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// PPTX presentation-part/masters/layouts/themes/media/slide discovery as `Q_gen`
+/// derived state, computed on demand from the OPC model. The parsed presentation
+/// inventory and each slide's shape model are computed on demand from their
+/// decoded member nodes (no index entry of their own, mirroring `XlsxSheet`).
+pub const SEL_PPTX_MODEL: u8 = 16;
+/// Selector kind: the canonical ODS (ODF spreadsheet) discovery model
+/// (Phase 21.3.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// ODS package graph (`mimetype` facts and the parsed `META-INF/manifest.xml` file
+/// entries, with the main content part resolved semantically) as `Q_gen` derived
+/// state, computed on demand from the exact package source — never via OPC (ODF has
+/// no `[Content_Types].xml`). The decoded spreadsheet content model and the styles
+/// model are computed on demand from their decoded member nodes (no index entry of
+/// their own, mirroring `OdtContent`).
+pub const SEL_ODS_MODEL: u8 = 17;
+/// Selector kind: the canonical ODP (ODF presentation) discovery model
+/// (Phase 21.4.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// ODP package graph (`mimetype` facts and the parsed `META-INF/manifest.xml` file
+/// entries, with the main content part and the `Pictures/*` media parts resolved
+/// semantically) as `Q_gen` derived state, computed on demand from the exact
+/// package source — never via OPC (ODF has no `[Content_Types].xml`). The decoded
+/// presentation content model and the styles model are computed on demand from
+/// their decoded member nodes (no index entry of their own, mirroring `OdsContent`).
+pub const SEL_ODP_MODEL: u8 = 18;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

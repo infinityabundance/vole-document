@@ -739,6 +739,446 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::OdsModel => {
+            // The canonical ODS (ODF spreadsheet) graph is derived on demand from the
+            // exact package source (the single dependency is the exact `PackageRoot`).
+            // It does not route through OPC (ODF has no `[Content_Types].xml`). XML
+            // parsing and all bounds live in `adapter::ods`.
+            #[cfg(feature = "ods")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("OdsModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let source = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::ods::build_ods_model(&source, limits)?
+            }
+            #[cfg(not(feature = "ods"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "ODS support is not compiled in (feature `ods`)",
+                ));
+            }
+        }
+        NodeKind::OdsContent => {
+            // The OpenDocument spreadsheet main part (`content.xml`) parsed into its
+            // bounded native model. Its single dependency is the decoded member node;
+            // the parse is bounded entirely inside `adapter::ods`. No script execution,
+            // no remote fetch.
+            #[cfg(feature = "ods")]
+            {
+                let (_ordinal, part_name, profile) =
+                    crate::adapter::ods::read_content_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("OdsContent has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::ods::parse_content(&bytes, &part_name, &profile, limits)?.encode()
+            }
+            #[cfg(not(feature = "ods"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "ODS support is not compiled in (feature `ods`)",
+                ));
+            }
+        }
+        NodeKind::OdsStyles => {
+            // The OpenDocument styles part (`styles.xml`) parsed into its bounded
+            // cell-style/number-format model. Its single dependency is the decoded
+            // styles member node.
+            #[cfg(feature = "ods")]
+            {
+                let (_ordinal, part_name) = crate::adapter::ods::read_styles_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("OdsStyles has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::ods::parse_styles(&bytes, &part_name, limits)?.encode()
+            }
+            #[cfg(not(feature = "ods"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "ODS support is not compiled in (feature `ods`)",
+                ));
+            }
+        }
+        NodeKind::OdpModel => {
+            // The canonical ODP (ODF presentation) graph is derived on demand from
+            // the exact package source (the single dependency is the exact
+            // `PackageRoot`). It does not route through OPC (ODF has no
+            // `[Content_Types].xml`). XML parsing and all bounds live in
+            // `adapter::odp`.
+            #[cfg(feature = "odp")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("OdpModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let source = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::odp::build_odp_model(&source, limits)?
+            }
+            #[cfg(not(feature = "odp"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "ODP support is not compiled in (feature `odp`)",
+                ));
+            }
+        }
+        NodeKind::OdpContent => {
+            // The OpenDocument presentation main part (`content.xml`) parsed into
+            // its bounded native model. Its single dependency is the decoded member
+            // node; the parse is bounded entirely inside `adapter::odp`. No script
+            // execution, no remote fetch.
+            #[cfg(feature = "odp")]
+            {
+                let (_ordinal, part_name, profile) =
+                    crate::adapter::odp::read_content_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("OdpContent has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::odp::parse_content(&bytes, &part_name, &profile, limits)?.encode()
+            }
+            #[cfg(not(feature = "odp"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "ODP support is not compiled in (feature `odp`)",
+                ));
+            }
+        }
+        NodeKind::OdpStyles => {
+            // The OpenDocument styles part (`styles.xml`) parsed into its bounded
+            // style/master-page model. Its single dependency is the decoded styles
+            // member node.
+            #[cfg(feature = "odp")]
+            {
+                let (_ordinal, part_name) = crate::adapter::odp::read_styles_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("OdpStyles has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::odp::parse_styles(&bytes, &part_name, limits)?.encode()
+            }
+            #[cfg(not(feature = "odp"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "ODP support is not compiled in (feature `odp`)",
+                ));
+            }
+        }
+        NodeKind::XlsxModel => {
+            // The canonical XLSX (SpreadsheetML) discovery model is derived on
+            // demand from the canonical OPC model (the single dependency). XML
+            // parsing and all bounds live in `adapter::xlsx`.
+            #[cfg(feature = "xlsx")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("XlsxModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let opc_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::xlsx::build_xlsx_model(&opc_bytes, limits)?
+            }
+            #[cfg(not(feature = "xlsx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "XLSX support is not compiled in (feature `xlsx`)",
+                ));
+            }
+        }
+        NodeKind::XlsxWorkbook => {
+            // The parsed `xl/workbook.xml` sheet inventory. Its single dependency
+            // is the decoded workbook member; the parse is bounded in
+            // `adapter::xlsx`.
+            #[cfg(feature = "xlsx")]
+            {
+                let (_ordinal, part_name) =
+                    crate::adapter::xlsx::read_workbook_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("XlsxWorkbook has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                let workbook = crate::adapter::xlsx::parse_workbook(&bytes, limits)?;
+                let _ = part_name;
+                workbook.encode()
+            }
+            #[cfg(not(feature = "xlsx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "XLSX support is not compiled in (feature `xlsx`)",
+                ));
+            }
+        }
+        NodeKind::XlsxSheet => {
+            // One worksheet parsed into its bounded cell model. Dependency 0 is
+            // the decoded worksheet member; the optional dependency 1 is the
+            // decoded shared-strings member, resolved into string cells.
+            #[cfg(feature = "xlsx")]
+            {
+                let (_ordinal, shared_ordinal, _profile, part_name, sheet_name) =
+                    crate::adapter::xlsx::read_sheet_params(&node.params)?;
+                let part_dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("XlsxSheet has no part dependency"))?;
+                let part_node = load_node(store, part_dep)?;
+                let part_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &part_node,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                let shared = match (shared_ordinal, node.deps.get(1)) {
+                    (Some(_), Some(shared_dep)) => {
+                        let shared_node = load_node(store, shared_dep)?;
+                        let shared_bytes = materialize_inner(
+                            source,
+                            store,
+                            cache,
+                            &shared_node,
+                            limits,
+                            budget,
+                            depth - 1,
+                            reuse,
+                        )?;
+                        Some(crate::adapter::xlsx::parse_shared_strings(
+                            &shared_bytes,
+                            limits,
+                        )?)
+                    }
+                    _ => None,
+                };
+                crate::adapter::xlsx::parse_worksheet(
+                    &part_bytes,
+                    &part_name,
+                    &sheet_name,
+                    shared.as_deref(),
+                    limits,
+                )?
+                .encode()
+            }
+            #[cfg(not(feature = "xlsx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "XLSX support is not compiled in (feature `xlsx`)",
+                ));
+            }
+        }
+        NodeKind::PptxModel => {
+            // The canonical PPTX (PresentationML) discovery model is derived on
+            // demand from the canonical OPC model (the single dependency). XML
+            // parsing and all bounds live in `adapter::pptx`.
+            #[cfg(feature = "pptx")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PptxModel has no dependency"))?;
+                let child = load_node(store, dep)?;
+                let opc_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::pptx::build_pptx_model(&opc_bytes, limits)?
+            }
+            #[cfg(not(feature = "pptx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "PPTX support is not compiled in (feature `pptx`)",
+                ));
+            }
+        }
+        NodeKind::PptxPresentation => {
+            // The parsed `ppt/presentation.xml` slide inventory. Its single
+            // dependency is the decoded presentation member; the parse is bounded
+            // in `adapter::pptx`.
+            #[cfg(feature = "pptx")]
+            {
+                let (_ordinal, part_name) =
+                    crate::adapter::pptx::read_presentation_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PptxPresentation has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                let presentation = crate::adapter::pptx::parse_presentation(&bytes, limits)?;
+                let _ = part_name;
+                presentation.encode()
+            }
+            #[cfg(not(feature = "pptx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "PPTX support is not compiled in (feature `pptx`)",
+                ));
+            }
+        }
+        NodeKind::PptxSlide => {
+            // One slide parsed into its bounded shape model. Its single dependency
+            // is the decoded slide member.
+            #[cfg(feature = "pptx")]
+            {
+                let (_ordinal, profile, part_name) =
+                    crate::adapter::pptx::read_slide_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PptxSlide has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::pptx::parse_slide(&bytes, &part_name, &profile, limits)?.encode()
+            }
+            #[cfg(not(feature = "pptx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "PPTX support is not compiled in (feature `pptx`)",
+                ));
+            }
+        }
+        NodeKind::PptxNotes => {
+            // One notes-slide parsed into its bounded text model. Its single
+            // dependency is the decoded notes member.
+            #[cfg(feature = "pptx")]
+            {
+                let (_ordinal, profile, part_name) =
+                    crate::adapter::pptx::read_notes_params(&node.params)?;
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PptxNotes has no part dependency"))?;
+                let child = load_node(store, dep)?;
+                let bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::pptx::parse_notes(&bytes, &part_name, &profile, limits)?.encode()
+            }
+            #[cfg(not(feature = "pptx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "PPTX support is not compiled in (feature `pptx`)",
+                ));
+            }
+        }
         NodeKind::PdfStreamDecoded => {
             let dep = node
                 .deps

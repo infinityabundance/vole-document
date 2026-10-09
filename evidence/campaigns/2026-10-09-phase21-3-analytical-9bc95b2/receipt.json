@@ -1,0 +1,17 @@
+{
+  "campaign": "evidence/campaigns/2026-10-09-phase21-3-analytical-9bc95b2",
+  "phase": "21.1.3a — analytical comparator (DuckDB/Parquet) smoke",
+  "utc": "2026-10-09T00:25:03Z",
+  "measured_commit": "9bc95b2133ac80972789d1e3da1e23c1b25908de",
+  "service": "analytical",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "derives_from": "doc-baseline (same pinned base digest)",
+  "duckdb_version": "1.5.6",
+  "duckdb_wheel_sha256": "73b108c04c932b36c2fa4e41110cc1c3c8cd510eb49f065f92d050be8e6929fd (cp311 manylinux_2_26_x86_64); 56c0f71c6bee982e9c30568bb12371bf66b26bf129c75d8d7f60bc69d6590a2c (cp311 manylinux_2_26_aarch64)",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "sqlite": "3.40.1",
+  "basis": "hash-pinned wheel (--require-hashes), --no-deps; DuckDB reads/writes Parquet natively (no pyarrow)",
+  "roundtrip_equal": true
+}

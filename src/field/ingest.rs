@@ -187,7 +187,15 @@ fn ingest_pdf_stage_b(
     let mut acc = StageB::new(manifest.node_count);
     let scanned = match scan(source, limits) {
         Ok(physical) => {
-            run_stage_b(store, source, &physical, limits, pool, &mut acc)?;
+            run_stage_b(
+                store,
+                source,
+                &physical,
+                limits,
+                pool,
+                &mut acc,
+                manifest.root_node,
+            )?;
             true
         }
         Err(_) => false,
@@ -516,6 +524,11 @@ impl StageB {
 }
 
 /// Stage B: exact spans, decoded streams, and the bounded page tree.
+///
+/// The source-reading leaves (`PdfObject`, `PdfRevision`, `PdfStreamEncoded`) get
+/// the field's exact-authority `root_id` as a dependency, so their output (a
+/// source span) is a pure function of their identity and two byte-different spans
+/// at the same `(offset, len)` in two sources never alias in the shared cache.
 fn run_stage_b(
     store: &mut FieldStore,
     source: &[u8],
@@ -523,6 +536,7 @@ fn run_stage_b(
     limits: Limits,
     pool: Option<&WorkerPool>,
     acc: &mut StageB,
+    root_id: NodeId,
 ) -> Result<()> {
     // Exact indirect-object spans.
     for obj in &physical.objects {
@@ -539,7 +553,7 @@ fn run_stage_b(
             NodeKind::PdfObject,
             len,
             object_params(number, generation, (offset << 32) | len),
-            Vec::new(),
+            vec![root_id],
             "pdf:object",
         );
         let id = acc.put(store, &node)?;
@@ -561,7 +575,7 @@ fn run_stage_b(
             NodeKind::PdfRevision,
             len,
             object_params(rev.index, 0, (offset << 32) | len),
-            Vec::new(),
+            vec![root_id],
             "pdf:revision",
         );
         let id = acc.put(store, &node)?;
@@ -634,7 +648,7 @@ fn run_stage_b(
             NodeKind::PdfStreamEncoded,
             len,
             object_params(number, generation, (offset << 32) | len),
-            Vec::new(),
+            vec![root_id],
             "pdf:stream-encoded",
         );
         let encoded_id = acc.put(store, &encoded)?;

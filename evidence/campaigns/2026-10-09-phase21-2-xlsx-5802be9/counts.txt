@@ -1,0 +1,16 @@
+fixtures 3
+exact_ok 3
+exact_fail 0
+typed_declines_ok 3
+style_ok true
+display_ok true
+comment_ok true
+link_ok true
+defined_ok true
+table_ok true
+drawing_ok true
+external_ok true
+merge_ref_ok true
+no_drawing_rc 0
+no_drawing_ok true
+binary 108232e0839426d7cf1a0c621f1ce7affe007938b4d9e0de2b0527ce12558c71

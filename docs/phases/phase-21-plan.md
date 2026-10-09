@@ -1,15 +1,27 @@
 # Phase 21 — Format programme
 
-> **PLANNED — not started.** Nothing in this document is implemented or measured.
-> It records the ordered sequence and the shared-substrate architecture for later
-> phases. Phase 21 begins **only after the [Phase-22 economic
-> programme](phase-22-plan.md) is honestly resolved** (22.1–22.7); its last
-> subphase, P7 (XLSX/PPTX economic validation), is judged by that thesis — a
-> better capability/cost frontier on the same contract — **not by format count**.
-> Every "observation" below is a proposed surface, not a shipped one.
+> **WAVE 1 COMPLETE.** Subphases **21.1 (XLSX)**, **21.2 (PPTX)**, **21.3 (ODS)** and
+> **21.4 (ODP)** are complete and shipped on the `staging` line — the **six office
+> formats** from two shared package substrates (OPC: DOCX/XLSX/PPTX; ODF:
+> ODT/ODS/ODP):
+> **21.1.1** (OPC/SpreadsheetML surface + exact closure),
+> **21.1.2** (the spreadsheet semantic model: styles, merges, comments,
+> hyperlinks, defined names, tables, drawings/charts, external relationships, and
+> a bounded deterministic *displayed-value* projection kept distinct from the
+> stored formula and cached result), **21.1.2b** (a hardening pass an adversarial
+> audit required), **21.1.3** (the XLSX economic court against SQLite **and**
+> DuckDB/Parquet), **21.2.1** (the PPTX/PresentationML adapter: slide order from
+> `p:sldIdLst` — plus a correctness fix to source-scoped node identity an audit
+> forced), **21.2.3** (the PPTX economic court), **21.3.1** (the ODS adapter),
+> **21.3.2** (the ODS economic court vs SQLite **and** DuckDB/Parquet),
+> **21.4.1** (the ODP adapter: slide order from `draw:page` document order), and
+> **21.4.2** (the ODP economic court).
+> The **Wave-2 families** below remain planned and not started; they are a target,
+> never a result. The whole programme is judged by the capability/cost frontier on
+> the same contract — **not by format count**.
 
-Branch (to be created): `phase21`. Base: `main` @ `v0.1.0-alpha.27` (Phase 23);
-gated behind the Phase-22 economic programme.
+Branch: `staging` @ `v0.1.0-alpha.30` (Phase 21 Wave 1). The Phase-22 economic
+programme (22.1–22.7) is complete and released in `v0.1.0-alpha.29`.
 
 ## Why
 

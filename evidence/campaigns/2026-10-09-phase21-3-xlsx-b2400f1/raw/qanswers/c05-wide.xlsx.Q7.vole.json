@@ -1,0 +1,1 @@
+{"decline": {"code": "no-chart-linkage", "detail": "VOLE exposes the drawing's chart references but not the chart's data references, so a chart->table link is not derivable"}, "declined": true, "detail": {}, "lane": "vole", "native": true, "q": "Q7", "value": null}

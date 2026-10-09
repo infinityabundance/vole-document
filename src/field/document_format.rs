@@ -18,6 +18,15 @@
 //! * **ODT** — a valid ZIP that is an OpenDocument (ODF) package: the mandatory
 //!   stored `mimetype` member is an OpenDocument *text* media type, or
 //!   `META-INF/manifest.xml` declares one.
+//! * **ODS** — a valid ZIP that is an OpenDocument (ODF) package whose mandatory
+//!   stored `mimetype` member is an OpenDocument *spreadsheet* media type, or whose
+//!   `META-INF/manifest.xml` declares one (Phase 21.3.1). Mutually exclusive with
+//!   ODT (a text document declares the text media type, a spreadsheet the
+//!   spreadsheet one).
+//! * **ODP** — a valid ZIP that is an OpenDocument (ODF) package whose mandatory
+//!   stored `mimetype` member is an OpenDocument *presentation* media type, or whose
+//!   `META-INF/manifest.xml` declares one (Phase 21.4.1). Mutually exclusive with
+//!   ODT/ODS (a presentation declares the presentation media type).
 //! * **Opaque** — everything else, including a ZIP that matches none of the above
 //!   (or more than one — an ambiguous ZIP fails safe).
 //!
@@ -45,12 +54,48 @@ const PACKAGE_RELS_MEMBER: &[u8] = b"_rels/.rels";
 /// The `officeDocument` relationship type fragment (transitional and strict).
 #[cfg(feature = "package")]
 const OFFICE_DOCUMENT_FRAGMENT: &[u8] = b"officeDocument";
+/// The WordprocessingML document main content-type fragment (Phase 21.1.2).
+#[cfg(feature = "package")]
+const DOCX_MAIN_FRAGMENT: &[u8] = b"wordprocessingml.document.main+xml";
+/// The canonical WordprocessingML main-part target fragment (Phase 21.1.2).
+#[cfg(feature = "package")]
+const DOCX_MAIN_TARGET: &[u8] = b"word/document.xml";
 /// The ODF package manifest member (Phase 13.3).
 #[cfg(feature = "odt")]
 const ODT_MANIFEST_MEMBER: &[u8] = b"META-INF/manifest.xml";
 /// The OpenDocument *text* media-type fragment (Phase 13.3).
 #[cfg(feature = "odt")]
 const ODT_TEXT_FRAGMENT: &[u8] = b"application/vnd.oasis.opendocument.text";
+/// The ODF package manifest member for the ODS detection rule (Phase 21.3.1).
+#[cfg(feature = "ods")]
+const ODS_MANIFEST_MEMBER: &[u8] = b"META-INF/manifest.xml";
+/// The OpenDocument *spreadsheet* media-type fragment (Phase 21.3.1).
+#[cfg(feature = "ods")]
+const ODS_SPREADSHEET_FRAGMENT: &[u8] = b"application/vnd.oasis.opendocument.spreadsheet";
+/// The ODF package manifest member for the ODP detection rule (Phase 21.4.1).
+#[cfg(feature = "odp")]
+const ODP_MANIFEST_MEMBER: &[u8] = b"META-INF/manifest.xml";
+/// The OpenDocument *presentation* media-type fragment (Phase 21.4.1).
+#[cfg(feature = "odp")]
+const ODP_PRESENTATION_FRAGMENT: &[u8] = b"application/vnd.oasis.opendocument.presentation";
+/// The SpreadsheetML workbook main content-type fragment (Phase 21.1.1).
+#[cfg(feature = "xlsx")]
+const XLSX_MAIN_FRAGMENT: &[u8] = b"spreadsheetml.sheet.main+xml";
+/// The SpreadsheetML content-type namespace fragment (Phase 21.1.1).
+#[cfg(feature = "xlsx")]
+const XLSX_NS_FRAGMENT: &[u8] = b"spreadsheetml";
+/// A SpreadsheetML workbook part-target fragment (Phase 21.1.1).
+#[cfg(feature = "xlsx")]
+const XLSX_WORKBOOK_TARGET: &[u8] = b"xl/workbook.xml";
+/// The PresentationML presentation main content-type fragment (Phase 21.2.1).
+#[cfg(feature = "pptx")]
+const PPTX_MAIN_FRAGMENT: &[u8] = b"presentationml.presentation.main+xml";
+/// The PresentationML content-type namespace fragment (Phase 21.2.1).
+#[cfg(feature = "pptx")]
+const PPTX_NS_FRAGMENT: &[u8] = b"presentationml";
+/// The canonical PresentationML main-part target fragment (Phase 21.2.1).
+#[cfg(feature = "pptx")]
+const PPTX_MAIN_TARGET: &[u8] = b"ppt/presentation.xml";
 
 /// A detected document format (the class of the field's source bytes).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,6 +108,14 @@ pub enum DocumentFormat {
     Epub,
     /// An ODF package with an OpenDocument text content part.
     Odt,
+    /// An ODF package with an OpenDocument spreadsheet content part.
+    Ods,
+    /// An ODF package with an OpenDocument presentation content part.
+    Odp,
+    /// An OPC package with a SpreadsheetML workbook part.
+    Xlsx,
+    /// An OPC package with a PresentationML presentation part.
+    Pptx,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -75,6 +128,10 @@ impl DocumentFormat {
             DocumentFormat::Docx => "docx",
             DocumentFormat::Epub => "epub",
             DocumentFormat::Odt => "odt",
+            DocumentFormat::Ods => "ods",
+            DocumentFormat::Odp => "odp",
+            DocumentFormat::Xlsx => "xlsx",
+            DocumentFormat::Pptx => "pptx",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -86,6 +143,10 @@ impl DocumentFormat {
             DocumentFormat::Docx => "docx",
             DocumentFormat::Epub => "epub",
             DocumentFormat::Odt => "odt",
+            DocumentFormat::Ods => "ods",
+            DocumentFormat::Odp => "odp",
+            DocumentFormat::Xlsx => "xlsx",
+            DocumentFormat::Pptx => "pptx",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -97,6 +158,10 @@ impl DocumentFormat {
             DocumentFormat::Docx => cfg!(feature = "docx"),
             DocumentFormat::Epub => cfg!(feature = "epub"),
             DocumentFormat::Odt => cfg!(feature = "odt"),
+            DocumentFormat::Ods => cfg!(feature = "ods"),
+            DocumentFormat::Odp => cfg!(feature = "odp"),
+            DocumentFormat::Xlsx => cfg!(feature = "xlsx"),
+            DocumentFormat::Pptx => cfg!(feature = "pptx"),
         }
     }
 
@@ -118,6 +183,10 @@ impl DocumentFormat {
             "docx" => Some(DocumentFormat::Docx),
             "epub" => Some(DocumentFormat::Epub),
             "odt" => Some(DocumentFormat::Odt),
+            "ods" => Some(DocumentFormat::Ods),
+            "odp" => Some(DocumentFormat::Odp),
+            "xlsx" => Some(DocumentFormat::Xlsx),
+            "pptx" => Some(DocumentFormat::Pptx),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -165,14 +234,60 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
         .is_some_and(|c| contains(c, CONTAINER_NS) && contains(c, OPF_MEDIA_TYPE));
     let is_epub = mimetype_ok || container_ok;
 
-    // DOCX: an OPC package (`[Content_Types].xml`) whose package relationships
-    // declare an `officeDocument` part.
+    // DOCX: an OPC package whose content types declare a WordprocessingML main
+    // part, or whose package relationships declare an `officeDocument` part that
+    // targets `word/document.xml`. The positive WordprocessingML signal (rather
+    // than the mere absence of a SpreadsheetML one) keeps DOCX and XLSX mutually
+    // exclusive without misclassifying a Word document that *embeds* an Excel
+    // workbook (whose package declares SpreadsheetML content types for the
+    // embedded part, but no SpreadsheetML workbook main part). Without `xlsx`
+    // and `pptx` the legacy relationship-only rule stands.
     let content_types = member_decoded(&physical, source, CONTENT_TYPES_MEMBER, limits);
     let rels = member_decoded(&physical, source, PACKAGE_RELS_MEMBER, limits);
+    #[cfg(any(feature = "xlsx", feature = "pptx"))]
+    let is_docx = content_types
+        .as_deref()
+        .is_some_and(|ct| contains(ct, DOCX_MAIN_FRAGMENT))
+        || rels.as_deref().is_some_and(|r| {
+            contains(r, OFFICE_DOCUMENT_FRAGMENT) && contains(r, DOCX_MAIN_TARGET)
+        });
+    #[cfg(not(any(feature = "xlsx", feature = "pptx")))]
     let is_docx = content_types.is_some()
         && rels
             .as_deref()
             .is_some_and(|r| contains(r, OFFICE_DOCUMENT_FRAGMENT));
+
+    // XLSX: an OPC package whose content types declare a SpreadsheetML workbook
+    // (or whose `officeDocument` relationship targets a workbook part).
+    #[cfg(feature = "xlsx")]
+    let is_xlsx = content_types.as_deref().is_some_and(|ct| {
+        contains(ct, XLSX_MAIN_FRAGMENT)
+            || (contains(ct, XLSX_NS_FRAGMENT)
+                && rels
+                    .as_deref()
+                    .is_some_and(|r| contains(r, XLSX_WORKBOOK_TARGET)))
+    });
+    #[cfg(not(feature = "xlsx"))]
+    let is_xlsx = false;
+
+    // PPTX: an OPC package whose content types declare a PresentationML main part
+    // (or whose content types name PresentationML and whose `officeDocument`
+    // relationship targets `ppt/presentation.xml`). The positive PresentationML
+    // signal keeps it mutually exclusive with DOCX and XLSX: a Word/Excel document
+    // that *embeds* a PowerPoint part declares only the PresentationML embed type
+    // (`…presentationml.presentation`, not the `.main+xml` main part) and its
+    // `officeDocument` relationship targets `word/document.xml`/`xl/workbook.xml`,
+    // so it is never misclassified as PPTX.
+    #[cfg(feature = "pptx")]
+    let is_pptx = content_types.as_deref().is_some_and(|ct| {
+        contains(ct, PPTX_MAIN_FRAGMENT)
+            || (contains(ct, PPTX_NS_FRAGMENT)
+                && rels
+                    .as_deref()
+                    .is_some_and(|r| contains(r, PPTX_MAIN_TARGET)))
+    });
+    #[cfg(not(feature = "pptx"))]
+    let is_pptx = false;
 
     // ODT: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
     // declares an OpenDocument text media type.
@@ -186,12 +301,46 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
     #[cfg(not(feature = "odt"))]
     let is_odt = false;
 
+    // ODS: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
+    // declares an OpenDocument *spreadsheet* media type. The positive spreadsheet
+    // fragment keeps it mutually exclusive with ODT (a text document declares the
+    // text media type, never the spreadsheet one).
+    #[cfg(feature = "ods")]
+    let is_ods = mimetype
+        .as_deref()
+        .is_some_and(|m| contains(m, ODS_SPREADSHEET_FRAGMENT))
+        || member_decoded(&physical, source, ODS_MANIFEST_MEMBER, limits)
+            .as_deref()
+            .is_some_and(|m| contains(m, ODS_SPREADSHEET_FRAGMENT));
+    #[cfg(not(feature = "ods"))]
+    let is_ods = false;
+
+    // ODP: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
+    // declares an OpenDocument *presentation* media type. The positive presentation
+    // fragment keeps it mutually exclusive with ODT/ODS.
+    #[cfg(feature = "odp")]
+    let is_odp = mimetype
+        .as_deref()
+        .is_some_and(|m| contains(m, ODP_PRESENTATION_FRAGMENT))
+        || member_decoded(&physical, source, ODP_MANIFEST_MEMBER, limits)
+            .as_deref()
+            .is_some_and(|m| contains(m, ODP_PRESENTATION_FRAGMENT));
+    #[cfg(not(feature = "odp"))]
+    let is_odp = false;
+
     // A ZIP matching more than one native signature is ambiguous: fail safe.
-    let matches = [is_docx, is_epub, is_odt].iter().filter(|b| **b).count();
+    let matches = [is_docx, is_epub, is_odt, is_ods, is_odp, is_xlsx, is_pptx]
+        .iter()
+        .filter(|b| **b)
+        .count();
     match matches {
         1 if is_docx => Some(DocumentFormat::Docx),
         1 if is_epub => Some(DocumentFormat::Epub),
         1 if is_odt => Some(DocumentFormat::Odt),
+        1 if is_ods => Some(DocumentFormat::Ods),
+        1 if is_odp => Some(DocumentFormat::Odp),
+        1 if is_xlsx => Some(DocumentFormat::Xlsx),
+        1 if is_pptx => Some(DocumentFormat::Pptx),
         _ => None,
     }
 }
@@ -241,6 +390,11 @@ mod tests {
             DocumentFormat::Pdf,
             DocumentFormat::Docx,
             DocumentFormat::Epub,
+            DocumentFormat::Odt,
+            DocumentFormat::Ods,
+            DocumentFormat::Odp,
+            DocumentFormat::Xlsx,
+            DocumentFormat::Pptx,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

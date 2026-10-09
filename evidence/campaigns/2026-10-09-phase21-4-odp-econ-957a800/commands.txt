@@ -1,0 +1,14 @@
+docker compose run --rm --no-TTY doc-baseline bash tools/phase21-4-odp-court.sh
+# PROFILE defaults to release (target/release/vole-document); the comparator is
+# unaffected by the Rust profile.
+# Inside the court:
+#   cargo build --release --locked --all-features            # release: --release --locked --all-features
+#   python3 tools/fixtures/make-odp.py --corpus evidence/scratch/phase21-4-odp/corpus
+#   VOLE:   target/release/vole-document field-build F.odp --store STORE --voldoc F.voldoc --profile runtime --packed
+#           python3 tools/fixtures/phase21-4-odp-vole.py run --bin target/release/vole-document --store STORE --field HEX --plan ... --outdir ... --packed
+#           rm source + descriptor ; target/release/vole-document materialize --store STORE --field HEX --exact --packed --output OUT ; cmp OUT source
+#   SQLite: python3 tools/fixtures/phase21-4-odp-baseline.py build --source F.odp --db D
+#           python3 tools/fixtures/phase21-4-odp-baseline.py query --db D --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-4-odp-baseline.py session --db D --queries Q1..Q8 --plan ... --out OUT
+#           python3 tools/fixtures/phase21-4-odp-baseline.py materialize --db D --out OUT
+#   aggregate: python3 tools/fixtures/phase21-4-odp-baseline.py aggregate --raw RAW --campaign CAMPAIGN --env ENV

@@ -1,0 +1,112 @@
+# Phase 21.3.2 — cross-lane Q1–Q10 answer matrix
+
+Derived / declined per lane, and the VOLE-vs-comparator equivalence. `g` = answered (derived), `D` = typed decline, `-` = not applicable.
+
+| fixture | Q | VOLE | SQLite | DuckDB | VOLE↔SQLite | VOLE↔DuckDB |
+|---|---|---|---|---|---|---|
+| c01-basic.ods | Q1 | g | g | g | equal | equal |
+| c01-basic.ods | Q2 | g | g | g | equal | equal |
+| c01-basic.ods | Q3 | D | g | g | capability-gap | capability-gap |
+| c01-basic.ods | Q4 | g | g | g | equal | equal |
+| c01-basic.ods | Q5 | g | g | g | equal | equal |
+| c01-basic.ods | Q6 | g | g | g | equal | equal |
+| c01-basic.ods | Q7 | g | g | g | equal | equal |
+| c01-basic.ods | Q8 | g | g | D | equal | capability-gap |
+| c01-basic.ods | Q9 | D | D | D | both-decline | both-decline |
+| c01-basic.ods | Q10 | g | g | D | equal | capability-gap |
+| c02-typed.ods | Q1 | g | g | g | equal | equal |
+| c02-typed.ods | Q2 | g | g | g | equal | equal |
+| c02-typed.ods | Q3 | D | g | g | capability-gap | capability-gap |
+| c02-typed.ods | Q4 | g | g | g | equal | equal |
+| c02-typed.ods | Q5 | g | g | g | equal | equal |
+| c02-typed.ods | Q6 | g | g | g | equal | equal |
+| c02-typed.ods | Q7 | g | g | g | equal | equal |
+| c02-typed.ods | Q8 | g | g | D | equal | capability-gap |
+| c02-typed.ods | Q9 | D | D | D | both-decline | both-decline |
+| c02-typed.ods | Q10 | g | g | D | equal | capability-gap |
+| c03-repeated.ods | Q1 | g | g | g | equal | equal |
+| c03-repeated.ods | Q2 | g | g | g | equal | equal |
+| c03-repeated.ods | Q3 | D | g | g | capability-gap | capability-gap |
+| c03-repeated.ods | Q4 | g | g | g | equal | equal |
+| c03-repeated.ods | Q5 | g | g | g | equal | equal |
+| c03-repeated.ods | Q6 | g | g | g | equal | equal |
+| c03-repeated.ods | Q7 | g | g | g | equal | equal |
+| c03-repeated.ods | Q8 | g | g | D | equal | capability-gap |
+| c03-repeated.ods | Q9 | D | D | D | both-decline | both-decline |
+| c03-repeated.ods | Q10 | g | g | D | equal | capability-gap |
+| c04-merged.ods | Q1 | g | g | g | equal | equal |
+| c04-merged.ods | Q2 | g | g | g | equal | equal |
+| c04-merged.ods | Q3 | D | g | g | capability-gap | capability-gap |
+| c04-merged.ods | Q4 | g | g | g | equal | equal |
+| c04-merged.ods | Q5 | g | g | g | equal | equal |
+| c04-merged.ods | Q6 | g | g | g | equal | equal |
+| c04-merged.ods | Q7 | g | g | g | equal | equal |
+| c04-merged.ods | Q8 | g | g | D | equal | capability-gap |
+| c04-merged.ods | Q9 | D | D | D | both-decline | both-decline |
+| c04-merged.ods | Q10 | g | g | D | equal | capability-gap |
+| c05-named.ods | Q1 | g | g | g | equal | equal |
+| c05-named.ods | Q2 | g | g | g | equal | equal |
+| c05-named.ods | Q3 | D | g | g | capability-gap | capability-gap |
+| c05-named.ods | Q4 | g | g | g | equal | equal |
+| c05-named.ods | Q5 | g | g | g | equal | equal |
+| c05-named.ods | Q6 | g | g | g | equal | equal |
+| c05-named.ods | Q7 | g | g | g | equal | equal |
+| c05-named.ods | Q8 | g | g | D | equal | capability-gap |
+| c05-named.ods | Q9 | D | D | D | both-decline | both-decline |
+| c05-named.ods | Q10 | g | g | D | equal | capability-gap |
+| c06-comments.ods | Q1 | g | g | g | equal | equal |
+| c06-comments.ods | Q2 | g | g | g | equal | equal |
+| c06-comments.ods | Q3 | D | g | g | capability-gap | capability-gap |
+| c06-comments.ods | Q4 | g | g | g | equal | equal |
+| c06-comments.ods | Q5 | g | g | g | equal | equal |
+| c06-comments.ods | Q6 | g | g | g | equal | equal |
+| c06-comments.ods | Q7 | g | g | g | equal | equal |
+| c06-comments.ods | Q8 | g | g | D | equal | capability-gap |
+| c06-comments.ods | Q9 | D | g | D | capability-gap | both-decline |
+| c06-comments.ods | Q10 | g | g | D | equal | capability-gap |
+| c07-styles.ods | Q1 | g | g | g | equal | equal |
+| c07-styles.ods | Q2 | g | g | g | equal | equal |
+| c07-styles.ods | Q3 | D | g | g | capability-gap | capability-gap |
+| c07-styles.ods | Q4 | g | g | g | equal | equal |
+| c07-styles.ods | Q5 | g | g | g | equal | equal |
+| c07-styles.ods | Q6 | g | g | g | equal | equal |
+| c07-styles.ods | Q7 | g | g | g | equal | equal |
+| c07-styles.ods | Q8 | g | g | D | equal | capability-gap |
+| c07-styles.ods | Q9 | D | D | D | both-decline | both-decline |
+| c07-styles.ods | Q10 | g | g | D | equal | capability-gap |
+| c08-large.ods | Q1 | g | g | g | equal | equal |
+| c08-large.ods | Q2 | g | g | g | equal | equal |
+| c08-large.ods | Q3 | D | g | g | capability-gap | capability-gap |
+| c08-large.ods | Q4 | g | g | g | equal | equal |
+| c08-large.ods | Q5 | g | g | g | equal | equal |
+| c08-large.ods | Q6 | g | g | g | equal | equal |
+| c08-large.ods | Q7 | g | g | g | equal | equal |
+| c08-large.ods | Q8 | g | g | D | equal | capability-gap |
+| c08-large.ods | Q9 | D | D | D | both-decline | both-decline |
+| c08-large.ods | Q10 | g | g | D | equal | capability-gap |
+
+### Aggregate equivalence per Q
+
+| Q | comparator | equal | both-decline | capability-gap | mismatch | shape |
+|---|---|---:|---:|---:|---:|---:|
+| Q1 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q1 | duckdb | 8 | 0 | 0 | 0 | 0 |
+| Q2 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q2 | duckdb | 8 | 0 | 0 | 0 | 0 |
+| Q3 | sqlite | 0 | 0 | 8 | 0 | 0 |
+| Q3 | duckdb | 0 | 0 | 8 | 0 | 0 |
+| Q4 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q4 | duckdb | 8 | 0 | 0 | 0 | 0 |
+| Q5 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q5 | duckdb | 8 | 0 | 0 | 0 | 0 |
+| Q6 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q6 | duckdb | 8 | 0 | 0 | 0 | 0 |
+| Q7 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q7 | duckdb | 8 | 0 | 0 | 0 | 0 |
+| Q8 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q8 | duckdb | 0 | 0 | 8 | 0 | 0 |
+| Q9 | sqlite | 0 | 7 | 1 | 0 | 0 |
+| Q9 | duckdb | 0 | 8 | 0 | 0 | 0 |
+| Q10 | sqlite | 8 | 0 | 0 | 0 | 0 |
+| Q10 | duckdb | 0 | 0 | 8 | 0 | 0 |
+

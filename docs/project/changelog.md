@@ -2,6 +2,95 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.30] — Phase 21 Wave 1: six office formats (XLSX, PPTX, ODS, ODP) + economic courts
+
+Opens the Phase-21 **format programme** by adding the fifth document format, XLSX,
+over the shared byte-authoritative OPC/ZIP layer, and judging it on the
+equal-contract capability/cost frontier rather than by format count. Plan:
+[phase-21-plan.md](../phases/phase-21-plan.md); decision:
+[ADR-0059](../adr/0059-xlsx-adapter-and-analytical-comparator.md).
+
+### Added
+
+- **21.1.1 — XLSX adapter (OPC surface + exact closure).** Non-default
+  `xlsx = ["opc"]` feature; byte-based `DocumentFormat::Xlsx` detection, mutually
+  exclusive with `docx`/`epub`/`odt`. Native selectors `--sheet`, `--xlsx-cell`,
+  `--xlsx-find`, plus common `metadata`/`text`/`table`/`cell`. Exactness 2/2 after
+  source + descriptor deletion. `2026-10-08-phase21-1-xlsx-4d26514`.
+- **21.1.2 — the SpreadsheetML semantic model.** Styles (number formats, fonts,
+  fills, alignment), merged ranges, comments (+VML note anchors), internal/external
+  hyperlinks, defined names, tables, drawings/charts/media as a relationship graph,
+  package external relationships, and a bounded deterministic **displayed-value**
+  projection kept distinct from the stored formula and cached result. Exactness
+  3/3. `2026-10-09-phase21-2-xlsx-5802be9`.
+- **21.1.3 — the XLSX economic court.** Three lanes (VOLE; a source-retaining
+  SQLite baseline; a **DuckDB/Parquet** comparator the plan mandates for tabular
+  formats) over a deterministic self-authored 8-workbook corpus; Q1–Q10 on
+  contract-equivalent terms. Paired ratios (median, fixed-seed cluster bootstrap by
+  fixture): build **0.637×** SQLite / **0.291×** DuckDB (8/0/0), storage **0.202×**
+  SQLite (8/0/0) but 1.610× DuckDB, warm 0.704× SQLite (5/0/3). VOLE records
+  formula-dependents and chart→table linkage as typed **capability gaps**. Exactness
+  8/8. `2026-10-09-phase21-3-xlsx-b2400f1`.
+- **Pinned analytical comparator.** New opt-in, hard-capped `analytical` service
+  (same pinned base digest as `doc-baseline`) with a hash-pinned duckdb 1.5.6 wheel;
+  smoke court `tools/phase21-3-analytical-smoke.sh`.
+- **21.2.1 — PPTX (PresentationML) adapter.** Non-default `pptx = ["opc"]`
+  feature; byte-based detection mutually exclusive with DOCX/XLSX. Bounded model:
+  slide order from `p:sldIdLst` (never `slideN.xml` order), shapes (text/run-level,
+  pictures→media, embedded tables, groups, connectors), notes, layouts, masters,
+  themes, media. Native `--slide`, `--pptx-shape`, `--pptx-notes`, `--pptx-layouts`,
+  `--pptx-masters`, `--pptx-theme`, `--pptx-media`, `--pptx-tables`, `--pptx-find`.
+  Exactness 5/5. `2026-10-09-phase21-2-pptx-8aab956`.
+- **21.2.3 — the PPTX economic court.** 8 deterministic decks; Q1–Q8 vs a
+  source-retaining SQLite baseline (PPTX is not tabular, so no DuckDB lane).
+  Paired medians: build **0.879×** (4/4/0), storage **0.967×**, cold **0.094×**,
+  warm **0.447×**; exactness 8/8. `2026-10-09-phase21-3-pptx-054ce93`.
+- **21.3.1 — ODS (OpenDocument Spreadsheet) adapter.** Non-default `ods = ["opc"]`
+  feature over the ODF substrate (like ODT): `office:body/office:spreadsheet` —
+  sheets/rows/cells with typed values + displayed text + stored formula + style kept
+  distinct, merges, repeated cells/rows (bounded: a bomb declines typed before
+  allocation), named expressions, styles, comments. Native `--ods-sheet`,
+  `--ods-cell`, `--ods-styles`, `--ods-named-expressions`, `--ods-comments`,
+  `--ods-find`. Exactness 8/8. `2026-10-09-phase21-3-ods-ef26d97`.
+- **21.3.2 — the ODS economic court.** 8 deterministic workbooks; Q1–Q10 vs a
+  source-retaining SQLite baseline **and** a DuckDB/Parquet comparator. Paired
+  medians: build **0.708×** SQLite / **0.334×** DuckDB (8/0/0), storage **0.175×**
+  SQLite (8/0/0) but **1.356×** DuckDB, warm **0.477×** SQLite. Exactness 8/8.
+  `2026-10-09-phase21-3-2-ods-3dd5827`.
+- **21.4 — ODP (OpenDocument Presentation) adapter + economic court.** Non-default
+  `odp = ["opc"]` feature over the ODF substrate: slides = `draw:page` in
+  **document order** (never page-name/file order), shapes (text boxes/runs,
+  images→`Pictures/`, bounded groups, tables), notes, masters, styles, media.
+  Native `--odp-slide`, `--odp-shape`, `--odp-notes`, `--odp-masters`,
+  `--odp-media`, `--odp-tables`, `--odp-find`. Economic court vs a source-retaining
+  SQLite baseline: paired medians build **1.018×** (~parity), storage **1.448×**
+  (VOLE larger here, stated), cold **0.123×**, warm **0.392×**; exactness 6/6
+  (adapter) and 8/8 (economic). This **completes Wave 1: six office formats from two
+  shared substrates**. `2026-10-09-phase21-4-1-odp-957a800`,
+  `2026-10-09-phase21-4-odp-econ-957a800`.
+
+### Fixed (21.2.1 — from an independent audit; ADR-0060)
+
+- **Source-scoped node identity.** Several nodes that read the source bytes
+  (`DocumentExact`, `SourceSlice`, `PdfObject`/`PdfRevision`/`PdfStreamEncoded`,
+  `PackageRoot`, `PackageMemberRaw`) did not include a source-identity input, so the
+  derived cache (keyed on `NodeId` alone, shared across fields) could serve one
+  document's bytes for another when two fields shared a store. Fixed by keying
+  exact roots on `sha256(source)` and making span nodes depend on the root; this
+  also makes field ids independent of store contents. Symptoms fixed: a PPTX deck's
+  common text collapsing to one slide, and `--byte-range --kind exact` returning
+  another field's bytes.
+
+### Fixed (21.1.2b — from an independent adversarial audit)
+
+- Checked arithmetic on A1 cell references (an over-long reference no longer
+  overflows `u64`) and bounded coordinates (`max_xlsx_col`/`max_xlsx_row`) and
+  bounded the sheet-text projection before building it.
+- DOCX detection now uses a **positive** WordprocessingML signal, so a Word
+  document that embeds an Excel workbook is no longer misdetected as `Opaque`.
+- Merged-range **refs** (not just a count) are exposed; "missing parts decline
+  typed" wording corrected to the precise four-part contract.
+
 ## [0.1.0-alpha.29] — Phase 22 economic programme complete (22.3–22.7)
 
 Completes the Phase-22 **economic programme** (P2–P6). **Every subphase is a

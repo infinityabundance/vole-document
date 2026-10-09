@@ -1,0 +1,52 @@
+[
+{
+  "fixture": "basic.pptx",
+  "src_len": 5173,
+  "src_sha256": "f7bc75b22018dfbbc21bef507e90f67f0f000e8258ac53348b08958f6736dd67",
+  "out_len": 5173,
+  "out_sha256": "f7bc75b22018dfbbc21bef507e90f67f0f000e8258ac53348b08958f6736dd67",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6
+},
+{
+  "fixture": "table.pptx",
+  "src_len": 4279,
+  "src_sha256": "006cf59580f9bde3484858c44847f10bf2308a6885be217fd122093508a659cd",
+  "out_len": 4279,
+  "out_sha256": "006cf59580f9bde3484858c44847f10bf2308a6885be217fd122093508a659cd",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6
+},
+{
+  "fixture": "picture.pptx",
+  "src_len": 4406,
+  "src_sha256": "488ab8309673d25544266d93eab069a684e62b2c5de8aa81c6ff7cffb5d26ce1",
+  "out_len": 4406,
+  "out_sha256": "488ab8309673d25544266d93eab069a684e62b2c5de8aa81c6ff7cffb5d26ce1",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6
+},
+{
+  "fixture": "notes.pptx",
+  "src_len": 5348,
+  "src_sha256": "685dcf91e40738ea7de32b7fce8deaf2e538bd7541fec47e3e048d251aebaf2a",
+  "out_len": 5348,
+  "out_sha256": "685dcf91e40738ea7de32b7fce8deaf2e538bd7541fec47e3e048d251aebaf2a",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6
+},
+{
+  "fixture": "order.pptx",
+  "src_len": 5080,
+  "src_sha256": "9ff794588eb868c615f9396b48d1a3e099c64ed785152785f3d2d7e4adaea7f1",
+  "out_len": 5080,
+  "out_sha256": "9ff794588eb868c615f9396b48d1a3e099c64ed785152785f3d2d7e4adaea7f1",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6
+}
+]

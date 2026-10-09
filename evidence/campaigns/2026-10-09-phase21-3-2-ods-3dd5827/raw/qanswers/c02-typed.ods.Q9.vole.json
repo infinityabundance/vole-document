@@ -1,0 +1,1 @@
+{"decline": {"code": "no-resource-selector", "detail": "VOLE exposes no ODS-native resource/media selector (the common `--resource` selector is not mapped for ODS)"}, "declined": true, "detail": {}, "lane": "vole", "native": true, "q": "Q9", "value": null}

@@ -761,10 +761,15 @@ impl FieldStore {
     ) -> Result<FieldId> {
         let descriptor_id = self.put_descriptor(descriptor_bytes)?;
 
+        // The exact root's output is the whole source, so its identity must be a
+        // function of the source *bytes* (not of the reconstruction program): two
+        // different descriptors that reconstruct the same source must share this
+        // root, and two different sources must never share it (the shared derived
+        // cache keys on the node id alone).
         let root = SeedNode::new(
             NodeKind::DocumentExact,
             source.len() as u64,
-            Vec::new(),
+            crate::integrity::sha256(source).to_vec(),
             Vec::new(),
             "field:document-exact",
         );

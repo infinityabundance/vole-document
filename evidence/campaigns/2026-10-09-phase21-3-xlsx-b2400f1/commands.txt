@@ -1,0 +1,24 @@
+docker compose run --rm --no-TTY analytical bash tools/phase21-3-xlsx-court.sh
+# PROFILE defaults to release (target/release/vole-document); the comparators are
+# unaffected by the Rust profile (same convention as tools/phase22-2-court.sh).
+# Inside the court:
+#   cargo build --release --locked --all-features            # release: --release --locked --all-features
+#   python3 tools/fixtures/make-xlsx.py --corpus evidence/scratch/phase21-3/corpus
+#   VOLE:   target/release/vole-document field-build F.xlsx --store STORE --voldoc F.voldoc --profile runtime --packed
+#           python3 tools/fixtures/phase21-3-xlsx-vole.py run --bin target/release/vole-document --store STORE --field HEX --plan ... --outdir ... --packed
+#           rm source + descriptor ; target/release/vole-document materialize --store STORE --field HEX --exact --packed --output OUT ; cmp OUT source
+#   SQLite: python3 tools/fixtures/phase21-3-xlsx-baseline.py build --source F.xlsx --db D --through 5
+#           python3 tools/fixtures/phase21-3-xlsx-baseline.py query --db D --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-3-xlsx-baseline.py session --db D --queries Q1..Q10 --plan ... --out OUT
+#           python3 tools/fixtures/phase21-3-xlsx-baseline.py materialize --db D --out OUT
+#   DuckDB: python3 tools/fixtures/phase21-3-xlsx-duckdb.py build --source F.xlsx --dir DD
+#           python3 tools/fixtures/phase21-3-xlsx-duckdb.py query --dir DD --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-3-xlsx-duckdb.py session --dir DD --queries Q1..Q10 --plan ... --out OUT
+#   aggregate: python3 tools/fixtures/phase21-3-xlsx-baseline.py aggregate --raw RAW --campaign CAMPAIGN --env ENV
+# Warm session: observe-batch DOES accept --packed in this tree (src/main.rs
+#   cmd_field_observe_batch opens DocumentFieldSession with packed=out.packed), so
+#   the warm lane is served from the SAME packed substrate as the cold lane.
+# Full dev gate:
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features

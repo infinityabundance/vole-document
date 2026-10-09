@@ -73,7 +73,16 @@ vole-document field-edit   --store DIR --field HEX --page N --content FILE [--en
 vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
     (--page N | --object N | --stream N | --revision N | --revisions | --byte-range A..B |
     --metadata | --doc-text | --heading N | --block N | --table N | --cell T:R:C |
-    --resource N | --link N | --spine-item N | --text PATTERN) --kind KIND
+    --resource N | --link N | --spine-item N | --text PATTERN |
+    --sheet N | --xlsx-cell A1 [--sheet N] | --xlsx-styles | --xlsx-defined-names |
+    --xlsx-external-rels | --xlsx-comments | --xlsx-hyperlinks | --xlsx-tables | --xlsx-drawing |
+    --slide N | --pptx-shape N | --pptx-notes N | --pptx-layouts | --pptx-masters |
+    --pptx-theme | --pptx-media N | --pptx-tables | --pptx-find PATTERN |
+    --ods-sheet N | --ods-cell A1 [--ods-sheet N] | --ods-styles | --ods-named-expressions |
+    --ods-comments | --ods-find PATTERN |
+    --odp-slide N | --odp-shape N | --odp-notes N | --odp-masters | --odp-media N |
+    --odp-tables | --odp-find PATTERN)
+    --kind KIND
 vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
     [--requests FILE|-] [--repeat N]
 vole-document find         --store DIR --field HEX --text PATTERN [--entropyfs | --packed]
@@ -89,6 +98,23 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
   authority, and inverts it into the field in a single process — no compression
   portfolio search. Measured 2.04× faster and 3.4× lower peak RSS than
   `encode` + `field-ingest`, with identical exactness and observations (ADR-0051).
+- The XLSX selectors (`--sheet`, `--xlsx-cell`, `--xlsx-styles`, `--xlsx-comments`,
+  `--xlsx-hyperlinks`, `--xlsx-tables`, `--xlsx-drawing`, `--xlsx-defined-names`,
+  `--xlsx-external-rels`) need the non-default `xlsx` feature; a build without it
+  reports XLSX `Opaque`. A cell's stored formula, cached result, displayed value,
+  style, and XML span are separate fields; formulas are never evaluated (ADR-0059).
+- The PPTX selectors (`--slide`, `--pptx-shape`, `--pptx-notes`, `--pptx-layouts`,
+  `--pptx-masters`, `--pptx-theme`, `--pptx-media`, `--pptx-tables`, `--pptx-find`)
+  need the non-default `pptx` feature. Slide order comes from `p:sldIdLst`, never
+  `slideN.xml` file order; chart data is not evaluated (`--slide` exposes the
+  chart *reference*).
+- The ODS selectors (`--ods-sheet`, `--ods-cell`, `--ods-styles`,
+  `--ods-named-expressions`, `--ods-comments`, `--ods-find`) need the non-default
+  `ods` feature. A cell's stored formula, typed value, displayed text, style and
+  XML span are separate fields; formulas are never evaluated.
+- The ODP selectors (`--odp-slide`, `--odp-shape`, `--odp-notes`, `--odp-masters`,
+  `--odp-media`, `--odp-tables`, `--odp-find`) need the non-default `odp` feature.
+  Slide order is `draw:page` document order, never page-name/file order.
 - `field-ingest` inverse-proceduralizes one `.voldoc` into a persistent field
   and prints its field id (`HEX`) and roots. The format is detected from bytes.
 - `observe` / `find` / `explain` / `preview` answer typed observations with

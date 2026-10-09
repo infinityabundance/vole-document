@@ -133,6 +133,56 @@ const PDF_NATIVE: &[&str] = &[
     "byte-range",
     "text-match",
 ];
+const ODS_NATIVE: &[&str] = &[
+    "ods-sheet",
+    "ods-cell",
+    "ods-find",
+    "ods-styles",
+    "ods-named-expressions",
+    "ods-comments",
+    "package-part",
+    "member",
+];
+const XLSX_NATIVE: &[&str] = &[
+    "xlsx-sheet",
+    "xlsx-cell",
+    "xlsx-find",
+    "xlsx-styles",
+    "xlsx-defined-names",
+    "xlsx-external-rels",
+    "xlsx-comments",
+    "xlsx-hyperlinks",
+    "xlsx-tables",
+    "xlsx-drawing",
+    "package-part",
+    "relationship",
+    "member",
+];
+const PPTX_NATIVE: &[&str] = &[
+    "pptx-slide",
+    "pptx-shape",
+    "pptx-notes",
+    "pptx-layouts",
+    "pptx-masters",
+    "pptx-theme",
+    "pptx-media",
+    "pptx-tables",
+    "pptx-find",
+    "package-part",
+    "relationship",
+    "member",
+];
+const ODP_NATIVE: &[&str] = &[
+    "odp-slide",
+    "odp-shape",
+    "odp-notes",
+    "odp-masters",
+    "odp-media",
+    "odp-tables",
+    "odp-find",
+    "package-part",
+    "member",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -216,6 +266,50 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 odt_profiles(),
                 ODT_NATIVE.to_vec(),
             ),
+            DocumentFormat::Ods => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                ods_profiles(),
+                ODS_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Xlsx => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                xlsx_profiles(),
+                XLSX_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Pptx => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                pptx_profiles(),
+                PPTX_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Odp => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                odp_profiles(),
+                ODP_NATIVE.to_vec(),
+            ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };
     Capabilities {
@@ -251,6 +345,42 @@ fn odt_profiles() -> Vec<String> {
 }
 #[cfg(not(feature = "odt"))]
 fn odt_profiles() -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(feature = "ods")]
+fn ods_profiles() -> Vec<String> {
+    vec![crate::adapter::ods::OdsExtractProfile::DEFAULT.fingerprint()]
+}
+#[cfg(not(feature = "ods"))]
+fn ods_profiles() -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(feature = "xlsx")]
+fn xlsx_profiles() -> Vec<String> {
+    vec![crate::adapter::xlsx::XlsxExtractProfile::DEFAULT.fingerprint()]
+}
+#[cfg(not(feature = "xlsx"))]
+fn xlsx_profiles() -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(feature = "pptx")]
+fn pptx_profiles() -> Vec<String> {
+    vec![crate::adapter::pptx::PptxExtractProfile::DEFAULT.fingerprint()]
+}
+#[cfg(not(feature = "pptx"))]
+fn pptx_profiles() -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(feature = "odp")]
+fn odp_profiles() -> Vec<String> {
+    vec![crate::adapter::odp::OdpExtractProfile::DEFAULT.fingerprint()]
+}
+#[cfg(not(feature = "odp"))]
+fn odp_profiles() -> Vec<String> {
     Vec::new()
 }
 

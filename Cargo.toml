@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.29"
+version = "0.1.0-alpha.30"
 edition = "2024"
 rust-version = "1.89"
 description = "Persistent procedural document runtime: byte-exact reconstruction plus a content-addressed procedural seed DAG, queryable observations with provenance, and selective late materialization."
@@ -205,6 +205,50 @@ docx = ["opc"]
 # spans, so enabling it never changes `.voldoc` bytes and exactness is untouched.
 # Never in `default`.
 odt = ["opc"]
+# Phase 21.3.1: the OpenDocument Spreadsheet (ODS) adapter built on the shared
+# byte-authoritative ZIP layer and the bounded-XML policy. Like ODT, ODF is **not**
+# OPC (no `[Content_Types].xml`, no `officeDocument` relationship), so it discovers
+# its main content part semantically from `META-INF/manifest.xml` (never a hardcoded
+# `content.xml`) and reuses the OPC *helpers* without routing through the OPC graph.
+# It adds a declared, versioned extraction profile and derived (`Q_gen`)
+# OpenDocument Spreadsheet observations (sheets/rows/cells, typed values, stored
+# formulas, cell styles, named expressions, annotations). It adds **no** decoder
+# behavior: an ODS source's exact leaf is still its 12.2 member raw spans, so
+# enabling it never changes `.voldoc` bytes and exactness is untouched. Never in
+# `default`.
+ods = ["opc"]
+# Phase 21.4.1: the OpenDocument Presentation (ODP) adapter built on the shared
+# byte-authoritative ZIP layer and the bounded-XML policy. Like ODT/ODS, ODF is
+# **not** OPC (no `[Content_Types].xml`, no `officeDocument` relationship), so it
+# discovers its main content part semantically from `META-INF/manifest.xml` (never
+# a hardcoded `content.xml`) and reuses the OPC *helpers* without routing through
+# the OPC graph. It adds a declared, versioned extraction profile and derived
+# (`Q_gen`) OpenDocument Presentation observations (slides/`draw:page` in document
+# order, shapes/text runs, embedded tables, notes, master pages, styles, media). It
+# adds **no** decoder behavior: an ODP source's exact leaf is still its 12.2 member
+# raw spans, so enabling it never changes `.voldoc` bytes and exactness is
+# untouched. Never in `default`.
+odp = ["opc"]
+# Phase 21.1.1: the SpreadsheetML (XLSX) adapter built on the generic OPC core. It
+# discovers the workbook by the `officeDocument` relationship and its
+# SpreadsheetML content type (never a hardcoded `/xl/workbook.xml`), resolves the
+# sheet inventory from `xl/workbook.xml` + `xl/_rels/workbook.xml.rels`, and parses
+# `xl/sharedStrings.xml`, `xl/styles.xml`, and each `xl/worksheets/sheetN.xml` into
+# a bounded, canonical derived model. It adds **no** decoder behavior: an XLSX
+# source's exact leaf is still its 12.2 member raw spans, so enabling it never
+# changes `.voldoc` bytes and exactness is untouched. Never in `default`.
+xlsx = ["opc"]
+# Phase 21.2.1: the PresentationML (PPTX) adapter built on the generic OPC core. It
+# discovers the presentation by the `officeDocument` relationship and its
+# PresentationML content type (never a hardcoded `/ppt/presentation.xml`), takes
+# the slide order from `p:sldIdLst` (never from `slideN.xml` file names), and
+# parses `ppt/presentation.xml`, each `ppt/slides/slideN.xml` shape tree,
+# `ppt/notesSlides/notesSlideN.xml`, embedded `a:tbl` tables, and the
+# master/layout/theme/media graph into a bounded, canonical derived model. It adds
+# **no** decoder behavior: a PPTX source's exact leaf is still its 12.2 member raw
+# spans, so enabling it never changes `.voldoc` bytes and exactness is untouched.
+# Never in `default`.
+pptx = ["opc"]
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores. `quick-xml` only; adds **no** decoder behavior and is
 # never in `default` on its own (it is implied by `opc` and `epub`).

@@ -1,0 +1,74 @@
+[
+{
+  "fixture": "basic.odp",
+  "src_len": 1744,
+  "src_sha256": "1d1e258582dc5ca7235e832a5c2d37cfc8f966f1b2b9a5b60c8c83a10df52cce",
+  "out_len": 1744,
+  "out_sha256": "1d1e258582dc5ca7235e832a5c2d37cfc8f966f1b2b9a5b60c8c83a10df52cce",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1,
+  "slide0_text": "Hello\nWorld\nSecond paragraph"
+},
+{
+  "fixture": "table.odp",
+  "src_len": 1746,
+  "src_sha256": "3dc60c25124327cb0a8c1e3102964773b037ac312ff43379efa53dfcb3e46d67",
+  "out_len": 1746,
+  "out_sha256": "3dc60c25124327cb0a8c1e3102964773b037ac312ff43379efa53dfcb3e46d67",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1,
+  "slide0_text": "Table\na\tb\nc\td"
+},
+{
+  "fixture": "picture.odp",
+  "src_len": 1950,
+  "src_sha256": "20f5987bd861802f95154e0ae6c9e1b7e489b2a295fee21468aba7c69b8a6545",
+  "out_len": 1950,
+  "out_sha256": "20f5987bd861802f95154e0ae6c9e1b7e489b2a295fee21468aba7c69b8a6545",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1,
+  "slide0_text": "Picture"
+},
+{
+  "fixture": "notes.odp",
+  "src_len": 1678,
+  "src_sha256": "55647705cbee987e874e30d2a57b0b6ae3d5453efdba6128f413caea468e0559",
+  "out_len": 1678,
+  "out_sha256": "55647705cbee987e874e30d2a57b0b6ae3d5453efdba6128f413caea468e0559",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1,
+  "slide0_text": "Body text"
+},
+{
+  "fixture": "order.odp",
+  "src_len": 1695,
+  "src_sha256": "6ab262306a45bad6676ba3a0fa487ecfd92bfcb191ef1e4c2c60eec204a32cb2",
+  "out_len": 1695,
+  "out_sha256": "6ab262306a45bad6676ba3a0fa487ecfd92bfcb191ef1e4c2c60eec204a32cb2",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1,
+  "slide0_text": "SECOND FILE"
+},
+{
+  "fixture": "bomb.odp",
+  "src_len": 1740,
+  "src_sha256": "62502dd3f224443a65fed7ee922fbd3f47af5f9e8c6e3ec8e61865baa813e2af",
+  "out_len": 1740,
+  "out_sha256": "62502dd3f224443a65fed7ee922fbd3f47af5f9e8c6e3ec8e61865baa813e2af",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": -1,
+  "bomb_rc": 8,
+  "slide0_text": "SECOND FILE"
+}
+]

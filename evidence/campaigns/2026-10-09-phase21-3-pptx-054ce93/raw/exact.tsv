@@ -1,0 +1,9 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+c01-basic.pptx	true	true	true	true	true	5034	23830
+c02-tables.pptx	true	true	true	true	true	5667	26936
+c03-media.pptx	true	true	true	true	true	9024	25442
+c04-notes.pptx	true	true	true	true	true	6197	25142
+c05-charts.pptx	true	true	true	true	true	5121	24794
+c06-order.pptx	true	true	true	true	true	5254	24973
+c07-many.pptx	true	true	true	true	true	8960	26065
+c08-mixed.pptx	true	true	true	true	true	13438	27632

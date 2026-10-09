@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {"member_span": [397, 941], "part": "content.xml", "span_len": 217, "span_start": 851}, "lane": "sqlite", "native": true, "q": "Q8", "value": {"cell_xml_len": 217, "cell_xml_sha256": "a4afaac68a1a2529024279d1205887a848549c658447d70d68032d4ba2af49ea"}}
