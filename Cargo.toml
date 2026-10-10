@@ -292,19 +292,43 @@ json5 = ["json"]
 # `.voldoc` bytes and exactness is untouched. Dependency-free (`yaml = []`) and
 # never in `default`.
 yaml = []
-# Phase 21.7.1: the CSV/TSV adapter — the first **tabular** Wave-2 format (the
-# same feature covers both comma- and tab-separated files). Like JSON/YAML it is
-# not a package (no OPC/ZIP layer): the exact leaf is the whole source (a
-# `DocumentExact`, RAW-like authority) and every derived observation is a bounded,
-# span-preserving (`Q_gen`) projection of it. It adds a bounded, streaming RFC 4180
-# CSV + TSV parser that preserves representation — exact record/field byte spans,
-# the recorded dialect (delimiter/quote/line terminator/BOM), original quoting
-# (quotes and `""` escapes kept), embedded delimiters/newlines, ragged rows, blank
-# lines, and the header row — and detects a table conservatively (no magic bytes;
-# a plain-text blob stays Opaque). It adds **no** decoder behavior: the CSV model is
-# never on the exactness path, so enabling it never changes `.voldoc` bytes and
-# exactness is untouched. Dependency-free (`csv = []`) and never in `default`.
+# Phase 21.7.1: the CSV/TSV adapter — the first **tabular** Wave-2 format. Phase
+# 21.25 extends the *same* adapter's dialect set with a **pipe** delimiter (PSV),
+# exactly as comma and tab are handled today (one parser, three recorded
+# dialects), rather than adding a second parser. The feature therefore covers
+# comma-, tab-, and pipe-separated files. Like JSON/YAML it is not a package (no
+# OPC/ZIP layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It adds a bounded, streaming RFC 4180 CSV + TSV + PSV parser
+# that preserves representation — exact record/field byte spans, the recorded
+# dialect (delimiter/quote/line terminator/BOM), original quoting (quotes and `""`
+# escapes kept), embedded delimiters/newlines, ragged rows, blank lines, and the
+# header row — and detects a table conservatively (no magic bytes; a plain-text
+# blob stays Opaque; a Markdown table is never stolen, because a pipe-delimited
+# table carrying a GFM delimiter row declines and falls through to Markdown). It
+# adds **no** decoder behavior: the CSV model is never on the exactness path, so
+# enabling it never changes `.voldoc` bytes and exactness is untouched.
+# Dependency-free (`csv = []`) and never in `default`.
 csv = []
+# Phase 21.25: the fixed-width (column-position) tabular adapter — a *distinct*
+# tabular model whose columns are defined by **character positions**, not a
+# delimiter, so it is a new adapter (and format) rather than a CSV dialect. Like
+# the other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf
+# is the whole source (a `DocumentExact`, RAW-like authority) and every derived
+# observation is a bounded, span-preserving (`Q_gen`) projection of it. It adds a
+# bounded, line-based parser that records the inferred column layout (per-column
+# start/end positions and widths), every record's exact content span and per-column
+# field spans, padding, the line terminator, a BOM, and the header row. Detection is
+# **maximally conservative** (fixed-width is inherently ambiguous — any aligned text
+# can look tabular): it requires at least three sampled records of *identical byte
+# width* whose interior whitespace gaps are at least two columns wide, with at least
+# two non-empty columns, and it declines outright anything that also parses as a
+# delimited table (CSV/TSV/PSV) or a Markdown table. It adds **no** decoder behavior:
+# the fixed-width model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. It implies `csv` because the honest way
+# to enforce "reject anything that also parses as a delimited table" is to reuse the
+# CSV/PSV detector. Never in `default`.
+fixedwidth = ["csv"]
 # Phase 21.8.1: the Markdown adapter — the first **prose** Wave-2 format. Like
 # JSON/YAML/CSV it is not a package (no OPC/ZIP layer): the exact leaf is the whole
 # source (a `DocumentExact`, RAW-like authority) and every derived observation is a

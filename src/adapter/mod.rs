@@ -20,6 +20,8 @@ pub mod eml;
 pub mod epub;
 #[cfg(feature = "feed")]
 pub mod feed;
+#[cfg(feature = "fixedwidth")]
+pub mod fixedwidth;
 #[cfg(feature = "geojson")]
 pub mod geojson;
 #[cfg(feature = "gis")]

@@ -283,6 +283,17 @@ pub enum DocumentFormat {
     /// `source` representation, and the cell/output order are `Q_gen` projections
     /// (Phase 21.24).
     Notebook,
+    /// A fixed-width (column-position) text table. Unlike CSV/TSV/PSV, its columns
+    /// are defined by **character positions**, not a delimiter, so it is a distinct
+    /// format rather than a CSV dialect. Detection is **maximally conservative**
+    /// (fixed-width is inherently ambiguous): at least three sampled records of
+    /// identical byte width, an inferred column layout whose interior whitespace gaps
+    /// are at least two columns wide, at least two non-empty columns, and an outright
+    /// decline of anything that also parses as a delimited (CSV/TSV/PSV) or Markdown
+    /// table. Not a package: the exact leaf is the whole source, and the recorded
+    /// inferred layout, per-record spans, per-column spans, padding, terminator, BOM,
+    /// and header row are `Q_gen` projections (Phase 21.25).
+    FixedWidth,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -318,6 +329,7 @@ impl DocumentFormat {
             DocumentFormat::Geojson => "geojson",
             DocumentFormat::Gis => "gis",
             DocumentFormat::Notebook => "notebook",
+            DocumentFormat::FixedWidth => "fixedwidth",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -352,6 +364,7 @@ impl DocumentFormat {
             DocumentFormat::Geojson => "geojson",
             DocumentFormat::Gis => "gis",
             DocumentFormat::Notebook => "notebook",
+            DocumentFormat::FixedWidth => "fixedwidth",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -386,6 +399,7 @@ impl DocumentFormat {
             DocumentFormat::Geojson => cfg!(feature = "geojson"),
             DocumentFormat::Gis => cfg!(feature = "gis"),
             DocumentFormat::Notebook => cfg!(feature = "notebook"),
+            DocumentFormat::FixedWidth => cfg!(feature = "fixedwidth"),
         }
     }
 
@@ -430,6 +444,7 @@ impl DocumentFormat {
             "geojson" => Some(DocumentFormat::Geojson),
             "gis" => Some(DocumentFormat::Gis),
             "notebook" => Some(DocumentFormat::Notebook),
+            "fixedwidth" => Some(DocumentFormat::FixedWidth),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -639,9 +654,12 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     // CSV/TSV is the first **tabular** Wave-2 format (Phase 21.7.1). It has no
     // magic bytes, so it is detected last and conservatively: only after the
     // PDF/ZIP/JSON/YAML families are declined does a source qualify, and then only
-    // if it parses under a specific delimiter (`,` or tab) as a table with a
+    // if it parses under a specific delimiter (`,`, tab, or `|`) as a table with a
     // consistent field count across a sampled majority of records and at least two
-    // columns. When in doubt the input stays Opaque.
+    // columns. Phase 21.25 adds the pipe delimiter to this dialect set; the pipe
+    // dialect is tried after comma/tab and is declined when the source carries a
+    // GFM/Markdown delimiter row (so a Markdown table is never stolen). When in
+    // doubt the input stays Opaque.
     #[cfg(feature = "csv")]
     if crate::adapter::csv::detect(source, limits) {
         return DocumentFormat::Csv;
@@ -656,6 +674,21 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "markdown")]
     if crate::adapter::markdown::detect(source, limits) {
         return DocumentFormat::Markdown;
+    }
+    // Fixed-width (column-position) text is the second **tabular** Wave-2 format
+    // (Phase 21.25), but its columns are defined by character positions, not a
+    // delimiter, so it is a distinct format (and adapter), never a CSV dialect. It is
+    // tried **last among the tabular/prose heuristics** — after CSV/TSV/PSV and after
+    // Markdown — so a delimited table or a Markdown table always keeps its own format
+    // (the fixed-width detector also declines both explicitly, defence in depth).
+    // Fixed-width is **genuinely ambiguous** (nearly any aligned text can look
+    // tabular), so detection is maximally conservative: at least three sampled records
+    // of identical byte width, an inferred column layout whose interior whitespace gaps
+    // are at least two columns wide, and at least two non-empty columns; a
+    // variable-length or single-space-separated blob stays Opaque.
+    #[cfg(feature = "fixedwidth")]
+    if crate::adapter::fixedwidth::detect(source, limits) {
+        return DocumentFormat::FixedWidth;
     }
     // RSS/Atom is the **syndication** Wave-2 format (Phase 21.21). A feed's physical
     // bytes are XML, so this is a **bounded semantic sub-detection** run **before**
@@ -951,6 +984,7 @@ mod tests {
             DocumentFormat::Geojson,
             DocumentFormat::Gis,
             DocumentFormat::Notebook,
+            DocumentFormat::FixedWidth,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

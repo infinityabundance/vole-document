@@ -1,0 +1,7 @@
+{
+  "fixtures": 10,
+  "exact_ok": 10,
+  "exact_fail": 0,
+  "typed_declines_ok": 7,
+  "opaque_controls_ok": 3
+}

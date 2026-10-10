@@ -84,6 +84,13 @@ use crate::adapter::feed::{
     field_bytes as feed_field_bytes, field_text as feed_field_text, find as feed_find_matches,
     split_qname as feed_split_qname,
 };
+#[cfg(feature = "fixedwidth")]
+use crate::adapter::fixedwidth::{
+    FixedWidthModel, Layout as FwLayout, StreamRecord as FwStreamRecord,
+    canonical_text as fw_canonical_text, decode_field as fw_decode_field,
+    field_bytes as fw_field_bytes, find as fw_find_matches, infer_layout as fw_infer_layout,
+    record_at as fw_record_at, record_bytes as fw_record_bytes, trimmed_text as fw_trimmed_text,
+};
 #[cfg(feature = "geojson")]
 use crate::adapter::geojson::{
     GeojsonModel, canonical_text as geojson_canonical_text, class_name as geojson_class_name,
@@ -232,6 +239,8 @@ use crate::field::index::SEL_EML_MODEL;
 use crate::field::index::SEL_EPUB_MODEL;
 #[cfg(feature = "feed")]
 use crate::field::index::SEL_FEED_MODEL;
+#[cfg(feature = "fixedwidth")]
+use crate::field::index::SEL_FIXEDWIDTH_MODEL;
 #[cfg(feature = "geojson")]
 use crate::field::index::SEL_GEOJSON_MODEL;
 #[cfg(feature = "gis")]
@@ -1234,6 +1243,49 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A fixed-width record by 0-based physical index (record 0 is the header row),
+    /// returned with its exact source span and exact bytes (Phase 21.25). A
+    /// fixed-width document has no package layer, so the source *is* the whole
+    /// document.
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthRow {
+        /// The 0-based record index (the header row is index 0).
+        index: u32,
+    },
+    /// A fixed-width cell addressed as `R:C` (0-based record and column indices) or
+    /// `R:COLNAME` (record `R`, the column whose header name is `COLNAME`)
+    /// (Phase 21.25). `ExactBytes` returns the field's exact source bytes (padding
+    /// preserved); `Text` the decoded, whitespace-trimmed field; `Metadata`/
+    /// `Structure` a descriptor with the field's span, padded text, and trimmed text.
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthCell {
+        /// The `R:C` or `R:COLNAME` reference.
+        spec: String,
+    },
+    /// The fixed-width header row (record 0): its column names and exact bytes
+    /// (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthHeader,
+    /// The recovered fixed-width column layout (Phase 21.25): every column's start/end
+    /// position and width, the uniform record width, and the terminator. `Text`
+    /// returns a compact `start:end` list; `Metadata`/`Structure` a descriptor with the
+    /// exact per-column positions.
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthColumns,
+    /// A fixed-width rectangular range of cells addressed as `R1:C1:R2:C2` (0-based,
+    /// inclusive) (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthRange {
+        /// The `R1:C1:R2:C2` reference.
+        spec: String,
+    },
+    /// A lexical, case-sensitive search over fixed-width (trimmed) field text
+    /// (Phase 21.25). Never an embedding or a model call.
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// The `index`-th ATX heading in document order (Phase 21.8.1). `Text` returns
     /// the heading's exact content text; `ExactBytes` its exact content bytes;
     /// `Metadata`/`Structure` a descriptor with its level and exact spans.
@@ -1866,6 +1918,18 @@ impl Selector {
             Selector::CsvRange { spec } => format!("csv-range:{spec}"),
             #[cfg(feature = "csv")]
             Selector::CsvFind { pattern } => format!("csv-find:{pattern}"),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthRow { index } => format!("fixedwidth-row:{index}"),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthCell { spec } => format!("fixedwidth-cell:{spec}"),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthHeader => "fixedwidth-header".to_string(),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthColumns => "fixedwidth-columns".to_string(),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthRange { spec } => format!("fixedwidth-range:{spec}"),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthFind { pattern } => format!("fixedwidth-find:{pattern}"),
             #[cfg(feature = "markdown")]
             Selector::MdHeading { index } => format!("md-heading:{index}"),
             #[cfg(feature = "markdown")]
@@ -3930,6 +3994,32 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "csv")]
             (Selector::CsvFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.csv_find(req, pattern)
+            }
+            #[cfg(feature = "fixedwidth")]
+            (
+                Selector::FixedWidthRow { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.fixedwidth_row(req, *index),
+            #[cfg(feature = "fixedwidth")]
+            (
+                Selector::FixedWidthCell { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.fixedwidth_cell(req, spec),
+            #[cfg(feature = "fixedwidth")]
+            (Selector::FixedWidthHeader, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.fixedwidth_header(req)
+            }
+            #[cfg(feature = "fixedwidth")]
+            (Selector::FixedWidthColumns, R::Text | R::Metadata | R::Structure) => {
+                self.fixedwidth_columns(req)
+            }
+            #[cfg(feature = "fixedwidth")]
+            (Selector::FixedWidthRange { spec }, R::Text | R::Metadata | R::Structure) => {
+                self.fixedwidth_range(req, spec)
+            }
+            #[cfg(feature = "fixedwidth")]
+            (Selector::FixedWidthFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.fixedwidth_find(req, pattern)
             }
             #[cfg(feature = "markdown")]
             (
@@ -9255,6 +9345,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             }
             DocumentFormat::Yaml => self.common_yaml(req)?,
             DocumentFormat::Csv => self.common_csv(req)?,
+            DocumentFormat::FixedWidth => self.common_fixedwidth(req)?,
             DocumentFormat::Markdown => self.common_markdown(req)?,
             DocumentFormat::Xml => self.common_xml(req)?,
             DocumentFormat::Html => {
@@ -9756,6 +9847,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_csv(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "CSV observations require a build with the csv feature",
+        ))
+    }
+
+    #[cfg(not(feature = "fixedwidth"))]
+    fn common_fixedwidth(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "fixed-width observations require a build with the fixedwidth feature",
         ))
     }
 
@@ -16881,6 +16979,511 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "csv;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Fixed-width (column-position) observations (Phase 21.25)
+// ---------------------------------------------------------------------------
+
+/// A parsed column reference for `fixedwidth-cell`: a 0-based index or a header name.
+#[cfg(feature = "fixedwidth")]
+enum FwCol {
+    Index(u32),
+    Name(String),
+}
+
+#[cfg(feature = "fixedwidth")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the fixed-width model (derived, `Q_gen`).
+    fn fixedwidth_model(&mut self) -> Result<(FixedWidthModel, NodeId)> {
+        let entry = self.require_entry(
+            SelectorKey::new(SEL_FIXEDWIDTH_MODEL, 0),
+            "fixed-width model",
+        )?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((FixedWidthModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn fixedwidth_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    /// The exact source bytes plus the re-inferred layout (the streaming selectors do
+    /// not build the whole model).
+    fn fixedwidth_layout(&mut self) -> Result<(Vec<u8>, FwLayout, NodeId)> {
+        let (source, root) = self.fixedwidth_source()?;
+        let layout = fw_infer_layout(&source, self.limits)?;
+        Ok((source, layout, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn fixedwidth_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn fixedwidth_record_text(source: &[u8], rec: &FwStreamRecord) -> Result<String> {
+        Ok(String::from_utf8_lossy(fw_record_bytes(source, rec)?).into_owned())
+    }
+
+    fn fixedwidth_record_structure(
+        source: &[u8],
+        layout: &FwLayout,
+        index: u32,
+        rec: &FwStreamRecord,
+    ) -> Result<String> {
+        let mut fields: Vec<String> = Vec::new();
+        for (i, f) in rec.fields.iter().enumerate() {
+            let padded = fw_decode_field(source, f)?;
+            let trimmed = fw_trimmed_text(source, f)?;
+            let (cs, ce) = layout
+                .columns
+                .get(i)
+                .map(|c| (c.start, c.end))
+                .unwrap_or((0, 0));
+            fields.push(format!(
+                concat!(
+                    "{{\"column\":{},\"col_start\":{},\"col_end\":{},",
+                    "\"span\":[{},{}],\"padded\":\"{}\",\"text\":\"{}\"}}"
+                ),
+                i,
+                cs,
+                ce,
+                f.start,
+                f.end,
+                json_escape(&padded),
+                json_escape(&trimmed),
+            ));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"record\":{},\"span\":[{},{}],\"terminator\":\"{}\",",
+                "\"columns\":{},\"fields\":[{}]}}"
+            ),
+            index,
+            rec.start,
+            rec.end,
+            layout.terminator_name(),
+            rec.fields.len(),
+            fields.join(","),
+        ))
+    }
+
+    /// A record by physical index: `ExactBytes` returns its exact content bytes
+    /// (terminator excluded, padding preserved); `Text` the same content as text;
+    /// `Metadata`/`Structure` a descriptor with each field's span, padded text, and
+    /// trimmed text.
+    fn fixedwidth_row(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let rec = fw_record_at(&source, &layout, index, self.limits)?;
+        let span = Some((rec.start, rec.end));
+        let provenance = format!(
+            "fixedwidth;row={index};columns={};terminator={}",
+            rec.fields.len(),
+            layout.terminator_name()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(fw_record_bytes(&source, &rec)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(Self::fixedwidth_record_text(&source, &rec)?),
+            _ => AnswerValue::Json(Self::fixedwidth_record_structure(
+                &source, &layout, index, &rec,
+            )?),
+        };
+        Ok(self.fixedwidth_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// Parse a `fixedwidth-cell` reference: `R:C` (0-based indices) or `R:COLNAME`.
+    fn fixedwidth_parse_cell(spec: &str) -> Result<(u32, FwCol)> {
+        let (row_s, col_s) = spec.split_once(':').ok_or_else(|| {
+            Error::usage(format!("fixedwidth-cell {spec:?} must be R:C or R:COLNAME"))
+        })?;
+        let row: u32 = row_s
+            .parse()
+            .map_err(|_| Error::usage(format!("fixedwidth-cell row {row_s:?} is not a u32")))?;
+        let col = match col_s.parse::<u32>() {
+            Ok(n) => FwCol::Index(n),
+            Err(_) if !col_s.is_empty() => FwCol::Name(col_s.to_string()),
+            Err(_) => {
+                return Err(Error::usage(format!(
+                    "fixedwidth-cell column {col_s:?} is neither an index nor a name"
+                )));
+            }
+        };
+        Ok((row, col))
+    }
+
+    /// Resolve a column reference to a 0-based index. A name is resolved against the
+    /// header row (record 0, trimmed text); an unknown name declines typed.
+    fn fixedwidth_resolve_col(
+        source: &[u8],
+        layout: &FwLayout,
+        col: &FwCol,
+        limits: Limits,
+    ) -> Result<u32> {
+        match col {
+            FwCol::Index(n) => Ok(*n),
+            FwCol::Name(name) => {
+                let header = fw_record_at(source, layout, 0, limits)?;
+                for (i, f) in header.fields.iter().enumerate() {
+                    if fw_trimmed_text(source, f)? == *name {
+                        return Ok(i as u32);
+                    }
+                }
+                Err(Error::unsupported_feature(format!(
+                    "fixed-width header has no column named {name:?}"
+                )))
+            }
+        }
+    }
+
+    /// A cell addressed as `R:C` or `R:COLNAME`.
+    fn fixedwidth_cell(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let (row, col) = Self::fixedwidth_parse_cell(spec)?;
+        let col = Self::fixedwidth_resolve_col(&source, &layout, &col, self.limits)?;
+        let rec = fw_record_at(&source, &layout, row, self.limits)?;
+        let field = *rec.fields.get(col as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "fixed-width record {row} has no column {col} ({} columns)",
+                rec.fields.len()
+            ))
+        })?;
+        let span = Some((field.start, field.end));
+        let provenance = format!("fixedwidth;cell={row}:{col};columns={}", rec.fields.len());
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(fw_field_bytes(&source, &field)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(fw_trimmed_text(&source, &field)?),
+            _ => {
+                let padded = fw_decode_field(&source, &field)?;
+                let trimmed = fw_trimmed_text(&source, &field)?;
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"row\":{},\"column\":{},\"col_start\":{},\"col_end\":{},",
+                        "\"span\":[{},{}],\"padded\":\"{}\",\"text\":\"{}\"}}"
+                    ),
+                    row,
+                    col,
+                    layout.columns[col as usize].start,
+                    layout.columns[col as usize].end,
+                    field.start,
+                    field.end,
+                    json_escape(&padded),
+                    json_escape(&trimmed),
+                ))
+            }
+        };
+        Ok(self.fixedwidth_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// The header row (record 0): its column names, span, and exact bytes.
+    fn fixedwidth_header(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let rec = fw_record_at(&source, &layout, 0, self.limits)?;
+        let span = Some((rec.start, rec.end));
+        let provenance = format!("fixedwidth;header;columns={}", rec.fields.len());
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(fw_record_bytes(&source, &rec)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(Self::fixedwidth_record_text(&source, &rec)?),
+            _ => {
+                let mut names: Vec<String> = Vec::new();
+                for f in &rec.fields {
+                    names.push(format!(
+                        "\"{}\"",
+                        json_escape(&fw_trimmed_text(&source, f)?)
+                    ));
+                }
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"count\":{},\"span\":[{},{}],",
+                        "\"terminator\":\"{}\",\"names\":[{}]}}"
+                    ),
+                    rec.fields.len(),
+                    rec.start,
+                    rec.end,
+                    layout.terminator_name(),
+                    names.join(","),
+                ))
+            }
+        };
+        Ok(self.fixedwidth_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// The recovered column layout.
+    fn fixedwidth_columns(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let span = Some((0, source.len() as u64));
+        let provenance = format!(
+            "fixedwidth;columns={};width={}",
+            layout.column_count(),
+            layout.width
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                let parts: Vec<String> = layout
+                    .columns
+                    .iter()
+                    .map(|c| format!("{}:{}", c.start, c.end))
+                    .collect();
+                AnswerValue::Text(parts.join(","))
+            }
+            _ => {
+                let cols: Vec<String> = layout
+                    .columns
+                    .iter()
+                    .map(|c| {
+                        format!(
+                            "{{\"start\":{},\"end\":{},\"width\":{}}}",
+                            c.start,
+                            c.end,
+                            c.width()
+                        )
+                    })
+                    .collect();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"format\":\"fixedwidth\",\"columns\":{},\"width\":{},",
+                        "\"terminator\":\"{}\",\"bom_bytes\":{},\"mixed_terminators\":{},",
+                        "\"column_layout\":[{}]}}"
+                    ),
+                    layout.column_count(),
+                    layout.width,
+                    layout.terminator_name(),
+                    layout.bom_len,
+                    layout.mixed_terminators,
+                    cols.join(","),
+                ))
+            }
+        };
+        Ok(self.fixedwidth_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// A rectangular range `R1:C1:R2:C2` (0-based, inclusive).
+    fn fixedwidth_range(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let parts: Vec<&str> = spec.split(':').collect();
+        if parts.len() != 4 {
+            return Err(Error::usage(format!(
+                "fixedwidth-range {spec:?} must be R1:C1:R2:C2"
+            )));
+        }
+        let mut nums = [0u32; 4];
+        for (i, p) in parts.iter().enumerate() {
+            nums[i] = p.parse().map_err(|_| {
+                Error::usage(format!("fixedwidth-range component {p:?} is not a u32"))
+            })?;
+        }
+        let (r1, c1, r2, c2) = (nums[0], nums[1], nums[2], nums[3]);
+        if r1 > r2 || c1 > c2 {
+            return Err(Error::usage(format!(
+                "fixedwidth-range {spec:?} has an inverted rectangle"
+            )));
+        }
+        let rows = (r2 - r1 + 1) as u64;
+        let cols = (c2 - c1 + 1) as u64;
+        const MAX_RANGE_CELLS: u64 = 1 << 20;
+        if rows.saturating_mul(cols) > MAX_RANGE_CELLS {
+            return Err(Error::resource_limit(format!(
+                "fixedwidth-range {spec:?} covers more than {MAX_RANGE_CELLS} cells"
+            )));
+        }
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let mut out: Vec<String> = Vec::new();
+        for r in r1..=r2 {
+            let rec = fw_record_at(&source, &layout, r, self.limits)?;
+            for c in c1..=c2 {
+                match rec.fields.get(c as usize) {
+                    Some(f) => {
+                        let padded = fw_decode_field(&source, f)?;
+                        let trimmed = fw_trimmed_text(&source, f)?;
+                        out.push(format!(
+                            concat!(
+                                "{{\"row\":{},\"column\":{},",
+                                "\"span\":[{},{}],\"padded\":\"{}\",\"text\":\"{}\"}}"
+                            ),
+                            r,
+                            c,
+                            f.start,
+                            f.end,
+                            json_escape(&padded),
+                            json_escape(&trimmed),
+                        ));
+                    }
+                    None => {
+                        out.push(format!("{{\"row\":{r},\"column\":{c},\"present\":false}}"));
+                    }
+                }
+                if out.len() as u64 * 32 > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "fixedwidth-range exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+            }
+        }
+        let span = Some((0, source.len() as u64));
+        let provenance = format!("fixedwidth;range={spec};cells={}", out.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"range\":\"{}\",\"cells\":[{}]}}",
+            json_escape(spec),
+            out.join(",")
+        ));
+        Ok(self.fixedwidth_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// A bounded lexical search over decoded (trimmed) field text.
+    fn fixedwidth_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let matches = fw_find_matches(
+            &source,
+            &layout,
+            pattern,
+            self.limits,
+            req.budget.max_output_bytes,
+        )?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"record\":{},\"column\":{},",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.record,
+                m.column,
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("fixedwidth;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.fixedwidth_answer(req, value, provenance, None, vec![root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_fixedwidth(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.fixedwidth_common_metadata(req),
+            Selector::Text => self.fixedwidth_common_text(req),
+            Selector::Table(i) => {
+                if *i == 0 {
+                    self.fixedwidth_common_text(req)
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "fixed-width has a single table; table {i} does not exist"
+                    )))
+                }
+            }
+            Selector::Cell { table, row, col } => {
+                if *table == 0 {
+                    self.fixedwidth_cell(req, &format!("{row}:{col}"))
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "fixed-width has a single table; cell table {table} does not exist"
+                    )))
+                }
+            }
+            Selector::SearchMatch(p) => self.fixedwidth_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "fixed-width does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-table canonical text (exact content bytes, padding preserved,
+    /// terminators normalized to `\n`).
+    fn fixedwidth_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let text = fw_canonical_text(&source, &layout, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.fixedwidth_answer(
+            req,
+            AnswerValue::Text(text),
+            "fixedwidth;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// The whole-table structural metadata, computed from the canonical model so the
+    /// recovered layout, the column count, the terminator, the BOM, and the header are
+    /// all reported (declines typed when the table exceeds a build cap).
+    fn fixedwidth_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.fixedwidth_model()?;
+        let (source, root) = self.fixedwidth_source()?;
+        let rows = model.records.len();
+        let cols: Vec<String> = model
+            .layout
+            .columns
+            .iter()
+            .map(|c| {
+                format!(
+                    "{{\"start\":{},\"end\":{},\"width\":{}}}",
+                    c.start,
+                    c.end,
+                    c.width()
+                )
+            })
+            .collect();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"fixedwidth\",\"columns\":{},\"width\":{},",
+                "\"terminator\":\"{}\",\"bom_bytes\":{},",
+                "\"mixed_terminators\":{},\"header\":{},",
+                "\"rows\":{},\"ragged_records\":0,\"bytes\":{},",
+                "\"column_layout\":[{}]}}"
+            ),
+            model.column_count(),
+            model.layout.width,
+            model.layout.terminator_name(),
+            model.layout.bom_len,
+            model.layout.mixed_terminators,
+            model.has_header,
+            rows,
+            model.doc_len,
+            cols.join(","),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.fixedwidth_answer(
+            req,
+            value,
+            "fixedwidth;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

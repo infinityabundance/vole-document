@@ -126,6 +126,9 @@ const USAGE_FIELD: &str = "\
         --notebook-nbformat | --notebook-cell N | --notebook-cell-type N |
         --notebook-cell-source N | --notebook-cell-output N:M |
         --notebook-find PATTERN |
+        --fixedwidth-row N | --fixedwidth-cell R:C | --fixedwidth-header |
+        --fixedwidth-columns | --fixedwidth-range R1:C1:R2:C2 |
+        --fixedwidth-find PATTERN |
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
@@ -1763,6 +1766,28 @@ struct FieldArgs {
     /// and string values (Phase 21.24).
     #[cfg(feature = "notebook")]
     notebook_find: Option<String>,
+    /// `--fixedwidth-row N`: a fixed-width record by 0-based physical index (the
+    /// header row is index 0) (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_row: Option<u32>,
+    /// `--fixedwidth-cell R:C` or `--fixedwidth-cell R:COLNAME`: a fixed-width cell
+    /// (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_cell: Option<String>,
+    /// `--fixedwidth-header`: the fixed-width header row (record 0) (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_header: bool,
+    /// `--fixedwidth-columns`: the recovered fixed-width column layout (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_columns: bool,
+    /// `--fixedwidth-range R1:C1:R2:C2`: a fixed-width rectangular range of cells
+    /// (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_range: Option<String>,
+    /// `--fixedwidth-find PATTERN`: a lexical, case-sensitive search over fixed-width
+    /// field text (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_find: Option<String>,
     /// `--yaml-path PATH`: resolve a dotted YAML path (optional leading `docN`),
     /// returning the node's kind/style, exact source span, and exact token bytes
     /// (Phase 21.6.1).
@@ -2531,6 +2556,38 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "notebook")]
             "--notebook-find" => {
                 out.notebook_find = Some(field_arg_value(args, &mut i, "--notebook-find", inline)?);
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-row" => {
+                out.fixedwidth_row = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--fixedwidth-row", inline)?,
+                    "--fixedwidth-row",
+                )?);
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-cell" => {
+                out.fixedwidth_cell =
+                    Some(field_arg_value(args, &mut i, "--fixedwidth-cell", inline)?);
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-header" => {
+                out.fixedwidth_header = true;
+                i += 1;
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-columns" => {
+                out.fixedwidth_columns = true;
+                i += 1;
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-range" => {
+                out.fixedwidth_range =
+                    Some(field_arg_value(args, &mut i, "--fixedwidth-range", inline)?);
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-find" => {
+                out.fixedwidth_find =
+                    Some(field_arg_value(args, &mut i, "--fixedwidth-find", inline)?);
             }
             #[cfg(feature = "yaml")]
             "--yaml-path" => {
@@ -3371,6 +3428,33 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.notebook_find {
             chosen.push(Selector::NotebookFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Fixed-width: `--fixedwidth-row`/`--fixedwidth-cell`/`--fixedwidth-range` address
+    // records, cells, and rectangles; `--fixedwidth-header` is the header row;
+    // `--fixedwidth-columns` the recovered layout; `--fixedwidth-find` a lexical
+    // search. Each stands alone (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    {
+        if let Some(index) = out.fixedwidth_row {
+            chosen.push(Selector::FixedWidthRow { index });
+        }
+        if let Some(spec) = &out.fixedwidth_cell {
+            chosen.push(Selector::FixedWidthCell { spec: spec.clone() });
+        }
+        if out.fixedwidth_header {
+            chosen.push(Selector::FixedWidthHeader);
+        }
+        if out.fixedwidth_columns {
+            chosen.push(Selector::FixedWidthColumns);
+        }
+        if let Some(spec) = &out.fixedwidth_range {
+            chosen.push(Selector::FixedWidthRange { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.fixedwidth_find {
+            chosen.push(Selector::FixedWidthFind {
                 pattern: pattern.clone(),
             });
         }

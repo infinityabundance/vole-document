@@ -672,6 +672,29 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.24).
     pub max_notebook_document_bytes: u64,
+    // The fixed-width (column-position) caps below bound the derived, span-preserving
+    // fixed-width table model and its selective reads (Phase 21.25). Fixed-width is not
+    // a package: the whole source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum records (lines, including the header) accepted in one fixed-width table.
+    /// A larger table declines typed rather than allocating (Phase 21.25).
+    pub max_fixedwidth_rows: u32,
+    /// Maximum columns accepted in a fixed-width table. A table above this bound is a
+    /// typed resource-limit decline, never an allocation (Phase 21.25).
+    pub max_fixedwidth_cols: u32,
+    /// Maximum byte length of a single fixed-width record (content, terminator
+    /// excluded); a longer record declines typed (Phase 21.25).
+    pub max_fixedwidth_record_bytes: u32,
+    /// Maximum byte length of a single fixed-width field (padding included); a longer
+    /// field declines typed (Phase 21.25).
+    pub max_fixedwidth_field_bytes: u32,
+    /// Maximum source length admitted for byte-based fixed-width detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.25).
+    pub max_fixedwidth_document_bytes: u64,
+    /// Maximum records sampled when deciding whether a source is a fixed-width table.
+    /// Detection is a bounded sample, so a huge source is classified in bounded
+    /// memory (Phase 21.25).
+    pub max_fixedwidth_sampled_lines_for_detection: u32,
 }
 
 impl Limits {
@@ -871,6 +894,12 @@ impl Limits {
         max_notebook_depth: 256,
         max_notebook_source_bytes: 1 << 28,
         max_notebook_document_bytes: 1 << 34,
+        max_fixedwidth_rows: 1 << 24,
+        max_fixedwidth_cols: 1 << 16,
+        max_fixedwidth_record_bytes: 1 << 26,
+        max_fixedwidth_field_bytes: 1 << 24,
+        max_fixedwidth_document_bytes: 1 << 34,
+        max_fixedwidth_sampled_lines_for_detection: 1024,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1069,6 +1098,12 @@ impl Limits {
         max_notebook_depth: 64,
         max_notebook_source_bytes: 1 << 20,
         max_notebook_document_bytes: 1 << 26,
+        max_fixedwidth_rows: 1 << 16,
+        max_fixedwidth_cols: 1 << 12,
+        max_fixedwidth_record_bytes: 1 << 20,
+        max_fixedwidth_field_bytes: 1 << 18,
+        max_fixedwidth_document_bytes: 1 << 26,
+        max_fixedwidth_sampled_lines_for_detection: 64,
     };
 }
 

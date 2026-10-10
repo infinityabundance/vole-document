@@ -366,6 +366,18 @@ pub const SEL_GIS_MODEL: u8 = 36;
 /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a notebook has no
 /// package layer. Derived, never exact.
 pub const SEL_NOTEBOOK_MODEL: u8 = 37;
+/// Selector kind: the canonical fixed-width (column-position) model (Phase 21.25).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed into a bounded, representation-preserving fixed-width table
+/// — the recorded inferred layout (per-column start/end positions and widths, the
+/// uniform record width, the line terminator, a BOM, and mixed-terminator fact), the
+/// optional header row (record 0), and every record's exact content span and
+/// per-column field spans (padding preserved) — as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a fixed-width
+/// document has no package layer. Derived, never exact.
+pub const SEL_FIXEDWIDTH_MODEL: u8 = 38;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

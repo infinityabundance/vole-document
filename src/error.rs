@@ -142,6 +142,13 @@ pub enum ErrorClass {
     /// objects with a string `output_type`), or a non-object root `metadata` — so it stays
     /// `Json`/`Opaque` rather than being claimed.
     InvalidNotebookStructure,
+    /// A fixed-width structure error (Phase 21.25+): a source that carries no strong
+    /// fixed-width signal (fewer than the minimum sampled records, records that do not
+    /// share an identical byte width, fewer than two non-empty columns, or an interior
+    /// column gap narrower than the minimum), or a document whose later records
+    /// disagree with the sampled layout — so it stays `Opaque` rather than being
+    /// claimed.
+    InvalidFixedWidthStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -187,6 +194,7 @@ impl ErrorClass {
             ErrorClass::InvalidGeojsonStructure => 36,
             ErrorClass::InvalidGisStructure => 37,
             ErrorClass::InvalidNotebookStructure => 38,
+            ErrorClass::InvalidFixedWidthStructure => 39,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -231,6 +239,7 @@ impl ErrorClass {
             ErrorClass::InvalidGeojsonStructure => "InvalidGeojsonStructure",
             ErrorClass::InvalidGisStructure => "InvalidGisStructure",
             ErrorClass::InvalidNotebookStructure => "InvalidNotebookStructure",
+            ErrorClass::InvalidFixedWidthStructure => "InvalidFixedWidthStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -329,6 +338,7 @@ impl Error {
     ctor!(invalid_geojson_structure, InvalidGeojsonStructure);
     ctor!(invalid_gis_structure, InvalidGisStructure);
     ctor!(invalid_notebook_structure, InvalidNotebookStructure);
+    ctor!(invalid_fixedwidth_structure, InvalidFixedWidthStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

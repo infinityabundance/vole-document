@@ -579,6 +579,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_notebook_depth: 1 << 20,
         max_notebook_source_bytes: 1 << 50,
         max_notebook_document_bytes: 1 << 50,
+        max_fixedwidth_rows: 1 << 30,
+        max_fixedwidth_cols: 1 << 24,
+        max_fixedwidth_record_bytes: 1 << 30,
+        max_fixedwidth_field_bytes: 1 << 30,
+        max_fixedwidth_document_bytes: 1 << 50,
+        max_fixedwidth_sampled_lines_for_detection: 1 << 20,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

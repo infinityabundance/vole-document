@@ -354,6 +354,16 @@ pub enum NodeKind {
     /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
     /// a notebook has no package layer. Derived, never exact.
     NotebookModel = 0x39,
+    /// The canonical, representation-preserving fixed-width (column-position) model
+    /// (Phase 21.25): the whole source parsed into a bounded table whose columns are
+    /// defined by **character positions** (not a delimiter). It records the inferred
+    /// layout (per-column start/end positions and widths, the uniform record width, the
+    /// line terminator, a BOM, and the mixed-terminator fact), the optional header row
+    /// (record 0), and every record's exact content span and per-column field spans
+    /// (padding preserved). It is computed on demand from the exact source (its single
+    /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+    /// a fixed-width document has no package layer. Derived, never exact.
+    FixedWidthModel = 0x3A,
 }
 
 impl NodeKind {
@@ -417,6 +427,7 @@ impl NodeKind {
             0x37 => NodeKind::GeojsonModel,
             0x38 => NodeKind::GisModel,
             0x39 => NodeKind::NotebookModel,
+            0x3A => NodeKind::FixedWidthModel,
             _ => return None,
         })
     }
@@ -481,6 +492,7 @@ impl NodeKind {
             NodeKind::GeojsonModel => "GeojsonModel",
             NodeKind::GisModel => "GisModel",
             NodeKind::NotebookModel => "NotebookModel",
+            NodeKind::FixedWidthModel => "FixedWidthModel",
         }
     }
 
