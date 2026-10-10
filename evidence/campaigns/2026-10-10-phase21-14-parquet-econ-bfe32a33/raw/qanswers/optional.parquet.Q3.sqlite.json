@@ -1,0 +1,1 @@
+{"decline": {"code": "not-retained", "detail": "SQLite has no Parquet reader: a column chunk's exact source span/statistics are not retained"}, "declined": true, "detail": {}, "lane": "sqlite", "native": false, "q": "Q3", "value": null}

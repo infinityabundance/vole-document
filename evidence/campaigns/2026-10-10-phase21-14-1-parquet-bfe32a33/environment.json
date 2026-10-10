@@ -1,0 +1,20 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-14-1-parquet-bfe32a33",
+  "phase": "21.14.1 — Parquet analytical surface + exact closure",
+  "utc": "2026-10-10T14:42:35Z",
+  "git_commit": "bfe32a33142fd4b696bf3591d18bf37da7a6c509",
+  "git_dirty": "?? evidence/campaigns/2026-10-10-phase21-14-1-parquet-bfe32a33/ ",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python3": "Python 3.11.2",
+  "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+  "cargo_lock_sha256": "7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "3181149fa43e495858bf88fd7173f2b660f86654105805d9a174f92a36e5b840",
+  "profile": "debug",
+  "fixtures_tool": "tools/fixtures/make-parquet.py",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

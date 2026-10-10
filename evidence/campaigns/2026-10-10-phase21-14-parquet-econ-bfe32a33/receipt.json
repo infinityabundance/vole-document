@@ -1,0 +1,20 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-14-parquet-econ-bfe32a33",
+  "phase": "21.14 — Parquet analytical economic court",
+  "utc": "2026-10-10T14:43:03Z",
+  "measured_commit": "bfe32a33142fd4b696bf3591d18bf37da7a6c509",
+  "tree_state": "?? evidence/campaigns/2026-10-10-phase21-14-1-parquet-bfe32a33/ ?? evidence/campaigns/2026-10-10-phase21-14-parquet-econ-bfe32a33/ ",
+  "service": "analytical",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "b07481f701a1ae446d61468de63ca55b4f3ee411ad66921ec26049a1e025576d",
+  "duckdb_version": "1.5.6",
+  "lanes": ["vole", "sqlite", "duckdb"],
+  "questions": {"Q1": "column values", "Q2": "predicate count", "Q3": "chunk span + min/max statistics", "Q4": "row-group count", "Q5": "lexical find count", "Q6": "exact closure"},
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "exact_ok": 7,
+  "exact_n": 7,
+  "verdict_rule": "FAIL only if VOLE exactness is not 100% (or a cross-lane mismatch is recorded)",
+  "honest_scope": "self-authored corpus; only Q6 is a byte-authority claim; DuckDB wins the analytical axes",
+  "verdict": "PASS"
+}
