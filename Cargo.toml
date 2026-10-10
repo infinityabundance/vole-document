@@ -342,6 +342,24 @@ html = []
 # enabling it never changes `.voldoc` bytes and exactness is untouched.
 # Dependency-free (`toml = []`) and never in `default`.
 toml = []
+# Phase 21.12: the JSONL / NDJSON adapter — the **line/event stream** Wave-2 format.
+# Like the other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact
+# leaf is the whole source (a `DocumentExact`, RAW-like authority) and every derived
+# observation is a bounded, span-preserving (`Q_gen`) projection of it. It reuses
+# the existing JSON parser **per line** (never a second JSON parser): the source is
+# split into physical lines, and each non-blank line must parse as exactly one JSON
+# value, so every record keeps its **exact source span** and its parse — numeric and
+# escape spelling, member order, duplicate keys, and exact token spans within the
+# line are all preserved. Blank lines, a trailing newline, and CRLF terminators are
+# handled and reported. Detection is conservative and distinguishable from a single
+# JSON value: the source must carry **at least two** non-blank lines and **every**
+# non-blank line must parse as exactly one JSON value; a single-value file stays
+# `Json`, and a malformed or non-newline-separated bag of values stays `Opaque`. It
+# adds **no** decoder behavior: the JSONL model is never on the exactness path, so
+# enabling it never changes `.voldoc` bytes and exactness is untouched.
+# Dependency-free (`jsonl` pulls no external crate) and never in `default`; it
+# reuses the JSON adapter per line, so it implies `json`.
+jsonl = ["json"]
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

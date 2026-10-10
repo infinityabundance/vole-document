@@ -156,6 +156,13 @@ pub enum DocumentFormat {
     /// duplicate-key/redefinition rules are enforced (a violation is a typed
     /// decline) (Phase 21.11).
     Toml,
+    /// A JSONL / NDJSON line/event stream (the source carries at least two non-blank
+    /// lines and **every** non-blank line parses as exactly one JSON value under the
+    /// caps, each line parsed by the shared JSON parser). Not a package: the exact
+    /// leaf is the whole source, and every record's exact line span, terminator, and
+    /// per-token spans are `Q_gen` projections. A single JSON value stays
+    /// [`DocumentFormat::Json`] (Phase 21.12).
+    Jsonl,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -179,6 +186,7 @@ impl DocumentFormat {
             DocumentFormat::Xml => "xml",
             DocumentFormat::Html => "html",
             DocumentFormat::Toml => "toml",
+            DocumentFormat::Jsonl => "jsonl",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -201,6 +209,7 @@ impl DocumentFormat {
             DocumentFormat::Xml => "xml",
             DocumentFormat::Html => "html",
             DocumentFormat::Toml => "toml",
+            DocumentFormat::Jsonl => "jsonl",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -223,6 +232,7 @@ impl DocumentFormat {
             DocumentFormat::Xml => cfg!(feature = "xml"),
             DocumentFormat::Html => cfg!(feature = "html"),
             DocumentFormat::Toml => cfg!(feature = "toml"),
+            DocumentFormat::Jsonl => cfg!(feature = "jsonl"),
         }
     }
 
@@ -255,6 +265,7 @@ impl DocumentFormat {
             "xml" => Some(DocumentFormat::Xml),
             "html" => Some(DocumentFormat::Html),
             "toml" => Some(DocumentFormat::Toml),
+            "jsonl" => Some(DocumentFormat::Jsonl),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -282,6 +293,20 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "json")]
     if crate::adapter::json::detect(source, limits) {
         return DocumentFormat::Json;
+    }
+    // JSONL/NDJSON is the **line/event-stream** Wave-2 format (Phase 21.12), also
+    // with no package layer. It is tried **immediately after JSON** because it is the
+    // most specific signal for a newline-separated JSON stream: each non-blank line
+    // must parse as exactly one JSON value, which is stricter than — and must run
+    // before — the YAML stream reader (which would otherwise be free to reinterpret a
+    // line-delimited JSON stream as a stream of documents). Detection is
+    // conservative: at least two non-blank lines are required and every non-blank
+    // line must parse as exactly one JSON value under the caps, so a single JSON
+    // value, a malformed line, and a bag of values with a non-newline separator all
+    // stay `Opaque`.
+    #[cfg(feature = "jsonl")]
+    if crate::adapter::jsonl::detect(source, limits) {
+        return DocumentFormat::Jsonl;
     }
     // YAML is the second Wave-2 structured-tree format (Phase 21.6.1), also with
     // **no** package layer. It is detected directly and conservatively: the whole
@@ -550,6 +575,7 @@ mod tests {
             DocumentFormat::Xml,
             DocumentFormat::Html,
             DocumentFormat::Toml,
+            DocumentFormat::Jsonl,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

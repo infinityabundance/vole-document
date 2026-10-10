@@ -79,6 +79,10 @@ pub enum ErrorClass {
     /// string/array/inline table, an invalid number or escape, or a violation of
     /// TOML's duplicate-key/redefinition rules (which this adapter **enforces**).
     InvalidTomlStructure,
+    /// A JSONL/NDJSON structure error (Phase 21.12+): a non-blank line that is not
+    /// exactly one JSON value, too few record lines to distinguish the source from a
+    /// single JSON value, or a non-newline-separated bag of JSON values.
+    InvalidJsonlStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -112,6 +116,7 @@ impl ErrorClass {
             ErrorClass::InvalidMarkdownStructure => 24,
             ErrorClass::InvalidHtmlStructure => 25,
             ErrorClass::InvalidTomlStructure => 26,
+            ErrorClass::InvalidJsonlStructure => 27,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -144,6 +149,7 @@ impl ErrorClass {
             ErrorClass::InvalidMarkdownStructure => "InvalidMarkdownStructure",
             ErrorClass::InvalidHtmlStructure => "InvalidHtmlStructure",
             ErrorClass::InvalidTomlStructure => "InvalidTomlStructure",
+            ErrorClass::InvalidJsonlStructure => "InvalidJsonlStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -230,6 +236,7 @@ impl Error {
     ctor!(invalid_markdown_structure, InvalidMarkdownStructure);
     ctor!(invalid_html_structure, InvalidHtmlStructure);
     ctor!(invalid_toml_structure, InvalidTomlStructure);
+    ctor!(invalid_jsonl_structure, InvalidJsonlStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

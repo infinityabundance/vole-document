@@ -506,6 +506,10 @@ fn limits_never_change_reconstructed_bytes() {
         max_toml_keys: 1 << 30,
         max_toml_string_bytes: 1 << 50,
         max_toml_document_bytes: 1 << 50,
+        max_jsonl_records: 1 << 30,
+        max_jsonl_line_bytes: 1 << 50,
+        max_jsonl_nodes: 1 << 30,
+        max_jsonl_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

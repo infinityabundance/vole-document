@@ -395,6 +395,26 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.11).
     pub max_toml_document_bytes: u64,
+    // The JSONL/NDJSON caps below bound the derived, per-line span-preserving model
+    // (Phase 21.12). JSONL is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen` only. Each non-blank line is parsed by the
+    // shared JSON parser (never a second parser), so a line is bounded by the JSON
+    // depth cap as well.
+    /// Maximum non-blank record lines accepted in one JSONL document. A larger
+    /// document declines typed rather than allocating (Phase 21.12).
+    pub max_jsonl_records: u32,
+    /// Maximum byte length of one record line's JSON text (the terminator
+    /// excluded). A longer line declines typed (Phase 21.12).
+    pub max_jsonl_line_bytes: u64,
+    /// Maximum total JSON nodes (values plus object member keys) accepted across
+    /// **all** records of one JSONL document. This is a whole-document budget (a
+    /// single line is additionally bounded by the JSON node cap); an over-large
+    /// document declines typed rather than allocating (Phase 21.12).
+    pub max_jsonl_nodes: u32,
+    /// Maximum source length admitted for byte-based JSONL detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.12).
+    pub max_jsonl_document_bytes: u64,
 }
 
 impl Limits {
@@ -521,6 +541,10 @@ impl Limits {
         max_toml_keys: 1 << 22,
         max_toml_string_bytes: 1 << 28,
         max_toml_document_bytes: 1 << 34,
+        max_jsonl_records: 1 << 22,
+        max_jsonl_line_bytes: 1 << 26,
+        max_jsonl_nodes: 1 << 24,
+        max_jsonl_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -646,6 +670,10 @@ impl Limits {
         max_toml_keys: 1 << 14,
         max_toml_string_bytes: 1 << 20,
         max_toml_document_bytes: 1 << 26,
+        max_jsonl_records: 1 << 12,
+        max_jsonl_line_bytes: 1 << 20,
+        max_jsonl_nodes: 1 << 16,
+        max_jsonl_document_bytes: 1 << 26,
     };
 }
 

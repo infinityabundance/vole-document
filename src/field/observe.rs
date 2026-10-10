@@ -61,6 +61,13 @@ use crate::adapter::json::{
     kind_name as json_kind_name, resolve_pointer as json_resolve_pointer,
     token_bytes as json_token_bytes,
 };
+#[cfg(feature = "jsonl")]
+use crate::adapter::jsonl::{
+    JsonlModel, canonical_text as jsonl_canonical_text, find as jsonl_find_matches,
+    parse_record_ref as jsonl_parse_record_ref,
+    resolve_record_pointer as jsonl_resolve_record_pointer,
+    terminator_name as jsonl_terminator_name, value_bytes as jsonl_value_bytes,
+};
 #[cfg(feature = "markdown")]
 use crate::adapter::markdown::{
     B_BLOCKQUOTE, B_FOOTNOTE_DEF, B_FRONT_MATTER, B_HEADING, B_LIST_ITEM, B_PARAGRAPH, B_REF_DEF,
@@ -132,6 +139,8 @@ use crate::field::index::SEL_EPUB_MODEL;
 use crate::field::index::SEL_HTML_MODEL;
 #[cfg(feature = "json")]
 use crate::field::index::SEL_JSON_MODEL;
+#[cfg(feature = "jsonl")]
+use crate::field::index::SEL_JSONL_MODEL;
 #[cfg(feature = "markdown")]
 use crate::field::index::SEL_MARKDOWN_MODEL;
 #[cfg(feature = "odp")]
@@ -904,6 +913,31 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The `index`-th JSONL record (0-based, blank lines do not count) (Phase
+    /// 21.12): its kind, its **exact line span** and terminator, and its value's
+    /// exact source span; `ExactBytes` returns the value's exact token bytes. JSONL
+    /// has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "jsonl")]
+    JsonlLine {
+        /// The 0-based record index (blank lines do not count).
+        index: u32,
+    },
+    /// A JSONL node addressed as `N:POINTER` (`N` is a 0-based record index; the
+    /// remainder is an RFC 6901 pointer into record `N`, and `N` alone addresses
+    /// the whole record value) (Phase 21.12). Same addressing as a JSON pointer,
+    /// scoped to one record.
+    #[cfg(feature = "jsonl")]
+    JsonlPointer {
+        /// The `N:POINTER` reference.
+        spec: String,
+    },
+    /// A lexical, case-sensitive search over **every** JSONL record's object keys
+    /// and string values (Phase 21.12). Never an embedding or a model call.
+    #[cfg(feature = "jsonl")]
+    JsonlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
 }
 
 impl Selector {
@@ -1238,6 +1272,12 @@ impl Selector {
             Selector::TomlTable { path } => format!("toml-table:{path}"),
             #[cfg(feature = "toml")]
             Selector::TomlFind { pattern } => format!("toml-find:{pattern}"),
+            #[cfg(feature = "jsonl")]
+            Selector::JsonlLine { index } => format!("jsonl-line:{index}"),
+            #[cfg(feature = "jsonl")]
+            Selector::JsonlPointer { spec } => format!("jsonl-pointer:{spec}"),
+            #[cfg(feature = "jsonl")]
+            Selector::JsonlFind { pattern } => format!("jsonl-find:{pattern}"),
         }
     }
 
@@ -3135,6 +3175,20 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "toml")]
             (Selector::TomlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.toml_find(req, pattern)
+            }
+            #[cfg(feature = "jsonl")]
+            (
+                Selector::JsonlLine { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.jsonl_line(req, *index),
+            #[cfg(feature = "jsonl")]
+            (
+                Selector::JsonlPointer { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.jsonl_pointer(req, spec),
+            #[cfg(feature = "jsonl")]
+            (Selector::JsonlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.jsonl_find(req, pattern)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -8332,6 +8386,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Jsonl => {
+                #[cfg(feature = "jsonl")]
+                {
+                    self.common_jsonl(req)?
+                }
+                #[cfg(not(feature = "jsonl"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "JSONL support is not compiled in (feature `jsonl`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -9669,6 +9735,291 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "json;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// JSONL observations (Phase 21.12)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "jsonl")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the per-line JSONL model (derived, `Q_gen`).
+    fn jsonl_model(&mut self) -> Result<(JsonlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_JSONL_MODEL, 0), "JSONL model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((JsonlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn jsonl_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn jsonl_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th record (0-based; blank lines do not count). `ExactBytes`
+    /// returns the value's exact token bytes; `Text` the decoded string (or the
+    /// canonical subtree for a container/scalar); `Metadata`/`Structure` a JSON
+    /// descriptor with the exact line span, terminator, and value span.
+    fn jsonl_line(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.jsonl_model()?;
+        let (source, root) = self.jsonl_source()?;
+        let rec = model.record(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "JSONL record {index} is out of range (record count {})",
+                model.records.len()
+            ))
+        })?;
+        let node = rec.value_node()?.clone();
+        let (vs, ve) = (node.start, node.end);
+        let span = Some((vs, ve));
+        let provenance = format!(
+            "jsonl;line={index};record={index};line_number={};kind={};terminator={}",
+            rec.line_number,
+            json_kind_name(node.kind),
+            jsonl_terminator_name(rec.terminator)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(jsonl_value_bytes(&source, rec)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(Self::json_node_text(
+                &rec.model,
+                &source,
+                rec.model.root,
+                &node,
+            )?),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"record\":{},\"line\":{},\"terminator\":\"{}\",",
+                    "\"line_span\":[{},{}],\"value_span\":[{},{}],",
+                    "\"line_bytes\":{},\"kind\":\"{}\",\"top_type\":\"{}\"}}"
+                ),
+                index,
+                rec.line_number,
+                jsonl_terminator_name(rec.terminator),
+                rec.line_start,
+                rec.line_end,
+                vs,
+                ve,
+                rec.line_end - rec.line_start,
+                json_kind_name(node.kind),
+                json_kind_name(rec.model.top_type),
+            )),
+        };
+        Ok(self.jsonl_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// Resolve an `N:POINTER` reference into record `N` and answer per
+    /// representation (mirroring [`Self::jsonl_line`]). `ExactBytes` returns the
+    /// node's exact token bytes; `Text` the decoded/canonical text; `Metadata`/
+    /// `Structure` a JSON descriptor with the kind, span, and match count.
+    fn jsonl_pointer(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.jsonl_model()?;
+        let (source, root) = self.jsonl_source()?;
+        let r = jsonl_resolve_record_pointer(&model, &source, spec)?;
+        let rec = model
+            .record(r.record)
+            .ok_or_else(|| Error::internal_invariant("JSONL pointer resolved out of range"))?;
+        let node = rec
+            .model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("JSONL pointer node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let (_n, pointer) = jsonl_parse_record_ref(spec)?;
+        let provenance = format!(
+            "jsonl;pointer={spec};record={};kind={};matches={}",
+            r.record,
+            json_kind_name(node.kind),
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(json_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::json_node_text(&rec.model, &source, r.index, &node)?)
+            }
+            _ => {
+                let token = String::from_utf8_lossy(json_token_bytes(&source, &node)?).into_owned();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"record\":{},\"pointer\":\"{}\",\"kind\":\"{}\",",
+                        "\"span\":[{},{}],\"matches\":{},\"token\":\"{}\"}}"
+                    ),
+                    r.record,
+                    json_escape(pointer),
+                    json_kind_name(node.kind),
+                    node.start,
+                    node.end,
+                    r.matches,
+                    json_escape(&token),
+                ))
+            }
+        };
+        Ok(self.jsonl_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search across every record's keys and string values; each
+    /// match reports its record index, within-record pointer, role, and exact span.
+    fn jsonl_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.jsonl_model()?;
+        let (source, root) = self.jsonl_source()?;
+        let matches = jsonl_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "JSONL find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"record\":{},\"pointer\":\"{}\",\"role\":\"{}\",",
+                    "\"kind\":\"string\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.record,
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("jsonl;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.jsonl_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_jsonl(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.jsonl_common_metadata(req),
+            Selector::Text => self.jsonl_common_text(req),
+            Selector::SearchMatch(p) => self.jsonl_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "JSONL does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn jsonl_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.jsonl_model()?;
+        let (source, root) = self.jsonl_source()?;
+        let text = jsonl_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.jsonl_answer(
+            req,
+            AnswerValue::Text(text),
+            "jsonl;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn jsonl_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.jsonl_model()?;
+        let (source, root) = self.jsonl_source()?;
+        let mut nodes = 0u64;
+        let mut members = 0u64;
+        let mut arrays = 0u64;
+        let mut elements = 0u64;
+        let mut dup_keys = 0u64;
+        let mut objects = 0u64;
+        for rec in &model.records {
+            nodes += rec.model.nodes.len() as u64;
+            for n in &rec.model.nodes {
+                if n.kind == crate::adapter::json::K_OBJECT {
+                    objects += 1;
+                    let mut seen: Vec<String> = Vec::new();
+                    let mut i = 0usize;
+                    while i + 1 < n.children.len() {
+                        members += 1;
+                        if let Some(k) = rec.model.node(n.children[i])
+                            && let Ok(s) = json_decode_string(&source, k)
+                        {
+                            if seen.contains(&s) {
+                                dup_keys += 1;
+                            } else {
+                                seen.push(s);
+                            }
+                        }
+                        i += 2;
+                    }
+                } else if n.kind == crate::adapter::json::K_ARRAY {
+                    arrays += 1;
+                    elements += n.children.len() as u64;
+                }
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"jsonl\",\"records\":{},\"blank_lines\":{},",
+                "\"crlf_records\":{},\"trailing_newline\":{},",
+                "\"nodes\":{},\"max_depth\":{},\"bytes\":{},",
+                "\"objects\":{},\"members\":{},\"arrays\":{},\"array_elements\":{},",
+                "\"duplicate_keys\":{},\"total_line_bytes\":{},",
+                "\"min_line_bytes\":{},\"max_line_bytes\":{}}}"
+            ),
+            model.records.len(),
+            model.blank_lines,
+            model.crlf_records,
+            model.trailing_newline,
+            nodes,
+            model.max_depth,
+            model.doc_len,
+            objects,
+            members,
+            arrays,
+            elements,
+            dup_keys,
+            model.total_line_bytes,
+            model.min_line_bytes,
+            model.max_line_bytes,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.jsonl_answer(
+            req,
+            value,
+            "jsonl;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

@@ -225,6 +225,14 @@ pub enum NodeKind {
     /// `sha256(source)` per ADR-0060). TOML has no package layer. Derived, never
     /// exact.
     TomlModel = 0x2D,
+    /// The canonical, per-line JSONL/NDJSON model (Phase 21.12): every non-blank
+    /// record's **exact source line span** and terminator, and its parse by the
+    /// shared JSON parser (so each record's member order, duplicate keys, numeric
+    /// and escape spelling, and exact token spans are preserved). It is derived on
+    /// demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060). JSONL has no package layer.
+    /// Derived, never exact.
+    JsonlModel = 0x2E,
 }
 
 impl NodeKind {
@@ -276,6 +284,7 @@ impl NodeKind {
             0x2B => NodeKind::XmlModel,
             0x2C => NodeKind::HtmlModel,
             0x2D => NodeKind::TomlModel,
+            0x2E => NodeKind::JsonlModel,
             _ => return None,
         })
     }
@@ -328,6 +337,7 @@ impl NodeKind {
             NodeKind::XmlModel => "XmlModel",
             NodeKind::HtmlModel => "HtmlModel",
             NodeKind::TomlModel => "TomlModel",
+            NodeKind::JsonlModel => "JsonlModel",
         }
     }
 

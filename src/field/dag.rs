@@ -1161,6 +1161,39 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::JsonlModel => {
+            // The canonical per-line JSONL model is derived on demand from the exact
+            // source. JSONL has no package layer, so its single dependency is the
+            // exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the
+            // model node *reads the source bytes*, so it must carry a source-identity
+            // input, never alias another field's source. Parsing and all bounds live
+            // in `adapter::jsonl` (which reuses `adapter::json` per line).
+            #[cfg(feature = "jsonl")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("JsonlModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::jsonl::build_jsonl_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "jsonl"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "JSONL support is not compiled in (feature `jsonl`)",
+                ));
+            }
+        }
         NodeKind::XlsxModel => {
             // The canonical XLSX (SpreadsheetML) discovery model is derived on
             // demand from the canonical OPC model (the single dependency). XML

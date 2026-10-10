@@ -119,7 +119,8 @@ const USAGE_FIELD: &str = "\
         --xml-path P | --xml-element P | --xml-attr PATH@NAME |
         --xml-namespaces | --xml-find PATTERN |
         --html-path P | --html-element P | --html-attr PATH@NAME |
-        --html-scripts | --html-find PATTERN) --kind metadata|text|structure|operators|
+        --html-scripts | --html-find PATTERN |
+        --jsonl-line N | --jsonl-pointer N:POINTER | --jsonl-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1701,6 +1702,19 @@ struct FieldArgs {
     /// values (Phase 21.11).
     #[cfg(feature = "toml")]
     toml_find: Option<String>,
+    /// `--jsonl-line N`: the N-th JSONL record (0-based; blank lines do not count),
+    /// returning its kind, exact line span, terminator, and exact value bytes
+    /// (Phase 21.12).
+    #[cfg(feature = "jsonl")]
+    jsonl_line: Option<u32>,
+    /// `--jsonl-pointer N:POINTER`: resolve an RFC 6901 pointer into record `N`
+    /// (Phase 21.12).
+    #[cfg(feature = "jsonl")]
+    jsonl_pointer: Option<String>,
+    /// `--jsonl-find`: a lexical, case-sensitive search over every JSONL record's
+    /// keys and string values (Phase 21.12).
+    #[cfg(feature = "jsonl")]
+    jsonl_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -2240,6 +2254,19 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--toml-find" => {
                 out.toml_find = Some(field_arg_value(args, &mut i, "--toml-find", inline)?);
             }
+            #[cfg(feature = "jsonl")]
+            "--jsonl-line" => {
+                let v = field_arg_value(args, &mut i, "--jsonl-line", inline)?;
+                out.jsonl_line = Some(parse_field_u32(&v, "--jsonl-line")?);
+            }
+            #[cfg(feature = "jsonl")]
+            "--jsonl-pointer" => {
+                out.jsonl_pointer = Some(field_arg_value(args, &mut i, "--jsonl-pointer", inline)?);
+            }
+            #[cfg(feature = "jsonl")]
+            "--jsonl-find" => {
+                out.jsonl_find = Some(field_arg_value(args, &mut i, "--jsonl-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2727,6 +2754,23 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.toml_find {
             chosen.push(Selector::TomlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // JSONL: `--jsonl-line` addresses a record by 0-based index; `--jsonl-pointer`
+    // addresses a node as `N:POINTER`; `--jsonl-find` is a lexical search. Each
+    // stands alone (Phase 21.12).
+    #[cfg(feature = "jsonl")]
+    {
+        if let Some(index) = out.jsonl_line {
+            chosen.push(Selector::JsonlLine { index });
+        }
+        if let Some(spec) = &out.jsonl_pointer {
+            chosen.push(Selector::JsonlPointer { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.jsonl_find {
+            chosen.push(Selector::JsonlFind {
                 pattern: pattern.clone(),
             });
         }

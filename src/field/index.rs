@@ -224,6 +224,16 @@ pub const SEL_HTML_MODEL: u8 = 24;
 /// source (its single dependency is the `DocumentExact` root, keyed by
 /// `sha256(source)` per ADR-0060); TOML has no package layer.
 pub const SEL_TOML_MODEL: u8 = 25;
+/// Selector kind: the canonical per-line JSONL/NDJSON model (Phase 21.12).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source split into physical lines, each non-blank line parsed by the shared
+/// JSON parser into a bounded, representation-preserving record (exact line span and
+/// terminator, member order, duplicate keys, token spelling and spans) as `Q_gen`
+/// derived state. It is computed on demand from the exact source (its single
+/// dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+/// ADR-0060); JSONL has no package layer. Derived, never exact.
+pub const SEL_JSONL_MODEL: u8 = 26;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

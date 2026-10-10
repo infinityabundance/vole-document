@@ -1,0 +1,7 @@
+[1,2,3]
+[true,false,null]
+"a string"
+42
+-0
+1.5e-3
+{"nested":{"deep":[{"x":1},{"y":2}]}}

@@ -437,6 +437,16 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["JsonModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-nodes", "whole-document"]),
         }),
+        #[cfg(feature = "jsonl")]
+        (Selector::JsonlLine { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::JsonlPointer { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::JsonlFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["JsonlModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-records", "whole-document"]),
+        }),
         #[cfg(feature = "yaml")]
         (Selector::YamlPath { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
         | (Selector::YamlNode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
@@ -581,6 +591,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Xml => &["XmlModel", "DocumentExact"],
         DocumentFormat::Html => &["HtmlModel", "DocumentExact"],
         DocumentFormat::Toml => &["TomlModel", "DocumentExact"],
+        DocumentFormat::Jsonl => &["JsonlModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }
