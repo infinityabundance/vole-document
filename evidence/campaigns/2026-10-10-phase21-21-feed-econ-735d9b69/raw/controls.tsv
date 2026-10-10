@@ -1,0 +1,5 @@
+fixture	expect_fmt	fmt	expect_rc	rc	common_rc	own_rc	foreign_rc	ok
+malformed.xml	opaque	opaque	6	6	6	6	6	true
+notfeed.xml	xml	xml	6	6	0	6	6	true
+prose.txt	opaque	opaque	6	6	6	6	6	true
+strict.json	json	json	6	6	0	6	6	true

@@ -12650,7 +12650,7 @@ impl<S: SeedStore> Ctx<'_, S> {
                 None => ("null".to_string(), 0),
             };
             Ok(format!(
-                "{{\"index\":{index},\"type\":\"{}\",\",\"span\":[{start},{end}],\"coordinates_span\":{cspan},\"count\":{count}}}",
+                "{{\"index\":{index},\"type\":\"{}\",\"span\":[{start},{end}],\"coordinates_span\":{cspan},\"count\":{count}}}",
                 json_escape(&ty)
             ))
         }
@@ -12672,7 +12672,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             }
             Representation::Text => AnswerValue::Text(ty.clone()),
             _ => AnswerValue::Json(format!(
-                "{{\"format\":\"geojson\",\"type\":\"{}\",\",\"geometries\":{},\"features\":{},\"bytes\":{}}}",
+                "{{\"format\":\"geojson\",\"type\":\"{}\",\"geometries\":{},\"features\":{},\"bytes\":{}}}",
                 json_escape(&ty),
                 model.geometry_count(),
                 model.feature_count(),
@@ -12740,7 +12740,7 @@ impl<S: SeedStore> Ctx<'_, S> {
                     .map(|(k, _)| format!("\"{}\"", json_escape(k)))
                     .collect();
                 AnswerValue::Json(format!(
-                    "{{\"index\":{index},\"type\":\"Feature\",\",\"span\":[{},{}],\"geometry\":{geometry},\"id\":{id},\"bbox_span\":{bbox},\"properties\":{props},\"foreign\":[{}]}}",
+                    "{{\"index\":{index},\"type\":\"Feature\",\"span\":[{},{}],\"geometry\":{geometry},\"id\":{id},\"bbox_span\":{bbox},\"properties\":{props},\"foreign\":[{}]}}",
                     node.start,
                     node.end,
                     foreign_keys.join(","),
@@ -12852,7 +12852,7 @@ impl<S: SeedStore> Ctx<'_, S> {
                 let nums = geojson_coordinate_numbers(&model, coords, self.limits)?;
                 let numbers = Self::geojson_numbers_json(&model, &source, &nums)?;
                 AnswerValue::Json(format!(
-                    "{{\"index\":{index},\"type\":\"{}\",\",\"span\":[{},{}],\"count\":{},\"numbers\":{numbers}}}",
+                    "{{\"index\":{index},\"type\":\"{}\",\"span\":[{},{}],\"count\":{},\"numbers\":{numbers}}}",
                     json_escape(&ty),
                     cn.start,
                     cn.end,
@@ -12908,7 +12908,7 @@ impl<S: SeedStore> Ctx<'_, S> {
                 let token =
                     String::from_utf8_lossy(geojson_token_bytes(&source, &vn)?).into_owned();
                 AnswerValue::Json(format!(
-                    "{{\"feature\":{feature},\"name\":\"{}\",\",\"kind\":\"{}\",\"span\":[{},{}],\"token\":\"{}\"}}",
+                    "{{\"feature\":{feature},\"name\":\"{}\",\"kind\":\"{}\",\"span\":[{},{}],\"token\":\"{}\"}}",
                     json_escape(name),
                     json_kind_name(vn.kind),
                     vn.start,
@@ -12937,7 +12937,7 @@ impl<S: SeedStore> Ctx<'_, S> {
                 )));
             }
             out.push(format!(
-                "{{\"pointer\":\"{}\",\"role\":\"{}\",\",\"kind\":\"string\",\"span\":[{},{}],\"text\":\"{}\"}}",
+                "{{\"pointer\":\"{}\",\"role\":\"{}\",\"kind\":\"string\",\"span\":[{},{}],\"text\":\"{}\"}}",
                 json_escape(&m.pointer),
                 m.role.name(),
                 m.start,
@@ -12986,7 +12986,7 @@ impl<S: SeedStore> Ctx<'_, S> {
         let (model, model_id) = self.geojson_model()?;
         let (source, root) = self.geojson_source()?;
         let value = AnswerValue::Json(format!(
-            "{{\"format\":\"geojson\",\"type\":\"{}\",\",\"geometries\":{},\"features\":{},\"bytes\":{}}}",
+            "{{\"format\":\"geojson\",\"type\":\"{}\",\"geometries\":{},\"features\":{},\"bytes\":{}}}",
             json_escape(geojson_class_name(model.class)),
             model.geometry_count(),
             model.feature_count(),

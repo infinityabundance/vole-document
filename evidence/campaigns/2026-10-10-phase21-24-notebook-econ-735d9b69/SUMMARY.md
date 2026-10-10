@@ -1,0 +1,77 @@
+# Phase 21.24 — Jupyter-notebook economic court — notebook economic court
+
+**Question.** Against two conventional comparators — a source-retaining store that keeps the raw bytes plus a conventional extraction, and a conventional decode-to-host-values load — on contract-equivalent terms, can VOLE answer the same question family (Q1–Q12) it can answer, while closing the original notebook byte-exactly, and does it add value by **preserving representation** (source spans, exact spelling, attribute/quote/continuation markers, duplicate keys, member order)?
+
+Corpus: **7 fixtures**; lanes **vole, sqlite, conv**; questions **Q1–Q12**; bootstrap **10000 resamples, seed 2124**, cluster-resampled by fixture; tie band **+/-10%**.
+
+VOLE lane: **release** profile (`target/release/vole-document`); substrate: **--profile runtime --packed**.
+
+## Verdict
+
+- **VOLE exactness (Q6): 11/11 byte-exact** (length + SHA-256 + `cmp`, after source + descriptor deletion in a fresh process).
+- **COURT VERDICT: PASS**.
+
+## Build + storage (per lane, per fixture)
+
+Time columns are **microseconds (`us`)**.
+
+| fixture | src B | vole build us | sqlite build us | conv build us | vole B | sqlite B | conv B |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| basic.ipynb | 356 | 28134 | 27651 | 27914 | 5439 | 8239 | 8584 |
+| string-src.ipynb | 239 | 27664 | 29447 | 29202 | 5205 | 8239 | 8480 |
+| lines-src.ipynb | 278 | 27776 | 28109 | 26922 | 5283 | 8239 | 8521 |
+| outputs.ipynb | 454 | 28575 | 31364 | 30572 | 5635 | 8239 | 8681 |
+| raw.ipynb | 201 | 28009 | 29494 | 29656 | 5129 | 8239 | 8444 |
+| dupkeys.ipynb | 144 | 28441 | 29283 | 31024 | 5015 | 8239 | 8379 |
+| large.ipynb | 264791 | 37533 | 31529 | 39221 | 534318 | 573490 | 840770 |
+
+`build us` is the best-of-N (min) of the retained repetitions.
+
+## Paired ratios VOLE/comparator (median + geometric mean, 95% CI by fixture)
+
+| metric | comparator | n | median | geomean | median 95% CI | geomean 95% CI | wins | ties | losses | ratio of sums |
+|---|---|---:|---:|---:|---|---|---:|---:|---:|---:|
+| build | sqlite | 7 | 0.971 | 0.992 | 0.939..1.017 | 0.944..1.062 | 0 | 6 | 1 | 0.996 |
+| build | conv | 7 | 0.947 | 0.962 | 0.935..1.008 | 0.936..0.992 | 0 | 7 | 0 | 0.961 |
+| storage | sqlite | 7 | 0.641 | 0.676 | 0.623..0.684 | 0.628..0.758 | 6 | 1 | 0 | 0.909 |
+| storage | conv | 7 | 0.620 | 0.622 | 0.607..0.636 | 0.611..0.634 | 7 | 0 | 0 | 0.635 |
+| cold | sqlite | 7 | 0.030 | 0.034 | 0.028..0.033 | 0.029..0.047 | 7 | 0 | 0 | 0.038 |
+| cold | conv | 7 | 0.031 | 0.037 | 0.030..0.039 | 0.030..0.052 | 7 | 0 | 0 | 0.041 |
+| warm | sqlite | 7 | 0.091 | 0.098 | 0.078..0.099 | 0.080..0.133 | 7 | 0 | 0 | 0.192 |
+| warm | conv | 7 | 1.008 | 0.990 | 0.992..1.171 | 0.805..1.132 | 1 | 3 | 3 | 0.602 |
+
+A ratio < 1 favours VOLE. The estimator is the **paired per-fixture ratio**, summarised by the median and geometric mean with a fixed-seed cluster bootstrap over fixtures; `ratio of sums` is reported separately and named as such. Each per-fixture lane cost is the **minimum over the retained repetitions** (best-of-N); storage is measured once after the last build. Every raw sample is kept in `raw/build.tsv`, `raw/storage.tsv`, `raw/cold.tsv`, `raw/warm.tsv`.
+
+## Per-lane totals (sum over fixtures; times in microseconds `us`)
+
+| lane | build us | storage B | cold us | warm us |
+|---|---:|---:|---:|---:|
+| vole | 206132 | 566024 | 74364 | 7836 |
+| sqlite | 206877 | 622924 | 1935149 | 40852 |
+| conv | 214511 | 891859 | 1792512 | 13013 |
+
+## What each lane derives and what it declines
+
+| Q | VOLE | source-retaining baseline | conventional load |
+|---|---|---|---|
+| Q1 | a cell's `cell_type` | `json_extract` cell_type | host cell_type |
+| Q2 | a cell's source span | no source span -> typed decline | no source span -> typed decline |
+| Q3 | a cell source's form (string vs line array) | `json_type` of `source` | host form |
+| Q4 | derived counts (cells + outputs) | `json_array_length` counts | host counts |
+| Q5 | a cell descriptor (type + source form + counts) | normalized cell view | host cell view |
+| Q6 | `materialize --exact` (byte authority) | retained raw BLOB (byte authority) | no source bytes -> typed decline |
+| Q7 | `notebook-find` over keys/strings (with spans) | scan over keys/strings (no spans) | host-structure walk (no spans) |
+| Q8 | a cell source's exact token bytes | re-serialized -> typed decline | host value -> typed decline |
+| Q9 | an output descriptor (output_type + name + text form) | `json_extract` output view | host output view |
+| Q10 | a cell source's element count + byte length | `json_array_length` + length | host element count + length |
+| Q11 | the `nbformat` major | `json_extract` nbformat | host nbformat |
+| Q12 | the `nbformat_minor` | `json_extract` nbformat_minor | host nbformat_minor |
+
+## Scope (honest)
+
+- **Self-authored deterministic corpus, NOT a real-world population.** The fixtures are generated by `tools/fixtures/make-notebook.py` (Python stdlib only). Every claim is scoped to these files.
+- **Only Q6 is a byte-authority claim.**
+- **The conventional load is deliberately the weaker comparator.** It drops spans, exact spelling, duplicate keys, and member/attribute order; a span-preserving loader could in principle match VOLE on those, and no claim is made against one.
+- **VOLE capability gaps are recorded, never papered over** — any question VOLE declines is shown as a `capability-gap`.
+- **Nothing here is run on the host**; every command ran in a pinned container.
+

@@ -1,0 +1,15 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+ini-basic.ini	true	true	true	true	true	4620	23961
+ini-comments.ini	true	true	true	true	true	3368	23181
+ini-spaces.ini	true	true	true	true	true	3349	23728
+env-basic.env	true	true	true	true	true	3339	22148
+env-quotes.env	true	true	true	true	true	3361	22597
+props-basic.properties	true	true	true	true	true	3403	25725
+props-colon.properties	true	true	true	true	true	3624	22361
+dup.ini	true	true	true	true	true	3302	22987
+large.ini	true	true	true	true	true	4324	28109
+overlap.env	true	-	true	true	true	3069	-
+prose.txt	true	-	true	true	true	3041	-
+script.sh	true	-	true	true	true	4123	-
+strict.json	true	-	true	true	true	3052	-
+strict.toml	true	-	true	true	true	2985	-

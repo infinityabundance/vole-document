@@ -1,0 +1,12 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+rss-basic.xml	true	true	true	true	true	3382	22916
+rss-attrs.xml	true	true	true	true	true	3287	22455
+rss-cdata.xml	true	true	true	true	true	3318	22143
+atom-basic.xml	true	true	true	true	true	4479	34840
+atom-multilink.xml	true	true	true	true	true	4062	23769
+dup-fields.xml	true	true	true	true	true	3293	21131
+large.xml	true	true	true	true	true	4565	23624
+malformed.xml	true	-	true	true	true	3475	-
+notfeed.xml	true	-	true	true	true	4051	-
+prose.txt	true	-	true	true	true	3571	-
+strict.json	true	-	true	true	true	3607	-

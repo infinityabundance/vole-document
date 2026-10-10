@@ -1,0 +1,76 @@
+# Phase 21.23 — KML/GPX economic court — gis economic court
+
+**Question.** Against two conventional comparators — a source-retaining store that keeps the raw bytes plus a conventional extraction, and a conventional decode-to-host-values load — on contract-equivalent terms, can VOLE answer the same question family (Q1–Q12) it can answer, while closing the original gis byte-exactly, and does it add value by **preserving representation** (source spans, exact spelling, attribute/quote/continuation markers, duplicate keys, member order)?
+
+Corpus: **6 fixtures**; lanes **vole, sqlite, conv**; questions **Q1–Q12**; bootstrap **10000 resamples, seed 2123**, cluster-resampled by fixture; tie band **+/-10%**.
+
+VOLE lane: **release** profile (`target/release/vole-document`); substrate: **--profile runtime --packed**.
+
+## Verdict
+
+- **VOLE exactness (Q6): 10/10 byte-exact** (length + SHA-256 + `cmp`, after source + descriptor deletion in a fresh process).
+- **COURT VERDICT: PASS**.
+
+## Build + storage (per lane, per fixture)
+
+Time columns are **microseconds (`us`)**.
+
+| fixture | src B | vole build us | sqlite build us | conv build us | vole B | sqlite B | conv B |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| placemarks.kml | 362 | 33163 | 30805 | 30548 | 5423 | 8257 | 8608 |
+| folder.kml | 378 | 28420 | 31226 | 30230 | 5455 | 8257 | 8610 |
+| dupfields.kml | 239 | 28018 | 28914 | 28981 | 5177 | 8257 | 8444 |
+| track.gpx | 302 | 28944 | 27997 | 27743 | 5303 | 8257 | 8733 |
+| routes.gpx | 298 | 27905 | 29938 | 29736 | 5295 | 8257 | 8843 |
+| large.kml | 262263 | 36073 | 43416 | 56747 | 529234 | 712772 | 1156468 |
+
+`build us` is the best-of-N (min) of the retained repetitions.
+
+## Paired ratios VOLE/comparator (median + geometric mean, 95% CI by fixture)
+
+| metric | comparator | n | median | geomean | median 95% CI | geomean 95% CI | wins | ties | losses | ratio of sums |
+|---|---|---:|---:|---:|---|---|---:|---:|---:|---:|
+| build | sqlite | 6 | 0.951 | 0.955 | 0.871..1.055 | 0.892..1.022 | 1 | 5 | 0 | 0.949 |
+| build | conv | 6 | 0.953 | 0.922 | 0.787..1.064 | 0.787..1.031 | 1 | 5 | 0 | 0.895 |
+| storage | sqlite | 6 | 0.650 | 0.661 | 0.634..0.702 | 0.639..0.694 | 6 | 0 | 0 | 0.737 |
+| storage | conv | 6 | 0.610 | 0.587 | 0.528..0.632 | 0.529..0.624 | 6 | 0 | 0 | 0.463 |
+| cold | sqlite | 6 | 0.029 | 0.036 | 0.028..0.066 | 0.028..0.054 | 6 | 0 | 0 | 0.042 |
+| cold | conv | 6 | 0.030 | 0.036 | 0.030..0.064 | 0.030..0.054 | 6 | 0 | 0 | 0.043 |
+| warm | sqlite | 6 | 0.105 | 0.122 | 0.088..0.242 | 0.087..0.200 | 6 | 0 | 0 | 0.318 |
+| warm | conv | 6 | 0.110 | 0.128 | 0.090..0.255 | 0.092..0.208 | 6 | 0 | 0 | 0.329 |
+
+A ratio < 1 favours VOLE. The estimator is the **paired per-fixture ratio**, summarised by the median and geometric mean with a fixed-seed cluster bootstrap over fixtures; `ratio of sums` is reported separately and named as such. Each per-fixture lane cost is the **minimum over the retained repetitions** (best-of-N); storage is measured once after the last build. Every raw sample is kept in `raw/build.tsv`, `raw/storage.tsv`, `raw/cold.tsv`, `raw/warm.tsv`.
+
+## Per-lane totals (sum over fixtures; times in microseconds `us`)
+
+| lane | build us | storage B | cold us | warm us |
+|---|---:|---:|---:|---:|
+| vole | 182523 | 555887 | 68203 | 10893 |
+| sqlite | 192296 | 754057 | 1636523 | 34272 |
+| conv | 203985 | 1199706 | 1597610 | 33097 |
+
+## What each lane derives and what it declines
+
+| Q | VOLE | source-retaining baseline | conventional load |
+|---|---|---|---|
+| Q1 | a decoded record-field value | extracted field text | host value |
+| Q2 | a record-field element's exact source span | no source span -> typed decline | no source span -> typed decline |
+| Q3 | a point's kind (Placemark/Point/wpt/trkpt/rtept) | extracted point kind | host point kind |
+| Q4 | the count of same-named fields in a record | count of extracted same-named fields | count of same-tag children |
+| Q5 | a record descriptor (kind + ordered field names) | extracted record | host record |
+| Q6 | `materialize --exact` (byte authority) | retained raw BLOB (byte authority) | no source bytes -> typed decline |
+| Q7 | `gis-find` over decoded field values (with spans) | scan over extracted field text (no spans) | host-structure walk (no spans) |
+| Q8 | a point's exact element bytes | no source token -> typed decline | no source token -> typed decline |
+| Q9 | a point's attributes (lat/lon spelling + spans) | no attribute spelling -> typed decline | no attribute spelling -> typed decline |
+| Q10 | a point's ordered field names | extracted point field names | host point child names |
+| Q11 | the recorded dialect (kml/gpx) | stored dialect | dialect not recorded -> typed decline |
+| Q12 | a point's ordered fields (name + text) | extracted point fields | host point fields |
+
+## Scope (honest)
+
+- **Self-authored deterministic corpus, NOT a real-world population.** The fixtures are generated by `tools/fixtures/make-gis.py` (Python stdlib only). Every claim is scoped to these files.
+- **Only Q6 is a byte-authority claim.**
+- **The conventional load is deliberately the weaker comparator.** It drops spans, exact spelling, duplicate keys, and member/attribute order; a span-preserving loader could in principle match VOLE on those, and no claim is made against one.
+- **VOLE capability gaps are recorded, never papered over** — any question VOLE declines is shown as a `capability-gap`.
+- **Nothing here is run on the host**; every command ran in a pinned container.
+
