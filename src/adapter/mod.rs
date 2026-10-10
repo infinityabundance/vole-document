@@ -28,6 +28,8 @@ pub mod package;
 pub mod pdf;
 #[cfg(feature = "pptx")]
 pub mod pptx;
+#[cfg(feature = "toml")]
+pub mod toml;
 #[cfg(feature = "xlsx")]
 pub mod xlsx;
 #[cfg(feature = "xml")]

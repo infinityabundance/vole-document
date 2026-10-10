@@ -1,0 +1,7 @@
+name = "inline"
+marker = "inline-marker"
+active = true
+point = { x = 1, y = 2 }
+nested = { a.b = 1, a.c = 2, d = true }
+empty = {}
+servers = [{ host = "a", port = 1 }, { host = "b", port = 2 }]

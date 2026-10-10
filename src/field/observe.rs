@@ -89,6 +89,14 @@ use crate::adapter::pptx::{
     NotesModel as PptxNotesModel, PptxExtractProfile, PptxModel, PptxShape, PptxTable,
     PresentationModel as PptxPresentationModel, SlideModel as PptxSlideModel,
 };
+#[cfg(feature = "toml")]
+use crate::adapter::toml::{
+    TNode as TomlNode, TomlModel, canonical_text as toml_canonical_text, find as toml_find_matches,
+    is_string as toml_is_string, key_text as toml_key_text, kind_name as toml_kind_name,
+    resolve_path as toml_resolve_path, scalar_spelling as toml_scalar_spelling,
+    string_content as toml_string_content, table_keys as toml_table_keys,
+    token_bytes as toml_token_bytes,
+};
 #[cfg(feature = "xlsx")]
 use crate::adapter::xlsx::{
     SheetModel as XlsxSheetModel, WorkbookModel as XlsxWorkbookModel, XlsxExtractProfile, XlsxModel,
@@ -136,6 +144,8 @@ use crate::field::index::SEL_ODT_MODEL;
 use crate::field::index::SEL_OPC_MODEL;
 #[cfg(feature = "pptx")]
 use crate::field::index::SEL_PPTX_MODEL;
+#[cfg(feature = "toml")]
+use crate::field::index::SEL_TOML_MODEL;
 #[cfg(feature = "xlsx")]
 use crate::field::index::SEL_XLSX_MODEL;
 #[cfg(feature = "xml")]
@@ -871,6 +881,29 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A TOML value addressed by a dotted path (`server.ports[0]`; `""` is the
+    /// root table) (Phase 21.11). The answer reports the value's kind, its **exact
+    /// source spelling**, and its exact source span; `ExactBytes` returns the exact
+    /// token bytes. TOML has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "toml")]
+    TomlPath {
+        /// The dotted path (`""` is the root table).
+        path: String,
+    },
+    /// The keys of the TOML table at a dotted path (Phase 21.11): each key with its
+    /// exact span, the value's kind, and the value's exact span.
+    #[cfg(feature = "toml")]
+    TomlTable {
+        /// The dotted path (`""` is the root table).
+        path: String,
+    },
+    /// A lexical, case-sensitive search over TOML keys and string values
+    /// (Phase 21.11). Never an embedding or a model call.
+    #[cfg(feature = "toml")]
+    TomlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
 }
 
 impl Selector {
@@ -1199,6 +1232,12 @@ impl Selector {
             Selector::HtmlScripts => "html-scripts".to_string(),
             #[cfg(feature = "html")]
             Selector::HtmlFind { pattern } => format!("html-find:{pattern}"),
+            #[cfg(feature = "toml")]
+            Selector::TomlPath { path } => format!("toml-path:{path}"),
+            #[cfg(feature = "toml")]
+            Selector::TomlTable { path } => format!("toml-table:{path}"),
+            #[cfg(feature = "toml")]
+            Selector::TomlFind { pattern } => format!("toml-find:{pattern}"),
         }
     }
 
@@ -2544,7 +2583,8 @@ impl<S: SeedStore> Ctx<'_, S> {
             | NodeKind::PptxPresentation
             | NodeKind::PptxSlide
             | NodeKind::PptxNotes
-            | NodeKind::HtmlModel => {
+            | NodeKind::HtmlModel
+            | NodeKind::TomlModel => {
                 self.stats.xml_parses = self.stats.xml_parses.saturating_add(1);
             }
             _ => {}
@@ -3083,6 +3123,18 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "html")]
             (Selector::HtmlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.html_find(req, pattern)
+            }
+            #[cfg(feature = "toml")]
+            (Selector::TomlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.toml_path(req, path)
+            }
+            #[cfg(feature = "toml")]
+            (Selector::TomlTable { path }, R::Text | R::Metadata | R::Structure) => {
+                self.toml_table(req, path)
+            }
+            #[cfg(feature = "toml")]
+            (Selector::TomlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.toml_find(req, pattern)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -8268,6 +8320,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Toml => {
+                #[cfg(feature = "toml")]
+                {
+                    self.common_toml(req)?
+                }
+                #[cfg(not(feature = "toml"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "TOML support is not compiled in (feature `toml`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -11263,6 +11327,292 @@ impl<S: SeedStore> Ctx<'_, S> {
 // ---------------------------------------------------------------------------
 // HTML observations (Phase 21.10)
 // ---------------------------------------------------------------------------
+
+#[cfg(feature = "toml")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the TOML model (derived, `Q_gen`).
+    fn toml_model(&mut self) -> Result<(TomlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_TOML_MODEL, 0), "TOML model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((TomlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn toml_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn toml_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The text of a resolved node: a string's decoded content, a key's text, or a
+    /// scalar's exact spelling.
+    fn toml_node_text(&self, source: &[u8], node: &TomlNode) -> Result<String> {
+        if toml_is_string(node.kind) {
+            toml_string_content(source, node)
+        } else if node.kind == crate::adapter::toml::K_KEY {
+            toml_key_text(source, node)
+        } else {
+            toml_scalar_spelling(source, node)
+        }
+    }
+
+    /// Resolve a dotted path and answer per representation.
+    fn toml_path(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.toml_model()?;
+        let (source, root) = self.toml_source()?;
+        let r = toml_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("TOML path resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let key = if node.key_end > node.key_start {
+            let s = usize::try_from(node.key_start).unwrap_or(usize::MAX);
+            let e = usize::try_from(node.key_end).unwrap_or(usize::MAX);
+            source
+                .get(s..e)
+                .map(|b| String::from_utf8_lossy(b).to_string())
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+        let spelling = String::from_utf8_lossy(toml_token_bytes(&source, &node)?).to_string();
+        let provenance = format!(
+            "toml;path={path};kind={};key={key}",
+            toml_kind_name(node.kind)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(toml_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(self.toml_node_text(&source, &node)?),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"path\":\"{}\",\"kind\":\"{}\",\"spelling\":\"{}\",",
+                    "\"span\":[{},{}],\"key\":\"{}\",\"key_span\":[{},{}],",
+                    "\"matches\":{}}}"
+                ),
+                json_escape(path),
+                toml_kind_name(node.kind),
+                json_escape(&spelling),
+                node.start,
+                node.end,
+                json_escape(&key),
+                node.key_start,
+                node.key_end,
+                r.matches,
+            )),
+        };
+        Ok(self.toml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The keys of the table at a dotted path.
+    fn toml_table(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.toml_model()?;
+        let (source, root) = self.toml_source()?;
+        let r = toml_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("TOML table resolved out of range"))?
+            .clone();
+        let keys = toml_table_keys(&model, &source, r.index)?;
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "toml;table={path};kind={};keys={}",
+            toml_kind_name(node.kind),
+            keys.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(toml_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                let names: Vec<&str> = keys.iter().map(|k| k.key.as_str()).collect();
+                AnswerValue::Text(names.join("\n"))
+            }
+            _ => {
+                let mut out: Vec<String> = Vec::with_capacity(keys.len());
+                for k in &keys {
+                    let vn = model
+                        .node(k.value_index)
+                        .ok_or_else(|| Error::internal_invariant("TOML value out of range"))?;
+                    let spelling =
+                        String::from_utf8_lossy(toml_token_bytes(&source, vn)?).to_string();
+                    out.push(format!(
+                        concat!(
+                            "{{\"key\":\"{}\",\"key_span\":[{},{}],",
+                            "\"kind\":\"{}\",\"value_span\":[{},{}],\"spelling\":\"{}\"}}"
+                        ),
+                        json_escape(&k.key),
+                        k.key_start,
+                        k.key_end,
+                        toml_kind_name(k.kind),
+                        k.value_start,
+                        k.value_end,
+                        json_escape(&spelling),
+                    ));
+                }
+                AnswerValue::Json(format!(
+                    "{{\"path\":\"{}\",\"kind\":\"{}\",\"span\":[{},{}],\"keys\":[{}]}}",
+                    json_escape(path),
+                    toml_kind_name(node.kind),
+                    node.start,
+                    node.end,
+                    out.join(","),
+                ))
+            }
+        };
+        Ok(self.toml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over keys and string values.
+    fn toml_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.toml_model()?;
+        let (source, root) = self.toml_source()?;
+        let matches = toml_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "TOML find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"path\":\"{}\",\"role\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.path),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("toml;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.toml_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    fn common_toml(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.toml_common_metadata(req),
+            Selector::Text => self.toml_common_text(req),
+            Selector::SearchMatch(p) => self.toml_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "TOML does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn toml_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.toml_model()?;
+        let (source, root) = self.toml_source()?;
+        let text = toml_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.toml_answer(
+            req,
+            AnswerValue::Text(text),
+            "toml;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn toml_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.toml_model()?;
+        let (source, root) = self.toml_source()?;
+        let mut tables = 0u64;
+        let mut array_tables = 0u64;
+        let mut inline_tables = 0u64;
+        let mut arrays = 0u64;
+        let mut keys = 0u64;
+        let mut strings = 0u64;
+        let mut integers = 0u64;
+        let mut floats = 0u64;
+        let mut bools = 0u64;
+        let mut datetimes = 0u64;
+        for n in &model.nodes {
+            match n.kind {
+                crate::adapter::toml::K_TABLE => tables += 1,
+                crate::adapter::toml::K_ARRAY_TABLE => array_tables += 1,
+                crate::adapter::toml::K_INLINE_TABLE => inline_tables += 1,
+                crate::adapter::toml::K_ARRAY => arrays += 1,
+                crate::adapter::toml::K_KEY => keys += 1,
+                k if toml_is_string(k) => strings += 1,
+                crate::adapter::toml::K_INTEGER => integers += 1,
+                crate::adapter::toml::K_FLOAT => floats += 1,
+                crate::adapter::toml::K_BOOL => bools += 1,
+                crate::adapter::toml::K_DATETIME => datetimes += 1,
+                _ => {}
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"toml\",\"nodes\":{},\"tables\":{},",
+                "\"array_tables\":{},\"inline_tables\":{},\"arrays\":{},",
+                "\"keys\":{},\"assignments\":{},\"strings\":{},\"integers\":{},",
+                "\"floats\":{},\"booleans\":{},\"datetimes\":{},\"comments\":{},",
+                "\"max_depth\":{},\"bytes\":{}}}"
+            ),
+            model.nodes.len(),
+            tables,
+            array_tables,
+            inline_tables,
+            arrays,
+            keys,
+            model.assignments,
+            strings,
+            integers,
+            floats,
+            bools,
+            datetimes,
+            model.comments.len(),
+            model.max_depth,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.toml_answer(
+            req,
+            value,
+            "toml;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
 
 #[cfg(feature = "html")]
 impl<S: SeedStore> Ctx<'_, S> {

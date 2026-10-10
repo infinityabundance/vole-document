@@ -207,6 +207,7 @@ const HTML_NATIVE: &[&str] = &[
     "html-scripts",
     "html-find",
 ];
+const TOML_NATIVE: &[&str] = &["toml-path", "toml-table", "toml-find"];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -393,6 +394,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 HTML_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Toml => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                TOML_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

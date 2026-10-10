@@ -215,6 +215,16 @@ pub enum NodeKind {
     /// keyed by `sha256(source)` per ADR-0060). HTML has no package layer. Derived,
     /// never exact.
     HtmlModel = 0x2C,
+    /// The canonical, representation-preserving TOML model (Phase 21.11): every
+    /// table (`[a.b]`), array of tables (`[[a]]`), inline table, array, key, value,
+    /// and comment with its exact source span; dotted keys build the tables they
+    /// name; every scalar keeps its **exact spelling** (strings, integers, floats
+    /// incl. `inf`/`nan`, booleans, and date-times). TOML's duplicate-key /
+    /// redefinition rules are enforced. It is derived on demand from the exact
+    /// source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060). TOML has no package layer. Derived, never
+    /// exact.
+    TomlModel = 0x2D,
 }
 
 impl NodeKind {
@@ -265,6 +275,7 @@ impl NodeKind {
             0x2A => NodeKind::MarkdownModel,
             0x2B => NodeKind::XmlModel,
             0x2C => NodeKind::HtmlModel,
+            0x2D => NodeKind::TomlModel,
             _ => return None,
         })
     }
@@ -316,6 +327,7 @@ impl NodeKind {
             NodeKind::MarkdownModel => "MarkdownModel",
             NodeKind::XmlModel => "XmlModel",
             NodeKind::HtmlModel => "HtmlModel",
+            NodeKind::TomlModel => "TomlModel",
         }
     }
 

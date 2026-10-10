@@ -149,6 +149,13 @@ pub enum DocumentFormat {
     /// source, and every element/attribute/text/comment/raw-text span is a `Q_gen`
     /// projection (Phase 21.10).
     Html,
+    /// A TOML document (the source is not any earlier format, parses as TOML 1.0
+    /// under the TOML caps with no errors, and carries at least one key/value
+    /// assignment). Not a package: the exact leaf is the whole source, and every
+    /// table/array/key/value/comment span is a `Q_gen` projection. TOML's
+    /// duplicate-key/redefinition rules are enforced (a violation is a typed
+    /// decline) (Phase 21.11).
+    Toml,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -171,6 +178,7 @@ impl DocumentFormat {
             DocumentFormat::Markdown => "markdown",
             DocumentFormat::Xml => "xml",
             DocumentFormat::Html => "html",
+            DocumentFormat::Toml => "toml",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -192,6 +200,7 @@ impl DocumentFormat {
             DocumentFormat::Markdown => "markdown",
             DocumentFormat::Xml => "xml",
             DocumentFormat::Html => "html",
+            DocumentFormat::Toml => "toml",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -213,6 +222,7 @@ impl DocumentFormat {
             DocumentFormat::Markdown => cfg!(feature = "markdown"),
             DocumentFormat::Xml => cfg!(feature = "xml"),
             DocumentFormat::Html => cfg!(feature = "html"),
+            DocumentFormat::Toml => cfg!(feature = "toml"),
         }
     }
 
@@ -244,6 +254,7 @@ impl DocumentFormat {
             "markdown" => Some(DocumentFormat::Markdown),
             "xml" => Some(DocumentFormat::Xml),
             "html" => Some(DocumentFormat::Html),
+            "toml" => Some(DocumentFormat::Toml),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -279,6 +290,24 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "yaml")]
     if crate::adapter::yaml::detect(source, limits) {
         return DocumentFormat::Yaml;
+    }
+    // TOML is the next Wave-2 structured-tree format (Phase 21.11). Precedence
+    // (explicit): TOML is tried **after** the strong, fully-parsed tree formats
+    // (JSON, YAML) but **before** the weak, no-magic-byte heuristics (CSV,
+    // Markdown, XML, HTML). TOML's positive signal is a complete, error-free parse,
+    // which is far stronger than the CSV/Markdown heuristics; crucially, a TOML
+    // comment (`# …` at column 0) is otherwise misread as a Markdown ATX heading and
+    // would steal the document. A source that is valid JSON/YAML still wins (it is
+    // tried first); a source that is valid XML/HTML never parses as TOML (it begins
+    // with `<`), so nothing is lost there. TOML has no magic bytes and a plain prose
+    // paragraph is not TOML, so detection is conservative: the whole source must
+    // parse as TOML 1.0 under the TOML caps with no errors **and** carry at least one
+    // key/value assignment. TOML's duplicate-key/redefinition rules are enforced, so
+    // a doc that violates them is not detected. Plain prose and non-TOML text stay
+    // Opaque.
+    #[cfg(feature = "toml")]
+    if crate::adapter::toml::detect(source, limits) {
+        return DocumentFormat::Toml;
     }
     // CSV/TSV is the first **tabular** Wave-2 format (Phase 21.7.1). It has no
     // magic bytes, so it is detected last and conservatively: only after the
@@ -519,6 +548,8 @@ mod tests {
             DocumentFormat::Csv,
             DocumentFormat::Markdown,
             DocumentFormat::Xml,
+            DocumentFormat::Html,
+            DocumentFormat::Toml,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

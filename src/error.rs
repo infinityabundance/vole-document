@@ -75,6 +75,10 @@ pub enum ErrorClass {
     /// an input that carries no HTML structure. Malformed HTML is otherwise
     /// **recovered** by the adapter, never a panic.
     InvalidHtmlStructure,
+    /// A TOML structure error (Phase 21.11+): a malformed token, an unterminated
+    /// string/array/inline table, an invalid number or escape, or a violation of
+    /// TOML's duplicate-key/redefinition rules (which this adapter **enforces**).
+    InvalidTomlStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -107,6 +111,7 @@ impl ErrorClass {
             ErrorClass::InvalidCsvStructure => 23,
             ErrorClass::InvalidMarkdownStructure => 24,
             ErrorClass::InvalidHtmlStructure => 25,
+            ErrorClass::InvalidTomlStructure => 26,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -138,6 +143,7 @@ impl ErrorClass {
             ErrorClass::InvalidCsvStructure => "InvalidCsvStructure",
             ErrorClass::InvalidMarkdownStructure => "InvalidMarkdownStructure",
             ErrorClass::InvalidHtmlStructure => "InvalidHtmlStructure",
+            ErrorClass::InvalidTomlStructure => "InvalidTomlStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -223,6 +229,7 @@ impl Error {
     ctor!(invalid_csv_structure, InvalidCsvStructure);
     ctor!(invalid_markdown_structure, InvalidMarkdownStructure);
     ctor!(invalid_html_structure, InvalidHtmlStructure);
+    ctor!(invalid_toml_structure, InvalidTomlStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 
@@ -258,6 +265,7 @@ mod tests {
             ErrorClass::InvalidCsvStructure,
             ErrorClass::InvalidMarkdownStructure,
             ErrorClass::InvalidHtmlStructure,
+            ErrorClass::InvalidTomlStructure,
             ErrorClass::InternalInvariant,
         ];
         let mut codes: Vec<i32> = classes.iter().map(|c| c.exit_code()).collect();

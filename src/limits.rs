@@ -376,6 +376,25 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.10).
     pub max_html_document_bytes: u64,
+    // The TOML caps below bound the derived, span-preserving TOML model (Phase
+    // 21.11). TOML is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen` only. TOML's duplicate-key and redefinition
+    // rules are enforced (a violation is a typed decline).
+    /// Maximum table/key nesting depth accepted. A deeper document is a typed
+    /// resource-limit decline (Phase 21.11).
+    pub max_toml_depth: u32,
+    /// Maximum nodes (tables, arrays, keys, scalars) accepted in one document. An
+    /// over-large document declines typed rather than allocating (Phase 21.11).
+    pub max_toml_nodes: u32,
+    /// Maximum keys accepted across one document (Phase 21.11).
+    pub max_toml_keys: u64,
+    /// Maximum total string/key bytes accepted across one document. A larger
+    /// document declines typed (Phase 21.11).
+    pub max_toml_string_bytes: u64,
+    /// Maximum source length admitted for byte-based TOML detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.11).
+    pub max_toml_document_bytes: u64,
 }
 
 impl Limits {
@@ -497,6 +516,11 @@ impl Limits {
         max_html_text_bytes: 1 << 28,
         max_html_script_bytes: 1 << 28,
         max_html_document_bytes: 1 << 34,
+        max_toml_depth: 256,
+        max_toml_nodes: 1 << 24,
+        max_toml_keys: 1 << 22,
+        max_toml_string_bytes: 1 << 28,
+        max_toml_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -617,6 +641,11 @@ impl Limits {
         max_html_text_bytes: 1 << 20,
         max_html_script_bytes: 1 << 20,
         max_html_document_bytes: 1 << 26,
+        max_toml_depth: 64,
+        max_toml_nodes: 1 << 16,
+        max_toml_keys: 1 << 14,
+        max_toml_string_bytes: 1 << 20,
+        max_toml_document_bytes: 1 << 26,
     };
 }
 

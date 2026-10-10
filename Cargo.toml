@@ -328,6 +328,20 @@ xml = ["dep:quick-xml"]
 # decoder behavior: the HTML model is never on the exactness path, so enabling it
 # never changes `.voldoc` bytes and exactness is untouched. Never in `default`.
 html = []
+# Phase 21.11: the TOML adapter — the next **Wave-2 structured-tree** format. Like
+# JSON/YAML/CSV/Markdown/XML/HTML it is not a package (no OPC/ZIP layer): the exact
+# leaf is the whole source (a `DocumentExact`, RAW-like authority) and every derived
+# observation is a bounded, span-preserving (`Q_gen`) projection of it. It adds a
+# bounded TOML 1.0 parser that preserves representation — exact source spans for
+# tables (`[a.b]`), arrays of tables (`[[a]]`), dotted keys, inline tables, arrays,
+# keys, values, and comments; and every scalar's **exact spelling** (strings,
+# integers with `_`/`0x`/`0o`/`0b`, floats incl. `inf`/`nan`, booleans, and
+# offset/local date-times). TOML's duplicate-key/redefinition rules are **enforced**
+# (a violation is a typed decline, so the input stays `Opaque`), never silent. It
+# adds **no** decoder behavior: the TOML model is never on the exactness path, so
+# enabling it never changes `.voldoc` bytes and exactness is untouched.
+# Dependency-free (`toml = []`) and never in `default`.
+toml = []
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

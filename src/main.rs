@@ -1689,6 +1689,18 @@ struct FieldArgs {
     /// (Phase 21.10).
     #[cfg(feature = "html")]
     html_find: Option<String>,
+    /// `--toml-path P`: resolve a dotted path (`server.ports[0]`; `""` is the root
+    /// table), returning the value's kind, exact spelling, and exact source span
+    /// (Phase 21.11).
+    #[cfg(feature = "toml")]
+    toml_path: Option<String>,
+    /// `--toml-table P`: the keys of the table at the dotted path (Phase 21.11).
+    #[cfg(feature = "toml")]
+    toml_table: Option<String>,
+    /// `--toml-find`: a lexical, case-sensitive search over TOML keys and string
+    /// values (Phase 21.11).
+    #[cfg(feature = "toml")]
+    toml_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -2216,6 +2228,18 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--html-find" => {
                 out.html_find = Some(field_arg_value(args, &mut i, "--html-find", inline)?);
             }
+            #[cfg(feature = "toml")]
+            "--toml-path" => {
+                out.toml_path = Some(field_arg_value(args, &mut i, "--toml-path", inline)?);
+            }
+            #[cfg(feature = "toml")]
+            "--toml-table" => {
+                out.toml_table = Some(field_arg_value(args, &mut i, "--toml-table", inline)?);
+            }
+            #[cfg(feature = "toml")]
+            "--toml-find" => {
+                out.toml_find = Some(field_arg_value(args, &mut i, "--toml-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2687,6 +2711,22 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.html_find {
             chosen.push(Selector::HtmlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // TOML: `--toml-path` addresses a value by dotted path; `--toml-table` lists a
+    // table's keys; `--toml-find` is a lexical search. Each stands alone (Phase 21.11).
+    #[cfg(feature = "toml")]
+    {
+        if let Some(path) = &out.toml_path {
+            chosen.push(Selector::TomlPath { path: path.clone() });
+        }
+        if let Some(path) = &out.toml_table {
+            chosen.push(Selector::TomlTable { path: path.clone() });
+        }
+        if let Some(pattern) = &out.toml_find {
+            chosen.push(Selector::TomlFind {
                 pattern: pattern.clone(),
             });
         }

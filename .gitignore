@@ -77,6 +77,9 @@ __pycache__/
 # Phase 21.10 HTML: the large generated fixture (regenerated at court time).
 /tools/fixtures/html/large.html
 
+# Phase 21.11 TOML: the large generated fixture (regenerated at court time).
+/tools/fixtures/toml/large.toml
+
 # Phase 21.7.1 CSV court: a verbatim document-text observation of the ~50 MB
 # `large.csv` fixture is tens of MB. The court now writes the *uncapped* dump
 # only to gitignored scratch and commits a bounded receipt (text length +

@@ -1,0 +1,9 @@
+# leading comment
+name = "comments"  # trailing comment
+ok = true
+
+# a whole-line comment between entries
+value = 42 # another
+
+[section] # header comment
+k = "v" # value comment

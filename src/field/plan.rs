@@ -580,6 +580,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Markdown => &["MarkdownModel", "DocumentExact"],
         DocumentFormat::Xml => &["XmlModel", "DocumentExact"],
         DocumentFormat::Html => &["HtmlModel", "DocumentExact"],
+        DocumentFormat::Toml => &["TomlModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

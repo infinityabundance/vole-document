@@ -1,0 +1,13 @@
+# basic configuration
+title = "basic"
+count = 1_000
+ratio = 3.14
+enabled = true
+created = 1979-05-27T07:32:00Z
+hex = 0x1F
+list = [1, 2, 3]
+
+[server]
+host = "localhost"
+port = 8080
+tags = ["a", "b"]

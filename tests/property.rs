@@ -501,6 +501,11 @@ fn limits_never_change_reconstructed_bytes() {
         max_html_text_bytes: 1 << 50,
         max_html_script_bytes: 1 << 50,
         max_html_document_bytes: 1 << 50,
+        max_toml_depth: 1 << 12,
+        max_toml_nodes: 1 << 30,
+        max_toml_keys: 1 << 30,
+        max_toml_string_bytes: 1 << 50,
+        max_toml_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);
