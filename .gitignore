@@ -67,3 +67,13 @@ __pycache__/
 
 # Phase 21.7 CSV: the large generated fixture (regenerated at court time).
 /tools/fixtures/csv/large.csv
+
+# Phase 21.7.1 CSV court: a verbatim document-text observation of the ~50 MB
+# `large.csv` fixture is tens of MB. The court now writes the *uncapped* dump
+# only to gitignored scratch and commits a bounded receipt (text length +
+# SHA-256 + a bounded prefix) as `<fixture>.text.json`. Git has no size-based
+# ignore, so the "uncapped raw evidence" convention is encoded in the name: any
+# artifact whose suffix marks it as a full/verbatim dump carries `.full.json`
+# and is never committed. This is the belt-and-suspenders guard against a future
+# full dump (e.g. `large.csv.text.full.json`) being committed verbatim.
+evidence/**/*.full.json
