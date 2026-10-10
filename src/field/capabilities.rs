@@ -209,6 +209,13 @@ const HTML_NATIVE: &[&str] = &[
 ];
 const TOML_NATIVE: &[&str] = &["toml-path", "toml-table", "toml-find"];
 const JSONL_NATIVE: &[&str] = &["jsonl-line", "jsonl-pointer", "jsonl-find"];
+const EML_NATIVE: &[&str] = &[
+    "eml-header",
+    "eml-part",
+    "eml-attachments",
+    "eml-body",
+    "eml-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -413,6 +420,16 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 JSONL_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Eml => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("resource", COMMON_RESOURCE_BYTES),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                EML_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

@@ -234,6 +234,17 @@ pub const SEL_TOML_MODEL: u8 = 25;
 /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per
 /// ADR-0060); JSONL has no package layer. Derived, never exact.
 pub const SEL_JSONL_MODEL: u8 = 26;
+/// Selector kind: the canonical EML/MIME message model (Phase 21.13).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as a bounded, representation-preserving RFC 5322 + MIME
+/// message (every header's exact spans and order, duplicate headers, the
+/// `multipart/*` tree, nested `message/rfc822`, and the exact
+/// `Content-Transfer-Encoding`-decoded constituents) as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); EML has no package
+/// layer.
+pub const SEL_EML_MODEL: u8 = 27;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

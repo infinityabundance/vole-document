@@ -163,6 +163,12 @@ pub enum DocumentFormat {
     /// per-token spans are `Q_gen` projections. A single JSON value stays
     /// [`DocumentFormat::Json`] (Phase 21.12).
     Jsonl,
+    /// An EML / MIME internet message (an RFC 5322 header block terminated by a
+    /// blank line, carrying `From`/`Date`/`Message-ID`, or an explicit
+    /// `MIME-Version`). Not a package: the exact leaf is the whole source, and every
+    /// header/part span and every `Content-Transfer-Encoding`-decoded constituent is
+    /// a `Q_gen` projection (Phase 21.13).
+    Eml,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -187,6 +193,7 @@ impl DocumentFormat {
             DocumentFormat::Html => "html",
             DocumentFormat::Toml => "toml",
             DocumentFormat::Jsonl => "jsonl",
+            DocumentFormat::Eml => "eml",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -210,6 +217,7 @@ impl DocumentFormat {
             DocumentFormat::Html => "html",
             DocumentFormat::Toml => "toml",
             DocumentFormat::Jsonl => "jsonl",
+            DocumentFormat::Eml => "eml",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -233,6 +241,7 @@ impl DocumentFormat {
             DocumentFormat::Html => cfg!(feature = "html"),
             DocumentFormat::Toml => cfg!(feature = "toml"),
             DocumentFormat::Jsonl => cfg!(feature = "jsonl"),
+            DocumentFormat::Eml => cfg!(feature = "eml"),
         }
     }
 
@@ -266,6 +275,7 @@ impl DocumentFormat {
             "html" => Some(DocumentFormat::Html),
             "toml" => Some(DocumentFormat::Toml),
             "jsonl" => Some(DocumentFormat::Jsonl),
+            "eml" => Some(DocumentFormat::Eml),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -307,6 +317,18 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "jsonl")]
     if crate::adapter::jsonl::detect(source, limits) {
         return DocumentFormat::Jsonl;
+    }
+    // EML/MIME is the **messaging** Wave-2 format (Phase 21.13), also with no package
+    // layer. It is tried **immediately after JSONL** and **before YAML/TOML/CSV/
+    // Markdown/XML/HTML**: a raw message begins with an RFC 5322 header block, which
+    // the YAML stream reader would otherwise reinterpret as a mapping (e.g. `From: a`
+    // / `Date: b`). Detection is conservative: a genuine header block terminated by a
+    // blank line carrying `From`/`Date`/`Message-ID`, or an explicit `MIME-Version`,
+    // is required, so prose without a header block and a colon-bearing note stay
+    // `Opaque`. Only the header block is scanned (never the MIME tree).
+    #[cfg(feature = "eml")]
+    if crate::adapter::eml::detect(source, limits) {
+        return DocumentFormat::Eml;
     }
     // YAML is the second Wave-2 structured-tree format (Phase 21.6.1), also with
     // **no** package layer. It is detected directly and conservatively: the whole
@@ -576,6 +598,7 @@ mod tests {
             DocumentFormat::Html,
             DocumentFormat::Toml,
             DocumentFormat::Jsonl,
+            DocumentFormat::Eml,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

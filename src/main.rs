@@ -120,7 +120,9 @@ const USAGE_FIELD: &str = "\
         --xml-namespaces | --xml-find PATTERN |
         --html-path P | --html-element P | --html-attr PATH@NAME |
         --html-scripts | --html-find PATTERN |
-        --jsonl-line N | --jsonl-pointer N:POINTER | --jsonl-find PATTERN) --kind metadata|text|structure|operators|
+        --jsonl-line N | --jsonl-pointer N:POINTER | --jsonl-find PATTERN |
+        --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
+        --eml-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1715,6 +1717,26 @@ struct FieldArgs {
     /// keys and string values (Phase 21.12).
     #[cfg(feature = "jsonl")]
     jsonl_find: Option<String>,
+    /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
+    /// message part, with exact spans (Phase 21.13).
+    #[cfg(feature = "eml")]
+    eml_header: Option<String>,
+    /// `--eml-part N`: the N-th MIME part (0-based; the root message is 0), returning
+    /// its kind, spans, and exact decoded bytes (Phase 21.13).
+    #[cfg(feature = "eml")]
+    eml_part: Option<u32>,
+    /// `--eml-attachments`: every attachment leaf part in document order
+    /// (Phase 21.13).
+    #[cfg(feature = "eml")]
+    eml_attachments: bool,
+    /// `--eml-body`: the message body text (the first `text/plain` leaf, else the
+    /// first `text/*`) (Phase 21.13).
+    #[cfg(feature = "eml")]
+    eml_body: bool,
+    /// `--eml-find`: a lexical, case-sensitive search over every part's header
+    /// names/values and decoded `text/*` bodies (Phase 21.13).
+    #[cfg(feature = "eml")]
+    eml_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -2267,6 +2289,29 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--jsonl-find" => {
                 out.jsonl_find = Some(field_arg_value(args, &mut i, "--jsonl-find", inline)?);
             }
+            #[cfg(feature = "eml")]
+            "--eml-header" => {
+                out.eml_header = Some(field_arg_value(args, &mut i, "--eml-header", inline)?);
+            }
+            #[cfg(feature = "eml")]
+            "--eml-part" => {
+                let v = field_arg_value(args, &mut i, "--eml-part", inline)?;
+                out.eml_part = Some(parse_field_u32(&v, "--eml-part")?);
+            }
+            #[cfg(feature = "eml")]
+            "--eml-attachments" => {
+                out.eml_attachments = true;
+                i += 1;
+            }
+            #[cfg(feature = "eml")]
+            "--eml-body" => {
+                out.eml_body = true;
+                i += 1;
+            }
+            #[cfg(feature = "eml")]
+            "--eml-find" => {
+                out.eml_find = Some(field_arg_value(args, &mut i, "--eml-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2771,6 +2816,30 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.jsonl_find {
             chosen.push(Selector::JsonlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // EML: `--eml-header` lists headers by name; `--eml-part` addresses a MIME part
+    // by 0-based index; `--eml-attachments` lists attachments; `--eml-body` returns
+    // the body text; `--eml-find` is a lexical search. Each stands alone
+    // (Phase 21.13).
+    #[cfg(feature = "eml")]
+    {
+        if let Some(name) = &out.eml_header {
+            chosen.push(Selector::EmlHeader { name: name.clone() });
+        }
+        if let Some(index) = out.eml_part {
+            chosen.push(Selector::EmlPart { index });
+        }
+        if out.eml_attachments {
+            chosen.push(Selector::EmlAttachments);
+        }
+        if out.eml_body {
+            chosen.push(Selector::EmlBody);
+        }
+        if let Some(pattern) = &out.eml_find {
+            chosen.push(Selector::EmlFind {
                 pattern: pattern.clone(),
             });
         }

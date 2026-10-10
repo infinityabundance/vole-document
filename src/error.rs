@@ -83,6 +83,10 @@ pub enum ErrorClass {
     /// exactly one JSON value, too few record lines to distinguish the source from a
     /// single JSON value, or a non-newline-separated bag of JSON values.
     InvalidJsonlStructure,
+    /// An EML/MIME message structure error (Phase 21.13+): no RFC 5322 header block,
+    /// a malformed header line, a `multipart/*` without a boundary, or an invalid
+    /// quoted-printable/base64 escape.
+    InvalidEmlStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -117,6 +121,7 @@ impl ErrorClass {
             ErrorClass::InvalidHtmlStructure => 25,
             ErrorClass::InvalidTomlStructure => 26,
             ErrorClass::InvalidJsonlStructure => 27,
+            ErrorClass::InvalidEmlStructure => 28,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -150,6 +155,7 @@ impl ErrorClass {
             ErrorClass::InvalidHtmlStructure => "InvalidHtmlStructure",
             ErrorClass::InvalidTomlStructure => "InvalidTomlStructure",
             ErrorClass::InvalidJsonlStructure => "InvalidJsonlStructure",
+            ErrorClass::InvalidEmlStructure => "InvalidEmlStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -237,6 +243,7 @@ impl Error {
     ctor!(invalid_html_structure, InvalidHtmlStructure);
     ctor!(invalid_toml_structure, InvalidTomlStructure);
     ctor!(invalid_jsonl_structure, InvalidJsonlStructure);
+    ctor!(invalid_eml_structure, InvalidEmlStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

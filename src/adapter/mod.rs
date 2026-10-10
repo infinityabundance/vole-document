@@ -8,6 +8,8 @@
 pub mod csv;
 #[cfg(feature = "docx")]
 pub mod docx;
+#[cfg(feature = "eml")]
+pub mod eml;
 #[cfg(feature = "epub")]
 pub mod epub;
 #[cfg(feature = "html")]

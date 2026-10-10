@@ -510,6 +510,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_jsonl_line_bytes: 1 << 50,
         max_jsonl_nodes: 1 << 30,
         max_jsonl_document_bytes: 1 << 50,
+        max_eml_depth: 1 << 12,
+        max_eml_parts: 1 << 30,
+        max_eml_headers: 1 << 30,
+        max_eml_part_bytes: 1 << 50,
+        max_eml_decoded_bytes: 1 << 50,
+        max_eml_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

@@ -415,6 +415,30 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.12).
     pub max_jsonl_document_bytes: u64,
+    // The EML/MIME caps below bound the derived, span-preserving message model
+    // (Phase 21.13). EML is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen` only. Every part is a leaf or a
+    // `multipart/*`/`message/rfc822` container, so the tree is bounded by depth and
+    // part count.
+    /// Maximum MIME part nesting depth accepted (root = 0). A deeper message is a
+    /// typed resource-limit decline (Phase 21.13).
+    pub max_eml_depth: u32,
+    /// Maximum MIME parts accepted in one message (the root counts). An over-large
+    /// message declines typed rather than allocating (Phase 21.13).
+    pub max_eml_parts: u32,
+    /// Maximum headers accepted across one message (all parts). A message with more
+    /// declines typed (Phase 21.13).
+    pub max_eml_headers: u32,
+    /// Maximum byte length of one part's entity (headers + body). A larger part
+    /// declines typed (Phase 21.13).
+    pub max_eml_part_bytes: u64,
+    /// Maximum total decoded bytes produced by a transfer-encoding decode (base64 /
+    /// quoted-printable). A larger decode declines typed (Phase 21.13).
+    pub max_eml_decoded_bytes: u64,
+    /// Maximum source length admitted for byte-based EML detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.13).
+    pub max_eml_document_bytes: u64,
 }
 
 impl Limits {
@@ -545,6 +569,12 @@ impl Limits {
         max_jsonl_line_bytes: 1 << 26,
         max_jsonl_nodes: 1 << 24,
         max_jsonl_document_bytes: 1 << 34,
+        max_eml_depth: 64,
+        max_eml_parts: 1 << 20,
+        max_eml_headers: 1 << 20,
+        max_eml_part_bytes: 1 << 28,
+        max_eml_decoded_bytes: 1 << 28,
+        max_eml_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -674,6 +704,12 @@ impl Limits {
         max_jsonl_line_bytes: 1 << 20,
         max_jsonl_nodes: 1 << 16,
         max_jsonl_document_bytes: 1 << 26,
+        max_eml_depth: 16,
+        max_eml_parts: 1 << 12,
+        max_eml_headers: 1 << 12,
+        max_eml_part_bytes: 1 << 20,
+        max_eml_decoded_bytes: 1 << 20,
+        max_eml_document_bytes: 1 << 26,
     };
 }
 

@@ -44,6 +44,12 @@ use crate::adapter::csv::{
 use crate::adapter::docx::wml::StoryModel;
 #[cfg(feature = "docx")]
 use crate::adapter::docx::{DocxExtractProfile, DocxModel, DocxPartRef, DocxStory, story_params};
+#[cfg(feature = "eml")]
+use crate::adapter::eml::{
+    EmlModel, EmlPart, body_text as eml_body_text, cte_name as eml_cte_name,
+    decode_body as eml_decode_body, find as eml_find_matches, kind_name as eml_kind_name,
+    loc_name as eml_loc_name, raw_body_bytes as eml_raw_body_bytes,
+};
 #[cfg(feature = "epub")]
 use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
 #[cfg(feature = "html")]
@@ -133,6 +139,8 @@ use crate::field::document_format::DocumentFormat;
 use crate::field::index::SEL_CSV_MODEL;
 #[cfg(feature = "docx")]
 use crate::field::index::SEL_DOCX_MODEL;
+#[cfg(feature = "eml")]
+use crate::field::index::SEL_EML_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
 #[cfg(feature = "html")]
@@ -938,6 +946,36 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// Every header named `name` (case-insensitive) across every message part, in
+    /// document order, each with its exact name/value/full span (Phase 21.13).
+    #[cfg(feature = "eml")]
+    EmlHeader {
+        /// The header field name (case-insensitive).
+        name: String,
+    },
+    /// The `index`-th MIME part (0-based, the root message is part 0) (Phase 21.13):
+    /// its kind, media type, exact entity/header/body spans, headers, and — as
+    /// `ExactBytes` — its exact decoded constituent bytes.
+    #[cfg(feature = "eml")]
+    EmlPart {
+        /// The 0-based part index (the root message is 0).
+        index: u32,
+    },
+    /// Every attachment leaf part, in document order, with its filename, media type,
+    /// encoding, size, and exact spans (Phase 21.13).
+    #[cfg(feature = "eml")]
+    EmlAttachments,
+    /// The message body text (the first `text/plain` leaf, else the first `text/*`)
+    /// (Phase 21.13).
+    #[cfg(feature = "eml")]
+    EmlBody,
+    /// A lexical, case-sensitive search over every part's header names/values and
+    /// decoded `text/*` bodies (Phase 21.13).
+    #[cfg(feature = "eml")]
+    EmlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
 }
 
 impl Selector {
@@ -1278,6 +1316,16 @@ impl Selector {
             Selector::JsonlPointer { spec } => format!("jsonl-pointer:{spec}"),
             #[cfg(feature = "jsonl")]
             Selector::JsonlFind { pattern } => format!("jsonl-find:{pattern}"),
+            #[cfg(feature = "eml")]
+            Selector::EmlHeader { name } => format!("eml-header:{name}"),
+            #[cfg(feature = "eml")]
+            Selector::EmlPart { index } => format!("eml-part:{index}"),
+            #[cfg(feature = "eml")]
+            Selector::EmlAttachments => "eml-attachments".to_string(),
+            #[cfg(feature = "eml")]
+            Selector::EmlBody => "eml-body".to_string(),
+            #[cfg(feature = "eml")]
+            Selector::EmlFind { pattern } => format!("eml-find:{pattern}"),
         }
     }
 
@@ -2555,7 +2603,8 @@ fn opt_u8_json(v: Option<u8>) -> String {
     feature = "odt",
     feature = "ods",
     feature = "xlsx",
-    feature = "pptx"
+    feature = "pptx",
+    feature = "eml"
 ))]
 fn opt_str_json(v: Option<&str>) -> String {
     match v {
@@ -3189,6 +3238,27 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "jsonl")]
             (Selector::JsonlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.jsonl_find(req, pattern)
+            }
+            #[cfg(feature = "eml")]
+            (
+                Selector::EmlHeader { name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.eml_header(req, name),
+            #[cfg(feature = "eml")]
+            (Selector::EmlPart { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.eml_part(req, *index)
+            }
+            #[cfg(feature = "eml")]
+            (Selector::EmlAttachments, R::Text | R::Metadata | R::Structure) => {
+                self.eml_attachments(req)
+            }
+            #[cfg(feature = "eml")]
+            (Selector::EmlBody, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.eml_body(req)
+            }
+            #[cfg(feature = "eml")]
+            (Selector::EmlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.eml_find(req, pattern)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -8398,6 +8468,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Eml => {
+                #[cfg(feature = "eml")]
+                {
+                    self.common_eml(req)?
+                }
+                #[cfg(not(feature = "eml"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "EML support is not compiled in (feature `eml`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -10023,6 +10105,465 @@ impl<S: SeedStore> Ctx<'_, S> {
             span,
             vec![model_id, root],
         ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// EML observations (Phase 21.13)
+// ---------------------------------------------------------------------------
+
+/// Render a MIME part's parent (`null` for the root message).
+#[cfg(feature = "eml")]
+fn eml_parent_json(parent: u32) -> String {
+    if parent == u32::MAX {
+        "null".to_string()
+    } else {
+        parent.to_string()
+    }
+}
+
+/// Render a MIME part's headers as a JSON array (order and duplicates preserved).
+#[cfg(feature = "eml")]
+fn eml_headers_json(p: &EmlPart) -> String {
+    let mut out: Vec<String> = Vec::new();
+    for h in &p.headers {
+        out.push(format!(
+            concat!(
+                "{{\"name\":\"{}\",\"value\":\"{}\",",
+                "\"name_span\":[{},{}],\"value_span\":[{},{}],\"full_span\":[{},{}]}}"
+            ),
+            json_escape(&h.name),
+            json_escape(&h.value),
+            h.name_start,
+            h.name_end,
+            h.value_start,
+            h.value_end,
+            h.full_start,
+            h.full_end
+        ));
+    }
+    format!("[{}]", out.join(","))
+}
+
+/// Render a MIME part as a JSON descriptor.
+#[cfg(feature = "eml")]
+fn eml_part_json(p: &EmlPart, source: &[u8], limits: Limits) -> Result<String> {
+    let decoded_len: i64 = if p.is_leaf() {
+        match eml_decode_body(source, p, limits) {
+            Ok(b) => b.len() as i64,
+            Err(_) => -1,
+        }
+    } else {
+        p.body_end.saturating_sub(p.body_start) as i64
+    };
+    let children: Vec<String> = p.children.iter().map(|c| c.to_string()).collect();
+    Ok(format!(
+        concat!(
+            "{{\"index\":{},\"parent\":{},\"depth\":{},\"kind\":\"{}\",",
+            "\"media_type\":\"{}\",\"cte\":\"{}\",\"charset\":{},",
+            "\"disposition\":{},\"filename\":{},\"boundary\":{},",
+            "\"is_multipart\":{},\"entity_span\":[{},{}],\"header_span\":[{},{}],",
+            "\"body_span\":[{},{}],\"decoded_len\":{},\"children\":[{}],",
+            "\"headers\":{},\"unsupported\":{}}}"
+        ),
+        p.index,
+        eml_parent_json(p.parent),
+        p.depth,
+        eml_kind_name(p.kind),
+        json_escape(&p.media_type),
+        eml_cte_name(p.cte),
+        opt_str_json(p.charset.as_deref()),
+        opt_str_json(p.disposition.as_deref()),
+        opt_str_json(p.filename.as_deref()),
+        opt_str_json(p.boundary.as_deref()),
+        p.is_multipart,
+        p.entity_start,
+        p.entity_end,
+        p.header_start,
+        p.header_end,
+        p.body_start,
+        p.body_end,
+        decoded_len,
+        children.join(","),
+        eml_headers_json(p),
+        opt_str_json(p.unsupported.as_deref())
+    ))
+}
+
+/// The chosen message body part: the first `text/plain` leaf, else the first
+/// `text/*` leaf.
+#[cfg(feature = "eml")]
+fn eml_body_part(model: &EmlModel) -> Option<&EmlPart> {
+    for want_plain in [true, false] {
+        for p in &model.parts {
+            if p.kind == crate::adapter::eml::K_TEXT && p.is_leaf() {
+                if want_plain && p.media_type != "text/plain" {
+                    continue;
+                }
+                return Some(p);
+            }
+        }
+    }
+    None
+}
+
+#[cfg(feature = "eml")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the EML/MIME model (derived, `Q_gen`).
+    fn eml_model(&mut self) -> Result<(EmlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_EML_MODEL, 0), "EML model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((EmlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn eml_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn eml_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Every header named `name` (case-insensitive) across every part. `ExactBytes`
+    /// returns the first match's raw (folded) value bytes; the other representations
+    /// return a JSON list with exact name/value/full spans.
+    fn eml_header(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let mut items: Vec<String> = Vec::new();
+        let mut first_span: Option<(u64, u64)> = None;
+        let mut first_bytes: Vec<u8> = Vec::new();
+        for p in &model.parts {
+            for h in &p.headers {
+                if !h.name_is(name) {
+                    continue;
+                }
+                if first_span.is_none() {
+                    first_span = Some((h.value_start, h.value_end));
+                    first_bytes = source[h.value_start as usize..h.value_end as usize].to_vec();
+                }
+                items.push(format!(
+                    concat!(
+                        "{{\"part\":{},\"name\":\"{}\",\"value\":\"{}\",",
+                        "\"name_span\":[{},{}],\"value_span\":[{},{}],\"full_span\":[{},{}]}}"
+                    ),
+                    p.index,
+                    json_escape(&h.name),
+                    json_escape(&h.value),
+                    h.name_start,
+                    h.name_end,
+                    h.value_start,
+                    h.value_end,
+                    h.full_start,
+                    h.full_end
+                ));
+            }
+        }
+        if items.is_empty() {
+            return Err(Error::unsupported_feature(format!(
+                "EML message has no header named {name:?}"
+            )));
+        }
+        let provenance = format!("eml;header={name};matches={}", items.len());
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(first_bytes),
+            _ => AnswerValue::Json(format!(
+                "{{\"name\":\"{}\",\"matches\":[{}]}}",
+                json_escape(name),
+                items.join(",")
+            )),
+        };
+        Ok(self.eml_answer(req, value, provenance, first_span, vec![model_id, root]))
+    }
+
+    /// The `index`-th MIME part (0-based; the root message is 0). `ExactBytes`
+    /// returns a leaf's exact decoded constituent bytes (a container's raw body
+    /// bytes); `Text` the decoded text; `Metadata`/`Structure` a JSON descriptor.
+    fn eml_part(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let p = model
+            .part(index)
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "EML part {index} is out of range (part count {})",
+                    model.parts.len()
+                ))
+            })?
+            .clone();
+        let span = Some((p.entity_start, p.entity_end));
+        let provenance = format!(
+            "eml;part={index};kind={};media_type={};cte={}",
+            eml_kind_name(p.kind),
+            p.media_type,
+            eml_cte_name(p.cte)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                let bytes = if p.is_leaf() {
+                    eml_decode_body(&source, &p, self.limits)?
+                } else {
+                    eml_raw_body_bytes(&source, &p)?.to_vec()
+                };
+                if bytes.len() as u64 > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "EML part exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                AnswerValue::Bytes(bytes)
+            }
+            Representation::Text => {
+                let bytes = if p.is_leaf() {
+                    eml_decode_body(&source, &p, self.limits)?
+                } else {
+                    eml_raw_body_bytes(&source, &p)?.to_vec()
+                };
+                AnswerValue::Text(String::from_utf8_lossy(&bytes).into_owned())
+            }
+            _ => AnswerValue::Json(eml_part_json(&p, &source, self.limits)?),
+        };
+        Ok(self.eml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// Every attachment leaf part, in document order, with its filename, media
+    /// type, encoding, exact decoded size, and body span.
+    fn eml_attachments(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let atts = model.attachment_indices();
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for (ordinal, pi) in atts.iter().enumerate() {
+            let p = model
+                .part(*pi)
+                .ok_or_else(|| Error::internal_invariant("EML attachment index is out of range"))?;
+            let decoded = eml_decode_body(&source, p, self.limits)?;
+            estimated = estimated.saturating_add(64 + decoded.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "EML attachments exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            items.push(format!(
+                concat!(
+                    "{{\"ordinal\":{},\"part\":{},\"filename\":{},",
+                    "\"media_type\":\"{}\",\"cte\":\"{}\",\"decoded_len\":{},",
+                    "\"body_span\":[{},{}]}}"
+                ),
+                ordinal,
+                pi,
+                opt_str_json(p.filename.as_deref()),
+                json_escape(&p.media_type),
+                eml_cte_name(p.cte),
+                decoded.len(),
+                p.body_start,
+                p.body_end
+            ));
+        }
+        let provenance = format!("eml;attachments={}", atts.len());
+        let value = AnswerValue::Json(format!("{{\"attachments\":[{}]}}", items.join(",")));
+        Ok(self.eml_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    /// The message body text (the first `text/plain` leaf, else the first
+    /// `text/*`). `ExactBytes` returns the chosen part's decoded bytes.
+    fn eml_body(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let chosen = eml_body_part(&model).cloned();
+        let (value, span) = match req.representation {
+            Representation::ExactBytes => match &chosen {
+                Some(p) => (
+                    AnswerValue::Bytes(eml_decode_body(&source, p, self.limits)?),
+                    None,
+                ),
+                None => (AnswerValue::Bytes(Vec::new()), None),
+            },
+            _ => {
+                let text = eml_body_text(&model, &source, self.limits)?;
+                (
+                    AnswerValue::Text(text),
+                    chosen.as_ref().map(|p| (p.body_start, p.body_end)),
+                )
+            }
+        };
+        Ok(self.eml_answer(
+            req,
+            value,
+            "eml;body".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over every part's header names/values and decoded
+    /// `text/*` bodies; each match reports its location, part, and exact span.
+    fn eml_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let matches = eml_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "EML find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"location\":\"{}\",\"part\":{},\"name\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                eml_loc_name(m.location),
+                m.part,
+                json_escape(&m.name),
+                m.start,
+                m.end,
+                json_escape(&m.text)
+            ));
+        }
+        let provenance = format!("eml;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.eml_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_eml(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.eml_common_metadata(req),
+            Selector::Text => self.eml_common_text(req),
+            Selector::Resource(i) => self.eml_common_resource(req, *i),
+            Selector::SearchMatch(p) => self.eml_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "EML does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn eml_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let text = eml_body_text(&model, &source, self.limits)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.eml_answer(
+            req,
+            AnswerValue::Text(text),
+            "eml;body".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn eml_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"eml\",\"parts\":{},\"headers\":{},\"attachments\":{},",
+                "\"max_depth\":{},\"text_parts\":{},\"multipart_parts\":{},",
+                "\"message_parts\":{},\"quoted_printable_parts\":{},\"base64_parts\":{},",
+                "\"bytes\":{},\"body_bytes\":{},\"has_from\":{},\"has_date\":{},",
+                "\"has_message_id\":{},\"has_mime_version\":{}}}"
+            ),
+            model.parts.len(),
+            model.header_count,
+            model.attachment_count,
+            model.max_depth,
+            model.text_parts,
+            model.multipart_parts,
+            model.message_parts,
+            model.qp_parts,
+            model.base64_parts,
+            model.doc_len,
+            model.body_bytes_total,
+            model.has_from,
+            model.has_date,
+            model.has_message_id,
+            model.has_mime_version
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.eml_answer(
+            req,
+            value,
+            "eml;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn eml_common_resource(&mut self, req: &ObserveRequest, ordinal: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let atts = model.attachment_indices();
+        let pi = *atts.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "EML has no attachment {ordinal} (attachment count {})",
+                atts.len()
+            ))
+        })?;
+        let p = model
+            .part(pi)
+            .ok_or_else(|| Error::internal_invariant("EML attachment index is out of range"))?;
+        let span = Some((p.body_start, p.body_end));
+        let value = match req.representation {
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"resource\":{},\"part\":{},\"filename\":{},",
+                    "\"media_type\":\"{}\",\"cte\":\"{}\",\"body_span\":[{},{}]}}"
+                ),
+                ordinal,
+                pi,
+                opt_str_json(p.filename.as_deref()),
+                json_escape(&p.media_type),
+                eml_cte_name(p.cte),
+                p.body_start,
+                p.body_end
+            )),
+            Representation::Text => {
+                let bytes = eml_decode_body(&source, p, self.limits)?;
+                AnswerValue::Text(String::from_utf8_lossy(&bytes).into_owned())
+            }
+            _ => AnswerValue::Bytes(eml_decode_body(&source, p, self.limits)?),
+        };
+        let provenance = format!(
+            "eml;resource={ordinal};part={pi};cte={}",
+            eml_cte_name(p.cte)
+        );
+        Ok(self.eml_answer(req, value, provenance, span, vec![model_id, root]))
     }
 }
 

@@ -360,6 +360,24 @@ toml = []
 # Dependency-free (`jsonl` pulls no external crate) and never in `default`; it
 # reuses the JSON adapter per line, so it implies `json`.
 jsonl = ["json"]
+# Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
+# other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
+# the whole source (a `DocumentExact`, RAW-like authority) and every derived
+# observation is a bounded, span-preserving (`Q_gen`) projection of it. It adds a
+# bounded RFC 5322 + MIME-subset parser that **preserves representation**: every
+# header (name, folded value, exact source span) and every body part keeps its
+# exact span; header **order** and **duplicate** headers are preserved; the MIME
+# `multipart/*` tree is resolved by boundary; `Content-Transfer-Encoding`
+# (7bit/8bit/binary/quoted-printable/base64) decodes to the exact constituent bytes
+# while the encoded form's span is retained; attachments (disposition
+# `attachment`/`inline`, filename) expose their exact decoded bytes; and nested
+# `message/rfc822` parts are recursed under a bounded depth. It **declines typed**
+# what it does not support (a non-UTF-8 charset for text, encrypted S/MIME, an
+# unknown transfer encoding), never guessing. It adds **no** decoder behavior: the
+# EML model is never on the exactness path, so enabling it never changes `.voldoc`
+# bytes and exactness is untouched. Dependency-free (`eml = []`) and never in
+# `default`.
+eml = []
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

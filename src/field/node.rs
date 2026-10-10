@@ -233,6 +233,14 @@ pub enum NodeKind {
     /// root, keyed by `sha256(source)` per ADR-0060). JSONL has no package layer.
     /// Derived, never exact.
     JsonlModel = 0x2E,
+    /// The canonical, representation-preserving EML/MIME message model (Phase
+    /// 21.13): every header's exact name/value/full span and its order, duplicate
+    /// headers kept distinct, the resolved `multipart/*` tree, nested
+    /// `message/rfc822`, and the decoded `Content-Transfer-Encoding` constituents. It
+    /// is derived on demand from the exact source (its single dependency is the
+    /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060). EML has no
+    /// package layer. Derived, never exact.
+    EmlModel = 0x2F,
 }
 
 impl NodeKind {
@@ -285,6 +293,7 @@ impl NodeKind {
             0x2C => NodeKind::HtmlModel,
             0x2D => NodeKind::TomlModel,
             0x2E => NodeKind::JsonlModel,
+            0x2F => NodeKind::EmlModel,
             _ => return None,
         })
     }
@@ -338,6 +347,7 @@ impl NodeKind {
             NodeKind::HtmlModel => "HtmlModel",
             NodeKind::TomlModel => "TomlModel",
             NodeKind::JsonlModel => "JsonlModel",
+            NodeKind::EmlModel => "EmlModel",
         }
     }
 
