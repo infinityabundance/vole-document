@@ -169,6 +169,12 @@ pub enum DocumentFormat {
     /// header/part span and every `Content-Transfer-Encoding`-decoded constituent is
     /// a `Q_gen` projection (Phase 21.13).
     Eml,
+    /// An Apache Parquet file (the source begins with `PAR1` and ends with `PAR1`,
+    /// and the 4-byte little-endian footer length before the trailing magic is
+    /// consistent with the file length). Not a package: the exact leaf is the whole
+    /// source, and the parsed footer inventory (schema, row groups, column chunks,
+    /// statistics) and any decoded values are `Q_gen` projections (Phase 21.14).
+    Parquet,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -194,6 +200,7 @@ impl DocumentFormat {
             DocumentFormat::Toml => "toml",
             DocumentFormat::Jsonl => "jsonl",
             DocumentFormat::Eml => "eml",
+            DocumentFormat::Parquet => "parquet",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -218,6 +225,7 @@ impl DocumentFormat {
             DocumentFormat::Toml => "toml",
             DocumentFormat::Jsonl => "jsonl",
             DocumentFormat::Eml => "eml",
+            DocumentFormat::Parquet => "parquet",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -242,6 +250,7 @@ impl DocumentFormat {
             DocumentFormat::Toml => cfg!(feature = "toml"),
             DocumentFormat::Jsonl => cfg!(feature = "jsonl"),
             DocumentFormat::Eml => cfg!(feature = "eml"),
+            DocumentFormat::Parquet => cfg!(feature = "parquet"),
         }
     }
 
@@ -276,6 +285,7 @@ impl DocumentFormat {
             "toml" => Some(DocumentFormat::Toml),
             "jsonl" => Some(DocumentFormat::Jsonl),
             "eml" => Some(DocumentFormat::Eml),
+            "parquet" => Some(DocumentFormat::Parquet),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -295,6 +305,18 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
         if let Some(format) = detect_zip_family(source, limits) {
             return format;
         }
+    }
+    // Parquet is the **analytical** Wave-2 format (Phase 21.14), with no package
+    // layer. Its detection is a strong magic-byte contract — `PAR1` at both ends
+    // plus a consistent little-endian footer length — so it runs immediately after
+    // the package families and **before** the weak, no-magic-byte heuristics
+    // (JSON/YAML/CSV/Markdown/XML/HTML), which a binary columnar file must never be
+    // guessed to be. It is deliberately conservative: a file that merely begins or
+    // ends with `PAR1` but whose footer length overruns the leading magic stays
+    // `Opaque`.
+    #[cfg(feature = "parquet")]
+    if crate::adapter::parquet::detect(source, limits) {
+        return DocumentFormat::Parquet;
     }
     // JSON is a Wave-2 structured-tree format with **no** package layer, so it is
     // detected directly from the whole source (never through `detect_zip_family`).
@@ -599,6 +621,7 @@ mod tests {
             DocumentFormat::Toml,
             DocumentFormat::Jsonl,
             DocumentFormat::Eml,
+            DocumentFormat::Parquet,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

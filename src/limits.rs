@@ -439,6 +439,28 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.13).
     pub max_eml_document_bytes: u64,
+    // The Parquet caps below bound the derived, span-preserving analytical model
+    // (Phase 21.14). Parquet is not a package: the whole source is the exact leaf,
+    // and everything derived is `Q_gen` only.
+    /// Maximum number of row groups accepted in one Parquet file (Phase 21.14).
+    pub max_parquet_row_groups: u32,
+    /// Maximum number of leaf columns accepted in one Parquet file (Phase 21.14).
+    pub max_parquet_columns: u32,
+    /// Maximum number of pages accepted in one column chunk (Phase 21.14). A
+    /// page-bomb chunk declines typed rather than looping.
+    pub max_parquet_pages_per_chunk: u32,
+    /// Maximum number of decoded values across a Parquet column (Phase 21.14).
+    pub max_parquet_values: u64,
+    /// Maximum total decompressed page bytes across one decompression (Phase
+    /// 21.14). A decompression bomb declines typed.
+    pub max_parquet_decompressed_bytes: u64,
+    /// Maximum source length admitted for byte-based Parquet detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.14).
+    pub max_parquet_document_bytes: u64,
+    /// Maximum accepted Thrift-Compact footer byte length (Phase 21.14). A larger
+    /// footer declines typed before it is parsed.
+    pub max_parquet_footer_bytes: u64,
 }
 
 impl Limits {
@@ -575,6 +597,13 @@ impl Limits {
         max_eml_part_bytes: 1 << 28,
         max_eml_decoded_bytes: 1 << 28,
         max_eml_document_bytes: 1 << 34,
+        max_parquet_row_groups: 1 << 20,
+        max_parquet_columns: 1 << 20,
+        max_parquet_pages_per_chunk: 1 << 20,
+        max_parquet_values: 1 << 30,
+        max_parquet_decompressed_bytes: 1 << 28,
+        max_parquet_document_bytes: 1 << 34,
+        max_parquet_footer_bytes: 1 << 26,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -710,6 +739,13 @@ impl Limits {
         max_eml_part_bytes: 1 << 20,
         max_eml_decoded_bytes: 1 << 20,
         max_eml_document_bytes: 1 << 26,
+        max_parquet_row_groups: 1 << 12,
+        max_parquet_columns: 1 << 12,
+        max_parquet_pages_per_chunk: 1 << 12,
+        max_parquet_values: 1 << 16,
+        max_parquet_decompressed_bytes: 1 << 20,
+        max_parquet_document_bytes: 1 << 26,
+        max_parquet_footer_bytes: 1 << 20,
     };
 }
 

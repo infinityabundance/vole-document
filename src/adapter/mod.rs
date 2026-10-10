@@ -29,6 +29,8 @@ pub mod odt;
 pub mod opaque;
 #[cfg(feature = "package")]
 pub mod package;
+#[cfg(feature = "parquet")]
+pub mod parquet;
 pub mod pdf;
 #[cfg(feature = "pptx")]
 pub mod pptx;

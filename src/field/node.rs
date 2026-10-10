@@ -241,6 +241,14 @@ pub enum NodeKind {
     /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060). EML has no
     /// package layer. Derived, never exact.
     EmlModel = 0x2F,
+    /// The canonical, bounded Parquet model (Phase 21.14): the parsed Thrift-Compact
+    /// footer inventory — the flattened schema (names, physical/logical types,
+    /// repetition), the logical leaf columns, and the row-group/column-chunk
+    /// descriptors, each chunk with its exact source span and statistics. It is
+    /// derived on demand from the exact source (its single dependency is the
+    /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060). Parquet has no
+    /// package layer. Derived, never exact.
+    ParquetModel = 0x30,
 }
 
 impl NodeKind {
@@ -294,6 +302,7 @@ impl NodeKind {
             0x2D => NodeKind::TomlModel,
             0x2E => NodeKind::JsonlModel,
             0x2F => NodeKind::EmlModel,
+            0x30 => NodeKind::ParquetModel,
             _ => return None,
         })
     }
@@ -348,6 +357,7 @@ impl NodeKind {
             NodeKind::TomlModel => "TomlModel",
             NodeKind::JsonlModel => "JsonlModel",
             NodeKind::EmlModel => "EmlModel",
+            NodeKind::ParquetModel => "ParquetModel",
         }
     }
 

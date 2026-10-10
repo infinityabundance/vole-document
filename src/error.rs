@@ -87,6 +87,11 @@ pub enum ErrorClass {
     /// a malformed header line, a `multipart/*` without a boundary, or an invalid
     /// quoted-printable/base64 escape.
     InvalidEmlStructure,
+    /// An Apache Parquet structure error (Phase 21.14+): missing/inconsistent `PAR1`
+    /// magic, an inconsistent footer length, a truncated Thrift-Compact footer, a
+    /// page or column-chunk span outside the file, or a value count that disagrees
+    /// with the page layout.
+    InvalidParquetStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -122,6 +127,7 @@ impl ErrorClass {
             ErrorClass::InvalidTomlStructure => 26,
             ErrorClass::InvalidJsonlStructure => 27,
             ErrorClass::InvalidEmlStructure => 28,
+            ErrorClass::InvalidParquetStructure => 29,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -156,6 +162,7 @@ impl ErrorClass {
             ErrorClass::InvalidTomlStructure => "InvalidTomlStructure",
             ErrorClass::InvalidJsonlStructure => "InvalidJsonlStructure",
             ErrorClass::InvalidEmlStructure => "InvalidEmlStructure",
+            ErrorClass::InvalidParquetStructure => "InvalidParquetStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -244,6 +251,7 @@ impl Error {
     ctor!(invalid_toml_structure, InvalidTomlStructure);
     ctor!(invalid_jsonl_structure, InvalidJsonlStructure);
     ctor!(invalid_eml_structure, InvalidEmlStructure);
+    ctor!(invalid_parquet_structure, InvalidParquetStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

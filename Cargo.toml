@@ -378,6 +378,23 @@ jsonl = ["json"]
 # bytes and exactness is untouched. Dependency-free (`eml = []`) and never in
 # `default`.
 eml = []
+# Phase 21.14: the Apache Parquet adapter — the **analytical** Wave-2 format. Like
+# the other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf
+# is the whole source (a `DocumentExact`, RAW-like authority) and every derived
+# observation is a bounded, span-preserving (`Q_gen`) projection of it. It adds a
+# bounded, dependency-free reader of the Parquet physical layout: the Thrift-Compact
+# `FileMetaData` footer (schema, row groups, column chunks, page metadata), the
+# schema (names/physical/logical types/repetition), the row-group and column-chunk
+# inventory with each chunk's **exact source span**, and a documented subset of
+# decoded values (`PLAIN` and `RLE_DICTIONARY`/`PLAIN_DICTIONARY` for BOOLEAN,
+# INT32, INT64, FLOAT, DOUBLE, BYTE_ARRAY, FIXED_LEN_BYTE_ARRAY; `UNCOMPRESSED` and
+# `GZIP`). It **declines typed** every encoding/compression/type/page layout it does
+# not support (never guessing). The dependency-free core needs no crate; `GZIP`
+# decoding reuses the already-present `field` inflate seam and is available exactly
+# when that feature is compiled. It adds **no** decoder behavior: the Parquet model
+# is never on the exactness path, so enabling it never changes `.voldoc` bytes and
+# exactness is untouched. Never in `default`.
+parquet = []
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

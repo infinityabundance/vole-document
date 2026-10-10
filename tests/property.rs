@@ -516,6 +516,13 @@ fn limits_never_change_reconstructed_bytes() {
         max_eml_part_bytes: 1 << 50,
         max_eml_decoded_bytes: 1 << 50,
         max_eml_document_bytes: 1 << 50,
+        max_parquet_row_groups: 1 << 30,
+        max_parquet_columns: 1 << 30,
+        max_parquet_pages_per_chunk: 1 << 30,
+        max_parquet_values: 1 << 50,
+        max_parquet_decompressed_bytes: 1 << 50,
+        max_parquet_document_bytes: 1 << 50,
+        max_parquet_footer_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

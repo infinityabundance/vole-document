@@ -245,6 +245,16 @@ pub const SEL_JSONL_MODEL: u8 = 26;
 /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); EML has no package
 /// layer.
 pub const SEL_EML_MODEL: u8 = 27;
+/// Selector kind: the canonical bounded Parquet model (Phase 21.14).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed into the derived Parquet inventory (the flattened schema, the
+/// logical leaf columns, and the row-group/column-chunk descriptors with exact
+/// source spans and statistics) as `Q_gen` derived state. It is computed on demand
+/// from the exact source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); Parquet has no package layer. Derived, never
+/// exact.
+pub const SEL_PARQUET_MODEL: u8 = 28;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

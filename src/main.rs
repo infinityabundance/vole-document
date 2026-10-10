@@ -122,7 +122,9 @@ const USAGE_FIELD: &str = "\
         --html-scripts | --html-find PATTERN |
         --jsonl-line N | --jsonl-pointer N:POINTER | --jsonl-find PATTERN |
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
-        --eml-find PATTERN) --kind metadata|text|structure|operators|
+        --eml-find PATTERN |
+        --parquet-schema | --parquet-column N | --parquet-row-group N |
+        --parquet-cell R:C) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1737,6 +1739,20 @@ struct FieldArgs {
     /// names/values and decoded `text/*` bodies (Phase 21.13).
     #[cfg(feature = "eml")]
     eml_find: Option<String>,
+    /// `--parquet-schema`: the Parquet schema (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    parquet_schema: bool,
+    /// `--parquet-column N`: the N-th logical leaf column (0-based): its inventory,
+    /// decoded values (as `text`), or raw chunk bytes (as `exact`) (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    parquet_column: Option<u32>,
+    /// `--parquet-row-group N`: the N-th row group (0-based) inventory (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    parquet_row_group: Option<u32>,
+    /// `--parquet-cell R:C`: the decoded cell at whole-file row `R`, leaf column `C`
+    /// (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    parquet_cell: Option<(u32, u32)>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -2312,6 +2328,26 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--eml-find" => {
                 out.eml_find = Some(field_arg_value(args, &mut i, "--eml-find", inline)?);
             }
+            #[cfg(feature = "parquet")]
+            "--parquet-schema" => {
+                out.parquet_schema = true;
+                i += 1;
+            }
+            #[cfg(feature = "parquet")]
+            "--parquet-column" => {
+                let v = field_arg_value(args, &mut i, "--parquet-column", inline)?;
+                out.parquet_column = Some(parse_field_u32(&v, "--parquet-column")?);
+            }
+            #[cfg(feature = "parquet")]
+            "--parquet-row-group" => {
+                let v = field_arg_value(args, &mut i, "--parquet-row-group", inline)?;
+                out.parquet_row_group = Some(parse_field_u32(&v, "--parquet-row-group")?);
+            }
+            #[cfg(feature = "parquet")]
+            "--parquet-cell" => {
+                let v = field_arg_value(args, &mut i, "--parquet-cell", inline)?;
+                out.parquet_cell = Some(parse_cell_pair(&v)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2403,6 +2439,21 @@ fn parse_cell_triple(value: &str) -> Result<(u32, u32, u32)> {
             .map_err(|_| Error::usage(format!("--cell component {p:?} is not a u32")))?;
     }
     Ok((out[0], out[1], out[2]))
+}
+
+#[cfg(feature = "field")]
+fn parse_cell_pair(value: &str) -> Result<(u32, u32)> {
+    let parts: Vec<&str> = value.split(':').collect();
+    if parts.len() != 2 {
+        return Err(Error::usage("--parquet-cell must be ROW:COL (e.g. 0:1)"));
+    }
+    let mut out = [0u32; 2];
+    for (i, p) in parts.iter().enumerate() {
+        out[i] = p
+            .parse()
+            .map_err(|_| Error::usage(format!("--parquet-cell component {p:?} is not a u32")))?;
+    }
+    Ok((out[0], out[1]))
 }
 
 #[cfg(feature = "field")]
@@ -2841,6 +2892,27 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         if let Some(pattern) = &out.eml_find {
             chosen.push(Selector::EmlFind {
                 pattern: pattern.clone(),
+            });
+        }
+    }
+    // Parquet: `--parquet-schema` lists the schema; `--parquet-column N` addresses a
+    // leaf column; `--parquet-row-group N` a row group; `--parquet-cell R:C` a cell.
+    // Each stands alone (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    {
+        if out.parquet_schema {
+            chosen.push(Selector::ParquetSchema);
+        }
+        if let Some(index) = out.parquet_column {
+            chosen.push(Selector::ParquetColumn { index });
+        }
+        if let Some(index) = out.parquet_row_group {
+            chosen.push(Selector::ParquetRowGroup { index });
+        }
+        if let Some((row, col)) = out.parquet_cell {
+            chosen.push(Selector::ParquetCell {
+                row: u64::from(row),
+                col,
             });
         }
     }

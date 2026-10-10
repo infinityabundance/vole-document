@@ -97,6 +97,15 @@ use crate::adapter::ods::{
 use crate::adapter::odt::{
     Block as OdtBlock, ContentModel as OdtContentModel, OdtExtractProfile, OdtModel,
 };
+#[cfg(feature = "parquet")]
+use crate::adapter::parquet::{
+    LeafColumn as ParquetLeaf, ParquetModel, Value as ParquetValue,
+    cell_value as parquet_cell_value, codec_name as parquet_codec_name,
+    converted_type_name as parquet_converted_name, encoding_name as parquet_encoding_name,
+    leaf_values as parquet_leaf_values, logical_type_name as parquet_logical_name,
+    physical_type_name as parquet_physical_name, repetition_name as parquet_repetition_name,
+    stats_value_text as parquet_stats_text, value_text as parquet_value_text,
+};
 #[cfg(feature = "pptx")]
 use crate::adapter::pptx::{
     NotesModel as PptxNotesModel, PptxExtractProfile, PptxModel, PptxShape, PptxTable,
@@ -159,6 +168,8 @@ use crate::field::index::SEL_ODS_MODEL;
 use crate::field::index::SEL_ODT_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
+#[cfg(feature = "parquet")]
+use crate::field::index::SEL_PARQUET_MODEL;
 #[cfg(feature = "pptx")]
 use crate::field::index::SEL_PPTX_MODEL;
 #[cfg(feature = "toml")]
@@ -976,6 +987,38 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The Parquet schema: every flattened schema element's depth, name, physical
+    /// type, logical/converted type, repetition, and (for a leaf) its def/rep levels
+    /// (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    ParquetSchema,
+    /// The `index`-th logical leaf column (Phase 21.14): its name path, physical and
+    /// logical types, repetition, def/rep levels, and the per-row-group column
+    /// chunks with exact source spans and statistics. As `ExactBytes`, the raw
+    /// encoded bytes of the column's chunks; as `Text`, the decoded values (declined
+    /// typed when the column is unsupported).
+    #[cfg(feature = "parquet")]
+    ParquetColumn {
+        /// The 0-based leaf-column index.
+        index: u32,
+    },
+    /// The `index`-th row group (Phase 21.14): its row count and the inventory of
+    /// its column chunks with exact source spans.
+    #[cfg(feature = "parquet")]
+    ParquetRowGroup {
+        /// The 0-based row-group index.
+        index: u32,
+    },
+    /// The cell at `row` (whole-file 0-based) and leaf column `col` (Phase 21.14):
+    /// the decoded value, declined typed when the column's encoding/compression/type
+    /// is unsupported.
+    #[cfg(feature = "parquet")]
+    ParquetCell {
+        /// The 0-based row index (across the whole file).
+        row: u64,
+        /// The 0-based leaf-column index.
+        col: u32,
+    },
 }
 
 impl Selector {
@@ -1326,6 +1369,14 @@ impl Selector {
             Selector::EmlBody => "eml-body".to_string(),
             #[cfg(feature = "eml")]
             Selector::EmlFind { pattern } => format!("eml-find:{pattern}"),
+            #[cfg(feature = "parquet")]
+            Selector::ParquetSchema => "parquet-schema".to_string(),
+            #[cfg(feature = "parquet")]
+            Selector::ParquetColumn { index } => format!("parquet-column:{index}"),
+            #[cfg(feature = "parquet")]
+            Selector::ParquetRowGroup { index } => format!("parquet-row-group:{index}"),
+            #[cfg(feature = "parquet")]
+            Selector::ParquetCell { row, col } => format!("parquet-cell:{row}:{col}"),
         }
     }
 
@@ -2604,7 +2655,8 @@ fn opt_u8_json(v: Option<u8>) -> String {
     feature = "ods",
     feature = "xlsx",
     feature = "pptx",
-    feature = "eml"
+    feature = "eml",
+    feature = "parquet"
 ))]
 fn opt_str_json(v: Option<&str>) -> String {
     match v {
@@ -3259,6 +3311,23 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "eml")]
             (Selector::EmlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.eml_find(req, pattern)
+            }
+            #[cfg(feature = "parquet")]
+            (Selector::ParquetSchema, R::Text | R::Metadata | R::Structure) => {
+                self.parquet_schema(req)
+            }
+            #[cfg(feature = "parquet")]
+            (
+                Selector::ParquetColumn { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.parquet_column(req, *index),
+            #[cfg(feature = "parquet")]
+            (Selector::ParquetRowGroup { index }, R::Metadata | R::Structure) => {
+                self.parquet_row_group(req, *index)
+            }
+            #[cfg(feature = "parquet")]
+            (Selector::ParquetCell { row, col }, R::Text | R::Metadata | R::Structure) => {
+                self.parquet_cell(req, *row, *col)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -8480,6 +8549,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Parquet => {
+                #[cfg(feature = "parquet")]
+                {
+                    self.common_parquet(req)?
+                }
+                #[cfg(not(feature = "parquet"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "Parquet support is not compiled in (feature `parquet`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -10564,6 +10645,664 @@ impl<S: SeedStore> Ctx<'_, S> {
             eml_cte_name(p.cte)
         );
         Ok(self.eml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Parquet observations (Phase 21.14)
+// ---------------------------------------------------------------------------
+
+/// Render a schema parent link (`null` for the root).
+#[cfg(feature = "parquet")]
+fn parquet_parent_json(parent: u32) -> String {
+    if parent == u32::MAX {
+        "null".to_string()
+    } else {
+        parent.to_string()
+    }
+}
+
+/// Render a chunk's declared encodings as a JSON array of names.
+#[cfg(feature = "parquet")]
+fn parquet_encodings_json(encs: &[i32]) -> String {
+    let items: Vec<String> = encs
+        .iter()
+        .map(|e| format!("\"{}\"", parquet_encoding_name(*e)))
+        .collect();
+    format!("[{}]", items.join(","))
+}
+
+/// Render a decoded value list as a JSON array of strings.
+#[cfg(feature = "parquet")]
+fn parquet_values_json(values: &[ParquetValue], leaf: &ParquetLeaf) -> String {
+    let items: Vec<String> = values
+        .iter()
+        .map(|v| format!("\"{}\"", json_escape(&parquet_value_text(v, leaf))))
+        .collect();
+    format!("[{}]", items.join(","))
+}
+
+/// Render one statistics field as a JSON string, or `null`.
+#[cfg(feature = "parquet")]
+fn parquet_stats_field(raw: Option<&[u8]>, leaf: &ParquetLeaf) -> String {
+    match raw.and_then(|b| parquet_stats_text(b, leaf)) {
+        Some(s) => format!("\"{}\"", json_escape(&s)),
+        None => "null".to_string(),
+    }
+}
+
+/// The exact source span covering every chunk of a leaf column.
+#[cfg(feature = "parquet")]
+fn parquet_column_span(model: &ParquetModel, index: u32) -> Option<(u64, u64)> {
+    let mut lo = u64::MAX;
+    let mut hi = 0u64;
+    let mut any = false;
+    for rg in &model.row_groups {
+        for c in &rg.chunks {
+            if c.leaf == index {
+                lo = lo.min(c.span_start);
+                hi = hi.max(c.span_end);
+                any = true;
+            }
+        }
+    }
+    if any { Some((lo, hi)) } else { None }
+}
+
+/// The leaf column's short name (its last path component).
+#[cfg(feature = "parquet")]
+fn parquet_leaf_name(leaf: &ParquetLeaf) -> String {
+    leaf.path.last().cloned().unwrap_or_default()
+}
+
+/// Render the schema as JSON (elements in pre-order plus the logical leaves).
+#[cfg(feature = "parquet")]
+fn parquet_schema_json(model: &ParquetModel) -> String {
+    let mut elems: Vec<String> = Vec::new();
+    for (i, s) in model.schema.iter().enumerate() {
+        let phys = s
+            .physical
+            .map(|t| format!("\"{}\"", parquet_physical_name(t)))
+            .unwrap_or_else(|| "null".to_string());
+        let conv = s
+            .converted
+            .map(|c| format!("\"{}\"", parquet_converted_name(c)))
+            .unwrap_or_else(|| "null".to_string());
+        let log = s
+            .logical
+            .map(|t| format!("\"{}\"", parquet_logical_name(t)))
+            .unwrap_or_else(|| "null".to_string());
+        let tl = s
+            .type_length
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| "null".to_string());
+        elems.push(format!(
+            concat!(
+                "{{\"index\":{},\"depth\":{},\"parent\":{},\"name\":\"{}\",",
+                "\"physical\":{},\"type_length\":{},\"repetition\":\"{}\",",
+                "\"converted\":{},\"logical\":{},\"num_children\":{}}}"
+            ),
+            i,
+            s.depth,
+            parquet_parent_json(s.parent),
+            json_escape(&s.name),
+            phys,
+            tl,
+            parquet_repetition_name(s.repetition),
+            conv,
+            log,
+            s.num_children
+        ));
+    }
+    let mut leaves: Vec<String> = Vec::new();
+    for (i, l) in model.leaves.iter().enumerate() {
+        let path: Vec<String> = l
+            .path
+            .iter()
+            .map(|p| format!("\"{}\"", json_escape(p)))
+            .collect();
+        let tl = l
+            .type_length
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| "null".to_string());
+        let conv = l
+            .converted
+            .map(|c| format!("\"{}\"", parquet_converted_name(c)))
+            .unwrap_or_else(|| "null".to_string());
+        let log = l
+            .logical
+            .map(|t| format!("\"{}\"", parquet_logical_name(t)))
+            .unwrap_or_else(|| "null".to_string());
+        leaves.push(format!(
+            concat!(
+                "{{\"leaf\":{},\"element\":{},\"path\":[{}],\"name\":\"{}\",",
+                "\"physical\":\"{}\",\"type_length\":{},\"repetition\":\"{}\",",
+                "\"converted\":{},\"logical\":{},\"max_def\":{},\"max_rep\":{}}}"
+            ),
+            i,
+            l.element,
+            path.join(","),
+            json_escape(&parquet_leaf_name(l)),
+            parquet_physical_name(l.physical),
+            tl,
+            parquet_repetition_name(l.repetition),
+            conv,
+            log,
+            l.max_def,
+            l.max_rep
+        ));
+    }
+    format!(
+        concat!(
+            "{{\"format\":\"parquet\",\"version\":{},\"num_rows\":{},",
+            "\"row_groups\":{},\"columns\":{},\"schema\":[{}],\"leaves\":[{}]}}"
+        ),
+        model.version,
+        model.num_rows,
+        model.row_groups.len(),
+        model.leaves.len(),
+        elems.join(","),
+        leaves.join(",")
+    )
+}
+
+/// A compact human-readable rendering of the schema.
+#[cfg(feature = "parquet")]
+fn parquet_schema_text(model: &ParquetModel) -> String {
+    let mut out = String::new();
+    for s in &model.schema {
+        for _ in 0..s.depth {
+            out.push_str("  ");
+        }
+        let ty = match s.physical {
+            Some(t) => parquet_physical_name(t).to_string(),
+            None => "group".to_string(),
+        };
+        out.push_str(&format!(
+            "{} : {} ({})\n",
+            s.name,
+            ty,
+            parquet_repetition_name(s.repetition)
+        ));
+    }
+    out
+}
+
+/// Render one column's descriptor (and its decoded values, when available).
+#[cfg(feature = "parquet")]
+fn parquet_column_json(
+    model: &ParquetModel,
+    index: u32,
+    values: Option<&[ParquetValue]>,
+    err: Option<&str>,
+) -> Result<String> {
+    let leaf = model
+        .leaf(index)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Parquet column {index}")))?;
+    let path: Vec<String> = leaf
+        .path
+        .iter()
+        .map(|p| format!("\"{}\"", json_escape(p)))
+        .collect();
+    let tl = leaf
+        .type_length
+        .map(|n| n.to_string())
+        .unwrap_or_else(|| "null".to_string());
+    let conv = leaf
+        .converted
+        .map(|c| format!("\"{}\"", parquet_converted_name(c)))
+        .unwrap_or_else(|| "null".to_string());
+    let log = leaf
+        .logical
+        .map(|t| format!("\"{}\"", parquet_logical_name(t)))
+        .unwrap_or_else(|| "null".to_string());
+    let mut chunks: Vec<String> = Vec::new();
+    for (gi, rg) in model.row_groups.iter().enumerate() {
+        for c in &rg.chunks {
+            if c.leaf != index {
+                continue;
+            }
+            chunks.push(format!(
+                concat!(
+                    "{{\"row_group\":{},\"codec\":\"{}\",\"num_values\":{},",
+                    "\"encodings\":{},\"compressed_size\":{},\"uncompressed_size\":{},",
+                    "\"span\":[{},{}],\"min\":{},\"max\":{},\"null_count\":{}}}"
+                ),
+                gi,
+                parquet_codec_name(c.codec),
+                c.num_values,
+                parquet_encodings_json(&c.encodings),
+                c.total_compressed_size,
+                c.total_uncompressed_size,
+                c.span_start,
+                c.span_end,
+                parquet_stats_field(c.min_value.as_deref(), leaf),
+                parquet_stats_field(c.max_value.as_deref(), leaf),
+                c.null_count
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "null".to_string())
+            ));
+        }
+    }
+    let vals = match values {
+        Some(v) => parquet_values_json(v, leaf),
+        None => "null".to_string(),
+    };
+    let errv = match err {
+        Some(e) => format!("\"{}\"", json_escape(e)),
+        None => "null".to_string(),
+    };
+    Ok(format!(
+        concat!(
+            "{{\"format\":\"parquet\",\"column\":{},\"name\":\"{}\",\"path\":[{}],",
+            "\"physical\":\"{}\",\"type_length\":{},\"converted\":{},\"logical\":{},",
+            "\"repetition\":\"{}\",\"max_def\":{},\"max_rep\":{},\"chunks\":[{}],",
+            "\"values\":{},\"values_error\":{}}}"
+        ),
+        index,
+        json_escape(&parquet_leaf_name(leaf)),
+        path.join(","),
+        parquet_physical_name(leaf.physical),
+        tl,
+        conv,
+        log,
+        parquet_repetition_name(leaf.repetition),
+        leaf.max_def,
+        leaf.max_rep,
+        chunks.join(","),
+        vals,
+        errv
+    ))
+}
+
+/// Render one row group's inventory as JSON.
+#[cfg(feature = "parquet")]
+fn parquet_row_group_json(model: &ParquetModel, index: u32) -> Result<String> {
+    let rg = model
+        .row_group(index)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Parquet row group {index}")))?;
+    let mut chunks: Vec<String> = Vec::new();
+    for c in &rg.chunks {
+        let name = model
+            .leaf(c.leaf)
+            .map(parquet_leaf_name)
+            .unwrap_or_default();
+        chunks.push(format!(
+            concat!(
+                "{{\"leaf\":{},\"name\":\"{}\",\"codec\":\"{}\",",
+                "\"num_values\":{},\"encodings\":{},\"span\":[{},{}]}}"
+            ),
+            c.leaf,
+            json_escape(&name),
+            parquet_codec_name(c.codec),
+            c.num_values,
+            parquet_encodings_json(&c.encodings),
+            c.span_start,
+            c.span_end
+        ));
+    }
+    Ok(format!(
+        concat!(
+            "{{\"format\":\"parquet\",\"row_group\":{},\"num_rows\":{},",
+            "\"total_byte_size\":{},\"columns\":{},\"chunks\":[{}]}}"
+        ),
+        index,
+        rg.num_rows,
+        rg.total_byte_size,
+        rg.chunks.len(),
+        chunks.join(",")
+    ))
+}
+
+/// Render a decoded value list as newline-separated text.
+#[cfg(feature = "parquet")]
+fn parquet_values_text(values: &[ParquetValue], leaf: &ParquetLeaf) -> String {
+    let mut out = String::new();
+    for (i, v) in values.iter().enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        out.push_str(&parquet_value_text(v, leaf));
+    }
+    out
+}
+
+/// Render the whole table as tab-separated text (a header line then rows).
+#[cfg(feature = "parquet")]
+fn parquet_table_text(
+    model: &ParquetModel,
+    cols: &[Vec<ParquetValue>],
+    budget: u64,
+) -> Result<String> {
+    let mut out = String::new();
+    let names: Vec<String> = model.leaves.iter().map(parquet_leaf_name).collect();
+    out.push_str(&names.join("\t"));
+    out.push('\n');
+    for r in 0..model.num_rows.max(0) as usize {
+        let mut row: Vec<String> = Vec::with_capacity(cols.len());
+        for (ci, col) in cols.iter().enumerate() {
+            let cell = match col.get(r) {
+                Some(ParquetValue::Null) | None => String::new(),
+                Some(v) => parquet_value_text(v, &model.leaves[ci]),
+            };
+            row.push(cell);
+        }
+        out.push_str(&row.join("\t"));
+        out.push('\n');
+        if out.len() as u64 > budget {
+            return Err(Error::resource_limit(format!(
+                "Parquet table text exceeded the {budget}-byte budget"
+            )));
+        }
+    }
+    Ok(out)
+}
+
+// ---------------------------------------------------------------------------
+// Parquet observations (Phase 21.14)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "parquet")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the Parquet model (derived, `Q_gen`).
+    fn parquet_model(&mut self) -> Result<(ParquetModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_PARQUET_MODEL, 0), "Parquet model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((ParquetModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn parquet_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn parquet_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The schema: JSON (metadata/structure) or a compact text tree.
+    fn parquet_schema(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (_source, root) = self.parquet_source()?;
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(parquet_schema_text(&model)),
+            _ => AnswerValue::Json(parquet_schema_json(&model)),
+        };
+        Ok(self.parquet_answer(
+            req,
+            value,
+            "parquet;schema".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    /// One leaf column: its inventory (`metadata`/`structure`), decoded values
+    /// (`text`), or the raw encoded bytes of its chunks (`exact`).
+    fn parquet_column(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (source, root) = self.parquet_source()?;
+        let leaf = model
+            .leaf(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("no Parquet column {index}")))?;
+        let span = parquet_column_span(&model, index);
+        let provenance = format!(
+            "parquet;column={index};physical={}",
+            parquet_physical_name(leaf.physical)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                let mut bytes: Vec<u8> = Vec::new();
+                for rg in &model.row_groups {
+                    for c in &rg.chunks {
+                        if c.leaf != index {
+                            continue;
+                        }
+                        let s = usize::try_from(c.span_start)
+                            .map_err(|_| Error::internal_invariant("span overflow"))?;
+                        let e = usize::try_from(c.span_end)
+                            .map_err(|_| Error::internal_invariant("span overflow"))?;
+                        let slice = source.get(s..e).ok_or_else(|| {
+                            Error::invalid_parquet_structure("chunk span is outside the source")
+                        })?;
+                        bytes.extend_from_slice(slice);
+                        if bytes.len() as u64 > req.budget.max_output_bytes {
+                            return Err(Error::resource_limit(format!(
+                                "Parquet column bytes exceeded the {}-byte budget",
+                                req.budget.max_output_bytes
+                            )));
+                        }
+                    }
+                }
+                AnswerValue::Bytes(bytes)
+            }
+            Representation::Text => {
+                let vals = parquet_leaf_values(&source, &model, index, self.limits)?;
+                AnswerValue::Text(parquet_values_text(&vals, leaf))
+            }
+            _ => {
+                let (vals, err) = match parquet_leaf_values(&source, &model, index, self.limits) {
+                    Ok(v) => (Some(v), None),
+                    Err(e) => (None, Some(e.message().to_string())),
+                };
+                AnswerValue::Json(parquet_column_json(
+                    &model,
+                    index,
+                    vals.as_deref(),
+                    err.as_deref(),
+                )?)
+            }
+        };
+        Ok(self.parquet_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// One row group's inventory.
+    fn parquet_row_group(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (_source, root) = self.parquet_source()?;
+        let json = parquet_row_group_json(&model, index)?;
+        Ok(self.parquet_answer(
+            req,
+            AnswerValue::Json(json),
+            format!("parquet;row-group={index}"),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    /// One cell (whole-file row, leaf column).
+    fn parquet_cell(&mut self, req: &ObserveRequest, row: u64, col: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (source, root) = self.parquet_source()?;
+        let leaf = model
+            .leaf(col)
+            .ok_or_else(|| Error::unsupported_feature(format!("no Parquet column {col}")))?;
+        let value = parquet_cell_value(&source, &model, row, col, self.limits)?;
+        let text = parquet_value_text(&value, leaf);
+        let name = parquet_leaf_name(leaf);
+        // The exact span of the chunk that contains the row, when resolvable.
+        let mut base = 0u64;
+        let mut span = None;
+        for rg in &model.row_groups {
+            let rows = rg.num_rows.max(0) as u64;
+            if row < base.saturating_add(rows) {
+                if let Some(c) = rg.chunks.iter().find(|c| c.leaf == col) {
+                    span = Some((c.span_start, c.span_end));
+                }
+                break;
+            }
+            base = base.saturating_add(rows);
+        }
+        let answer = match req.representation {
+            Representation::Metadata | Representation::Structure => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"parquet\",\"row\":{},\"column\":{},",
+                    "\"name\":\"{}\",\"value\":\"{}\"}}"
+                ),
+                row,
+                col,
+                json_escape(&name),
+                json_escape(&text)
+            )),
+            _ => AnswerValue::Text(text),
+        };
+        Ok(self.parquet_answer(
+            req,
+            answer,
+            format!("parquet;cell={row}:{col}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_parquet(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.parquet_common_metadata(req),
+            Selector::Text => self.parquet_common_text(req),
+            Selector::Table(i) => {
+                if *i == 0 {
+                    self.parquet_common_text(req)
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "Parquet has a single table; table {i} does not exist"
+                    )))
+                }
+            }
+            Selector::Cell { table, row, col } => {
+                if *table == 0 {
+                    self.parquet_cell(req, u64::from(*row), *col)
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "Parquet has a single table; table {table} does not exist"
+                    )))
+                }
+            }
+            Selector::SearchMatch(p) => self.parquet_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "Parquet does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn parquet_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (_source, root) = self.parquet_source()?;
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"parquet\",\"version\":{},\"num_rows\":{},",
+                "\"row_groups\":{},\"columns\":{},\"created_by\":{},\"bytes\":{}}}"
+            ),
+            model.version,
+            model.num_rows,
+            model.row_groups.len(),
+            model.leaves.len(),
+            opt_str_json(model.created_by.as_deref()),
+            model.doc_len
+        ));
+        Ok(self.parquet_answer(
+            req,
+            value,
+            "parquet;metadata".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn parquet_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (source, root) = self.parquet_source()?;
+        let mut cols: Vec<Vec<ParquetValue>> = Vec::with_capacity(model.leaves.len());
+        for i in 0..model.leaves.len() as u32 {
+            // A typed decline anywhere makes the whole-table text decline typed, so
+            // the answer is never a silently partial table.
+            cols.push(parquet_leaf_values(&source, &model, i, self.limits)?);
+        }
+        let text = parquet_table_text(&model, &cols, req.budget.max_output_bytes)?;
+        Ok(self.parquet_answer(
+            req,
+            AnswerValue::Text(text),
+            "parquet;text".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn parquet_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (source, root) = self.parquet_source()?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for (i, leaf) in model.leaves.iter().enumerate() {
+            let name = parquet_leaf_name(leaf);
+            if name.contains(pattern) {
+                estimated = estimated.saturating_add(64 + name.len() as u64);
+                out.push(format!(
+                    "{{\"column\":{},\"row\":null,\"name\":\"{}\",\"text\":\"{}\"}}",
+                    i,
+                    json_escape(&name),
+                    json_escape(&name)
+                ));
+            }
+            // Best-effort: a column whose encoding/compression is unsupported is
+            // skipped (it can never contribute an exact string match), never guessed.
+            let Ok(vals) = parquet_leaf_values(&source, &model, i as u32, self.limits) else {
+                continue;
+            };
+            for (r, v) in vals.iter().enumerate() {
+                if matches!(v, ParquetValue::Null) {
+                    continue;
+                }
+                let t = parquet_value_text(v, leaf);
+                if t.contains(pattern) {
+                    estimated = estimated.saturating_add(64 + t.len() as u64);
+                    if estimated > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "Parquet find exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                    out.push(format!(
+                        "{{\"column\":{},\"row\":{},\"name\":\"{}\",\"text\":\"{}\"}}",
+                        i,
+                        r,
+                        json_escape(&name),
+                        json_escape(&t)
+                    ));
+                }
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        let provenance = format!("parquet;find={pattern};matches={}", out.len());
+        Ok(self.parquet_answer(req, value, provenance, None, vec![model_id, root]))
     }
 }
 
