@@ -256,6 +256,19 @@ pub enum DocumentFormat {
     /// every JSON token span, `coordinates` nesting, `properties` order/duplicates, and
     /// foreign member is a `Q_gen` projection (Phase 21.22).
     Geojson,
+    /// A KML 2.2 / GPX 1.1 geospatial document. KML and GPX are XML, so their
+    /// physical bytes are shared with [`DocumentFormat::Xml`]; the recorded dialect
+    /// (`kml`/`gpx`) lives in the model, exactly as a feed records its dialect.
+    /// Detection is a **bounded semantic test** run before the generic XML detector:
+    /// a `<kml>` root in the KML namespace (`http://www.opengis.net/kml/2.2`) with a
+    /// `Document`/`Folder`/`Placemark` child, or a `<gpx>` root in the GPX namespace
+    /// (`http://www.topografix.com/GPX/1/1`) with a `metadata`/`wpt`/`rte`/`trk`
+    /// child. A plain XML document, and a shaped-but-invalid KML/GPX, stay
+    /// [`DocumentFormat::Xml`]. Not a package: the exact leaf is the whole source,
+    /// and every element/attribute span, element order, attribute spelling (KML
+    /// geometry `coordinates`, GPX `lat`/`lon`), and the namespace declaration is a
+    /// `Q_gen` projection (Phase 21.23).
+    Gis,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -289,6 +302,7 @@ impl DocumentFormat {
             DocumentFormat::Config => "config",
             DocumentFormat::Feed => "feed",
             DocumentFormat::Geojson => "geojson",
+            DocumentFormat::Gis => "gis",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -321,6 +335,7 @@ impl DocumentFormat {
             DocumentFormat::Config => "config",
             DocumentFormat::Feed => "feed",
             DocumentFormat::Geojson => "geojson",
+            DocumentFormat::Gis => "gis",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -353,6 +368,7 @@ impl DocumentFormat {
             DocumentFormat::Config => cfg!(feature = "config"),
             DocumentFormat::Feed => cfg!(feature = "feed"),
             DocumentFormat::Geojson => cfg!(feature = "geojson"),
+            DocumentFormat::Gis => cfg!(feature = "gis"),
         }
     }
 
@@ -395,6 +411,7 @@ impl DocumentFormat {
             "config" => Some(DocumentFormat::Config),
             "feed" => Some(DocumentFormat::Feed),
             "geojson" => Some(DocumentFormat::Geojson),
+            "gis" => Some(DocumentFormat::Gis),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -620,6 +637,22 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "feed")]
     if crate::adapter::feed::detect(source, limits) {
         return DocumentFormat::Feed;
+    }
+    // KML/GPX is the **geospatial** Wave-2 format (Phase 21.23). Its physical bytes
+    // are XML, so this is a **bounded semantic sub-detection** run **before** the
+    // generic standalone-XML detector below: a `<kml>` root in the KML namespace
+    // (`http://www.opengis.net/kml/2.2`) with a `Document`/`Folder`/`Placemark` child,
+    // or a `<gpx>` root in the GPX namespace (`http://www.topografix.com/GPX/1/1`)
+    // with a `metadata`/`wpt`/`rte`/`trk` child. A geospatial document is a more
+    // specific claim than a bare XML tree, so it is tried first; a plain XML document
+    // (a root that is neither `<kml>` nor `<gpx>`, or a shaped-but-invalid / non-GIS
+    // namespace / child-less root) declines here and falls through to the XML detector
+    // (staying `Xml`) or to `Opaque`. An older KML (2.0/2.1) or GPX 1.0 namespace is
+    // not the claimed URI, so it also stays `Xml`. An HTML document simply declines
+    // here and is then claimed by the HTML document-level marker immediately below.
+    #[cfg(feature = "gis")]
+    if crate::adapter::gis::detect(source, limits) {
+        return DocumentFormat::Gis;
     }
     // HTML document-level marker (Phase 21.10 / 21.15 fix): a `<!doctype html>` or
     // an `<html>` root element is a more specific signal than the generic XML
@@ -882,6 +915,7 @@ mod tests {
             DocumentFormat::Config,
             DocumentFormat::Feed,
             DocumentFormat::Geojson,
+            DocumentFormat::Gis,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

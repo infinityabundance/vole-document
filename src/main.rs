@@ -121,6 +121,8 @@ const USAGE_FIELD: &str = "\
         --geojson-type | --geojson-feature N | --geojson-geometry N |
         --geojson-coordinates N | --geojson-property N:NAME |
         --geojson-find PATTERN |
+        --gis-root | --gis-field NAME | --gis-record N |
+        --gis-record-field N:NAME | --gis-point N | --gis-find PATTERN |
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
@@ -1715,6 +1717,27 @@ struct FieldArgs {
     /// and string values (Phase 21.22).
     #[cfg(feature = "geojson")]
     geojson_find: Option<String>,
+    /// `--gis-root`: the KML/GPX root `<kml>`/`<gpx>` container (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_root: bool,
+    /// `--gis-field NAME`: a KML/GPX root-level field by local name (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_field: Option<String>,
+    /// `--gis-record N`: the N-th (0-based) KML/GPX record in document order
+    /// (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_record: Option<u32>,
+    /// `--gis-record-field N:NAME`: one field of one KML/GPX record (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_record_field: Option<String>,
+    /// `--gis-point N`: the N-th (0-based) KML/GPX point in document order
+    /// (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_point: Option<u32>,
+    /// `--gis-find PATTERN`: a lexical, case-sensitive search over KML/GPX field
+    /// values (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_find: Option<String>,
     /// `--yaml-path PATH`: resolve a dotted YAML path (optional leading `docN`),
     /// returning the node's kind/style, exact source span, and exact token bytes
     /// (Phase 21.6.1).
@@ -2412,6 +2435,38 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "geojson")]
             "--geojson-find" => {
                 out.geojson_find = Some(field_arg_value(args, &mut i, "--geojson-find", inline)?);
+            }
+            #[cfg(feature = "gis")]
+            "--gis-root" => {
+                out.gis_root = true;
+                i += 1;
+            }
+            #[cfg(feature = "gis")]
+            "--gis-field" => {
+                out.gis_field = Some(field_arg_value(args, &mut i, "--gis-field", inline)?);
+            }
+            #[cfg(feature = "gis")]
+            "--gis-record" => {
+                out.gis_record = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--gis-record", inline)?,
+                    "--gis-record",
+                )?);
+            }
+            #[cfg(feature = "gis")]
+            "--gis-record-field" => {
+                out.gis_record_field =
+                    Some(field_arg_value(args, &mut i, "--gis-record-field", inline)?);
+            }
+            #[cfg(feature = "gis")]
+            "--gis-point" => {
+                out.gis_point = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--gis-point", inline)?,
+                    "--gis-point",
+                )?);
+            }
+            #[cfg(feature = "gis")]
+            "--gis-find" => {
+                out.gis_find = Some(field_arg_value(args, &mut i, "--gis-find", inline)?);
             }
             #[cfg(feature = "yaml")]
             "--yaml-path" => {
@@ -3170,6 +3225,46 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.geojson_find {
             chosen.push(Selector::GeojsonFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // KML/GPX: `--gis-root` addresses the root `<kml>`/`<gpx>` container;
+    // `--gis-field NAME` a root-level field; `--gis-record N` a record;
+    // `--gis-record-field N:NAME` one field of one record; `--gis-point N` a point;
+    // `--gis-find` a lexical search. Each stands alone (Phase 21.23).
+    #[cfg(feature = "gis")]
+    {
+        if out.gis_root {
+            chosen.push(Selector::GisRoot);
+        }
+        if let Some(name) = &out.gis_field {
+            chosen.push(Selector::GisField { name: name.clone() });
+        }
+        if let Some(index) = out.gis_record {
+            chosen.push(Selector::GisRecord { index });
+        }
+        if let Some(spec) = &out.gis_record_field {
+            let (record, name) = spec.split_once(':').ok_or_else(|| {
+                Error::usage(format!(
+                    "--gis-record-field {spec:?} must be N:NAME (a record ordinal and a field name)"
+                ))
+            })?;
+            let record = record.parse::<u32>().map_err(|_| {
+                Error::usage(format!(
+                    "--gis-record-field {spec:?} has a bad record ordinal {record:?}"
+                ))
+            })?;
+            chosen.push(Selector::GisRecordField {
+                record,
+                name: name.to_string(),
+            });
+        }
+        if let Some(index) = out.gis_point {
+            chosen.push(Selector::GisPoint { index });
+        }
+        if let Some(pattern) = &out.gis_find {
+            chosen.push(Selector::GisFind {
                 pattern: pattern.clone(),
             });
         }

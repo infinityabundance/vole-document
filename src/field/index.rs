@@ -337,6 +337,20 @@ pub const SEL_FEED_MODEL: u8 = 34;
 /// root, keyed by `sha256(source)` per ADR-0060); GeoJSON has no package layer.
 /// Derived, never exact.
 pub const SEL_GEOJSON_MODEL: u8 = 35;
+/// Selector kind: the canonical KML/GPX geospatial model (Phase 21.23).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed (via the shared bounded XML parser) as a KML 2.2 or GPX 1.1
+/// document into a bounded, representation-preserving model — the recorded dialect
+/// (`kml`/`gpx`), the ordered record nodes (KML `<Placemark>` features, or GPX
+/// top-level `<wpt>`/`<rte>`/`<trk>` records), the ordered point nodes (KML
+/// `Point`/`LineString`/`Polygon` geometry, or GPX `<wpt>`/`<rtept>`/`<trkpt>` point
+/// elements), and the embedded span-preserving XML tree (every element/attribute
+/// span, element order, attribute spelling, and the namespace declaration) — as
+/// `Q_gen` derived state. It is computed on demand from the exact source (its single
+/// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+/// a GIS document has no package layer. Derived, never exact.
+pub const SEL_GIS_MODEL: u8 = 36;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

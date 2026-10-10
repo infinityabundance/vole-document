@@ -325,6 +325,19 @@ pub enum NodeKind {
     /// `sha256(source)` per ADR-0060); GeoJSON has no package layer. Derived, never
     /// exact.
     GeojsonModel = 0x37,
+    /// The canonical, representation-preserving KML 2.2 / GPX 1.1 geospatial model
+    /// (Phase 21.23): the whole source parsed (via the shared bounded XML parser)
+    /// into a span-preserving element/attribute tree plus the recorded dialect
+    /// (`kml`/`gpx`), the ordered record nodes (KML `<Placemark>` features, or GPX
+    /// top-level `<wpt>`/`<rte>`/`<trk>` records), and the ordered point nodes (KML
+    /// `Point`/`LineString`/`Polygon` geometry, or GPX `<wpt>`/`<rtept>`/`<trkpt>`
+    /// point elements). Every element's and attribute's exact source span, element
+    /// order, attribute spelling (KML geometry `coordinates`, GPX `lat`/`lon`), and
+    /// the namespace declaration are preserved; entity references are surfaced
+    /// literally (never expanded). It is computed on demand from the exact source
+    /// (its single dependency is the `DocumentExact` root, keyed by `sha256(source)`
+    /// per ADR-0060); a GIS document has no package layer. Derived, never exact.
+    GisModel = 0x38,
 }
 
 impl NodeKind {
@@ -386,6 +399,7 @@ impl NodeKind {
             0x35 => NodeKind::ConfigModel,
             0x36 => NodeKind::FeedModel,
             0x37 => NodeKind::GeojsonModel,
+            0x38 => NodeKind::GisModel,
             _ => return None,
         })
     }
@@ -448,6 +462,7 @@ impl NodeKind {
             NodeKind::ConfigModel => "ConfigModel",
             NodeKind::FeedModel => "FeedModel",
             NodeKind::GeojsonModel => "GeojsonModel",
+            NodeKind::GisModel => "GisModel",
         }
     }
 

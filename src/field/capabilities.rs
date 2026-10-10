@@ -252,6 +252,14 @@ const GEOJSON_NATIVE: &[&str] = &[
     "geojson-property",
     "geojson-find",
 ];
+const GIS_NATIVE: &[&str] = &[
+    "gis-root",
+    "gis-field",
+    "gis-record",
+    "gis-record-field",
+    "gis-point",
+    "gis-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -542,6 +550,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 GEOJSON_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Gis => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                GIS_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

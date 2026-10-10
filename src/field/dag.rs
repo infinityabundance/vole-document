@@ -1161,6 +1161,39 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::GisModel => {
+            // The canonical KML/GPX geospatial model is derived on demand from the
+            // exact source, via the shared bounded XML parser. A GIS document has no
+            // package layer, so its single dependency is the exact `DocumentExact`
+            // root (keyed by `sha256(source)` per ADR-0060): the model node *reads the
+            // source bytes*, so it must carry a source-identity input, never alias
+            // another field's source. Parsing and all bounds live in `adapter::gis`.
+            #[cfg(feature = "gis")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("GisModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::gis::build_gis_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "gis"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "GIS support is not compiled in (feature `gis`)",
+                ));
+            }
+        }
         NodeKind::YamlModel => {
             // The canonical YAML structured-tree model is derived on demand from the
             // exact source. YAML has no package layer, so its single dependency is

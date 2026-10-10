@@ -566,6 +566,13 @@ fn limits_never_change_reconstructed_bytes() {
         max_geojson_depth: 1 << 20,
         max_geojson_nodes: 1 << 30,
         max_geojson_document_bytes: 1 << 50,
+        max_gis_placemarks: 1 << 30,
+        max_gis_tracks: 1 << 30,
+        max_gis_points: 1 << 30,
+        max_gis_depth: 1 << 12,
+        max_gis_nodes: 1 << 30,
+        max_gis_text_bytes: 1 << 50,
+        max_gis_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

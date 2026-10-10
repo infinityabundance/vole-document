@@ -529,6 +529,31 @@ feed = ["xml"]
 # Dependency-free (`geojson` pulls no external crate) and never in `default`; it
 # reuses the JSON adapter, so it implies `json`.
 geojson = ["json"]
+# Phase 21.23: the KML / GPX geospatial adapter — one bounded adapter covering the
+# OGC KML 2.2 and GPX 1.1 dialects, recording the dialect (kml/gpx) in the model
+# exactly as CSV/config/feed record theirs. KML and GPX are XML, so this adapter
+# **reuses the shared bounded XML parser and policy** (Phase 21.9's `xml` feature)
+# to obtain a span-preserving element/attribute tree and layers a
+# representation-preserving geospatial projection on it: for KML the
+# `<Document>`/`<Folder>`/`<Placemark>` features, `name`/`description`, the
+# `Point`/`LineString`/`Polygon` geometry with its `coordinates`, and
+# `Style`/`styleUrl`, in document order; for GPX `metadata`, `<wpt>` waypoints, the
+# `<rte>`/`<rtept>` routes, and the `<trk>`/`<trkseg>`/`<trkpt>` tracks (whose
+# `lat`/`lon` are attributes and whose `<ele>`/`<time>` are child elements), in
+# document order. Namespace declarations are kept as ordinary attributes with their
+# exact spans. Detection is a bounded semantic sub-detection run before the generic
+# XML detector: a `<kml>` root in the KML namespace with a
+# `Document`/`Folder`/`Placemark` child, or a `<gpx>` root in the GPX namespace with
+# a `metadata`/`wpt`/`rte`/`trk` child. A plain XML document stays `Xml`; a
+# shaped-but-invalid KML/GPX (no namespace or no structural child) and an older KML
+# (2.0/2.1) or GPX 1.0 namespace decline and stay `Xml`/`Opaque`. Like the other
+# Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is the whole
+# source (a `DocumentExact`, RAW-like authority) and every derived observation is a
+# bounded, span-preserving (`Q_gen`) projection of it. It adds **no** decoder
+# behavior: the GIS model is never on the exactness path, so enabling it never
+# changes `.voldoc` bytes and exactness is untouched. Never in `default`; it implies
+# `xml`.
+gis = ["xml"]
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

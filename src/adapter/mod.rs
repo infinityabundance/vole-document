@@ -22,6 +22,8 @@ pub mod epub;
 pub mod feed;
 #[cfg(feature = "geojson")]
 pub mod geojson;
+#[cfg(feature = "gis")]
+pub mod gis;
 #[cfg(feature = "html")]
 pub mod html;
 #[cfg(feature = "json")]

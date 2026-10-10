@@ -624,6 +624,32 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.22).
     pub max_geojson_document_bytes: u64,
+    // The KML/GPX geospatial caps below bound the derived, span-preserving GIS model
+    // (Phase 21.23). KML and GPX are XML, so the shared XML parser's caps also apply;
+    // these add the semantic bounds on top. GIS is not a package: the whole source is
+    // the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum record count accepted across one GIS document (KML `<Placemark>`
+    /// features, or GPX top-level `<wpt>`/`<rte>`/`<trk>` records). An over-large
+    /// document declines typed rather than allocating (Phase 21.23).
+    pub max_gis_placemarks: u32,
+    /// Maximum GPX `<trk>` track count accepted across one GIS document
+    /// (Phase 21.23).
+    pub max_gis_tracks: u32,
+    /// Maximum point count accepted across one GIS document (KML geometry elements,
+    /// or GPX `<wpt>`/`<rtept>`/`<trkpt>` point elements) (Phase 21.23).
+    pub max_gis_points: u32,
+    /// Maximum GIS element nesting depth accepted (Phase 21.23).
+    pub max_gis_depth: u32,
+    /// Maximum embedded XML node count accepted for one GIS document, in addition
+    /// to the XML caps the shared parser already enforces (Phase 21.23).
+    pub max_gis_nodes: u32,
+    /// Maximum aggregate recognized-field bytes (and canonical text projection)
+    /// accepted across one GIS document (Phase 21.23).
+    pub max_gis_text_bytes: u64,
+    /// Maximum source length admitted for byte-based GIS detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.23).
+    pub max_gis_document_bytes: u64,
 }
 
 impl Limits {
@@ -810,6 +836,13 @@ impl Limits {
         max_geojson_depth: 1024,
         max_geojson_nodes: 1 << 24,
         max_geojson_document_bytes: 1 << 34,
+        max_gis_placemarks: 1 << 20,
+        max_gis_tracks: 1 << 20,
+        max_gis_points: 1 << 22,
+        max_gis_depth: 256,
+        max_gis_nodes: 1 << 24,
+        max_gis_text_bytes: 1 << 28,
+        max_gis_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -995,6 +1028,13 @@ impl Limits {
         max_geojson_depth: 64,
         max_geojson_nodes: 1 << 16,
         max_geojson_document_bytes: 1 << 26,
+        max_gis_placemarks: 1 << 12,
+        max_gis_tracks: 1 << 12,
+        max_gis_points: 1 << 14,
+        max_gis_depth: 64,
+        max_gis_nodes: 1 << 16,
+        max_gis_text_bytes: 1 << 20,
+        max_gis_document_bytes: 1 << 26,
     };
 }
 

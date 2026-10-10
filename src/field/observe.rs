@@ -93,6 +93,14 @@ use crate::adapter::geojson::{
     object_members as geojson_object_members, token_bytes as geojson_token_bytes,
     type_of_object as geojson_type_of_object,
 };
+#[cfg(feature = "gis")]
+use crate::adapter::gis::{
+    GisModel, attr_value_by_local as gis_attr_value_by_local, canonical_text as gis_canonical_text,
+    dialect_name as gis_dialect_name, field_attrs as gis_field_attrs,
+    field_bytes as gis_field_bytes, field_name as gis_field_name, field_text as gis_field_text,
+    find as gis_find_matches, point_field_nodes as gis_point_field_nodes,
+    record_field_nodes as gis_record_field_nodes, root_field_nodes as gis_root_field_nodes,
+};
 #[cfg(feature = "html")]
 use crate::adapter::html::{
     HtmlModel, anchors as html_anchors, attr_name as html_attr_name,
@@ -218,6 +226,8 @@ use crate::field::index::SEL_EPUB_MODEL;
 use crate::field::index::SEL_FEED_MODEL;
 #[cfg(feature = "geojson")]
 use crate::field::index::SEL_GEOJSON_MODEL;
+#[cfg(feature = "gis")]
+use crate::field::index::SEL_GIS_MODEL;
 #[cfg(feature = "html")]
 use crate::field::index::SEL_HTML_MODEL;
 #[cfg(feature = "json")]
@@ -1023,6 +1033,65 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A KML/GPX geospatial document's root container (Phase 21.23): the `<kml>`
+    /// or `<gpx>` element. `ExactBytes` returns the root element's whole source
+    /// span; `Text` its character data; `Metadata`/`Structure` a descriptor with the
+    /// recorded dialect, the record and point counts, and the root-level fields with
+    /// their exact spans. A GIS document has no package layer, so the source *is*
+    /// the whole document.
+    #[cfg(feature = "gis")]
+    GisRoot,
+    /// A KML/GPX root-level field by local name (Phase 21.23), e.g. `Document`,
+    /// `Folder`, `Placemark` (KML) or `metadata`, `name`, `desc` (GPX). `ExactBytes`
+    /// returns the field element's whole source span; `Text` its decoded text;
+    /// `Metadata`/`Structure` a descriptor with the field name, span, and its
+    /// attributes in source order. An unknown name declines typed.
+    #[cfg(feature = "gis")]
+    GisField {
+        /// The field element's local name.
+        name: String,
+    },
+    /// A KML/GPX record by 0-based ordinal (Phase 21.23), in document order (KML
+    /// `<Placemark>` features, or GPX top-level `<wpt>`/`<rte>`/`<trk>` records).
+    /// `ExactBytes` returns the record element's whole source span; `Text` the
+    /// concatenation of its fields' values; `Metadata`/`Structure` a descriptor with
+    /// the record kind, span, and its fields with their exact spans. An out-of-range
+    /// index declines typed.
+    #[cfg(feature = "gis")]
+    GisRecord {
+        /// The 0-based record ordinal in document order.
+        index: u32,
+    },
+    /// One field of one KML/GPX record (Phase 21.23), e.g. `0:name`,
+    /// `0:coordinates`. Same representations as [`Selector::GisField`]. An
+    /// out-of-range record or an unknown field name declines typed.
+    #[cfg(feature = "gis")]
+    GisRecordField {
+        /// The 0-based record ordinal.
+        record: u32,
+        /// The field element's local name.
+        name: String,
+    },
+    /// A KML/GPX point by 0-based ordinal (Phase 21.23), in document order (KML
+    /// `Point`/`LineString`/`Polygon` geometry, or GPX `<wpt>`/`<rtept>`/`<trkpt>`
+    /// point elements). `ExactBytes` returns the point element's whole source span;
+    /// `Text` its decoded text; `Metadata`/`Structure` a descriptor with the point
+    /// kind, span, the `lat`/`lon` attributes (GPX), and its fields.
+    #[cfg(feature = "gis")]
+    GisPoint {
+        /// The 0-based point ordinal in document order.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over KML/GPX recognized field values
+    /// (Phase 21.23), in document order (root fields first, then each record's
+    /// fields, then each point's fields). Each match reports its arena kind, the
+    /// record/point ordinal (or none for a root field), the field name, and its exact
+    /// span. Never an embedding or a model call.
+    #[cfg(feature = "gis")]
+    GisFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// A YAML node addressed by a dotted path (Phase 21.6.1), e.g. `a.b.0`. The
     /// optional first segment `docN` selects a document (default 0). The answer
     /// reports the node's kind/style, its exact source span, and (for `ExactBytes`)
@@ -1678,6 +1747,20 @@ impl Selector {
             }
             #[cfg(feature = "geojson")]
             Selector::GeojsonFind { pattern } => format!("geojson-find:{pattern}"),
+            #[cfg(feature = "gis")]
+            Selector::GisRoot => "gis-root".to_string(),
+            #[cfg(feature = "gis")]
+            Selector::GisField { name } => format!("gis-field:{name}"),
+            #[cfg(feature = "gis")]
+            Selector::GisRecord { index } => format!("gis-record:{index}"),
+            #[cfg(feature = "gis")]
+            Selector::GisRecordField { record, name } => {
+                format!("gis-record-field:{record}:{name}")
+            }
+            #[cfg(feature = "gis")]
+            Selector::GisPoint { index } => format!("gis-point:{index}"),
+            #[cfg(feature = "gis")]
+            Selector::GisFind { pattern } => format!("gis-find:{pattern}"),
             #[cfg(feature = "yaml")]
             Selector::YamlPath { path } => format!("yaml-path:{path}"),
             #[cfg(feature = "yaml")]
@@ -3665,6 +3748,33 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "geojson")]
             (Selector::GeojsonFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.geojson_find(req, pattern)
+            }
+            #[cfg(feature = "gis")]
+            (Selector::GisRoot, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.gis_root(req)
+            }
+            #[cfg(feature = "gis")]
+            (Selector::GisField { name }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.gis_field(req, name)
+            }
+            #[cfg(feature = "gis")]
+            (
+                Selector::GisRecord { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.gis_record(req, *index),
+            #[cfg(feature = "gis")]
+            (
+                Selector::GisRecordField { record, name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.gis_record_field(req, *record, name),
+            #[cfg(feature = "gis")]
+            (
+                Selector::GisPoint { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.gis_point(req, *index),
+            #[cfg(feature = "gis")]
+            (Selector::GisFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.gis_find(req, pattern)
             }
             #[cfg(feature = "yaml")]
             (Selector::YamlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -9165,6 +9275,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Gis => {
+                #[cfg(feature = "gis")]
+                {
+                    self.common_gis(req)?
+                }
+                #[cfg(not(feature = "gis"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "GIS support is not compiled in (feature `gis`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -12749,6 +12871,427 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "geojson;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// KML/GPX geospatial observations (Phase 21.23)
+// ---------------------------------------------------------------------------
+
+/// KML and GPX are XML, so the exact leaf is the whole source, and every
+/// root/field/record/point observation is a bounded, span-preserving (`Q_gen`)
+/// projection of it (ADR-0060: the model node depends on the `sha256(source)`
+/// root).
+#[cfg(feature = "gis")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the GIS model (derived, `Q_gen`).
+    fn gis_model(&mut self) -> Result<(GisModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_GIS_MODEL, 0), "GIS model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((GisModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn gis_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn gis_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The local name of a field element and its exact span.
+    fn gis_field_meta(model: &GisModel, source: &[u8], node: u32) -> Result<(String, u64, u64)> {
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS field node is out of range"))?;
+        Ok((gis_field_name(model, source, node)?, n.start, n.end))
+    }
+
+    /// The structural descriptor of one field element: local name, exact span, the
+    /// decoded value, and the attributes in source order.
+    fn gis_field_descriptor(model: &GisModel, source: &[u8], node: u32) -> Result<String> {
+        let (name, start, end) = Self::gis_field_meta(model, source, node)?;
+        let text = gis_field_text(model, source, node)?;
+        let attrs = gis_field_attrs(model, source, node)?;
+        let mut parts: Vec<String> = Vec::with_capacity(attrs.len());
+        for a in &attrs {
+            parts.push(format!(
+                "{{\"name\":\"{}\",\"value\":\"{}\",\"span\":[{},{}]}}",
+                json_escape(&a.name),
+                json_escape(&a.value),
+                a.start,
+                a.end,
+            ));
+        }
+        Ok(format!(
+            "{{\"name\":\"{}\",\"span\":[{},{}],\"text\":\"{}\",\"attrs\":[{}]}}",
+            json_escape(&name),
+            start,
+            end,
+            json_escape(&text),
+            parts.join(","),
+        ))
+    }
+
+    /// The root container descriptor.
+    fn gis_root_structure(model: &GisModel, source: &[u8]) -> Result<String> {
+        let fields = gis_root_field_nodes(model, source)?;
+        let mut parts: Vec<String> = Vec::with_capacity(fields.len());
+        for f in fields {
+            parts.push(Self::gis_field_descriptor(model, source, f)?);
+        }
+        Ok(format!(
+            "{{\"dialect\":\"{}\",\"records\":{},\"points\":{},\"fields\":[{}]}}",
+            gis_dialect_name(model.dialect),
+            model.record_count(),
+            model.point_count(),
+            parts.join(","),
+        ))
+    }
+
+    /// One record's descriptor.
+    fn gis_record_structure(model: &GisModel, source: &[u8], index: u32) -> Result<String> {
+        let node = *model.records.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("geospatial has no record {index}"))
+        })?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS record node is out of range"))?;
+        let (start, end) = (n.start, n.end);
+        let kind = gis_field_name(model, source, node)?;
+        let fields = gis_record_field_nodes(model, source, index)?;
+        let mut parts: Vec<String> = Vec::with_capacity(fields.len());
+        for f in fields {
+            parts.push(Self::gis_field_descriptor(model, source, f)?);
+        }
+        Ok(format!(
+            "{{\"index\":{},\"kind\":\"{}\",\"dialect\":\"{}\",\"span\":[{},{}],\"fields\":[{}]}}",
+            index,
+            json_escape(&kind),
+            gis_dialect_name(model.dialect),
+            start,
+            end,
+            parts.join(","),
+        ))
+    }
+
+    /// One point's descriptor: the point kind, exact span, its attributes (including
+    /// the GPX `lat`/`lon`), and its fields.
+    fn gis_point_structure(model: &GisModel, source: &[u8], index: u32) -> Result<String> {
+        let node = *model.points.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("geospatial has no point {index}"))
+        })?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS point node is out of range"))?;
+        let (start, end) = (n.start, n.end);
+        let kind = gis_field_name(model, source, node)?;
+        let attrs = gis_field_attrs(model, source, node)?;
+        let mut attr_parts: Vec<String> = Vec::with_capacity(attrs.len());
+        for a in &attrs {
+            attr_parts.push(format!(
+                "{{\"name\":\"{}\",\"value\":\"{}\",\"span\":[{},{}]}}",
+                json_escape(&a.name),
+                json_escape(&a.value),
+                a.start,
+                a.end,
+            ));
+        }
+        let fields = gis_point_field_nodes(model, source, index)?;
+        let mut field_parts: Vec<String> = Vec::with_capacity(fields.len());
+        for f in fields {
+            field_parts.push(Self::gis_field_descriptor(model, source, f)?);
+        }
+        let lat = Self::gis_attr_json(model, source, node, "lat")?;
+        let lon = Self::gis_attr_json(model, source, node, "lon")?;
+        Ok(format!(
+            concat!(
+                "{{\"index\":{},\"kind\":\"{}\",\"dialect\":\"{}\",\"span\":[{},{}],",
+                "\"lat\":{},\"lon\":{},\"attrs\":[{}],\"fields\":[{}]}}"
+            ),
+            index,
+            json_escape(&kind),
+            gis_dialect_name(model.dialect),
+            start,
+            end,
+            lat,
+            lon,
+            attr_parts.join(","),
+            field_parts.join(","),
+        ))
+    }
+
+    /// The quoted value of one attribute of a node by local name, or `null`.
+    fn gis_attr_json(model: &GisModel, source: &[u8], node: u32, name: &str) -> Result<String> {
+        match gis_attr_value_by_local(model, source, node, name)? {
+            Some(v) => Ok(format!("\"{}\"", json_escape(&v))),
+            None => Ok("null".to_string()),
+        }
+    }
+
+    /// Find a field by local name among the given node indices, in document order.
+    fn gis_field_by_name(
+        model: &GisModel,
+        source: &[u8],
+        nodes: &[u32],
+        name: &str,
+    ) -> Result<Option<u32>> {
+        for &n in nodes {
+            if Self::gis_field_meta(model, source, n)?.0 == name {
+                return Ok(Some(n));
+            }
+        }
+        Ok(None)
+    }
+
+    fn gis_root(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let node = model.root;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS root node is out of range"))?;
+        let span = Some((n.start, n.end));
+        let provenance = format!("gis;root;dialect={}", gis_dialect_name(model.dialect));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(gis_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model.xml, &source, node)?),
+            _ => AnswerValue::Json(Self::gis_root_structure(&model, &source)?),
+        };
+        Ok(self.gis_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn gis_field(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let nodes = gis_root_field_nodes(&model, &source)?;
+        let node = Self::gis_field_by_name(&model, &source, &nodes, name)?.ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "GIS root has no field named {name:?} (dialect {})",
+                gis_dialect_name(model.dialect)
+            ))
+        })?;
+        let (_, start, end) = Self::gis_field_meta(&model, &source, node)?;
+        let provenance = format!(
+            "gis;field={name};dialect={}",
+            gis_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(gis_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(gis_field_text(&model, &source, node)?),
+            _ => AnswerValue::Json(Self::gis_field_descriptor(&model, &source, node)?),
+        };
+        Ok(self.gis_answer(
+            req,
+            value,
+            provenance,
+            Some((start, end)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn gis_record(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let node = *model.records.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("geospatial has no record {index}"))
+        })?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS record node is out of range"))?;
+        let span = Some((n.start, n.end));
+        let provenance = format!(
+            "gis;record={index};dialect={}",
+            gis_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(gis_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model.xml, &source, node)?),
+            _ => AnswerValue::Json(Self::gis_record_structure(&model, &source, index)?),
+        };
+        Ok(self.gis_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn gis_record_field(
+        &mut self,
+        req: &ObserveRequest,
+        record: u32,
+        name: &str,
+    ) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let nodes = gis_record_field_nodes(&model, &source, record)?;
+        let node = Self::gis_field_by_name(&model, &source, &nodes, name)?.ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "geospatial record {record} has no field named {name:?}"
+            ))
+        })?;
+        let (_, start, end) = Self::gis_field_meta(&model, &source, node)?;
+        let provenance = format!(
+            "gis;record={record};field={name};dialect={}",
+            gis_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(gis_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(gis_field_text(&model, &source, node)?),
+            _ => AnswerValue::Json(Self::gis_field_descriptor(&model, &source, node)?),
+        };
+        Ok(self.gis_answer(
+            req,
+            value,
+            provenance,
+            Some((start, end)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn gis_point(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let node = *model.points.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("geospatial has no point {index}"))
+        })?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS point node is out of range"))?;
+        let span = Some((n.start, n.end));
+        let provenance = format!(
+            "gis;point={index};dialect={}",
+            gis_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(gis_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model.xml, &source, node)?),
+            _ => AnswerValue::Json(Self::gis_point_structure(&model, &source, index)?),
+        };
+        Ok(self.gis_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over decoded recognized field values.
+    fn gis_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let matches = gis_find_matches(&model, &source, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            let index = match m.index {
+                Some(i) => i.to_string(),
+                None => "null".to_string(),
+            };
+            out.push(format!(
+                concat!(
+                    "{{\"kind\":\"{}\",\"index\":{},\"name\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.kind,
+                index,
+                json_escape(&m.name),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("gis;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.gis_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_gis(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.gis_common_metadata(req),
+            Selector::Text => self.gis_common_text(req),
+            Selector::SearchMatch(p) => self.gis_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "GIS does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn gis_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let text = gis_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.gis_answer(
+            req,
+            AnswerValue::Text(text),
+            "gis;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn gis_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let root_fields = gis_root_field_nodes(&model, &source)?.len();
+        let mut fields = root_fields;
+        for i in 0..model.records.len() as u32 {
+            fields += gis_record_field_nodes(&model, &source, i)?.len();
+        }
+        for i in 0..model.points.len() as u32 {
+            fields += gis_point_field_nodes(&model, &source, i)?.len();
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"gis\",\"dialect\":\"{}\",",
+                "\"records\":{},\"points\":{},\"root_fields\":{},\"fields\":{},\"bytes\":{}}}"
+            ),
+            gis_dialect_name(model.dialect),
+            model.record_count(),
+            model.point_count(),
+            root_fields,
+            fields,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.gis_answer(
+            req,
+            value,
+            "gis;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

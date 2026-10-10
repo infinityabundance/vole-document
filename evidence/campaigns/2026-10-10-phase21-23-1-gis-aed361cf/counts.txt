@@ -1,0 +1,14 @@
+fixtures 8
+gis_fixtures 2
+exact_ok 8
+exact_fail 0
+surface_fail 0
+typed_decline_records_ok 2
+typed_decline_points_ok 2
+typed_decline_fields_ok 2
+xml_controls_ok 5
+xml_controls 5
+usage_ok 1
+opaque_controls_ok 1
+opaque_controls 1
+binary 8d3004495cad5569a760bf77aa8594a33be9f6c769a03f4bc723da5c1bd2a0c7

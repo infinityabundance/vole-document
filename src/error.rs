@@ -127,6 +127,12 @@ pub enum ErrorClass {
     /// a `Feature` with no `geometry`/`properties`, a `FeatureCollection` with no array
     /// `features`) — so it stays `Json`/`Opaque` rather than being claimed.
     InvalidGeojsonStructure,
+    /// A KML/GPX geospatial structure error (Phase 21.23+): a source that is not
+    /// well-formed XML, a `<kml>` root not in the KML namespace or with no
+    /// `Document`/`Folder`/`Placemark` child, a `<gpx>` root not in the GPX namespace
+    /// or with no `metadata`/`wpt`/`rte`/`trk` child, or a root that is not a KML/GPX
+    /// document (so it stays `Xml`/`Opaque`).
+    InvalidGisStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -170,6 +176,7 @@ impl ErrorClass {
             ErrorClass::InvalidConfigStructure => 34,
             ErrorClass::InvalidFeedStructure => 35,
             ErrorClass::InvalidGeojsonStructure => 36,
+            ErrorClass::InvalidGisStructure => 37,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -212,6 +219,7 @@ impl ErrorClass {
             ErrorClass::InvalidConfigStructure => "InvalidConfigStructure",
             ErrorClass::InvalidFeedStructure => "InvalidFeedStructure",
             ErrorClass::InvalidGeojsonStructure => "InvalidGeojsonStructure",
+            ErrorClass::InvalidGisStructure => "InvalidGisStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -308,6 +316,7 @@ impl Error {
     ctor!(invalid_config_structure, InvalidConfigStructure);
     ctor!(invalid_feed_structure, InvalidFeedStructure);
     ctor!(invalid_geojson_structure, InvalidGeojsonStructure);
+    ctor!(invalid_gis_structure, InvalidGisStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 
