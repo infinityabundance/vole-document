@@ -1,0 +1,2 @@
+This is plain prose, not an Arrow file.
+No ARROW1 footer here.

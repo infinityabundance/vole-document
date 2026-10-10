@@ -249,6 +249,15 @@ pub enum NodeKind {
     /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060). Parquet has no
     /// package layer. Derived, never exact.
     ParquetModel = 0x30,
+    /// The canonical, bounded Arrow IPC model (Phase 21.16): the parsed Flatbuffers
+    /// footer (file format) or leading schema message (stream format) inventory —
+    /// the flattened schema (names, type tags/parameters, nullability, children),
+    /// the decodable top-level columns with their pre-computed buffer slots, and the
+    /// record-batch descriptors (each with its exact source span and its declared
+    /// node/buffer counts). It is derived on demand from the exact source (its
+    /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+    /// ADR-0060). Arrow has no package layer. Derived, never exact.
+    ArrowModel = 0x31,
 }
 
 impl NodeKind {
@@ -303,6 +312,7 @@ impl NodeKind {
             0x2E => NodeKind::JsonlModel,
             0x2F => NodeKind::EmlModel,
             0x30 => NodeKind::ParquetModel,
+            0x31 => NodeKind::ArrowModel,
             _ => return None,
         })
     }
@@ -358,6 +368,7 @@ impl NodeKind {
             NodeKind::JsonlModel => "JsonlModel",
             NodeKind::EmlModel => "EmlModel",
             NodeKind::ParquetModel => "ParquetModel",
+            NodeKind::ArrowModel => "ArrowModel",
         }
     }
 

@@ -395,6 +395,25 @@ eml = []
 # is never on the exactness path, so enabling it never changes `.voldoc` bytes and
 # exactness is untouched. Never in `default`.
 parquet = []
+# Phase 21.16: the Apache Arrow IPC adapter — the last listed **analytical** Wave-2
+# format. Like the other Wave-2 formats it is not a package (no OPC/ZIP layer):
+# the exact leaf is the whole source (a `DocumentExact`, RAW-like authority) and
+# every derived observation is a bounded, span-preserving (`Q_gen`) projection of
+# it. It adds a bounded, dependency-free reader of the Arrow IPC physical layout:
+# the Flatbuffers `Footer` (file format) or leading `Schema` message (stream
+# format) — the schema (names/type tags/parameters/nullability/children), the
+# record-batch inventory with each batch's **exact source span**, and a documented
+# subset of decoded columnar buffers (Int, FloatingPoint, Boolean, Date/Time/
+# Timestamp/Duration as raw ints, Utf8/LargeUtf8, Binary/LargeBinary,
+# FixedSizeBinary, with validity bitmaps). The metadata is treated as untrusted:
+# every Flatbuffers read is bounds-checked and non-panicking. It **declines typed**
+# every type/layout/compression it does not support (nested types, views,
+# dictionary-encoded fields, Decimal/Interval/Null, big-endian, and any
+# `BodyCompression`), never guessing. It adds **no** decoder behavior: the Arrow
+# model is never on the exactness path, so enabling it never changes `.voldoc`
+# bytes and exactness is untouched. Dependency-free (`arrow = []`) and never in
+# `default`.
+arrow = []
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

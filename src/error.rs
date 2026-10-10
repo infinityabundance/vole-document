@@ -92,6 +92,10 @@ pub enum ErrorClass {
     /// page or column-chunk span outside the file, or a value count that disagrees
     /// with the page layout.
     InvalidParquetStructure,
+    /// An Apache Arrow IPC structure error (Phase 21.16+): missing/inconsistent
+    /// `ARROW1` magic, a truncated or out-of-bounds Flatbuffers metadata table, an
+    /// invalid message framing, or a buffer span outside the message body.
+    InvalidArrowStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -128,6 +132,7 @@ impl ErrorClass {
             ErrorClass::InvalidJsonlStructure => 27,
             ErrorClass::InvalidEmlStructure => 28,
             ErrorClass::InvalidParquetStructure => 29,
+            ErrorClass::InvalidArrowStructure => 30,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -163,6 +168,7 @@ impl ErrorClass {
             ErrorClass::InvalidJsonlStructure => "InvalidJsonlStructure",
             ErrorClass::InvalidEmlStructure => "InvalidEmlStructure",
             ErrorClass::InvalidParquetStructure => "InvalidParquetStructure",
+            ErrorClass::InvalidArrowStructure => "InvalidArrowStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -252,6 +258,7 @@ impl Error {
     ctor!(invalid_jsonl_structure, InvalidJsonlStructure);
     ctor!(invalid_eml_structure, InvalidEmlStructure);
     ctor!(invalid_parquet_structure, InvalidParquetStructure);
+    ctor!(invalid_arrow_structure, InvalidArrowStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

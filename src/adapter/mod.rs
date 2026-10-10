@@ -4,6 +4,8 @@
 //! byte authority: a hypothesis is only admitted after it reproduces the exact
 //! source bytes and wins the complete-cost court.
 
+#[cfg(feature = "arrow")]
+pub mod arrow;
 #[cfg(feature = "csv")]
 pub mod csv;
 #[cfg(feature = "docx")]

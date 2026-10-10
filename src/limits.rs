@@ -461,6 +461,35 @@ pub struct Limits {
     /// Maximum accepted Thrift-Compact footer byte length (Phase 21.14). A larger
     /// footer declines typed before it is parsed.
     pub max_parquet_footer_bytes: u64,
+    // The Arrow IPC caps below bound the derived, span-preserving analytical model
+    // (Phase 21.16). Arrow is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen` only.
+    /// Maximum number of encapsulated IPC messages (schema + dictionary + record
+    /// batches) accepted in one Arrow file/stream (Phase 21.16).
+    pub max_arrow_messages: u32,
+    /// Maximum number of schema columns (fields, flattened pre-order) accepted in
+    /// one Arrow file (Phase 21.16).
+    pub max_arrow_columns: u32,
+    /// Maximum number of record batches accepted in one Arrow file/stream (Phase
+    /// 21.16).
+    pub max_arrow_batches: u32,
+    /// Maximum number of logical rows accepted across one Arrow file/stream (Phase
+    /// 21.16). A larger file declines typed rather than allocating.
+    pub max_arrow_rows: u64,
+    /// Maximum number of buffers accepted across one record batch (Phase 21.16).
+    pub max_arrow_buffers: u64,
+    /// Maximum number of decoded values across an Arrow column (Phase 21.16).
+    pub max_arrow_values: u64,
+    /// Maximum total declared body/decompressed bytes across one decode (Phase
+    /// 21.16). A body bomb declines typed.
+    pub max_arrow_decompressed_bytes: u64,
+    /// Maximum source length admitted for byte-based Arrow detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.16).
+    pub max_arrow_document_bytes: u64,
+    /// Maximum accepted Flatbuffers metadata (footer or message) byte length (Phase
+    /// 21.16). A larger metadata declares typed before it is parsed.
+    pub max_arrow_metadata_bytes: u64,
 }
 
 impl Limits {
@@ -604,6 +633,15 @@ impl Limits {
         max_parquet_decompressed_bytes: 1 << 28,
         max_parquet_document_bytes: 1 << 34,
         max_parquet_footer_bytes: 1 << 26,
+        max_arrow_messages: 1 << 20,
+        max_arrow_columns: 1 << 20,
+        max_arrow_batches: 1 << 20,
+        max_arrow_rows: 1 << 40,
+        max_arrow_buffers: 1 << 26,
+        max_arrow_values: 1 << 30,
+        max_arrow_decompressed_bytes: 1 << 30,
+        max_arrow_document_bytes: 1 << 34,
+        max_arrow_metadata_bytes: 1 << 26,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -746,6 +784,15 @@ impl Limits {
         max_parquet_decompressed_bytes: 1 << 20,
         max_parquet_document_bytes: 1 << 26,
         max_parquet_footer_bytes: 1 << 20,
+        max_arrow_messages: 1 << 12,
+        max_arrow_columns: 1 << 12,
+        max_arrow_batches: 1 << 12,
+        max_arrow_rows: 1 << 24,
+        max_arrow_buffers: 1 << 20,
+        max_arrow_values: 1 << 16,
+        max_arrow_decompressed_bytes: 1 << 20,
+        max_arrow_document_bytes: 1 << 26,
+        max_arrow_metadata_bytes: 1 << 20,
     };
 }
 

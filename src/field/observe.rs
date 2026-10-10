@@ -33,6 +33,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
+#[cfg(feature = "arrow")]
+use crate::adapter::arrow::{
+    ArrowModel, LeafColumn as ArrowLeaf, Value as ArrowValue, batch_detail as arrow_batch_detail,
+    cell_value as arrow_cell_value, column_bytes as arrow_column_bytes,
+    column_span as arrow_column_span, column_values as arrow_column_values,
+    type_name as arrow_type_name, value_text as arrow_value_text,
+};
 #[cfg(feature = "csv")]
 use crate::adapter::csv::{
     CsvModel, StreamRecord as CsvStreamRecord, canonical_text as csv_canonical_text,
@@ -144,6 +151,8 @@ use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, OutputCache, ReuseStats, SourceServer};
 use crate::field::document_format::DocumentFormat;
+#[cfg(feature = "arrow")]
+use crate::field::index::SEL_ARROW_MODEL;
 #[cfg(feature = "csv")]
 use crate::field::index::SEL_CSV_MODEL;
 #[cfg(feature = "docx")]
@@ -1019,6 +1028,35 @@ pub enum Selector {
         /// The 0-based leaf-column index.
         col: u32,
     },
+    /// The Arrow schema: every flattened field's depth, name, type tag/parameters,
+    /// nullability, and child count (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    ArrowSchema,
+    /// The column named or indexed by `spec` (Phase 21.16): its inventory
+    /// (`metadata`/`structure`), decoded values (`text`), or the raw bytes of its
+    /// buffers (`exact`). Declined typed when the column's type/layout/compression is
+    /// unsupported.
+    #[cfg(feature = "arrow")]
+    ArrowColumn {
+        /// A column name or a 0-based top-level column index (as text).
+        spec: String,
+    },
+    /// The `index`-th record batch (Phase 21.16): its row count, exact source span,
+    /// and its declared field-node/buffer inventory.
+    #[cfg(feature = "arrow")]
+    ArrowBatch {
+        /// The 0-based record-batch index.
+        index: u32,
+    },
+    /// The cell at `row` (whole-file 0-based) and column `col` (Phase 21.16): the
+    /// decoded value, declined typed when the column's type/layout is unsupported.
+    #[cfg(feature = "arrow")]
+    ArrowCell {
+        /// The 0-based row index (across the whole file).
+        row: u64,
+        /// A column name or a 0-based top-level column index (as text).
+        col: String,
+    },
 }
 
 impl Selector {
@@ -1377,6 +1415,14 @@ impl Selector {
             Selector::ParquetRowGroup { index } => format!("parquet-row-group:{index}"),
             #[cfg(feature = "parquet")]
             Selector::ParquetCell { row, col } => format!("parquet-cell:{row}:{col}"),
+            #[cfg(feature = "arrow")]
+            Selector::ArrowSchema => "arrow-schema".to_string(),
+            #[cfg(feature = "arrow")]
+            Selector::ArrowColumn { spec } => format!("arrow-column:{spec}"),
+            #[cfg(feature = "arrow")]
+            Selector::ArrowBatch { index } => format!("arrow-batch:{index}"),
+            #[cfg(feature = "arrow")]
+            Selector::ArrowCell { row, col } => format!("arrow-cell:{row}:{col}"),
         }
     }
 
@@ -3328,6 +3374,21 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "parquet")]
             (Selector::ParquetCell { row, col }, R::Text | R::Metadata | R::Structure) => {
                 self.parquet_cell(req, *row, *col)
+            }
+            #[cfg(feature = "arrow")]
+            (Selector::ArrowSchema, R::Text | R::Metadata | R::Structure) => self.arrow_schema(req),
+            #[cfg(feature = "arrow")]
+            (
+                Selector::ArrowColumn { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.arrow_column(req, spec),
+            #[cfg(feature = "arrow")]
+            (Selector::ArrowBatch { index }, R::Metadata | R::Structure) => {
+                self.arrow_batch(req, *index)
+            }
+            #[cfg(feature = "arrow")]
+            (Selector::ArrowCell { row, col }, R::Text | R::Metadata | R::Structure) => {
+                self.arrow_cell(req, *row, col)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -8561,6 +8622,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::ArrowIpc => {
+                #[cfg(feature = "arrow")]
+                {
+                    self.common_arrow(req)?
+                }
+                #[cfg(not(feature = "arrow"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "Arrow support is not compiled in (feature `arrow`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -11303,6 +11376,512 @@ impl<S: SeedStore> Ctx<'_, S> {
         ));
         let provenance = format!("parquet;find={pattern};matches={}", out.len());
         Ok(self.parquet_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Arrow IPC observations (Phase 21.16)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "arrow")]
+fn arrow_leaf_index(model: &ArrowModel, spec: &str) -> Result<u32> {
+    // A numeric spec addresses by 0-based top-level index when in range; otherwise
+    // (or for a non-numeric spec) it is matched by exact column name.
+    if let Ok(i) = spec.parse::<u32>()
+        && (i as usize) < model.leaves.len()
+    {
+        return Ok(i);
+    }
+    model
+        .leaves
+        .iter()
+        .position(|l| l.name == spec)
+        .map(|i| i as u32)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {spec:?}")))
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_schema_json(model: &ArrowModel) -> String {
+    let mut elems: Vec<String> = Vec::new();
+    for (i, f) in model.schema.iter().enumerate() {
+        elems.push(format!(
+            concat!(
+                "{{\"index\":{},\"depth\":{},\"parent\":{},\"name\":\"{}\",",
+                "\"nullable\":{},\"type\":\"{}\",\"type_tag\":{},\"children\":{},\"dictionary\":{}}}"
+            ),
+            i,
+            f.depth,
+            if f.parent == u32::MAX {
+                "null".to_string()
+            } else {
+                f.parent.to_string()
+            },
+            json_escape(&f.name),
+            f.nullable,
+            json_escape(&f.type_text),
+            f.type_tag,
+            f.num_children,
+            match f.dict_id {
+                Some(id) => id.to_string(),
+                None => "null".to_string(),
+            },
+        ));
+    }
+    format!(
+        concat!(
+            "{{\"format\":\"arrow\",\"stream\":{},\"version\":{},\"endianness\":{}",
+            ",\"columns\":{},\"batches\":{},\"bytes\":{},\"fields\":[{}]}}"
+        ),
+        model.stream,
+        model.version,
+        if model.endianness == 0 {
+            "little"
+        } else {
+            "big"
+        },
+        model.leaves.len(),
+        model.batches.len(),
+        model.doc_len,
+        elems.join(",")
+    )
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_schema_text(model: &ArrowModel) -> String {
+    let mut out = String::new();
+    for f in &model.schema {
+        for _ in 0..f.depth {
+            out.push_str("  ");
+        }
+        out.push_str(&format!(
+            "{}: {}{}\n",
+            f.name,
+            f.type_text,
+            if f.nullable { " (nullable)" } else { "" }
+        ));
+    }
+    out
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_values_text(values: &[ArrowValue], leaf: &ArrowLeaf) -> String {
+    let mut out = String::new();
+    for (i, v) in values.iter().enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        out.push_str(&arrow_value_text(v, leaf));
+    }
+    out
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_values_json(values: &[ArrowValue], leaf: &ArrowLeaf) -> String {
+    let items: Vec<String> = values
+        .iter()
+        .map(|v| format!("\"{}\"", json_escape(&arrow_value_text(v, leaf))))
+        .collect();
+    format!("[{}]", items.join(","))
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_column_json(
+    model: &ArrowModel,
+    index: u32,
+    values: Option<&[ArrowValue]>,
+    err: Option<&str>,
+    span: Option<(u64, u64)>,
+) -> Result<String> {
+    let leaf = model
+        .leaf(index)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {index}")))?;
+    let field = model.field(leaf.element);
+    let type_text = field.map(|f| f.type_text.clone()).unwrap_or_default();
+    let span_json = match span {
+        Some((a, b)) => format!("[{a},{b}]"),
+        None => "null".to_string(),
+    };
+    let values_json = match values {
+        Some(v) => arrow_values_json(v, leaf),
+        None => "null".to_string(),
+    };
+    Ok(format!(
+        concat!(
+            "{{\"column\":{},\"name\":\"{}\",\"type\":\"{}\",\"supported\":{}",
+            ",\"decline\":{},\"span\":{},\"error\":{},\"values\":{}}}"
+        ),
+        index,
+        json_escape(&leaf.name),
+        json_escape(&type_text),
+        leaf.supported,
+        opt_str_json(leaf.decline.as_deref()),
+        span_json,
+        opt_str_json(err),
+        values_json
+    ))
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_compression_name(c: i32) -> &'static str {
+    match c {
+        0 => "LZ4_FRAME",
+        1 => "ZSTD",
+        _ => "UNKNOWN",
+    }
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_batch_json(
+    source: &[u8],
+    model: &ArrowModel,
+    index: u32,
+    limits: Limits,
+) -> Result<String> {
+    let d = arrow_batch_detail(source, model, index, limits)?;
+    let mut bufs: Vec<String> = Vec::new();
+    for (off, len) in &d.buffers {
+        let a = d.body_offset.saturating_add(*off as u64);
+        let b = a.saturating_add(*len as u64);
+        bufs.push(format!(
+            "{{\"offset\":{},\"length\":{},\"span\":[{a},{b}]}}",
+            off, len
+        ));
+    }
+    let nodes: Vec<String> = d.nodes.iter().map(|(l, n)| format!("[{l},{n}]")).collect();
+    let codec = if d.compression < 0 {
+        "null".to_string()
+    } else {
+        format!("\"{}\"", arrow_compression_name(d.compression))
+    };
+    Ok(format!(
+        concat!(
+            "{{\"index\":{},\"rows\":{},\"span\":[{},{}],\"nodes\":{},\"buffers\":{}",
+            ",\"compression\":{},\"node_detail\":[{}],\"buffer_detail\":[{}]}}"
+        ),
+        index,
+        d.rows,
+        d.span.0,
+        d.span.1,
+        d.num_nodes,
+        d.num_buffers,
+        codec,
+        nodes.join(","),
+        bufs.join(",")
+    ))
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_table_text(model: &ArrowModel, cols: &[Vec<ArrowValue>], budget: u64) -> Result<String> {
+    let mut out = String::new();
+    let names: Vec<String> = model.leaves.iter().map(|l| l.name.clone()).collect();
+    out.push_str(&names.join("\t"));
+    out.push('\n');
+    let rows = model
+        .batches
+        .iter()
+        .map(|b| b.num_rows.max(0) as usize)
+        .sum::<usize>();
+    for r in 0..rows {
+        let mut row: Vec<String> = Vec::with_capacity(cols.len());
+        for (ci, col) in cols.iter().enumerate() {
+            let cell = match col.get(r) {
+                Some(ArrowValue::Null) | None => String::new(),
+                Some(v) => arrow_value_text(v, &model.leaves[ci]),
+            };
+            row.push(cell);
+        }
+        out.push_str(&row.join("\t"));
+        out.push('\n');
+        if out.len() as u64 > budget {
+            return Err(Error::resource_limit(format!(
+                "Arrow table text exceeded the {budget}-byte budget"
+            )));
+        }
+    }
+    Ok(out)
+}
+
+#[cfg(feature = "arrow")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the Arrow model (derived, `Q_gen`).
+    fn arrow_model(&mut self) -> Result<(ArrowModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_ARROW_MODEL, 0), "Arrow model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((ArrowModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn arrow_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn arrow_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The schema: JSON (metadata/structure) or a compact text tree.
+    fn arrow_schema(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (_source, root) = self.arrow_source()?;
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(arrow_schema_text(&model)),
+            _ => AnswerValue::Json(arrow_schema_json(&model)),
+        };
+        Ok(self.arrow_answer(
+            req,
+            value,
+            "arrow;schema".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    /// One column: its inventory (`metadata`/`structure`), decoded values (`text`),
+    /// or the raw bytes of its buffers (`exact`).
+    fn arrow_column(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (source, root) = self.arrow_source()?;
+        let index = arrow_leaf_index(&model, spec)?;
+        let leaf = model
+            .leaf(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {index}")))?;
+        let span = arrow_column_span(&source, &model, index, self.limits)?;
+        let provenance = format!(
+            "arrow;column={index};type={}",
+            arrow_type_name(leaf.type_tag)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                let bytes = arrow_column_bytes(
+                    &source,
+                    &model,
+                    index,
+                    self.limits,
+                    req.budget.max_output_bytes,
+                )?;
+                AnswerValue::Bytes(bytes)
+            }
+            Representation::Text => {
+                let vals = arrow_column_values(&source, &model, index, self.limits)?;
+                AnswerValue::Text(arrow_values_text(&vals, leaf))
+            }
+            _ => {
+                let (vals, err) = match arrow_column_values(&source, &model, index, self.limits) {
+                    Ok(v) => (Some(v), None),
+                    Err(e) => (None, Some(e.message().to_string())),
+                };
+                AnswerValue::Json(arrow_column_json(
+                    &model,
+                    index,
+                    vals.as_deref(),
+                    err.as_deref(),
+                    span,
+                )?)
+            }
+        };
+        Ok(self.arrow_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// One record batch's inventory.
+    fn arrow_batch(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (source, root) = self.arrow_source()?;
+        let json = arrow_batch_json(&source, &model, index, self.limits)?;
+        let span = model
+            .batches
+            .get(index as usize)
+            .map(|b| (b.span_start, b.span_end));
+        Ok(self.arrow_answer(
+            req,
+            AnswerValue::Json(json),
+            format!("arrow;batch={index}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// One cell (whole-file row, column).
+    fn arrow_cell(&mut self, req: &ObserveRequest, row: u64, col: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (source, root) = self.arrow_source()?;
+        let index = arrow_leaf_index(&model, col)?;
+        let leaf = model
+            .leaf(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {index}")))?;
+        let value = arrow_cell_value(&source, &model, row, index, self.limits)?;
+        let text = arrow_value_text(&value, leaf);
+        let span = arrow_column_span(&source, &model, index, self.limits)?;
+        let answer = match req.representation {
+            Representation::Metadata | Representation::Structure => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"arrow\",\"row\":{},\"column\":{},",
+                    "\"name\":\"{}\",\"value\":\"{}\"}}"
+                ),
+                row,
+                index,
+                json_escape(&leaf.name),
+                json_escape(&text)
+            )),
+            _ => AnswerValue::Text(text),
+        };
+        Ok(self.arrow_answer(
+            req,
+            answer,
+            format!("arrow;cell={row}:{col}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_arrow(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.arrow_common_metadata(req),
+            Selector::Text => self.arrow_common_text(req),
+            Selector::Table(i) => {
+                if *i == 0 {
+                    self.arrow_common_text(req)
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "Arrow has a single table; table {i} does not exist"
+                    )))
+                }
+            }
+            Selector::Cell { table, row, col } => {
+                if *table == 0 {
+                    self.arrow_cell(req, u64::from(*row), &col.to_string())
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "Arrow has a single table; table {table} does not exist"
+                    )))
+                }
+            }
+            Selector::SearchMatch(p) => self.arrow_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "Arrow does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn arrow_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (_source, root) = self.arrow_source()?;
+        let rows: i64 = model.batches.iter().map(|b| b.num_rows.max(0)).sum();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"arrow\",\"stream\":{},\"version\":{}",
+                ",\"columns\":{},\"batches\":{},\"rows\":{},\"bytes\":{}}}"
+            ),
+            model.stream,
+            model.version,
+            model.leaves.len(),
+            model.batches.len(),
+            rows,
+            model.doc_len
+        ));
+        Ok(self.arrow_answer(
+            req,
+            value,
+            "arrow;metadata".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn arrow_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (source, root) = self.arrow_source()?;
+        let mut cols: Vec<Vec<ArrowValue>> = Vec::with_capacity(model.leaves.len());
+        for i in 0..model.leaves.len() as u32 {
+            // A typed decline anywhere makes the whole-table text decline typed, so
+            // the answer is never a silently partial table.
+            cols.push(arrow_column_values(&source, &model, i, self.limits)?);
+        }
+        let text = arrow_table_text(&model, &cols, req.budget.max_output_bytes)?;
+        Ok(self.arrow_answer(
+            req,
+            AnswerValue::Text(text),
+            "arrow;text".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn arrow_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (source, root) = self.arrow_source()?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for (i, leaf) in model.leaves.iter().enumerate() {
+            if leaf.name.contains(pattern) {
+                estimated = estimated.saturating_add(64 + leaf.name.len() as u64);
+                out.push(format!(
+                    "{{\"column\":{},\"row\":null,\"name\":\"{}\",\"text\":\"{}\"}}",
+                    i,
+                    json_escape(&leaf.name),
+                    json_escape(&leaf.name)
+                ));
+            }
+            // Best-effort: a column whose type/layout is unsupported is skipped (it
+            // can never contribute a match), never guessed.
+            let Ok(vals) = arrow_column_values(&source, &model, i as u32, self.limits) else {
+                continue;
+            };
+            for (r, v) in vals.iter().enumerate() {
+                if matches!(v, ArrowValue::Null) {
+                    continue;
+                }
+                let t = arrow_value_text(v, leaf);
+                if t.contains(pattern) {
+                    estimated = estimated.saturating_add(64 + t.len() as u64);
+                    if estimated > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "Arrow find exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                    out.push(format!(
+                        "{{\"column\":{},\"row\":{},\"name\":\"{}\",\"text\":\"{}\"}}",
+                        i,
+                        r,
+                        json_escape(&leaf.name),
+                        json_escape(&t)
+                    ));
+                }
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        let provenance = format!("arrow;find={pattern};matches={}", out.len());
+        Ok(self.arrow_answer(req, value, provenance, None, vec![model_id, root]))
     }
 }
 

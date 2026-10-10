@@ -222,6 +222,7 @@ const PARQUET_NATIVE: &[&str] = &[
     "parquet-row-group",
     "parquet-cell",
 ];
+const ARROW_NATIVE: &[&str] = &["arrow-schema", "arrow-column", "arrow-batch", "arrow-cell"];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -447,6 +448,17 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 PARQUET_NATIVE.to_vec(),
+            ),
+            DocumentFormat::ArrowIpc => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                ARROW_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

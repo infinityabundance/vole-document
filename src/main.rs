@@ -124,7 +124,9 @@ const USAGE_FIELD: &str = "\
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
-        --parquet-cell R:C) --kind metadata|text|structure|operators|
+        --parquet-cell R:C |
+        --arrow-schema | --arrow-column NAME|N | --arrow-batch N |
+        --arrow-cell R:C) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1753,6 +1755,21 @@ struct FieldArgs {
     /// (Phase 21.14).
     #[cfg(feature = "parquet")]
     parquet_cell: Option<(u32, u32)>,
+    /// `--arrow-schema`: the Arrow IPC schema (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    arrow_schema: bool,
+    /// `--arrow-column NAME|N`: the column named `NAME` or the `N`-th top-level
+    /// column (0-based): its inventory, decoded values (as `text`), or raw buffer
+    /// bytes (as `exact`) (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    arrow_column: Option<String>,
+    /// `--arrow-batch N`: the N-th record batch (0-based) inventory (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    arrow_batch: Option<u32>,
+    /// `--arrow-cell R:C`: the decoded cell at whole-file row `R`, column `C`
+    /// (a name or a 0-based index) (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    arrow_cell: Option<(u64, String)>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -2348,6 +2365,25 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
                 let v = field_arg_value(args, &mut i, "--parquet-cell", inline)?;
                 out.parquet_cell = Some(parse_cell_pair(&v)?);
             }
+            #[cfg(feature = "arrow")]
+            "--arrow-schema" => {
+                out.arrow_schema = true;
+                i += 1;
+            }
+            #[cfg(feature = "arrow")]
+            "--arrow-column" => {
+                out.arrow_column = Some(field_arg_value(args, &mut i, "--arrow-column", inline)?);
+            }
+            #[cfg(feature = "arrow")]
+            "--arrow-batch" => {
+                let v = field_arg_value(args, &mut i, "--arrow-batch", inline)?;
+                out.arrow_batch = Some(parse_field_u32(&v, "--arrow-batch")?);
+            }
+            #[cfg(feature = "arrow")]
+            "--arrow-cell" => {
+                let v = field_arg_value(args, &mut i, "--arrow-cell", inline)?;
+                out.arrow_cell = Some(parse_arrow_cell(&v)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2454,6 +2490,22 @@ fn parse_cell_pair(value: &str) -> Result<(u32, u32)> {
             .map_err(|_| Error::usage(format!("--parquet-cell component {p:?} is not a u32")))?;
     }
     Ok((out[0], out[1]))
+}
+
+/// Parse `--arrow-cell R:C` where `R` is a whole-file row (u64) and `C` is a column
+/// name or a 0-based top-level column index (Phase 21.16).
+#[cfg(all(feature = "field", feature = "arrow"))]
+fn parse_arrow_cell(value: &str) -> Result<(u64, String)> {
+    let (row, col) = value
+        .split_once(':')
+        .ok_or_else(|| Error::usage("--arrow-cell must be ROW:COL (e.g. 0:1)"))?;
+    let row: u64 = row
+        .parse()
+        .map_err(|_| Error::usage(format!("--arrow-cell row {row:?} is not a u64")))?;
+    if col.is_empty() {
+        return Err(Error::usage("--arrow-cell column is empty"));
+    }
+    Ok((row, col.to_string()))
 }
 
 #[cfg(feature = "field")]
@@ -2913,6 +2965,27 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
             chosen.push(Selector::ParquetCell {
                 row: u64::from(row),
                 col,
+            });
+        }
+    }
+    // Arrow IPC: `--arrow-schema` lists the schema; `--arrow-column NAME|N`
+    // addresses a column; `--arrow-batch N` a record batch; `--arrow-cell R:C` a
+    // cell. Each stands alone (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    {
+        if out.arrow_schema {
+            chosen.push(Selector::ArrowSchema);
+        }
+        if let Some(spec) = &out.arrow_column {
+            chosen.push(Selector::ArrowColumn { spec: spec.clone() });
+        }
+        if let Some(index) = out.arrow_batch {
+            chosen.push(Selector::ArrowBatch { index });
+        }
+        if let Some((row, col)) = &out.arrow_cell {
+            chosen.push(Selector::ArrowCell {
+                row: *row,
+                col: col.clone(),
             });
         }
     }

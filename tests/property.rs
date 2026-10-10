@@ -523,6 +523,15 @@ fn limits_never_change_reconstructed_bytes() {
         max_parquet_decompressed_bytes: 1 << 50,
         max_parquet_document_bytes: 1 << 50,
         max_parquet_footer_bytes: 1 << 50,
+        max_arrow_messages: 1 << 30,
+        max_arrow_columns: 1 << 30,
+        max_arrow_batches: 1 << 30,
+        max_arrow_rows: 1 << 50,
+        max_arrow_buffers: 1 << 40,
+        max_arrow_values: 1 << 50,
+        max_arrow_decompressed_bytes: 1 << 50,
+        max_arrow_document_bytes: 1 << 50,
+        max_arrow_metadata_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

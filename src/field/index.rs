@@ -255,6 +255,16 @@ pub const SEL_EML_MODEL: u8 = 27;
 /// `sha256(source)` per ADR-0060); Parquet has no package layer. Derived, never
 /// exact.
 pub const SEL_PARQUET_MODEL: u8 = 28;
+/// Selector kind: the canonical bounded Arrow IPC model (Phase 21.16).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed into the derived Arrow inventory (the flattened schema, the
+/// decodable top-level columns with their pre-computed buffer slots, and the
+/// record-batch descriptors with exact source spans) as `Q_gen` derived state. It
+/// is computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); Arrow has no
+/// package layer. Derived, never exact.
+pub const SEL_ARROW_MODEL: u8 = 29;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

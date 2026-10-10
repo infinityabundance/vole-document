@@ -175,6 +175,14 @@ pub enum DocumentFormat {
     /// source, and the parsed footer inventory (schema, row groups, column chunks,
     /// statistics) and any decoded values are `Q_gen` projections (Phase 21.14).
     Parquet,
+    /// An Apache Arrow IPC file/stream (the source begins with the `ARROW1` magic
+    /// and is either the **file** format — a trailing `ARROW1` magic preceded by a
+    /// consistent little-endian `int32` footer length — or the **stream** format —
+    /// a valid encapsulated `Schema` message at the 8-byte magic+padding prefix).
+    /// Not a package: the exact leaf is the whole source, and the parsed schema and
+    /// record-batch inventory (with each batch's exact source span) and any decoded
+    /// columnar values are `Q_gen` projections (Phase 21.16).
+    ArrowIpc,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -201,6 +209,7 @@ impl DocumentFormat {
             DocumentFormat::Jsonl => "jsonl",
             DocumentFormat::Eml => "eml",
             DocumentFormat::Parquet => "parquet",
+            DocumentFormat::ArrowIpc => "arrow",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -226,6 +235,7 @@ impl DocumentFormat {
             DocumentFormat::Jsonl => "jsonl",
             DocumentFormat::Eml => "eml",
             DocumentFormat::Parquet => "parquet",
+            DocumentFormat::ArrowIpc => "arrow",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -251,6 +261,7 @@ impl DocumentFormat {
             DocumentFormat::Jsonl => cfg!(feature = "jsonl"),
             DocumentFormat::Eml => cfg!(feature = "eml"),
             DocumentFormat::Parquet => cfg!(feature = "parquet"),
+            DocumentFormat::ArrowIpc => cfg!(feature = "arrow"),
         }
     }
 
@@ -286,6 +297,7 @@ impl DocumentFormat {
             "jsonl" => Some(DocumentFormat::Jsonl),
             "eml" => Some(DocumentFormat::Eml),
             "parquet" => Some(DocumentFormat::Parquet),
+            "arrow" => Some(DocumentFormat::ArrowIpc),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -317,6 +329,18 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "parquet")]
     if crate::adapter::parquet::detect(source, limits) {
         return DocumentFormat::Parquet;
+    }
+    // Arrow IPC is the **analytical** Wave-2 format (Phase 21.16), with no package
+    // layer. Its detection is a strong magic-byte contract — the `ARROW1` magic at
+    // the start plus either a consistent trailing footer (file format) or a valid
+    // encapsulated `Schema` message (stream format) — so it runs immediately after
+    // Parquet and **before** the weak, no-magic-byte heuristics, which a binary
+    // columnar file must never be guessed to be. It is deliberately conservative:
+    // `ARROW1`-prefixed junk with neither a consistent footer nor a valid schema
+    // message stays `Opaque`.
+    #[cfg(feature = "arrow")]
+    if crate::adapter::arrow::detect(source, limits) {
+        return DocumentFormat::ArrowIpc;
     }
     // JSON is a Wave-2 structured-tree format with **no** package layer, so it is
     // detected directly from the whole source (never through `detect_zip_family`).
