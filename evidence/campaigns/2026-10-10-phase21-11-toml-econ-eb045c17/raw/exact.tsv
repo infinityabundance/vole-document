@@ -1,0 +1,8 @@
+fixture	vole_ok	sqlite_ok	conv_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+basic.toml	true	true	false	true	true	true	3396	19139
+tables.toml	true	true	false	true	true	true	3269	19548
+arrays.toml	true	true	false	true	true	true	3292	19497
+inline.toml	true	true	false	true	true	true	3282	19052
+scalars.toml	true	true	false	true	true	true	3236	20122
+comments.toml	true	true	false	true	true	true	3461	19689
+large.toml	true	true	false	true	true	true	10348	21278
