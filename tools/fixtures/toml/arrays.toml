@@ -1,0 +1,27 @@
+name = "arrays"
+total = 7
+active = true
+
+[meta]
+kind = "arrays"
+
+[[products]]
+name = "product-0"
+sku = 1000
+colors = ["red", "green"]
+
+[[products]]
+name = "product-1"
+sku = 1001
+colors = ["red", "green"]
+
+[[products]]
+name = "product-2"
+sku = 1002
+colors = ["red", "green"]
+
+[[products.variants]]
+name = "variant-0"
+
+[[products.variants]]
+name = "variant-1"

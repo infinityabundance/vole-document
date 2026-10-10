@@ -322,6 +322,46 @@ fn detection_and_capabilities_are_byte_based() {
 }
 
 #[test]
+fn detection_accepts_case_insensitive_content_types_name() {
+    // Phase 21.15 fix: a real-world OPC package that lowercases the content-types
+    // part (Apache POI regression 49609) is still XLSX. The detector resolves the
+    // well-known control parts case-insensitively, mirroring the OPC layer, so the
+    // lowercase `[content_types].xml` does not hide the workbook main part.
+    let content_types = concat!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>"#,
+        r#"<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">"#,
+        r#"<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>"#,
+        r#"<Default Extension="xml" ContentType="application/xml"/>"#,
+        r#"<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>"#,
+        r#"</Types>"#
+    );
+    let rels = concat!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>"#,
+        r#"<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">"#,
+        r#"<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>"#,
+        r#"</Relationships>"#
+    );
+    let workbook = concat!(
+        r#"<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">"#,
+        r#"<sheets><sheet name="S" sheetId="1"/></sheets></workbook>"#
+    );
+    let entries = vec![
+        Entry::stored("[content_types].xml", content_types.as_bytes()),
+        Entry::stored("_rels/.rels", rels.as_bytes()),
+        Entry::stored("xl/workbook.xml", workbook.as_bytes()),
+    ];
+    let zip = build_zip(&entries);
+    assert_eq!(
+        detect_document_format(&zip, Limits::DEFAULT),
+        DocumentFormat::Xlsx
+    );
+    // The package is still byte-exactly closed (the physical cover is authority).
+    let fx = Fixture::from_source("ci-content-types", &zip);
+    let field = Field::open(&fx.store, &fx.report.field, Limits::DEFAULT).unwrap();
+    assert_eq!(field.materialize_exact(Limits::DEFAULT).unwrap(), fx.source);
+}
+
+#[test]
 fn metadata_names_sheets_and_visibility() {
     let mut fx = Fixture::named("multi.xlsx", "meta-multi");
     let (meta, _) = observe_eq(

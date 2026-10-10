@@ -437,6 +437,16 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["JsonModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-nodes", "whole-document"]),
         }),
+        #[cfg(feature = "jsonl")]
+        (Selector::JsonlLine { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::JsonlPointer { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::JsonlFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["JsonlModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-records", "whole-document"]),
+        }),
         #[cfg(feature = "yaml")]
         (Selector::YamlPath { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
         | (Selector::YamlNode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
@@ -447,6 +457,18 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             index_reads: 1,
             required_nodes: 2,
             will_materialize: kinds(&["YamlModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-nodes", "whole-document"]),
+        }),
+        #[cfg(feature = "markdown")]
+        (Selector::MdHeading { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdBlock { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdCode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdLink { .. }, R::Metadata | R::Structure | R::Text)
+        | (Selector::MdFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["MarkdownModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-nodes", "whole-document"]),
         }),
         _ => Err(Error::unsupported_feature(format!(
@@ -565,6 +587,14 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Json => &["JsonModel", "DocumentExact"],
         DocumentFormat::Yaml => &["YamlModel", "DocumentExact"],
         DocumentFormat::Csv => &["CsvModel", "DocumentExact"],
+        DocumentFormat::Markdown => &["MarkdownModel", "DocumentExact"],
+        DocumentFormat::Xml => &["XmlModel", "DocumentExact"],
+        DocumentFormat::Html => &["HtmlModel", "DocumentExact"],
+        DocumentFormat::Toml => &["TomlModel", "DocumentExact"],
+        DocumentFormat::Jsonl => &["JsonlModel", "DocumentExact"],
+        DocumentFormat::Eml => &["EmlModel", "DocumentExact"],
+        DocumentFormat::Parquet => &["ParquetModel", "DocumentExact"],
+        DocumentFormat::ArrowIpc => &["ArrowModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

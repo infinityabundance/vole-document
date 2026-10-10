@@ -192,6 +192,38 @@ fn ingest_pdf_stage_b(
         return ingest_json_stage_b(store, source, manifest, limits);
     }
 
+    // JSONL/NDJSON is the line/event-stream Wave-2 format, also with no package
+    // layer: it is inverted by a dedicated (non-PDF) tail that adds the derived
+    // `JsonlModel` node over the exact root (Phase 21.12).
+    #[cfg(feature = "jsonl")]
+    if fmt == crate::field::document_format::DocumentFormat::Jsonl {
+        return ingest_jsonl_stage_b(store, source, manifest, limits);
+    }
+
+    // EML/MIME is the messaging Wave-2 format, also with no package layer: it is
+    // inverted by a dedicated (non-PDF) tail that adds the derived `EmlModel` node
+    // over the exact root (Phase 21.13).
+    #[cfg(feature = "eml")]
+    if fmt == crate::field::document_format::DocumentFormat::Eml {
+        return ingest_eml_stage_b(store, source, manifest, limits);
+    }
+
+    // Parquet is the analytical Wave-2 format, also with no package layer: it is
+    // inverted by a dedicated (non-PDF) tail that adds the derived `ParquetModel`
+    // node over the exact root (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    if fmt == crate::field::document_format::DocumentFormat::Parquet {
+        return ingest_parquet_stage_b(store, source, manifest, limits);
+    }
+
+    // Arrow IPC is the last listed analytical Wave-2 format, also with no package
+    // layer: it is inverted by a dedicated (non-PDF) tail that adds the derived
+    // `ArrowModel` node over the exact root (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    if fmt == crate::field::document_format::DocumentFormat::ArrowIpc {
+        return ingest_arrow_stage_b(store, source, manifest, limits);
+    }
+
     // YAML is the second Wave-2 structured-tree format, also with no package layer:
     // it is inverted by a dedicated (non-PDF) tail that adds the derived
     // `YamlModel` node over the exact root (Phase 21.6.1).
@@ -206,6 +238,38 @@ fn ingest_pdf_stage_b(
     #[cfg(feature = "csv")]
     if fmt == crate::field::document_format::DocumentFormat::Csv {
         return ingest_csv_stage_b(store, source, manifest, limits);
+    }
+
+    // Markdown is the first prose Wave-2 format, also with no package layer: it is
+    // inverted by a dedicated (non-PDF) tail that adds the derived `MarkdownModel`
+    // node over the exact root (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    if fmt == crate::field::document_format::DocumentFormat::Markdown {
+        return ingest_markdown_stage_b(store, source, manifest, limits);
+    }
+
+    // XML is the structured-tree Wave-2 format for a bare XML source, also with no
+    // package layer: it is inverted by a dedicated (non-PDF) tail that adds the
+    // derived `XmlModel` node over the exact root (Phase 21.9).
+    #[cfg(feature = "xml")]
+    if fmt == crate::field::document_format::DocumentFormat::Xml {
+        return ingest_xml_stage_b(store, source, manifest, limits);
+    }
+
+    // HTML is the error-recovering markup Wave-2 format for a bare HTML source,
+    // also with no package layer: it is inverted by a dedicated (non-PDF) tail that
+    // adds the derived `HtmlModel` node over the exact root (Phase 21.10).
+    #[cfg(feature = "html")]
+    if fmt == crate::field::document_format::DocumentFormat::Html {
+        return ingest_html_stage_b(store, source, manifest, limits);
+    }
+
+    // TOML is the next Wave-2 structured-tree format, also with no package layer:
+    // it is inverted by a dedicated (non-PDF) tail that adds the derived
+    // `TomlModel` node over the exact root (Phase 21.11).
+    #[cfg(feature = "toml")]
+    if fmt == crate::field::document_format::DocumentFormat::Toml {
+        return ingest_toml_stage_b(store, source, manifest, limits);
     }
 
     let mut acc = StageB::new(manifest.node_count);
@@ -346,6 +410,326 @@ fn ingest_json_stage_b(
 
     Ok(IngestReport {
         format: crate::field::document_format::DocumentFormat::Json,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The JSONL/NDJSON (line/event-stream Wave-2) ingest tail (Phase 21.12).
+///
+/// JSONL has no package layer, so there is nothing to scan: the exact authority is
+/// the whole source (`DocumentExact`) and the only derived node is the per-line
+/// representation-preserving [`NodeKind::JsonlModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads
+/// the source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path.
+#[cfg(feature = "jsonl")]
+fn ingest_jsonl_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_JSONL_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::JsonlModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "jsonl:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_JSONL_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-jsonl;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Jsonl.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Jsonl,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The EML/MIME (messaging Wave-2) ingest tail (Phase 21.13).
+///
+/// EML has no package layer, so there is nothing to scan: the exact authority is the
+/// whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::EmlModel`], whose single dependency is that
+/// exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path.
+#[cfg(feature = "eml")]
+fn ingest_eml_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_EML_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::EmlModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "eml:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_EML_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-eml;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Eml.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Eml,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The Parquet (analytical Wave-2) ingest tail (Phase 21.14).
+///
+/// Parquet has no package layer, so there is nothing to scan: the exact authority is
+/// the whole source (`DocumentExact`) and the only derived node is the bounded
+/// [`NodeKind::ParquetModel`], whose single dependency is that exact root (keyed by
+/// `sha256(source)`), satisfying ADR-0060: the node reads the source bytes, so it
+/// must carry a source-identity input and can never alias another field's source.
+/// The model is never on the exactness path.
+#[cfg(feature = "parquet")]
+fn ingest_parquet_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_PARQUET_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::ParquetModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "parquet:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_PARQUET_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-parquet;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Parquet.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Parquet,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The Arrow IPC (analytical Wave-2) ingest tail (Phase 21.16).
+///
+/// Arrow has no package layer, so there is nothing to scan: the exact authority is
+/// the whole source (`DocumentExact`) and the only derived node is the bounded
+/// [`NodeKind::ArrowModel`], whose single dependency is that exact root (keyed by
+/// `sha256(source)`), satisfying ADR-0060: the node reads the source bytes, so it
+/// must carry a source-identity input and can never alias another field's source.
+/// The model is never on the exactness path.
+#[cfg(feature = "arrow")]
+fn ingest_arrow_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_ARROW_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::ArrowModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "arrow:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_ARROW_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-arrow;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::ArrowIpc.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::ArrowIpc,
         field,
         root_node: manifest.root_node,
         index_root: Some(index_root),
@@ -522,6 +906,327 @@ fn ingest_csv_stage_b(
 
     Ok(IngestReport {
         format: crate::field::document_format::DocumentFormat::Csv,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The Markdown (prose Wave-2) ingest tail (Phase 21.8.1).
+///
+/// Markdown has no package layer, so there is nothing to scan: the exact authority
+/// is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::MarkdownModel`], whose single dependency
+/// is that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node
+/// reads the source bytes, so it must carry a source-identity input and can never
+/// alias another field's source. The model itself is never built at ingest (so a
+/// large file ingests in bounded memory) and is never on the exactness path.
+#[cfg(feature = "markdown")]
+fn ingest_markdown_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_MARKDOWN_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::MarkdownModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "markdown:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_MARKDOWN_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-markdown;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Markdown.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Markdown,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The TOML (structured-tree Wave-2) ingest tail (Phase 21.11).
+///
+/// TOML has no package layer, so there is nothing to scan: the exact authority is
+/// the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::TomlModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads
+/// the source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path.
+#[cfg(feature = "toml")]
+fn ingest_toml_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_TOML_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::TomlModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "toml:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_TOML_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-toml;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Toml.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Toml,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The HTML (error-recovering markup Wave-2) ingest tail (Phase 21.10).
+///
+/// HTML has no package layer, so there is nothing to scan: the exact authority is
+/// the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::HtmlModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads
+/// the source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path.
+#[cfg(feature = "html")]
+fn ingest_html_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_HTML_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::HtmlModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "html:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_HTML_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-html;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Html.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Html,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The XML (structured-tree Wave-2) ingest tail (Phase 21.9).
+///
+/// XML has no package layer, so there is nothing to scan: the exact authority is the
+/// whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::XmlModel`], whose single dependency is that
+/// exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias another
+/// field's source. The model is never on the exactness path.
+#[cfg(feature = "xml")]
+fn ingest_xml_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_XML_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::XmlModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "xml:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_XML_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-xml;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Xml.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Xml,
         field,
         root_node: manifest.root_node,
         index_root: Some(index_root),

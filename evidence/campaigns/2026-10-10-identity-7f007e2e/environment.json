@@ -1,0 +1,19 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-identity-7f007e2e",
+  "phase": "ADR-0060 permanent cross-field identity court",
+  "utc": "2026-10-10T11:00:11Z",
+  "measured_commit": "7f007e2e11d1240f638fd10d8ebd3df2751dea33",
+  "tree_state": "?? evidence/campaigns/2026-10-10-identity-7f007e2e/ ",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "arch": "x86_64",
+  "cargo_lock_sha256": "7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "dcfad49a927c2f96c47515c5ec00fdde7b116fc563373483fee754af4af92cd1",
+  "driver_sha256": "cb205e62ee9aa29cb9de991638c7a6cf4f8f73e6714ce0859e33e8d49613d659",
+  "fixtures_tsv_sha256": "4641a2e56151a47cba4f682e77f0cd92ea8965f65f2d7c98afc3313fe5f2a916",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

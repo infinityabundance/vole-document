@@ -1,0 +1,23 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-realformats-stratified-3529688e",
+  "phase": "21.15 — stratified real-world multi-format court",
+  "utc": "2026-10-10T17:10:03Z",
+  "measured_commit": "3529688ef38a9076ebab64d7de216686f9c22bdf",
+  "tree_state": " M src/adapter/eml.rs  M src/adapter/html.rs  M src/adapter/toml.rs  M src/adapter/yaml.rs  M src/field/document_format.rs  M tests/eml_adapter.rs  M tests/html_adapter.rs  M tests/odp_adapter.rs  M tests/toml_adapter.rs  M tests/xlsx_adapter.rs  M tests/yaml_adapter.rs  M tools/realcorpus/hostile-strata.tsv  M tools/realformats-stratified-court.sh ?? evidence/campaigns/2026-10-10-realformats-stratified-3529688e/ ",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "arch": "x86_64",
+  "profile": "release",
+  "build_args": "--release --locked --all-features",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "c2e6d0864cf8b96fc2d7d6038ab9fc72d6d5dc5a451884aff72ad59b26a0dbc6",
+  "cargo_lock_sha256": "7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927",
+  "manifest_sha256": "92c2c7077999d36300265eb211b3959f680b0d10ea4a4e5424db11a60ec98f22",
+  "hostile_strata_sha256": "db22933f72137a750974363453663ed134e9c9ecfb32f82f83c8a8883efdd6f3",
+  "driver_sha256": "c6b0f10df5d1e1ca3542025f79e07d0c9e018cbde122b7d1714cbe2c2e75846e",
+  "storage_accounting": "sum of regular-file sizes (getsize walk); du -sb never used (ADR-0049)",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

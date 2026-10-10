@@ -5,7 +5,10 @@ native inverse compilers converge on one `DocumentField` with common
 observations and retained native structure. Phase 13.3 adds a fourth, ODT
 (OpenDocument), Phase 21.1 a fifth, XLSX (SpreadsheetML), Phase 21.2 a sixth,
 PPTX (PresentationML), and Phase 21.3 a seventh, ODS (OpenDocument Spreadsheet), and Phase 21.4 an eighth,
-ODP (OpenDocument Presentation).
+ODP (OpenDocument Presentation). Phase 21 Wave 2 then adds the
+structured-tree (JSON, YAML, XML, TOML, JSONL), tabular (CSV/TSV), prose/web
+(Markdown, HTML), messaging (EML/MIME), and analytical (Parquet, Arrow IPC)
+adapters — each not a package, with the whole source as the exact leaf.
 “Universal” means the observation
 vocabulary is shared, not that every format is supported.
 
@@ -184,6 +187,105 @@ problem preserves the exact bytes and declines only the decode.
   (ADR-0060). A tabular format requires the DuckDB/Parquet comparator (ADR-0059),
   which wins storage/ingest/indexed reads on the tested corpus (recorded).
 
+## Markdown adapter — prose (Phase 21 Wave 2)
+
+- Prose format; not a package — the whole source is the document (RAW
+  authority). Non-default, dependency-free `markdown` feature.
+- A bounded, line-based CommonMark subset that keeps exact block/inline source
+  spans and bytes (the source is never re-flowed): ATX headings, paragraphs,
+  ordered/unordered/nested lists, fenced/indented code with language tags,
+  blockquotes, GFM tables, inline/reference links and images, reference
+  definitions, footnotes, and YAML/TOML front matter. Native
+  `md-heading`/`md-block`/`md-code`/`md-link`/`md-find`; common
+  metadata/text/heading/block/find.
+- Conservative detection (a structural mark is required; plain prose → Opaque).
+  The model node depends on the `DocumentExact` root (ADR-0060).
+
+## XML adapter — structured tree (Phase 21 Wave 2)
+
+- Structured-tree format; not a package — the whole source is the document (RAW
+  authority). Non-default `xml = ["dep:quick-xml"]` feature.
+- A bounded, span-preserving scanner: elements, attributes, text, CDATA,
+  comments, PIs, DOCTYPE, namespace declarations (entity references literal).
+  Native `xml-path`/`xml-element`/`xml-attr`/`xml-namespaces`/`xml-find`.
+- **Security:** a benign DOCTYPE is accepted and never fetched; a DTD internal
+  subset is **refused** (no XXE, no billion-laughs). A document-level HTML marker
+  wins HTML. The model node depends on the `DocumentExact` root (ADR-0060).
+
+## HTML adapter — error-recovering markup (Phase 21 Wave 2)
+
+- Markup format; not a package — the whole source is the document (RAW
+  authority). Non-default, dependency-free `html` feature.
+- A bounded, span-preserving, error-recovering scanner: elements, attributes
+  (all quoting forms), text, comments, DOCTYPE, and raw `script`/`style` bytes;
+  entity references literal. Native
+  `html-path`/`html-element`/`html-attr`/`html-scripts`/`html-find`; common
+  metadata/text/heading/link/find.
+- UTF-8 only; a DTD internal subset is refused; `script`/`style` is never
+  executed. The model node depends on the `DocumentExact` root (ADR-0060).
+
+## TOML adapter — structured tree (Phase 21 Wave 2)
+
+- Structured-tree config format; not a package — the whole source is the
+  document (RAW authority). Non-default, dependency-free `toml` feature.
+- A bounded, span-preserving parser (tables, arrays of tables, dotted keys,
+  inline tables, arrays, comments; every scalar's exact spelling). Native
+  `toml-path`/`toml-table`/`toml-find`; common metadata/text. Duplicate keys and
+  table redefinitions are typed declines (exit 26).
+- The strong complete-parse signal places TOML before CSV/Markdown/XML/HTML. The
+  model node depends on the `DocumentExact` root (ADR-0060).
+
+## JSONL adapter — line/event stream (Phase 21 Wave 2)
+
+- Line-delimited stream; not a package — the whole source is the document (RAW
+  authority). Non-default `jsonl = ["json"]` feature (reuses the shared JSON
+  parser).
+- A bounded, per-line span-preserving model; native
+  `jsonl-line`/`jsonl-pointer`/`jsonl-find`; common metadata/text. JSON is tried
+  first; JSONL then requires each non-blank line to be exactly one JSON value.
+  The model node depends on the `DocumentExact` root (ADR-0060).
+
+## EML/MIME adapter — messaging (Phase 21 Wave 2)
+
+- Messaging format; not a package — the whole source is the document (RAW
+  authority). Non-default, dependency-free `eml` feature.
+- A bounded, span-preserving message model: every header's exact name/value/span,
+  header order, duplicate and folded headers, the resolved `multipart/*` tree,
+  and the exact `Content-Transfer-Encoding`-decoded constituent bytes (incl.
+  attachments). Native
+  `eml-header`/`eml-part`/`eml-attachments`/`eml-body`/`eml-find`; common
+  metadata/text/resource/find.
+- A leading Unix-mbox `From ` envelope is skipped; a boundary-less multipart
+  declines. The model node depends on the `DocumentExact` root (ADR-0060).
+
+## Parquet adapter — analytical (Phase 21 Wave 2)
+
+- Analytical columnar format; not a package — the whole source is the document
+  (RAW authority). Non-default, dependency-free `parquet` feature (no Thrift
+  library).
+- A bounded Thrift-Compact footer reader: schema, row-group/column-chunk
+  inventory with each chunk's exact source span and statistics, and decoded
+  `PLAIN`/`RLE_DICTIONARY` values (`UNCOMPRESSED`/`GZIP`) across the common
+  physical types. Native
+  `parquet-schema`/`parquet-column`/`parquet-row-group`/`parquet-cell`.
+- Unsupported codecs/encodings/types and bombs decline typed. The model node
+  depends on the `DocumentExact` root (ADR-0060). The mandatory DuckDB comparator
+  **wins the analytical axes** (recorded).
+
+## Arrow IPC adapter — analytical (Phase 21 Wave 2)
+
+- Analytical columnar IPC format; not a package — the whole source is the
+  document (RAW authority). Non-default, dependency-free `arrow` feature.
+- A bounded Flatbuffers reader: schema, record batches with exact source spans,
+  and decoded primitive/binary buffers (Int all widths, FloatingPoint, Boolean,
+  Date/Time/Timestamp/Duration, Utf8/Binary, FixedSizeBinary) with validity
+  bitmaps; file + stream, multi-batch. Native
+  `arrow-schema`/`arrow-column`/`arrow-batch`/`arrow-cell`.
+- Nested types, views, dictionary-encoded fields, big-endian bodies and
+  `BodyCompression` decline typed. The model node depends on the
+  `DocumentExact` root (ADR-0060). The DuckDB comparator wins the analytical axes
+  and reads a recorded Parquet projection of the same table.
+
 ## Shared vocabulary (ADR-0031)
 Common selectors/representations are added additively: `metadata`, `text`,
 `heading`, `block`, `table`, `cell`, `resource`, `link`, `find`. Native selectors
@@ -213,6 +315,8 @@ tagged `format=<fmt>;common;<native>`.
 | PPTX adapter / economic court | exact 5/5 · 8/8 | `evidence/campaigns/2026-10-09-phase21-2-pptx-8aab956/`, `…/2026-10-09-phase21-3-pptx-054ce93/` |
 | ODS adapter / economic court | exact 8/8 · 8/8 | `evidence/campaigns/2026-10-09-phase21-3-ods-ef26d97/`, `…/2026-10-09-phase21-3-2-ods-3dd5827/` |
 | ODP adapter / economic court | exact 6/6 · 8/8 | `evidence/campaigns/2026-10-09-phase21-4-1-odp-957a800/`, `…/2026-10-09-phase21-4-odp-econ-957a800/` |
+| Wave-2 adapters (Markdown/XML/HTML/TOML/JSONL/EML/Parquet/Arrow) | exact 12/12·10/10·10/10·10/10·9/9·7/7·13/13·18/18 | `evidence/campaigns/2026-10-10-phase21-8-1-markdown-0e6a97c3/` … `…/2026-10-10-phase21-16-1-arrow-4fdc7ad0/` |
+| Stratified real-world multi-format court (52 real + 8 hostile) | 60/60 byte-exact | `evidence/campaigns/2026-10-10-realformats-stratified-3529688e/` |
 
 Interpretation. The ablation ladder attributes the small-document win to the
 content adapters (A4→A5) and to persistent semantic reuse (A5→A6, which trades

@@ -1,0 +1,7 @@
+fixture	vole_ok	sqlite_ok	conv_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+simple.eml	true	true	false	true	true	true	3562	27445
+mixed.eml	true	true	false	true	true	true	3386	25020
+alternative.eml	true	true	false	true	true	true	3631	25075
+nested.eml	true	true	false	true	true	true	3323	24291
+folded.eml	true	true	false	true	true	true	3398	24511
+large.eml	true	true	false	true	true	true	10656	25466

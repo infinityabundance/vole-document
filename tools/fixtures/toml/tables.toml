@@ -1,0 +1,15 @@
+name = "tables"
+a.b.c = 1
+a.b.d = 2
+
+[owner]
+name = "Ada"
+
+[owner.address]
+city = "London"
+zip = "N1"
+
+[database]
+enabled = true
+ports = [8000, 8001, 8002]
+data = [["delta", "phi"], [3.14, 2.71]]

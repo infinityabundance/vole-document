@@ -24,6 +24,8 @@
 //! [`crate::ErrorClass::UnsupportedFeature`], never a silently empty answer.
 
 use std::cell::{Cell, RefCell};
+#[cfg(feature = "csv")]
+use std::collections::BTreeMap;
 #[cfg(feature = "docx")]
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -31,6 +33,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
+#[cfg(feature = "arrow")]
+use crate::adapter::arrow::{
+    ArrowModel, LeafColumn as ArrowLeaf, Value as ArrowValue, batch_detail as arrow_batch_detail,
+    cell_value as arrow_cell_value, column_bytes as arrow_column_bytes,
+    column_span as arrow_column_span, column_values as arrow_column_values,
+    type_name as arrow_type_name, value_text as arrow_value_text,
+};
 #[cfg(feature = "csv")]
 use crate::adapter::csv::{
     CsvModel, StreamRecord as CsvStreamRecord, canonical_text as csv_canonical_text,
@@ -42,13 +51,45 @@ use crate::adapter::csv::{
 use crate::adapter::docx::wml::StoryModel;
 #[cfg(feature = "docx")]
 use crate::adapter::docx::{DocxExtractProfile, DocxModel, DocxPartRef, DocxStory, story_params};
+#[cfg(feature = "eml")]
+use crate::adapter::eml::{
+    EmlModel, EmlPart, body_text as eml_body_text, cte_name as eml_cte_name,
+    decode_body as eml_decode_body, find as eml_find_matches, kind_name as eml_kind_name,
+    loc_name as eml_loc_name, raw_body_bytes as eml_raw_body_bytes,
+};
 #[cfg(feature = "epub")]
 use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
+#[cfg(feature = "html")]
+use crate::adapter::html::{
+    HtmlModel, anchors as html_anchors, attr_name as html_attr_name,
+    attr_value_bytes as html_attr_value_bytes, canonical_text as html_canonical_text,
+    element_name as html_element_name, find as html_find_matches, headings as html_headings,
+    kind_name as html_kind_name, raw_texts as html_raw_texts, resolve_attr as html_resolve_attr,
+    resolve_path as html_resolve_path, subtree_text as html_subtree_text,
+    token_bytes as html_token_bytes,
+};
 #[cfg(feature = "json")]
 use crate::adapter::json::{
     JsonModel, canonical_text, decode_string as json_decode_string, find as json_find_matches,
     kind_name as json_kind_name, resolve_pointer as json_resolve_pointer,
     token_bytes as json_token_bytes,
+};
+#[cfg(feature = "jsonl")]
+use crate::adapter::jsonl::{
+    JsonlModel, canonical_text as jsonl_canonical_text, find as jsonl_find_matches,
+    parse_record_ref as jsonl_parse_record_ref,
+    resolve_record_pointer as jsonl_resolve_record_pointer,
+    terminator_name as jsonl_terminator_name, value_bytes as jsonl_value_bytes,
+};
+#[cfg(feature = "markdown")]
+use crate::adapter::markdown::{
+    B_BLOCKQUOTE, B_FOOTNOTE_DEF, B_FRONT_MATTER, B_HEADING, B_LIST_ITEM, B_PARAGRAPH, B_REF_DEF,
+    B_TABLE, B_THEMATIC_BREAK, I_IMAGE, I_LINK, I_REF_LINK, MarkdownModel,
+    block_bytes as md_block_bytes, block_kind_name as md_block_kind_name,
+    canonical_text as md_canonical_text, content_bytes as md_content_bytes,
+    fence_language as md_fence_language, find as md_find_matches,
+    inline_kind_name as md_inline_kind_name, inline_text_bytes as md_inline_text_bytes,
+    is_code_block as md_is_code_block,
 };
 #[cfg(feature = "odp")]
 use crate::adapter::odp::{
@@ -63,14 +104,39 @@ use crate::adapter::ods::{
 use crate::adapter::odt::{
     Block as OdtBlock, ContentModel as OdtContentModel, OdtExtractProfile, OdtModel,
 };
+#[cfg(feature = "parquet")]
+use crate::adapter::parquet::{
+    LeafColumn as ParquetLeaf, ParquetModel, Value as ParquetValue,
+    cell_value as parquet_cell_value, codec_name as parquet_codec_name,
+    converted_type_name as parquet_converted_name, encoding_name as parquet_encoding_name,
+    leaf_values as parquet_leaf_values, logical_type_name as parquet_logical_name,
+    physical_type_name as parquet_physical_name, repetition_name as parquet_repetition_name,
+    stats_value_text as parquet_stats_text, value_text as parquet_value_text,
+};
 #[cfg(feature = "pptx")]
 use crate::adapter::pptx::{
     NotesModel as PptxNotesModel, PptxExtractProfile, PptxModel, PptxShape, PptxTable,
     PresentationModel as PptxPresentationModel, SlideModel as PptxSlideModel,
 };
+#[cfg(feature = "toml")]
+use crate::adapter::toml::{
+    TNode as TomlNode, TomlModel, canonical_text as toml_canonical_text, find as toml_find_matches,
+    is_string as toml_is_string, key_text as toml_key_text, kind_name as toml_kind_name,
+    resolve_path as toml_resolve_path, scalar_spelling as toml_scalar_spelling,
+    string_content as toml_string_content, table_keys as toml_table_keys,
+    token_bytes as toml_token_bytes,
+};
 #[cfg(feature = "xlsx")]
 use crate::adapter::xlsx::{
     SheetModel as XlsxSheetModel, WorkbookModel as XlsxWorkbookModel, XlsxExtractProfile, XlsxModel,
+};
+#[cfg(feature = "xml")]
+use crate::adapter::xml::{
+    XmlModel, attr_name as xml_attr_name, attr_value_bytes as xml_attr_value_bytes,
+    canonical_text as xml_canonical_text, element_name as xml_element_name,
+    find as xml_find_matches, kind_name as xml_kind_name, namespaces as xml_namespaces,
+    resolve_attr as xml_resolve_attr, resolve_path as xml_resolve_path,
+    subtree_text as xml_subtree_text, token_bytes as xml_token_bytes,
 };
 #[cfg(feature = "yaml")]
 use crate::adapter::yaml::{
@@ -85,14 +151,24 @@ use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, OutputCache, ReuseStats, SourceServer};
 use crate::field::document_format::DocumentFormat;
+#[cfg(feature = "arrow")]
+use crate::field::index::SEL_ARROW_MODEL;
 #[cfg(feature = "csv")]
 use crate::field::index::SEL_CSV_MODEL;
 #[cfg(feature = "docx")]
 use crate::field::index::SEL_DOCX_MODEL;
+#[cfg(feature = "eml")]
+use crate::field::index::SEL_EML_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "html")]
+use crate::field::index::SEL_HTML_MODEL;
 #[cfg(feature = "json")]
 use crate::field::index::SEL_JSON_MODEL;
+#[cfg(feature = "jsonl")]
+use crate::field::index::SEL_JSONL_MODEL;
+#[cfg(feature = "markdown")]
+use crate::field::index::SEL_MARKDOWN_MODEL;
 #[cfg(feature = "odp")]
 use crate::field::index::SEL_ODP_MODEL;
 #[cfg(feature = "ods")]
@@ -101,10 +177,16 @@ use crate::field::index::SEL_ODS_MODEL;
 use crate::field::index::SEL_ODT_MODEL;
 #[cfg(feature = "opc")]
 use crate::field::index::SEL_OPC_MODEL;
+#[cfg(feature = "parquet")]
+use crate::field::index::SEL_PARQUET_MODEL;
 #[cfg(feature = "pptx")]
 use crate::field::index::SEL_PPTX_MODEL;
+#[cfg(feature = "toml")]
+use crate::field::index::SEL_TOML_MODEL;
 #[cfg(feature = "xlsx")]
 use crate::field::index::SEL_XLSX_MODEL;
+#[cfg(feature = "xml")]
+use crate::field::index::SEL_XML_MODEL;
 #[cfg(feature = "yaml")]
 use crate::field::index::SEL_YAML_MODEL;
 use crate::field::index::{
@@ -721,6 +803,260 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The `index`-th ATX heading in document order (Phase 21.8.1). `Text` returns
+    /// the heading's exact content text; `ExactBytes` its exact content bytes;
+    /// `Metadata`/`Structure` a descriptor with its level and exact spans.
+    #[cfg(feature = "markdown")]
+    MdHeading {
+        /// The 0-based heading ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th block in document order (Phase 21.8.1). `ExactBytes` returns
+    /// the block's exact source span bytes; `Text` its exact source text;
+    /// `Metadata`/`Structure` a descriptor with its kind, exact spans, and inline
+    /// count. Markdown has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "markdown")]
+    MdBlock {
+        /// The 0-based block ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th code block (fenced or indented) in document order
+    /// (Phase 21.8.1). `Text` returns the exact content; `ExactBytes` its exact
+    /// content bytes; `Metadata`/`Structure` a descriptor with its language tag (for
+    /// fenced code), spans, and byte length.
+    #[cfg(feature = "markdown")]
+    MdCode {
+        /// The 0-based code-block ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th link or image in document order (Phase 21.8.1). `Text`
+    /// returns the link text; `Metadata`/`Structure` a descriptor with its kind,
+    /// exact spans, destination, and title.
+    #[cfg(feature = "markdown")]
+    MdLink {
+        /// The 0-based link/image ordinal in document order.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over Markdown block content (Phase 21.8.1).
+    /// Never an embedding or a model call.
+    #[cfg(feature = "markdown")]
+    MdFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// A standalone-XML element addressed by a simple element path
+    /// (`/a/b[2]/c`; `""` is the root element) (Phase 21.9). The answer reports
+    /// the element's qualified name, exact source span, and (for `ExactBytes`) its
+    /// exact bytes. XML has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "xml")]
+    XmlPath {
+        /// The element path (`""` is the root element).
+        path: String,
+    },
+    /// An element's structural view (Phase 21.9): kind, name, exact spans, and each
+    /// attribute's name/value/full span. Same addressing as [`Selector::XmlPath`].
+    #[cfg(feature = "xml")]
+    XmlElement {
+        /// The element path (`""` is the root element).
+        path: String,
+    },
+    /// An XML attribute addressed as `PATH@NAME` (`@NAME` addresses the root's
+    /// attribute) (Phase 21.9). `ExactBytes` returns the quoted value's exact
+    /// source bytes; `Text` the raw (unexpanded) value; `Metadata`/`Structure` a
+    /// descriptor with the name/value/full spans and the namespace flag.
+    #[cfg(feature = "xml")]
+    XmlAttr {
+        /// The `PATH@NAME` reference.
+        spec: String,
+    },
+    /// Every namespace declaration (`xmlns`/`xmlns:prefix`) in document order
+    /// (Phase 21.9): prefix, URI, carrying element, and exact declaration span.
+    #[cfg(feature = "xml")]
+    XmlNamespaces,
+    /// A lexical, case-sensitive search over element names, attribute names and
+    /// values, and character data (Phase 21.9). Never an embedding or a model call.
+    #[cfg(feature = "xml")]
+    XmlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// A standalone-HTML element addressed by a simple element path
+    /// (`/html/body[2]/p`; `""` is the root element) (Phase 21.10). The answer
+    /// reports the element's name, exact source span, and (for `ExactBytes`) its
+    /// exact bytes. HTML has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "html")]
+    HtmlPath {
+        /// The element path (`""` is the root element).
+        path: String,
+    },
+    /// An HTML element's structural view (Phase 21.10): kind, name, exact spans, and
+    /// each attribute's name/value/spans and quoting tag. Same addressing as
+    /// [`Selector::HtmlPath`].
+    #[cfg(feature = "html")]
+    HtmlElement {
+        /// The element path (`""` is the root element).
+        path: String,
+    },
+    /// An HTML attribute addressed as `PATH@NAME` (`@NAME` addresses the root's
+    /// attribute) (Phase 21.10). `ExactBytes` returns the value's exact source bytes;
+    /// `Text` the raw (unexpanded) value; `Metadata`/`Structure` a descriptor with
+    /// the name/value/full spans and the quoting tag.
+    #[cfg(feature = "html")]
+    HtmlAttr {
+        /// The `PATH@NAME` reference.
+        spec: String,
+    },
+    /// Every raw `<script>`/`<style>` element in document order (Phase 21.10): its
+    /// name, raw content span, and full element span, plus (for `Text`/`ExactBytes`)
+    /// the raw content bytes. `script`/`style` content is never parsed or executed.
+    #[cfg(feature = "html")]
+    HtmlScripts,
+    /// A lexical, case-sensitive search over element names, attribute names and
+    /// values, and character data (Phase 21.10). Never an embedding or a model call.
+    #[cfg(feature = "html")]
+    HtmlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// A TOML value addressed by a dotted path (`server.ports[0]`; `""` is the
+    /// root table) (Phase 21.11). The answer reports the value's kind, its **exact
+    /// source spelling**, and its exact source span; `ExactBytes` returns the exact
+    /// token bytes. TOML has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "toml")]
+    TomlPath {
+        /// The dotted path (`""` is the root table).
+        path: String,
+    },
+    /// The keys of the TOML table at a dotted path (Phase 21.11): each key with its
+    /// exact span, the value's kind, and the value's exact span.
+    #[cfg(feature = "toml")]
+    TomlTable {
+        /// The dotted path (`""` is the root table).
+        path: String,
+    },
+    /// A lexical, case-sensitive search over TOML keys and string values
+    /// (Phase 21.11). Never an embedding or a model call.
+    #[cfg(feature = "toml")]
+    TomlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The `index`-th JSONL record (0-based, blank lines do not count) (Phase
+    /// 21.12): its kind, its **exact line span** and terminator, and its value's
+    /// exact source span; `ExactBytes` returns the value's exact token bytes. JSONL
+    /// has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "jsonl")]
+    JsonlLine {
+        /// The 0-based record index (blank lines do not count).
+        index: u32,
+    },
+    /// A JSONL node addressed as `N:POINTER` (`N` is a 0-based record index; the
+    /// remainder is an RFC 6901 pointer into record `N`, and `N` alone addresses
+    /// the whole record value) (Phase 21.12). Same addressing as a JSON pointer,
+    /// scoped to one record.
+    #[cfg(feature = "jsonl")]
+    JsonlPointer {
+        /// The `N:POINTER` reference.
+        spec: String,
+    },
+    /// A lexical, case-sensitive search over **every** JSONL record's object keys
+    /// and string values (Phase 21.12). Never an embedding or a model call.
+    #[cfg(feature = "jsonl")]
+    JsonlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// Every header named `name` (case-insensitive) across every message part, in
+    /// document order, each with its exact name/value/full span (Phase 21.13).
+    #[cfg(feature = "eml")]
+    EmlHeader {
+        /// The header field name (case-insensitive).
+        name: String,
+    },
+    /// The `index`-th MIME part (0-based, the root message is part 0) (Phase 21.13):
+    /// its kind, media type, exact entity/header/body spans, headers, and — as
+    /// `ExactBytes` — its exact decoded constituent bytes.
+    #[cfg(feature = "eml")]
+    EmlPart {
+        /// The 0-based part index (the root message is 0).
+        index: u32,
+    },
+    /// Every attachment leaf part, in document order, with its filename, media type,
+    /// encoding, size, and exact spans (Phase 21.13).
+    #[cfg(feature = "eml")]
+    EmlAttachments,
+    /// The message body text (the first `text/plain` leaf, else the first `text/*`)
+    /// (Phase 21.13).
+    #[cfg(feature = "eml")]
+    EmlBody,
+    /// A lexical, case-sensitive search over every part's header names/values and
+    /// decoded `text/*` bodies (Phase 21.13).
+    #[cfg(feature = "eml")]
+    EmlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The Parquet schema: every flattened schema element's depth, name, physical
+    /// type, logical/converted type, repetition, and (for a leaf) its def/rep levels
+    /// (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    ParquetSchema,
+    /// The `index`-th logical leaf column (Phase 21.14): its name path, physical and
+    /// logical types, repetition, def/rep levels, and the per-row-group column
+    /// chunks with exact source spans and statistics. As `ExactBytes`, the raw
+    /// encoded bytes of the column's chunks; as `Text`, the decoded values (declined
+    /// typed when the column is unsupported).
+    #[cfg(feature = "parquet")]
+    ParquetColumn {
+        /// The 0-based leaf-column index.
+        index: u32,
+    },
+    /// The `index`-th row group (Phase 21.14): its row count and the inventory of
+    /// its column chunks with exact source spans.
+    #[cfg(feature = "parquet")]
+    ParquetRowGroup {
+        /// The 0-based row-group index.
+        index: u32,
+    },
+    /// The cell at `row` (whole-file 0-based) and leaf column `col` (Phase 21.14):
+    /// the decoded value, declined typed when the column's encoding/compression/type
+    /// is unsupported.
+    #[cfg(feature = "parquet")]
+    ParquetCell {
+        /// The 0-based row index (across the whole file).
+        row: u64,
+        /// The 0-based leaf-column index.
+        col: u32,
+    },
+    /// The Arrow schema: every flattened field's depth, name, type tag/parameters,
+    /// nullability, and child count (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    ArrowSchema,
+    /// The column named or indexed by `spec` (Phase 21.16): its inventory
+    /// (`metadata`/`structure`), decoded values (`text`), or the raw bytes of its
+    /// buffers (`exact`). Declined typed when the column's type/layout/compression is
+    /// unsupported.
+    #[cfg(feature = "arrow")]
+    ArrowColumn {
+        /// A column name or a 0-based top-level column index (as text).
+        spec: String,
+    },
+    /// The `index`-th record batch (Phase 21.16): its row count, exact source span,
+    /// and its declared field-node/buffer inventory.
+    #[cfg(feature = "arrow")]
+    ArrowBatch {
+        /// The 0-based record-batch index.
+        index: u32,
+    },
+    /// The cell at `row` (whole-file 0-based) and column `col` (Phase 21.16): the
+    /// decoded value, declined typed when the column's type/layout is unsupported.
+    #[cfg(feature = "arrow")]
+    ArrowCell {
+        /// The 0-based row index (across the whole file).
+        row: u64,
+        /// A column name or a 0-based top-level column index (as text).
+        col: String,
+    },
 }
 
 impl Selector {
@@ -1019,6 +1355,74 @@ impl Selector {
             Selector::CsvRange { spec } => format!("csv-range:{spec}"),
             #[cfg(feature = "csv")]
             Selector::CsvFind { pattern } => format!("csv-find:{pattern}"),
+            #[cfg(feature = "markdown")]
+            Selector::MdHeading { index } => format!("md-heading:{index}"),
+            #[cfg(feature = "markdown")]
+            Selector::MdBlock { index } => format!("md-block:{index}"),
+            #[cfg(feature = "markdown")]
+            Selector::MdCode { index } => format!("md-code:{index}"),
+            #[cfg(feature = "markdown")]
+            Selector::MdLink { index } => format!("md-link:{index}"),
+            #[cfg(feature = "markdown")]
+            Selector::MdFind { pattern } => format!("md-find:{pattern}"),
+            #[cfg(feature = "xml")]
+            Selector::XmlPath { path } => format!("xml-path:{path}"),
+            #[cfg(feature = "xml")]
+            Selector::XmlElement { path } => format!("xml-element:{path}"),
+            #[cfg(feature = "xml")]
+            Selector::XmlAttr { spec } => format!("xml-attr:{spec}"),
+            #[cfg(feature = "xml")]
+            Selector::XmlNamespaces => "xml-namespaces".to_string(),
+            #[cfg(feature = "xml")]
+            Selector::XmlFind { pattern } => format!("xml-find:{pattern}"),
+            #[cfg(feature = "html")]
+            Selector::HtmlPath { path } => format!("html-path:{path}"),
+            #[cfg(feature = "html")]
+            Selector::HtmlElement { path } => format!("html-element:{path}"),
+            #[cfg(feature = "html")]
+            Selector::HtmlAttr { spec } => format!("html-attr:{spec}"),
+            #[cfg(feature = "html")]
+            Selector::HtmlScripts => "html-scripts".to_string(),
+            #[cfg(feature = "html")]
+            Selector::HtmlFind { pattern } => format!("html-find:{pattern}"),
+            #[cfg(feature = "toml")]
+            Selector::TomlPath { path } => format!("toml-path:{path}"),
+            #[cfg(feature = "toml")]
+            Selector::TomlTable { path } => format!("toml-table:{path}"),
+            #[cfg(feature = "toml")]
+            Selector::TomlFind { pattern } => format!("toml-find:{pattern}"),
+            #[cfg(feature = "jsonl")]
+            Selector::JsonlLine { index } => format!("jsonl-line:{index}"),
+            #[cfg(feature = "jsonl")]
+            Selector::JsonlPointer { spec } => format!("jsonl-pointer:{spec}"),
+            #[cfg(feature = "jsonl")]
+            Selector::JsonlFind { pattern } => format!("jsonl-find:{pattern}"),
+            #[cfg(feature = "eml")]
+            Selector::EmlHeader { name } => format!("eml-header:{name}"),
+            #[cfg(feature = "eml")]
+            Selector::EmlPart { index } => format!("eml-part:{index}"),
+            #[cfg(feature = "eml")]
+            Selector::EmlAttachments => "eml-attachments".to_string(),
+            #[cfg(feature = "eml")]
+            Selector::EmlBody => "eml-body".to_string(),
+            #[cfg(feature = "eml")]
+            Selector::EmlFind { pattern } => format!("eml-find:{pattern}"),
+            #[cfg(feature = "parquet")]
+            Selector::ParquetSchema => "parquet-schema".to_string(),
+            #[cfg(feature = "parquet")]
+            Selector::ParquetColumn { index } => format!("parquet-column:{index}"),
+            #[cfg(feature = "parquet")]
+            Selector::ParquetRowGroup { index } => format!("parquet-row-group:{index}"),
+            #[cfg(feature = "parquet")]
+            Selector::ParquetCell { row, col } => format!("parquet-cell:{row}:{col}"),
+            #[cfg(feature = "arrow")]
+            Selector::ArrowSchema => "arrow-schema".to_string(),
+            #[cfg(feature = "arrow")]
+            Selector::ArrowColumn { spec } => format!("arrow-column:{spec}"),
+            #[cfg(feature = "arrow")]
+            Selector::ArrowBatch { index } => format!("arrow-batch:{index}"),
+            #[cfg(feature = "arrow")]
+            Selector::ArrowCell { row, col } => format!("arrow-cell:{row}:{col}"),
         }
     }
 
@@ -2296,7 +2700,9 @@ fn opt_u8_json(v: Option<u8>) -> String {
     feature = "odt",
     feature = "ods",
     feature = "xlsx",
-    feature = "pptx"
+    feature = "pptx",
+    feature = "eml",
+    feature = "parquet"
 ))]
 fn opt_str_json(v: Option<&str>) -> String {
     match v {
@@ -2363,7 +2769,9 @@ impl<S: SeedStore> Ctx<'_, S> {
             | NodeKind::PptxModel
             | NodeKind::PptxPresentation
             | NodeKind::PptxSlide
-            | NodeKind::PptxNotes => {
+            | NodeKind::PptxNotes
+            | NodeKind::HtmlModel
+            | NodeKind::TomlModel => {
                 self.stats.xml_parses = self.stats.xml_parses.saturating_add(1);
             }
             _ => {}
@@ -2839,6 +3247,148 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "csv")]
             (Selector::CsvFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.csv_find(req, pattern)
+            }
+            #[cfg(feature = "markdown")]
+            (
+                Selector::MdHeading { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.md_heading(req, *index),
+            #[cfg(feature = "markdown")]
+            (Selector::MdBlock { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.md_block(req, *index)
+            }
+            #[cfg(feature = "markdown")]
+            (Selector::MdCode { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.md_code(req, *index)
+            }
+            #[cfg(feature = "markdown")]
+            (Selector::MdLink { index }, R::Text | R::Metadata | R::Structure) => {
+                self.md_link(req, *index)
+            }
+            #[cfg(feature = "markdown")]
+            (Selector::MdFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.md_find(req, pattern)
+            }
+            #[cfg(feature = "xml")]
+            (Selector::XmlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.xml_path(req, path)
+            }
+            #[cfg(feature = "xml")]
+            (
+                Selector::XmlElement { path },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.xml_element(req, path),
+            #[cfg(feature = "xml")]
+            (Selector::XmlAttr { spec }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.xml_attr(req, spec)
+            }
+            #[cfg(feature = "xml")]
+            (Selector::XmlNamespaces, R::Text | R::Metadata | R::Structure) => {
+                self.xml_namespaces(req)
+            }
+            #[cfg(feature = "xml")]
+            (Selector::XmlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.xml_find(req, pattern)
+            }
+            #[cfg(feature = "html")]
+            (Selector::HtmlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.html_path(req, path)
+            }
+            #[cfg(feature = "html")]
+            (
+                Selector::HtmlElement { path },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.html_element(req, path),
+            #[cfg(feature = "html")]
+            (Selector::HtmlAttr { spec }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.html_attr(req, spec)
+            }
+            #[cfg(feature = "html")]
+            (Selector::HtmlScripts, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.html_scripts(req)
+            }
+            #[cfg(feature = "html")]
+            (Selector::HtmlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.html_find(req, pattern)
+            }
+            #[cfg(feature = "toml")]
+            (Selector::TomlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.toml_path(req, path)
+            }
+            #[cfg(feature = "toml")]
+            (Selector::TomlTable { path }, R::Text | R::Metadata | R::Structure) => {
+                self.toml_table(req, path)
+            }
+            #[cfg(feature = "toml")]
+            (Selector::TomlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.toml_find(req, pattern)
+            }
+            #[cfg(feature = "jsonl")]
+            (
+                Selector::JsonlLine { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.jsonl_line(req, *index),
+            #[cfg(feature = "jsonl")]
+            (
+                Selector::JsonlPointer { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.jsonl_pointer(req, spec),
+            #[cfg(feature = "jsonl")]
+            (Selector::JsonlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.jsonl_find(req, pattern)
+            }
+            #[cfg(feature = "eml")]
+            (
+                Selector::EmlHeader { name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.eml_header(req, name),
+            #[cfg(feature = "eml")]
+            (Selector::EmlPart { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.eml_part(req, *index)
+            }
+            #[cfg(feature = "eml")]
+            (Selector::EmlAttachments, R::Text | R::Metadata | R::Structure) => {
+                self.eml_attachments(req)
+            }
+            #[cfg(feature = "eml")]
+            (Selector::EmlBody, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.eml_body(req)
+            }
+            #[cfg(feature = "eml")]
+            (Selector::EmlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.eml_find(req, pattern)
+            }
+            #[cfg(feature = "parquet")]
+            (Selector::ParquetSchema, R::Text | R::Metadata | R::Structure) => {
+                self.parquet_schema(req)
+            }
+            #[cfg(feature = "parquet")]
+            (
+                Selector::ParquetColumn { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.parquet_column(req, *index),
+            #[cfg(feature = "parquet")]
+            (Selector::ParquetRowGroup { index }, R::Metadata | R::Structure) => {
+                self.parquet_row_group(req, *index)
+            }
+            #[cfg(feature = "parquet")]
+            (Selector::ParquetCell { row, col }, R::Text | R::Metadata | R::Structure) => {
+                self.parquet_cell(req, *row, *col)
+            }
+            #[cfg(feature = "arrow")]
+            (Selector::ArrowSchema, R::Text | R::Metadata | R::Structure) => self.arrow_schema(req),
+            #[cfg(feature = "arrow")]
+            (
+                Selector::ArrowColumn { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.arrow_column(req, spec),
+            #[cfg(feature = "arrow")]
+            (Selector::ArrowBatch { index }, R::Metadata | R::Structure) => {
+                self.arrow_batch(req, *index)
+            }
+            #[cfg(feature = "arrow")]
+            (Selector::ArrowCell { row, col }, R::Text | R::Metadata | R::Structure) => {
+                self.arrow_cell(req, *row, col)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -8010,6 +8560,80 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Json => self.common_json(req)?,
             DocumentFormat::Yaml => self.common_yaml(req)?,
             DocumentFormat::Csv => self.common_csv(req)?,
+            DocumentFormat::Markdown => self.common_markdown(req)?,
+            DocumentFormat::Xml => self.common_xml(req)?,
+            DocumentFormat::Html => {
+                #[cfg(feature = "html")]
+                {
+                    self.common_html(req)?
+                }
+                #[cfg(not(feature = "html"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "HTML support is not compiled in (feature `html`)",
+                    ));
+                }
+            }
+            DocumentFormat::Toml => {
+                #[cfg(feature = "toml")]
+                {
+                    self.common_toml(req)?
+                }
+                #[cfg(not(feature = "toml"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "TOML support is not compiled in (feature `toml`)",
+                    ));
+                }
+            }
+            DocumentFormat::Jsonl => {
+                #[cfg(feature = "jsonl")]
+                {
+                    self.common_jsonl(req)?
+                }
+                #[cfg(not(feature = "jsonl"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "JSONL support is not compiled in (feature `jsonl`)",
+                    ));
+                }
+            }
+            DocumentFormat::Eml => {
+                #[cfg(feature = "eml")]
+                {
+                    self.common_eml(req)?
+                }
+                #[cfg(not(feature = "eml"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "EML support is not compiled in (feature `eml`)",
+                    ));
+                }
+            }
+            DocumentFormat::Parquet => {
+                #[cfg(feature = "parquet")]
+                {
+                    self.common_parquet(req)?
+                }
+                #[cfg(not(feature = "parquet"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "Parquet support is not compiled in (feature `parquet`)",
+                    ));
+                }
+            }
+            DocumentFormat::ArrowIpc => {
+                #[cfg(feature = "arrow")]
+                {
+                    self.common_arrow(req)?
+                }
+                #[cfg(not(feature = "arrow"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "Arrow support is not compiled in (feature `arrow`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -8353,6 +8977,20 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_csv(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "CSV observations require a build with the csv feature",
+        ))
+    }
+
+    #[cfg(not(feature = "markdown"))]
+    fn common_markdown(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "Markdown observations require a build with the markdown feature",
+        ))
+    }
+
+    #[cfg(not(feature = "xml"))]
+    fn common_xml(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "XML observations require a build with the xml feature",
         ))
     }
 
@@ -9340,6 +9978,1914 @@ impl<S: SeedStore> Ctx<'_, S> {
 }
 
 // ---------------------------------------------------------------------------
+// JSONL observations (Phase 21.12)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "jsonl")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the per-line JSONL model (derived, `Q_gen`).
+    fn jsonl_model(&mut self) -> Result<(JsonlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_JSONL_MODEL, 0), "JSONL model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((JsonlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn jsonl_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn jsonl_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th record (0-based; blank lines do not count). `ExactBytes`
+    /// returns the value's exact token bytes; `Text` the decoded string (or the
+    /// canonical subtree for a container/scalar); `Metadata`/`Structure` a JSON
+    /// descriptor with the exact line span, terminator, and value span.
+    fn jsonl_line(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.jsonl_model()?;
+        let (source, root) = self.jsonl_source()?;
+        let rec = model.record(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "JSONL record {index} is out of range (record count {})",
+                model.records.len()
+            ))
+        })?;
+        let node = rec.value_node()?.clone();
+        let (vs, ve) = (node.start, node.end);
+        let span = Some((vs, ve));
+        let provenance = format!(
+            "jsonl;line={index};record={index};line_number={};kind={};terminator={}",
+            rec.line_number,
+            json_kind_name(node.kind),
+            jsonl_terminator_name(rec.terminator)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(jsonl_value_bytes(&source, rec)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(Self::json_node_text(
+                &rec.model,
+                &source,
+                rec.model.root,
+                &node,
+            )?),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"record\":{},\"line\":{},\"terminator\":\"{}\",",
+                    "\"line_span\":[{},{}],\"value_span\":[{},{}],",
+                    "\"line_bytes\":{},\"kind\":\"{}\",\"top_type\":\"{}\"}}"
+                ),
+                index,
+                rec.line_number,
+                jsonl_terminator_name(rec.terminator),
+                rec.line_start,
+                rec.line_end,
+                vs,
+                ve,
+                rec.line_end - rec.line_start,
+                json_kind_name(node.kind),
+                json_kind_name(rec.model.top_type),
+            )),
+        };
+        Ok(self.jsonl_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// Resolve an `N:POINTER` reference into record `N` and answer per
+    /// representation (mirroring [`Self::jsonl_line`]). `ExactBytes` returns the
+    /// node's exact token bytes; `Text` the decoded/canonical text; `Metadata`/
+    /// `Structure` a JSON descriptor with the kind, span, and match count.
+    fn jsonl_pointer(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.jsonl_model()?;
+        let (source, root) = self.jsonl_source()?;
+        let r = jsonl_resolve_record_pointer(&model, &source, spec)?;
+        let rec = model
+            .record(r.record)
+            .ok_or_else(|| Error::internal_invariant("JSONL pointer resolved out of range"))?;
+        let node = rec
+            .model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("JSONL pointer node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let (_n, pointer) = jsonl_parse_record_ref(spec)?;
+        let provenance = format!(
+            "jsonl;pointer={spec};record={};kind={};matches={}",
+            r.record,
+            json_kind_name(node.kind),
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(json_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::json_node_text(&rec.model, &source, r.index, &node)?)
+            }
+            _ => {
+                let token = String::from_utf8_lossy(json_token_bytes(&source, &node)?).into_owned();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"record\":{},\"pointer\":\"{}\",\"kind\":\"{}\",",
+                        "\"span\":[{},{}],\"matches\":{},\"token\":\"{}\"}}"
+                    ),
+                    r.record,
+                    json_escape(pointer),
+                    json_kind_name(node.kind),
+                    node.start,
+                    node.end,
+                    r.matches,
+                    json_escape(&token),
+                ))
+            }
+        };
+        Ok(self.jsonl_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search across every record's keys and string values; each
+    /// match reports its record index, within-record pointer, role, and exact span.
+    fn jsonl_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.jsonl_model()?;
+        let (source, root) = self.jsonl_source()?;
+        let matches = jsonl_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "JSONL find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"record\":{},\"pointer\":\"{}\",\"role\":\"{}\",",
+                    "\"kind\":\"string\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.record,
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("jsonl;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.jsonl_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_jsonl(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.jsonl_common_metadata(req),
+            Selector::Text => self.jsonl_common_text(req),
+            Selector::SearchMatch(p) => self.jsonl_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "JSONL does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn jsonl_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.jsonl_model()?;
+        let (source, root) = self.jsonl_source()?;
+        let text = jsonl_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.jsonl_answer(
+            req,
+            AnswerValue::Text(text),
+            "jsonl;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn jsonl_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.jsonl_model()?;
+        let (source, root) = self.jsonl_source()?;
+        let mut nodes = 0u64;
+        let mut members = 0u64;
+        let mut arrays = 0u64;
+        let mut elements = 0u64;
+        let mut dup_keys = 0u64;
+        let mut objects = 0u64;
+        for rec in &model.records {
+            nodes += rec.model.nodes.len() as u64;
+            for n in &rec.model.nodes {
+                if n.kind == crate::adapter::json::K_OBJECT {
+                    objects += 1;
+                    let mut seen: Vec<String> = Vec::new();
+                    let mut i = 0usize;
+                    while i + 1 < n.children.len() {
+                        members += 1;
+                        if let Some(k) = rec.model.node(n.children[i])
+                            && let Ok(s) = json_decode_string(&source, k)
+                        {
+                            if seen.contains(&s) {
+                                dup_keys += 1;
+                            } else {
+                                seen.push(s);
+                            }
+                        }
+                        i += 2;
+                    }
+                } else if n.kind == crate::adapter::json::K_ARRAY {
+                    arrays += 1;
+                    elements += n.children.len() as u64;
+                }
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"jsonl\",\"records\":{},\"blank_lines\":{},",
+                "\"crlf_records\":{},\"trailing_newline\":{},",
+                "\"nodes\":{},\"max_depth\":{},\"bytes\":{},",
+                "\"objects\":{},\"members\":{},\"arrays\":{},\"array_elements\":{},",
+                "\"duplicate_keys\":{},\"total_line_bytes\":{},",
+                "\"min_line_bytes\":{},\"max_line_bytes\":{}}}"
+            ),
+            model.records.len(),
+            model.blank_lines,
+            model.crlf_records,
+            model.trailing_newline,
+            nodes,
+            model.max_depth,
+            model.doc_len,
+            objects,
+            members,
+            arrays,
+            elements,
+            dup_keys,
+            model.total_line_bytes,
+            model.min_line_bytes,
+            model.max_line_bytes,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.jsonl_answer(
+            req,
+            value,
+            "jsonl;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// EML observations (Phase 21.13)
+// ---------------------------------------------------------------------------
+
+/// Render a MIME part's parent (`null` for the root message).
+#[cfg(feature = "eml")]
+fn eml_parent_json(parent: u32) -> String {
+    if parent == u32::MAX {
+        "null".to_string()
+    } else {
+        parent.to_string()
+    }
+}
+
+/// Render a MIME part's headers as a JSON array (order and duplicates preserved).
+#[cfg(feature = "eml")]
+fn eml_headers_json(p: &EmlPart) -> String {
+    let mut out: Vec<String> = Vec::new();
+    for h in &p.headers {
+        out.push(format!(
+            concat!(
+                "{{\"name\":\"{}\",\"value\":\"{}\",",
+                "\"name_span\":[{},{}],\"value_span\":[{},{}],\"full_span\":[{},{}]}}"
+            ),
+            json_escape(&h.name),
+            json_escape(&h.value),
+            h.name_start,
+            h.name_end,
+            h.value_start,
+            h.value_end,
+            h.full_start,
+            h.full_end
+        ));
+    }
+    format!("[{}]", out.join(","))
+}
+
+/// Render a MIME part as a JSON descriptor.
+#[cfg(feature = "eml")]
+fn eml_part_json(p: &EmlPart, source: &[u8], limits: Limits) -> Result<String> {
+    let decoded_len: i64 = if p.is_leaf() {
+        match eml_decode_body(source, p, limits) {
+            Ok(b) => b.len() as i64,
+            Err(_) => -1,
+        }
+    } else {
+        p.body_end.saturating_sub(p.body_start) as i64
+    };
+    let children: Vec<String> = p.children.iter().map(|c| c.to_string()).collect();
+    Ok(format!(
+        concat!(
+            "{{\"index\":{},\"parent\":{},\"depth\":{},\"kind\":\"{}\",",
+            "\"media_type\":\"{}\",\"cte\":\"{}\",\"charset\":{},",
+            "\"disposition\":{},\"filename\":{},\"boundary\":{},",
+            "\"is_multipart\":{},\"entity_span\":[{},{}],\"header_span\":[{},{}],",
+            "\"body_span\":[{},{}],\"decoded_len\":{},\"children\":[{}],",
+            "\"headers\":{},\"unsupported\":{}}}"
+        ),
+        p.index,
+        eml_parent_json(p.parent),
+        p.depth,
+        eml_kind_name(p.kind),
+        json_escape(&p.media_type),
+        eml_cte_name(p.cte),
+        opt_str_json(p.charset.as_deref()),
+        opt_str_json(p.disposition.as_deref()),
+        opt_str_json(p.filename.as_deref()),
+        opt_str_json(p.boundary.as_deref()),
+        p.is_multipart,
+        p.entity_start,
+        p.entity_end,
+        p.header_start,
+        p.header_end,
+        p.body_start,
+        p.body_end,
+        decoded_len,
+        children.join(","),
+        eml_headers_json(p),
+        opt_str_json(p.unsupported.as_deref())
+    ))
+}
+
+/// The chosen message body part: the first `text/plain` leaf, else the first
+/// `text/*` leaf.
+#[cfg(feature = "eml")]
+fn eml_body_part(model: &EmlModel) -> Option<&EmlPart> {
+    for want_plain in [true, false] {
+        for p in &model.parts {
+            if p.kind == crate::adapter::eml::K_TEXT && p.is_leaf() {
+                if want_plain && p.media_type != "text/plain" {
+                    continue;
+                }
+                return Some(p);
+            }
+        }
+    }
+    None
+}
+
+#[cfg(feature = "eml")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the EML/MIME model (derived, `Q_gen`).
+    fn eml_model(&mut self) -> Result<(EmlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_EML_MODEL, 0), "EML model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((EmlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn eml_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn eml_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Every header named `name` (case-insensitive) across every part. `ExactBytes`
+    /// returns the first match's raw (folded) value bytes; the other representations
+    /// return a JSON list with exact name/value/full spans.
+    fn eml_header(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let mut items: Vec<String> = Vec::new();
+        let mut first_span: Option<(u64, u64)> = None;
+        let mut first_bytes: Vec<u8> = Vec::new();
+        for p in &model.parts {
+            for h in &p.headers {
+                if !h.name_is(name) {
+                    continue;
+                }
+                if first_span.is_none() {
+                    first_span = Some((h.value_start, h.value_end));
+                    first_bytes = source[h.value_start as usize..h.value_end as usize].to_vec();
+                }
+                items.push(format!(
+                    concat!(
+                        "{{\"part\":{},\"name\":\"{}\",\"value\":\"{}\",",
+                        "\"name_span\":[{},{}],\"value_span\":[{},{}],\"full_span\":[{},{}]}}"
+                    ),
+                    p.index,
+                    json_escape(&h.name),
+                    json_escape(&h.value),
+                    h.name_start,
+                    h.name_end,
+                    h.value_start,
+                    h.value_end,
+                    h.full_start,
+                    h.full_end
+                ));
+            }
+        }
+        if items.is_empty() {
+            return Err(Error::unsupported_feature(format!(
+                "EML message has no header named {name:?}"
+            )));
+        }
+        let provenance = format!("eml;header={name};matches={}", items.len());
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(first_bytes),
+            _ => AnswerValue::Json(format!(
+                "{{\"name\":\"{}\",\"matches\":[{}]}}",
+                json_escape(name),
+                items.join(",")
+            )),
+        };
+        Ok(self.eml_answer(req, value, provenance, first_span, vec![model_id, root]))
+    }
+
+    /// The `index`-th MIME part (0-based; the root message is 0). `ExactBytes`
+    /// returns a leaf's exact decoded constituent bytes (a container's raw body
+    /// bytes); `Text` the decoded text; `Metadata`/`Structure` a JSON descriptor.
+    fn eml_part(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let p = model
+            .part(index)
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "EML part {index} is out of range (part count {})",
+                    model.parts.len()
+                ))
+            })?
+            .clone();
+        let span = Some((p.entity_start, p.entity_end));
+        let provenance = format!(
+            "eml;part={index};kind={};media_type={};cte={}",
+            eml_kind_name(p.kind),
+            p.media_type,
+            eml_cte_name(p.cte)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                let bytes = if p.is_leaf() {
+                    eml_decode_body(&source, &p, self.limits)?
+                } else {
+                    eml_raw_body_bytes(&source, &p)?.to_vec()
+                };
+                if bytes.len() as u64 > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "EML part exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                AnswerValue::Bytes(bytes)
+            }
+            Representation::Text => {
+                let bytes = if p.is_leaf() {
+                    eml_decode_body(&source, &p, self.limits)?
+                } else {
+                    eml_raw_body_bytes(&source, &p)?.to_vec()
+                };
+                AnswerValue::Text(String::from_utf8_lossy(&bytes).into_owned())
+            }
+            _ => AnswerValue::Json(eml_part_json(&p, &source, self.limits)?),
+        };
+        Ok(self.eml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// Every attachment leaf part, in document order, with its filename, media
+    /// type, encoding, exact decoded size, and body span.
+    fn eml_attachments(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let atts = model.attachment_indices();
+        let mut items: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for (ordinal, pi) in atts.iter().enumerate() {
+            let p = model
+                .part(*pi)
+                .ok_or_else(|| Error::internal_invariant("EML attachment index is out of range"))?;
+            let decoded = eml_decode_body(&source, p, self.limits)?;
+            estimated = estimated.saturating_add(64 + decoded.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "EML attachments exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            items.push(format!(
+                concat!(
+                    "{{\"ordinal\":{},\"part\":{},\"filename\":{},",
+                    "\"media_type\":\"{}\",\"cte\":\"{}\",\"decoded_len\":{},",
+                    "\"body_span\":[{},{}]}}"
+                ),
+                ordinal,
+                pi,
+                opt_str_json(p.filename.as_deref()),
+                json_escape(&p.media_type),
+                eml_cte_name(p.cte),
+                decoded.len(),
+                p.body_start,
+                p.body_end
+            ));
+        }
+        let provenance = format!("eml;attachments={}", atts.len());
+        let value = AnswerValue::Json(format!("{{\"attachments\":[{}]}}", items.join(",")));
+        Ok(self.eml_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    /// The message body text (the first `text/plain` leaf, else the first
+    /// `text/*`). `ExactBytes` returns the chosen part's decoded bytes.
+    fn eml_body(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let chosen = eml_body_part(&model).cloned();
+        let (value, span) = match req.representation {
+            Representation::ExactBytes => match &chosen {
+                Some(p) => (
+                    AnswerValue::Bytes(eml_decode_body(&source, p, self.limits)?),
+                    None,
+                ),
+                None => (AnswerValue::Bytes(Vec::new()), None),
+            },
+            _ => {
+                let text = eml_body_text(&model, &source, self.limits)?;
+                (
+                    AnswerValue::Text(text),
+                    chosen.as_ref().map(|p| (p.body_start, p.body_end)),
+                )
+            }
+        };
+        Ok(self.eml_answer(
+            req,
+            value,
+            "eml;body".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over every part's header names/values and decoded
+    /// `text/*` bodies; each match reports its location, part, and exact span.
+    fn eml_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let matches = eml_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "EML find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"location\":\"{}\",\"part\":{},\"name\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                eml_loc_name(m.location),
+                m.part,
+                json_escape(&m.name),
+                m.start,
+                m.end,
+                json_escape(&m.text)
+            ));
+        }
+        let provenance = format!("eml;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.eml_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_eml(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.eml_common_metadata(req),
+            Selector::Text => self.eml_common_text(req),
+            Selector::Resource(i) => self.eml_common_resource(req, *i),
+            Selector::SearchMatch(p) => self.eml_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "EML does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn eml_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let text = eml_body_text(&model, &source, self.limits)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.eml_answer(
+            req,
+            AnswerValue::Text(text),
+            "eml;body".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn eml_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"eml\",\"parts\":{},\"headers\":{},\"attachments\":{},",
+                "\"max_depth\":{},\"text_parts\":{},\"multipart_parts\":{},",
+                "\"message_parts\":{},\"quoted_printable_parts\":{},\"base64_parts\":{},",
+                "\"bytes\":{},\"body_bytes\":{},\"has_from\":{},\"has_date\":{},",
+                "\"has_message_id\":{},\"has_mime_version\":{}}}"
+            ),
+            model.parts.len(),
+            model.header_count,
+            model.attachment_count,
+            model.max_depth,
+            model.text_parts,
+            model.multipart_parts,
+            model.message_parts,
+            model.qp_parts,
+            model.base64_parts,
+            model.doc_len,
+            model.body_bytes_total,
+            model.has_from,
+            model.has_date,
+            model.has_message_id,
+            model.has_mime_version
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.eml_answer(
+            req,
+            value,
+            "eml;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn eml_common_resource(&mut self, req: &ObserveRequest, ordinal: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.eml_model()?;
+        let (source, root) = self.eml_source()?;
+        let atts = model.attachment_indices();
+        let pi = *atts.get(ordinal as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "EML has no attachment {ordinal} (attachment count {})",
+                atts.len()
+            ))
+        })?;
+        let p = model
+            .part(pi)
+            .ok_or_else(|| Error::internal_invariant("EML attachment index is out of range"))?;
+        let span = Some((p.body_start, p.body_end));
+        let value = match req.representation {
+            Representation::Metadata => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"resource\":{},\"part\":{},\"filename\":{},",
+                    "\"media_type\":\"{}\",\"cte\":\"{}\",\"body_span\":[{},{}]}}"
+                ),
+                ordinal,
+                pi,
+                opt_str_json(p.filename.as_deref()),
+                json_escape(&p.media_type),
+                eml_cte_name(p.cte),
+                p.body_start,
+                p.body_end
+            )),
+            Representation::Text => {
+                let bytes = eml_decode_body(&source, p, self.limits)?;
+                AnswerValue::Text(String::from_utf8_lossy(&bytes).into_owned())
+            }
+            _ => AnswerValue::Bytes(eml_decode_body(&source, p, self.limits)?),
+        };
+        let provenance = format!(
+            "eml;resource={ordinal};part={pi};cte={}",
+            eml_cte_name(p.cte)
+        );
+        Ok(self.eml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Parquet observations (Phase 21.14)
+// ---------------------------------------------------------------------------
+
+/// Render a schema parent link (`null` for the root).
+#[cfg(feature = "parquet")]
+fn parquet_parent_json(parent: u32) -> String {
+    if parent == u32::MAX {
+        "null".to_string()
+    } else {
+        parent.to_string()
+    }
+}
+
+/// Render a chunk's declared encodings as a JSON array of names.
+#[cfg(feature = "parquet")]
+fn parquet_encodings_json(encs: &[i32]) -> String {
+    let items: Vec<String> = encs
+        .iter()
+        .map(|e| format!("\"{}\"", parquet_encoding_name(*e)))
+        .collect();
+    format!("[{}]", items.join(","))
+}
+
+/// Render a decoded value list as a JSON array of strings.
+#[cfg(feature = "parquet")]
+fn parquet_values_json(values: &[ParquetValue], leaf: &ParquetLeaf) -> String {
+    let items: Vec<String> = values
+        .iter()
+        .map(|v| format!("\"{}\"", json_escape(&parquet_value_text(v, leaf))))
+        .collect();
+    format!("[{}]", items.join(","))
+}
+
+/// Render one statistics field as a JSON string, or `null`.
+#[cfg(feature = "parquet")]
+fn parquet_stats_field(raw: Option<&[u8]>, leaf: &ParquetLeaf) -> String {
+    match raw.and_then(|b| parquet_stats_text(b, leaf)) {
+        Some(s) => format!("\"{}\"", json_escape(&s)),
+        None => "null".to_string(),
+    }
+}
+
+/// The exact source span covering every chunk of a leaf column.
+#[cfg(feature = "parquet")]
+fn parquet_column_span(model: &ParquetModel, index: u32) -> Option<(u64, u64)> {
+    let mut lo = u64::MAX;
+    let mut hi = 0u64;
+    let mut any = false;
+    for rg in &model.row_groups {
+        for c in &rg.chunks {
+            if c.leaf == index {
+                lo = lo.min(c.span_start);
+                hi = hi.max(c.span_end);
+                any = true;
+            }
+        }
+    }
+    if any { Some((lo, hi)) } else { None }
+}
+
+/// The leaf column's short name (its last path component).
+#[cfg(feature = "parquet")]
+fn parquet_leaf_name(leaf: &ParquetLeaf) -> String {
+    leaf.path.last().cloned().unwrap_or_default()
+}
+
+/// Render the schema as JSON (elements in pre-order plus the logical leaves).
+#[cfg(feature = "parquet")]
+fn parquet_schema_json(model: &ParquetModel) -> String {
+    let mut elems: Vec<String> = Vec::new();
+    for (i, s) in model.schema.iter().enumerate() {
+        let phys = s
+            .physical
+            .map(|t| format!("\"{}\"", parquet_physical_name(t)))
+            .unwrap_or_else(|| "null".to_string());
+        let conv = s
+            .converted
+            .map(|c| format!("\"{}\"", parquet_converted_name(c)))
+            .unwrap_or_else(|| "null".to_string());
+        let log = s
+            .logical
+            .map(|t| format!("\"{}\"", parquet_logical_name(t)))
+            .unwrap_or_else(|| "null".to_string());
+        let tl = s
+            .type_length
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| "null".to_string());
+        elems.push(format!(
+            concat!(
+                "{{\"index\":{},\"depth\":{},\"parent\":{},\"name\":\"{}\",",
+                "\"physical\":{},\"type_length\":{},\"repetition\":\"{}\",",
+                "\"converted\":{},\"logical\":{},\"num_children\":{}}}"
+            ),
+            i,
+            s.depth,
+            parquet_parent_json(s.parent),
+            json_escape(&s.name),
+            phys,
+            tl,
+            parquet_repetition_name(s.repetition),
+            conv,
+            log,
+            s.num_children
+        ));
+    }
+    let mut leaves: Vec<String> = Vec::new();
+    for (i, l) in model.leaves.iter().enumerate() {
+        let path: Vec<String> = l
+            .path
+            .iter()
+            .map(|p| format!("\"{}\"", json_escape(p)))
+            .collect();
+        let tl = l
+            .type_length
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| "null".to_string());
+        let conv = l
+            .converted
+            .map(|c| format!("\"{}\"", parquet_converted_name(c)))
+            .unwrap_or_else(|| "null".to_string());
+        let log = l
+            .logical
+            .map(|t| format!("\"{}\"", parquet_logical_name(t)))
+            .unwrap_or_else(|| "null".to_string());
+        leaves.push(format!(
+            concat!(
+                "{{\"leaf\":{},\"element\":{},\"path\":[{}],\"name\":\"{}\",",
+                "\"physical\":\"{}\",\"type_length\":{},\"repetition\":\"{}\",",
+                "\"converted\":{},\"logical\":{},\"max_def\":{},\"max_rep\":{}}}"
+            ),
+            i,
+            l.element,
+            path.join(","),
+            json_escape(&parquet_leaf_name(l)),
+            parquet_physical_name(l.physical),
+            tl,
+            parquet_repetition_name(l.repetition),
+            conv,
+            log,
+            l.max_def,
+            l.max_rep
+        ));
+    }
+    format!(
+        concat!(
+            "{{\"format\":\"parquet\",\"version\":{},\"num_rows\":{},",
+            "\"row_groups\":{},\"columns\":{},\"schema\":[{}],\"leaves\":[{}]}}"
+        ),
+        model.version,
+        model.num_rows,
+        model.row_groups.len(),
+        model.leaves.len(),
+        elems.join(","),
+        leaves.join(",")
+    )
+}
+
+/// A compact human-readable rendering of the schema.
+#[cfg(feature = "parquet")]
+fn parquet_schema_text(model: &ParquetModel) -> String {
+    let mut out = String::new();
+    for s in &model.schema {
+        for _ in 0..s.depth {
+            out.push_str("  ");
+        }
+        let ty = match s.physical {
+            Some(t) => parquet_physical_name(t).to_string(),
+            None => "group".to_string(),
+        };
+        out.push_str(&format!(
+            "{} : {} ({})\n",
+            s.name,
+            ty,
+            parquet_repetition_name(s.repetition)
+        ));
+    }
+    out
+}
+
+/// Render one column's descriptor (and its decoded values, when available).
+#[cfg(feature = "parquet")]
+fn parquet_column_json(
+    model: &ParquetModel,
+    index: u32,
+    values: Option<&[ParquetValue]>,
+    err: Option<&str>,
+) -> Result<String> {
+    let leaf = model
+        .leaf(index)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Parquet column {index}")))?;
+    let path: Vec<String> = leaf
+        .path
+        .iter()
+        .map(|p| format!("\"{}\"", json_escape(p)))
+        .collect();
+    let tl = leaf
+        .type_length
+        .map(|n| n.to_string())
+        .unwrap_or_else(|| "null".to_string());
+    let conv = leaf
+        .converted
+        .map(|c| format!("\"{}\"", parquet_converted_name(c)))
+        .unwrap_or_else(|| "null".to_string());
+    let log = leaf
+        .logical
+        .map(|t| format!("\"{}\"", parquet_logical_name(t)))
+        .unwrap_or_else(|| "null".to_string());
+    let mut chunks: Vec<String> = Vec::new();
+    for (gi, rg) in model.row_groups.iter().enumerate() {
+        for c in &rg.chunks {
+            if c.leaf != index {
+                continue;
+            }
+            chunks.push(format!(
+                concat!(
+                    "{{\"row_group\":{},\"codec\":\"{}\",\"num_values\":{},",
+                    "\"encodings\":{},\"compressed_size\":{},\"uncompressed_size\":{},",
+                    "\"span\":[{},{}],\"min\":{},\"max\":{},\"null_count\":{}}}"
+                ),
+                gi,
+                parquet_codec_name(c.codec),
+                c.num_values,
+                parquet_encodings_json(&c.encodings),
+                c.total_compressed_size,
+                c.total_uncompressed_size,
+                c.span_start,
+                c.span_end,
+                parquet_stats_field(c.min_value.as_deref(), leaf),
+                parquet_stats_field(c.max_value.as_deref(), leaf),
+                c.null_count
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "null".to_string())
+            ));
+        }
+    }
+    let vals = match values {
+        Some(v) => parquet_values_json(v, leaf),
+        None => "null".to_string(),
+    };
+    let errv = match err {
+        Some(e) => format!("\"{}\"", json_escape(e)),
+        None => "null".to_string(),
+    };
+    Ok(format!(
+        concat!(
+            "{{\"format\":\"parquet\",\"column\":{},\"name\":\"{}\",\"path\":[{}],",
+            "\"physical\":\"{}\",\"type_length\":{},\"converted\":{},\"logical\":{},",
+            "\"repetition\":\"{}\",\"max_def\":{},\"max_rep\":{},\"chunks\":[{}],",
+            "\"values\":{},\"values_error\":{}}}"
+        ),
+        index,
+        json_escape(&parquet_leaf_name(leaf)),
+        path.join(","),
+        parquet_physical_name(leaf.physical),
+        tl,
+        conv,
+        log,
+        parquet_repetition_name(leaf.repetition),
+        leaf.max_def,
+        leaf.max_rep,
+        chunks.join(","),
+        vals,
+        errv
+    ))
+}
+
+/// Render one row group's inventory as JSON.
+#[cfg(feature = "parquet")]
+fn parquet_row_group_json(model: &ParquetModel, index: u32) -> Result<String> {
+    let rg = model
+        .row_group(index)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Parquet row group {index}")))?;
+    let mut chunks: Vec<String> = Vec::new();
+    for c in &rg.chunks {
+        let name = model
+            .leaf(c.leaf)
+            .map(parquet_leaf_name)
+            .unwrap_or_default();
+        chunks.push(format!(
+            concat!(
+                "{{\"leaf\":{},\"name\":\"{}\",\"codec\":\"{}\",",
+                "\"num_values\":{},\"encodings\":{},\"span\":[{},{}]}}"
+            ),
+            c.leaf,
+            json_escape(&name),
+            parquet_codec_name(c.codec),
+            c.num_values,
+            parquet_encodings_json(&c.encodings),
+            c.span_start,
+            c.span_end
+        ));
+    }
+    Ok(format!(
+        concat!(
+            "{{\"format\":\"parquet\",\"row_group\":{},\"num_rows\":{},",
+            "\"total_byte_size\":{},\"columns\":{},\"chunks\":[{}]}}"
+        ),
+        index,
+        rg.num_rows,
+        rg.total_byte_size,
+        rg.chunks.len(),
+        chunks.join(",")
+    ))
+}
+
+/// Render a decoded value list as newline-separated text.
+#[cfg(feature = "parquet")]
+fn parquet_values_text(values: &[ParquetValue], leaf: &ParquetLeaf) -> String {
+    let mut out = String::new();
+    for (i, v) in values.iter().enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        out.push_str(&parquet_value_text(v, leaf));
+    }
+    out
+}
+
+/// Render the whole table as tab-separated text (a header line then rows).
+#[cfg(feature = "parquet")]
+fn parquet_table_text(
+    model: &ParquetModel,
+    cols: &[Vec<ParquetValue>],
+    budget: u64,
+) -> Result<String> {
+    let mut out = String::new();
+    let names: Vec<String> = model.leaves.iter().map(parquet_leaf_name).collect();
+    out.push_str(&names.join("\t"));
+    out.push('\n');
+    for r in 0..model.num_rows.max(0) as usize {
+        let mut row: Vec<String> = Vec::with_capacity(cols.len());
+        for (ci, col) in cols.iter().enumerate() {
+            let cell = match col.get(r) {
+                Some(ParquetValue::Null) | None => String::new(),
+                Some(v) => parquet_value_text(v, &model.leaves[ci]),
+            };
+            row.push(cell);
+        }
+        out.push_str(&row.join("\t"));
+        out.push('\n');
+        if out.len() as u64 > budget {
+            return Err(Error::resource_limit(format!(
+                "Parquet table text exceeded the {budget}-byte budget"
+            )));
+        }
+    }
+    Ok(out)
+}
+
+// ---------------------------------------------------------------------------
+// Parquet observations (Phase 21.14)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "parquet")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the Parquet model (derived, `Q_gen`).
+    fn parquet_model(&mut self) -> Result<(ParquetModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_PARQUET_MODEL, 0), "Parquet model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((ParquetModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn parquet_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn parquet_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The schema: JSON (metadata/structure) or a compact text tree.
+    fn parquet_schema(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (_source, root) = self.parquet_source()?;
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(parquet_schema_text(&model)),
+            _ => AnswerValue::Json(parquet_schema_json(&model)),
+        };
+        Ok(self.parquet_answer(
+            req,
+            value,
+            "parquet;schema".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    /// One leaf column: its inventory (`metadata`/`structure`), decoded values
+    /// (`text`), or the raw encoded bytes of its chunks (`exact`).
+    fn parquet_column(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (source, root) = self.parquet_source()?;
+        let leaf = model
+            .leaf(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("no Parquet column {index}")))?;
+        let span = parquet_column_span(&model, index);
+        let provenance = format!(
+            "parquet;column={index};physical={}",
+            parquet_physical_name(leaf.physical)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                let mut bytes: Vec<u8> = Vec::new();
+                for rg in &model.row_groups {
+                    for c in &rg.chunks {
+                        if c.leaf != index {
+                            continue;
+                        }
+                        let s = usize::try_from(c.span_start)
+                            .map_err(|_| Error::internal_invariant("span overflow"))?;
+                        let e = usize::try_from(c.span_end)
+                            .map_err(|_| Error::internal_invariant("span overflow"))?;
+                        let slice = source.get(s..e).ok_or_else(|| {
+                            Error::invalid_parquet_structure("chunk span is outside the source")
+                        })?;
+                        bytes.extend_from_slice(slice);
+                        if bytes.len() as u64 > req.budget.max_output_bytes {
+                            return Err(Error::resource_limit(format!(
+                                "Parquet column bytes exceeded the {}-byte budget",
+                                req.budget.max_output_bytes
+                            )));
+                        }
+                    }
+                }
+                AnswerValue::Bytes(bytes)
+            }
+            Representation::Text => {
+                let vals = parquet_leaf_values(&source, &model, index, self.limits)?;
+                AnswerValue::Text(parquet_values_text(&vals, leaf))
+            }
+            _ => {
+                let (vals, err) = match parquet_leaf_values(&source, &model, index, self.limits) {
+                    Ok(v) => (Some(v), None),
+                    Err(e) => (None, Some(e.message().to_string())),
+                };
+                AnswerValue::Json(parquet_column_json(
+                    &model,
+                    index,
+                    vals.as_deref(),
+                    err.as_deref(),
+                )?)
+            }
+        };
+        Ok(self.parquet_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// One row group's inventory.
+    fn parquet_row_group(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (_source, root) = self.parquet_source()?;
+        let json = parquet_row_group_json(&model, index)?;
+        Ok(self.parquet_answer(
+            req,
+            AnswerValue::Json(json),
+            format!("parquet;row-group={index}"),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    /// One cell (whole-file row, leaf column).
+    fn parquet_cell(&mut self, req: &ObserveRequest, row: u64, col: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (source, root) = self.parquet_source()?;
+        let leaf = model
+            .leaf(col)
+            .ok_or_else(|| Error::unsupported_feature(format!("no Parquet column {col}")))?;
+        let value = parquet_cell_value(&source, &model, row, col, self.limits)?;
+        let text = parquet_value_text(&value, leaf);
+        let name = parquet_leaf_name(leaf);
+        // The exact span of the chunk that contains the row, when resolvable.
+        let mut base = 0u64;
+        let mut span = None;
+        for rg in &model.row_groups {
+            let rows = rg.num_rows.max(0) as u64;
+            if row < base.saturating_add(rows) {
+                if let Some(c) = rg.chunks.iter().find(|c| c.leaf == col) {
+                    span = Some((c.span_start, c.span_end));
+                }
+                break;
+            }
+            base = base.saturating_add(rows);
+        }
+        let answer = match req.representation {
+            Representation::Metadata | Representation::Structure => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"parquet\",\"row\":{},\"column\":{},",
+                    "\"name\":\"{}\",\"value\":\"{}\"}}"
+                ),
+                row,
+                col,
+                json_escape(&name),
+                json_escape(&text)
+            )),
+            _ => AnswerValue::Text(text),
+        };
+        Ok(self.parquet_answer(
+            req,
+            answer,
+            format!("parquet;cell={row}:{col}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_parquet(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.parquet_common_metadata(req),
+            Selector::Text => self.parquet_common_text(req),
+            Selector::Table(i) => {
+                if *i == 0 {
+                    self.parquet_common_text(req)
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "Parquet has a single table; table {i} does not exist"
+                    )))
+                }
+            }
+            Selector::Cell { table, row, col } => {
+                if *table == 0 {
+                    self.parquet_cell(req, u64::from(*row), *col)
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "Parquet has a single table; table {table} does not exist"
+                    )))
+                }
+            }
+            Selector::SearchMatch(p) => self.parquet_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "Parquet does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn parquet_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (_source, root) = self.parquet_source()?;
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"parquet\",\"version\":{},\"num_rows\":{},",
+                "\"row_groups\":{},\"columns\":{},\"created_by\":{},\"bytes\":{}}}"
+            ),
+            model.version,
+            model.num_rows,
+            model.row_groups.len(),
+            model.leaves.len(),
+            opt_str_json(model.created_by.as_deref()),
+            model.doc_len
+        ));
+        Ok(self.parquet_answer(
+            req,
+            value,
+            "parquet;metadata".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn parquet_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (source, root) = self.parquet_source()?;
+        let mut cols: Vec<Vec<ParquetValue>> = Vec::with_capacity(model.leaves.len());
+        for i in 0..model.leaves.len() as u32 {
+            // A typed decline anywhere makes the whole-table text decline typed, so
+            // the answer is never a silently partial table.
+            cols.push(parquet_leaf_values(&source, &model, i, self.limits)?);
+        }
+        let text = parquet_table_text(&model, &cols, req.budget.max_output_bytes)?;
+        Ok(self.parquet_answer(
+            req,
+            AnswerValue::Text(text),
+            "parquet;text".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn parquet_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.parquet_model()?;
+        let (source, root) = self.parquet_source()?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for (i, leaf) in model.leaves.iter().enumerate() {
+            let name = parquet_leaf_name(leaf);
+            if name.contains(pattern) {
+                estimated = estimated.saturating_add(64 + name.len() as u64);
+                out.push(format!(
+                    "{{\"column\":{},\"row\":null,\"name\":\"{}\",\"text\":\"{}\"}}",
+                    i,
+                    json_escape(&name),
+                    json_escape(&name)
+                ));
+            }
+            // Best-effort: a column whose encoding/compression is unsupported is
+            // skipped (it can never contribute an exact string match), never guessed.
+            let Ok(vals) = parquet_leaf_values(&source, &model, i as u32, self.limits) else {
+                continue;
+            };
+            for (r, v) in vals.iter().enumerate() {
+                if matches!(v, ParquetValue::Null) {
+                    continue;
+                }
+                let t = parquet_value_text(v, leaf);
+                if t.contains(pattern) {
+                    estimated = estimated.saturating_add(64 + t.len() as u64);
+                    if estimated > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "Parquet find exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                    out.push(format!(
+                        "{{\"column\":{},\"row\":{},\"name\":\"{}\",\"text\":\"{}\"}}",
+                        i,
+                        r,
+                        json_escape(&name),
+                        json_escape(&t)
+                    ));
+                }
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        let provenance = format!("parquet;find={pattern};matches={}", out.len());
+        Ok(self.parquet_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Arrow IPC observations (Phase 21.16)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "arrow")]
+fn arrow_leaf_index(model: &ArrowModel, spec: &str) -> Result<u32> {
+    // A numeric spec addresses by 0-based top-level index when in range; otherwise
+    // (or for a non-numeric spec) it is matched by exact column name.
+    if let Ok(i) = spec.parse::<u32>()
+        && (i as usize) < model.leaves.len()
+    {
+        return Ok(i);
+    }
+    model
+        .leaves
+        .iter()
+        .position(|l| l.name == spec)
+        .map(|i| i as u32)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {spec:?}")))
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_schema_json(model: &ArrowModel) -> String {
+    let mut elems: Vec<String> = Vec::new();
+    for (i, f) in model.schema.iter().enumerate() {
+        elems.push(format!(
+            concat!(
+                "{{\"index\":{},\"depth\":{},\"parent\":{},\"name\":\"{}\",",
+                "\"nullable\":{},\"type\":\"{}\",\"type_tag\":{},\"children\":{},\"dictionary\":{}}}"
+            ),
+            i,
+            f.depth,
+            if f.parent == u32::MAX {
+                "null".to_string()
+            } else {
+                f.parent.to_string()
+            },
+            json_escape(&f.name),
+            f.nullable,
+            json_escape(&f.type_text),
+            f.type_tag,
+            f.num_children,
+            match f.dict_id {
+                Some(id) => id.to_string(),
+                None => "null".to_string(),
+            },
+        ));
+    }
+    format!(
+        concat!(
+            "{{\"format\":\"arrow\",\"stream\":{},\"version\":{},\"endianness\":{}",
+            ",\"columns\":{},\"batches\":{},\"bytes\":{},\"fields\":[{}]}}"
+        ),
+        model.stream,
+        model.version,
+        if model.endianness == 0 {
+            "little"
+        } else {
+            "big"
+        },
+        model.leaves.len(),
+        model.batches.len(),
+        model.doc_len,
+        elems.join(",")
+    )
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_schema_text(model: &ArrowModel) -> String {
+    let mut out = String::new();
+    for f in &model.schema {
+        for _ in 0..f.depth {
+            out.push_str("  ");
+        }
+        out.push_str(&format!(
+            "{}: {}{}\n",
+            f.name,
+            f.type_text,
+            if f.nullable { " (nullable)" } else { "" }
+        ));
+    }
+    out
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_values_text(values: &[ArrowValue], leaf: &ArrowLeaf) -> String {
+    let mut out = String::new();
+    for (i, v) in values.iter().enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        out.push_str(&arrow_value_text(v, leaf));
+    }
+    out
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_values_json(values: &[ArrowValue], leaf: &ArrowLeaf) -> String {
+    let items: Vec<String> = values
+        .iter()
+        .map(|v| format!("\"{}\"", json_escape(&arrow_value_text(v, leaf))))
+        .collect();
+    format!("[{}]", items.join(","))
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_column_json(
+    model: &ArrowModel,
+    index: u32,
+    values: Option<&[ArrowValue]>,
+    err: Option<&str>,
+    span: Option<(u64, u64)>,
+) -> Result<String> {
+    let leaf = model
+        .leaf(index)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {index}")))?;
+    let field = model.field(leaf.element);
+    let type_text = field.map(|f| f.type_text.clone()).unwrap_or_default();
+    let span_json = match span {
+        Some((a, b)) => format!("[{a},{b}]"),
+        None => "null".to_string(),
+    };
+    let values_json = match values {
+        Some(v) => arrow_values_json(v, leaf),
+        None => "null".to_string(),
+    };
+    Ok(format!(
+        concat!(
+            "{{\"column\":{},\"name\":\"{}\",\"type\":\"{}\",\"supported\":{}",
+            ",\"decline\":{},\"span\":{},\"error\":{},\"values\":{}}}"
+        ),
+        index,
+        json_escape(&leaf.name),
+        json_escape(&type_text),
+        leaf.supported,
+        opt_str_json(leaf.decline.as_deref()),
+        span_json,
+        opt_str_json(err),
+        values_json
+    ))
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_compression_name(c: i32) -> &'static str {
+    match c {
+        0 => "LZ4_FRAME",
+        1 => "ZSTD",
+        _ => "UNKNOWN",
+    }
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_batch_json(
+    source: &[u8],
+    model: &ArrowModel,
+    index: u32,
+    limits: Limits,
+) -> Result<String> {
+    let d = arrow_batch_detail(source, model, index, limits)?;
+    let mut bufs: Vec<String> = Vec::new();
+    for (off, len) in &d.buffers {
+        let a = d.body_offset.saturating_add(*off as u64);
+        let b = a.saturating_add(*len as u64);
+        bufs.push(format!(
+            "{{\"offset\":{},\"length\":{},\"span\":[{a},{b}]}}",
+            off, len
+        ));
+    }
+    let nodes: Vec<String> = d.nodes.iter().map(|(l, n)| format!("[{l},{n}]")).collect();
+    let codec = if d.compression < 0 {
+        "null".to_string()
+    } else {
+        format!("\"{}\"", arrow_compression_name(d.compression))
+    };
+    Ok(format!(
+        concat!(
+            "{{\"index\":{},\"rows\":{},\"span\":[{},{}],\"nodes\":{},\"buffers\":{}",
+            ",\"compression\":{},\"node_detail\":[{}],\"buffer_detail\":[{}]}}"
+        ),
+        index,
+        d.rows,
+        d.span.0,
+        d.span.1,
+        d.num_nodes,
+        d.num_buffers,
+        codec,
+        nodes.join(","),
+        bufs.join(",")
+    ))
+}
+
+#[cfg(feature = "arrow")]
+fn arrow_table_text(model: &ArrowModel, cols: &[Vec<ArrowValue>], budget: u64) -> Result<String> {
+    let mut out = String::new();
+    let names: Vec<String> = model.leaves.iter().map(|l| l.name.clone()).collect();
+    out.push_str(&names.join("\t"));
+    out.push('\n');
+    let rows = model
+        .batches
+        .iter()
+        .map(|b| b.num_rows.max(0) as usize)
+        .sum::<usize>();
+    for r in 0..rows {
+        let mut row: Vec<String> = Vec::with_capacity(cols.len());
+        for (ci, col) in cols.iter().enumerate() {
+            let cell = match col.get(r) {
+                Some(ArrowValue::Null) | None => String::new(),
+                Some(v) => arrow_value_text(v, &model.leaves[ci]),
+            };
+            row.push(cell);
+        }
+        out.push_str(&row.join("\t"));
+        out.push('\n');
+        if out.len() as u64 > budget {
+            return Err(Error::resource_limit(format!(
+                "Arrow table text exceeded the {budget}-byte budget"
+            )));
+        }
+    }
+    Ok(out)
+}
+
+#[cfg(feature = "arrow")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the Arrow model (derived, `Q_gen`).
+    fn arrow_model(&mut self) -> Result<(ArrowModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_ARROW_MODEL, 0), "Arrow model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((ArrowModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn arrow_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn arrow_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The schema: JSON (metadata/structure) or a compact text tree.
+    fn arrow_schema(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (_source, root) = self.arrow_source()?;
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(arrow_schema_text(&model)),
+            _ => AnswerValue::Json(arrow_schema_json(&model)),
+        };
+        Ok(self.arrow_answer(
+            req,
+            value,
+            "arrow;schema".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    /// One column: its inventory (`metadata`/`structure`), decoded values (`text`),
+    /// or the raw bytes of its buffers (`exact`).
+    fn arrow_column(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (source, root) = self.arrow_source()?;
+        let index = arrow_leaf_index(&model, spec)?;
+        let leaf = model
+            .leaf(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {index}")))?;
+        let span = arrow_column_span(&source, &model, index, self.limits)?;
+        let provenance = format!(
+            "arrow;column={index};type={}",
+            arrow_type_name(leaf.type_tag)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                let bytes = arrow_column_bytes(
+                    &source,
+                    &model,
+                    index,
+                    self.limits,
+                    req.budget.max_output_bytes,
+                )?;
+                AnswerValue::Bytes(bytes)
+            }
+            Representation::Text => {
+                let vals = arrow_column_values(&source, &model, index, self.limits)?;
+                AnswerValue::Text(arrow_values_text(&vals, leaf))
+            }
+            _ => {
+                let (vals, err) = match arrow_column_values(&source, &model, index, self.limits) {
+                    Ok(v) => (Some(v), None),
+                    Err(e) => (None, Some(e.message().to_string())),
+                };
+                AnswerValue::Json(arrow_column_json(
+                    &model,
+                    index,
+                    vals.as_deref(),
+                    err.as_deref(),
+                    span,
+                )?)
+            }
+        };
+        Ok(self.arrow_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// One record batch's inventory.
+    fn arrow_batch(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (source, root) = self.arrow_source()?;
+        let json = arrow_batch_json(&source, &model, index, self.limits)?;
+        let span = model
+            .batches
+            .get(index as usize)
+            .map(|b| (b.span_start, b.span_end));
+        Ok(self.arrow_answer(
+            req,
+            AnswerValue::Json(json),
+            format!("arrow;batch={index}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// One cell (whole-file row, column).
+    fn arrow_cell(&mut self, req: &ObserveRequest, row: u64, col: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (source, root) = self.arrow_source()?;
+        let index = arrow_leaf_index(&model, col)?;
+        let leaf = model
+            .leaf(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {index}")))?;
+        let value = arrow_cell_value(&source, &model, row, index, self.limits)?;
+        let text = arrow_value_text(&value, leaf);
+        let span = arrow_column_span(&source, &model, index, self.limits)?;
+        let answer = match req.representation {
+            Representation::Metadata | Representation::Structure => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"arrow\",\"row\":{},\"column\":{},",
+                    "\"name\":\"{}\",\"value\":\"{}\"}}"
+                ),
+                row,
+                index,
+                json_escape(&leaf.name),
+                json_escape(&text)
+            )),
+            _ => AnswerValue::Text(text),
+        };
+        Ok(self.arrow_answer(
+            req,
+            answer,
+            format!("arrow;cell={row}:{col}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_arrow(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.arrow_common_metadata(req),
+            Selector::Text => self.arrow_common_text(req),
+            Selector::Table(i) => {
+                if *i == 0 {
+                    self.arrow_common_text(req)
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "Arrow has a single table; table {i} does not exist"
+                    )))
+                }
+            }
+            Selector::Cell { table, row, col } => {
+                if *table == 0 {
+                    self.arrow_cell(req, u64::from(*row), &col.to_string())
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "Arrow has a single table; table {table} does not exist"
+                    )))
+                }
+            }
+            Selector::SearchMatch(p) => self.arrow_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "Arrow does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn arrow_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (_source, root) = self.arrow_source()?;
+        let rows: i64 = model.batches.iter().map(|b| b.num_rows.max(0)).sum();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"arrow\",\"stream\":{},\"version\":{}",
+                ",\"columns\":{},\"batches\":{},\"rows\":{},\"bytes\":{}}}"
+            ),
+            model.stream,
+            model.version,
+            model.leaves.len(),
+            model.batches.len(),
+            rows,
+            model.doc_len
+        ));
+        Ok(self.arrow_answer(
+            req,
+            value,
+            "arrow;metadata".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn arrow_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (source, root) = self.arrow_source()?;
+        let mut cols: Vec<Vec<ArrowValue>> = Vec::with_capacity(model.leaves.len());
+        for i in 0..model.leaves.len() as u32 {
+            // A typed decline anywhere makes the whole-table text decline typed, so
+            // the answer is never a silently partial table.
+            cols.push(arrow_column_values(&source, &model, i, self.limits)?);
+        }
+        let text = arrow_table_text(&model, &cols, req.budget.max_output_bytes)?;
+        Ok(self.arrow_answer(
+            req,
+            AnswerValue::Text(text),
+            "arrow;text".to_string(),
+            Some((0, model.doc_len)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn arrow_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.arrow_model()?;
+        let (source, root) = self.arrow_source()?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for (i, leaf) in model.leaves.iter().enumerate() {
+            if leaf.name.contains(pattern) {
+                estimated = estimated.saturating_add(64 + leaf.name.len() as u64);
+                out.push(format!(
+                    "{{\"column\":{},\"row\":null,\"name\":\"{}\",\"text\":\"{}\"}}",
+                    i,
+                    json_escape(&leaf.name),
+                    json_escape(&leaf.name)
+                ));
+            }
+            // Best-effort: a column whose type/layout is unsupported is skipped (it
+            // can never contribute a match), never guessed.
+            let Ok(vals) = arrow_column_values(&source, &model, i as u32, self.limits) else {
+                continue;
+            };
+            for (r, v) in vals.iter().enumerate() {
+                if matches!(v, ArrowValue::Null) {
+                    continue;
+                }
+                let t = arrow_value_text(v, leaf);
+                if t.contains(pattern) {
+                    estimated = estimated.saturating_add(64 + t.len() as u64);
+                    if estimated > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "Arrow find exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                    out.push(format!(
+                        "{{\"column\":{},\"row\":{},\"name\":\"{}\",\"text\":\"{}\"}}",
+                        i,
+                        r,
+                        json_escape(&leaf.name),
+                        json_escape(&t)
+                    ));
+                }
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        let provenance = format!("arrow;find={pattern};matches={}", out.len());
+        Ok(self.arrow_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // YAML observations (Phase 21.6.1)
 // ---------------------------------------------------------------------------
 
@@ -10214,18 +12760,26 @@ impl<S: SeedStore> Ctx<'_, S> {
         let (source, root) = self.csv_source()?;
         let rows = model.records.len();
         let header_cols = model.header().map_or(0, |r| r.fields.len());
-        let mut modal = 0usize;
-        let mut modal_freq = 0usize;
+        // One pass over the records: histogram the field counts and count ragged
+        // rows. An empty table leaves the histogram empty and `modal` at 0.
+        let mut histogram: BTreeMap<usize, usize> = BTreeMap::new();
         let mut ragged = 0u64;
         for r in &model.records {
             let n = r.fields.len();
-            let freq = model.records.iter().filter(|x| x.fields.len() == n).count();
+            *histogram.entry(n).or_insert(0) += 1;
+            if n != header_cols {
+                ragged += 1;
+            }
+        }
+        // The modal column count is the highest-frequency field count; ties are
+        // broken toward the larger count. Ascending iteration plus the `n > modal`
+        // tie-break reproduces the previous O(n^2) scan exactly.
+        let mut modal = 0usize;
+        let mut modal_freq = 0usize;
+        for (&n, &freq) in &histogram {
             if freq > modal_freq || (freq == modal_freq && n > modal) {
                 modal = n;
                 modal_freq = freq;
-            }
-            if n != header_cols {
-                ragged += 1;
             }
         }
         let value = AnswerValue::Json(format!(
@@ -10258,12 +12812,1498 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 }
 
+// -- Markdown ---------------------------------------------------------------
+
+/// Render an optional string as JSON (`null` or a quoted escaped string).
+#[cfg(feature = "markdown")]
+fn md_opt_json(s: Option<&str>) -> String {
+    match s {
+        Some(x) => format!("\"{}\"", json_escape(x)),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "markdown")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the Markdown prose model (derived, `Q_gen`).
+    fn markdown_model(&mut self) -> Result<(MarkdownModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_MARKDOWN_MODEL, 0), "Markdown model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((MarkdownModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn markdown_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn md_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th ATX heading in document order.
+    fn md_heading(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let heads = model.blocks_of_kind(B_HEADING);
+        let bi = *heads.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("Markdown document has no heading {index}"))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("markdown heading index out of range"))?;
+        let content = md_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.content_start, b.content_end));
+        let provenance = format!("markdown;heading={index};level={};block={bi}", b.level);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(content.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"markdown\",\"heading\":{},\"block\":{},",
+                    "\"level\":{},\"span\":[{},{}],\"content_span\":[{},{}],",
+                    "\"text_len\":{}}}"
+                ),
+                index,
+                bi,
+                b.level,
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                text.len(),
+            )),
+        };
+        Ok(self.md_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th block in document order.
+    fn md_block(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let b = model.block(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("Markdown document has no block {index}"))
+        })?;
+        let span_bytes = md_block_bytes(&source, b)?;
+        let content = md_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!("markdown;block={index};kind={}", md_block_kind_name(b.kind));
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"content_span\":[{},{}],\"level\":{},\"inlines\":{}}}"
+                ),
+                index,
+                md_block_kind_name(b.kind),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                b.level,
+                b.inlines.len(),
+            )),
+        };
+        Ok(self.md_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th code block (fenced or indented) in document order.
+    fn md_code(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let codes: Vec<u32> = model
+            .blocks
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| md_is_code_block(b.kind))
+            .map(|(i, _)| i as u32)
+            .collect();
+        let bi = *codes.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("Markdown document has no code block {index}"))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("markdown code index out of range"))?;
+        let content = md_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.content_start, b.content_end));
+        let language = md_fence_language(b);
+        let provenance = format!(
+            "markdown;code={index};block={bi};kind={};language={}",
+            md_block_kind_name(b.kind),
+            language.as_deref().unwrap_or("none"),
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(content.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"code\":{},\"block\":{},\"kind\":\"{}\",",
+                    "\"language\":{},\"info\":{},\"span\":[{},{}],",
+                    "\"content_span\":[{},{}],\"bytes\":{}}}"
+                ),
+                index,
+                bi,
+                md_block_kind_name(b.kind),
+                md_opt_json(language.as_deref()),
+                md_opt_json(b.info.as_deref()),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                content.len(),
+            )),
+        };
+        Ok(self.md_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th link or image in document order.
+    fn md_link(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let links: Vec<u32> = model
+            .inlines
+            .iter()
+            .enumerate()
+            .filter(|(_, x)| matches!(x.kind, I_LINK | I_IMAGE | I_REF_LINK))
+            .map(|(i, _)| i as u32)
+            .collect();
+        let ii = *links.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("Markdown document has no link {index}"))
+        })?;
+        let x = model
+            .inline(ii)
+            .ok_or_else(|| Error::internal_invariant("markdown link index out of range"))?;
+        let text_bytes = md_inline_text_bytes(&source, x)?;
+        let text = String::from_utf8_lossy(text_bytes).into_owned();
+        let span = Some((x.start, x.end));
+        let provenance = format!(
+            "markdown;link={index};kind={};target={}",
+            md_inline_kind_name(x.kind),
+            x.target.as_deref().unwrap_or("none"),
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"link\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"inner_span\":[{},{}],\"target\":{},\"title\":{}}}"
+                ),
+                index,
+                md_inline_kind_name(x.kind),
+                x.start,
+                x.end,
+                x.inner_start,
+                x.inner_end,
+                md_opt_json(x.target.as_deref()),
+                md_opt_json(x.title.as_deref()),
+            )),
+        };
+        Ok(self.md_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over Markdown block content.
+    fn md_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let matches = md_find_matches(&source, &model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"text\":\"{}\"}}"
+                ),
+                m.block,
+                md_block_kind_name(m.kind),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("markdown;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.md_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_markdown(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.md_common_metadata(req),
+            Selector::Text => self.md_common_text(req),
+            Selector::Heading(i) => self.md_heading(req, *i),
+            Selector::Block(i) => self.md_block(req, *i),
+            Selector::SearchMatch(p) => self.md_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "Markdown does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the exact source (lossily decoded), never re-flowed
+    /// or rendered.
+    fn md_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.markdown_source()?;
+        let text = md_canonical_text(&source, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.md_answer(
+            req,
+            AnswerValue::Text(text),
+            "markdown;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn md_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let count = |k: u8| model.blocks_of_kind(k).len();
+        let code_blocks = model
+            .blocks
+            .iter()
+            .filter(|b| md_is_code_block(b.kind))
+            .count();
+        let links = model
+            .inlines
+            .iter()
+            .filter(|x| matches!(x.kind, I_LINK | I_REF_LINK))
+            .count();
+        let images = model.inlines_of_kind(I_IMAGE).len();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"markdown\",\"bytes\":{},\"blocks\":{},",
+                "\"headings\":{},\"max_heading_level\":{},\"paragraphs\":{},",
+                "\"list_items\":{},\"code_blocks\":{},\"blockquotes\":{},",
+                "\"tables\":{},\"ref_defs\":{},\"footnotes\":{},",
+                "\"thematic_breaks\":{},\"front_matter\":{},",
+                "\"links\":{},\"images\":{},\"inline_spans\":{}}}"
+            ),
+            model.doc_len,
+            model.blocks.len(),
+            count(B_HEADING),
+            model.max_heading_level(),
+            count(B_PARAGRAPH),
+            count(B_LIST_ITEM),
+            code_blocks,
+            count(B_BLOCKQUOTE),
+            count(B_TABLE),
+            count(B_REF_DEF),
+            count(B_FOOTNOTE_DEF),
+            count(B_THEMATIC_BREAK),
+            count(B_FRONT_MATTER) > 0,
+            links,
+            images,
+            model.inlines.len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.md_answer(
+            req,
+            value,
+            "markdown;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
 /// Render an optional string as JSON (`null` or a quoted escaped string).
 #[cfg(feature = "yaml")]
 fn opt_json(s: Option<&str>) -> String {
     match s {
         Some(x) => format!("\"{}\"", json_escape(x)),
         None => "null".to_string(),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// XML observations (Phase 21.9)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "xml")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the XML structured-tree model (derived, `Q_gen`).
+    fn xml_model(&mut self) -> Result<(XmlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_XML_MODEL, 0), "XML model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((XmlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn xml_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn xml_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Resolve an element path and answer per representation: `ExactBytes` returns
+    /// the element's whole exact source bytes; `Text` the element's character data
+    /// (raw, entity references unexpanded); `Metadata`/`Structure` a descriptor with
+    /// the qualified name, exact spans, and the attribute count.
+    fn xml_path(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let r = xml_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("XML path resolved out of range"))?
+            .clone();
+        let name = xml_element_name(&source, &node)?.to_string();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "xml;path={path};kind={};name={};matches={}",
+            xml_kind_name(node.kind),
+            name,
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(xml_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model, &source, r.index)?),
+            _ => {
+                let text = xml_subtree_text(&model, &source, r.index)?;
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"path\":\"{}\",\"kind\":\"{}\",\"name\":\"{}\",",
+                        "\"span\":[{},{}],\"open_span\":[{},{}],\"close_span\":[{},{}],",
+                        "\"matches\":{},\"attrs\":{},\"text\":\"{}\"}}"
+                    ),
+                    json_escape(path),
+                    xml_kind_name(node.kind),
+                    json_escape(&name),
+                    node.start,
+                    node.end,
+                    node.start,
+                    node.open_end,
+                    node.close_start,
+                    node.end,
+                    r.matches,
+                    node.attrs.len(),
+                    json_escape(&text),
+                ))
+            }
+        };
+        Ok(self.xml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The structural view of an element: name, spans, child count, and each
+    /// attribute's name/value/spans (in source order).
+    fn xml_element(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let r = xml_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("XML element resolved out of range"))?
+            .clone();
+        let name = xml_element_name(&source, &node)?.to_string();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "xml;element={path};name={name};children={};attrs={}",
+            node.children.len(),
+            node.attrs.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(xml_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model, &source, r.index)?),
+            _ => AnswerValue::Json(self.xml_element_structure(&model, &source, path, &node)?),
+        };
+        Ok(self.xml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn xml_element_structure(
+        &self,
+        model: &XmlModel,
+        source: &[u8],
+        path: &str,
+        node: &crate::adapter::xml::XNode,
+    ) -> Result<String> {
+        let name = xml_element_name(source, node)?;
+        let mut attrs: Vec<String> = Vec::new();
+        for &a in &node.attrs {
+            let attr = model
+                .attr(a)
+                .ok_or_else(|| Error::internal_invariant("XML attribute out of range"))?;
+            let an = xml_attr_name(source, attr)?;
+            let av = core::str::from_utf8(xml_attr_value_bytes(source, attr)?)
+                .map_err(|_| Error::internal_invariant("XML attribute value is not UTF-8"))?;
+            attrs.push(format!(
+                concat!(
+                    "{{\"name\":\"{}\",\"value\":\"{}\",",
+                    "\"name_span\":[{},{}],\"value_span\":[{},{}],\"span\":[{},{}],",
+                    "\"ns\":{}}}"
+                ),
+                json_escape(an),
+                json_escape(av),
+                attr.name_start,
+                attr.name_end,
+                attr.value_start,
+                attr.value_end,
+                attr.span_start,
+                attr.span_end,
+                attr.is_ns != 0,
+            ));
+        }
+        let mut children: Vec<String> = Vec::new();
+        for &c in &node.children {
+            let cn = model
+                .node(c)
+                .ok_or_else(|| Error::internal_invariant("XML child out of range"))?;
+            children.push(format!(
+                "{{\"kind\":\"{}\",\"span\":[{},{}]}}",
+                xml_kind_name(cn.kind),
+                cn.start,
+                cn.end
+            ));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"path\":\"{}\",\"kind\":\"element\",\"name\":\"{}\",",
+                "\"span\":[{},{}],\"open_span\":[{},{}],\"close_span\":[{},{}],",
+                "\"ns_decl\":{},\"attrs\":[{}],\"children\":[{}]}}"
+            ),
+            json_escape(path),
+            json_escape(name),
+            node.start,
+            node.end,
+            node.start,
+            node.open_end,
+            node.close_start,
+            node.end,
+            node.ns_decl,
+            attrs.join(","),
+            children.join(","),
+        ))
+    }
+
+    /// Resolve `PATH@NAME` and answer per representation: `ExactBytes` returns the
+    /// attribute's exact quoted value bytes; `Text` the raw (unexpanded) value;
+    /// `Metadata`/`Structure` a descriptor with the name/value/spans and the
+    /// namespace flag.
+    fn xml_attr(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let ra = xml_resolve_attr(&model, &source, spec)?;
+        let attr = model
+            .attr(ra.index)
+            .ok_or_else(|| Error::internal_invariant("XML attribute resolved out of range"))?
+            .clone();
+        let name = xml_attr_name(&source, &attr)?.to_string();
+        let value = core::str::from_utf8(xml_attr_value_bytes(&source, &attr)?)
+            .map_err(|_| Error::internal_invariant("XML attribute value is not UTF-8"))?
+            .to_string();
+        let span = Some((attr.span_start, attr.span_end));
+        let provenance = format!("xml;attr={spec};name={name};matches={}", ra.matches);
+        let answer = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(xml_attr_value_bytes(&source, &attr)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(value.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"spec\":\"{}\",\"name\":\"{}\",\"value\":\"{}\",",
+                    "\"name_span\":[{},{}],\"value_span\":[{},{}],\"span\":[{},{}],",
+                    "\"matches\":{},\"ns\":{}}}"
+                ),
+                json_escape(spec),
+                json_escape(&name),
+                json_escape(&value),
+                attr.name_start,
+                attr.name_end,
+                attr.value_start,
+                attr.value_end,
+                attr.span_start,
+                attr.span_end,
+                ra.matches,
+                attr.is_ns != 0,
+            )),
+        };
+        Ok(self.xml_answer(req, answer, provenance, span, vec![model_id, root]))
+    }
+
+    /// Every namespace declaration in document order.
+    fn xml_namespaces(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let decls = xml_namespaces(&model, &source)?;
+        let provenance = format!("xml;namespaces={}", decls.len());
+        let answer = match req.representation {
+            Representation::Text => {
+                let mut lines: Vec<String> = Vec::new();
+                for d in &decls {
+                    lines.push(format!("{}={}", d.prefix, d.uri));
+                }
+                AnswerValue::Text(lines.join("\n"))
+            }
+            _ => {
+                let mut out: Vec<String> = Vec::new();
+                for d in &decls {
+                    out.push(format!(
+                        concat!(
+                            "{{\"prefix\":\"{}\",\"uri\":\"{}\",",
+                            "\"element\":{},\"span\":[{},{}]}}"
+                        ),
+                        json_escape(&d.prefix),
+                        json_escape(&d.uri),
+                        d.element,
+                        d.start,
+                        d.end,
+                    ));
+                }
+                AnswerValue::Json(format!("{{\"namespaces\":[{}]}}", out.join(",")))
+            }
+        };
+        Ok(self.xml_answer(req, answer, provenance, None, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over element names, attribute names/values, and
+    /// character data; each match reports its element path, role, and exact span.
+    fn xml_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let matches = xml_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "XML find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"path\":\"{}\",\"role\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.path),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("xml;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.xml_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_xml(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.xml_common_metadata(req),
+            Selector::Text => self.xml_common_text(req),
+            Selector::SearchMatch(p) => self.xml_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "XML does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn xml_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let text = xml_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.xml_answer(
+            req,
+            AnswerValue::Text(text),
+            "xml;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn xml_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let mut elements = 0u64;
+        let mut text_nodes = 0u64;
+        let mut cdata = 0u64;
+        let mut comments = 0u64;
+        let mut pis = 0u64;
+        let mut doctypes = 0u64;
+        for n in &model.nodes {
+            match n.kind {
+                crate::adapter::xml::K_ELEMENT => elements += 1,
+                crate::adapter::xml::K_TEXT => text_nodes += 1,
+                crate::adapter::xml::K_CDATA => cdata += 1,
+                crate::adapter::xml::K_COMMENT => comments += 1,
+                crate::adapter::xml::K_PI => pis += 1,
+                crate::adapter::xml::K_DOCTYPE => doctypes += 1,
+                _ => {}
+            }
+        }
+        let ns = xml_namespaces(&model, &source)?.len();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"xml\",\"nodes\":{},\"elements\":{},",
+                "\"attrs\":{},\"text\":{},\"cdata\":{},\"comments\":{},",
+                "\"pi\":{},\"doctype\":{},\"namespaces\":{},",
+                "\"max_depth\":{},\"bytes\":{}}}"
+            ),
+            model.nodes.len(),
+            elements,
+            model.attrs.len(),
+            text_nodes,
+            cdata,
+            comments,
+            pis,
+            doctypes,
+            ns,
+            model.max_depth,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.xml_answer(
+            req,
+            value,
+            "xml;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HTML observations (Phase 21.10)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "toml")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the TOML model (derived, `Q_gen`).
+    fn toml_model(&mut self) -> Result<(TomlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_TOML_MODEL, 0), "TOML model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((TomlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn toml_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn toml_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The text of a resolved node: a string's decoded content, a key's text, or a
+    /// scalar's exact spelling.
+    fn toml_node_text(&self, source: &[u8], node: &TomlNode) -> Result<String> {
+        if toml_is_string(node.kind) {
+            toml_string_content(source, node)
+        } else if node.kind == crate::adapter::toml::K_KEY {
+            toml_key_text(source, node)
+        } else {
+            toml_scalar_spelling(source, node)
+        }
+    }
+
+    /// Resolve a dotted path and answer per representation.
+    fn toml_path(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.toml_model()?;
+        let (source, root) = self.toml_source()?;
+        let r = toml_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("TOML path resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let key = if node.key_end > node.key_start {
+            let s = usize::try_from(node.key_start).unwrap_or(usize::MAX);
+            let e = usize::try_from(node.key_end).unwrap_or(usize::MAX);
+            source
+                .get(s..e)
+                .map(|b| String::from_utf8_lossy(b).to_string())
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+        let spelling = String::from_utf8_lossy(toml_token_bytes(&source, &node)?).to_string();
+        let provenance = format!(
+            "toml;path={path};kind={};key={key}",
+            toml_kind_name(node.kind)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(toml_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(self.toml_node_text(&source, &node)?),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"path\":\"{}\",\"kind\":\"{}\",\"spelling\":\"{}\",",
+                    "\"span\":[{},{}],\"key\":\"{}\",\"key_span\":[{},{}],",
+                    "\"matches\":{}}}"
+                ),
+                json_escape(path),
+                toml_kind_name(node.kind),
+                json_escape(&spelling),
+                node.start,
+                node.end,
+                json_escape(&key),
+                node.key_start,
+                node.key_end,
+                r.matches,
+            )),
+        };
+        Ok(self.toml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The keys of the table at a dotted path.
+    fn toml_table(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.toml_model()?;
+        let (source, root) = self.toml_source()?;
+        let r = toml_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("TOML table resolved out of range"))?
+            .clone();
+        let keys = toml_table_keys(&model, &source, r.index)?;
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "toml;table={path};kind={};keys={}",
+            toml_kind_name(node.kind),
+            keys.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(toml_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                let names: Vec<&str> = keys.iter().map(|k| k.key.as_str()).collect();
+                AnswerValue::Text(names.join("\n"))
+            }
+            _ => {
+                let mut out: Vec<String> = Vec::with_capacity(keys.len());
+                for k in &keys {
+                    let vn = model
+                        .node(k.value_index)
+                        .ok_or_else(|| Error::internal_invariant("TOML value out of range"))?;
+                    let spelling =
+                        String::from_utf8_lossy(toml_token_bytes(&source, vn)?).to_string();
+                    out.push(format!(
+                        concat!(
+                            "{{\"key\":\"{}\",\"key_span\":[{},{}],",
+                            "\"kind\":\"{}\",\"value_span\":[{},{}],\"spelling\":\"{}\"}}"
+                        ),
+                        json_escape(&k.key),
+                        k.key_start,
+                        k.key_end,
+                        toml_kind_name(k.kind),
+                        k.value_start,
+                        k.value_end,
+                        json_escape(&spelling),
+                    ));
+                }
+                AnswerValue::Json(format!(
+                    "{{\"path\":\"{}\",\"kind\":\"{}\",\"span\":[{},{}],\"keys\":[{}]}}",
+                    json_escape(path),
+                    toml_kind_name(node.kind),
+                    node.start,
+                    node.end,
+                    out.join(","),
+                ))
+            }
+        };
+        Ok(self.toml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over keys and string values.
+    fn toml_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.toml_model()?;
+        let (source, root) = self.toml_source()?;
+        let matches = toml_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "TOML find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"path\":\"{}\",\"role\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.path),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("toml;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.toml_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    fn common_toml(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.toml_common_metadata(req),
+            Selector::Text => self.toml_common_text(req),
+            Selector::SearchMatch(p) => self.toml_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "TOML does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn toml_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.toml_model()?;
+        let (source, root) = self.toml_source()?;
+        let text = toml_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.toml_answer(
+            req,
+            AnswerValue::Text(text),
+            "toml;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn toml_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.toml_model()?;
+        let (source, root) = self.toml_source()?;
+        let mut tables = 0u64;
+        let mut array_tables = 0u64;
+        let mut inline_tables = 0u64;
+        let mut arrays = 0u64;
+        let mut keys = 0u64;
+        let mut strings = 0u64;
+        let mut integers = 0u64;
+        let mut floats = 0u64;
+        let mut bools = 0u64;
+        let mut datetimes = 0u64;
+        for n in &model.nodes {
+            match n.kind {
+                crate::adapter::toml::K_TABLE => tables += 1,
+                crate::adapter::toml::K_ARRAY_TABLE => array_tables += 1,
+                crate::adapter::toml::K_INLINE_TABLE => inline_tables += 1,
+                crate::adapter::toml::K_ARRAY => arrays += 1,
+                crate::adapter::toml::K_KEY => keys += 1,
+                k if toml_is_string(k) => strings += 1,
+                crate::adapter::toml::K_INTEGER => integers += 1,
+                crate::adapter::toml::K_FLOAT => floats += 1,
+                crate::adapter::toml::K_BOOL => bools += 1,
+                crate::adapter::toml::K_DATETIME => datetimes += 1,
+                _ => {}
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"toml\",\"nodes\":{},\"tables\":{},",
+                "\"array_tables\":{},\"inline_tables\":{},\"arrays\":{},",
+                "\"keys\":{},\"assignments\":{},\"strings\":{},\"integers\":{},",
+                "\"floats\":{},\"booleans\":{},\"datetimes\":{},\"comments\":{},",
+                "\"max_depth\":{},\"bytes\":{}}}"
+            ),
+            model.nodes.len(),
+            tables,
+            array_tables,
+            inline_tables,
+            arrays,
+            keys,
+            model.assignments,
+            strings,
+            integers,
+            floats,
+            bools,
+            datetimes,
+            model.comments.len(),
+            model.max_depth,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.toml_answer(
+            req,
+            value,
+            "toml;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+#[cfg(feature = "html")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the HTML document model (derived, `Q_gen`).
+    fn html_model(&mut self) -> Result<(HtmlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_HTML_MODEL, 0), "HTML model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((HtmlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn html_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn html_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Resolve an element path and answer per representation.
+    fn html_path(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let r = html_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("HTML path resolved out of range"))?
+            .clone();
+        let name = html_element_name(&source, &node)?.to_string();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "html;path={path};kind={};name={};matches={}",
+            html_kind_name(node.kind),
+            name,
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(html_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(html_subtree_text(&model, &source, r.index)?),
+            _ => {
+                let text = html_subtree_text(&model, &source, r.index)?;
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"path\":\"{}\",\"kind\":\"{}\",\"name\":\"{}\",",
+                        "\"span\":[{},{}],\"open_span\":[{},{}],\"close_span\":[{},{}],",
+                        "\"matches\":{},\"attrs\":{},\"text\":\"{}\"}}"
+                    ),
+                    json_escape(path),
+                    html_kind_name(node.kind),
+                    json_escape(&name),
+                    node.start,
+                    node.end,
+                    node.start,
+                    node.open_end,
+                    node.close_start,
+                    node.end,
+                    r.matches,
+                    node.attrs.len(),
+                    json_escape(&text),
+                ))
+            }
+        };
+        Ok(self.html_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The structural view of an element: name, spans, child count, and each
+    /// attribute's name/value/spans and quoting tag (in source order).
+    fn html_element(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let r = html_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("HTML element resolved out of range"))?
+            .clone();
+        let name = html_element_name(&source, &node)?.to_string();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "html;element={path};name={name};children={};attrs={}",
+            node.children.len(),
+            node.attrs.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(html_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(html_subtree_text(&model, &source, r.index)?),
+            _ => AnswerValue::Json(self.html_element_structure(&model, &source, path, &node)?),
+        };
+        Ok(self.html_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn html_element_structure(
+        &self,
+        model: &HtmlModel,
+        source: &[u8],
+        path: &str,
+        node: &crate::adapter::html::HNode,
+    ) -> Result<String> {
+        let name = html_element_name(source, node)?;
+        let mut attrs: Vec<String> = Vec::new();
+        for &a in &node.attrs {
+            let attr = model
+                .attr(a)
+                .ok_or_else(|| Error::internal_invariant("HTML attribute out of range"))?;
+            let an = html_attr_name(source, attr)?;
+            let av = core::str::from_utf8(html_attr_value_bytes(source, attr)?)
+                .map_err(|_| Error::internal_invariant("HTML attribute value is not UTF-8"))?;
+            attrs.push(format!(
+                concat!(
+                    "{{\"name\":\"{}\",\"value\":\"{}\",",
+                    "\"name_span\":[{},{}],\"value_span\":[{},{}],\"span\":[{},{}],",
+                    "\"quote\":\"{}\"}}"
+                ),
+                json_escape(an),
+                json_escape(av),
+                attr.name_start,
+                attr.name_end,
+                attr.value_start,
+                attr.value_end,
+                attr.span_start,
+                attr.span_end,
+                quote_name(attr.quote),
+            ));
+        }
+        let mut children: Vec<String> = Vec::new();
+        for &c in &node.children {
+            let cn = model
+                .node(c)
+                .ok_or_else(|| Error::internal_invariant("HTML child out of range"))?;
+            children.push(format!(
+                "{{\"kind\":\"{}\",\"span\":[{},{}]}}",
+                html_kind_name(cn.kind),
+                cn.start,
+                cn.end
+            ));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"path\":\"{}\",\"kind\":\"element\",\"name\":\"{}\",",
+                "\"span\":[{},{}],\"open_span\":[{},{}],\"close_span\":[{},{}],",
+                "\"attrs\":[{}],\"children\":[{}]}}"
+            ),
+            json_escape(path),
+            json_escape(name),
+            node.start,
+            node.end,
+            node.start,
+            node.open_end,
+            node.close_start,
+            node.end,
+            attrs.join(","),
+            children.join(","),
+        ))
+    }
+
+    /// Resolve `PATH@NAME` and answer per representation.
+    fn html_attr(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let ra = html_resolve_attr(&model, &source, spec)?;
+        let attr = model
+            .attr(ra.index)
+            .ok_or_else(|| Error::internal_invariant("HTML attribute resolved out of range"))?
+            .clone();
+        let name = html_attr_name(&source, &attr)?.to_string();
+        let value = core::str::from_utf8(html_attr_value_bytes(&source, &attr)?)
+            .map_err(|_| Error::internal_invariant("HTML attribute value is not UTF-8"))?
+            .to_string();
+        let span = Some((attr.span_start, attr.span_end));
+        let provenance = format!("html;attr={spec};name={name};matches={}", ra.matches);
+        let answer = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(html_attr_value_bytes(&source, &attr)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(value.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"spec\":\"{}\",\"name\":\"{}\",\"value\":\"{}\",",
+                    "\"name_span\":[{},{}],\"value_span\":[{},{}],\"span\":[{},{}],",
+                    "\"matches\":{},\"quote\":\"{}\"}}"
+                ),
+                json_escape(spec),
+                json_escape(&name),
+                json_escape(&value),
+                attr.name_start,
+                attr.name_end,
+                attr.value_start,
+                attr.value_end,
+                attr.span_start,
+                attr.span_end,
+                ra.matches,
+                quote_name(attr.quote),
+            )),
+        };
+        Ok(self.html_answer(req, answer, provenance, span, vec![model_id, root]))
+    }
+
+    /// Every raw `<script>`/`<style>` element in document order.
+    fn html_scripts(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let raws = html_raw_texts(&model, &source)?;
+        let provenance = format!("html;scripts={}", raws.len());
+        let answer = match req.representation {
+            Representation::ExactBytes => {
+                let mut out: Vec<u8> = Vec::new();
+                for r in &raws {
+                    out.extend_from_slice(
+                        source
+                            .get(r.start as usize..r.end as usize)
+                            .ok_or_else(|| {
+                                Error::internal_invariant("HTML raw span out of range")
+                            })?,
+                    );
+                }
+                AnswerValue::Bytes(out)
+            }
+            Representation::Text => {
+                let mut out = String::new();
+                for r in &raws {
+                    let bytes = source
+                        .get(r.start as usize..r.end as usize)
+                        .ok_or_else(|| Error::internal_invariant("HTML raw span out of range"))?;
+                    out.push_str(&String::from_utf8_lossy(bytes));
+                }
+                AnswerValue::Text(out)
+            }
+            _ => {
+                let mut out: Vec<String> = Vec::new();
+                for r in &raws {
+                    out.push(format!(
+                        concat!(
+                            "{{\"name\":\"{}\",\"index\":{},\"span\":[{},{}],",
+                            "\"element_span\":[{},{}],\"len\":{}}}"
+                        ),
+                        json_escape(&r.name),
+                        r.ordinal,
+                        r.start,
+                        r.end,
+                        r.element_start,
+                        r.element_end,
+                        r.end.saturating_sub(r.start),
+                    ));
+                }
+                AnswerValue::Json(format!("{{\"scripts\":[{}]}}", out.join(",")))
+            }
+        };
+        Ok(self.html_answer(req, answer, provenance, None, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over element names, attribute names/values, and
+    /// character data; each match reports its element path, role, and exact span.
+    fn html_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let matches = html_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "HTML find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"path\":\"{}\",\"role\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.path),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("html;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.html_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    /// The `index`-th heading element (`h1`..`h6`) in document order.
+    fn html_heading(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let heads = html_headings(&model, &source)?;
+        let (node_idx, level) = heads.get(index as usize).copied().ok_or_else(|| {
+            Error::unsupported_feature(format!("HTML document has no heading {index}"))
+        })?;
+        let node = model
+            .node(node_idx)
+            .ok_or_else(|| Error::internal_invariant("HTML heading index out of range"))?
+            .clone();
+        let text = html_subtree_text(&model, &source, node_idx)?;
+        let span = Some((node.start, node.end));
+        let provenance = format!("html;heading={index};level={level}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(html_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"html\",\"heading\":{},\"level\":{},",
+                    "\"span\":[{},{}],\"text_len\":{}}}"
+                ),
+                index,
+                level,
+                node.start,
+                node.end,
+                text.len(),
+            )),
+        };
+        Ok(self.html_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th anchor (`<a href=…>`) in document order.
+    fn html_link(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let anchors = html_anchors(&model, &source)?;
+        let node_idx = anchors.get(index as usize).copied().ok_or_else(|| {
+            Error::unsupported_feature(format!("HTML document has no link {index}"))
+        })?;
+        let node = model
+            .node(node_idx)
+            .ok_or_else(|| Error::internal_invariant("HTML link index out of range"))?
+            .clone();
+        let text = html_subtree_text(&model, &source, node_idx)?;
+        // The `href` value (raw, entity references unexpanded).
+        let mut href = String::new();
+        for &a in &node.attrs {
+            let attr = model
+                .attr(a)
+                .ok_or_else(|| Error::internal_invariant("HTML attribute out of range"))?;
+            if html_attr_name(&source, attr)?.eq_ignore_ascii_case("href") {
+                href = core::str::from_utf8(html_attr_value_bytes(&source, attr)?)
+                    .map_err(|_| Error::internal_invariant("HTML href is not UTF-8"))?
+                    .to_string();
+                break;
+            }
+        }
+        let span = Some((node.start, node.end));
+        let provenance = format!("html;link={index};href_len={}", href.len());
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(href.into_bytes()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"html\",\"link\":{},\"href\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                index,
+                json_escape(&href),
+                node.start,
+                node.end,
+                json_escape(&text),
+            )),
+        };
+        Ok(self.html_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_html(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.html_common_metadata(req),
+            Selector::Text => self.html_common_text(req),
+            Selector::Heading(i) => self.html_heading(req, *i),
+            Selector::Link(i) => self.html_link(req, *i),
+            Selector::SearchMatch(p) => self.html_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "HTML does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn html_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let text = html_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.html_answer(
+            req,
+            AnswerValue::Text(text),
+            "html;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn html_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let mut elements = 0u64;
+        let mut text_nodes = 0u64;
+        let mut comments = 0u64;
+        let mut doctypes = 0u64;
+        let mut raw = 0u64;
+        for n in &model.nodes {
+            match n.kind {
+                crate::adapter::html::K_ELEMENT => elements += 1,
+                crate::adapter::html::K_TEXT => text_nodes += 1,
+                crate::adapter::html::K_COMMENT => comments += 1,
+                crate::adapter::html::K_DOCTYPE => doctypes += 1,
+                crate::adapter::html::K_RAW_TEXT => raw += 1,
+                _ => {}
+            }
+        }
+        let headings = html_headings(&model, &source)?.len();
+        let links = html_anchors(&model, &source)?.len();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"html\",\"nodes\":{},\"elements\":{},",
+                "\"attrs\":{},\"text\":{},\"comments\":{},\"doctype\":{},",
+                "\"raw_text\":{},\"headings\":{},\"links\":{},",
+                "\"max_depth\":{},\"bytes\":{}}}"
+            ),
+            model.nodes.len(),
+            elements,
+            model.attrs.len(),
+            text_nodes,
+            comments,
+            doctypes,
+            raw,
+            headings,
+            links,
+            model.max_depth,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.html_answer(
+            req,
+            value,
+            "html;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// The stable name of an attribute quoting tag.
+#[cfg(feature = "html")]
+fn quote_name(quote: u8) -> &'static str {
+    match quote {
+        0 => "none",
+        1 => "single",
+        2 => "double",
+        _ => "unquoted",
     }
 }
 

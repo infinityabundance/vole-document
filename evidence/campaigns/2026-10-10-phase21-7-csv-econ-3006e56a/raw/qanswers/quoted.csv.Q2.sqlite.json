@@ -1,0 +1,1 @@
+{"decline": {"code": "no-raw-token", "detail": "a conventional load unquotes fields and retains no raw token/span"}, "declined": true, "detail": {}, "lane": "sqlite", "native": true, "q": "Q2", "value": null}

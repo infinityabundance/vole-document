@@ -1,7 +1,7 @@
 # Phase 21 — Format programme
 
-> **WAVE 1 COMPLETE.** Subphases **21.1 (XLSX)**, **21.2 (PPTX)**, **21.3 (ODS)** and
-> **21.4 (ODP)** are complete and shipped on the `staging` line — the **six office
+> **WAVE 1 COMPLETE; WAVE-2 LISTED FORMATS COMPLETE.** Subphases **21.1 (XLSX)**, **21.2 (PPTX)**, **21.3 (ODS)** and
+> **21.4 (ODP)** are complete and shipped — the **six office
 > formats** from two shared package substrates (OPC: DOCX/XLSX/PPTX; ODF:
 > ODT/ODS/ODP):
 > **21.1.1** (OPC/SpreadsheetML surface + exact closure),
@@ -15,20 +15,25 @@
 > forced), **21.2.3** (the PPTX economic court), **21.3.1** (the ODS adapter),
 > **21.3.2** (the ODS economic court vs SQLite **and** DuckDB/Parquet),
 > **21.4.1** (the ODP adapter: slide order from `draw:page` document order), and
-> **21.4.2** (the ODP economic court).
-> The **Wave-2 families** below remain planned and not started; they are a target,
-> never a result. The whole programme is judged by the capability/cost frontier on
-> the same contract — **not by format count**.
+> **21.4.2** (the ODP economic court). The whole programme is judged by the
+> capability/cost frontier on the same contract — **not by format count**.
 >
-> **Wave 2** has started: **JSON**, **YAML** and **CSV/TSV** are complete
-> (structured-tree adapters + an exact-preserving tabular adapter, each with an
-> economic court). Two review-driven corrections also landed on this branch: the
-> JSON comparator was **repaired** (modern SQLite+JSONB, fixed duplicate-key
-> accounting, an independent span-preserving baseline) and a permanent
-> cross-field identity court was added (ADR-0060).
-> Markdown, XML, HTML, TOML, JSONL, and the other families below remain planned.
+> **Wave 2 listed formats are complete.** Eleven structured/tabular/docs/web/messaging/
+> analytical formats beyond the office set were added on the `phase21-wave2`
+> branch, each with an adapter + sealed economic court: **JSON** (21.5),
+> **YAML** (21.6), **CSV/TSV** (21.7), **Markdown** (21.8), **XML** (21.9),
+> **HTML** (21.10), **TOML** (21.11), **JSONL/NDJSON** (21.12), **EML/MIME**
+> (21.13), **Parquet** (21.14) and **Arrow IPC** (21.16). Review-driven
+> corrections also landed on this branch: the **JSON comparator** was repaired
+> (modern SQLite+JSONB, fixed duplicate-key accounting, an independent
+> span-preserving baseline), the **YAML comparator** got the same
+> span-preserving treatment, the **CSV metadata** path became O(n) instead of
+> O(n²), a permanent **cross-field identity court** was added (ADR-0060), the
+> **stratified real-world court** sealed (52 real + 8 hostile, 60/60 byte-exact),
+> and a **detection repair** fixed five real-world detection root causes. The
+> remaining Wave-2 families below are not started.
 >
-> Branch: `phase21-wave2` @ `v0.1.0-alpha.32`+ (Wave 2). Wave 1 shipped as
+> Branch: `phase21-wave2` @ `v0.1.0-alpha.33`+ (Wave 2). Wave 1 shipped as
 > `v0.1.0-alpha.30`, JSON as `v0.1.0-alpha.31`, YAML as `v0.1.0-alpha.32` on
 > `main`. The Phase-22 economic programme (22.1–22.7) is complete and released in
 > `v0.1.0-alpha.29`.

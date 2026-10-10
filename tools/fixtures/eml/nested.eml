@@ -1,0 +1,15 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: Fwd: Forwarded note
+Date: Mon, 01 Jan 2029 00:00:00 +0000
+Message-ID: <nested@example.com>
+MIME-Version: 1.0
+Content-Type: message/rfc822
+
+From: Inner <inner@example.com>
+To: Bob <bob@example.com>
+Subject: Forwarded note
+Date: Sun, 31 Dec 2028 00:00:00 +0000
+Message-ID: <inner@example.com>
+
+This is the forwarded body.

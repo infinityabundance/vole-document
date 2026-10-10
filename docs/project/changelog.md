@@ -2,6 +2,115 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.34] — Phase 21 Wave 2: Markdown, XML, HTML, TOML, JSONL, EML/MIME, Parquet, Arrow IPC + the real-world court — *unreleased*
+
+- **21.8 — Markdown adapter + economic court.** Non-default, dependency-free
+  `markdown = []`. A bounded, line-based CommonMark subset that keeps exact
+  block/inline byte spans and bytes (never re-flowed): ATX headings, paragraphs,
+  lists, fenced/indented code with language tags, blockquotes, GFM tables,
+  inline/reference links and images, reference definitions, footnotes, front
+  matter. Native `--md-heading`/`--md-block`/`--md-code`/`--md-link`/`--md-find`;
+  common metadata/text/heading/block/find. Conservative detection (plain prose →
+  Opaque). Exact 12/12 · 9/9; economic court vs SQLite **and** a Markdown→HTML/
+  text render baseline (which declines Q8 `not-native`).
+  `2026-10-10-phase21-8-1-markdown-0e6a97c3`, `…-phase21-8-markdown-econ-0e6a97c3`.
+- **21.9 — XML adapter + economic court.** Non-default `xml = ["dep:quick-xml"]`.
+  Span-preserving scanner (elements, attributes, text, CDATA, comments, PIs,
+  DOCTYPE, namespaces; entity references literal). A benign DOCTYPE is accepted
+  and never fetched; a **DTD internal subset is refused** (no XXE, no
+  billion-laughs). Native `--xml-path`/`--xml-element`/`--xml-attr`/
+  `--xml-namespaces`/`--xml-find`. Exact 10/10 · 6/6; economic court vs SQLite
+  **and** a conventional `ElementTree` baseline.
+  `2026-10-10-phase21-9-1-xml-4e3c3fbb`, `…-phase21-9-xml-econ-4e3c3fbb`.
+- **21.10 — HTML adapter + economic court.** Non-default, dependency-free
+  `html = []`. A bounded, span-preserving, **error-recovering** scanner (all
+  attribute-quoting forms, raw `script`/`style` bytes, DOCTYPE; entities
+  literal). A document-level HTML marker **wins HTML over XML**; UTF-8 only; a
+  DTD internal subset is refused. Native `--html-path`/`--html-element`/
+  `--html-attr`/`--html-scripts`/`--html-find`. Exact 10/10 · 6/6; economic court
+  vs SQLite **and** a conventional `html.parser` baseline.
+  `2026-10-10-phase21-10-1-html-f04d7545`, `…-phase21-10-html-econ-f04d7545`.
+- **21.11 — TOML adapter + economic court.** Non-default, dependency-free
+  `toml = []`. Span-preserving parser (tables, arrays of tables, dotted keys,
+  inline tables, arrays, comments; exact scalar spelling); duplicate keys and
+  table redefinitions are typed declines (exit 26). Tried before
+  CSV/Markdown/XML/HTML. Native `--toml-path`/`--toml-table`/`--toml-find`. Exact
+  10/10 · 7/7; economic court vs SQLite **and** a conventional `tomllib` baseline.
+  `2026-10-10-phase21-11-1-toml-eb045c17`, `…-phase21-11-toml-econ-eb045c17`.
+- **21.12 — JSONL/NDJSON adapter + economic court.** Non-default
+  `jsonl = ["json"]` (reuses the shared JSON parser). Per-line span-preserving
+  model; JSON is tried first, JSONL requires each non-blank line to be exactly
+  one JSON value. Native `--jsonl-line`/`--jsonl-pointer`/`--jsonl-find`. Exact
+  9/9 · 6/6; economic court vs SQLite **and** a conventional per-line load.
+  `2026-10-10-phase21-12-1-jsonl-92e34118`, `…-phase21-12-jsonl-econ-92e34118`.
+- **21.13 — EML/MIME adapter + economic court.** Non-default, dependency-free
+  `eml = []`. Span-preserving message model (every header's exact name/value/
+  span, header order, duplicate and folded headers, the resolved `multipart/*`
+  tree, exact `Content-Transfer-Encoding`-decoded constituent bytes). A leading
+  Unix-mbox `From ` envelope is skipped; a boundary-less multipart declines.
+  Native `--eml-header`/`--eml-part`/`--eml-attachments`/`--eml-body`/
+  `--eml-find`. Exact 7/7 · 6/6; economic court vs SQLite **and** a conventional
+  `email` load (which normalizes spans/order/duplicates).
+  `2026-10-10-phase21-13-1-eml-02dc88a7`, `…-phase21-13-eml-econ-02dc88a7`.
+- **21.14 — Parquet adapter + economic court.** Non-default, dependency-free
+  `parquet = []` (no Thrift library). Bounded Thrift-Compact footer reader:
+  schema, row-group/column-chunk inventory with exact chunk spans + statistics,
+  decoded `PLAIN`/`RLE_DICTIONARY` values (`UNCOMPRESSED`/`GZIP`) across the
+  common physical types. `INT96`, `DATA_PAGE_V2`, `DELTA_*`/
+  `BYTE_STREAM_SPLIT`, `SNAPPY`/`ZSTD`/`BROTLI`/`LZO`/`LZ4`, nested columns and
+  legacy stats decline typed; a bomb declines typed. Native
+  `--parquet-schema`/`--parquet-column`/`--parquet-row-group`/`--parquet-cell`.
+  Exact 13/13 · 7/7; economic court vs SQLite **and** the mandatory DuckDB/Parquet
+  comparator, which **wins the analytical axes** (recorded).
+  `2026-10-10-phase21-14-1-parquet-bfe32a33`, `…-phase21-14-parquet-econ-bfe32a33`.
+- **21.16 — Arrow IPC adapter + economic court.** Non-default, dependency-free
+  `arrow = []`. Bounded Flatbuffers reader: schema, record batches with exact
+  source spans, decoded primitive/binary buffers (Int all widths,
+  FloatingPoint, Boolean, Date/Time/Timestamp/Duration, Utf8/Binary,
+  FixedSizeBinary) with validity bitmaps; file + stream, multi-batch. Nested
+  types, views, dictionary fields, big-endian bodies and `BodyCompression`
+  decline typed. Native `--arrow-schema`/`--arrow-column`/`--arrow-batch`/
+  `--arrow-cell`. Exact 18/18 · 3/3; economic court vs SQLite **and** a DuckDB
+  comparator that reads a recorded **Parquet projection** of the same table (the
+  pinned wheel has no Arrow IPC file reader), and wins the analytical axes.
+  `2026-10-10-phase21-16-1-arrow-4fdc7ad0`, `…-phase21-16-arrow-econ-4fdc7ad0`.
+- **CSV metadata fix (performance).** `csv_common_metadata` recomputed the modal
+  column count by re-scanning every record for every record (O(records²)), so
+  `observe --metadata` on the 50 MiB `large.csv` (~1.47M records) took ~16.5 min
+  (wall_micros 989,830,783). Replaced with a single field-count histogram (ties
+  broken toward the larger count); large.csv metadata now completes in ~0.5 s
+  (482,098 us). The emitted metadata value, field id, source span and dependency
+  ids are byte-identical for every fixture; no wire bytes or exactness change.
+  Re-sealed `2026-10-10-phase21-7-1-csv-3006e56a`, `…-phase21-7-csv-econ-3006e56a`.
+- **YAML span-preserving comparator (21.6.2).** Parity with the JSON repair: a
+  bounded stdlib-only span-preserving YAML scanner, a hash-pinned modern SQLite
+  (`pysqlite3`, 3.51.1, JSONB verified), and three-lane court. VOLE's
+  representation advantages shrink/vanish (Q2 spanpy 8 equal; Q3 1 equal/7
+  both-decline; Q4 7 equal/1 both-decline; Q6 8 equal; Q7 1 equal/7 both-decline;
+  **0 mismatches**); exactness 8/8. Prior `2026-10-09-phase21-6-yaml-econ-ceab8ec`
+  marked `[SUPERSEDED]`; re-sealed `2026-10-10-phase21-6-yaml-econ-92edce73`.
+- **Stratified real-world multi-format court (21.15).** Replaces the 12-document
+  smoke with **52 pinned, checksummed real documents** across 14 Wave-2 formats
+  (Apache POI, odfpy, Natural Earth, Prometheus/Alertmanager, CommonMark, Maven,
+  MDN, serde/cargo, parquet-testing, openai-cookbook, CPython, jsonlines) plus a
+  curated **8-sample malformed/hostile stratum**. Every sample is byte-exact from
+  a deleted scratch copy in a fresh process: **60/60 exact (52 real + 8 hostile),
+  0 skipped/0 blocked**; pooled costs are reported **alongside** medians per
+  format/size/complexity/stratum. `2026-10-10-realformats-stratified-3529688e`.
+- **Detection repair (21.15).** The stratified court surfaced nine detection
+  issues; five root causes were fixed, keeping all 60 samples byte-exact: **OPC/
+  ODF** well-known control parts resolve **case-insensitively** (lowercase
+  `[content_types].xml` is still XLSX); the ODF mandatory **`mimetype` is
+  authoritative** over the manifest (an ODP embedding a spreadsheet no longer goes
+  ambiguous); an **HTML document marker wins over the generic XML fallback**
+  (well-formed XHTML → HTML, a non-root `<html>` mention stays XML); a leading
+  Unix-mbox `From ` envelope is skipped and a **boundary-less `multipart/*`
+  declines** (consistent with parse); and TOML accepts the **structural
+  terminators** `,`/`]`/`}` after a boolean. Legitimate declines
+  (`poi-Divino.pptx` truncated ZIP; `cpython-msg-25.eml` truncated multipart with
+  no boundary) are recorded, not forced. Regression tests added and the court
+  re-sealed.
+
 ## [0.1.0-alpha.33] — Phase 21 Wave 2: CSV/TSV + comparator repair + identity court — *unreleased*
 
 - **21.7 — CSV/TSV adapter + economic court.** Non-default, dependency-free

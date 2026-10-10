@@ -1,0 +1,19 @@
+docker compose run --rm --no-TTY doc-baseline bash tools/identity-court.sh
+# inside the court:
+#   cargo build --locked --all-features
+#   python3 tools/fixtures/make-{xlsx,pptx,ods,odp,json,yaml,docx}.py
+#   target/debug/vole-document pdf-make-samples "$WORK/pdfs"
+#   python3 tools/fixtures/identity-court.py --bin target/debug/vole-document \
+#       --work "$WORK" --out "$RAW" --fixtures "$WORK/fixtures"
+# The driver issues, per case:
+#   interleave: field-build F --store <fresh>/F --profile runtime --packed
+#               field-build F --store <shared> --profile runtime --packed
+#               observe --store S --field HEX --packed (--metadata|--doc-text|--byte-range 0..64 [--page 1])
+#   programs:   field-build pdf --store S --profile runtime --packed
+#               encode pdf S/searching.voldoc ; field-ingest S/searching.voldoc --store S --packed
+#               observe/materialize both ; build a second doc (json) in S (aliasing probe)
+#   edit:       field-edit --store S --field Fpdf --page 1 --content edit.bin --packed
+#               observe/materialize Fpdf and F' and every other field
+#   cache-clear: cache --store S --clear ; re-observe every field
+#   crash:      Popen field-build <large.pdf> --store S ... ; SIGKILL mid-way ;
+#               re-materialize/observe the good field ; rebuild <large.pdf> exactly

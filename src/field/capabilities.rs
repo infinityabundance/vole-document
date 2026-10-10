@@ -192,6 +192,37 @@ const YAML_NATIVE: &[&str] = &[
     "yaml-find",
 ];
 const CSV_NATIVE: &[&str] = &["csv-row", "csv-cell", "csv-header", "csv-range", "csv-find"];
+const MARKDOWN_NATIVE: &[&str] = &["md-heading", "md-block", "md-code", "md-link", "md-find"];
+const XML_NATIVE: &[&str] = &[
+    "xml-path",
+    "xml-element",
+    "xml-attr",
+    "xml-namespaces",
+    "xml-find",
+];
+const HTML_NATIVE: &[&str] = &[
+    "html-path",
+    "html-element",
+    "html-attr",
+    "html-scripts",
+    "html-find",
+];
+const TOML_NATIVE: &[&str] = &["toml-path", "toml-table", "toml-find"];
+const JSONL_NATIVE: &[&str] = &["jsonl-line", "jsonl-pointer", "jsonl-find"];
+const EML_NATIVE: &[&str] = &[
+    "eml-header",
+    "eml-part",
+    "eml-attachments",
+    "eml-body",
+    "eml-find",
+];
+const PARQUET_NATIVE: &[&str] = &[
+    "parquet-schema",
+    "parquet-column",
+    "parquet-row-group",
+    "parquet-cell",
+];
+const ARROW_NATIVE: &[&str] = &["arrow-schema", "arrow-column", "arrow-batch", "arrow-cell"];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -347,6 +378,87 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 CSV_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Markdown => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("heading", COMMON_TEXT_META),
+                    caps("block", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                MARKDOWN_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Xml => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                XML_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Html => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("heading", COMMON_TEXT_META),
+                    caps("link", COMMON_METADATA),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                HTML_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Toml => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                TOML_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Jsonl => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                JSONL_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Eml => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("resource", COMMON_RESOURCE_BYTES),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                EML_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Parquet => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                PARQUET_NATIVE.to_vec(),
+            ),
+            DocumentFormat::ArrowIpc => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                ARROW_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

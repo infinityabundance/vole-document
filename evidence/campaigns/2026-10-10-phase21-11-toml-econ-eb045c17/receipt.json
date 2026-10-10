@@ -1,0 +1,129 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-11-toml-econ-eb045c17",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "c130b7464062c0ee9a730c96b13a8ed9552d23af2c5f15cfec423c967b0aec7d",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-10-phase21-11-toml-econ-eb045c17",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "arrays.toml": {
+        "len": 358,
+        "sha256": "261aa3aafb6ccfdff7f02730d1160b52b32dcc98d0c28ddc619180e3943a013e"
+      },
+      "basic.toml": {
+        "len": 198,
+        "sha256": "eca5a63aaa596eb47e950bb06a0db13e46e2b0f76da0e95acddbfdd2229e777b"
+      },
+      "comments.toml": {
+        "len": 179,
+        "sha256": "5611ec94f3cae628109ee2da79c5f6c7243e3ca55e02934e27b6458695d1857c"
+      },
+      "inline.toml": {
+        "len": 194,
+        "sha256": "596ff3cefb469753ad601eaba01c754745862076ffa0d452720fb064664c037f"
+      },
+      "large.toml": {
+        "len": 2097282,
+        "sha256": "ef0642cb4da10cff01e1d5574888415e0db2d78e6015a3867b11e486fbbb49bf"
+      },
+      "scalars.toml": {
+        "len": 427,
+        "sha256": "0d3cac8e8733b214dd1bfdbd179a27b304d4b87e2c74aecd50e4cd86e4a59d9c"
+      },
+      "tables.toml": {
+        "len": 196,
+        "sha256": "adfc7e3c76f21174effd97be43dc94cc3cd06d0754fa2676a65a6b4659bb08cf"
+      }
+    },
+    "measured_commit": "eb045c17240ad6460848ee7afc551e6ff98bd5d9",
+    "phase": "21.11 \u2014 TOML economic court (VOLE vs SQLite vs conventional TOML\u2192dict)",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 4389,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tomllib": "stdlib",
+    "tree_state": " M .gitignore  M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-11-1-toml-eb045c17/ ?? evidence/campaigns/2026-10-10-phase21-11-toml-econ-eb045c17/ ?? src/adapter/toml.rs ?? tests/toml_adapter.rs ?? tools/fixtures/make-toml.py ?? tools/fixtures/phase21-11-toml-baseline.py ?? tools/fixtures/phase21-11-toml-vole.py ?? tools/fixtures/toml/ ?? tools/phase21-11-1-toml-court.sh ?? tools/phase21-11-toml-court.sh ",
+    "utc": "2026-10-10T13:22:51Z",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1.conv": {
+      "equal": 7
+    },
+    "Q1.sqlite": {
+      "equal": 7
+    },
+    "Q2.conv": {
+      "capability-gap": 7
+    },
+    "Q2.sqlite": {
+      "capability-gap": 7
+    },
+    "Q3.conv": {
+      "equal": 7
+    },
+    "Q3.sqlite": {
+      "equal": 7
+    },
+    "Q4.conv": {
+      "equal": 7
+    },
+    "Q4.sqlite": {
+      "equal": 7
+    },
+    "Q5.conv": {
+      "capability-gap": 7
+    },
+    "Q5.sqlite": {
+      "capability-gap": 7
+    },
+    "Q6.conv": {
+      "equal": 7
+    },
+    "Q6.sqlite": {
+      "equal": 7
+    },
+    "Q7.conv": {
+      "equal": 7
+    },
+    "Q7.sqlite": {
+      "equal": 7
+    },
+    "Q8.conv": {
+      "capability-gap": 7
+    },
+    "Q8.sqlite": {
+      "equal": 7
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 21111); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 7,
+  "exact_ok": 7,
+  "fixtures": [
+    "basic.toml",
+    "tables.toml",
+    "arrays.toml",
+    "inline.toml",
+    "scalars.toml",
+    "comments.toml",
+    "large.toml"
+  ],
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "phase": "21.11 \u2014 TOML economic court (VOLE vs SQLite vs conventional TOML\u2192dict)",
+  "verdict": "PASS"
+}

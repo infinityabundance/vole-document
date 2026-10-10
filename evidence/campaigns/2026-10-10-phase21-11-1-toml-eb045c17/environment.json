@@ -1,0 +1,20 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-11-1-toml-eb045c17",
+  "phase": "21.11.1 — TOML structured-tree surface + exact closure",
+  "utc": "2026-10-10T13:21:59Z",
+  "git_commit": "eb045c17240ad6460848ee7afc551e6ff98bd5d9",
+  "git_dirty": " M .gitignore  M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-11-1-toml-eb045c17/ ?? src/adapter/toml.rs ?? tests/toml_adapter.rs ?? tools/fixtures/make-toml.py ?? tools/fixtures/phase21-11-toml-baseline.py ?? tools/fixtures/phase21-11-toml-vole.py ?? tools/fixtures/toml/ ?? tools/phase21-11-1-toml-court.sh ?? tools/phase21-11-toml-court.sh ",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python3": "Python 3.11.2",
+  "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+  "cargo_lock_sha256": "7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "19255a896d735ce94bd4804caf33b36432dba2b27fd716aef314df18842b5efe",
+  "profile": "debug",
+  "fixtures_tool": "tools/fixtures/make-toml.py",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

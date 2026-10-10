@@ -66,6 +66,36 @@ pub enum ErrorClass {
     /// field, a byte after a closing quote that is neither a delimiter nor an end
     /// of record, or an input that is not a table under either delimiter.
     InvalidCsvStructure,
+    /// A Markdown prose structure error (Phase 21.8+): a malformed or declined
+    /// construct (an unterminated fenced code block close, a bad reference
+    /// definition, or an input that carries no structural mark).
+    InvalidMarkdownStructure,
+    /// An HTML document structure error (Phase 21.10+): a forbidden construct
+    /// (a DOCTYPE with an internal subset), a non-UTF-8/UTF-16/NUL byte string, or
+    /// an input that carries no HTML structure. Malformed HTML is otherwise
+    /// **recovered** by the adapter, never a panic.
+    InvalidHtmlStructure,
+    /// A TOML structure error (Phase 21.11+): a malformed token, an unterminated
+    /// string/array/inline table, an invalid number or escape, or a violation of
+    /// TOML's duplicate-key/redefinition rules (which this adapter **enforces**).
+    InvalidTomlStructure,
+    /// A JSONL/NDJSON structure error (Phase 21.12+): a non-blank line that is not
+    /// exactly one JSON value, too few record lines to distinguish the source from a
+    /// single JSON value, or a non-newline-separated bag of JSON values.
+    InvalidJsonlStructure,
+    /// An EML/MIME message structure error (Phase 21.13+): no RFC 5322 header block,
+    /// a malformed header line, a `multipart/*` without a boundary, or an invalid
+    /// quoted-printable/base64 escape.
+    InvalidEmlStructure,
+    /// An Apache Parquet structure error (Phase 21.14+): missing/inconsistent `PAR1`
+    /// magic, an inconsistent footer length, a truncated Thrift-Compact footer, a
+    /// page or column-chunk span outside the file, or a value count that disagrees
+    /// with the page layout.
+    InvalidParquetStructure,
+    /// An Apache Arrow IPC structure error (Phase 21.16+): missing/inconsistent
+    /// `ARROW1` magic, a truncated or out-of-bounds Flatbuffers metadata table, an
+    /// invalid message framing, or a buffer span outside the message body.
+    InvalidArrowStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -96,6 +126,13 @@ impl ErrorClass {
             ErrorClass::InvalidJsonStructure => 21,
             ErrorClass::InvalidYamlStructure => 22,
             ErrorClass::InvalidCsvStructure => 23,
+            ErrorClass::InvalidMarkdownStructure => 24,
+            ErrorClass::InvalidHtmlStructure => 25,
+            ErrorClass::InvalidTomlStructure => 26,
+            ErrorClass::InvalidJsonlStructure => 27,
+            ErrorClass::InvalidEmlStructure => 28,
+            ErrorClass::InvalidParquetStructure => 29,
+            ErrorClass::InvalidArrowStructure => 30,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -125,6 +162,13 @@ impl ErrorClass {
             ErrorClass::InvalidJsonStructure => "InvalidJsonStructure",
             ErrorClass::InvalidYamlStructure => "InvalidYamlStructure",
             ErrorClass::InvalidCsvStructure => "InvalidCsvStructure",
+            ErrorClass::InvalidMarkdownStructure => "InvalidMarkdownStructure",
+            ErrorClass::InvalidHtmlStructure => "InvalidHtmlStructure",
+            ErrorClass::InvalidTomlStructure => "InvalidTomlStructure",
+            ErrorClass::InvalidJsonlStructure => "InvalidJsonlStructure",
+            ErrorClass::InvalidEmlStructure => "InvalidEmlStructure",
+            ErrorClass::InvalidParquetStructure => "InvalidParquetStructure",
+            ErrorClass::InvalidArrowStructure => "InvalidArrowStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -208,6 +252,13 @@ impl Error {
     ctor!(invalid_json_structure, InvalidJsonStructure);
     ctor!(invalid_yaml_structure, InvalidYamlStructure);
     ctor!(invalid_csv_structure, InvalidCsvStructure);
+    ctor!(invalid_markdown_structure, InvalidMarkdownStructure);
+    ctor!(invalid_html_structure, InvalidHtmlStructure);
+    ctor!(invalid_toml_structure, InvalidTomlStructure);
+    ctor!(invalid_jsonl_structure, InvalidJsonlStructure);
+    ctor!(invalid_eml_structure, InvalidEmlStructure);
+    ctor!(invalid_parquet_structure, InvalidParquetStructure);
+    ctor!(invalid_arrow_structure, InvalidArrowStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 
@@ -241,6 +292,9 @@ mod tests {
             ErrorClass::InvalidJsonStructure,
             ErrorClass::InvalidYamlStructure,
             ErrorClass::InvalidCsvStructure,
+            ErrorClass::InvalidMarkdownStructure,
+            ErrorClass::InvalidHtmlStructure,
+            ErrorClass::InvalidTomlStructure,
             ErrorClass::InternalInvariant,
         ];
         let mut codes: Vec<i32> = classes.iter().map(|c| c.exit_code()).collect();

@@ -104,6 +104,11 @@ pub struct Limits {
     pub max_xml_attrs_per_element: u32,
     /// Maximum total text bytes accepted across a single XML part (Phase 12, §2).
     pub max_xml_text_bytes: u64,
+    /// Maximum source length admitted for byte-based standalone XML detection
+    /// (Phase 21.9). A bare XML source above this cap — whose adapter reads the
+    /// whole source as one `DocumentExact` — falls back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`].
+    pub max_xml_document_bytes: u64,
     /// Maximum relationships across all `.rels` parts (Phase 12, §3).
     pub max_opc_rels: u32,
     /// Maximum internal relationship traversal depth (Phase 12 cycles, §3).
@@ -325,6 +330,166 @@ pub struct Limits {
     /// Detection is a bounded sample, so a huge source is classified in bounded
     /// memory (Phase 21.7.1).
     pub max_csv_sampled_records_for_detection: u32,
+    // The Markdown caps below bound the derived, span-preserving prose model and its
+    // inline extraction (Phase 21.8.1). Markdown is not a package: the whole source
+    // is the exact leaf, and everything derived is `Q_gen` only.
+    /// Maximum container nesting depth accepted (list item depth, blockquote marker
+    /// depth). A deeper document is a typed resource-limit decline (Phase 21.8.1).
+    pub max_markdown_depth: u32,
+    /// Maximum nodes (blocks plus inline spans) accepted in one document. An
+    /// over-large document declines typed rather than allocating (Phase 21.8.1).
+    pub max_markdown_nodes: u32,
+    /// Maximum blocks accepted in one document (Phase 21.8.1).
+    pub max_markdown_blocks: u32,
+    /// Maximum inline spans accepted in one document (Phase 21.8.1).
+    pub max_markdown_inline_spans: u32,
+    /// Maximum total code content bytes accepted across one document (fenced and
+    /// indented code). A larger document declines typed (Phase 21.8.1).
+    pub max_markdown_code_bytes: u64,
+    /// Maximum source length admitted for byte-based Markdown detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.8.1).
+    pub max_markdown_document_bytes: u64,
+    // The HTML caps below bound the derived, span-preserving, error-recovering HTML
+    // model (Phase 21.10). HTML is not a package: the whole source is the exact
+    // leaf, and everything derived is `Q_gen` only. Unlike XML the HTML scanner is
+    // **error-recovering** (implicit tag closing, void elements, unquoted
+    // attributes, stray end tags), so a malformed document is recovered rather than
+    // declined — only a bound or a forbidden DOCTYPE internal subset declines.
+    /// Maximum element (and raw-text) nesting depth accepted. A deeper document is
+    /// a typed resource-limit decline (Phase 21.10).
+    pub max_html_depth: u32,
+    /// Maximum nodes (elements, text runs, comments, DOCTYPE, raw text) accepted in
+    /// one document. An over-large document declines typed rather than allocating
+    /// (Phase 21.10).
+    pub max_html_nodes: u32,
+    /// Maximum attributes accepted across one document (Phase 21.10).
+    pub max_html_attrs: u64,
+    /// Maximum total text bytes accepted across one document. A larger document
+    /// declines typed (Phase 21.10).
+    pub max_html_text_bytes: u64,
+    /// Maximum total raw `<script>`/`<style>` content bytes accepted across one
+    /// document (their raw text is captured, never executed or parsed) (Phase
+    /// 21.10).
+    pub max_html_script_bytes: u64,
+    /// Maximum source length admitted for byte-based HTML detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.10).
+    pub max_html_document_bytes: u64,
+    // The TOML caps below bound the derived, span-preserving TOML model (Phase
+    // 21.11). TOML is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen` only. TOML's duplicate-key and redefinition
+    // rules are enforced (a violation is a typed decline).
+    /// Maximum table/key nesting depth accepted. A deeper document is a typed
+    /// resource-limit decline (Phase 21.11).
+    pub max_toml_depth: u32,
+    /// Maximum nodes (tables, arrays, keys, scalars) accepted in one document. An
+    /// over-large document declines typed rather than allocating (Phase 21.11).
+    pub max_toml_nodes: u32,
+    /// Maximum keys accepted across one document (Phase 21.11).
+    pub max_toml_keys: u64,
+    /// Maximum total string/key bytes accepted across one document. A larger
+    /// document declines typed (Phase 21.11).
+    pub max_toml_string_bytes: u64,
+    /// Maximum source length admitted for byte-based TOML detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.11).
+    pub max_toml_document_bytes: u64,
+    // The JSONL/NDJSON caps below bound the derived, per-line span-preserving model
+    // (Phase 21.12). JSONL is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen` only. Each non-blank line is parsed by the
+    // shared JSON parser (never a second parser), so a line is bounded by the JSON
+    // depth cap as well.
+    /// Maximum non-blank record lines accepted in one JSONL document. A larger
+    /// document declines typed rather than allocating (Phase 21.12).
+    pub max_jsonl_records: u32,
+    /// Maximum byte length of one record line's JSON text (the terminator
+    /// excluded). A longer line declines typed (Phase 21.12).
+    pub max_jsonl_line_bytes: u64,
+    /// Maximum total JSON nodes (values plus object member keys) accepted across
+    /// **all** records of one JSONL document. This is a whole-document budget (a
+    /// single line is additionally bounded by the JSON node cap); an over-large
+    /// document declines typed rather than allocating (Phase 21.12).
+    pub max_jsonl_nodes: u32,
+    /// Maximum source length admitted for byte-based JSONL detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.12).
+    pub max_jsonl_document_bytes: u64,
+    // The EML/MIME caps below bound the derived, span-preserving message model
+    // (Phase 21.13). EML is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen` only. Every part is a leaf or a
+    // `multipart/*`/`message/rfc822` container, so the tree is bounded by depth and
+    // part count.
+    /// Maximum MIME part nesting depth accepted (root = 0). A deeper message is a
+    /// typed resource-limit decline (Phase 21.13).
+    pub max_eml_depth: u32,
+    /// Maximum MIME parts accepted in one message (the root counts). An over-large
+    /// message declines typed rather than allocating (Phase 21.13).
+    pub max_eml_parts: u32,
+    /// Maximum headers accepted across one message (all parts). A message with more
+    /// declines typed (Phase 21.13).
+    pub max_eml_headers: u32,
+    /// Maximum byte length of one part's entity (headers + body). A larger part
+    /// declines typed (Phase 21.13).
+    pub max_eml_part_bytes: u64,
+    /// Maximum total decoded bytes produced by a transfer-encoding decode (base64 /
+    /// quoted-printable). A larger decode declines typed (Phase 21.13).
+    pub max_eml_decoded_bytes: u64,
+    /// Maximum source length admitted for byte-based EML detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.13).
+    pub max_eml_document_bytes: u64,
+    // The Parquet caps below bound the derived, span-preserving analytical model
+    // (Phase 21.14). Parquet is not a package: the whole source is the exact leaf,
+    // and everything derived is `Q_gen` only.
+    /// Maximum number of row groups accepted in one Parquet file (Phase 21.14).
+    pub max_parquet_row_groups: u32,
+    /// Maximum number of leaf columns accepted in one Parquet file (Phase 21.14).
+    pub max_parquet_columns: u32,
+    /// Maximum number of pages accepted in one column chunk (Phase 21.14). A
+    /// page-bomb chunk declines typed rather than looping.
+    pub max_parquet_pages_per_chunk: u32,
+    /// Maximum number of decoded values across a Parquet column (Phase 21.14).
+    pub max_parquet_values: u64,
+    /// Maximum total decompressed page bytes across one decompression (Phase
+    /// 21.14). A decompression bomb declines typed.
+    pub max_parquet_decompressed_bytes: u64,
+    /// Maximum source length admitted for byte-based Parquet detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.14).
+    pub max_parquet_document_bytes: u64,
+    /// Maximum accepted Thrift-Compact footer byte length (Phase 21.14). A larger
+    /// footer declines typed before it is parsed.
+    pub max_parquet_footer_bytes: u64,
+    // The Arrow IPC caps below bound the derived, span-preserving analytical model
+    // (Phase 21.16). Arrow is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen` only.
+    /// Maximum number of encapsulated IPC messages (schema + dictionary + record
+    /// batches) accepted in one Arrow file/stream (Phase 21.16).
+    pub max_arrow_messages: u32,
+    /// Maximum number of schema columns (fields, flattened pre-order) accepted in
+    /// one Arrow file (Phase 21.16).
+    pub max_arrow_columns: u32,
+    /// Maximum number of record batches accepted in one Arrow file/stream (Phase
+    /// 21.16).
+    pub max_arrow_batches: u32,
+    /// Maximum number of logical rows accepted across one Arrow file/stream (Phase
+    /// 21.16). A larger file declines typed rather than allocating.
+    pub max_arrow_rows: u64,
+    /// Maximum number of buffers accepted across one record batch (Phase 21.16).
+    pub max_arrow_buffers: u64,
+    /// Maximum number of decoded values across an Arrow column (Phase 21.16).
+    pub max_arrow_values: u64,
+    /// Maximum total declared body/decompressed bytes across one decode (Phase
+    /// 21.16). A body bomb declines typed.
+    pub max_arrow_decompressed_bytes: u64,
+    /// Maximum source length admitted for byte-based Arrow detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.16).
+    pub max_arrow_document_bytes: u64,
+    /// Maximum accepted Flatbuffers metadata (footer or message) byte length (Phase
+    /// 21.16). A larger metadata declares typed before it is parsed.
+    pub max_arrow_metadata_bytes: u64,
 }
 
 impl Limits {
@@ -364,6 +529,7 @@ impl Limits {
         max_xml_nodes: 1 << 24,
         max_xml_attrs_per_element: 4096,
         max_xml_text_bytes: 1 << 28,
+        max_xml_document_bytes: 1 << 34,
         max_opc_rels: 1 << 20,
         max_opc_rel_depth: 64,
         max_opc_content_types_overrides: 1 << 20,
@@ -433,6 +599,49 @@ impl Limits {
         max_csv_field_bytes: 1 << 24,
         max_csv_document_bytes: 1 << 34,
         max_csv_sampled_records_for_detection: 1024,
+        max_markdown_depth: 256,
+        max_markdown_nodes: 1 << 24,
+        max_markdown_blocks: 1 << 22,
+        max_markdown_inline_spans: 1 << 24,
+        max_markdown_code_bytes: 1 << 28,
+        max_markdown_document_bytes: 1 << 34,
+        max_html_depth: 256,
+        max_html_nodes: 1 << 24,
+        max_html_attrs: 1 << 26,
+        max_html_text_bytes: 1 << 28,
+        max_html_script_bytes: 1 << 28,
+        max_html_document_bytes: 1 << 34,
+        max_toml_depth: 256,
+        max_toml_nodes: 1 << 24,
+        max_toml_keys: 1 << 22,
+        max_toml_string_bytes: 1 << 28,
+        max_toml_document_bytes: 1 << 34,
+        max_jsonl_records: 1 << 22,
+        max_jsonl_line_bytes: 1 << 26,
+        max_jsonl_nodes: 1 << 24,
+        max_jsonl_document_bytes: 1 << 34,
+        max_eml_depth: 64,
+        max_eml_parts: 1 << 20,
+        max_eml_headers: 1 << 20,
+        max_eml_part_bytes: 1 << 28,
+        max_eml_decoded_bytes: 1 << 28,
+        max_eml_document_bytes: 1 << 34,
+        max_parquet_row_groups: 1 << 20,
+        max_parquet_columns: 1 << 20,
+        max_parquet_pages_per_chunk: 1 << 20,
+        max_parquet_values: 1 << 30,
+        max_parquet_decompressed_bytes: 1 << 28,
+        max_parquet_document_bytes: 1 << 34,
+        max_parquet_footer_bytes: 1 << 26,
+        max_arrow_messages: 1 << 20,
+        max_arrow_columns: 1 << 20,
+        max_arrow_batches: 1 << 20,
+        max_arrow_rows: 1 << 40,
+        max_arrow_buffers: 1 << 26,
+        max_arrow_values: 1 << 30,
+        max_arrow_decompressed_bytes: 1 << 30,
+        max_arrow_document_bytes: 1 << 34,
+        max_arrow_metadata_bytes: 1 << 26,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -471,6 +680,7 @@ impl Limits {
         max_xml_nodes: 1 << 16,
         max_xml_attrs_per_element: 256,
         max_xml_text_bytes: 1 << 20,
+        max_xml_document_bytes: 1 << 26,
         max_opc_rels: 1 << 14,
         max_opc_rel_depth: 16,
         max_opc_content_types_overrides: 1 << 12,
@@ -540,6 +750,49 @@ impl Limits {
         max_csv_field_bytes: 1 << 18,
         max_csv_document_bytes: 1 << 26,
         max_csv_sampled_records_for_detection: 64,
+        max_markdown_depth: 64,
+        max_markdown_nodes: 1 << 16,
+        max_markdown_blocks: 1 << 14,
+        max_markdown_inline_spans: 1 << 16,
+        max_markdown_code_bytes: 1 << 20,
+        max_markdown_document_bytes: 1 << 26,
+        max_html_depth: 64,
+        max_html_nodes: 1 << 16,
+        max_html_attrs: 1 << 16,
+        max_html_text_bytes: 1 << 20,
+        max_html_script_bytes: 1 << 20,
+        max_html_document_bytes: 1 << 26,
+        max_toml_depth: 64,
+        max_toml_nodes: 1 << 16,
+        max_toml_keys: 1 << 14,
+        max_toml_string_bytes: 1 << 20,
+        max_toml_document_bytes: 1 << 26,
+        max_jsonl_records: 1 << 12,
+        max_jsonl_line_bytes: 1 << 20,
+        max_jsonl_nodes: 1 << 16,
+        max_jsonl_document_bytes: 1 << 26,
+        max_eml_depth: 16,
+        max_eml_parts: 1 << 12,
+        max_eml_headers: 1 << 12,
+        max_eml_part_bytes: 1 << 20,
+        max_eml_decoded_bytes: 1 << 20,
+        max_eml_document_bytes: 1 << 26,
+        max_parquet_row_groups: 1 << 12,
+        max_parquet_columns: 1 << 12,
+        max_parquet_pages_per_chunk: 1 << 12,
+        max_parquet_values: 1 << 16,
+        max_parquet_decompressed_bytes: 1 << 20,
+        max_parquet_document_bytes: 1 << 26,
+        max_parquet_footer_bytes: 1 << 20,
+        max_arrow_messages: 1 << 12,
+        max_arrow_columns: 1 << 12,
+        max_arrow_batches: 1 << 12,
+        max_arrow_rows: 1 << 24,
+        max_arrow_buffers: 1 << 20,
+        max_arrow_values: 1 << 16,
+        max_arrow_decompressed_bytes: 1 << 20,
+        max_arrow_document_bytes: 1 << 26,
+        max_arrow_metadata_bytes: 1 << 20,
     };
 }
 

@@ -220,6 +220,27 @@ fn detection_is_byte_based_and_conservative() {
 }
 
 #[test]
+fn comment_after_key_does_not_empty_a_nested_block() {
+    // Phase 21.15 fix: `key:  # comment` followed by an indented block is a nested
+    // mapping whose value is that block; the trailing comment does not force an empty
+    // value (which previously tripped the "bad indentation" guard on the next line).
+    // Regression for the Alertmanager CI workflow (`on:  # yamllint ...`).
+    let doc: &[u8] = b"---\nname: CI\non:  # yamllint disable-line rule:truthy\n  pull_request:\n  workflow_call:\njobs:\n  test:\n    runs-on: ubuntu-latest\n";
+    assert_eq!(
+        detect_document_format(doc, Limits::DEFAULT),
+        DocumentFormat::Yaml
+    );
+    let m = vole_document::adapter::yaml::parse(doc, Limits::DEFAULT, true).unwrap();
+    let on = vole_document::adapter::yaml::resolve_path(&m, doc, "on").unwrap();
+    assert_eq!(
+        m.node(on.index).unwrap().kind,
+        vole_document::adapter::yaml::K_MAP
+    );
+    let wc = vole_document::adapter::yaml::resolve_path(&m, doc, "on.workflow_call").unwrap();
+    assert!(m.node(wc.index).is_some());
+}
+
+#[test]
 fn model_preserves_anchors_tags_styles_and_order() {
     let m = vole_document::adapter::yaml::parse(DOC, Limits::DEFAULT, true).unwrap();
     let anchors: Vec<&str> = m.nodes.iter().filter_map(|n| n.anchor.as_deref()).collect();

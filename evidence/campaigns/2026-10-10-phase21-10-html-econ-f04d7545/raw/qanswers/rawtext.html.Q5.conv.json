@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {}, "lane": "conv", "q": "Q5", "value": "var s = \"</div><b>no</b>\"; if (1 < 2 && 3 > 2) { alert(s); }.x{content:'</div>'}"}

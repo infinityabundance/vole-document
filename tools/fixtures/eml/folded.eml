@@ -1,0 +1,14 @@
+Received: from a.example (a.example [10.0.0.1])
+	by b.example with ESMTP id ABC123
+Received: from c.example (c.example [10.0.0.2])
+	by d.example with ESMTP id DEF456
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: A folded
+	subject line
+Date: Mon, 01 Jan 2029 00:00:00 +0000
+Message-ID: <folded@example.com>
+X-Long: alpha
+	beta gamma
+
+Body after folded headers.

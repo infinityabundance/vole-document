@@ -144,7 +144,7 @@ for observations, indexes are advisory, and the derived cache is disposable
 | Provenance | Every answer carries a typed basis, scope, dependency ids, and exact source spans. |
 | `EXPLAIN` | `explain` shows the intended plan; `explain --analyze` reports the actual work (bytes read by class, nodes executed vs reused, decodes, wall/CPU). |
 | Partial materialization | Serves one byte range, object, stream, or revision from an advisory seek `DIRECTORY` + observation index without materializing the whole document. |
-| Multi-format | One field vocabulary over PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS and ODP, with retained native structure and `format=…;common;…` provenance. |
+| Multi-format | One field vocabulary over PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP and the Wave-2 formats (JSON, YAML, CSV/TSV, Markdown, XML, HTML, TOML, JSONL, EML/MIME, Parquet, Arrow IPC), with retained native structure and `format=…;common;…` provenance. |
 | Hostile-input contract | Typed errors, checked arithmetic, bounded resources, fail-closed unknowns; the decoder never executes document content. |
 
 ## Supported formats
@@ -160,8 +160,8 @@ for observations, indexes are advisory, and the derived cache is disposable
 | ODS | shared byte-authoritative ZIP + ODF | OpenDocument Spreadsheet: sheets, rows, cells (stored formula, typed value, displayed text, style kept distinct), merges, repeated cells/rows, named expressions, comments, styles | yes | `metadata`, `text`, `table`, `cell` + native `ods-sheet`, `ods-cell`, `ods-styles`, `ods-named-expressions`, `ods-comments`, `ods-find` |
 | ODP | shared byte-authoritative ZIP + ODF | OpenDocument Presentation: slides (`draw:page` document order), shapes/text runs, pictures→media, embedded tables, notes, masters, styles | yes | `metadata`, `text`, `table`, `cell` + native `odp-slide`, `odp-shape`, `odp-notes`, `odp-masters`, `odp-media`, `odp-tables`, `odp-find` |
 
-"Universal" means the observation vocabulary is shared across the eight implemented
-formats — details and gaps: [Format support](docs/reference/format-support.md); the Phase-21 Wave-2 families (JSON/YAML/CSV/XML/HTML/…) are `PROPOSED`.
+"Universal" means the observation vocabulary is shared across the implemented
+formats — details/gaps: [Format support](docs/reference/format-support.md); the remaining Phase-21 Wave-2 families (INI/`.env`, MDX/reST/AsciiDoc, feeds/GIS/notebook, HDF5/NetCDF, …) are `PROPOSED`.
 
 ## Quick start (Docker only)
 
@@ -251,13 +251,13 @@ Current limitations:
   pathology is fixed in Phase 16 (`nasa-pdf-0001` completes byte-exactly; ADR-0041 extended), though its two largest peers still exceed the **wall** op budget, not memory.
   A real EPUB-content loss (the XHTML `DOCTYPE` the policy forbade) was found and fixed (13.7, ADR-0040); residual non-DOCTYPE EPUB declines remain
   ([frontier report](docs/evidence/real100-frontier-report.md)).
-- **Partial reusability.** Cross-document durable *work* reuse is a negative. Beyond the eight office formats, Phase 21 Wave 2 adds structured/tabular/web formats: **JSON**, **YAML** and **CSV/TSV** are shipped (span/representation-preserving structured trees + exact-preserving tabular); Markdown, XML, HTML, … remain `PROPOSED`.
+- **Partial reusability.** Cross-document durable *work* reuse is a negative. Beyond the eight office formats, Phase 21 Wave 2 adds the **structured** (JSON, YAML, XML, TOML, JSONL), **tabular** (CSV/TSV), **prose/web** (Markdown, HTML), **messaging** (EML/MIME) and **analytical** (Parquet, Arrow IPC) families: all shipped, span/representation-preserving where a tree or record model exists, with exact-preserving tabular support; each carries an adapter + a sealed economic court (the analytical comparators — DuckDB on Parquet/Arrow — win the analytical axes, recorded). Remaining Wave-2 families are `PROPOSED`.
 
 ## Documentation
 
 - [Documentation index](docs/README.md) — the map.
 - [Architecture](docs/architecture/overview.md) — what the system is today.
-- [Formats](docs/formats/pdf.md) — PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP, JSON, YAML, CSV/TSV authority boundaries.
+- [Formats](docs/formats/pdf.md) — PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP, JSON, YAML, CSV/TSV, Markdown, XML, HTML, TOML, JSONL, EML/MIME, Parquet, Arrow IPC authority boundaries.
 - [Specification](docs/reference/specification.md) — the `.voldoc` wire format.
 - [Conformance](docs/reference/conformance.md) — courts, invariants, fuzzing.
 - [Findings](docs/project/findings.md) — consolidated positive and negative results.

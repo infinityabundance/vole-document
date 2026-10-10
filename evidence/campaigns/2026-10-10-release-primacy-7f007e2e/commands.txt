@@ -1,0 +1,42 @@
+# Release primacy — exactness + ADR-0060 identity courts
+# Commit under test: 7f007e2e11d1240f638fd10d8ebd3df2751dea33 (main, tag v0.1.0-alpha.33)
+# Binary: target/debug/vole-document sha256 dcfad49a927c2f96c47515c5ec00fdde7b116fc563373483fee754af4af92cd1
+# Base image (ARG BASE_STABLE): rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+# rustc 1.99.0 (b940084d7 2026-09-28), cargo 1.99.0 (5f94df478 2026-08-27), python 3.11.2, arch x86_64
+# Cargo.lock sha256: 7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927
+# LC_ALL=C. One cargo/CPU job at a time. No cap raised. Host ran only git + docker.
+
+# 0) checkout + confirm the release commit
+git --no-optional-locks status --short
+git checkout main
+git rev-parse HEAD            # == 7f007e2e11d1240f638fd10d8ebd3df2751dea33
+
+# 1) build the pinned court image (dev -> baseline -> db-baseline -> doc-baseline)
+docker compose build doc-baseline
+
+# 2) ADR-0060 permanent cross-field identity court (self-seals its campaign)
+docker compose run --rm --no-TTY doc-baseline bash tools/identity-court.sh
+
+# 3) Phase 12.10 source-removal / restart court (needs the deterministic triplet)
+docker compose run --rm --no-TTY doc-baseline python3 tools/fixtures/doc-triplet-gen.py evidence/scratch/phase12-triplet
+docker compose run --rm --no-TTY doc-baseline sh tools/phase12-removal-court.sh
+
+# 4) format adapter exactness courts (each self-seals; sh, no pipefail)
+docker compose run --rm --no-TTY doc-baseline sh tools/phase21-1-xlsx-court.sh
+docker compose run --rm --no-TTY doc-baseline sh tools/phase21-3-1-ods-court.sh
+docker compose run --rm --no-TTY doc-baseline sh tools/phase21-4-1-odp-court.sh
+docker compose run --rm --no-TTY doc-baseline sh tools/phase21-5-1-json-court.sh
+docker compose run --rm --no-TTY doc-baseline sh tools/phase21-6-1-yaml-court.sh
+docker compose run --rm --no-TTY doc-baseline sh tools/phase21-7-1-csv-court.sh
+
+# 5) stratified real-world multi-format smoke (bash; uses pipefail)
+docker compose run --rm --no-TTY doc-baseline bash tools/realformats-smoke-court.sh
+
+# 6) dev gate build on the release commit (all-features) + binary hash
+docker compose run --rm --no-TTY dev sh -c 'cargo build --locked --all-features; rustc --version; cargo --version; sha256sum target/debug/vole-document'
+
+# 7) extra bounded evidence for findings[0] (quadratic CSV metadata)
+docker compose run --rm --no-TTY doc-baseline sh evidence/scratch/release-primacy/csv-metadata-quadratic-probe.sh
+
+# 8) container-safe cleanup
+docker compose run --rm --no-TTY doc-baseline sh -c 'chown -R 1000:1000 /work/evidence /work/tools/fixtures; find /work -name __pycache__ -type d -prune -exec rm -rf {} +'

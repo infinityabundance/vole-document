@@ -1581,8 +1581,20 @@ impl<'a> Parser<'a> {
         let props_start = self.at;
         let (anchor, tag) = self.parse_properties()?;
         self.skip_spaces();
+        // A trailing comment on the key's line (`key:  # note`) does not end the
+        // value: consume the comment up to its line ending so the following line
+        // is still examined below. Without this, `on:  # yamllint ...` followed by
+        // an indented block was read as an empty value and the next line then
+        // tripped the "bad indentation" guard.
+        if self.peek() == Some(b'#') {
+            let s = self.at;
+            while matches!(self.peek(), Some(c) if c != b'\n' && c != b'\r') {
+                self.at += 1;
+            }
+            self.record_comment(s, self.at);
+        }
         match self.peek() {
-            None | Some(b'#') => {
+            None => {
                 let idx = self.new_node(K_EMPTY, S_NONE, props_start as u64)?;
                 self.finish_node(idx, props_start as u64, Vec::new());
                 if self.build

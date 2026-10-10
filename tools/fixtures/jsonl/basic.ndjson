@@ -1,0 +1,5 @@
+{"id":1,"name":"alpha","tags":["a","b"],"active":true}
+{"id":2,"name":"beta","tags":["c"],"active":false}
+{"id":3,"name":"gamma","tags":[],"active":true}
+{"note":"duplicate keys below","k":1,"k":2}
+{"esc":"line\nbreak","uni":"\u00e9","num":1e3}

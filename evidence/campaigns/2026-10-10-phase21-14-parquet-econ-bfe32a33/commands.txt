@@ -1,0 +1,18 @@
+docker compose run --rm --no-TTY analytical bash tools/phase21-14-parquet-court.sh
+# PROFILE defaults to release (target/release/vole-document).
+# Inside the court:
+#   cargo build --release --locked --all-features
+#   python3 tools/fixtures/make-parquet.py --corpus $WORK/corpus
+#   VOLE:   $BIN field-build F --store STORE --voldoc F.voldoc --profile runtime --packed
+#           python3 tools/fixtures/phase21-14-parquet-vole.py run --bin $BIN --store STORE --field HEX --plan ... --outdir ... --packed
+#           rm source + descriptor ; $BIN materialize --store STORE --field HEX --exact --packed --output OUT ; cmp OUT source
+#   SQLite: python3 tools/fixtures/phase21-14-parquet-baseline.py build --source F --db D
+#           python3 tools/fixtures/phase21-14-parquet-baseline.py query --db D --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-14-parquet-baseline.py materialize --db D --out OUT
+#   DuckDB: python3 tools/fixtures/phase21-14-parquet-duckdb.py build --source F --dir DD
+#           python3 tools/fixtures/phase21-14-parquet-duckdb.py query --dir DD --q Qn --plan ... --out OUT
+#   aggregate: python3 tools/fixtures/phase21-14-parquet-baseline.py aggregate --raw RAW --campaign CAMPAIGN --env ENV
+# Full dev gate:
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features

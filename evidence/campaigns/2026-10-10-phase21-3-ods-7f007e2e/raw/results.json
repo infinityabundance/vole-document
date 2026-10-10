@@ -1,0 +1,90 @@
+[
+{
+  "fixture": "basic.ods",
+  "src_len": 1534,
+  "src_sha256": "2d16edfeb07d5fe3a66060163bdd95b85450d85c995dd27a0afcb03ae1cc668f",
+  "out_len": 1534,
+  "out_sha256": "2d16edfeb07d5fe3a66060163bdd95b85450d85c995dd27a0afcb03ae1cc668f",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1
+},
+{
+  "fixture": "multi.ods",
+  "src_len": 1533,
+  "src_sha256": "f53a8b26a7964c68ffb253ac349bb0b5dbea347201d24590e68a283692f0bbcb",
+  "out_len": 1533,
+  "out_sha256": "f53a8b26a7964c68ffb253ac349bb0b5dbea347201d24590e68a283692f0bbcb",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1
+},
+{
+  "fixture": "values.ods",
+  "src_len": 1766,
+  "src_sha256": "0416f37fae8ade84c4ab2eeb225557c92ad5c86fcd206c7707c7a39de17c3d40",
+  "out_len": 1766,
+  "out_sha256": "0416f37fae8ade84c4ab2eeb225557c92ad5c86fcd206c7707c7a39de17c3d40",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1
+},
+{
+  "fixture": "merged.ods",
+  "src_len": 1526,
+  "src_sha256": "d6d494a0d094cbc4520d240f099ac97602eea151f0b59681e813eb7f2dabe948",
+  "out_len": 1526,
+  "out_sha256": "d6d494a0d094cbc4520d240f099ac97602eea151f0b59681e813eb7f2dabe948",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1
+},
+{
+  "fixture": "named.ods",
+  "src_len": 1569,
+  "src_sha256": "0cc2f833b146e0958b9f229f1565240326bce38c35513a5c0d03f0e66f789b21",
+  "out_len": 1569,
+  "out_sha256": "0cc2f833b146e0958b9f229f1565240326bce38c35513a5c0d03f0e66f789b21",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1
+},
+{
+  "fixture": "comments.ods",
+  "src_len": 1556,
+  "src_sha256": "55dc0b8bed3193967949f05c5c3eb1bf190c94b0f4b072320e9b4e0b376c6e24",
+  "out_len": 1556,
+  "out_sha256": "55dc0b8bed3193967949f05c5c3eb1bf190c94b0f4b072320e9b4e0b376c6e24",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1
+},
+{
+  "fixture": "styles.ods",
+  "src_len": 1692,
+  "src_sha256": "8de504519e8abdbc57e9e000f4a737b06f8aa9bd3ea6873226151d9c5cdb33d2",
+  "out_len": 1692,
+  "out_sha256": "8de504519e8abdbc57e9e000f4a737b06f8aa9bd3ea6873226151d9c5cdb33d2",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6,
+  "bomb_rc": -1
+},
+{
+  "fixture": "bomb.ods",
+  "src_len": 1511,
+  "src_sha256": "65a66aba3ae4de6a2b768d7912e0e7b8064a0f756a147fd7c2b5bf68bfcbe4f0",
+  "out_len": 1511,
+  "out_sha256": "65a66aba3ae4de6a2b768d7912e0e7b8064a0f756a147fd7c2b5bf68bfcbe4f0",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": -1,
+  "bomb_rc": 8
+}
+]

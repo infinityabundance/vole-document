@@ -1,0 +1,20 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-16-arrow-econ-4fdc7ad0",
+  "phase": "21.16 — Arrow IPC analytical economic court",
+  "utc": "2026-10-10T15:29:01Z",
+  "measured_commit": "4fdc7ad03a19dd261fb513f317bdb498bb35a54a",
+  "tree_state": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-16-1-arrow-4fdc7ad0/ ?? evidence/campaigns/2026-10-10-phase21-16-arrow-econ-4fdc7ad0/ ?? src/adapter/arrow.rs ?? tests/arrow_adapter.rs ?? tools/fixtures/arrow/ ?? tools/fixtures/make-arrow.py ?? tools/fixtures/phase21-16-arrow-baseline.py ?? tools/fixtures/phase21-16-arrow-duckdb.py ?? tools/fixtures/phase21-16-arrow-vole.py ?? tools/fixtures/phase21-16-bound.py ?? tools/phase21-16-1-arrow-court.sh ?? tools/phase21-16-arrow-court.sh ",
+  "service": "analytical",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "b3c684ea7bd452f5d36393c7a6e08316e1c89c9cb4e1c3f1a23a11eca6c14bae",
+  "duckdb_version": "1.5.6",
+  "lanes": ["vole", "sqlite", "duckdb"],
+  "questions": {"Q1": "column values", "Q2": "predicate count", "Q3": "buffer span + min/max", "Q4": "record-batch count", "Q5": "lexical find count", "Q6": "exact closure"},
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "exact_ok": 3,
+  "exact_n": 3,
+  "verdict_rule": "FAIL only if VOLE exactness is not 100% (or a cross-lane mismatch is recorded)",
+  "honest_scope": "self-authored corpus; only Q6 is a byte-authority claim; DuckDB reads a Parquet projection of the same logical table (its wheel has no Arrow IPC reader) and wins the analytical axes",
+  "verdict": "PASS"
+}

@@ -1,0 +1,22 @@
+docker compose build analytical
+docker compose run --rm --no-TTY analytical bash tools/phase21-6-yaml-court.sh
+# PROFILE defaults to release (target/release/vole-document).
+# Inside the court:
+#   cargo build --release --locked --all-features
+#   python3 tools/fixtures/make-yaml.py --corpus $WORK/corpus
+#   VOLE:   $BIN field-build F.yaml --store STORE --voldoc F.voldoc --profile runtime --packed
+#           python3 tools/fixtures/phase21-6-yaml-vole.py run --bin $BIN --store STORE --field HEX --plan ... --outdir ... --packed
+#           rm source + descriptor ; $BIN materialize --store STORE --field HEX --exact --packed --output OUT ; cmp OUT source
+#   SQLite: python3 tools/fixtures/phase21-6-yaml-baseline.py build --source F.yaml --db D
+#           python3 tools/fixtures/phase21-6-yaml-baseline.py query --db D --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-6-yaml-baseline.py session --db D --queries Q1..Q8 --plan ... --out OUT
+#           python3 tools/fixtures/phase21-6-yaml-baseline.py materialize --db D --out OUT
+#           python3 tools/fixtures/phase21-6-yaml-baseline.py version
+#   spanpy: python3 tools/fixtures/phase21-6-yaml-spanpy.py build --source F.yaml --db D
+#           python3 tools/fixtures/phase21-6-yaml-spanpy.py query --db D --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-6-yaml-spanpy.py session --db D --queries Q1..Q8 --plan ... --out OUT
+#   aggregate: python3 tools/fixtures/phase21-6-yaml-baseline.py aggregate --raw RAW --campaign CAMPAIGN --env ENV
+# Full dev gate:
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features

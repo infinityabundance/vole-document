@@ -184,6 +184,80 @@ pub enum NodeKind {
     /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per
     /// ADR-0060). CSV/TSV has no package layer. Derived, never exact.
     CsvModel = 0x29,
+    /// The canonical, representation-preserving Markdown prose model (Phase
+    /// 21.8.1): every block's and inline span's exact source span, ATX headings and
+    /// their levels, paragraphs, ordered/unordered lists, fenced (language-tagged)
+    /// and indented code blocks, blockquotes, tables, links/images with targets and
+    /// titles, reference definitions, footnotes, and front matter. It is derived on
+    /// demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060). Markdown has no package layer.
+    /// Derived, never exact.
+    MarkdownModel = 0x2A,
+    /// The canonical, representation-preserving XML structured-tree model
+    /// (Phase 21.9): every element's qualified-name/start-tag/end-tag/full span,
+    /// every attribute's name/quoted-value/inner-value/full span, every text run,
+    /// CDATA section, comment, processing instruction, DOCTYPE, and namespace
+    /// declaration, all in document order. Entity references are surfaced literally
+    /// (never expanded) and no DTD internal subset is processed. It is derived on
+    /// demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060). XML has no package layer.
+    /// Derived, never exact.
+    XmlModel = 0x2B,
+    /// The canonical, representation-preserving HTML document model (Phase 21.10):
+    /// every element's qualified-name/start-tag/end-tag/full span, every attribute's
+    /// name/quoted-value/inner-value/full span (quoted, single-quoted, unquoted, or
+    /// boolean), every text run, comment, DOCTYPE, and raw `<script>`/`<style>`
+    /// content, all in document order. The parser is bounded and
+    /// error-recovering (implicit tag closing, void elements, stray end tags);
+    /// entity references are surfaced literally (never expanded) and `script`/`style`
+    /// content is captured as raw bytes (never executed). It is derived on demand
+    /// from the exact source (its single dependency is the `DocumentExact` root,
+    /// keyed by `sha256(source)` per ADR-0060). HTML has no package layer. Derived,
+    /// never exact.
+    HtmlModel = 0x2C,
+    /// The canonical, representation-preserving TOML model (Phase 21.11): every
+    /// table (`[a.b]`), array of tables (`[[a]]`), inline table, array, key, value,
+    /// and comment with its exact source span; dotted keys build the tables they
+    /// name; every scalar keeps its **exact spelling** (strings, integers, floats
+    /// incl. `inf`/`nan`, booleans, and date-times). TOML's duplicate-key /
+    /// redefinition rules are enforced. It is derived on demand from the exact
+    /// source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060). TOML has no package layer. Derived, never
+    /// exact.
+    TomlModel = 0x2D,
+    /// The canonical, per-line JSONL/NDJSON model (Phase 21.12): every non-blank
+    /// record's **exact source line span** and terminator, and its parse by the
+    /// shared JSON parser (so each record's member order, duplicate keys, numeric
+    /// and escape spelling, and exact token spans are preserved). It is derived on
+    /// demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060). JSONL has no package layer.
+    /// Derived, never exact.
+    JsonlModel = 0x2E,
+    /// The canonical, representation-preserving EML/MIME message model (Phase
+    /// 21.13): every header's exact name/value/full span and its order, duplicate
+    /// headers kept distinct, the resolved `multipart/*` tree, nested
+    /// `message/rfc822`, and the decoded `Content-Transfer-Encoding` constituents. It
+    /// is derived on demand from the exact source (its single dependency is the
+    /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060). EML has no
+    /// package layer. Derived, never exact.
+    EmlModel = 0x2F,
+    /// The canonical, bounded Parquet model (Phase 21.14): the parsed Thrift-Compact
+    /// footer inventory — the flattened schema (names, physical/logical types,
+    /// repetition), the logical leaf columns, and the row-group/column-chunk
+    /// descriptors, each chunk with its exact source span and statistics. It is
+    /// derived on demand from the exact source (its single dependency is the
+    /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060). Parquet has no
+    /// package layer. Derived, never exact.
+    ParquetModel = 0x30,
+    /// The canonical, bounded Arrow IPC model (Phase 21.16): the parsed Flatbuffers
+    /// footer (file format) or leading schema message (stream format) inventory —
+    /// the flattened schema (names, type tags/parameters, nullability, children),
+    /// the decodable top-level columns with their pre-computed buffer slots, and the
+    /// record-batch descriptors (each with its exact source span and its declared
+    /// node/buffer counts). It is derived on demand from the exact source (its
+    /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+    /// ADR-0060). Arrow has no package layer. Derived, never exact.
+    ArrowModel = 0x31,
 }
 
 impl NodeKind {
@@ -231,6 +305,14 @@ impl NodeKind {
             0x27 => NodeKind::JsonModel,
             0x28 => NodeKind::YamlModel,
             0x29 => NodeKind::CsvModel,
+            0x2A => NodeKind::MarkdownModel,
+            0x2B => NodeKind::XmlModel,
+            0x2C => NodeKind::HtmlModel,
+            0x2D => NodeKind::TomlModel,
+            0x2E => NodeKind::JsonlModel,
+            0x2F => NodeKind::EmlModel,
+            0x30 => NodeKind::ParquetModel,
+            0x31 => NodeKind::ArrowModel,
             _ => return None,
         })
     }
@@ -279,6 +361,14 @@ impl NodeKind {
             NodeKind::JsonModel => "JsonModel",
             NodeKind::YamlModel => "YamlModel",
             NodeKind::CsvModel => "CsvModel",
+            NodeKind::MarkdownModel => "MarkdownModel",
+            NodeKind::XmlModel => "XmlModel",
+            NodeKind::HtmlModel => "HtmlModel",
+            NodeKind::TomlModel => "TomlModel",
+            NodeKind::JsonlModel => "JsonlModel",
+            NodeKind::EmlModel => "EmlModel",
+            NodeKind::ParquetModel => "ParquetModel",
+            NodeKind::ArrowModel => "ArrowModel",
         }
     }
 

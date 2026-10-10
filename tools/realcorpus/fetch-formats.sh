@@ -32,7 +32,7 @@ RC=0
 T0=$(date +%s%N)
 N=0; OK=0; MISS=0; BAD=0
 # Skip the header; iterate tab-separated rows.
-tail -n +2 "$MANIFEST" | while IFS="$(printf '\t')" read -r id format bytes sha url source license redistributable notes; do
+tail -n +2 "$MANIFEST" | while IFS="$(printf '\t')" read -r id format bytes sha url source license redistributable notes complexity; do
     [ -n "$id" ] || continue
     N=$((N + 1))
     dir="$CORPUS/documents/$format"
@@ -71,7 +71,7 @@ done
 T1=$(date +%s%N)
 echo "fetch-formats: manifest rows processed (see per-row OK/FAIL above); elapsed_ms=$(( (T1 - T0) / 1000000 ))"
 # A second pass re-verifies what ended up on disk; a missing/mismatched row is fatal.
-tail -n +2 "$MANIFEST" | while IFS="$(printf '\t')" read -r id format bytes sha url source license redistributable notes; do
+tail -n +2 "$MANIFEST" | while IFS="$(printf '\t')" read -r id format bytes sha url source license redistributable notes complexity; do
     [ -n "$id" ] || continue
     dest="$CORPUS/documents/$format/$id"
     if [ ! -f "$dest" ]; then

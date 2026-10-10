@@ -82,6 +82,9 @@ const ODP_MANIFEST_MEMBER: &[u8] = b"META-INF/manifest.xml";
 /// The OpenDocument *presentation* media-type fragment (Phase 21.4.1).
 #[cfg(feature = "odp")]
 const ODP_PRESENTATION_FRAGMENT: &[u8] = b"application/vnd.oasis.opendocument.presentation";
+/// The ODF media-type prefix shared by every OpenDocument package.
+#[cfg(any(feature = "odt", feature = "ods", feature = "odp"))]
+const ODF_MEDIA_PREFIX: &[u8] = b"application/vnd.oasis.opendocument.";
 /// The SpreadsheetML workbook main content-type fragment (Phase 21.1.1).
 #[cfg(feature = "xlsx")]
 const XLSX_MAIN_FRAGMENT: &[u8] = b"spreadsheetml.sheet.main+xml";
@@ -132,6 +135,57 @@ pub enum DocumentFormat {
     /// two records). Not a package: the exact leaf is the whole source, and the
     /// recorded dialect distinguishes comma from tab (Phase 21.7.1).
     Csv,
+    /// A Markdown prose document (the whole source carries at least one structural
+    /// mark — an ATX heading, a fenced code block, front matter, a table, a
+    /// reference definition, or a footnote definition). Not a package: the exact
+    /// leaf is the whole source (Phase 21.8.1).
+    Markdown,
+    /// A standalone XML document (the whole source begins with `<` and parses as
+    /// well-formed XML with exactly one root element under the XML caps). Not a
+    /// package: the exact leaf is the whole source, and every node/attribute span
+    /// is a `Q_gen` projection (Phase 21.9).
+    Xml,
+    /// A standalone HTML document (the source is not well-formed XML and carries
+    /// clear HTML structure — a `<!doctype html>`, an `<html`/`<head`/`<body` tag,
+    /// or a preponderance of known HTML tags). Parsed by a bounded,
+    /// **error-recovering** scanner. Not a package: the exact leaf is the whole
+    /// source, and every element/attribute/text/comment/raw-text span is a `Q_gen`
+    /// projection (Phase 21.10).
+    Html,
+    /// A TOML document (the source is not any earlier format, parses as TOML 1.0
+    /// under the TOML caps with no errors, and carries at least one key/value
+    /// assignment). Not a package: the exact leaf is the whole source, and every
+    /// table/array/key/value/comment span is a `Q_gen` projection. TOML's
+    /// duplicate-key/redefinition rules are enforced (a violation is a typed
+    /// decline) (Phase 21.11).
+    Toml,
+    /// A JSONL / NDJSON line/event stream (the source carries at least two non-blank
+    /// lines and **every** non-blank line parses as exactly one JSON value under the
+    /// caps, each line parsed by the shared JSON parser). Not a package: the exact
+    /// leaf is the whole source, and every record's exact line span, terminator, and
+    /// per-token spans are `Q_gen` projections. A single JSON value stays
+    /// [`DocumentFormat::Json`] (Phase 21.12).
+    Jsonl,
+    /// An EML / MIME internet message (an RFC 5322 header block terminated by a
+    /// blank line, carrying `From`/`Date`/`Message-ID`, or an explicit
+    /// `MIME-Version`). Not a package: the exact leaf is the whole source, and every
+    /// header/part span and every `Content-Transfer-Encoding`-decoded constituent is
+    /// a `Q_gen` projection (Phase 21.13).
+    Eml,
+    /// An Apache Parquet file (the source begins with `PAR1` and ends with `PAR1`,
+    /// and the 4-byte little-endian footer length before the trailing magic is
+    /// consistent with the file length). Not a package: the exact leaf is the whole
+    /// source, and the parsed footer inventory (schema, row groups, column chunks,
+    /// statistics) and any decoded values are `Q_gen` projections (Phase 21.14).
+    Parquet,
+    /// An Apache Arrow IPC file/stream (the source begins with the `ARROW1` magic
+    /// and is either the **file** format — a trailing `ARROW1` magic preceded by a
+    /// consistent little-endian `int32` footer length — or the **stream** format —
+    /// a valid encapsulated `Schema` message at the 8-byte magic+padding prefix).
+    /// Not a package: the exact leaf is the whole source, and the parsed schema and
+    /// record-batch inventory (with each batch's exact source span) and any decoded
+    /// columnar values are `Q_gen` projections (Phase 21.16).
+    ArrowIpc,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -151,6 +205,14 @@ impl DocumentFormat {
             DocumentFormat::Json => "json",
             DocumentFormat::Yaml => "yaml",
             DocumentFormat::Csv => "csv",
+            DocumentFormat::Markdown => "markdown",
+            DocumentFormat::Xml => "xml",
+            DocumentFormat::Html => "html",
+            DocumentFormat::Toml => "toml",
+            DocumentFormat::Jsonl => "jsonl",
+            DocumentFormat::Eml => "eml",
+            DocumentFormat::Parquet => "parquet",
+            DocumentFormat::ArrowIpc => "arrow",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -169,6 +231,14 @@ impl DocumentFormat {
             DocumentFormat::Json => "json",
             DocumentFormat::Yaml => "yaml",
             DocumentFormat::Csv => "csv",
+            DocumentFormat::Markdown => "markdown",
+            DocumentFormat::Xml => "xml",
+            DocumentFormat::Html => "html",
+            DocumentFormat::Toml => "toml",
+            DocumentFormat::Jsonl => "jsonl",
+            DocumentFormat::Eml => "eml",
+            DocumentFormat::Parquet => "parquet",
+            DocumentFormat::ArrowIpc => "arrow",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -187,6 +257,14 @@ impl DocumentFormat {
             DocumentFormat::Json => cfg!(feature = "json"),
             DocumentFormat::Yaml => cfg!(feature = "yaml"),
             DocumentFormat::Csv => cfg!(feature = "csv"),
+            DocumentFormat::Markdown => cfg!(feature = "markdown"),
+            DocumentFormat::Xml => cfg!(feature = "xml"),
+            DocumentFormat::Html => cfg!(feature = "html"),
+            DocumentFormat::Toml => cfg!(feature = "toml"),
+            DocumentFormat::Jsonl => cfg!(feature = "jsonl"),
+            DocumentFormat::Eml => cfg!(feature = "eml"),
+            DocumentFormat::Parquet => cfg!(feature = "parquet"),
+            DocumentFormat::ArrowIpc => cfg!(feature = "arrow"),
         }
     }
 
@@ -215,6 +293,14 @@ impl DocumentFormat {
             "json" => Some(DocumentFormat::Json),
             "yaml" => Some(DocumentFormat::Yaml),
             "csv" => Some(DocumentFormat::Csv),
+            "markdown" => Some(DocumentFormat::Markdown),
+            "xml" => Some(DocumentFormat::Xml),
+            "html" => Some(DocumentFormat::Html),
+            "toml" => Some(DocumentFormat::Toml),
+            "jsonl" => Some(DocumentFormat::Jsonl),
+            "eml" => Some(DocumentFormat::Eml),
+            "parquet" => Some(DocumentFormat::Parquet),
+            "arrow" => Some(DocumentFormat::ArrowIpc),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -235,6 +321,30 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
             return format;
         }
     }
+    // Parquet is the **analytical** Wave-2 format (Phase 21.14), with no package
+    // layer. Its detection is a strong magic-byte contract — `PAR1` at both ends
+    // plus a consistent little-endian footer length — so it runs immediately after
+    // the package families and **before** the weak, no-magic-byte heuristics
+    // (JSON/YAML/CSV/Markdown/XML/HTML), which a binary columnar file must never be
+    // guessed to be. It is deliberately conservative: a file that merely begins or
+    // ends with `PAR1` but whose footer length overruns the leading magic stays
+    // `Opaque`.
+    #[cfg(feature = "parquet")]
+    if crate::adapter::parquet::detect(source, limits) {
+        return DocumentFormat::Parquet;
+    }
+    // Arrow IPC is the **analytical** Wave-2 format (Phase 21.16), with no package
+    // layer. Its detection is a strong magic-byte contract — the `ARROW1` magic at
+    // the start plus either a consistent trailing footer (file format) or a valid
+    // encapsulated `Schema` message (stream format) — so it runs immediately after
+    // Parquet and **before** the weak, no-magic-byte heuristics, which a binary
+    // columnar file must never be guessed to be. It is deliberately conservative:
+    // `ARROW1`-prefixed junk with neither a consistent footer nor a valid schema
+    // message stays `Opaque`.
+    #[cfg(feature = "arrow")]
+    if crate::adapter::arrow::detect(source, limits) {
+        return DocumentFormat::ArrowIpc;
+    }
     // JSON is a Wave-2 structured-tree format with **no** package layer, so it is
     // detected directly from the whole source (never through `detect_zip_family`).
     // Conservative: the entire source must parse as exactly one JSON value within
@@ -243,6 +353,32 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     if crate::adapter::json::detect(source, limits) {
         return DocumentFormat::Json;
     }
+    // JSONL/NDJSON is the **line/event-stream** Wave-2 format (Phase 21.12), also
+    // with no package layer. It is tried **immediately after JSON** because it is the
+    // most specific signal for a newline-separated JSON stream: each non-blank line
+    // must parse as exactly one JSON value, which is stricter than — and must run
+    // before — the YAML stream reader (which would otherwise be free to reinterpret a
+    // line-delimited JSON stream as a stream of documents). Detection is
+    // conservative: at least two non-blank lines are required and every non-blank
+    // line must parse as exactly one JSON value under the caps, so a single JSON
+    // value, a malformed line, and a bag of values with a non-newline separator all
+    // stay `Opaque`.
+    #[cfg(feature = "jsonl")]
+    if crate::adapter::jsonl::detect(source, limits) {
+        return DocumentFormat::Jsonl;
+    }
+    // EML/MIME is the **messaging** Wave-2 format (Phase 21.13), also with no package
+    // layer. It is tried **immediately after JSONL** and **before YAML/TOML/CSV/
+    // Markdown/XML/HTML**: a raw message begins with an RFC 5322 header block, which
+    // the YAML stream reader would otherwise reinterpret as a mapping (e.g. `From: a`
+    // / `Date: b`). Detection is conservative: a genuine header block terminated by a
+    // blank line carrying `From`/`Date`/`Message-ID`, or an explicit `MIME-Version`,
+    // is required, so prose without a header block and a colon-bearing note stay
+    // `Opaque`. Only the header block is scanned (never the MIME tree).
+    #[cfg(feature = "eml")]
+    if crate::adapter::eml::detect(source, limits) {
+        return DocumentFormat::Eml;
+    }
     // YAML is the second Wave-2 structured-tree format (Phase 21.6.1), also with
     // **no** package layer. It is detected directly and conservatively: the whole
     // source must parse as a bounded YAML stream under the YAML caps, and every
@@ -250,6 +386,24 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "yaml")]
     if crate::adapter::yaml::detect(source, limits) {
         return DocumentFormat::Yaml;
+    }
+    // TOML is the next Wave-2 structured-tree format (Phase 21.11). Precedence
+    // (explicit): TOML is tried **after** the strong, fully-parsed tree formats
+    // (JSON, YAML) but **before** the weak, no-magic-byte heuristics (CSV,
+    // Markdown, XML, HTML). TOML's positive signal is a complete, error-free parse,
+    // which is far stronger than the CSV/Markdown heuristics; crucially, a TOML
+    // comment (`# …` at column 0) is otherwise misread as a Markdown ATX heading and
+    // would steal the document. A source that is valid JSON/YAML still wins (it is
+    // tried first); a source that is valid XML/HTML never parses as TOML (it begins
+    // with `<`), so nothing is lost there. TOML has no magic bytes and a plain prose
+    // paragraph is not TOML, so detection is conservative: the whole source must
+    // parse as TOML 1.0 under the TOML caps with no errors **and** carry at least one
+    // key/value assignment. TOML's duplicate-key/redefinition rules are enforced, so
+    // a doc that violates them is not detected. Plain prose and non-TOML text stay
+    // Opaque.
+    #[cfg(feature = "toml")]
+    if crate::adapter::toml::detect(source, limits) {
+        return DocumentFormat::Toml;
     }
     // CSV/TSV is the first **tabular** Wave-2 format (Phase 21.7.1). It has no
     // magic bytes, so it is detected last and conservatively: only after the
@@ -260,6 +414,54 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "csv")]
     if crate::adapter::csv::detect(source, limits) {
         return DocumentFormat::Csv;
+    }
+    // Markdown is the first **prose** Wave-2 format (Phase 21.8.1). It has no
+    // magic bytes either, and a plain prose paragraph is itself valid Markdown, so
+    // detection is deliberately conservative: only after the PDF/ZIP/JSON/YAML/CSV
+    // families are declined, and only when the source carries a clear structural
+    // mark (an ATX heading, a fenced code block, front matter, a table, a reference
+    // definition, or a footnote definition), is it admitted. Plain prose stays
+    // Opaque rather than being guessed to be Markdown.
+    #[cfg(feature = "markdown")]
+    if crate::adapter::markdown::detect(source, limits) {
+        return DocumentFormat::Markdown;
+    }
+    // HTML document-level marker (Phase 21.10 / 21.15 fix): a `<!doctype html>` or
+    // an `<html>` root element is a more specific signal than the generic XML
+    // fallback, so a **well-formed XHTML page** is classified `Html`, not `Xml`
+    // (XML's well-formedness parser would otherwise claim it). The general XML
+    // branch below is still tried before the general HTML branch, so a bare XML
+    // tree stays XML and HTML only claims the sources XML declines.
+    #[cfg(feature = "html")]
+    if crate::adapter::html::has_document_marker(source)
+        && crate::adapter::html::detect(source, limits)
+    {
+        return DocumentFormat::Html;
+    }
+    // XML is the structured-tree Wave-2 format for a bare XML source (Phase 21.9).
+    // It has no package layer and no magic bytes beyond `<`, so it is detected last
+    // and conservatively: only after the PDF/ZIP/JSON/YAML/CSV/Markdown families are
+    // declined, only when the source begins with `<` (an XML prolog or a root
+    // element start), and only when the whole source parses as well-formed XML with
+    // exactly one root element under the XML caps. `<-prefixed` junk and prose stay
+    // Opaque rather than being guessed to be XML.
+    #[cfg(feature = "xml")]
+    if crate::adapter::xml::detect(source, limits) {
+        return DocumentFormat::Xml;
+    }
+    // HTML is the error-recovering markup Wave-2 format (Phase 21.10). Precedence
+    // note (explicit): a *document-level* HTML marker is handled above (before XML);
+    // for every other `<`-bearing source XML is tried before HTML, so any document
+    // XML accepts (a bare XML tree) is genuinely XML. HTML then claims the
+    // `<`-bearing sources XML declines — real HTML5 is almost never well-formed XML
+    // (void elements, optional end tags, unquoted attributes, undeclared named
+    // entities). Detection is conservative: the source must carry clear HTML
+    // structure (a `<!doctype html>`, an `<html`/`<head`/`<body` tag, or a
+    // preponderance of known HTML tags). Plain prose and non-HTML `<`-junk stay
+    // Opaque rather than being guessed to be HTML.
+    #[cfg(feature = "html")]
+    if crate::adapter::html::detect(source, limits) {
+        return DocumentFormat::Html;
     }
     DocumentFormat::Opaque
 }
@@ -343,42 +545,54 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
     #[cfg(not(feature = "pptx"))]
     let is_pptx = false;
 
-    // ODT: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
-    // declares an OpenDocument text media type.
-    #[cfg(feature = "odt")]
-    let is_odt = mimetype
+    // The mandatory ODF `mimetype` member is **authoritative** when it names an
+    // OpenDocument media type (ODF 1.2 §3.2: the package's own media type). An ODP
+    // that *embeds a spreadsheet* lists both media types in `META-INF/manifest.xml`
+    // (one per file-entry), so scanning the whole manifest would make it look like an
+    // ODP *and* an ODS and force the ambiguous case below to Opaque. Only when the
+    // `mimetype` member is absent or is not an ODF media type do we fall back to the
+    // manifest scan (for a non-conformant package).
+    #[cfg(any(feature = "odt", feature = "ods", feature = "odp"))]
+    let odf_mimetype = mimetype
         .as_deref()
-        .is_some_and(|m| contains(m, ODT_TEXT_FRAGMENT))
-        || member_decoded(&physical, source, ODT_MANIFEST_MEMBER, limits)
+        .filter(|m| contains(m, ODF_MEDIA_PREFIX));
+
+    // ODT: an ODF package whose mandatory `mimetype` (or, absent that,
+    // `META-INF/manifest.xml`) declares an OpenDocument text media type.
+    #[cfg(feature = "odt")]
+    let is_odt = match odf_mimetype {
+        Some(m) => contains(m, ODT_TEXT_FRAGMENT),
+        None => member_decoded(&physical, source, ODT_MANIFEST_MEMBER, limits)
             .as_deref()
-            .is_some_and(|m| contains(m, ODT_TEXT_FRAGMENT));
+            .is_some_and(|m| contains(m, ODT_TEXT_FRAGMENT)),
+    };
     #[cfg(not(feature = "odt"))]
     let is_odt = false;
 
-    // ODS: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
+    // ODS: an ODF package whose mandatory `mimetype` (or, absent that, the manifest)
     // declares an OpenDocument *spreadsheet* media type. The positive spreadsheet
     // fragment keeps it mutually exclusive with ODT (a text document declares the
     // text media type, never the spreadsheet one).
     #[cfg(feature = "ods")]
-    let is_ods = mimetype
-        .as_deref()
-        .is_some_and(|m| contains(m, ODS_SPREADSHEET_FRAGMENT))
-        || member_decoded(&physical, source, ODS_MANIFEST_MEMBER, limits)
+    let is_ods = match odf_mimetype {
+        Some(m) => contains(m, ODS_SPREADSHEET_FRAGMENT),
+        None => member_decoded(&physical, source, ODS_MANIFEST_MEMBER, limits)
             .as_deref()
-            .is_some_and(|m| contains(m, ODS_SPREADSHEET_FRAGMENT));
+            .is_some_and(|m| contains(m, ODS_SPREADSHEET_FRAGMENT)),
+    };
     #[cfg(not(feature = "ods"))]
     let is_ods = false;
 
-    // ODP: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
+    // ODP: an ODF package whose mandatory `mimetype` (or, absent that, the manifest)
     // declares an OpenDocument *presentation* media type. The positive presentation
     // fragment keeps it mutually exclusive with ODT/ODS.
     #[cfg(feature = "odp")]
-    let is_odp = mimetype
-        .as_deref()
-        .is_some_and(|m| contains(m, ODP_PRESENTATION_FRAGMENT))
-        || member_decoded(&physical, source, ODP_MANIFEST_MEMBER, limits)
+    let is_odp = match odf_mimetype {
+        Some(m) => contains(m, ODP_PRESENTATION_FRAGMENT),
+        None => member_decoded(&physical, source, ODP_MANIFEST_MEMBER, limits)
             .as_deref()
-            .is_some_and(|m| contains(m, ODP_PRESENTATION_FRAGMENT));
+            .is_some_and(|m| contains(m, ODP_PRESENTATION_FRAGMENT)),
+    };
     #[cfg(not(feature = "odp"))]
     let is_odp = false;
 
@@ -403,7 +617,11 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
 const EPUB_MIMETYPE_MEMBER: &[u8] = b"mimetype";
 
 /// Decode one member's bytes by exact name, bounded and decline-safe: encrypted,
-/// oversized, unsupported-method, or out-of-range members yield `None`.
+/// oversized, unsupported-method, or out-of-range members yield `None`. The name
+/// match is ASCII case-insensitive, mirroring the OPC layer
+/// ([`crate::field::opc`]), which resolves the well-known control parts
+/// (`[Content_Types].xml`, `_rels/.rels`) case-insensitively; a package that
+/// lowercases them is still identified (Phase 21.15 fix).
 #[cfg(feature = "package")]
 fn member_decoded(
     physical: &crate::adapter::package::ZipPhysical,
@@ -412,7 +630,10 @@ fn member_decoded(
     limits: Limits,
 ) -> Option<Vec<u8>> {
     const FLAG_ENCRYPTED: u16 = 0x0001;
-    let member = physical.members.iter().find(|m| m.name == name)?;
+    let member = physical
+        .members
+        .iter()
+        .find(|m| m.name.eq_ignore_ascii_case(name))?;
     if member.flags & FLAG_ENCRYPTED != 0 || member.uncompressed_size > limits.max_xml_part_bytes {
         return None;
     }
@@ -452,6 +673,13 @@ mod tests {
             DocumentFormat::Json,
             DocumentFormat::Yaml,
             DocumentFormat::Csv,
+            DocumentFormat::Markdown,
+            DocumentFormat::Xml,
+            DocumentFormat::Html,
+            DocumentFormat::Toml,
+            DocumentFormat::Jsonl,
+            DocumentFormat::Eml,
+            DocumentFormat::Parquet,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

@@ -113,7 +113,20 @@ const USAGE_FIELD: &str = "\
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
-        --csv-find PATTERN) --kind metadata|text|structure|operators|
+        --csv-find PATTERN |
+        --md-heading N | --md-block N | --md-code N | --md-link N |
+        --md-find PATTERN |
+        --xml-path P | --xml-element P | --xml-attr PATH@NAME |
+        --xml-namespaces | --xml-find PATTERN |
+        --html-path P | --html-element P | --html-attr PATH@NAME |
+        --html-scripts | --html-find PATTERN |
+        --jsonl-line N | --jsonl-pointer N:POINTER | --jsonl-find PATTERN |
+        --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
+        --eml-find PATTERN |
+        --parquet-schema | --parquet-column N | --parquet-row-group N |
+        --parquet-cell R:C |
+        --arrow-schema | --arrow-column NAME|N | --arrow-batch N |
+        --arrow-cell R:C) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1627,6 +1640,136 @@ struct FieldArgs {
     /// (Phase 21.7.1).
     #[cfg(feature = "csv")]
     csv_find: Option<String>,
+    /// `--md-heading N`: the N-th ATX heading in document order (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    md_heading: Option<u32>,
+    /// `--md-block N`: the N-th block in document order (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    md_block: Option<u32>,
+    /// `--md-code N`: the N-th code block (fenced or indented) in document order
+    /// (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    md_code: Option<u32>,
+    /// `--md-link N`: the N-th link or image in document order (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    md_link: Option<u32>,
+    /// `--md-find`: a lexical, case-sensitive search over Markdown block content
+    /// (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    md_find: Option<String>,
+    /// `--xml-path P`: resolve a simple element path (`/a/b[2]/c`; `""` is the root
+    /// element), returning the element's name, exact source span, and exact bytes
+    /// (Phase 21.9).
+    #[cfg(feature = "xml")]
+    xml_path: Option<String>,
+    /// `--xml-element P`: the structural view of an element (name, spans, attributes)
+    /// at the same path (Phase 21.9).
+    #[cfg(feature = "xml")]
+    xml_element: Option<String>,
+    /// `--xml-attr PATH@NAME`: an attribute's exact quoted value / spans (Phase 21.9).
+    #[cfg(feature = "xml")]
+    xml_attr: Option<String>,
+    /// `--xml-namespaces`: every namespace declaration in document order (Phase 21.9).
+    #[cfg(feature = "xml")]
+    xml_namespaces: bool,
+    /// `--xml-find`: a lexical, case-sensitive search over XML names/values/text
+    /// (Phase 21.9).
+    #[cfg(feature = "xml")]
+    xml_find: Option<String>,
+    /// `--html-path P`: resolve a simple element path (`/html/body[2]/p`; `""` is the
+    /// root element), returning the element's name, exact source span, and exact
+    /// bytes (Phase 21.10).
+    #[cfg(feature = "html")]
+    html_path: Option<String>,
+    /// `--html-element P`: the structural view of an element (name, spans,
+    /// attributes, quoting) at the same path (Phase 21.10).
+    #[cfg(feature = "html")]
+    html_element: Option<String>,
+    /// `--html-attr PATH@NAME`: an attribute's exact value / spans (Phase 21.10).
+    #[cfg(feature = "html")]
+    html_attr: Option<String>,
+    /// `--html-scripts`: every raw `<script>`/`<style>` element in document order
+    /// (Phase 21.10). Their content is captured raw and never executed.
+    #[cfg(feature = "html")]
+    html_scripts: bool,
+    /// `--html-find`: a lexical, case-sensitive search over HTML names/values/text
+    /// (Phase 21.10).
+    #[cfg(feature = "html")]
+    html_find: Option<String>,
+    /// `--toml-path P`: resolve a dotted path (`server.ports[0]`; `""` is the root
+    /// table), returning the value's kind, exact spelling, and exact source span
+    /// (Phase 21.11).
+    #[cfg(feature = "toml")]
+    toml_path: Option<String>,
+    /// `--toml-table P`: the keys of the table at the dotted path (Phase 21.11).
+    #[cfg(feature = "toml")]
+    toml_table: Option<String>,
+    /// `--toml-find`: a lexical, case-sensitive search over TOML keys and string
+    /// values (Phase 21.11).
+    #[cfg(feature = "toml")]
+    toml_find: Option<String>,
+    /// `--jsonl-line N`: the N-th JSONL record (0-based; blank lines do not count),
+    /// returning its kind, exact line span, terminator, and exact value bytes
+    /// (Phase 21.12).
+    #[cfg(feature = "jsonl")]
+    jsonl_line: Option<u32>,
+    /// `--jsonl-pointer N:POINTER`: resolve an RFC 6901 pointer into record `N`
+    /// (Phase 21.12).
+    #[cfg(feature = "jsonl")]
+    jsonl_pointer: Option<String>,
+    /// `--jsonl-find`: a lexical, case-sensitive search over every JSONL record's
+    /// keys and string values (Phase 21.12).
+    #[cfg(feature = "jsonl")]
+    jsonl_find: Option<String>,
+    /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
+    /// message part, with exact spans (Phase 21.13).
+    #[cfg(feature = "eml")]
+    eml_header: Option<String>,
+    /// `--eml-part N`: the N-th MIME part (0-based; the root message is 0), returning
+    /// its kind, spans, and exact decoded bytes (Phase 21.13).
+    #[cfg(feature = "eml")]
+    eml_part: Option<u32>,
+    /// `--eml-attachments`: every attachment leaf part in document order
+    /// (Phase 21.13).
+    #[cfg(feature = "eml")]
+    eml_attachments: bool,
+    /// `--eml-body`: the message body text (the first `text/plain` leaf, else the
+    /// first `text/*`) (Phase 21.13).
+    #[cfg(feature = "eml")]
+    eml_body: bool,
+    /// `--eml-find`: a lexical, case-sensitive search over every part's header
+    /// names/values and decoded `text/*` bodies (Phase 21.13).
+    #[cfg(feature = "eml")]
+    eml_find: Option<String>,
+    /// `--parquet-schema`: the Parquet schema (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    parquet_schema: bool,
+    /// `--parquet-column N`: the N-th logical leaf column (0-based): its inventory,
+    /// decoded values (as `text`), or raw chunk bytes (as `exact`) (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    parquet_column: Option<u32>,
+    /// `--parquet-row-group N`: the N-th row group (0-based) inventory (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    parquet_row_group: Option<u32>,
+    /// `--parquet-cell R:C`: the decoded cell at whole-file row `R`, leaf column `C`
+    /// (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    parquet_cell: Option<(u32, u32)>,
+    /// `--arrow-schema`: the Arrow IPC schema (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    arrow_schema: bool,
+    /// `--arrow-column NAME|N`: the column named `NAME` or the `N`-th top-level
+    /// column (0-based): its inventory, decoded values (as `text`), or raw buffer
+    /// bytes (as `exact`) (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    arrow_column: Option<String>,
+    /// `--arrow-batch N`: the N-th record batch (0-based) inventory (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    arrow_batch: Option<u32>,
+    /// `--arrow-cell R:C`: the decoded cell at whole-file row `R`, column `C`
+    /// (a name or a 0-based index) (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    arrow_cell: Option<(u64, String)>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -2080,6 +2223,167 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--csv-find" => {
                 out.csv_find = Some(field_arg_value(args, &mut i, "--csv-find", inline)?);
             }
+            #[cfg(feature = "markdown")]
+            "--md-heading" => {
+                out.md_heading = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--md-heading", inline)?,
+                    "--md-heading",
+                )?);
+            }
+            #[cfg(feature = "markdown")]
+            "--md-block" => {
+                out.md_block = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--md-block", inline)?,
+                    "--md-block",
+                )?);
+            }
+            #[cfg(feature = "markdown")]
+            "--md-code" => {
+                out.md_code = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--md-code", inline)?,
+                    "--md-code",
+                )?);
+            }
+            #[cfg(feature = "markdown")]
+            "--md-link" => {
+                out.md_link = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--md-link", inline)?,
+                    "--md-link",
+                )?);
+            }
+            #[cfg(feature = "markdown")]
+            "--md-find" => {
+                out.md_find = Some(field_arg_value(args, &mut i, "--md-find", inline)?);
+            }
+            #[cfg(feature = "xml")]
+            "--xml-path" => {
+                out.xml_path = Some(field_arg_value(args, &mut i, "--xml-path", inline)?);
+            }
+            #[cfg(feature = "xml")]
+            "--xml-element" => {
+                out.xml_element = Some(field_arg_value(args, &mut i, "--xml-element", inline)?);
+            }
+            #[cfg(feature = "xml")]
+            "--xml-attr" => {
+                out.xml_attr = Some(field_arg_value(args, &mut i, "--xml-attr", inline)?);
+            }
+            #[cfg(feature = "xml")]
+            "--xml-namespaces" => {
+                out.xml_namespaces = true;
+                i += 1;
+            }
+            #[cfg(feature = "xml")]
+            "--xml-find" => {
+                out.xml_find = Some(field_arg_value(args, &mut i, "--xml-find", inline)?);
+            }
+            #[cfg(feature = "html")]
+            "--html-path" => {
+                out.html_path = Some(field_arg_value(args, &mut i, "--html-path", inline)?);
+            }
+            #[cfg(feature = "html")]
+            "--html-element" => {
+                out.html_element = Some(field_arg_value(args, &mut i, "--html-element", inline)?);
+            }
+            #[cfg(feature = "html")]
+            "--html-attr" => {
+                out.html_attr = Some(field_arg_value(args, &mut i, "--html-attr", inline)?);
+            }
+            #[cfg(feature = "html")]
+            "--html-scripts" => {
+                out.html_scripts = true;
+                i += 1;
+            }
+            #[cfg(feature = "html")]
+            "--html-find" => {
+                out.html_find = Some(field_arg_value(args, &mut i, "--html-find", inline)?);
+            }
+            #[cfg(feature = "toml")]
+            "--toml-path" => {
+                out.toml_path = Some(field_arg_value(args, &mut i, "--toml-path", inline)?);
+            }
+            #[cfg(feature = "toml")]
+            "--toml-table" => {
+                out.toml_table = Some(field_arg_value(args, &mut i, "--toml-table", inline)?);
+            }
+            #[cfg(feature = "toml")]
+            "--toml-find" => {
+                out.toml_find = Some(field_arg_value(args, &mut i, "--toml-find", inline)?);
+            }
+            #[cfg(feature = "jsonl")]
+            "--jsonl-line" => {
+                let v = field_arg_value(args, &mut i, "--jsonl-line", inline)?;
+                out.jsonl_line = Some(parse_field_u32(&v, "--jsonl-line")?);
+            }
+            #[cfg(feature = "jsonl")]
+            "--jsonl-pointer" => {
+                out.jsonl_pointer = Some(field_arg_value(args, &mut i, "--jsonl-pointer", inline)?);
+            }
+            #[cfg(feature = "jsonl")]
+            "--jsonl-find" => {
+                out.jsonl_find = Some(field_arg_value(args, &mut i, "--jsonl-find", inline)?);
+            }
+            #[cfg(feature = "eml")]
+            "--eml-header" => {
+                out.eml_header = Some(field_arg_value(args, &mut i, "--eml-header", inline)?);
+            }
+            #[cfg(feature = "eml")]
+            "--eml-part" => {
+                let v = field_arg_value(args, &mut i, "--eml-part", inline)?;
+                out.eml_part = Some(parse_field_u32(&v, "--eml-part")?);
+            }
+            #[cfg(feature = "eml")]
+            "--eml-attachments" => {
+                out.eml_attachments = true;
+                i += 1;
+            }
+            #[cfg(feature = "eml")]
+            "--eml-body" => {
+                out.eml_body = true;
+                i += 1;
+            }
+            #[cfg(feature = "eml")]
+            "--eml-find" => {
+                out.eml_find = Some(field_arg_value(args, &mut i, "--eml-find", inline)?);
+            }
+            #[cfg(feature = "parquet")]
+            "--parquet-schema" => {
+                out.parquet_schema = true;
+                i += 1;
+            }
+            #[cfg(feature = "parquet")]
+            "--parquet-column" => {
+                let v = field_arg_value(args, &mut i, "--parquet-column", inline)?;
+                out.parquet_column = Some(parse_field_u32(&v, "--parquet-column")?);
+            }
+            #[cfg(feature = "parquet")]
+            "--parquet-row-group" => {
+                let v = field_arg_value(args, &mut i, "--parquet-row-group", inline)?;
+                out.parquet_row_group = Some(parse_field_u32(&v, "--parquet-row-group")?);
+            }
+            #[cfg(feature = "parquet")]
+            "--parquet-cell" => {
+                let v = field_arg_value(args, &mut i, "--parquet-cell", inline)?;
+                out.parquet_cell = Some(parse_cell_pair(&v)?);
+            }
+            #[cfg(feature = "arrow")]
+            "--arrow-schema" => {
+                out.arrow_schema = true;
+                i += 1;
+            }
+            #[cfg(feature = "arrow")]
+            "--arrow-column" => {
+                out.arrow_column = Some(field_arg_value(args, &mut i, "--arrow-column", inline)?);
+            }
+            #[cfg(feature = "arrow")]
+            "--arrow-batch" => {
+                let v = field_arg_value(args, &mut i, "--arrow-batch", inline)?;
+                out.arrow_batch = Some(parse_field_u32(&v, "--arrow-batch")?);
+            }
+            #[cfg(feature = "arrow")]
+            "--arrow-cell" => {
+                let v = field_arg_value(args, &mut i, "--arrow-cell", inline)?;
+                out.arrow_cell = Some(parse_arrow_cell(&v)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2171,6 +2475,37 @@ fn parse_cell_triple(value: &str) -> Result<(u32, u32, u32)> {
             .map_err(|_| Error::usage(format!("--cell component {p:?} is not a u32")))?;
     }
     Ok((out[0], out[1], out[2]))
+}
+
+#[cfg(feature = "field")]
+fn parse_cell_pair(value: &str) -> Result<(u32, u32)> {
+    let parts: Vec<&str> = value.split(':').collect();
+    if parts.len() != 2 {
+        return Err(Error::usage("--parquet-cell must be ROW:COL (e.g. 0:1)"));
+    }
+    let mut out = [0u32; 2];
+    for (i, p) in parts.iter().enumerate() {
+        out[i] = p
+            .parse()
+            .map_err(|_| Error::usage(format!("--parquet-cell component {p:?} is not a u32")))?;
+    }
+    Ok((out[0], out[1]))
+}
+
+/// Parse `--arrow-cell R:C` where `R` is a whole-file row (u64) and `C` is a column
+/// name or a 0-based top-level column index (Phase 21.16).
+#[cfg(all(feature = "field", feature = "arrow"))]
+fn parse_arrow_cell(value: &str) -> Result<(u64, String)> {
+    let (row, col) = value
+        .split_once(':')
+        .ok_or_else(|| Error::usage("--arrow-cell must be ROW:COL (e.g. 0:1)"))?;
+    let row: u64 = row
+        .parse()
+        .map_err(|_| Error::usage(format!("--arrow-cell row {row:?} is not a u64")))?;
+    if col.is_empty() {
+        return Err(Error::usage("--arrow-cell column is empty"));
+    }
+    Ok((row, col.to_string()))
 }
 
 #[cfg(feature = "field")]
@@ -2482,6 +2817,175 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         if let Some(pattern) = &out.csv_find {
             chosen.push(Selector::CsvFind {
                 pattern: pattern.clone(),
+            });
+        }
+    }
+    // Markdown: `--md-heading`/`--md-block`/`--md-code`/`--md-link` address
+    // headings, blocks, code blocks, and links/images; `--md-find` is a lexical
+    // search. Each stands alone (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    {
+        if let Some(index) = out.md_heading {
+            chosen.push(Selector::MdHeading { index });
+        }
+        if let Some(index) = out.md_block {
+            chosen.push(Selector::MdBlock { index });
+        }
+        if let Some(index) = out.md_code {
+            chosen.push(Selector::MdCode { index });
+        }
+        if let Some(index) = out.md_link {
+            chosen.push(Selector::MdLink { index });
+        }
+        if let Some(pattern) = &out.md_find {
+            chosen.push(Selector::MdFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // XML: `--xml-path`/`--xml-element` address a node by element path; `--xml-attr`
+    // addresses an attribute as `PATH@NAME`; `--xml-namespaces` lists declarations;
+    // `--xml-find` is a lexical search. Each stands alone (Phase 21.9).
+    #[cfg(feature = "xml")]
+    {
+        if let Some(path) = &out.xml_path {
+            chosen.push(Selector::XmlPath { path: path.clone() });
+        }
+        if let Some(path) = &out.xml_element {
+            chosen.push(Selector::XmlElement { path: path.clone() });
+        }
+        if let Some(spec) = &out.xml_attr {
+            chosen.push(Selector::XmlAttr { spec: spec.clone() });
+        }
+        if out.xml_namespaces {
+            chosen.push(Selector::XmlNamespaces);
+        }
+        if let Some(pattern) = &out.xml_find {
+            chosen.push(Selector::XmlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // HTML: `--html-path`/`--html-element` address a node by element path;
+    // `--html-attr` addresses an attribute as `PATH@NAME`; `--html-scripts` lists
+    // raw script/style elements; `--html-find` is a lexical search. Each stands alone
+    // (Phase 21.10).
+    #[cfg(feature = "html")]
+    {
+        if let Some(path) = &out.html_path {
+            chosen.push(Selector::HtmlPath { path: path.clone() });
+        }
+        if let Some(path) = &out.html_element {
+            chosen.push(Selector::HtmlElement { path: path.clone() });
+        }
+        if let Some(spec) = &out.html_attr {
+            chosen.push(Selector::HtmlAttr { spec: spec.clone() });
+        }
+        if out.html_scripts {
+            chosen.push(Selector::HtmlScripts);
+        }
+        if let Some(pattern) = &out.html_find {
+            chosen.push(Selector::HtmlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // TOML: `--toml-path` addresses a value by dotted path; `--toml-table` lists a
+    // table's keys; `--toml-find` is a lexical search. Each stands alone (Phase 21.11).
+    #[cfg(feature = "toml")]
+    {
+        if let Some(path) = &out.toml_path {
+            chosen.push(Selector::TomlPath { path: path.clone() });
+        }
+        if let Some(path) = &out.toml_table {
+            chosen.push(Selector::TomlTable { path: path.clone() });
+        }
+        if let Some(pattern) = &out.toml_find {
+            chosen.push(Selector::TomlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // JSONL: `--jsonl-line` addresses a record by 0-based index; `--jsonl-pointer`
+    // addresses a node as `N:POINTER`; `--jsonl-find` is a lexical search. Each
+    // stands alone (Phase 21.12).
+    #[cfg(feature = "jsonl")]
+    {
+        if let Some(index) = out.jsonl_line {
+            chosen.push(Selector::JsonlLine { index });
+        }
+        if let Some(spec) = &out.jsonl_pointer {
+            chosen.push(Selector::JsonlPointer { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.jsonl_find {
+            chosen.push(Selector::JsonlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // EML: `--eml-header` lists headers by name; `--eml-part` addresses a MIME part
+    // by 0-based index; `--eml-attachments` lists attachments; `--eml-body` returns
+    // the body text; `--eml-find` is a lexical search. Each stands alone
+    // (Phase 21.13).
+    #[cfg(feature = "eml")]
+    {
+        if let Some(name) = &out.eml_header {
+            chosen.push(Selector::EmlHeader { name: name.clone() });
+        }
+        if let Some(index) = out.eml_part {
+            chosen.push(Selector::EmlPart { index });
+        }
+        if out.eml_attachments {
+            chosen.push(Selector::EmlAttachments);
+        }
+        if out.eml_body {
+            chosen.push(Selector::EmlBody);
+        }
+        if let Some(pattern) = &out.eml_find {
+            chosen.push(Selector::EmlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Parquet: `--parquet-schema` lists the schema; `--parquet-column N` addresses a
+    // leaf column; `--parquet-row-group N` a row group; `--parquet-cell R:C` a cell.
+    // Each stands alone (Phase 21.14).
+    #[cfg(feature = "parquet")]
+    {
+        if out.parquet_schema {
+            chosen.push(Selector::ParquetSchema);
+        }
+        if let Some(index) = out.parquet_column {
+            chosen.push(Selector::ParquetColumn { index });
+        }
+        if let Some(index) = out.parquet_row_group {
+            chosen.push(Selector::ParquetRowGroup { index });
+        }
+        if let Some((row, col)) = out.parquet_cell {
+            chosen.push(Selector::ParquetCell {
+                row: u64::from(row),
+                col,
+            });
+        }
+    }
+    // Arrow IPC: `--arrow-schema` lists the schema; `--arrow-column NAME|N`
+    // addresses a column; `--arrow-batch N` a record batch; `--arrow-cell R:C` a
+    // cell. Each stands alone (Phase 21.16).
+    #[cfg(feature = "arrow")]
+    {
+        if out.arrow_schema {
+            chosen.push(Selector::ArrowSchema);
+        }
+        if let Some(spec) = &out.arrow_column {
+            chosen.push(Selector::ArrowColumn { spec: spec.clone() });
+        }
+        if let Some(index) = out.arrow_batch {
+            chosen.push(Selector::ArrowBatch { index });
+        }
+        if let Some((row, col)) = &out.arrow_cell {
+            chosen.push(Selector::ArrowCell {
+                row: *row,
+                col: col.clone(),
             });
         }
     }

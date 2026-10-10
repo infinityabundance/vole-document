@@ -1,0 +1,2 @@
+This is plain prose, not a Parquet file.
+It has PAR1 nowhere meaningful and no footer.

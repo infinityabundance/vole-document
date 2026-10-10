@@ -1,0 +1,29 @@
+name = "scalars"
+basic = "a\tb\nc"
+literal = 'C:\Users\nodejs'
+multiline = """
+line one
+line two"""
+multiline_literal = '''
+raw \n not escaped'''
+dec = 1_000_000
+hex = 0xDEAD_beef
+oct = 0o755
+bin = 0b1010_1010
+neg = -17
+pos = +99
+float = 1.0
+exp = 1e3
+frac = 0.0001
+special = nan
+big = inf
+nbig = -inf
+yes = true
+no = false
+odt = 1979-05-27T07:32:00Z
+ldt = 1979-05-27T07:32:00
+ld = 1979-05-27
+lt = 07:32:00
+
+[info]
+note = "ok"

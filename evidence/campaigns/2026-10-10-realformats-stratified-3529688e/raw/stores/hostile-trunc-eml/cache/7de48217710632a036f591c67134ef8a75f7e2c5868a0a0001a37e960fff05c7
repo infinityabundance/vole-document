@@ -1,0 +1,58 @@
+From SRS0=aO/p=ON=bag.python.org=None@bounce2.pobox.com  Fri Nov 26 21:40:36 2004
+X-VM-v5-Data: ([nil nil nil nil nil nil nil nil nil]
+	[nil nil nil nil nil nil nil "MAILER DAEMON <>" "MAILER DAEMON <>" nil nil "Banned file: auto__mail.python.bat in mail from you" "^From:" nil nil nil nil "Banned file: auto__mail.python.bat in mail from you" nil nil nil nil nil nil nil]
+	nil)
+MIME-Version: 1.0
+Message-Id: <edab.7804f5cb8070@python.org>
+Content-Type: multipart/report; report-type=delivery-status;
+    charset=utf-8;
+    boundary="----------=_1101526904-1956-5"
+X-Virus-Scanned: by XS4ALL Virus Scanner
+X-UIDL: 4\G!!!<c"!UV["!M7C!!
+From: MAILER DAEMON <>
+To: <webmaster@python.org>
+Subject: Banned file: auto__mail.python.bat in mail from you
+Date: Fri, 26 Nov 2004 19:41:44 -0800 (PST)
+
+This is a multi-part message in MIME format...
+
+------------=_1101526904-1956-5
+Content-Type: text/plain; charset="utf-8"
+Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
+
+BANNED FILENAME ALERT
+
+Your message to: xxxxxxx@dot.ca.gov, xxxxxxxxxxxxx@dot.ca.gov, xxxxxxxxxx@dot.ca.gov, xxxxxxxx@dot.ca.gov, xxxxxxxxxx@dot.ca.gov, xxxxxx@dot.ca.gov, xxxxxxxxxx@dot.ca.gov, xxxxxx@dot.ca.gov, xxxxxx@dot.ca.gov, xxxxxxxxxxxxxxxx@dot.ca.gov, xxxxxxxxxxx@dot.ca.gov, xxxxxxxxxx@dot.ca.gov, xxxxxxxxxx@dot.ca.gov, xxxxxxxxxxxx@dot.ca.gov, xxxxxxxxxxxx@dot.ca.gov, xxxxxxx@dot.ca.gov, xxxxxxxxx@dot.ca.gov, xxxxxxxxxx@dot.ca.gov, xxxxxx@dot.ca.gov, xxx@dot.ca.gov, xxxxxxx@dot.ca.gov, xxxxxxx@dot.ca.gov, xxxxxxxxxxxxxxx@dot.ca.gov, xxxxxxxxxx@dot.ca.gov, xxxxxxx@dot.ca.gov, xxx@dot.ca.gov, xxxxxxxx@dot.ca.gov, xxxxxxxxxxxxx@dot.ca.gov, xxxxxxxxxxxxx@dot.ca.gov, xxxxxxxxxxx@dot.ca.gov, xxxxxxxxx@dot.ca.gov, xxxxxxxxxx@dot.ca.gov, xxxxxxxxxxxx@dot.ca.gov, xxxxxxx@dot.ca.gov, xxxxxxxxxxxxxxx@dot.ca.gov, xxxxxxxxxxxxx@dot.ca.gov, xxxx@dot.ca.gov, xxxxxxxx@dot.ca.gov, xxxxxxxxxx@dot.ca.gov, xxxxxxxxxxxxxxxxxx@dot.ca.gov
+was blocked by our Spam Firewall. The email you sent with the following subject has NOT BEEN DELIVERED:
+
+Subject: Delivery_failure_notice
+
+An attachment in that mail was of a file type that the Spam Firewall is set to block.
+
+
+
+------------=_1101526904-1956-5
+Content-Type: message/delivery-status
+Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
+Content-Description: Delivery error report
+
+Reporting-MTA: dns; sacspam01.dot.ca.gov
+Received-From-MTA: smtp; sacspam01.dot.ca.gov ([127.0.0.1])
+Arrival-Date: Fri, 26 Nov 2004 19:41:44 -0800 (PST)
+
+Final-Recipient: rfc822; xxxxxxx@dot.ca.gov
+Action: failed
+Status: 5.7.1
+Diagnostic-Code: smtp; 550 5.7.1 Message content rejected, id=01956-02-2 - BANNED: auto__mail.python.bat
+Last-Attempt-Date: Fri, 26 Nov 2004 19:41:44 -0800 (PST)
+
+Final-Recipient: rfc822; xxxxxxxxxxxxx@dot.ca.gov
+Action: failed
+Status: 5.7.1
+Diagnostic-Code: smtp; 550 5.7.1 Message content rejected, id=01956-02-2 - BANNED: auto__mail.python.bat
+Last-Attempt-Date: Fri, 26 Nov 2004 19:41:44 -0800 (PST)
+
+Final-Recipient: rfc822; xxxxxxxxxx@dot.ca.gov
+Acti

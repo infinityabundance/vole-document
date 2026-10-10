@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doc>
+  <name>basic</name>
+  <count>3</count>
+  <nested>
+    <a id="1"><b>deep</b></a>
+    <a id='2'><b>deeper</b></a>
+  </nested>
+  <empty attr="e"/>
+</doc>

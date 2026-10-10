@@ -1,0 +1,20 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-16-1-arrow-4fdc7ad0",
+  "phase": "21.16.1 — Arrow IPC analytical surface + exact closure",
+  "utc": "2026-10-10T15:26:06Z",
+  "git_commit": "4fdc7ad03a19dd261fb513f317bdb498bb35a54a",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-16-1-arrow-4fdc7ad0/ ?? src/adapter/arrow.rs ?? tests/arrow_adapter.rs ?? tools/fixtures/arrow/ ?? tools/fixtures/make-arrow.py ?? tools/fixtures/phase21-16-bound.py ?? tools/phase21-16-1-arrow-court.sh ",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python3": "Python 3.11.2",
+  "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+  "cargo_lock_sha256": "7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "bbe39bb9b69146ba3c2e1caa46f87dc525b067286978eb5ce5413d76a7aea770",
+  "profile": "debug",
+  "fixtures_tool": "tools/fixtures/make-arrow.py",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

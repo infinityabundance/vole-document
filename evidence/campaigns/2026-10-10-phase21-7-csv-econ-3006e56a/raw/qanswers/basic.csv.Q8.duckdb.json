@@ -1,0 +1,1 @@
+{"decline": {"code": "not-native", "detail": "Parquet carries no original bytes; there is no exact-source closure"}, "declined": true, "detail": {}, "lane": "duckdb", "native": false, "q": "Q8", "value": null}

@@ -187,6 +187,84 @@ pub const SEL_YAML_MODEL: u8 = 20;
 /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
 /// ADR-0060); CSV/TSV has no package layer.
 pub const SEL_CSV_MODEL: u8 = 21;
+/// Selector kind: the canonical Markdown prose model (Phase 21.8.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as a bounded, representation-preserving prose model (block
+/// and inline spans, headings/levels, lists, code, blockquotes, tables, links,
+/// reference definitions, footnotes, front matter) as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); Markdown has no
+/// package layer.
+pub const SEL_MARKDOWN_MODEL: u8 = 22;
+/// Selector kind: the canonical XML structured-tree model (Phase 21.9).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as well-formed XML into a bounded, representation-preserving
+/// arena (element/attribute/text/CDATA/comment/PI/DOCTYPE/namespace spans, in
+/// document order) as `Q_gen` derived state. It is computed on demand from the
+/// exact source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); XML has no package layer.
+pub const SEL_XML_MODEL: u8 = 23;
+/// Selector kind: the canonical HTML document model (Phase 21.10).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as a bounded, **error-recovering**, representation-preserving
+/// HTML arena (element/attribute/text/comment/DOCTYPE/raw-`script`-`style` spans, in
+/// document order) as `Q_gen` derived state. It is computed on demand from the exact
+/// source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); HTML has no package layer.
+pub const SEL_HTML_MODEL: u8 = 24;
+/// Selector kind: the canonical TOML structured-tree model (Phase 21.11).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as TOML into a bounded, representation-preserving arena
+/// (table/array/inline-table/key/value/comment spans, dotted keys, exact scalar
+/// spelling) as `Q_gen` derived state. It is computed on demand from the exact
+/// source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); TOML has no package layer.
+pub const SEL_TOML_MODEL: u8 = 25;
+/// Selector kind: the canonical per-line JSONL/NDJSON model (Phase 21.12).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source split into physical lines, each non-blank line parsed by the shared
+/// JSON parser into a bounded, representation-preserving record (exact line span and
+/// terminator, member order, duplicate keys, token spelling and spans) as `Q_gen`
+/// derived state. It is computed on demand from the exact source (its single
+/// dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+/// ADR-0060); JSONL has no package layer. Derived, never exact.
+pub const SEL_JSONL_MODEL: u8 = 26;
+/// Selector kind: the canonical EML/MIME message model (Phase 21.13).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as a bounded, representation-preserving RFC 5322 + MIME
+/// message (every header's exact spans and order, duplicate headers, the
+/// `multipart/*` tree, nested `message/rfc822`, and the exact
+/// `Content-Transfer-Encoding`-decoded constituents) as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); EML has no package
+/// layer.
+pub const SEL_EML_MODEL: u8 = 27;
+/// Selector kind: the canonical bounded Parquet model (Phase 21.14).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed into the derived Parquet inventory (the flattened schema, the
+/// logical leaf columns, and the row-group/column-chunk descriptors with exact
+/// source spans and statistics) as `Q_gen` derived state. It is computed on demand
+/// from the exact source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); Parquet has no package layer. Derived, never
+/// exact.
+pub const SEL_PARQUET_MODEL: u8 = 28;
+/// Selector kind: the canonical bounded Arrow IPC model (Phase 21.16).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed into the derived Arrow inventory (the flattened schema, the
+/// decodable top-level columns with their pre-computed buffer slots, and the
+/// record-batch descriptors with exact source spans) as `Q_gen` derived state. It
+/// is computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); Arrow has no
+/// package layer. Derived, never exact.
+pub const SEL_ARROW_MODEL: u8 = 29;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

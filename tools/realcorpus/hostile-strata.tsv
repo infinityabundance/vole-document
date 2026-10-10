@@ -1,0 +1,9 @@
+id	base_id	transform	bytes	sha256	notes
+hostile-trunc-xlsx	poi-49609.xlsx	truncate:15000	15000	7aee0b7c21a48528392baf0034e83be1fce3bdade7263cee7fc74505ee5b60c0	truncated OPC/XLSX (zip) bytes -> Opaque
+hostile-magic-xlsx	poi-47889.xlsx	replace4:XXXX	3555	d4bd700222c83ceced8d6e0d1e26ceeeacbd281abc409cef9c9bc750fe7ca0df	wrong-magic first 4 bytes -> Opaque
+hostile-trunc-pptx	poi-Divino.pptx	truncate:120000	120000	2961f6db46f65eeb165a57ac698f34e13e68317aa28c443dab351353df19a62e	truncated OPC/PPTX (zip) bytes -> Opaque
+hostile-magic-json	natural-earth-countries.geojson	replace4:XXXX	838726	a45dd58bb9cb932dcfb3aac1c938561bfe8c5cec7b1a84cce1323585a97f51a3	wrong-magic JSON -> Opaque
+hostile-trunc-parquet	parquet-delta-binary.parquet	truncate:30000	30000	c83d2903c0f6e177e96d70705d5d2db25e7bac8f0825e7c729d2d566152089c0	truncated Parquet (footer gone) -> Opaque
+hostile-trunc-json-mid	ne-bbox.geojson	truncate:1000	1000	02893223722b34a0f2697749d5ee4eee9587ea79e3c5c453ff03be4c8e6f08c0	JSON truncated mid-structure -> Opaque
+hostile-trunc-eml	cpython-msg-43.eml	truncate:3000	3000	00561425b7b7ba2fc63eefa009aec13d2a06cbe1922798481503ea9cc8833434	truncated MIME message; header block intact + mbox `From ` envelope skipped, so detection is eml (partial MIME tree) and exactness holds
+hostile-trunc-xml	maven-pom.xml	truncate:12000	12000	ca37007b9ad2cbd6cda38bbb906200f51eba76c08cb14717133f5c295cf7eb8f	truncated XML (unclosed root) -> Opaque

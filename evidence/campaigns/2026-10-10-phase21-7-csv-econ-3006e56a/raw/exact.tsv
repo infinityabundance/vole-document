@@ -1,0 +1,7 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+basic.csv	true	true	true	true	true	3312	17967
+quoted.csv	true	true	true	true	true	3235	17197
+crlf.csv	true	true	true	true	true	3385	18188
+bom.csv	true	true	true	true	true	3281	20861
+ragged.csv	true	true	true	true	true	3241	17284
+tsv.tsv	true	true	true	true	true	3272	18766

@@ -1,0 +1,17 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: Alternative message
+Date: Mon, 01 Jan 2029 00:00:00 +0000
+Message-ID: <alt@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="ALT"
+
+--ALT
+Content-Type: text/plain; charset=utf-8
+
+Plain version.
+--ALT
+Content-Type: text/html; charset=utf-8
+
+<p>HTML version.</p>
+--ALT--

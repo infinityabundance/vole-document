@@ -1,0 +1,1 @@
+{"decline": {"code": "not-native", "detail": "a conventional JSON load keeps no source span or exact spelling"}, "declined": true, "detail": {}, "lane": "sqlite", "q": "Q5", "value": null}

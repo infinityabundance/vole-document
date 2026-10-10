@@ -1,0 +1,14 @@
+docker compose run --rm --no-TTY analytical bash tools/phase21-16-arrow-court.sh
+# PROFILE defaults to release (target/release/vole-document).
+# Inside the court:
+#   cargo build --release --locked --all-features
+#   python3 tools/fixtures/make-arrow.py --econ $WORK/corpus   # .arrow + .parquet projection
+#   VOLE:   $BIN field-build F.arrow --store STORE --voldoc F.voldoc --profile runtime --packed
+#           python3 tools/fixtures/phase21-16-arrow-vole.py run --bin $BIN --store STORE --field HEX --plan ... --outdir ... --packed
+#           rm source + descriptor ; $BIN materialize --store STORE --field HEX --exact --packed --output OUT ; cmp OUT source
+#   SQLite: python3 tools/fixtures/phase21-16-arrow-baseline.py build --source F.arrow --table-source F.parquet --db D
+#           python3 tools/fixtures/phase21-16-arrow-baseline.py query --db D --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/phase21-16-arrow-baseline.py materialize --db D --out OUT
+#   DuckDB: python3 tools/fixtures/phase21-16-arrow-duckdb.py build --source F.parquet --dir DD
+#           python3 tools/fixtures/phase21-16-arrow-duckdb.py query --dir DD --q Qn --plan ... --out OUT
+#   aggregate: python3 tools/fixtures/phase21-16-arrow-baseline.py aggregate --raw RAW --campaign CAMPAIGN --env ENV

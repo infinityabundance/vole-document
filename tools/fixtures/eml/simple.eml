@@ -1,0 +1,7 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: A simple message
+Date: Mon, 01 Jan 2029 00:00:00 +0000
+Message-ID: <simple@example.com>
+
+Hello, this is a simple text message.

@@ -52,6 +52,14 @@ ALL="basic.csv quoted.csv crlf.csv bom.csv ragged.csv tsv.tsv large.csv plain.tx
 # opaque floor.
 NORMAL="basic.csv quoted.csv crlf.csv bom.csv ragged.csv tsv.tsv large.csv"
 
+# Verbatim document-text observations are bounded. A fixture at or below this
+# size is recorded byte-for-byte (unchanged from before); a larger one — the
+# ~50 MB `large.csv` — is recorded as its text length + SHA-256 + a bounded
+# prefix, so a tens-of-MB receipt is never written. The observation itself, its
+# `source_span`, and every verdict below are unchanged; only the verbatim dump
+# is bounded (the full text goes only to gitignored scratch).
+TEXT_DUMP_MAX=$((4 * 1024 * 1024))
+
 # The record each fixture observes through a row probe ("" = skip).
 row_for() {
     case "$1" in
@@ -116,8 +124,25 @@ for f in $ALL; do
     else
         "$BIN" observe --store "$WORK/store" --field "$field" --metadata --kind metadata \
             > "$RAW/$f.metadata.json"
+        # doc-text: bound the verbatim dump for an oversized fixture. The full
+        # observation is written to scratch; the campaign keeps the whole JSON
+        # byte-for-byte for a small fixture, and a length + SHA-256 + bounded
+        # prefix receipt for a large one.
         "$BIN" observe --store "$WORK/store" --field "$field" --doc-text --kind text \
-            > "$RAW/$f.text.json"
+            > "$WORK/$f.text.full.json"
+        if [ "$src_len" -le "$TEXT_DUMP_MAX" ]; then
+            mv "$WORK/$f.text.full.json" "$RAW/$f.text.json"
+        else
+            jq -j '.text' "$WORK/$f.text.full.json" > "$WORK/$f.text.bin"
+            text_len=$(wc -c < "$WORK/$f.text.bin" | tr -d ' ')
+            text_sha=$(sha256sum "$WORK/$f.text.bin" | cut -d' ' -f1)
+            head -c "$TEXT_DUMP_MAX" "$WORK/$f.text.bin" > "$WORK/$f.text.prefix"
+            jq -c --argjson cap "$TEXT_DUMP_MAX" --argjson tlen "$text_len" \
+                --arg tsha "$text_sha" --rawfile pfx "$WORK/$f.text.prefix" \
+                'del(.text) + {text_omitted:true, text_verbatim_bytes:$cap, text_len_bytes:$tlen, text_sha256:$tsha, text_prefix:$pfx}' \
+                "$WORK/$f.text.full.json" > "$RAW/$f.text.json"
+            rm -f "$WORK/$f.text.full.json" "$WORK/$f.text.bin" "$WORK/$f.text.prefix"
+        fi
         "$BIN" observe --store "$WORK/store" --field "$field" --csv-header --kind metadata \
             > "$RAW/$f.header.json"
         "$BIN" observe --store "$WORK/store" --field "$field" --csv-find a --kind text \

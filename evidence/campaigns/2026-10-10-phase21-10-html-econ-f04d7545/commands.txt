@@ -1,0 +1,17 @@
+docker compose run --rm --no-TTY doc-baseline bash tools/phase21-10-html-court.sh
+# PROFILE defaults to release (target/release/vole-document).
+# Inside the court:
+#   cargo build --release --locked --all-features
+#   python3 tools/fixtures/make-html.py --corpus $WORK/corpus
+#   VOLE:   $BIN field-build F --store STORE --voldoc F.voldoc --profile runtime --packed
+#           python3 tools/fixtures/phase21-10-html-vole.py run --bin $BIN --store STORE --field HEX --plan ... --outdir ... --packed
+#           rm source + descriptor ; $BIN materialize --store STORE --field HEX --exact --packed --output OUT ; cmp OUT source
+#   sqlite: python3 tools/fixtures/phase21-10-html-baseline.py build --lane sqlite --source F --out D
+#           python3 tools/fixtures/phase21-10-html-baseline.py query --lane sqlite --dir D --q Qn --plan ... --out OUT
+#   conv:   python3 tools/fixtures/phase21-10-html-baseline.py build --lane conv --source F --out D
+#           python3 tools/fixtures/phase21-10-html-baseline.py query --lane conv --dir D --q Qn --plan ... --out OUT
+#   aggregate: python3 tools/fixtures/phase21-10-html-baseline.py aggregate --raw RAW --campaign CAMPAIGN --env ENV
+# Full dev gate:
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features

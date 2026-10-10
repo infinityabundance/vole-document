@@ -1,0 +1,105 @@
+{
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap (10000 resamples, seed 21616); tie band +/-10%",
+  "exact_n": 3,
+  "exact_ok": 3,
+  "fixtures": [
+    "e_small.arrow",
+    "e_multi.arrow",
+    "e_large.arrow"
+  ],
+  "lanes": [
+    "vole",
+    "sqlite",
+    "duckdb"
+  ],
+  "phase": "21.16 \u2014 Arrow IPC analytical economic court",
+  "qcompare": {
+    "Q1": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      }
+    },
+    "Q2": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      }
+    },
+    "Q3": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 3,
+        "equal": 0,
+        "mismatch": 0
+      }
+    },
+    "Q4": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 3,
+        "equal": 0,
+        "mismatch": 0
+      }
+    },
+    "Q5": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      }
+    },
+    "Q6": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 3,
+        "equal": 0,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      }
+    }
+  },
+  "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s')",
+  "total_mismatch": 0,
+  "verdict": "PASS"
+}
