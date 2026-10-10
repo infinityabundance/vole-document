@@ -325,6 +325,26 @@ pub struct Limits {
     /// Detection is a bounded sample, so a huge source is classified in bounded
     /// memory (Phase 21.7.1).
     pub max_csv_sampled_records_for_detection: u32,
+    // The Markdown caps below bound the derived, span-preserving prose model and its
+    // inline extraction (Phase 21.8.1). Markdown is not a package: the whole source
+    // is the exact leaf, and everything derived is `Q_gen` only.
+    /// Maximum container nesting depth accepted (list item depth, blockquote marker
+    /// depth). A deeper document is a typed resource-limit decline (Phase 21.8.1).
+    pub max_markdown_depth: u32,
+    /// Maximum nodes (blocks plus inline spans) accepted in one document. An
+    /// over-large document declines typed rather than allocating (Phase 21.8.1).
+    pub max_markdown_nodes: u32,
+    /// Maximum blocks accepted in one document (Phase 21.8.1).
+    pub max_markdown_blocks: u32,
+    /// Maximum inline spans accepted in one document (Phase 21.8.1).
+    pub max_markdown_inline_spans: u32,
+    /// Maximum total code content bytes accepted across one document (fenced and
+    /// indented code). A larger document declines typed (Phase 21.8.1).
+    pub max_markdown_code_bytes: u64,
+    /// Maximum source length admitted for byte-based Markdown detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.8.1).
+    pub max_markdown_document_bytes: u64,
 }
 
 impl Limits {
@@ -433,6 +453,12 @@ impl Limits {
         max_csv_field_bytes: 1 << 24,
         max_csv_document_bytes: 1 << 34,
         max_csv_sampled_records_for_detection: 1024,
+        max_markdown_depth: 256,
+        max_markdown_nodes: 1 << 24,
+        max_markdown_blocks: 1 << 22,
+        max_markdown_inline_spans: 1 << 24,
+        max_markdown_code_bytes: 1 << 28,
+        max_markdown_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -540,6 +566,12 @@ impl Limits {
         max_csv_field_bytes: 1 << 18,
         max_csv_document_bytes: 1 << 26,
         max_csv_sampled_records_for_detection: 64,
+        max_markdown_depth: 64,
+        max_markdown_nodes: 1 << 16,
+        max_markdown_blocks: 1 << 14,
+        max_markdown_inline_spans: 1 << 16,
+        max_markdown_code_bytes: 1 << 20,
+        max_markdown_document_bytes: 1 << 26,
     };
 }
 

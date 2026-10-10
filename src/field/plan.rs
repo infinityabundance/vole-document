@@ -449,6 +449,18 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["YamlModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-nodes", "whole-document"]),
         }),
+        #[cfg(feature = "markdown")]
+        (Selector::MdHeading { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdBlock { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdCode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdLink { .. }, R::Metadata | R::Structure | R::Text)
+        | (Selector::MdFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["MarkdownModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-nodes", "whole-document"]),
+        }),
         _ => Err(Error::unsupported_feature(format!(
             "unsupported observation: selector {} with representation {}",
             req.selector.canonical(),
@@ -565,6 +577,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Json => &["JsonModel", "DocumentExact"],
         DocumentFormat::Yaml => &["YamlModel", "DocumentExact"],
         DocumentFormat::Csv => &["CsvModel", "DocumentExact"],
+        DocumentFormat::Markdown => &["MarkdownModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

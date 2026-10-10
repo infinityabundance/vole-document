@@ -12,6 +12,8 @@ pub mod docx;
 pub mod epub;
 #[cfg(feature = "json")]
 pub mod json;
+#[cfg(feature = "markdown")]
+pub mod markdown;
 #[cfg(feature = "odp")]
 pub mod odp;
 #[cfg(feature = "ods")]

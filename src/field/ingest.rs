@@ -208,6 +208,14 @@ fn ingest_pdf_stage_b(
         return ingest_csv_stage_b(store, source, manifest, limits);
     }
 
+    // Markdown is the first prose Wave-2 format, also with no package layer: it is
+    // inverted by a dedicated (non-PDF) tail that adds the derived `MarkdownModel`
+    // node over the exact root (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    if fmt == crate::field::document_format::DocumentFormat::Markdown {
+        return ingest_markdown_stage_b(store, source, manifest, limits);
+    }
+
     let mut acc = StageB::new(manifest.node_count);
     let scanned = match scan(source, limits) {
         Ok(physical) => {
@@ -522,6 +530,87 @@ fn ingest_csv_stage_b(
 
     Ok(IngestReport {
         format: crate::field::document_format::DocumentFormat::Csv,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The Markdown (prose Wave-2) ingest tail (Phase 21.8.1).
+///
+/// Markdown has no package layer, so there is nothing to scan: the exact authority
+/// is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::MarkdownModel`], whose single dependency
+/// is that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node
+/// reads the source bytes, so it must carry a source-identity input and can never
+/// alias another field's source. The model itself is never built at ingest (so a
+/// large file ingests in bounded memory) and is never on the exactness path.
+#[cfg(feature = "markdown")]
+fn ingest_markdown_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_MARKDOWN_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::MarkdownModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "markdown:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_MARKDOWN_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-markdown;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Markdown.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Markdown,
         field,
         root_node: manifest.root_node,
         index_root: Some(index_root),

@@ -52,6 +52,16 @@ use crate::adapter::json::{
     kind_name as json_kind_name, resolve_pointer as json_resolve_pointer,
     token_bytes as json_token_bytes,
 };
+#[cfg(feature = "markdown")]
+use crate::adapter::markdown::{
+    B_BLOCKQUOTE, B_FOOTNOTE_DEF, B_FRONT_MATTER, B_HEADING, B_LIST_ITEM, B_PARAGRAPH, B_REF_DEF,
+    B_TABLE, B_THEMATIC_BREAK, I_IMAGE, I_LINK, I_REF_LINK, MarkdownModel,
+    block_bytes as md_block_bytes, block_kind_name as md_block_kind_name,
+    canonical_text as md_canonical_text, content_bytes as md_content_bytes,
+    fence_language as md_fence_language, find as md_find_matches,
+    inline_kind_name as md_inline_kind_name, inline_text_bytes as md_inline_text_bytes,
+    is_code_block as md_is_code_block,
+};
 #[cfg(feature = "odp")]
 use crate::adapter::odp::{
     ContentModel as OdpContentModel, OdpExtractProfile, OdpModel, OdpShape, OdpTable,
@@ -95,6 +105,8 @@ use crate::field::index::SEL_DOCX_MODEL;
 use crate::field::index::SEL_EPUB_MODEL;
 #[cfg(feature = "json")]
 use crate::field::index::SEL_JSON_MODEL;
+#[cfg(feature = "markdown")]
+use crate::field::index::SEL_MARKDOWN_MODEL;
 #[cfg(feature = "odp")]
 use crate::field::index::SEL_ODP_MODEL;
 #[cfg(feature = "ods")]
@@ -723,6 +735,47 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The `index`-th ATX heading in document order (Phase 21.8.1). `Text` returns
+    /// the heading's exact content text; `ExactBytes` its exact content bytes;
+    /// `Metadata`/`Structure` a descriptor with its level and exact spans.
+    #[cfg(feature = "markdown")]
+    MdHeading {
+        /// The 0-based heading ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th block in document order (Phase 21.8.1). `ExactBytes` returns
+    /// the block's exact source span bytes; `Text` its exact source text;
+    /// `Metadata`/`Structure` a descriptor with its kind, exact spans, and inline
+    /// count. Markdown has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "markdown")]
+    MdBlock {
+        /// The 0-based block ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th code block (fenced or indented) in document order
+    /// (Phase 21.8.1). `Text` returns the exact content; `ExactBytes` its exact
+    /// content bytes; `Metadata`/`Structure` a descriptor with its language tag (for
+    /// fenced code), spans, and byte length.
+    #[cfg(feature = "markdown")]
+    MdCode {
+        /// The 0-based code-block ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th link or image in document order (Phase 21.8.1). `Text`
+    /// returns the link text; `Metadata`/`Structure` a descriptor with its kind,
+    /// exact spans, destination, and title.
+    #[cfg(feature = "markdown")]
+    MdLink {
+        /// The 0-based link/image ordinal in document order.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over Markdown block content (Phase 21.8.1).
+    /// Never an embedding or a model call.
+    #[cfg(feature = "markdown")]
+    MdFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
 }
 
 impl Selector {
@@ -1021,6 +1074,16 @@ impl Selector {
             Selector::CsvRange { spec } => format!("csv-range:{spec}"),
             #[cfg(feature = "csv")]
             Selector::CsvFind { pattern } => format!("csv-find:{pattern}"),
+            #[cfg(feature = "markdown")]
+            Selector::MdHeading { index } => format!("md-heading:{index}"),
+            #[cfg(feature = "markdown")]
+            Selector::MdBlock { index } => format!("md-block:{index}"),
+            #[cfg(feature = "markdown")]
+            Selector::MdCode { index } => format!("md-code:{index}"),
+            #[cfg(feature = "markdown")]
+            Selector::MdLink { index } => format!("md-link:{index}"),
+            #[cfg(feature = "markdown")]
+            Selector::MdFind { pattern } => format!("md-find:{pattern}"),
         }
     }
 
@@ -2841,6 +2904,27 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "csv")]
             (Selector::CsvFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.csv_find(req, pattern)
+            }
+            #[cfg(feature = "markdown")]
+            (
+                Selector::MdHeading { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.md_heading(req, *index),
+            #[cfg(feature = "markdown")]
+            (Selector::MdBlock { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.md_block(req, *index)
+            }
+            #[cfg(feature = "markdown")]
+            (Selector::MdCode { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.md_code(req, *index)
+            }
+            #[cfg(feature = "markdown")]
+            (Selector::MdLink { index }, R::Text | R::Metadata | R::Structure) => {
+                self.md_link(req, *index)
+            }
+            #[cfg(feature = "markdown")]
+            (Selector::MdFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.md_find(req, pattern)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -8012,6 +8096,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Json => self.common_json(req)?,
             DocumentFormat::Yaml => self.common_yaml(req)?,
             DocumentFormat::Csv => self.common_csv(req)?,
+            DocumentFormat::Markdown => self.common_markdown(req)?,
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -8355,6 +8440,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_csv(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "CSV observations require a build with the csv feature",
+        ))
+    }
+
+    #[cfg(not(feature = "markdown"))]
+    fn common_markdown(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "Markdown observations require a build with the markdown feature",
         ))
     }
 
@@ -10262,6 +10354,336 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "csv;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// -- Markdown ---------------------------------------------------------------
+
+/// Render an optional string as JSON (`null` or a quoted escaped string).
+#[cfg(feature = "markdown")]
+fn md_opt_json(s: Option<&str>) -> String {
+    match s {
+        Some(x) => format!("\"{}\"", json_escape(x)),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "markdown")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the Markdown prose model (derived, `Q_gen`).
+    fn markdown_model(&mut self) -> Result<(MarkdownModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_MARKDOWN_MODEL, 0), "Markdown model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((MarkdownModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn markdown_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn md_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th ATX heading in document order.
+    fn md_heading(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let heads = model.blocks_of_kind(B_HEADING);
+        let bi = *heads.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("Markdown document has no heading {index}"))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("markdown heading index out of range"))?;
+        let content = md_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.content_start, b.content_end));
+        let provenance = format!("markdown;heading={index};level={};block={bi}", b.level);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(content.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"markdown\",\"heading\":{},\"block\":{},",
+                    "\"level\":{},\"span\":[{},{}],\"content_span\":[{},{}],",
+                    "\"text_len\":{}}}"
+                ),
+                index,
+                bi,
+                b.level,
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                text.len(),
+            )),
+        };
+        Ok(self.md_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th block in document order.
+    fn md_block(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let b = model.block(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("Markdown document has no block {index}"))
+        })?;
+        let span_bytes = md_block_bytes(&source, b)?;
+        let content = md_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!("markdown;block={index};kind={}", md_block_kind_name(b.kind));
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"content_span\":[{},{}],\"level\":{},\"inlines\":{}}}"
+                ),
+                index,
+                md_block_kind_name(b.kind),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                b.level,
+                b.inlines.len(),
+            )),
+        };
+        Ok(self.md_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th code block (fenced or indented) in document order.
+    fn md_code(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let codes: Vec<u32> = model
+            .blocks
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| md_is_code_block(b.kind))
+            .map(|(i, _)| i as u32)
+            .collect();
+        let bi = *codes.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("Markdown document has no code block {index}"))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("markdown code index out of range"))?;
+        let content = md_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.content_start, b.content_end));
+        let language = md_fence_language(b);
+        let provenance = format!(
+            "markdown;code={index};block={bi};kind={};language={}",
+            md_block_kind_name(b.kind),
+            language.as_deref().unwrap_or("none"),
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(content.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"code\":{},\"block\":{},\"kind\":\"{}\",",
+                    "\"language\":{},\"info\":{},\"span\":[{},{}],",
+                    "\"content_span\":[{},{}],\"bytes\":{}}}"
+                ),
+                index,
+                bi,
+                md_block_kind_name(b.kind),
+                md_opt_json(language.as_deref()),
+                md_opt_json(b.info.as_deref()),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                content.len(),
+            )),
+        };
+        Ok(self.md_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th link or image in document order.
+    fn md_link(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let links: Vec<u32> = model
+            .inlines
+            .iter()
+            .enumerate()
+            .filter(|(_, x)| matches!(x.kind, I_LINK | I_IMAGE | I_REF_LINK))
+            .map(|(i, _)| i as u32)
+            .collect();
+        let ii = *links.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("Markdown document has no link {index}"))
+        })?;
+        let x = model
+            .inline(ii)
+            .ok_or_else(|| Error::internal_invariant("markdown link index out of range"))?;
+        let text_bytes = md_inline_text_bytes(&source, x)?;
+        let text = String::from_utf8_lossy(text_bytes).into_owned();
+        let span = Some((x.start, x.end));
+        let provenance = format!(
+            "markdown;link={index};kind={};target={}",
+            md_inline_kind_name(x.kind),
+            x.target.as_deref().unwrap_or("none"),
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"link\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"inner_span\":[{},{}],\"target\":{},\"title\":{}}}"
+                ),
+                index,
+                md_inline_kind_name(x.kind),
+                x.start,
+                x.end,
+                x.inner_start,
+                x.inner_end,
+                md_opt_json(x.target.as_deref()),
+                md_opt_json(x.title.as_deref()),
+            )),
+        };
+        Ok(self.md_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over Markdown block content.
+    fn md_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let matches = md_find_matches(&source, &model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"text\":\"{}\"}}"
+                ),
+                m.block,
+                md_block_kind_name(m.kind),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("markdown;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.md_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_markdown(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.md_common_metadata(req),
+            Selector::Text => self.md_common_text(req),
+            Selector::Heading(i) => self.md_heading(req, *i),
+            Selector::Block(i) => self.md_block(req, *i),
+            Selector::SearchMatch(p) => self.md_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "Markdown does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the exact source (lossily decoded), never re-flowed
+    /// or rendered.
+    fn md_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.markdown_source()?;
+        let text = md_canonical_text(&source, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.md_answer(
+            req,
+            AnswerValue::Text(text),
+            "markdown;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn md_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.markdown_model()?;
+        let (source, root) = self.markdown_source()?;
+        let count = |k: u8| model.blocks_of_kind(k).len();
+        let code_blocks = model
+            .blocks
+            .iter()
+            .filter(|b| md_is_code_block(b.kind))
+            .count();
+        let links = model
+            .inlines
+            .iter()
+            .filter(|x| matches!(x.kind, I_LINK | I_REF_LINK))
+            .count();
+        let images = model.inlines_of_kind(I_IMAGE).len();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"markdown\",\"bytes\":{},\"blocks\":{},",
+                "\"headings\":{},\"max_heading_level\":{},\"paragraphs\":{},",
+                "\"list_items\":{},\"code_blocks\":{},\"blockquotes\":{},",
+                "\"tables\":{},\"ref_defs\":{},\"footnotes\":{},",
+                "\"thematic_breaks\":{},\"front_matter\":{},",
+                "\"links\":{},\"images\":{},\"inline_spans\":{}}}"
+            ),
+            model.doc_len,
+            model.blocks.len(),
+            count(B_HEADING),
+            model.max_heading_level(),
+            count(B_PARAGRAPH),
+            count(B_LIST_ITEM),
+            code_blocks,
+            count(B_BLOCKQUOTE),
+            count(B_TABLE),
+            count(B_REF_DEF),
+            count(B_FOOTNOTE_DEF),
+            count(B_THEMATIC_BREAK),
+            count(B_FRONT_MATTER) > 0,
+            links,
+            images,
+            model.inlines.len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.md_answer(
+            req,
+            value,
+            "markdown;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

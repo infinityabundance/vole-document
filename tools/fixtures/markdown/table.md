@@ -1,0 +1,6 @@
+# Table
+
+| name | score |
+| --- | ---: |
+| alice | 10 |
+| bob | 20 |

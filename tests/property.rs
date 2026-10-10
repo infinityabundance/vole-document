@@ -488,6 +488,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_csv_field_bytes: 1 << 30,
         max_csv_document_bytes: 1 << 50,
         max_csv_sampled_records_for_detection: 1 << 20,
+        max_markdown_depth: 1 << 12,
+        max_markdown_nodes: 1 << 30,
+        max_markdown_blocks: 1 << 28,
+        max_markdown_inline_spans: 1 << 30,
+        max_markdown_code_bytes: 1 << 50,
+        max_markdown_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

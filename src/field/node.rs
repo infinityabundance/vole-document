@@ -184,6 +184,15 @@ pub enum NodeKind {
     /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per
     /// ADR-0060). CSV/TSV has no package layer. Derived, never exact.
     CsvModel = 0x29,
+    /// The canonical, representation-preserving Markdown prose model (Phase
+    /// 21.8.1): every block's and inline span's exact source span, ATX headings and
+    /// their levels, paragraphs, ordered/unordered lists, fenced (language-tagged)
+    /// and indented code blocks, blockquotes, tables, links/images with targets and
+    /// titles, reference definitions, footnotes, and front matter. It is derived on
+    /// demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060). Markdown has no package layer.
+    /// Derived, never exact.
+    MarkdownModel = 0x2A,
 }
 
 impl NodeKind {
@@ -231,6 +240,7 @@ impl NodeKind {
             0x27 => NodeKind::JsonModel,
             0x28 => NodeKind::YamlModel,
             0x29 => NodeKind::CsvModel,
+            0x2A => NodeKind::MarkdownModel,
             _ => return None,
         })
     }
@@ -279,6 +289,7 @@ impl NodeKind {
             NodeKind::JsonModel => "JsonModel",
             NodeKind::YamlModel => "YamlModel",
             NodeKind::CsvModel => "CsvModel",
+            NodeKind::MarkdownModel => "MarkdownModel",
         }
     }
 

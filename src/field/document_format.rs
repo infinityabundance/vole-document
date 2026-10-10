@@ -132,6 +132,11 @@ pub enum DocumentFormat {
     /// two records). Not a package: the exact leaf is the whole source, and the
     /// recorded dialect distinguishes comma from tab (Phase 21.7.1).
     Csv,
+    /// A Markdown prose document (the whole source carries at least one structural
+    /// mark — an ATX heading, a fenced code block, front matter, a table, a
+    /// reference definition, or a footnote definition). Not a package: the exact
+    /// leaf is the whole source (Phase 21.8.1).
+    Markdown,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -151,6 +156,7 @@ impl DocumentFormat {
             DocumentFormat::Json => "json",
             DocumentFormat::Yaml => "yaml",
             DocumentFormat::Csv => "csv",
+            DocumentFormat::Markdown => "markdown",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -169,6 +175,7 @@ impl DocumentFormat {
             DocumentFormat::Json => "json",
             DocumentFormat::Yaml => "yaml",
             DocumentFormat::Csv => "csv",
+            DocumentFormat::Markdown => "markdown",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -187,6 +194,7 @@ impl DocumentFormat {
             DocumentFormat::Json => cfg!(feature = "json"),
             DocumentFormat::Yaml => cfg!(feature = "yaml"),
             DocumentFormat::Csv => cfg!(feature = "csv"),
+            DocumentFormat::Markdown => cfg!(feature = "markdown"),
         }
     }
 
@@ -215,6 +223,7 @@ impl DocumentFormat {
             "json" => Some(DocumentFormat::Json),
             "yaml" => Some(DocumentFormat::Yaml),
             "csv" => Some(DocumentFormat::Csv),
+            "markdown" => Some(DocumentFormat::Markdown),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -260,6 +269,17 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "csv")]
     if crate::adapter::csv::detect(source, limits) {
         return DocumentFormat::Csv;
+    }
+    // Markdown is the first **prose** Wave-2 format (Phase 21.8.1). It has no
+    // magic bytes either, and a plain prose paragraph is itself valid Markdown, so
+    // detection is deliberately conservative: only after the PDF/ZIP/JSON/YAML/CSV
+    // families are declined, and only when the source carries a clear structural
+    // mark (an ATX heading, a fenced code block, front matter, a table, a reference
+    // definition, or a footnote definition), is it admitted. Plain prose stays
+    // Opaque rather than being guessed to be Markdown.
+    #[cfg(feature = "markdown")]
+    if crate::adapter::markdown::detect(source, limits) {
+        return DocumentFormat::Markdown;
     }
     DocumentFormat::Opaque
 }
@@ -452,6 +472,7 @@ mod tests {
             DocumentFormat::Json,
             DocumentFormat::Yaml,
             DocumentFormat::Csv,
+            DocumentFormat::Markdown,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

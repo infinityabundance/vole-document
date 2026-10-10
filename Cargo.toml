@@ -286,6 +286,21 @@ yaml = []
 # never on the exactness path, so enabling it never changes `.voldoc` bytes and
 # exactness is untouched. Dependency-free (`csv = []`) and never in `default`.
 csv = []
+# Phase 21.8.1: the Markdown adapter — the first **prose** Wave-2 format. Like
+# JSON/YAML/CSV it is not a package (no OPC/ZIP layer): the exact leaf is the whole
+# source (a `DocumentExact`, RAW-like authority) and every derived observation is a
+# bounded, span-preserving (`Q_gen`) projection of it. It adds a bounded, line-based
+# CommonMark-subset parser that preserves representation — exact block and inline
+# source spans, ATX headings and their levels, paragraphs, ordered/unordered lists
+# with nesting, fenced (language-tagged) and indented code blocks, blockquotes,
+# tables, links/images with targets and titles, reference definitions, footnotes,
+# and front matter — and never re-flows or normalizes the source. Detection is
+# conservative (no magic bytes): a source carrying no structural mark stays Opaque,
+# so plain prose is never guessed to be Markdown. It adds **no** decoder behavior:
+# the Markdown model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. Dependency-free (`markdown = []`) and
+# never in `default`.
+markdown = []
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores. `quick-xml` only; adds **no** decoder behavior and is
 # never in `default` on its own (it is implied by `opc` and `epub`).

@@ -187,6 +187,16 @@ pub const SEL_YAML_MODEL: u8 = 20;
 /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
 /// ADR-0060); CSV/TSV has no package layer.
 pub const SEL_CSV_MODEL: u8 = 21;
+/// Selector kind: the canonical Markdown prose model (Phase 21.8.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as a bounded, representation-preserving prose model (block
+/// and inline spans, headings/levels, lists, code, blockquotes, tables, links,
+/// reference definitions, footnotes, front matter) as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); Markdown has no
+/// package layer.
+pub const SEL_MARKDOWN_MODEL: u8 = 22;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

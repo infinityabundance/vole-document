@@ -113,7 +113,9 @@ const USAGE_FIELD: &str = "\
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
-        --csv-find PATTERN) --kind metadata|text|structure|operators|
+        --csv-find PATTERN |
+        --md-heading N | --md-block N | --md-code N | --md-link N |
+        --md-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1627,6 +1629,23 @@ struct FieldArgs {
     /// (Phase 21.7.1).
     #[cfg(feature = "csv")]
     csv_find: Option<String>,
+    /// `--md-heading N`: the N-th ATX heading in document order (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    md_heading: Option<u32>,
+    /// `--md-block N`: the N-th block in document order (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    md_block: Option<u32>,
+    /// `--md-code N`: the N-th code block (fenced or indented) in document order
+    /// (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    md_code: Option<u32>,
+    /// `--md-link N`: the N-th link or image in document order (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    md_link: Option<u32>,
+    /// `--md-find`: a lexical, case-sensitive search over Markdown block content
+    /// (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    md_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -2080,6 +2099,38 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--csv-find" => {
                 out.csv_find = Some(field_arg_value(args, &mut i, "--csv-find", inline)?);
             }
+            #[cfg(feature = "markdown")]
+            "--md-heading" => {
+                out.md_heading = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--md-heading", inline)?,
+                    "--md-heading",
+                )?);
+            }
+            #[cfg(feature = "markdown")]
+            "--md-block" => {
+                out.md_block = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--md-block", inline)?,
+                    "--md-block",
+                )?);
+            }
+            #[cfg(feature = "markdown")]
+            "--md-code" => {
+                out.md_code = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--md-code", inline)?,
+                    "--md-code",
+                )?);
+            }
+            #[cfg(feature = "markdown")]
+            "--md-link" => {
+                out.md_link = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--md-link", inline)?,
+                    "--md-link",
+                )?);
+            }
+            #[cfg(feature = "markdown")]
+            "--md-find" => {
+                out.md_find = Some(field_arg_value(args, &mut i, "--md-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2481,6 +2532,29 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.csv_find {
             chosen.push(Selector::CsvFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Markdown: `--md-heading`/`--md-block`/`--md-code`/`--md-link` address
+    // headings, blocks, code blocks, and links/images; `--md-find` is a lexical
+    // search. Each stands alone (Phase 21.8.1).
+    #[cfg(feature = "markdown")]
+    {
+        if let Some(index) = out.md_heading {
+            chosen.push(Selector::MdHeading { index });
+        }
+        if let Some(index) = out.md_block {
+            chosen.push(Selector::MdBlock { index });
+        }
+        if let Some(index) = out.md_code {
+            chosen.push(Selector::MdCode { index });
+        }
+        if let Some(index) = out.md_link {
+            chosen.push(Selector::MdLink { index });
+        }
+        if let Some(pattern) = &out.md_find {
+            chosen.push(Selector::MdFind {
                 pattern: pattern.clone(),
             });
         }
