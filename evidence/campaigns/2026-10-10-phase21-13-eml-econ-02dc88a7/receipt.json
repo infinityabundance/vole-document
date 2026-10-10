@@ -1,0 +1,114 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-13-eml-econ-02dc88a7",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "d8ef130f76536cc74a2f72c0ca00f488afe021ffb812f610592c9fcc7d2774a4",
+    "build_args": "--release --locked --all-features -j 1",
+    "campaign": "evidence/campaigns/2026-10-10-phase21-13-eml-econ-02dc88a7",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927",
+    "email_module": "python3 stdlib email (policy=compat32)",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "alternative.eml": {
+        "len": 380,
+        "sha256": "534856d49f3b06ae0c08e38b3ac12a436d525483c44c14b6a322fa45636b077a"
+      },
+      "folded.eml": {
+        "len": 395,
+        "sha256": "c4ad51ca9b6e4abbb2d44846c580d62bca5316c9ca359d498ee46dfd8a30470d"
+      },
+      "large.eml": {
+        "len": 2053092,
+        "sha256": "7532ba8f7e7798e69544dbb1882ccce2e5fef858b51649d558454647bb7e3f8f"
+      },
+      "mixed.eml": {
+        "len": 626,
+        "sha256": "82a065fdd2968531dd7e8d333a67481272d570fb1ffa647f3decc8d271988bc6"
+      },
+      "nested.eml": {
+        "len": 402,
+        "sha256": "687b5ebe5bced454b07637fa864c7c0970ace3f7a7c62640d0e0884a376533f2"
+      },
+      "simple.eml": {
+        "len": 201,
+        "sha256": "9c85f722b381d9397994e7daa4e427d669c80c2dd269fe87e3d3b7bff8a1fedc"
+      }
+    },
+    "measured_commit": "02dc88a7c99c49976003324180f657c47d42a1ad",
+    "phase": "21.13 \u2014 EML economic court (VOLE vs SQLite vs conventional email load)",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 5115,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": "?? evidence/campaigns/2026-10-10-phase21-13-1-eml-02dc88a7/ ?? evidence/campaigns/2026-10-10-phase21-13-eml-econ-02dc88a7/ ",
+    "utc": "2026-10-10T14:08:49Z",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1.conv": {
+      "equal": 6
+    },
+    "Q1.sqlite": {
+      "equal": 6
+    },
+    "Q2.conv": {
+      "equal": 6
+    },
+    "Q2.sqlite": {
+      "equal": 6
+    },
+    "Q3.conv": {
+      "both-decline": 4,
+      "equal": 2
+    },
+    "Q3.sqlite": {
+      "both-decline": 4,
+      "equal": 2
+    },
+    "Q4.conv": {
+      "equal": 6
+    },
+    "Q4.sqlite": {
+      "equal": 6
+    },
+    "Q5.conv": {
+      "equal": 6
+    },
+    "Q5.sqlite": {
+      "equal": 6
+    },
+    "Q6.conv": {
+      "capability-gap": 6
+    },
+    "Q6.sqlite": {
+      "equal": 6
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 21131); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 6,
+  "exact_ok": 6,
+  "fixtures": [
+    "simple.eml",
+    "mixed.eml",
+    "alternative.eml",
+    "nested.eml",
+    "folded.eml",
+    "large.eml"
+  ],
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "phase": "21.13 \u2014 EML economic court (VOLE vs SQLite vs conventional email load)",
+  "verdict": "PASS"
+}
