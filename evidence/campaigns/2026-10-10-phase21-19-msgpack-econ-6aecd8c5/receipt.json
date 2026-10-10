@@ -1,0 +1,359 @@
+{
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "1d7e9baf14fed1c3c8461812c66f0da0df864d72630631987cfc20f21cf9bf31",
+  "campaign": "evidence/campaigns/2026-10-10-phase21-19-msgpack-econ-6aecd8c5",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "comparators": [
+    "sqlite",
+    "conv"
+  ],
+  "controls": "badc1.msgpack badmap.msgpack control.cbor fixarray3.bin fixmap2.bin prose.txt scalar.msgpack single.msgpack strict.json trailing.msgpack",
+  "declines": "an out-of-range pointer and a missing member decline typed (rc 6); a malformed pointer is a usage error (rc 2); the strict-JSON control stays Json and a native MessagePack selector on it declines typed; the CBOR control stays Cbor (coexistence) and a native MessagePack selector on it declines typed; the lone-scalar, 0xc1-byte, map-key-without-value, trailing-bytes, ambiguous fixarray(3)/fixmap(2), and prose controls stay Opaque and a common observation declines typed (rc 6), never a panic",
+  "detection_boundary": "MessagePack has no magic bytes, so detection is conservative: a full-input well-formed parse of exactly one item whose root is a container reaching at least three items and eight bytes, OR the same with an unambiguous MessagePack-only head byte (0xdc..=0xdf); CBOR's detector is tried first, so an input well-formed under both grammars is classified Cbor, never stolen",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "baseline_sha256": "e54b2715ada66c7a1f1f270320b5d3faa269ce17ca1d4fdc42f7530834d0fc4a",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "1d7e9baf14fed1c3c8461812c66f0da0df864d72630631987cfc20f21cf9bf31",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-10-phase21-19-msgpack-econ-6aecd8c5",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+    "cbor_min_sha256": "408c220be4872c65e164300ad3fd97490c3739505fc96211824739d7ebede45d",
+    "controls": "badc1.msgpack badmap.msgpack control.cbor fixarray3.bin fixmap2.bin prose.txt scalar.msgpack single.msgpack strict.json trailing.msgpack",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "basic.msgpack": {
+        "len": 10,
+        "sha256": "4390f70217a702e5adfd52143535bbd292aa54c212fe06b40b4ce03cb5122ec1"
+      },
+      "bytestext.msgpack": {
+        "len": 10,
+        "sha256": "bb17cec1829883b3f8fa06d515bf0743aa3bd2e6deee2524a64e0a7e6d9b5663"
+      },
+      "dupkeys.msgpack": {
+        "len": 10,
+        "sha256": "6c92c73b0fb396851d6be87f13e1bec95d8c2f78dc05201a143b3b3993872d9b"
+      },
+      "ext.msgpack": {
+        "len": 12,
+        "sha256": "be0c8300252f8770d8bfd7f2917d233ebf4e6654d61e1e662257db21b734ec50"
+      },
+      "floats.msgpack": {
+        "len": 15,
+        "sha256": "aaa5257d83b2fa7384d3733b0dedecb5e39cf68ffb78afbcdc80fdd75356e641"
+      },
+      "intkeys.msgpack": {
+        "len": 13,
+        "sha256": "957df6e428eb813ede9412be66f35ddabdaef62dbc3e8055353cb33478f20525"
+      },
+      "large.msgpack": {
+        "len": 4003,
+        "sha256": "0d4babe32a8c04114ec1083e1e0a5c93cc354d5a8f5559399f9c5cdf08c9f9a1"
+      },
+      "map16.msgpack": {
+        "len": 6,
+        "sha256": "2a454153254e11703582db3fe4150ed8a2c7a9b1d3bb60a4848a336eeba0dc09"
+      },
+      "nested.msgpack": {
+        "len": 10,
+        "sha256": "0a6f989e8f01b74cc1f6925fd0ff1231a1a7e547701cebac27419116a7c7d1a3"
+      },
+      "nonfinite.msgpack": {
+        "len": 15,
+        "sha256": "e166b9578e1f3f8251d2267871cc28f69b531422009b2769d07418f98afd0adc"
+      },
+      "widths.msgpack": {
+        "len": 8,
+        "sha256": "1b5eee683e53064c559a3c8f2867e1f0059b1d3b1d764ee49ee27000222c43fe"
+      }
+    },
+    "format": "msgpack",
+    "lane_fixtures": "basic.msgpack widths.msgpack floats.msgpack bytestext.msgpack dupkeys.msgpack ext.msgpack map16.msgpack nested.msgpack intkeys.msgpack nonfinite.msgpack large.msgpack",
+    "measured_commit": "6aecd8c5511883109f8d1cba98d249569d8a94ab",
+    "msgpack_min_sha256": "615b15b3b0ffdb121eec69e56b608c23e727db4cf23acf9d3169c5ec1e025986",
+    "phase": "21.19 \u2014 MessagePack economic court (VOLE vs source-retaining strict-JSON SQLite + conventional MessagePack load)",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 4378,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M .gitignore ?? evidence/campaigns/2026-10-10-phase21-18-cbor-econ-6aecd8c5/ ?? evidence/campaigns/2026-10-10-phase21-19-msgpack-econ-6aecd8c5/ ?? tools/fixtures/binfmt-baseline.py ?? tools/fixtures/binfmt-court.sh ?? tools/fixtures/binfmt-vole.py ?? tools/fixtures/cbor/ ?? tools/fixtures/cbor_min.py ?? tools/fixtures/make-cbor.py ?? tools/fixtures/make-msgpack.py ?? tools/fixtures/msgpack/ ?? tools/fixtures/msgpack_min.py ?? tools/phase21-18-cbor-court.sh ?? tools/phase21-19-msgpack-court.sh ",
+    "utc": "2026-10-10T19:52:32Z",
+    "vole_probe_sha256": "ee79270233bf2c3a5dc2e5858878286db24f18510b3e8f31a3ecf0dd01b8e1fa",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "equal": 10,
+        "mismatch": 1
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 9
+      }
+    },
+    "Q10": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    },
+    "Q11": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    },
+    "Q12": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    },
+    "Q3": {
+      "conv": {
+        "equal": 11
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 9
+      }
+    },
+    "Q4": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 9
+      }
+    },
+    "Q5": {
+      "conv": {
+        "equal": 10,
+        "mismatch": 1
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 9
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "equal": 11
+      }
+    },
+    "Q7": {
+      "conv": {
+        "equal": 10,
+        "mismatch": 1
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 9
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    },
+    "Q9": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 211921); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 21,
+  "exact_ok": 21,
+  "fixtures": [
+    "basic.msgpack",
+    "widths.msgpack",
+    "floats.msgpack",
+    "bytestext.msgpack",
+    "dupkeys.msgpack",
+    "ext.msgpack",
+    "map16.msgpack",
+    "nested.msgpack",
+    "intkeys.msgpack",
+    "nonfinite.msgpack",
+    "large.msgpack"
+  ],
+  "hypotheses": {
+    "H1": "byte-exactness == 100% or FAIL (materialize --exact == source after source + descriptor deletion)",
+    "H2": "contract questions Q1-Q12 answered where the lane's model permits",
+    "H3": "every unanswerable question is a typed decline (rc 6); malformed pointer is a usage error (rc 2); detection boundaries pinned",
+    "H4": "build/storage/cold/warm measured per lane with the ADR-0054 estimator"
+  },
+  "lane_fixtures": "basic.msgpack widths.msgpack floats.msgpack bytestext.msgpack dupkeys.msgpack ext.msgpack map16.msgpack nested.msgpack intkeys.msgpack nonfinite.msgpack large.msgpack",
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "measured_commit": "6aecd8c5511883109f8d1cba98d249569d8a94ab",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native pointer (exact + metadata)"
+  ],
+  "phase": "21.19 \u2014 MessagePack economic court",
+  "profile": "release",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 1.4228831890052784,
+        "geomean_hi": 1.4487818685785625,
+        "geomean_lo": 1.3919347305555685,
+        "losses": 11,
+        "median": 1.4324573064730546,
+        "median_hi": 1.4691358024691359,
+        "median_lo": 1.3982929596921407,
+        "n": 11,
+        "ratio_of_sums": 1.4219922980559552,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 1.0332899726717875,
+        "geomean_hi": 1.0508252827905895,
+        "geomean_lo": 1.014228210022382,
+        "losses": 0,
+        "median": 1.0369025565024084,
+        "median_hi": 1.0448662961996047,
+        "median_lo": 1.0240185950413223,
+        "n": 11,
+        "ratio_of_sums": 1.032882298424467,
+        "ties": 11,
+        "wins": 0
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.033201152709407676,
+        "geomean_hi": 0.03412023943858353,
+        "geomean_lo": 0.03244246175041811,
+        "losses": 0,
+        "median": 0.03302697055021339,
+        "median_hi": 0.03350160422158943,
+        "median_lo": 0.0322139603892071,
+        "n": 11,
+        "ratio_of_sums": 0.033229505270794796,
+        "ties": 0,
+        "wins": 11
+      },
+      "sqlite": {
+        "geomean": 0.031188465087891585,
+        "geomean_hi": 0.03221218294852895,
+        "geomean_lo": 0.030469825305539003,
+        "losses": 0,
+        "median": 0.0306230413040942,
+        "median_hi": 0.03195993794826004,
+        "median_lo": 0.030117299806046043,
+        "n": 11,
+        "ratio_of_sums": 0.031217447440452142,
+        "ties": 0,
+        "wins": 11
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 28.353147096088623,
+        "geomean_hi": 37.982913262133955,
+        "geomean_lo": 16.57161768678785,
+        "losses": 11,
+        "median": 36.315384615384616,
+        "median_hi": 38.778688524590166,
+        "median_lo": 33.51063829787234,
+        "n": 11,
+        "ratio_of_sums": 8.104935767410412,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.6021619314302415,
+        "geomean_hi": 0.6703791111325798,
+        "geomean_lo": 0.5703772825681813,
+        "losses": 0,
+        "median": 0.5711347689329784,
+        "median_hi": 0.5716186789257198,
+        "median_lo": 0.5699939503932244,
+        "n": 11,
+        "ratio_of_sums": 0.6302551052598372,
+        "ties": 1,
+        "wins": 10
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 4.019892777044042,
+        "geomean_hi": 4.3426093537777675,
+        "geomean_lo": 3.719303155145491,
+        "losses": 11,
+        "median": 4.107142857142857,
+        "median_hi": 4.625,
+        "median_lo": 3.566666666666667,
+        "n": 11,
+        "ratio_of_sums": 3.703781512605042,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.5706952820258753,
+        "geomean_hi": 0.7236515855044967,
+        "geomean_lo": 0.4683459246060108,
+        "losses": 1,
+        "median": 0.4827586206896552,
+        "median_hi": 0.7642857142857142,
+        "median_lo": 0.451063829787234,
+        "n": 11,
+        "ratio_of_sums": 0.6612903225806451,
+        "ties": 1,
+        "wins": 9
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 33 invalid-msgpack-structure",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "service": "doc-baseline",
+  "surface": "the exact format byte actually used (encoding width AND signedness: 0x17 fixint vs 0xcc uint8 vs 0xd0 int8); str vs bin as distinct kinds; map order and duplicate keys; float width (float32/float64); extension type numbers + payload lengths preserved, never interpreted",
+  "tree_state": " M .gitignore ?? evidence/campaigns/2026-10-10-phase21-18-cbor-econ-6aecd8c5/ ?? evidence/campaigns/2026-10-10-phase21-19-msgpack-econ-6aecd8c5/ ?? tools/fixtures/binfmt-baseline.py ?? tools/fixtures/binfmt-court.sh ?? tools/fixtures/binfmt-vole.py ?? tools/fixtures/cbor/ ?? tools/fixtures/cbor_min.py ?? tools/fixtures/make-cbor.py ?? tools/fixtures/make-msgpack.py ?? tools/fixtures/msgpack/ ?? tools/fixtures/msgpack_min.py ?? tools/phase21-18-cbor-court.sh ?? tools/phase21-19-msgpack-court.sh ",
+  "utc": "2026-10-10T19:52:32Z",
+  "verdict": "PASS"
+}

@@ -1,0 +1,1 @@
+{"decline": {"code": "no-representation", "detail": "SQLite re-serializes a value; the exact token spelling is not preserved"}, "declined": true, "detail": {}, "lane": "sqlite", "native": true, "q": "Q8", "value": null}

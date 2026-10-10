@@ -86,6 +86,12 @@ __pycache__/
 # Phase 21.17 JSON5/JSONC: the large generated fixture (regenerated at court time).
 /tools/fixtures/json5/large.json5
 
+# Phase 21.18 CBOR: the large generated fixture (regenerated at court time).
+/tools/fixtures/cbor/large.cbor
+
+# Phase 21.19 MessagePack: the large generated fixture (regenerated at court time).
+/tools/fixtures/msgpack/large.msgpack
+
 # Phase 21.13 EML: the large generated fixture (regenerated at court time).
 /tools/fixtures/eml/large.eml
 
