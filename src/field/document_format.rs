@@ -243,6 +243,19 @@ pub enum DocumentFormat {
     /// every element/attribute span, element order, attribute spelling, and the
     /// namespace declaration is a `Q_gen` projection (Phase 21.21).
     Feed,
+    /// A GeoJSON (RFC 7946) document. GeoJSON is JSON, so its physical bytes are
+    /// shared with [`DocumentFormat::Json`]; the recorded root class (one of the nine
+    /// RFC 7946 type names) lives in the model, exactly as a feed records its
+    /// dialect. Detection is a **bounded semantic test** run before the generic JSON
+    /// detector: the source parses as exactly one JSON value whose root is an object
+    /// with a `"type"` string equal to one of the nine type names and whose shape is
+    /// consistent (a geometry has an array `coordinates`/`geometries`, a `Feature` has
+    /// `geometry`/`properties`, a `FeatureCollection` has an array `features`). A plain
+    /// JSON document, and a JSON document whose `"type"` is an unrelated string, stay
+    /// [`DocumentFormat::Json`]. Not a package: the exact leaf is the whole source, and
+    /// every JSON token span, `coordinates` nesting, `properties` order/duplicates, and
+    /// foreign member is a `Q_gen` projection (Phase 21.22).
+    Geojson,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -275,6 +288,7 @@ impl DocumentFormat {
             DocumentFormat::Msgpack => "msgpack",
             DocumentFormat::Config => "config",
             DocumentFormat::Feed => "feed",
+            DocumentFormat::Geojson => "geojson",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -306,6 +320,7 @@ impl DocumentFormat {
             DocumentFormat::Msgpack => "msgpack",
             DocumentFormat::Config => "config",
             DocumentFormat::Feed => "feed",
+            DocumentFormat::Geojson => "geojson",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -337,6 +352,7 @@ impl DocumentFormat {
             DocumentFormat::Msgpack => cfg!(feature = "msgpack"),
             DocumentFormat::Config => cfg!(feature = "config"),
             DocumentFormat::Feed => cfg!(feature = "feed"),
+            DocumentFormat::Geojson => cfg!(feature = "geojson"),
         }
     }
 
@@ -378,6 +394,7 @@ impl DocumentFormat {
             "msgpack" => Some(DocumentFormat::Msgpack),
             "config" => Some(DocumentFormat::Config),
             "feed" => Some(DocumentFormat::Feed),
+            "geojson" => Some(DocumentFormat::Geojson),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -426,6 +443,21 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     // detected directly from the whole source (never through `detect_zip_family`).
     // Conservative: the entire source must parse as exactly one JSON value within
     // the JSON caps, else the input stays Opaque (Phase 21.5.1).
+    //
+    // GeoJSON is the **spatial** Wave-2 format (Phase 21.22), whose physical bytes
+    // are JSON, so it is a **bounded semantic sub-detection** run **before** the
+    // generic JSON detector below: the source must parse as exactly one JSON value
+    // whose root is an object with a `"type"` string equal to one of the nine RFC 7946
+    // type names **and** whose shape is consistent (a geometry has an array
+    // `coordinates`/`geometries`, a `Feature` has `geometry`/`properties`, a
+    // `FeatureCollection` has an array `features`). A more specific claim than a bare
+    // JSON value, so it is tried first; a plain JSON document, and a JSON document
+    // whose `"type"` is an unrelated string, decline here and are then claimed by the
+    // JSON detector (staying `Json`). Prose and malformed input stay `Opaque`.
+    #[cfg(feature = "geojson")]
+    if crate::adapter::geojson::detect(source, limits) {
+        return DocumentFormat::Geojson;
+    }
     #[cfg(feature = "json")]
     if crate::adapter::json::detect(source, limits) {
         return DocumentFormat::Json;
@@ -849,6 +881,7 @@ mod tests {
             DocumentFormat::Msgpack,
             DocumentFormat::Config,
             DocumentFormat::Feed,
+            DocumentFormat::Geojson,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

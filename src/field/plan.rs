@@ -632,6 +632,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Msgpack => &["MsgpackModel", "DocumentExact"],
         DocumentFormat::Config => &["ConfigModel", "DocumentExact"],
         DocumentFormat::Feed => &["FeedModel", "DocumentExact"],
+        DocumentFormat::Geojson => &["GeojsonModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

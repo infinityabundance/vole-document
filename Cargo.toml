@@ -512,6 +512,23 @@ config = []
 # it never changes `.voldoc` bytes and exactness is untouched. Never in `default`; it
 # implies `xml`.
 feed = ["xml"]
+# Phase 21.22: the GeoJSON (RFC 7946) adapter — the **spatial** Wave-2 format. A
+# GeoJSON document's physical bytes are JSON, so this adapter **reuses the shared
+# representation-preserving JSON parser** (Phase 21.5.1's `json` feature) — never a
+# second JSON parser — and layers a bounded semantic projection on it: the recorded
+# root class (one of the nine RFC 7946 type names: Point/MultiPoint/LineString/
+# MultiLineString/Polygon/MultiPolygon/GeometryCollection/Feature/FeatureCollection),
+# the exact `"type"` token, and the geometry/feature object nodes in document order.
+# `coordinates` nesting (position = [lon, lat, (alt)]), `properties` order/duplicates,
+# `id`/`bbox`/`geometry`/`features` order, numeric/escape spelling, and every foreign
+# member are preserved. Like the other Wave-2 formats it is not a package (no OPC/ZIP
+# layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like authority)
+# and every derived observation is a bounded, span-preserving (`Q_gen`) projection of
+# it. It adds **no** decoder behavior: the GeoJSON model is never on the exactness
+# path, so enabling it never changes `.voldoc` bytes and exactness is untouched.
+# Dependency-free (`geojson` pulls no external crate) and never in `default`; it
+# reuses the JSON adapter, so it implies `json`.
+geojson = ["json"]
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

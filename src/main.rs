@@ -118,6 +118,9 @@ const USAGE_FIELD: &str = "\
         --config-find PATTERN |
         --feed-channel | --feed-field NAME | --feed-entry N |
         --feed-entry-field N:NAME | --feed-find PATTERN |
+        --geojson-type | --geojson-feature N | --geojson-geometry N |
+        --geojson-coordinates N | --geojson-property N:NAME |
+        --geojson-find PATTERN |
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
@@ -1689,6 +1692,29 @@ struct FieldArgs {
     /// values (Phase 21.21).
     #[cfg(feature = "feed")]
     feed_find: Option<String>,
+    /// `--geojson-type`: the GeoJSON document's root `"type"` (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_type: bool,
+    /// `--geojson-feature N`: the N-th (0-based) GeoJSON feature in document order
+    /// (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_feature: Option<u32>,
+    /// `--geojson-geometry N`: the N-th (0-based) GeoJSON geometry in document order
+    /// (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_geometry: Option<u32>,
+    /// `--geojson-coordinates N`: the coordinates of the N-th GeoJSON geometry
+    /// (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_coordinates: Option<u32>,
+    /// `--geojson-property N:NAME`: one property of one GeoJSON feature (Phase
+    /// 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_property: Option<String>,
+    /// `--geojson-find PATTERN`: a lexical, case-sensitive search over GeoJSON keys
+    /// and string values (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_find: Option<String>,
     /// `--yaml-path PATH`: resolve a dotted YAML path (optional leading `docN`),
     /// returning the node's kind/style, exact source span, and exact token bytes
     /// (Phase 21.6.1).
@@ -2351,6 +2377,41 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "feed")]
             "--feed-find" => {
                 out.feed_find = Some(field_arg_value(args, &mut i, "--feed-find", inline)?);
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-type" => {
+                out.geojson_type = true;
+                i += 1;
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-feature" => {
+                out.geojson_feature = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--geojson-feature", inline)?,
+                    "--geojson-feature",
+                )?);
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-geometry" => {
+                out.geojson_geometry = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--geojson-geometry", inline)?,
+                    "--geojson-geometry",
+                )?);
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-coordinates" => {
+                out.geojson_coordinates = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--geojson-coordinates", inline)?,
+                    "--geojson-coordinates",
+                )?);
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-property" => {
+                out.geojson_property =
+                    Some(field_arg_value(args, &mut i, "--geojson-property", inline)?);
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-find" => {
+                out.geojson_find = Some(field_arg_value(args, &mut i, "--geojson-find", inline)?);
             }
             #[cfg(feature = "yaml")]
             "--yaml-path" => {
@@ -3069,6 +3130,46 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.feed_find {
             chosen.push(Selector::FeedFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // GeoJSON: `--geojson-type` addresses the root `"type"`; `--geojson-feature N` a
+    // feature; `--geojson-geometry N` a geometry; `--geojson-coordinates N` a
+    // geometry's coordinates; `--geojson-property N:NAME` one property of one
+    // feature; `--geojson-find` a lexical search. Each stands alone (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    {
+        if out.geojson_type {
+            chosen.push(Selector::GeojsonType);
+        }
+        if let Some(index) = out.geojson_feature {
+            chosen.push(Selector::GeojsonFeature { index });
+        }
+        if let Some(index) = out.geojson_geometry {
+            chosen.push(Selector::GeojsonGeometry { index });
+        }
+        if let Some(index) = out.geojson_coordinates {
+            chosen.push(Selector::GeojsonCoordinates { index });
+        }
+        if let Some(spec) = &out.geojson_property {
+            let (feature, name) = spec.split_once(':').ok_or_else(|| {
+                Error::usage(format!(
+                    "--geojson-property {spec:?} must be N:NAME (a feature ordinal and a property name)"
+                ))
+            })?;
+            let feature: u32 = feature.parse().map_err(|_| {
+                Error::usage(format!(
+                    "--geojson-property {spec:?} has a bad feature ordinal {feature:?}"
+                ))
+            })?;
+            chosen.push(Selector::GeojsonProperty {
+                feature,
+                name: name.to_string(),
+            });
+        }
+        if let Some(pattern) = &out.geojson_find {
+            chosen.push(Selector::GeojsonFind {
                 pattern: pattern.clone(),
             });
         }

@@ -560,6 +560,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_feed_field_bytes: 1 << 50,
         max_feed_text_bytes: 1 << 50,
         max_feed_document_bytes: 1 << 50,
+        max_geojson_features: 1 << 30,
+        max_geojson_geometries: 1 << 30,
+        max_geojson_coordinates: 1 << 50,
+        max_geojson_depth: 1 << 20,
+        max_geojson_nodes: 1 << 30,
+        max_geojson_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

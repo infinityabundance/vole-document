@@ -323,6 +323,20 @@ pub const SEL_CONFIG_MODEL: u8 = 33;
 /// keyed by `sha256(source)` per ADR-0060); a feed has no package layer. Derived,
 /// never exact.
 pub const SEL_FEED_MODEL: u8 = 34;
+/// Selector kind: the canonical GeoJSON (RFC 7946) model (Phase 21.22).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed by the **shared JSON parser** into a bounded,
+/// representation-preserving JSON arena (exact token spans, member order,
+/// duplicate keys, numeric/escape spelling) plus the GeoJSON semantic anchors —
+/// the recorded root class (one of the nine RFC 7946 type names), the exact
+/// `"type"` token, and the geometry and feature object nodes in document order.
+/// `coordinates` nesting, `properties`/`id`/`bbox`/`geometry`/`features` order,
+/// and every foreign member are preserved as `Q_gen` derived state. It is computed
+/// on demand from the exact source (its single dependency is the `DocumentExact`
+/// root, keyed by `sha256(source)` per ADR-0060); GeoJSON has no package layer.
+/// Derived, never exact.
+pub const SEL_GEOJSON_MODEL: u8 = 35;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

@@ -244,6 +244,14 @@ const FEED_NATIVE: &[&str] = &[
     "feed-entry-field",
     "feed-find",
 ];
+const GEOJSON_NATIVE: &[&str] = &[
+    "geojson-type",
+    "geojson-feature",
+    "geojson-geometry",
+    "geojson-coordinates",
+    "geojson-property",
+    "geojson-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -525,6 +533,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 FEED_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Geojson => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                GEOJSON_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

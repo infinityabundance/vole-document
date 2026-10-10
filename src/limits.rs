@@ -600,6 +600,30 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.21).
     pub max_feed_document_bytes: u64,
+    // The GeoJSON caps below bound the derived, span-preserving GeoJSON model
+    // (Phase 21.22). GeoJSON's physical bytes are JSON, so the shared JSON parser's
+    // caps also apply; these add the semantic bounds on top. GeoJSON is not a
+    // package: the whole source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum `Feature` count accepted across one GeoJSON document (the root
+    /// `Feature`, or every element of a `FeatureCollection`'s `features` array). An
+    /// over-large document declines typed rather than allocating (Phase 21.22).
+    pub max_geojson_features: u32,
+    /// Maximum geometry object count accepted across one GeoJSON document (in
+    /// pre-order; a `GeometryCollection`'s members are included) (Phase 21.22).
+    pub max_geojson_geometries: u32,
+    /// Maximum total coordinate-number count accepted across one GeoJSON
+    /// document's `coordinates` subtrees (Phase 21.22).
+    pub max_geojson_coordinates: u64,
+    /// Maximum GeoJSON structural recursion depth (geometry/`GeometryCollection`
+    /// nesting and `coordinates` nesting) (Phase 21.22).
+    pub max_geojson_depth: u32,
+    /// Maximum embedded JSON node count accepted for one GeoJSON document, in
+    /// addition to the JSON caps the shared parser already enforces (Phase 21.22).
+    pub max_geojson_nodes: u32,
+    /// Maximum source length admitted for byte-based GeoJSON detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.22).
+    pub max_geojson_document_bytes: u64,
 }
 
 impl Limits {
@@ -780,6 +804,12 @@ impl Limits {
         max_feed_field_bytes: 1 << 26,
         max_feed_text_bytes: 1 << 28,
         max_feed_document_bytes: 1 << 34,
+        max_geojson_features: 1 << 20,
+        max_geojson_geometries: 1 << 20,
+        max_geojson_coordinates: 1 << 28,
+        max_geojson_depth: 1024,
+        max_geojson_nodes: 1 << 24,
+        max_geojson_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -959,6 +989,12 @@ impl Limits {
         max_feed_field_bytes: 1 << 20,
         max_feed_text_bytes: 1 << 20,
         max_feed_document_bytes: 1 << 26,
+        max_geojson_features: 1 << 12,
+        max_geojson_geometries: 1 << 12,
+        max_geojson_coordinates: 1 << 16,
+        max_geojson_depth: 64,
+        max_geojson_nodes: 1 << 16,
+        max_geojson_document_bytes: 1 << 26,
     };
 }
 

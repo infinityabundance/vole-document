@@ -120,6 +120,13 @@ pub enum ErrorClass {
     /// namespace is not the Atom URI or which carries no `<entry>`, or a root that is
     /// not an RSS/Atom feed (so it stays `Xml`/`Opaque`).
     InvalidFeedStructure,
+    /// A GeoJSON structure error (Phase 21.22+): a source that is not a single JSON
+    /// value, a root that is not an object with a string `"type"` member, a `"type"`
+    /// that is not one of the nine GeoJSON type names, or a type-consistent object
+    /// whose shape is not consistent (a geometry with no array `coordinates`/`geometries`,
+    /// a `Feature` with no `geometry`/`properties`, a `FeatureCollection` with no array
+    /// `features`) — so it stays `Json`/`Opaque` rather than being claimed.
+    InvalidGeojsonStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -162,6 +169,7 @@ impl ErrorClass {
             ErrorClass::InvalidMsgpackStructure => 33,
             ErrorClass::InvalidConfigStructure => 34,
             ErrorClass::InvalidFeedStructure => 35,
+            ErrorClass::InvalidGeojsonStructure => 36,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -203,6 +211,7 @@ impl ErrorClass {
             ErrorClass::InvalidMsgpackStructure => "InvalidMsgpackStructure",
             ErrorClass::InvalidConfigStructure => "InvalidConfigStructure",
             ErrorClass::InvalidFeedStructure => "InvalidFeedStructure",
+            ErrorClass::InvalidGeojsonStructure => "InvalidGeojsonStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -298,6 +307,7 @@ impl Error {
     ctor!(invalid_msgpack_structure, InvalidMsgpackStructure);
     ctor!(invalid_config_structure, InvalidConfigStructure);
     ctor!(invalid_feed_structure, InvalidFeedStructure);
+    ctor!(invalid_geojson_structure, InvalidGeojsonStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

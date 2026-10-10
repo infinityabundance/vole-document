@@ -312,6 +312,19 @@ pub enum NodeKind {
     /// keyed by `sha256(source)` per ADR-0060); a feed has no package layer. Derived,
     /// never exact.
     FeedModel = 0x36,
+    /// The canonical, representation-preserving GeoJSON (RFC 7946) model
+    /// (Phase 21.22): the whole source parsed by the **shared JSON parser** into a
+    /// span-preserving JSON arena (exact token spans, member order, duplicate keys,
+    /// numeric/escape spelling) plus the GeoJSON semantic anchors — the recorded
+    /// root class (one of the nine RFC 7946 type names), the exact `"type"` token,
+    /// and the geometry and feature object nodes in document order. `coordinates`
+    /// nesting is preserved verbatim (a position is `[lon, lat, (alt)]`, never
+    /// normalized/reordered), and `properties`/`id`/`bbox`/`geometry`/`features`
+    /// order plus every foreign member are preserved. It is computed on demand from
+    /// the exact source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); GeoJSON has no package layer. Derived, never
+    /// exact.
+    GeojsonModel = 0x37,
 }
 
 impl NodeKind {
@@ -372,6 +385,7 @@ impl NodeKind {
             0x34 => NodeKind::MsgpackModel,
             0x35 => NodeKind::ConfigModel,
             0x36 => NodeKind::FeedModel,
+            0x37 => NodeKind::GeojsonModel,
             _ => return None,
         })
     }
@@ -433,6 +447,7 @@ impl NodeKind {
             NodeKind::MsgpackModel => "MsgpackModel",
             NodeKind::ConfigModel => "ConfigModel",
             NodeKind::FeedModel => "FeedModel",
+            NodeKind::GeojsonModel => "GeojsonModel",
         }
     }
 

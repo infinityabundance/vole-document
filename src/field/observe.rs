@@ -84,6 +84,15 @@ use crate::adapter::feed::{
     field_bytes as feed_field_bytes, field_text as feed_field_text, find as feed_find_matches,
     split_qname as feed_split_qname,
 };
+#[cfg(feature = "geojson")]
+use crate::adapter::geojson::{
+    GeojsonModel, canonical_text as geojson_canonical_text, class_name as geojson_class_name,
+    coordinate_numbers as geojson_coordinate_numbers, coordinates_node as geojson_coordinates_node,
+    find as geojson_find_matches, foreign_members as geojson_foreign_members,
+    geometries_node as geojson_geometries_node, object_member as geojson_object_member,
+    object_members as geojson_object_members, token_bytes as geojson_token_bytes,
+    type_of_object as geojson_type_of_object,
+};
 #[cfg(feature = "html")]
 use crate::adapter::html::{
     HtmlModel, anchors as html_anchors, attr_name as html_attr_name,
@@ -207,6 +216,8 @@ use crate::field::index::SEL_EML_MODEL;
 use crate::field::index::SEL_EPUB_MODEL;
 #[cfg(feature = "feed")]
 use crate::field::index::SEL_FEED_MODEL;
+#[cfg(feature = "geojson")]
+use crate::field::index::SEL_GEOJSON_MODEL;
 #[cfg(feature = "html")]
 use crate::field::index::SEL_HTML_MODEL;
 #[cfg(feature = "json")]
@@ -952,6 +963,66 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The root `"type"` of a GeoJSON document (Phase 21.22). `ExactBytes`
+    /// returns the exact `"type"` string token (with quotes); `Text` the decoded
+    /// type name; `Metadata`/`Structure` a descriptor with the type, the geometry
+    /// and feature counts, and the byte length. GeoJSON has no package layer, so the
+    /// source *is* the whole document.
+    #[cfg(feature = "geojson")]
+    GeojsonType,
+    /// A GeoJSON feature by 0-based ordinal (Phase 21.22), in document order (the
+    /// root `Feature`, or every element of a `FeatureCollection`'s `features` array).
+    /// `ExactBytes` returns the feature object's whole source span; `Text` its
+    /// canonical JSON projection; `Metadata`/`Structure` a descriptor with the type,
+    /// the geometry span, `id`, `bbox`, the `properties` keys, and the foreign
+    /// members. An out-of-range index declines typed.
+    #[cfg(feature = "geojson")]
+    GeojsonFeature {
+        /// The 0-based feature ordinal in document order.
+        index: u32,
+    },
+    /// A GeoJSON geometry by 0-based ordinal (Phase 21.22), in document order
+    /// (pre-order; a `GeometryCollection`'s members are included). `ExactBytes`
+    /// returns the geometry object's whole source span; `Text` its canonical JSON
+    /// projection; `Metadata`/`Structure` a descriptor with the geometry type, span,
+    /// and (for a non-collection) the coordinates summary. An out-of-range index
+    /// declines typed.
+    #[cfg(feature = "geojson")]
+    GeojsonGeometry {
+        /// The 0-based geometry ordinal in document order.
+        index: u32,
+    },
+    /// The `coordinates` of the `index`-th GeoJSON geometry (Phase 21.22).
+    /// `ExactBytes` returns the coordinates value's exact source span;
+    /// `Metadata`/`Structure` a descriptor listing every coordinate number's exact
+    /// span and literal spelling. A `GeometryCollection` has no `coordinates` and
+    /// declines typed, as does an out-of-range index.
+    #[cfg(feature = "geojson")]
+    GeojsonCoordinates {
+        /// The 0-based geometry ordinal in document order.
+        index: u32,
+    },
+    /// One property of one GeoJSON feature, addressed as `FEATURE:NAME` (Phase
+    /// 21.22). `ExactBytes` returns the value's exact source span; `Text` its
+    /// decoded value; `Metadata`/`Structure` a descriptor with the feature ordinal,
+    /// the property name, the value kind, and the exact span. A missing property, an
+    /// out-of-range feature, or a non-object `properties` declines typed.
+    #[cfg(feature = "geojson")]
+    GeojsonProperty {
+        /// The 0-based feature ordinal in document order.
+        feature: u32,
+        /// The property (member) name.
+        name: String,
+    },
+    /// A lexical, case-sensitive search over GeoJSON object keys and string values
+    /// (Phase 21.22), reusing the shared JSON match vocabulary. Each match reports
+    /// its canonical RFC 6901 pointer, role (key/value), and exact source span.
+    /// Never an embedding or a model call.
+    #[cfg(feature = "geojson")]
+    GeojsonFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// A YAML node addressed by a dotted path (Phase 21.6.1), e.g. `a.b.0`. The
     /// optional first segment `docN` selects a document (default 0). The answer
     /// reports the node's kind/style, its exact source span, and (for `ExactBytes`)
@@ -1593,6 +1664,20 @@ impl Selector {
             Selector::FeedEntryField { entry, name } => format!("feed-entry-field:{entry}:{name}"),
             #[cfg(feature = "feed")]
             Selector::FeedFind { pattern } => format!("feed-find:{pattern}"),
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonType => "geojson-type".to_string(),
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonFeature { index } => format!("geojson-feature:{index}"),
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonGeometry { index } => format!("geojson-geometry:{index}"),
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonCoordinates { index } => format!("geojson-coordinates:{index}"),
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonProperty { feature, name } => {
+                format!("geojson-property:{feature}:{name}")
+            }
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonFind { pattern } => format!("geojson-find:{pattern}"),
             #[cfg(feature = "yaml")]
             Selector::YamlPath { path } => format!("yaml-path:{path}"),
             #[cfg(feature = "yaml")]
@@ -3552,6 +3637,34 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "feed")]
             (Selector::FeedFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.feed_find(req, pattern)
+            }
+            #[cfg(feature = "geojson")]
+            (Selector::GeojsonType, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.geojson_type(req)
+            }
+            #[cfg(feature = "geojson")]
+            (
+                Selector::GeojsonFeature { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.geojson_feature(req, *index),
+            #[cfg(feature = "geojson")]
+            (
+                Selector::GeojsonGeometry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.geojson_geometry(req, *index),
+            #[cfg(feature = "geojson")]
+            (
+                Selector::GeojsonCoordinates { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.geojson_coordinates(req, *index),
+            #[cfg(feature = "geojson")]
+            (
+                Selector::GeojsonProperty { feature, name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.geojson_property(req, *feature, name),
+            #[cfg(feature = "geojson")]
+            (Selector::GeojsonFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.geojson_find(req, pattern)
             }
             #[cfg(feature = "yaml")]
             (Selector::YamlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -9040,6 +9153,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Geojson => {
+                #[cfg(feature = "geojson")]
+                {
+                    self.common_geojson(req)?
+                }
+                #[cfg(not(feature = "geojson"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "GeoJSON support is not compiled in (feature `geojson`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -12150,6 +12275,480 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "feed;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GeoJSON observations (Phase 21.22)
+// ---------------------------------------------------------------------------
+
+/// GeoJSON's physical bytes are JSON, so the exact leaf is the whole source, and
+/// every type/feature/geometry/coordinate/property observation is a bounded,
+/// span-preserving (`Q_gen`) projection of the shared JSON parse (ADR-0060: the
+/// model node depends on the `sha256(source)` root).
+#[cfg(feature = "geojson")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the GeoJSON model (derived, `Q_gen`).
+    fn geojson_model(&mut self) -> Result<(GeojsonModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_GEOJSON_MODEL, 0), "GeoJSON model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((GeojsonModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn geojson_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn geojson_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// A JSON leaf/container node as text: a string is decoded; a container is its
+    /// canonical JSON projection; a scalar is its literal token.
+    fn geojson_node_text(
+        model: &GeojsonModel,
+        source: &[u8],
+        index: u32,
+        node: &crate::adapter::json::JNode,
+    ) -> Result<String> {
+        if node.kind == crate::adapter::json::K_STRING {
+            json_decode_string(source, node)
+        } else if crate::adapter::json::is_container(node.kind) {
+            crate::adapter::json::subtree_text(&model.json, source, index)
+        } else {
+            Ok(String::from_utf8_lossy(json_token_bytes(source, node)?).into_owned())
+        }
+    }
+
+    /// The coordinate-number summary: every number's exact span and literal spelling.
+    fn geojson_numbers_json(model: &GeojsonModel, source: &[u8], nums: &[u32]) -> Result<String> {
+        let mut parts: Vec<String> = Vec::with_capacity(nums.len());
+        for &n in nums {
+            let node = model
+                .node(n)
+                .ok_or_else(|| Error::internal_invariant("GeoJSON coordinate node out of range"))?;
+            let tok = String::from_utf8_lossy(geojson_token_bytes(source, node)?).into_owned();
+            parts.push(format!(
+                "{{\"span\":[{},{}],\"spelling\":\"{}\"}}",
+                node.start,
+                node.end,
+                json_escape(&tok),
+            ));
+        }
+        Ok(format!("[{}]", parts.join(",")))
+    }
+
+    /// A geometry object's structural descriptor.
+    fn geojson_geometry_descriptor(
+        model: &GeojsonModel,
+        source: &[u8],
+        index: u32,
+        limits: Limits,
+    ) -> Result<String> {
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON geometry node out of range"))?;
+        let (start, end) = (node.start, node.end);
+        let ty = geojson_type_of_object(model, source, index)?.unwrap_or_default();
+        if ty == geojson_class_name(crate::adapter::geojson::G_GEOMETRYCOLLECTION) {
+            let g = geojson_geometries_node(model, source, index)?;
+            let count = match g {
+                Some(g) => model
+                    .node(g)
+                    .ok_or_else(|| Error::internal_invariant("geometries node out of range"))?
+                    .children
+                    .len(),
+                None => 0,
+            };
+            Ok(format!(
+                "{{\"index\":{index},\"type\":\"{}\",\"span\":[{start},{end}],\"geometries\":{count}}}",
+                json_escape(&ty)
+            ))
+        } else {
+            let (cspan, count) = match geojson_coordinates_node(model, source, index)? {
+                Some(c) => {
+                    let cn = model.node(c).ok_or_else(|| {
+                        Error::internal_invariant("coordinates node out of range")
+                    })?;
+                    let nums = geojson_coordinate_numbers(model, c, limits)?;
+                    (format!("[{},{}]", cn.start, cn.end), nums.len())
+                }
+                None => ("null".to_string(), 0),
+            };
+            Ok(format!(
+                "{{\"index\":{index},\"type\":\"{}\",\",\"span\":[{start},{end}],\"coordinates_span\":{cspan},\"count\":{count}}}",
+                json_escape(&ty)
+            ))
+        }
+    }
+
+    fn geojson_type(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let node = model
+            .node(model.type_node)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON type node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let ty = geojson_class_name(model.class).to_string();
+        let provenance = format!("geojson;type={ty}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(geojson_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(ty.clone()),
+            _ => AnswerValue::Json(format!(
+                "{{\"format\":\"geojson\",\"type\":\"{}\",\",\"geometries\":{},\"features\":{},\"bytes\":{}}}",
+                json_escape(&ty),
+                model.geometry_count(),
+                model.feature_count(),
+                model.doc_len(),
+            )),
+        };
+        Ok(self.geojson_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn geojson_feature(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let node_idx = *model
+            .features
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("GeoJSON has no feature {index}")))?;
+        let node = model
+            .node(node_idx)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON feature node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!("geojson;feature={index}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(geojson_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::geojson_node_text(&model, &source, node_idx, &node)?)
+            }
+            _ => {
+                let geometry = match geojson_object_member(&model, &source, node_idx, "geometry")? {
+                    Some(g) => {
+                        let gn = model.node(g).ok_or_else(|| {
+                            Error::internal_invariant("GeoJSON geometry member out of range")
+                        })?;
+                        if gn.kind == crate::adapter::json::K_NULL {
+                            "null".to_string()
+                        } else {
+                            let gty =
+                                geojson_type_of_object(&model, &source, g)?.unwrap_or_default();
+                            format!(
+                                "{{\"type\":\"{}\",\"span\":[{},{}]}}",
+                                json_escape(&gty),
+                                gn.start,
+                                gn.end
+                            )
+                        }
+                    }
+                    None => "null".to_string(),
+                };
+                let id = Self::geojson_member_token(&model, &source, node_idx, "id")?;
+                let bbox = match geojson_object_member(&model, &source, node_idx, "bbox")? {
+                    Some(b) => {
+                        let bn = model.node(b).ok_or_else(|| {
+                            Error::internal_invariant("GeoJSON bbox member out of range")
+                        })?;
+                        format!("[{},{}]", bn.start, bn.end)
+                    }
+                    None => "null".to_string(),
+                };
+                let props = Self::geojson_property_keys(&model, &source, node_idx)?;
+                let foreign = geojson_foreign_members(&model, &source, node_idx)?;
+                let foreign_keys: Vec<String> = foreign
+                    .iter()
+                    .map(|(k, _)| format!("\"{}\"", json_escape(k)))
+                    .collect();
+                AnswerValue::Json(format!(
+                    "{{\"index\":{index},\"type\":\"Feature\",\",\"span\":[{},{}],\"geometry\":{geometry},\"id\":{id},\"bbox_span\":{bbox},\"properties\":{props},\"foreign\":[{}]}}",
+                    node.start,
+                    node.end,
+                    foreign_keys.join(","),
+                ))
+            }
+        };
+        Ok(self.geojson_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The exact token (lossy UTF-8) of one object member's value, or `null`.
+    fn geojson_member_token(
+        model: &GeojsonModel,
+        source: &[u8],
+        obj: u32,
+        key: &str,
+    ) -> Result<String> {
+        match geojson_object_member(model, source, obj, key)? {
+            Some(v) => {
+                let n = model
+                    .node(v)
+                    .ok_or_else(|| Error::internal_invariant("GeoJSON member out of range"))?;
+                Ok(format!(
+                    "\"{}\"",
+                    json_escape(&String::from_utf8_lossy(geojson_token_bytes(source, n)?))
+                ))
+            }
+            None => Ok("null".to_string()),
+        }
+    }
+
+    /// The `properties` keys (member order, duplicates preserved), or `null` when
+    /// `properties` is absent or not an object.
+    fn geojson_property_keys(model: &GeojsonModel, source: &[u8], feature: u32) -> Result<String> {
+        let Some(props) = geojson_object_member(model, source, feature, "properties")? else {
+            return Ok("null".to_string());
+        };
+        let pn = model
+            .node(props)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON properties node out of range"))?;
+        if pn.kind != crate::adapter::json::K_OBJECT {
+            return Ok("null".to_string());
+        }
+        let members = geojson_object_members(model, source, props)?;
+        let keys: Vec<String> = members
+            .iter()
+            .map(|(k, _)| format!("\"{}\"", json_escape(k)))
+            .collect();
+        Ok(format!("[{}]", keys.join(",")))
+    }
+
+    fn geojson_geometry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let node_idx = *model.geometries.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("GeoJSON has no geometry {index}"))
+        })?;
+        let node = model
+            .node(node_idx)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON geometry node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!("geojson;geometry={index}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(geojson_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::geojson_node_text(&model, &source, node_idx, &node)?)
+            }
+            _ => AnswerValue::Json(Self::geojson_geometry_descriptor(
+                &model,
+                &source,
+                node_idx,
+                self.limits,
+            )?),
+        };
+        Ok(self.geojson_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn geojson_coordinates(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let geom = *model.geometries.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("GeoJSON has no geometry {index}"))
+        })?;
+        let ty = geojson_type_of_object(&model, &source, geom)?.unwrap_or_default();
+        if ty == geojson_class_name(crate::adapter::geojson::G_GEOMETRYCOLLECTION) {
+            return Err(Error::unsupported_feature(format!(
+                "GeoJSON geometry {index} is a GeometryCollection and has no coordinates"
+            )));
+        }
+        let coords = geojson_coordinates_node(&model, &source, geom)?.ok_or_else(|| {
+            Error::unsupported_feature(format!("GeoJSON geometry {index} has no coordinates"))
+        })?;
+        let cn = model
+            .node(coords)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON coordinates node out of range"))?
+            .clone();
+        let span = Some((cn.start, cn.end));
+        let provenance = format!("geojson;coordinates={index};type={ty}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(geojson_token_bytes(&source, &cn)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::geojson_node_text(&model, &source, coords, &cn)?)
+            }
+            _ => {
+                let nums = geojson_coordinate_numbers(&model, coords, self.limits)?;
+                let numbers = Self::geojson_numbers_json(&model, &source, &nums)?;
+                AnswerValue::Json(format!(
+                    "{{\"index\":{index},\"type\":\"{}\",\",\"span\":[{},{}],\"count\":{},\"numbers\":{numbers}}}",
+                    json_escape(&ty),
+                    cn.start,
+                    cn.end,
+                    nums.len(),
+                ))
+            }
+        };
+        Ok(self.geojson_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn geojson_property(
+        &mut self,
+        req: &ObserveRequest,
+        feature: u32,
+        name: &str,
+    ) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let feat = *model.features.get(feature as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("GeoJSON has no feature {feature}"))
+        })?;
+        let props =
+            geojson_object_member(&model, &source, feat, "properties")?.ok_or_else(|| {
+                Error::unsupported_feature(format!("GeoJSON feature {feature} has no properties"))
+            })?;
+        let pn = model
+            .node(props)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON properties node out of range"))?;
+        if pn.kind != crate::adapter::json::K_OBJECT {
+            return Err(Error::unsupported_feature(format!(
+                "GeoJSON feature {feature} properties is not an object"
+            )));
+        }
+        let val = geojson_object_member(&model, &source, props, name)?.ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "GeoJSON feature {feature} has no property {name:?}"
+            ))
+        })?;
+        let vn = model
+            .node(val)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON property node out of range"))?
+            .clone();
+        let span = Some((vn.start, vn.end));
+        let provenance = format!("geojson;feature={feature};property={name}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(geojson_token_bytes(&source, &vn)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::geojson_node_text(&model, &source, val, &vn)?)
+            }
+            _ => {
+                let token =
+                    String::from_utf8_lossy(geojson_token_bytes(&source, &vn)?).into_owned();
+                AnswerValue::Json(format!(
+                    "{{\"feature\":{feature},\"name\":\"{}\",\",\"kind\":\"{}\",\"span\":[{},{}],\"token\":\"{}\"}}",
+                    json_escape(name),
+                    json_kind_name(vn.kind),
+                    vn.start,
+                    vn.end,
+                    json_escape(&token),
+                ))
+            }
+        };
+        Ok(self.geojson_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over GeoJSON keys and string values, reusing the
+    /// shared JSON match vocabulary.
+    fn geojson_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let matches = geojson_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "GeoJSON find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                "{{\"pointer\":\"{}\",\"role\":\"{}\",\",\"kind\":\"string\",\"span\":[{},{}],\"text\":\"{}\"}}",
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("geojson;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.geojson_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_geojson(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.geojson_common_metadata(req),
+            Selector::Text => self.geojson_common_text(req),
+            Selector::SearchMatch(p) => self.geojson_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "GeoJSON does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn geojson_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let text = geojson_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.geojson_answer(
+            req,
+            AnswerValue::Text(text),
+            "geojson;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn geojson_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let value = AnswerValue::Json(format!(
+            "{{\"format\":\"geojson\",\"type\":\"{}\",\",\"geometries\":{},\"features\":{},\"bytes\":{}}}",
+            json_escape(geojson_class_name(model.class)),
+            model.geometry_count(),
+            model.feature_count(),
+            model.doc_len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.geojson_answer(
+            req,
+            value,
+            "geojson;metadata".to_string(),
             span,
             vec![model_id, root],
         ))
