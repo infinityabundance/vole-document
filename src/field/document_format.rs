@@ -233,6 +233,16 @@ pub enum DocumentFormat {
     /// inline-comment, `export`, continuation, and `\uXXXX`-spelling fact is a
     /// `Q_gen` projection (Phase 21.20).
     Config,
+    /// An RSS 2.0 / Atom 1.0 syndication feed. A feed is XML, so its physical
+    /// bytes are shared with [`DocumentFormat::Xml`]; the recorded dialect
+    /// (`rss`/`atom`) lives in the model, exactly as CSV/config record their
+    /// dialects. Detection is a **bounded semantic test** run before the generic
+    /// XML detector: an RSS root `<rss>` with a `<channel>` child, or an Atom root
+    /// `<feed>` in the Atom namespace (`http://www.w3.org/2005/Atom`) with at least
+    /// one `<entry>` child. Not a package: the exact leaf is the whole source, and
+    /// every element/attribute span, element order, attribute spelling, and the
+    /// namespace declaration is a `Q_gen` projection (Phase 21.21).
+    Feed,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -264,6 +274,7 @@ impl DocumentFormat {
             DocumentFormat::Cbor => "cbor",
             DocumentFormat::Msgpack => "msgpack",
             DocumentFormat::Config => "config",
+            DocumentFormat::Feed => "feed",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -294,6 +305,7 @@ impl DocumentFormat {
             DocumentFormat::Cbor => "cbor",
             DocumentFormat::Msgpack => "msgpack",
             DocumentFormat::Config => "config",
+            DocumentFormat::Feed => "feed",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -324,6 +336,7 @@ impl DocumentFormat {
             DocumentFormat::Cbor => cfg!(feature = "cbor"),
             DocumentFormat::Msgpack => cfg!(feature = "msgpack"),
             DocumentFormat::Config => cfg!(feature = "config"),
+            DocumentFormat::Feed => cfg!(feature = "feed"),
         }
     }
 
@@ -364,6 +377,7 @@ impl DocumentFormat {
             "cbor" => Some(DocumentFormat::Cbor),
             "msgpack" => Some(DocumentFormat::Msgpack),
             "config" => Some(DocumentFormat::Config),
+            "feed" => Some(DocumentFormat::Feed),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -559,6 +573,21 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "markdown")]
     if crate::adapter::markdown::detect(source, limits) {
         return DocumentFormat::Markdown;
+    }
+    // RSS/Atom is the **syndication** Wave-2 format (Phase 21.21). A feed's physical
+    // bytes are XML, so this is a **bounded semantic sub-detection** run **before**
+    // the generic standalone-XML detector below: an RSS root `<rss>` with a
+    // `<channel>` child, or an Atom root `<feed>` in the Atom namespace
+    // (`http://www.w3.org/2005/Atom`) with at least one `<entry>` child. A feed is a
+    // more specific claim than a bare XML tree, so it is tried first; a plain XML
+    // document (a root that is neither `<rss>` nor an Atom `<feed>`, or an
+    // `<rss>`-shaped-but-invalid / non-Atom / record-less `<feed>`) declines here and
+    // falls through to the XML detector (staying `Xml`) or to `Opaque`. An HTML
+    // document (`<!doctype html>` / an `<html>` root) simply declines here and is
+    // then claimed by the HTML document-level marker immediately below.
+    #[cfg(feature = "feed")]
+    if crate::adapter::feed::detect(source, limits) {
+        return DocumentFormat::Feed;
     }
     // HTML document-level marker (Phase 21.10 / 21.15 fix): a `<!doctype html>` or
     // an `<html>` root element is a more specific signal than the generic XML
@@ -819,6 +848,7 @@ mod tests {
             DocumentFormat::Cbor,
             DocumentFormat::Msgpack,
             DocumentFormat::Config,
+            DocumentFormat::Feed,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

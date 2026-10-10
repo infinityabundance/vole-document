@@ -581,6 +581,25 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.20).
     pub max_config_document_bytes: u64,
+    // The RSS/Atom feed caps below bound the derived, span-preserving feed model
+    // (Phase 21.21). A feed is not a package: the whole source is the exact leaf,
+    // and everything derived (the embedded span-preserving XML tree and the
+    // recognized channel/entry field arena) is `Q_gen` only.
+    /// Maximum record (`<item>`/`<entry>`) count accepted across one feed. An
+    /// over-large feed declines typed rather than allocating (Phase 21.21).
+    pub max_feed_entries: u32,
+    /// Maximum recognized field count (channel/feed fields plus every entry's
+    /// fields) accepted across one feed (Phase 21.21).
+    pub max_feed_fields: u32,
+    /// Maximum length of one recognized field element's whole span in bytes
+    /// (Phase 21.21).
+    pub max_feed_field_bytes: u64,
+    /// Maximum length of the canonical feed text projection in bytes (Phase 21.21).
+    pub max_feed_text_bytes: u64,
+    /// Maximum source length admitted for byte-based feed detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.21).
+    pub max_feed_document_bytes: u64,
 }
 
 impl Limits {
@@ -756,6 +775,11 @@ impl Limits {
         max_config_key_bytes: 1 << 20,
         max_config_value_bytes: 1 << 28,
         max_config_document_bytes: 1 << 34,
+        max_feed_entries: 1 << 20,
+        max_feed_fields: 1 << 22,
+        max_feed_field_bytes: 1 << 26,
+        max_feed_text_bytes: 1 << 28,
+        max_feed_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -930,6 +954,11 @@ impl Limits {
         max_config_key_bytes: 1 << 14,
         max_config_value_bytes: 1 << 20,
         max_config_document_bytes: 1 << 26,
+        max_feed_entries: 1 << 12,
+        max_feed_fields: 1 << 14,
+        max_feed_field_bytes: 1 << 20,
+        max_feed_text_bytes: 1 << 20,
+        max_feed_document_bytes: 1 << 26,
     };
 }
 

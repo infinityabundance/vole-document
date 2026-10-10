@@ -76,6 +76,14 @@ use crate::adapter::eml::{
 };
 #[cfg(feature = "epub")]
 use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
+#[cfg(feature = "feed")]
+use crate::adapter::feed::{
+    FeedModel, canonical_text as feed_canonical_text,
+    channel_field_nodes as feed_channel_field_nodes, dialect_name as feed_dialect_name,
+    entry_field_nodes as feed_entry_field_nodes, field_attrs as feed_field_attrs,
+    field_bytes as feed_field_bytes, field_text as feed_field_text, find as feed_find_matches,
+    split_qname as feed_split_qname,
+};
 #[cfg(feature = "html")]
 use crate::adapter::html::{
     HtmlModel, anchors as html_anchors, attr_name as html_attr_name,
@@ -197,6 +205,8 @@ use crate::field::index::SEL_DOCX_MODEL;
 use crate::field::index::SEL_EML_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "feed")]
+use crate::field::index::SEL_FEED_MODEL;
 #[cfg(feature = "html")]
 use crate::field::index::SEL_HTML_MODEL;
 #[cfg(feature = "json")]
@@ -896,6 +906,52 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A feed's channel (RSS) or feed container (Atom) element (Phase 21.21).
+    /// `ExactBytes` returns the container element's whole source span; `Text` its
+    /// character data; `Metadata`/`Structure` a descriptor with the recorded dialect,
+    /// the channel/feed-level fields and their exact spans, and the entry count. A
+    /// feed has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "feed")]
+    FeedChannel,
+    /// A feed channel/feed-level field by local name (Phase 21.21), e.g. `title`,
+    /// `link`, `description`, `language` (RSS) or `id`, `title`, `updated`, `link`
+    /// (Atom). `ExactBytes` returns the field element's whole source span; `Text`
+    /// its decoded value (for an Atom `<link>` the `href` attribute);
+    /// `Metadata`/`Structure` a descriptor with the field name, span, and its
+    /// attributes in source order. An unknown name declines typed.
+    #[cfg(feature = "feed")]
+    FeedField {
+        /// The field element's local name.
+        name: String,
+    },
+    /// A feed record (RSS `<item>` / Atom `<entry>`) by 0-based ordinal (Phase
+    /// 21.21), in document order. `ExactBytes` returns the record element's whole
+    /// source span; `Text` the concatenation of its fields' values; `Metadata`/
+    /// `Structure` a descriptor with the record's fields and their exact spans.
+    #[cfg(feature = "feed")]
+    FeedEntry {
+        /// The 0-based record ordinal in document order.
+        index: u32,
+    },
+    /// One field of one feed record (Phase 21.21), e.g. `0:title`. Same
+    /// representations as [`Selector::FeedField`]. An out-of-range record or an
+    /// unknown field name declines typed.
+    #[cfg(feature = "feed")]
+    FeedEntryField {
+        /// The 0-based record ordinal.
+        entry: u32,
+        /// The field element's local name.
+        name: String,
+    },
+    /// A lexical, case-sensitive search over feed field values (Phase 21.21), in
+    /// document order (channel/feed fields first, then each record's fields). Each
+    /// match reports its record ordinal (or none for a channel/feed field), the
+    /// field name, and its exact span. Never an embedding or a model call.
+    #[cfg(feature = "feed")]
+    FeedFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// A YAML node addressed by a dotted path (Phase 21.6.1), e.g. `a.b.0`. The
     /// optional first segment `docN` selects a document (default 0). The answer
     /// reports the node's kind/style, its exact source span, and (for `ExactBytes`)
@@ -1527,6 +1583,16 @@ impl Selector {
             Selector::ConfigSection { name } => format!("config-section:{name}"),
             #[cfg(feature = "config")]
             Selector::ConfigFind { pattern } => format!("config-find:{pattern}"),
+            #[cfg(feature = "feed")]
+            Selector::FeedChannel => "feed-channel".to_string(),
+            #[cfg(feature = "feed")]
+            Selector::FeedField { name } => format!("feed-field:{name}"),
+            #[cfg(feature = "feed")]
+            Selector::FeedEntry { index } => format!("feed-entry:{index}"),
+            #[cfg(feature = "feed")]
+            Selector::FeedEntryField { entry, name } => format!("feed-entry-field:{entry}:{name}"),
+            #[cfg(feature = "feed")]
+            Selector::FeedFind { pattern } => format!("feed-find:{pattern}"),
             #[cfg(feature = "yaml")]
             Selector::YamlPath { path } => format!("yaml-path:{path}"),
             #[cfg(feature = "yaml")]
@@ -3463,6 +3529,29 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "config")]
             (Selector::ConfigFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.config_find(req, pattern)
+            }
+            #[cfg(feature = "feed")]
+            (Selector::FeedChannel, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.feed_channel(req)
+            }
+            #[cfg(feature = "feed")]
+            (
+                Selector::FeedField { name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.feed_field(req, name),
+            #[cfg(feature = "feed")]
+            (
+                Selector::FeedEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.feed_entry(req, *index),
+            #[cfg(feature = "feed")]
+            (
+                Selector::FeedEntryField { entry, name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.feed_entry_field(req, *entry, name),
+            #[cfg(feature = "feed")]
+            (Selector::FeedFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.feed_find(req, pattern)
             }
             #[cfg(feature = "yaml")]
             (Selector::YamlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -8939,6 +9028,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Feed => {
+                #[cfg(feature = "feed")]
+                {
+                    self.common_feed(req)?
+                }
+                #[cfg(not(feature = "feed"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "feed support is not compiled in (feature `feed`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -11712,6 +11813,343 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "config;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RSS/Atom feed observations (Phase 21.21)
+// ---------------------------------------------------------------------------
+
+/// A feed has no package layer: the exact leaf is the whole source, and every
+/// channel/field/entry observation is a bounded, span-preserving (`Q_gen`)
+/// projection of it (ADR-0060: the model node depends on the `sha256(source)`
+/// root).
+#[cfg(feature = "feed")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the feed model (derived, `Q_gen`).
+    fn feed_model(&mut self) -> Result<(FeedModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_FEED_MODEL, 0), "feed model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((FeedModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn feed_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn feed_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The local name of a field element and its exact span.
+    fn feed_field_meta(model: &FeedModel, source: &[u8], node: u32) -> Result<(String, u64, u64)> {
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("feed field node is out of range"))?;
+        let name = feed_split_qname(xml_element_name(source, n)?).1.to_string();
+        Ok((name, n.start, n.end))
+    }
+
+    /// The structural descriptor of one field element: local name, exact span, the
+    /// decoded value, and the attributes in source order.
+    fn feed_field_descriptor(model: &FeedModel, source: &[u8], node: u32) -> Result<String> {
+        let (name, start, end) = Self::feed_field_meta(model, source, node)?;
+        let text = feed_field_text(model, source, node)?;
+        let attrs = feed_field_attrs(model, source, node)?;
+        let mut parts: Vec<String> = Vec::with_capacity(attrs.len());
+        for a in &attrs {
+            parts.push(format!(
+                "{{\"name\":\"{}\",\"value\":\"{}\",\"span\":[{},{}]}}",
+                json_escape(&a.name),
+                json_escape(&a.value),
+                a.start,
+                a.end,
+            ));
+        }
+        Ok(format!(
+            "{{\"name\":\"{}\",\"span\":[{},{}],\"text\":\"{}\",\"attrs\":[{}]}}",
+            json_escape(&name),
+            start,
+            end,
+            json_escape(&text),
+            parts.join(","),
+        ))
+    }
+
+    /// The channel/feed container descriptor.
+    fn feed_channel_structure(model: &FeedModel, source: &[u8]) -> Result<String> {
+        let fields = feed_channel_field_nodes(model, source)?;
+        let mut parts: Vec<String> = Vec::with_capacity(fields.len());
+        for f in fields {
+            parts.push(Self::feed_field_descriptor(model, source, f)?);
+        }
+        Ok(format!(
+            "{{\"dialect\":\"{}\",\"entries\":{},\"fields\":[{}]}}",
+            feed_dialect_name(model.dialect),
+            model.entry_count(),
+            parts.join(","),
+        ))
+    }
+
+    /// One record's (`<item>`/`<entry>`) descriptor.
+    fn feed_entry_structure(model: &FeedModel, source: &[u8], index: u32) -> Result<String> {
+        let node = *model
+            .entries
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("feed has no entry {index}")))?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("feed entry node is out of range"))?;
+        let (start, end) = (n.start, n.end);
+        let fields = feed_entry_field_nodes(model, source, index)?;
+        let mut parts: Vec<String> = Vec::with_capacity(fields.len());
+        for f in fields {
+            parts.push(Self::feed_field_descriptor(model, source, f)?);
+        }
+        Ok(format!(
+            "{{\"index\":{},\"dialect\":\"{}\",\"span\":[{},{}],\"fields\":[{}]}}",
+            index,
+            feed_dialect_name(model.dialect),
+            start,
+            end,
+            parts.join(","),
+        ))
+    }
+
+    /// Find a field by local name among the given node indices, in document order.
+    fn feed_field_by_name(
+        model: &FeedModel,
+        source: &[u8],
+        nodes: &[u32],
+        name: &str,
+    ) -> Result<Option<u32>> {
+        for &n in nodes {
+            if Self::feed_field_meta(model, source, n)?.0 == name {
+                return Ok(Some(n));
+            }
+        }
+        Ok(None)
+    }
+
+    fn feed_channel(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let node = model.channel;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("feed channel node is out of range"))?;
+        let span = Some((n.start, n.end));
+        let provenance = format!("feed;channel;dialect={}", feed_dialect_name(model.dialect));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(feed_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model.xml, &source, node)?),
+            _ => AnswerValue::Json(Self::feed_channel_structure(&model, &source)?),
+        };
+        Ok(self.feed_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn feed_field(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let nodes = feed_channel_field_nodes(&model, &source)?;
+        let node = Self::feed_field_by_name(&model, &source, &nodes, name)?.ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "feed channel has no field named {name:?} (dialect {})",
+                feed_dialect_name(model.dialect)
+            ))
+        })?;
+        let (_, start, end) = Self::feed_field_meta(&model, &source, node)?;
+        let provenance = format!(
+            "feed;field={name};dialect={}",
+            feed_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(feed_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(feed_field_text(&model, &source, node)?),
+            _ => AnswerValue::Json(Self::feed_field_descriptor(&model, &source, node)?),
+        };
+        Ok(self.feed_answer(
+            req,
+            value,
+            provenance,
+            Some((start, end)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn feed_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let node = *model
+            .entries
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("feed has no entry {index}")))?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("feed entry node is out of range"))?;
+        let span = Some((n.start, n.end));
+        let provenance = format!(
+            "feed;entry={index};dialect={}",
+            feed_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(feed_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model.xml, &source, node)?),
+            _ => AnswerValue::Json(Self::feed_entry_structure(&model, &source, index)?),
+        };
+        Ok(self.feed_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn feed_entry_field(
+        &mut self,
+        req: &ObserveRequest,
+        entry: u32,
+        name: &str,
+    ) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let nodes = feed_entry_field_nodes(&model, &source, entry)?;
+        let node = Self::feed_field_by_name(&model, &source, &nodes, name)?.ok_or_else(|| {
+            Error::unsupported_feature(format!("feed entry {entry} has no field named {name:?}"))
+        })?;
+        let (_, start, end) = Self::feed_field_meta(&model, &source, node)?;
+        let provenance = format!(
+            "feed;entry={entry};field={name};dialect={}",
+            feed_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(feed_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(feed_field_text(&model, &source, node)?),
+            _ => AnswerValue::Json(Self::feed_field_descriptor(&model, &source, node)?),
+        };
+        Ok(self.feed_answer(
+            req,
+            value,
+            provenance,
+            Some((start, end)),
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over decoded field values.
+    fn feed_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let matches = feed_find_matches(&model, &source, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            let entry = match m.entry {
+                Some(e) => e.to_string(),
+                None => "null".to_string(),
+            };
+            out.push(format!(
+                concat!(
+                    "{{\"entry\":{},\"name\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                entry,
+                json_escape(&m.name),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("feed;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.feed_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_feed(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.feed_common_metadata(req),
+            Selector::Text => self.feed_common_text(req),
+            Selector::SearchMatch(p) => self.feed_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "feed does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn feed_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let text = feed_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.feed_answer(
+            req,
+            AnswerValue::Text(text),
+            "feed;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn feed_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let channel_fields = feed_channel_field_nodes(&model, &source)?.len();
+        let mut fields = channel_fields;
+        for i in 0..model.entries.len() as u32 {
+            fields += feed_entry_field_nodes(&model, &source, i)?.len();
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"feed\",\"dialect\":\"{}\",",
+                "\"entries\":{},\"channel_fields\":{},\"fields\":{},\"bytes\":{}}}"
+            ),
+            feed_dialect_name(model.dialect),
+            model.entry_count(),
+            channel_fields,
+            fields,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.feed_answer(
+            req,
+            value,
+            "feed;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

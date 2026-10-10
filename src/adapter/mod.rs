@@ -18,6 +18,8 @@ pub mod docx;
 pub mod eml;
 #[cfg(feature = "epub")]
 pub mod epub;
+#[cfg(feature = "feed")]
+pub mod feed;
 #[cfg(feature = "html")]
 pub mod html;
 #[cfg(feature = "json")]

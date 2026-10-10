@@ -310,6 +310,19 @@ pub const SEL_MSGPACK_MODEL: u8 = 32;
 /// the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); the config
 /// family has no package layer. Derived, never exact.
 pub const SEL_CONFIG_MODEL: u8 = 33;
+/// Selector kind: the canonical RSS/Atom feed model (Phase 21.21).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed (via the shared bounded XML parser) as an RSS 2.0 or
+/// Atom 1.0 feed into a bounded, representation-preserving model — the recorded
+/// dialect (`rss`/`atom`), the channel/feed container node, the ordered
+/// `<item>`/`<entry>` records, and the embedded span-preserving XML tree (every
+/// element/attribute span, element order, attribute spelling, and the Atom
+/// namespace declaration) — as `Q_gen` derived state. It is computed on demand
+/// from the exact source (its single dependency is the `DocumentExact` root,
+/// keyed by `sha256(source)` per ADR-0060); a feed has no package layer. Derived,
+/// never exact.
+pub const SEL_FEED_MODEL: u8 = 34;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

@@ -500,6 +500,18 @@ msgpack = ["json"]
 # `.voldoc` bytes and exactness is untouched. Dependency-free (`config = []`) and
 # never in `default`.
 config = []
+# Phase 21.21: the RSS 2.0 / Atom 1.0 feed adapter — the **syndication** Wave-2
+# format. A feed is XML, so this adapter **reuses the shared bounded XML parser and
+# policy** (Phase 21.9's `xml` feature) to obtain a span-preserving element/attribute
+# tree and layers a representation-preserving feed projection on it, recording the
+# dialect (rss/atom) in the model exactly as CSV/config record their dialects. Like
+# the other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
+# the whole source (a `DocumentExact`, RAW-like authority) and every derived
+# observation is a bounded, span-preserving (`Q_gen`) projection of it. It adds
+# **no** decoder behavior: the feed model is never on the exactness path, so enabling
+# it never changes `.voldoc` bytes and exactness is untouched. Never in `default`; it
+# implies `xml`.
+feed = ["xml"]
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

@@ -300,6 +300,18 @@ pub enum NodeKind {
     /// root, keyed by `sha256(source)` per ADR-0060); the config family has no
     /// package layer. Derived, never exact.
     ConfigModel = 0x35,
+    /// The canonical, representation-preserving RSS 2.0 / Atom 1.0 feed model
+    /// (Phase 21.21): the whole source parsed (via the shared bounded XML parser)
+    /// into a span-preserving element/attribute tree plus the recorded dialect
+    /// (`rss`/`atom`), the channel/feed container node, and the ordered `<item>` /
+    /// `<entry>` record nodes. Every element's and attribute's exact source span,
+    /// element order, attribute spelling (Atom `<link href=… rel=…>`, RSS `<guid
+    /// isPermaLink=…>`), and the Atom namespace declaration are preserved; entity
+    /// references are surfaced literally (never expanded). It is computed on demand
+    /// from the exact source (its single dependency is the `DocumentExact` root,
+    /// keyed by `sha256(source)` per ADR-0060); a feed has no package layer. Derived,
+    /// never exact.
+    FeedModel = 0x36,
 }
 
 impl NodeKind {
@@ -359,6 +371,7 @@ impl NodeKind {
             0x33 => NodeKind::CborModel,
             0x34 => NodeKind::MsgpackModel,
             0x35 => NodeKind::ConfigModel,
+            0x36 => NodeKind::FeedModel,
             _ => return None,
         })
     }
@@ -419,6 +432,7 @@ impl NodeKind {
             NodeKind::CborModel => "CborModel",
             NodeKind::MsgpackModel => "MsgpackModel",
             NodeKind::ConfigModel => "ConfigModel",
+            NodeKind::FeedModel => "FeedModel",
         }
     }
 

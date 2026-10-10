@@ -237,6 +237,13 @@ const CONFIG_NATIVE: &[&str] = &[
     "config-section",
     "config-find",
 ];
+const FEED_NATIVE: &[&str] = &[
+    "feed-channel",
+    "feed-field",
+    "feed-entry",
+    "feed-entry-field",
+    "feed-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -509,6 +516,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 CONFIG_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Feed => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                FEED_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

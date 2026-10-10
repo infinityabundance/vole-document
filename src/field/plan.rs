@@ -631,6 +631,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Cbor => &["CborModel", "DocumentExact"],
         DocumentFormat::Msgpack => &["MsgpackModel", "DocumentExact"],
         DocumentFormat::Config => &["ConfigModel", "DocumentExact"],
+        DocumentFormat::Feed => &["FeedModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

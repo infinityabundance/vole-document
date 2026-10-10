@@ -116,6 +116,8 @@ const USAGE_FIELD: &str = "\
         --msgpack-pointer PATH | --msgpack-node PATH | --msgpack-find PATTERN |
         --config-line N | --config-entry N | --config-section NAME |
         --config-find PATTERN |
+        --feed-channel | --feed-field NAME | --feed-entry N |
+        --feed-entry-field N:NAME | --feed-find PATTERN |
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
@@ -1668,6 +1670,25 @@ struct FieldArgs {
     /// and values (Phase 21.20).
     #[cfg(feature = "config")]
     config_find: Option<String>,
+    /// `--feed-channel`: the feed's channel (RSS) / feed container (Atom) element
+    /// (Phase 21.21).
+    #[cfg(feature = "feed")]
+    feed_channel: bool,
+    /// `--feed-field NAME`: a feed channel/feed-level field by local name
+    /// (Phase 21.21).
+    #[cfg(feature = "feed")]
+    feed_field: Option<String>,
+    /// `--feed-entry N`: the N-th (0-based) feed record in document order
+    /// (Phase 21.21).
+    #[cfg(feature = "feed")]
+    feed_entry: Option<u32>,
+    /// `--feed-entry-field N:NAME`: one field of one feed record (Phase 21.21).
+    #[cfg(feature = "feed")]
+    feed_entry_field: Option<String>,
+    /// `--feed-find PATTERN`: a lexical, case-sensitive search over feed field
+    /// values (Phase 21.21).
+    #[cfg(feature = "feed")]
+    feed_find: Option<String>,
     /// `--yaml-path PATH`: resolve a dotted YAML path (optional leading `docN`),
     /// returning the node's kind/style, exact source span, and exact token bytes
     /// (Phase 21.6.1).
@@ -2305,6 +2326,31 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "config")]
             "--config-find" => {
                 out.config_find = Some(field_arg_value(args, &mut i, "--config-find", inline)?);
+            }
+            #[cfg(feature = "feed")]
+            "--feed-channel" => {
+                out.feed_channel = true;
+                i += 1;
+            }
+            #[cfg(feature = "feed")]
+            "--feed-field" => {
+                out.feed_field = Some(field_arg_value(args, &mut i, "--feed-field", inline)?);
+            }
+            #[cfg(feature = "feed")]
+            "--feed-entry" => {
+                out.feed_entry = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--feed-entry", inline)?,
+                    "--feed-entry",
+                )?);
+            }
+            #[cfg(feature = "feed")]
+            "--feed-entry-field" => {
+                out.feed_entry_field =
+                    Some(field_arg_value(args, &mut i, "--feed-entry-field", inline)?);
+            }
+            #[cfg(feature = "feed")]
+            "--feed-find" => {
+                out.feed_find = Some(field_arg_value(args, &mut i, "--feed-find", inline)?);
             }
             #[cfg(feature = "yaml")]
             "--yaml-path" => {
@@ -2986,6 +3032,43 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.config_find {
             chosen.push(Selector::ConfigFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // RSS/Atom feed: `--feed-channel` addresses the channel/feed container;
+    // `--feed-field NAME` a channel/feed-level field; `--feed-entry N` a record;
+    // `--feed-entry-field N:NAME` one field of one record; `--feed-find` a lexical
+    // search. Each stands alone (Phase 21.21).
+    #[cfg(feature = "feed")]
+    {
+        if out.feed_channel {
+            chosen.push(Selector::FeedChannel);
+        }
+        if let Some(name) = &out.feed_field {
+            chosen.push(Selector::FeedField { name: name.clone() });
+        }
+        if let Some(index) = out.feed_entry {
+            chosen.push(Selector::FeedEntry { index });
+        }
+        if let Some(spec) = &out.feed_entry_field {
+            let (entry, name) = spec.split_once(':').ok_or_else(|| {
+                Error::usage(format!(
+                    "--feed-entry-field {spec:?} must be N:NAME (a record ordinal and a field name)"
+                ))
+            })?;
+            let entry: u32 = entry.parse().map_err(|_| {
+                Error::usage(format!(
+                    "--feed-entry-field {spec:?} has a bad record ordinal {entry:?}"
+                ))
+            })?;
+            chosen.push(Selector::FeedEntryField {
+                entry,
+                name: name.to_string(),
+            });
+        }
+        if let Some(pattern) = &out.feed_find {
+            chosen.push(Selector::FeedFind {
                 pattern: pattern.clone(),
             });
         }

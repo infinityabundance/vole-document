@@ -555,6 +555,11 @@ fn limits_never_change_reconstructed_bytes() {
         max_config_key_bytes: 1 << 30,
         max_config_value_bytes: 1 << 50,
         max_config_document_bytes: 1 << 50,
+        max_feed_entries: 1 << 30,
+        max_feed_fields: 1 << 30,
+        max_feed_field_bytes: 1 << 50,
+        max_feed_text_bytes: 1 << 50,
+        max_feed_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

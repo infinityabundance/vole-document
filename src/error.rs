@@ -115,6 +115,11 @@ pub enum ErrorClass {
     /// quoted value, or a source that carries no config-family dialect signal at all
     /// (so it stays `Opaque`).
     InvalidConfigStructure,
+    /// An RSS/Atom feed structure error (Phase 21.21+): a source that is not
+    /// well-formed XML, an `<rss>` root with no `<channel>`, an Atom `<feed>` whose
+    /// namespace is not the Atom URI or which carries no `<entry>`, or a root that is
+    /// not an RSS/Atom feed (so it stays `Xml`/`Opaque`).
+    InvalidFeedStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -156,6 +161,7 @@ impl ErrorClass {
             ErrorClass::InvalidCborStructure => 32,
             ErrorClass::InvalidMsgpackStructure => 33,
             ErrorClass::InvalidConfigStructure => 34,
+            ErrorClass::InvalidFeedStructure => 35,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -196,6 +202,7 @@ impl ErrorClass {
             ErrorClass::InvalidCborStructure => "InvalidCborStructure",
             ErrorClass::InvalidMsgpackStructure => "InvalidMsgpackStructure",
             ErrorClass::InvalidConfigStructure => "InvalidConfigStructure",
+            ErrorClass::InvalidFeedStructure => "InvalidFeedStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -290,6 +297,7 @@ impl Error {
     ctor!(invalid_cbor_structure, InvalidCborStructure);
     ctor!(invalid_msgpack_structure, InvalidMsgpackStructure);
     ctor!(invalid_config_structure, InvalidConfigStructure);
+    ctor!(invalid_feed_structure, InvalidFeedStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 
