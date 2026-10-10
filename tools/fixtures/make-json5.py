@@ -104,6 +104,36 @@ def large():
     return "".join(out).encode("utf-8")
 
 
+def duplicates():
+    # Duplicate object keys (`a` appears three times, first-wins for a pointer).
+    return (
+        "{\n"
+        "  a: 1,\n"
+        "  b: 2,\n"
+        "  a: 3,\n"
+        "  c: 4,\n"
+        "  a: 5,\n"
+        "}\n"
+    ).encode("utf-8")
+
+
+def deep():
+    # A valid, within-cap deep chain (64 nested objects) plus shallow scalars.
+    inner = "{ bottom: 'here', leaf: 1 }"
+    for _ in range(64):
+        inner = "{ k: " + inner + " }"
+    return ("{ label: 'deep', n: 1, chain: " + inner + " }\n").encode("utf-8")
+
+
+def bomb():
+    # A hostile nesting bomb with unquoted keys: it is JSON5 *shaped* but exceeds
+    # the depth cap, so it must stay `Opaque` (never a guess, never a panic).
+    inner = "1"
+    for _ in range(400):
+        inner = "{ k: " + inner + " }"
+    return inner.encode("utf-8")
+
+
 def strict_json():
     # Strict JSON: must stay `Json`.
     return (
@@ -135,7 +165,10 @@ FIXTURES = [
     ("unicode.json5", unicode_keys),
     ("comments.json5", comments),
     ("large.json5", large),
+    ("dup.json5", duplicates),
+    ("deep.json5", deep),
     ("strict.json", strict_json),
+    ("bomb.json5", bomb),
     ("malformed.json5", malformed),
     ("prose.txt", prose),
 ]
