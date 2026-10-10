@@ -115,6 +115,52 @@ was chosen (the Phase-22 "maximize the competitor first" rule, applied per
 format). Parquet and Arrow IPC themselves are the **most adversarial** later
 targets for exactly this reason.
 
+### Wave 2 — the remaining order (frozen)
+
+Beyond the eleven shipped Wave-2 formats, the remaining families are decomposed
+into one subphase each. The order is again chosen for **maximum reuse** — the
+structured-tree, tabular, XML, JSON and MIME layers are already paid for, so a
+format enters by reusing one of them and paying mostly for its own span policy.
+Each subphase is the established unit: **adapter → tests → adapter court →
+economic court → docs**, with a sealed receipt per court, and it may be closed as
+an honest negative if the court declines it.
+
+```text
+21.17  JSON5 / JSONC        (structured extra; reuses the JSON parser + span policy)
+21.18  CBOR                 (binary structured; new byte/integer/float policy)
+21.19  MessagePack          (binary structured; new byte/integer/float policy)
+21.20  INI / .env / properties   (config; trivial line grammar)
+21.21  RSS / Atom           (feeds; reuses the XML parser + span policy)
+21.22  GeoJSON              (GIS; reuses the JSON parser + geo semantics)
+21.23  KML / GPX            (GIS; reuses the XML parser + geo semantics)
+21.24  Jupyter notebook     (.ipynb; reuses the JSON parser + cell/output model)
+21.25  PSV / fixed-width    (tabular extra; reuses the tabular layer)
+21.26  reST / AsciiDoc / MDX (docs; reuses the prose/line layer)
+21.27  MHTML                (messaging + web; reuses the MIME + HTML layers)
+21.28  syslog / log streams (line/event stream; reuses the JSONL line policy)
+21.29  package metadata      (package.json / pyproject.toml / Cargo.toml / lockfiles)
+21.30  JSON Schema / OpenAPI (API/spec; reuses the JSON parser + a schema model)
+21.31  BibTeX / CSL-JSON / RIS (bibliography)
+21.32  RTF                  (legacy prose; new control-word grammar)
+21.33  ZIP / TAR containers (containers; reuses the package physical layer)
+21.34  HDF5 / NetCDF         (scientific; new binary container policy)
+21.35  CFBF / OLE            (legacy DOC/XLS/PPT/MSG via one shared physical layer)
+```
+
+The JSON-based members (21.17, 21.22, 21.24, 21.29, 21.30) need a **semantic
+sub-detection** step: their physical bytes are JSON, so the generic JSON
+classification must be refined by a bounded semantic test (a JSON5/JSONC dialect
+marker, a GeoJSON `type`, a notebook `cells`/`nbformat`, a known package key set,
+a schema `$schema`/`openapi` key) — a plain JSON document stays `Json`. The
+binary/scientific/legacy members (21.18, 21.19, 21.32, 21.33, 21.34, 21.35) each
+pay honestly for a new physical parser and a typed decline on anything they do not
+fully support, so an unsupported input stays `Opaque`.
+
+**Analytical comparators are required, not optional.** For the tabular/analytical
+formats the court must include a **DuckDB/Parquet** baseline as well as SQLite, and
+for any format whose conventional peer is already efficient on the same question
+the court must say so and record the negative rather than claim a win.
+
 ## The reuse architecture
 
 ### Office: extend the package layer, not the semantic model
