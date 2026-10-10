@@ -1,0 +1,2 @@
+From here to there, the quick brown fox jumps over the lazy dog.
+This paragraph has no header block and no blank-line separator.

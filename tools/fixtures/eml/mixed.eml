@@ -1,0 +1,22 @@
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: Mixed message
+Date: Mon, 01 Jan 2029 00:00:00 +0000
+Message-ID: <mixed@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="MIXED"
+
+This is the preamble and is ignored.
+--MIXED
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Caf=C3=A9 and tea for two.
+--MIXED
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="report.bin"
+
+UmVwb3J0IGRhdGE6IAABAiBiaW5hcnkgcGF5bG9hZAo=
+--MIXED--
+This is the epilogue and is ignored.
