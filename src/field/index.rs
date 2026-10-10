@@ -286,6 +286,18 @@ pub const SEL_JSON5_MODEL: u8 = 30;
 /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); CBOR has no
 /// package layer. Derived, never exact.
 pub const SEL_CBOR_MODEL: u8 = 31;
+/// Selector kind: the canonical MessagePack structured-tree model (Phase 21.19).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as exactly one MessagePack item into a bounded,
+/// representation-preserving arena (each item's kind, exact byte span, exact format
+/// byte — encoding width and signedness — `str` vs `bin`, float width, extension
+/// type/length, and ordered children — map member order and duplicate keys kept
+/// verbatim) as `Q_gen` derived state. It is computed on demand from the exact
+/// source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); MessagePack has no package layer. Derived, never
+/// exact.
+pub const SEL_MSGPACK_MODEL: u8 = 32;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

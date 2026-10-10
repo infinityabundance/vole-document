@@ -209,6 +209,20 @@ pub enum DocumentFormat {
     /// exact span, encoding width, tag number, float width, and definite/indefinite
     /// form are `Q_gen` projections (Phase 21.18).
     Cbor,
+    /// A MessagePack structured-tree document. MessagePack has **no magic bytes**, so
+    /// detection is deliberately conservative: a full-input well-formed parse of
+    /// exactly one item whose root is a container (array/map) reaching a node/byte
+    /// threshold, or the same with an unambiguous MessagePack-only head byte
+    /// (`0xdc..=0xdf`, which CBOR's grammar rejects). A lone scalar, an empty
+    /// container, and any structurally trivial or ambiguous input stay `Opaque`. A
+    /// container head byte is always `>= 0x80`, so a pure-ASCII text document is never
+    /// claimed; and the whole-number/short-container prefix overlaps CBOR's
+    /// `fixint`/short containers, so CBOR (tried first) owns any input well-formed
+    /// under both. Not a package: the exact leaf is the whole source, and every item's
+    /// kind, exact span, exact format byte (encoding width and signedness), `str` vs
+    /// `bin`, float width, and extension type/length are `Q_gen` projections
+    /// (Phase 21.19).
+    Msgpack,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -238,6 +252,7 @@ impl DocumentFormat {
             DocumentFormat::Parquet => "parquet",
             DocumentFormat::ArrowIpc => "arrow",
             DocumentFormat::Cbor => "cbor",
+            DocumentFormat::Msgpack => "msgpack",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -266,6 +281,7 @@ impl DocumentFormat {
             DocumentFormat::Parquet => "parquet",
             DocumentFormat::ArrowIpc => "arrow",
             DocumentFormat::Cbor => "cbor",
+            DocumentFormat::Msgpack => "msgpack",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -294,6 +310,7 @@ impl DocumentFormat {
             DocumentFormat::Parquet => cfg!(feature = "parquet"),
             DocumentFormat::ArrowIpc => cfg!(feature = "arrow"),
             DocumentFormat::Cbor => cfg!(feature = "cbor"),
+            DocumentFormat::Msgpack => cfg!(feature = "msgpack"),
         }
     }
 
@@ -332,6 +349,7 @@ impl DocumentFormat {
             "parquet" => Some(DocumentFormat::Parquet),
             "arrow" => Some(DocumentFormat::ArrowIpc),
             "cbor" => Some(DocumentFormat::Cbor),
+            "msgpack" => Some(DocumentFormat::Msgpack),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -428,6 +446,26 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "cbor")]
     if crate::adapter::cbor::detect(source, limits) {
         return DocumentFormat::Cbor;
+    }
+    // MessagePack is the **binary** structured-tree Wave-2 sibling of CBOR (Phase
+    // 21.19), also with no package layer. It is tried **immediately after CBOR** and
+    // **before** the remaining textual heuristics (EML/YAML/TOML/CSV/Markdown/XML/
+    // HTML): the strong magic-byte binaries (PDF/ZIP/Parquet/Arrow) and the JSON
+    // family run above and are never reconsidered. **Placement is load-bearing: the
+    // two binary detectors share the whole-number/short-container prefix, so putting
+    // CBOR first guarantees its stronger self-described-tag signal (and every input
+    // well-formed under both grammars) is never stolen from it.** MessagePack has
+    // **no magic bytes**, so its detector is deliberately conservative — a
+    // full-input, well-formed parse whose root is a container (array/map) reaching at
+    // least three items and eight bytes, or the same with an unambiguous
+    // MessagePack-only head byte (`0xdc..=0xdf`, which CBOR's grammar rejects). A
+    // container head byte is always `>= 0x80`, so no pure-ASCII document can be
+    // claimed; a lone scalar, an empty container, the ambiguous
+    // `fixarray(3)`/`fixmap(2)` overlap fixtures, and a structurally trivial input
+    // all stay `Opaque` rather than being guessed.
+    #[cfg(feature = "msgpack")]
+    if crate::adapter::msgpack::detect(source, limits) {
+        return DocumentFormat::Msgpack;
     }
     // EML/MIME is the **messaging** Wave-2 format (Phase 21.13), also with no package
     // layer. It is tried **immediately after JSONL** and **before YAML/TOML/CSV/
@@ -745,6 +783,7 @@ mod tests {
             DocumentFormat::Parquet,
             DocumentFormat::ArrowIpc,
             DocumentFormat::Cbor,
+            DocumentFormat::Msgpack,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

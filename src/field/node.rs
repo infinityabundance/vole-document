@@ -279,6 +279,17 @@ pub enum NodeKind {
     /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
     /// ADR-0060). CBOR has no package layer. Derived, never exact.
     CborModel = 0x33,
+    /// The canonical, representation-preserving MessagePack structured-tree model
+    /// (Phase 21.19): the same representation guarantees as [`NodeKind::JsonModel`]
+    /// (exact token spans, member order, duplicate keys) plus the MessagePack-specific
+    /// facts — the exact format byte of every item (so the encoding width **and
+    /// signedness** actually used are preserved), `str` vs `bin` as distinct kinds,
+    /// float width (`float32`/`float64`) with the IEEE-754 bits, and extension type
+    /// numbers + payload lengths preserved verbatim (never interpreted). It is derived
+    /// on demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060). MessagePack has no package layer.
+    /// Derived, never exact.
+    MsgpackModel = 0x34,
 }
 
 impl NodeKind {
@@ -336,6 +347,7 @@ impl NodeKind {
             0x31 => NodeKind::ArrowModel,
             0x32 => NodeKind::Json5Model,
             0x33 => NodeKind::CborModel,
+            0x34 => NodeKind::MsgpackModel,
             _ => return None,
         })
     }
@@ -394,6 +406,7 @@ impl NodeKind {
             NodeKind::ArrowModel => "ArrowModel",
             NodeKind::Json5Model => "Json5Model",
             NodeKind::CborModel => "CborModel",
+            NodeKind::MsgpackModel => "MsgpackModel",
         }
     }
 

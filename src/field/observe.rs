@@ -106,6 +106,13 @@ use crate::adapter::markdown::{
     inline_kind_name as md_inline_kind_name, inline_text_bytes as md_inline_text_bytes,
     is_code_block as md_is_code_block,
 };
+#[cfg(feature = "msgpack")]
+use crate::adapter::msgpack::{
+    MsgpackModel, canonical_text as msgpack_canonical_text, decode_text as msgpack_decode_text,
+    find as msgpack_find_matches, find_parent as msgpack_find_parent,
+    kind_name as msgpack_kind_name, resolve_pointer as msgpack_resolve_pointer,
+    subtree_text as msgpack_subtree_text, token_bytes as msgpack_token_bytes,
+};
 #[cfg(feature = "odp")]
 use crate::adapter::odp::{
     ContentModel as OdpContentModel, OdpExtractProfile, OdpModel, OdpShape, OdpTable,
@@ -188,6 +195,8 @@ use crate::field::index::SEL_JSON5_MODEL;
 use crate::field::index::SEL_JSONL_MODEL;
 #[cfg(feature = "markdown")]
 use crate::field::index::SEL_MARKDOWN_MODEL;
+#[cfg(feature = "msgpack")]
+use crate::field::index::SEL_MSGPACK_MODEL;
 #[cfg(feature = "odp")]
 use crate::field::index::SEL_ODP_MODEL;
 #[cfg(feature = "ods")]
@@ -808,6 +817,34 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A MessagePack item addressed by an RFC 6901 pointer (Phase 21.19), e.g.
+    /// `/a/0`. `ExactBytes` returns the item's exact encoded token bytes; `Text` the
+    /// decoded text (or the canonical subtree for a container/scalar);
+    /// `Metadata`/`Structure` a MessagePack descriptor with the kind, the exact span,
+    /// the exact format byte (encoding width and signedness), the extension type, and
+    /// the duplicate-key match count. MessagePack has no package layer, so the source
+    /// *is* the whole document.
+    #[cfg(feature = "msgpack")]
+    MsgpackPointer {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A MessagePack item's structural view (Phase 21.19): kind, span, exact format
+    /// byte, float/extension facts, parent/child spans, and, for a map, each member's
+    /// key/value kinds and spans (duplicate keys reported, never hidden). Same RFC
+    /// 6901 addressing as [`Selector::MsgpackPointer`].
+    #[cfg(feature = "msgpack")]
+    MsgpackNode {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A lexical, case-sensitive search over MessagePack text-string map keys and
+    /// text values (Phase 21.19). Never an embedding or a model call.
+    #[cfg(feature = "msgpack")]
+    MsgpackFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// A YAML node addressed by a dotted path (Phase 21.6.1), e.g. `a.b.0`. The
     /// optional first segment `docN` selects a document (default 0). The answer
     /// reports the node's kind/style, its exact source span, and (for `ExactBytes`)
@@ -1425,6 +1462,12 @@ impl Selector {
             Selector::CborNode { pointer } => format!("cbor-node:{pointer}"),
             #[cfg(feature = "cbor")]
             Selector::CborFind { pattern } => format!("cbor-find:{pattern}"),
+            #[cfg(feature = "msgpack")]
+            Selector::MsgpackPointer { pointer } => format!("msgpack-pointer:{pointer}"),
+            #[cfg(feature = "msgpack")]
+            Selector::MsgpackNode { pointer } => format!("msgpack-node:{pointer}"),
+            #[cfg(feature = "msgpack")]
+            Selector::MsgpackFind { pattern } => format!("msgpack-find:{pattern}"),
             #[cfg(feature = "yaml")]
             Selector::YamlPath { path } => format!("yaml-path:{path}"),
             #[cfg(feature = "yaml")]
@@ -3328,6 +3371,20 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "cbor")]
             (Selector::CborFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.cbor_find(req, pattern)
+            }
+            #[cfg(feature = "msgpack")]
+            (
+                Selector::MsgpackPointer { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.msgpack_pointer(req, pointer),
+            #[cfg(feature = "msgpack")]
+            (
+                Selector::MsgpackNode { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.msgpack_node(req, pointer),
+            #[cfg(feature = "msgpack")]
+            (Selector::MsgpackFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.msgpack_find(req, pattern)
             }
             #[cfg(feature = "yaml")]
             (Selector::YamlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -8780,6 +8837,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Msgpack => {
+                #[cfg(feature = "msgpack")]
+                {
+                    self.common_msgpack(req)?
+                }
+                #[cfg(not(feature = "msgpack"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "MessagePack support is not compiled in (feature `msgpack`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -10812,6 +10881,412 @@ fn cbor_float_name(node: &crate::adapter::cbor::CborNode) -> &'static str {
 /// Lower-case hex of a byte slice (a diagnostic projection for CBOR binary tokens).
 #[cfg(feature = "cbor")]
 fn cbor_hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for &b in bytes {
+        out.push(DIGITS[(b >> 4) as usize] as char);
+        out.push(DIGITS[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+
+// ---------------------------------------------------------------------------
+// MessagePack observations (Phase 21.19)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "msgpack")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the MessagePack structured-tree model (derived, `Q_gen`).
+    fn msgpack_model(&mut self) -> Result<(MsgpackModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_MSGPACK_MODEL, 0), "MessagePack model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((MsgpackModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn msgpack_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn msgpack_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn msgpack_node_text(
+        model: &MsgpackModel,
+        source: &[u8],
+        index: u32,
+        node: &crate::adapter::msgpack::MsgpackNode,
+    ) -> Result<String> {
+        if node.kind == crate::adapter::msgpack::K_STR {
+            msgpack_decode_text(source, node)
+        } else {
+            msgpack_subtree_text(model, source, index)
+        }
+    }
+
+    /// Resolve `pointer` and answer per representation: `ExactBytes` returns the
+    /// item's exact encoded token bytes; `Text` the decoded text (or the canonical
+    /// subtree for a container/scalar); `Metadata`/`Structure` a MessagePack
+    /// descriptor with the kind, the exact span, the exact format byte (encoding
+    /// width and signedness), the extension type, and the duplicate-key match count.
+    fn msgpack_pointer(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msgpack_model()?;
+        let (source, root) = self.msgpack_source()?;
+        let r = msgpack_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("MessagePack pointer resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "msgpack;pointer={pointer};kind={};head={};ext_type={};matches={}",
+            msgpack_kind_name(node.kind),
+            node.head,
+            node.ext_type,
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(msgpack_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::msgpack_node_text(&model, &source, index, &node)?)
+            }
+            _ => {
+                let token = msgpack_hex(msgpack_token_bytes(&source, &node)?);
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"pointer\":\"{}\",\"kind\":\"{}\",\"span\":[{},{}],",
+                        "\"matches\":{},\"head\":{},\"ext_type\":{},",
+                        "\"arg\":{},\"float\":\"{}\",\"hex\":\"{}\",",
+                        "\"top_type\":\"{}\"}}"
+                    ),
+                    json_escape(pointer),
+                    msgpack_kind_name(node.kind),
+                    node.start,
+                    node.end,
+                    r.matches,
+                    node.head,
+                    node.ext_type,
+                    node.arg,
+                    msgpack_float_name(&node),
+                    token,
+                    msgpack_kind_name(model.top_type),
+                ))
+            }
+        };
+        Ok(self.msgpack_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The structural view of a MessagePack item: kind, span, exact format byte,
+    /// float/extension facts, parent span, and (for containers) the child spans; a
+    /// map's members expose each key/value kind and span, and duplicate keys are
+    /// reported.
+    fn msgpack_node(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msgpack_model()?;
+        let (source, root) = self.msgpack_source()?;
+        let r = msgpack_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("MessagePack node resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "msgpack;node={pointer};kind={};children={}",
+            msgpack_kind_name(node.kind),
+            node.children.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(msgpack_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::msgpack_node_text(&model, &source, index, &node)?)
+            }
+            _ => AnswerValue::Json(
+                self.msgpack_node_structure(&model, &source, pointer, index, &node)?,
+            ),
+        };
+        Ok(self.msgpack_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn msgpack_node_structure(
+        &self,
+        model: &MsgpackModel,
+        source: &[u8],
+        pointer: &str,
+        index: u32,
+        node: &crate::adapter::msgpack::MsgpackNode,
+    ) -> Result<String> {
+        let parent_span = match msgpack_find_parent(model, index) {
+            Some(p) => model
+                .node(p)
+                .map_or("null".to_string(), |n| format!("[{},{}]", n.start, n.end)),
+            None => "null".to_string(),
+        };
+        let mut extra = String::new();
+        if node.kind == crate::adapter::msgpack::K_ARRAY {
+            let mut elems: Vec<String> = Vec::new();
+            for (i, child) in node.children.iter().enumerate() {
+                let cn = model
+                    .node(*child)
+                    .ok_or_else(|| Error::internal_invariant("MessagePack element out of range"))?;
+                elems.push(format!(
+                    "{{\"index\":{},\"kind\":\"{}\",\"span\":[{},{}],\"head\":{}}}",
+                    i,
+                    msgpack_kind_name(cn.kind),
+                    cn.start,
+                    cn.end,
+                    cn.head
+                ));
+            }
+            extra = format!(",\"elements\":[{}]", elems.join(","));
+        } else if node.kind == crate::adapter::msgpack::K_MAP {
+            let mut members: Vec<String> = Vec::new();
+            let mut keys: Vec<String> = Vec::new();
+            let mut i = 0usize;
+            while i + 1 < node.children.len() {
+                let key_node = model.node(node.children[i]).ok_or_else(|| {
+                    Error::internal_invariant("MessagePack key index out of range")
+                })?;
+                let val_node = model.node(node.children[i + 1]).ok_or_else(|| {
+                    Error::internal_invariant("MessagePack value index out of range")
+                })?;
+                i += 2;
+                let key_text = if key_node.kind == crate::adapter::msgpack::K_STR {
+                    let s = msgpack_decode_text(source, key_node)?;
+                    keys.push(s.clone());
+                    format!("\"{}\"", json_escape(&s))
+                } else {
+                    "null".to_string()
+                };
+                members.push(format!(
+                    concat!(
+                        "{{\"key_kind\":\"{}\",\"key_span\":[{},{}],\"key_text\":{},",
+                        "\"value_kind\":\"{}\",\"value_span\":[{},{}],\"value_head\":{}}}"
+                    ),
+                    msgpack_kind_name(key_node.kind),
+                    key_node.start,
+                    key_node.end,
+                    key_text,
+                    msgpack_kind_name(val_node.kind),
+                    val_node.start,
+                    val_node.end,
+                    val_node.head,
+                ));
+            }
+            let mut dupes: Vec<String> = Vec::new();
+            for (idx, k) in keys.iter().enumerate() {
+                if keys[..idx].contains(k) && !dupes.contains(k) {
+                    dupes.push(k.clone());
+                }
+            }
+            let dupes_json = dupes
+                .iter()
+                .map(|d| format!("\"{}\"", json_escape(d)))
+                .collect::<Vec<_>>()
+                .join(",");
+            extra = format!(
+                ",\"members\":[{}],\"duplicate_keys\":[{}]",
+                members.join(","),
+                dupes_json
+            );
+        }
+        Ok(format!(
+            concat!(
+                "{{\"pointer\":\"{}\",\"kind\":\"{}\",\"head\":{},",
+                "\"ext_type\":{},\"float\":\"{}\",",
+                "\"span\":[{},{}],\"parent_span\":{},\"children\":{}{}}}"
+            ),
+            json_escape(pointer),
+            msgpack_kind_name(node.kind),
+            node.head,
+            node.ext_type,
+            msgpack_float_name(node),
+            node.start,
+            node.end,
+            parent_span,
+            node.children.len(),
+            extra,
+        ))
+    }
+
+    /// A bounded lexical search over text-string map keys and text values; each match
+    /// reports its canonical pointer, role (key/value), and exact source span.
+    fn msgpack_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msgpack_model()?;
+        let (source, root) = self.msgpack_source()?;
+        let matches = msgpack_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "MessagePack find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"pointer\":\"{}\",\"role\":\"{}\",",
+                    "\"kind\":\"str\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("msgpack;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.msgpack_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_msgpack(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.msgpack_common_metadata(req),
+            Selector::Text => self.msgpack_common_text(req),
+            Selector::SearchMatch(p) => self.msgpack_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "MessagePack does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn msgpack_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msgpack_model()?;
+        let (source, root) = self.msgpack_source()?;
+        let text = msgpack_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.msgpack_answer(
+            req,
+            AnswerValue::Text(text),
+            "msgpack;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn msgpack_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msgpack_model()?;
+        let (source, root) = self.msgpack_source()?;
+        let mut arrays = 0u64;
+        let mut maps = 0u64;
+        let mut strs = 0u64;
+        let mut bins = 0u64;
+        let mut exts = 0u64;
+        let mut floats = 0u64;
+        let mut ints = 0u64;
+        let mut dup_keys = 0u64;
+        for n in &model.nodes {
+            match n.kind {
+                crate::adapter::msgpack::K_ARRAY => arrays += 1,
+                crate::adapter::msgpack::K_MAP => {
+                    maps += 1;
+                    let mut seen: Vec<String> = Vec::new();
+                    let mut i = 0usize;
+                    while i + 1 < n.children.len() {
+                        if let Some(k) = model.node(n.children[i])
+                            && k.kind == crate::adapter::msgpack::K_STR
+                            && let Ok(s) = msgpack_decode_text(&source, k)
+                        {
+                            if seen.contains(&s) {
+                                dup_keys += 1;
+                            } else {
+                                seen.push(s);
+                            }
+                        }
+                        i += 2;
+                    }
+                }
+                crate::adapter::msgpack::K_STR => strs += 1,
+                crate::adapter::msgpack::K_BIN => bins += 1,
+                crate::adapter::msgpack::K_EXT => exts += 1,
+                crate::adapter::msgpack::K_FLOAT => floats += 1,
+                crate::adapter::msgpack::K_UINT | crate::adapter::msgpack::K_NEGINT => ints += 1,
+                _ => {}
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"msgpack\",\"top_type\":\"{}\",",
+                "\"nodes\":{},\"max_depth\":{},\"bytes\":{},",
+                "\"arrays\":{},\"maps\":{},\"ints\":{},\"strs\":{},\"bins\":{},",
+                "\"exts\":{},\"floats\":{},\"duplicate_keys\":{}}}"
+            ),
+            msgpack_kind_name(model.top_type),
+            model.nodes.len(),
+            model.max_depth,
+            model.doc_len,
+            arrays,
+            maps,
+            ints,
+            strs,
+            bins,
+            exts,
+            floats,
+            dup_keys,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.msgpack_answer(
+            req,
+            value,
+            "msgpack;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// A stable name for a MessagePack float node's width, or `"null"` for a non-float.
+#[cfg(feature = "msgpack")]
+fn msgpack_float_name(node: &crate::adapter::msgpack::MsgpackNode) -> &'static str {
+    if node.kind == crate::adapter::msgpack::K_FLOAT {
+        crate::adapter::msgpack::float_width_name(node.head)
+    } else {
+        "null"
+    }
+}
+
+/// Lower-case hex of a byte slice (a diagnostic projection for MessagePack binary
+/// tokens).
+#[cfg(feature = "msgpack")]
+fn msgpack_hex(bytes: &[u8]) -> String {
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(bytes.len() * 2);
     for &b in bytes {

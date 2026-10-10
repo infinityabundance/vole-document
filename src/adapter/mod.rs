@@ -26,6 +26,8 @@ pub mod json5;
 pub mod jsonl;
 #[cfg(feature = "markdown")]
 pub mod markdown;
+#[cfg(feature = "msgpack")]
+pub mod msgpack;
 #[cfg(feature = "odp")]
 pub mod odp;
 #[cfg(feature = "ods")]

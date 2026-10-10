@@ -105,6 +105,11 @@ pub enum ErrorClass {
     /// after the single top-level item, an unterminated indefinite-length item, a
     /// map key with no value, or a text string that is not valid UTF-8.
     InvalidCborStructure,
+    /// A MessagePack structure error (Phase 21.19+): a malformed head (the never-used
+    /// `0xc1` byte), a truncated item, trailing bytes after the single top-level item,
+    /// a map key with no value, an over-long declared length, or a `str` that is not
+    /// valid UTF-8.
+    InvalidMsgpackStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -144,6 +149,7 @@ impl ErrorClass {
             ErrorClass::InvalidArrowStructure => 30,
             ErrorClass::InvalidJson5Structure => 31,
             ErrorClass::InvalidCborStructure => 32,
+            ErrorClass::InvalidMsgpackStructure => 33,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -182,6 +188,7 @@ impl ErrorClass {
             ErrorClass::InvalidArrowStructure => "InvalidArrowStructure",
             ErrorClass::InvalidJson5Structure => "InvalidJson5Structure",
             ErrorClass::InvalidCborStructure => "InvalidCborStructure",
+            ErrorClass::InvalidMsgpackStructure => "InvalidMsgpackStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -274,6 +281,7 @@ impl Error {
     ctor!(invalid_arrow_structure, InvalidArrowStructure);
     ctor!(invalid_json5_structure, InvalidJson5Structure);
     ctor!(invalid_cbor_structure, InvalidCborStructure);
+    ctor!(invalid_msgpack_structure, InvalidMsgpackStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

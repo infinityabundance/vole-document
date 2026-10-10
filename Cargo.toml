@@ -457,6 +457,30 @@ arrow = []
 # vocabulary ([`crate::adapter::json::MatchRole`], pointer escaping), so it
 # implies `json`.
 cbor = ["json"]
+# Phase 21.19: the MessagePack adapter — the **binary** structured-tree Wave-2 format,
+# the sibling of CBOR (RFC 8949). Like the other Wave-2 formats it is not a package
+# (no OPC/ZIP layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It adds a bounded, dependency-free MessagePack reader that
+# preserves representation — exact byte spans for every token, the exact format byte
+# of every item (so the encoding width **and signedness** actually used are
+# preserved: `0x17` `positive fixint` 23 vs `0xcc 0x17` `uint8` 23 vs `0xd0 0x17`
+# `int8` 23), `str` vs `bin` as distinct kinds, map key order and duplicate keys,
+# float width (`float32`/`float64`) with the IEEE-754 bits, and extension type
+# numbers + payload lengths (preserved verbatim, never interpreted).
+# Well-formedness is enforced (a trailing byte, a truncated item, the never-used
+# `0xc1` head byte, a map key with no value, an over-long declared length, or a
+# non-UTF-8 `str` is a typed decline, never a panic). MessagePack has **no magic
+# bytes**, so detection is deliberately conservative: a full-input well-formed parse
+# whose root is a container reaching a node/byte threshold, or an unambiguous
+# MessagePack-only head byte (`0xdc..=0xdf`, which CBOR's grammar rejects); every
+# other input stays `Opaque`. It adds **no** decoder behavior: the MessagePack model
+# is never on the exactness path, so enabling it never changes `.voldoc` bytes and
+# exactness is untouched. Dependency-free (`msgpack` pulls no external crate) and
+# never in `default`; it reuses the JSON adapter's shared structured-tree match
+# vocabulary ([`crate::adapter::json::MatchRole`], pointer escaping), so it implies
+# `json`.
+msgpack = ["json"]
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

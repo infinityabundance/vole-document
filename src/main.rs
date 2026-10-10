@@ -113,6 +113,7 @@ const USAGE_FIELD: &str = "\
         --json5-pointer PATH | --json5-node PATH | --json5-find PATTERN |
         --json5-comments |
         --cbor-pointer PATH | --cbor-node PATH | --cbor-find PATTERN |
+        --msgpack-pointer PATH | --msgpack-node PATH | --msgpack-find PATTERN |
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
@@ -1637,6 +1638,20 @@ struct FieldArgs {
     /// (Phase 21.18).
     #[cfg(feature = "cbor")]
     cbor_find: Option<String>,
+    /// `--msgpack-pointer POINTER`: resolve an RFC 6901 pointer against the
+    /// MessagePack item tree, returning the item's kind, exact source span, exact
+    /// format byte, and exact token bytes (Phase 21.19).
+    #[cfg(feature = "msgpack")]
+    msgpack_pointer: Option<String>,
+    /// `--msgpack-node POINTER`: the structural view of a MessagePack item (kind,
+    /// span, exact format byte, parent/child spans, map key/value kinds and spans)
+    /// (Phase 21.19).
+    #[cfg(feature = "msgpack")]
+    msgpack_node: Option<String>,
+    /// `--msgpack-find`: a lexical, case-sensitive search over MessagePack text
+    /// keys/values (Phase 21.19).
+    #[cfg(feature = "msgpack")]
+    msgpack_find: Option<String>,
     /// `--yaml-path PATH`: resolve a dotted YAML path (optional leading `docN`),
     /// returning the node's kind/style, exact source span, and exact token bytes
     /// (Phase 21.6.1).
@@ -2238,6 +2253,19 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "cbor")]
             "--cbor-find" => {
                 out.cbor_find = Some(field_arg_value(args, &mut i, "--cbor-find", inline)?);
+            }
+            #[cfg(feature = "msgpack")]
+            "--msgpack-pointer" => {
+                out.msgpack_pointer =
+                    Some(field_arg_value(args, &mut i, "--msgpack-pointer", inline)?);
+            }
+            #[cfg(feature = "msgpack")]
+            "--msgpack-node" => {
+                out.msgpack_node = Some(field_arg_value(args, &mut i, "--msgpack-node", inline)?);
+            }
+            #[cfg(feature = "msgpack")]
+            "--msgpack-find" => {
+                out.msgpack_find = Some(field_arg_value(args, &mut i, "--msgpack-find", inline)?);
             }
             #[cfg(feature = "yaml")]
             "--yaml-path" => {
@@ -2878,6 +2906,27 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.cbor_find {
             chosen.push(Selector::CborFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // MessagePack: `--msgpack-pointer`/`--msgpack-node` address an item by RFC 6901
+    // pointer; `--msgpack-find` is a lexical search over text keys/values. Each
+    // stands alone (Phase 21.19).
+    #[cfg(feature = "msgpack")]
+    {
+        if let Some(pointer) = &out.msgpack_pointer {
+            chosen.push(Selector::MsgpackPointer {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pointer) = &out.msgpack_node {
+            chosen.push(Selector::MsgpackNode {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pattern) = &out.msgpack_find {
+            chosen.push(Selector::MsgpackFind {
                 pattern: pattern.clone(),
             });
         }

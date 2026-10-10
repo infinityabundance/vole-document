@@ -531,6 +531,29 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.18).
     pub max_cbor_document_bytes: u64,
+    // The MessagePack caps below bound the derived, span-preserving structured-tree
+    // model (Phase 21.19). MessagePack is not a package: the whole source is the
+    // exact leaf, and everything derived is `Q_gen` only.
+    /// Maximum MessagePack nesting depth accepted (arrays/maps). A deeper document
+    /// is not detected as MessagePack (and any direct parse declines typed) rather
+    /// than risking unbounded recursion (Phase 21.19).
+    pub max_msgpack_depth: u32,
+    /// Maximum MessagePack items accepted in one document. An over-large document
+    /// declines typed rather than allocating (Phase 21.19).
+    pub max_msgpack_nodes: u32,
+    /// Maximum total raw `str` payload bytes accepted across one MessagePack
+    /// document. An over-large document declines typed (Phase 21.19).
+    pub max_msgpack_str_bytes: u64,
+    /// Maximum total raw `bin` payload bytes accepted across one MessagePack
+    /// document. An over-large document declines typed (Phase 21.19).
+    pub max_msgpack_bin_bytes: u64,
+    /// Maximum total raw extension payload bytes accepted across one MessagePack
+    /// document. An over-large document declines typed (Phase 21.19).
+    pub max_msgpack_ext_bytes: u64,
+    /// Maximum source length admitted for byte-based MessagePack detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.19).
+    pub max_msgpack_document_bytes: u64,
 }
 
 impl Limits {
@@ -692,6 +715,12 @@ impl Limits {
         max_cbor_nodes: 1 << 24,
         max_cbor_string_bytes: 1 << 28,
         max_cbor_document_bytes: 1 << 34,
+        max_msgpack_depth: 256,
+        max_msgpack_nodes: 1 << 24,
+        max_msgpack_str_bytes: 1 << 28,
+        max_msgpack_bin_bytes: 1 << 28,
+        max_msgpack_ext_bytes: 1 << 28,
+        max_msgpack_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -852,6 +881,12 @@ impl Limits {
         max_cbor_nodes: 1 << 16,
         max_cbor_string_bytes: 1 << 20,
         max_cbor_document_bytes: 1 << 26,
+        max_msgpack_depth: 64,
+        max_msgpack_nodes: 1 << 16,
+        max_msgpack_str_bytes: 1 << 20,
+        max_msgpack_bin_bytes: 1 << 20,
+        max_msgpack_ext_bytes: 1 << 20,
+        max_msgpack_document_bytes: 1 << 26,
     };
 }
 
