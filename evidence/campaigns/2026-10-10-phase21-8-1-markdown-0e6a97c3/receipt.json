@@ -1,0 +1,23 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-8-1-markdown-0e6a97c3",
+  "phase": "21.8.1 — Markdown prose surface + exact closure + model",
+  "utc": "2026-10-10T12:16:50Z",
+  "measured_commit": "0e6a97c3dcb8d91a5d10b904eea4191e9a635d2c",
+  "tree_state": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-8-1-markdown-0e6a97c3/ ?? evidence/campaigns/2026-10-10-phase21-8-markdown-econ-0e6a97c3/ ?? src/adapter/markdown.rs ?? tests/markdown_adapter.rs ?? tools/fixtures/make-markdown.py ?? tools/fixtures/markdown/ ?? tools/fixtures/phase21-8-markdown-baseline.py ?? tools/fixtures/phase21-8-markdown-vole.py ?? tools/phase21-8-1-markdown-court.sh ?? tools/phase21-8-markdown-court.sh ",
+  "service": "doc-baseline",
+  "profile": "debug",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "3517b670ff9c161327f349dcc7d02402bd3ec8664018606940540637a6cde5a9",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "fixtures": "basic.md lists.md code.md table.md links.md blockquotes.md footnotes.md frontmatter.md toml_frontmatter.md large.md plain.txt prose.md",
+  "fixture_tool": "tools/fixtures/make-markdown.py (stdlib only)",
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "observations": ["metadata", "text", "heading", "block", "search-match", "native md-heading", "native md-block", "native md-code", "native md-link", "native md-find"],
+  "declines": "unsupported common pairs decline typed (rc 6); a plain-prose document is Opaque (rc 6), never a panic",
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "adr_0060": "the MarkdownModel node depends on the DocumentExact root (sha256(source)); no source-reading node aliases another field's source",
+  "verdict": "PASS"
+}

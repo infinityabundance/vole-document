@@ -1,0 +1,1 @@
+{"decline": {"code": "not-native", "detail": "a rendered HTML/text baseline retains no original bytes"}, "declined": true, "detail": {}, "lane": "render", "native": false, "q": "Q8", "value": null}
