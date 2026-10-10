@@ -46,6 +46,15 @@ use crate::adapter::docx::wml::StoryModel;
 use crate::adapter::docx::{DocxExtractProfile, DocxModel, DocxPartRef, DocxStory, story_params};
 #[cfg(feature = "epub")]
 use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
+#[cfg(feature = "html")]
+use crate::adapter::html::{
+    HtmlModel, anchors as html_anchors, attr_name as html_attr_name,
+    attr_value_bytes as html_attr_value_bytes, canonical_text as html_canonical_text,
+    element_name as html_element_name, find as html_find_matches, headings as html_headings,
+    kind_name as html_kind_name, raw_texts as html_raw_texts, resolve_attr as html_resolve_attr,
+    resolve_path as html_resolve_path, subtree_text as html_subtree_text,
+    token_bytes as html_token_bytes,
+};
 #[cfg(feature = "json")]
 use crate::adapter::json::{
     JsonModel, canonical_text, decode_string as json_decode_string, find as json_find_matches,
@@ -111,6 +120,8 @@ use crate::field::index::SEL_CSV_MODEL;
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "html")]
+use crate::field::index::SEL_HTML_MODEL;
 #[cfg(feature = "json")]
 use crate::field::index::SEL_JSON_MODEL;
 #[cfg(feature = "markdown")]
@@ -822,6 +833,44 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A standalone-HTML element addressed by a simple element path
+    /// (`/html/body[2]/p`; `""` is the root element) (Phase 21.10). The answer
+    /// reports the element's name, exact source span, and (for `ExactBytes`) its
+    /// exact bytes. HTML has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "html")]
+    HtmlPath {
+        /// The element path (`""` is the root element).
+        path: String,
+    },
+    /// An HTML element's structural view (Phase 21.10): kind, name, exact spans, and
+    /// each attribute's name/value/spans and quoting tag. Same addressing as
+    /// [`Selector::HtmlPath`].
+    #[cfg(feature = "html")]
+    HtmlElement {
+        /// The element path (`""` is the root element).
+        path: String,
+    },
+    /// An HTML attribute addressed as `PATH@NAME` (`@NAME` addresses the root's
+    /// attribute) (Phase 21.10). `ExactBytes` returns the value's exact source bytes;
+    /// `Text` the raw (unexpanded) value; `Metadata`/`Structure` a descriptor with
+    /// the name/value/full spans and the quoting tag.
+    #[cfg(feature = "html")]
+    HtmlAttr {
+        /// The `PATH@NAME` reference.
+        spec: String,
+    },
+    /// Every raw `<script>`/`<style>` element in document order (Phase 21.10): its
+    /// name, raw content span, and full element span, plus (for `Text`/`ExactBytes`)
+    /// the raw content bytes. `script`/`style` content is never parsed or executed.
+    #[cfg(feature = "html")]
+    HtmlScripts,
+    /// A lexical, case-sensitive search over element names, attribute names and
+    /// values, and character data (Phase 21.10). Never an embedding or a model call.
+    #[cfg(feature = "html")]
+    HtmlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
 }
 
 impl Selector {
@@ -1140,6 +1189,16 @@ impl Selector {
             Selector::XmlNamespaces => "xml-namespaces".to_string(),
             #[cfg(feature = "xml")]
             Selector::XmlFind { pattern } => format!("xml-find:{pattern}"),
+            #[cfg(feature = "html")]
+            Selector::HtmlPath { path } => format!("html-path:{path}"),
+            #[cfg(feature = "html")]
+            Selector::HtmlElement { path } => format!("html-element:{path}"),
+            #[cfg(feature = "html")]
+            Selector::HtmlAttr { spec } => format!("html-attr:{spec}"),
+            #[cfg(feature = "html")]
+            Selector::HtmlScripts => "html-scripts".to_string(),
+            #[cfg(feature = "html")]
+            Selector::HtmlFind { pattern } => format!("html-find:{pattern}"),
         }
     }
 
@@ -2484,7 +2543,8 @@ impl<S: SeedStore> Ctx<'_, S> {
             | NodeKind::PptxModel
             | NodeKind::PptxPresentation
             | NodeKind::PptxSlide
-            | NodeKind::PptxNotes => {
+            | NodeKind::PptxNotes
+            | NodeKind::HtmlModel => {
                 self.stats.xml_parses = self.stats.xml_parses.saturating_add(1);
             }
             _ => {}
@@ -3002,6 +3062,27 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "xml")]
             (Selector::XmlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.xml_find(req, pattern)
+            }
+            #[cfg(feature = "html")]
+            (Selector::HtmlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.html_path(req, path)
+            }
+            #[cfg(feature = "html")]
+            (
+                Selector::HtmlElement { path },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.html_element(req, path),
+            #[cfg(feature = "html")]
+            (Selector::HtmlAttr { spec }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.html_attr(req, spec)
+            }
+            #[cfg(feature = "html")]
+            (Selector::HtmlScripts, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.html_scripts(req)
+            }
+            #[cfg(feature = "html")]
+            (Selector::HtmlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.html_find(req, pattern)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -8175,6 +8256,18 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Csv => self.common_csv(req)?,
             DocumentFormat::Markdown => self.common_markdown(req)?,
             DocumentFormat::Xml => self.common_xml(req)?,
+            DocumentFormat::Html => {
+                #[cfg(feature = "html")]
+                {
+                    self.common_html(req)?
+                }
+                #[cfg(not(feature = "html"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "HTML support is not compiled in (feature `html`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -11164,6 +11257,493 @@ impl<S: SeedStore> Ctx<'_, S> {
             span,
             vec![model_id, root],
         ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HTML observations (Phase 21.10)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "html")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the HTML document model (derived, `Q_gen`).
+    fn html_model(&mut self) -> Result<(HtmlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_HTML_MODEL, 0), "HTML model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((HtmlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn html_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn html_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Resolve an element path and answer per representation.
+    fn html_path(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let r = html_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("HTML path resolved out of range"))?
+            .clone();
+        let name = html_element_name(&source, &node)?.to_string();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "html;path={path};kind={};name={};matches={}",
+            html_kind_name(node.kind),
+            name,
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(html_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(html_subtree_text(&model, &source, r.index)?),
+            _ => {
+                let text = html_subtree_text(&model, &source, r.index)?;
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"path\":\"{}\",\"kind\":\"{}\",\"name\":\"{}\",",
+                        "\"span\":[{},{}],\"open_span\":[{},{}],\"close_span\":[{},{}],",
+                        "\"matches\":{},\"attrs\":{},\"text\":\"{}\"}}"
+                    ),
+                    json_escape(path),
+                    html_kind_name(node.kind),
+                    json_escape(&name),
+                    node.start,
+                    node.end,
+                    node.start,
+                    node.open_end,
+                    node.close_start,
+                    node.end,
+                    r.matches,
+                    node.attrs.len(),
+                    json_escape(&text),
+                ))
+            }
+        };
+        Ok(self.html_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The structural view of an element: name, spans, child count, and each
+    /// attribute's name/value/spans and quoting tag (in source order).
+    fn html_element(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let r = html_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("HTML element resolved out of range"))?
+            .clone();
+        let name = html_element_name(&source, &node)?.to_string();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "html;element={path};name={name};children={};attrs={}",
+            node.children.len(),
+            node.attrs.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(html_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(html_subtree_text(&model, &source, r.index)?),
+            _ => AnswerValue::Json(self.html_element_structure(&model, &source, path, &node)?),
+        };
+        Ok(self.html_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn html_element_structure(
+        &self,
+        model: &HtmlModel,
+        source: &[u8],
+        path: &str,
+        node: &crate::adapter::html::HNode,
+    ) -> Result<String> {
+        let name = html_element_name(source, node)?;
+        let mut attrs: Vec<String> = Vec::new();
+        for &a in &node.attrs {
+            let attr = model
+                .attr(a)
+                .ok_or_else(|| Error::internal_invariant("HTML attribute out of range"))?;
+            let an = html_attr_name(source, attr)?;
+            let av = core::str::from_utf8(html_attr_value_bytes(source, attr)?)
+                .map_err(|_| Error::internal_invariant("HTML attribute value is not UTF-8"))?;
+            attrs.push(format!(
+                concat!(
+                    "{{\"name\":\"{}\",\"value\":\"{}\",",
+                    "\"name_span\":[{},{}],\"value_span\":[{},{}],\"span\":[{},{}],",
+                    "\"quote\":\"{}\"}}"
+                ),
+                json_escape(an),
+                json_escape(av),
+                attr.name_start,
+                attr.name_end,
+                attr.value_start,
+                attr.value_end,
+                attr.span_start,
+                attr.span_end,
+                quote_name(attr.quote),
+            ));
+        }
+        let mut children: Vec<String> = Vec::new();
+        for &c in &node.children {
+            let cn = model
+                .node(c)
+                .ok_or_else(|| Error::internal_invariant("HTML child out of range"))?;
+            children.push(format!(
+                "{{\"kind\":\"{}\",\"span\":[{},{}]}}",
+                html_kind_name(cn.kind),
+                cn.start,
+                cn.end
+            ));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"path\":\"{}\",\"kind\":\"element\",\"name\":\"{}\",",
+                "\"span\":[{},{}],\"open_span\":[{},{}],\"close_span\":[{},{}],",
+                "\"attrs\":[{}],\"children\":[{}]}}"
+            ),
+            json_escape(path),
+            json_escape(name),
+            node.start,
+            node.end,
+            node.start,
+            node.open_end,
+            node.close_start,
+            node.end,
+            attrs.join(","),
+            children.join(","),
+        ))
+    }
+
+    /// Resolve `PATH@NAME` and answer per representation.
+    fn html_attr(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let ra = html_resolve_attr(&model, &source, spec)?;
+        let attr = model
+            .attr(ra.index)
+            .ok_or_else(|| Error::internal_invariant("HTML attribute resolved out of range"))?
+            .clone();
+        let name = html_attr_name(&source, &attr)?.to_string();
+        let value = core::str::from_utf8(html_attr_value_bytes(&source, &attr)?)
+            .map_err(|_| Error::internal_invariant("HTML attribute value is not UTF-8"))?
+            .to_string();
+        let span = Some((attr.span_start, attr.span_end));
+        let provenance = format!("html;attr={spec};name={name};matches={}", ra.matches);
+        let answer = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(html_attr_value_bytes(&source, &attr)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(value.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"spec\":\"{}\",\"name\":\"{}\",\"value\":\"{}\",",
+                    "\"name_span\":[{},{}],\"value_span\":[{},{}],\"span\":[{},{}],",
+                    "\"matches\":{},\"quote\":\"{}\"}}"
+                ),
+                json_escape(spec),
+                json_escape(&name),
+                json_escape(&value),
+                attr.name_start,
+                attr.name_end,
+                attr.value_start,
+                attr.value_end,
+                attr.span_start,
+                attr.span_end,
+                ra.matches,
+                quote_name(attr.quote),
+            )),
+        };
+        Ok(self.html_answer(req, answer, provenance, span, vec![model_id, root]))
+    }
+
+    /// Every raw `<script>`/`<style>` element in document order.
+    fn html_scripts(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let raws = html_raw_texts(&model, &source)?;
+        let provenance = format!("html;scripts={}", raws.len());
+        let answer = match req.representation {
+            Representation::ExactBytes => {
+                let mut out: Vec<u8> = Vec::new();
+                for r in &raws {
+                    out.extend_from_slice(
+                        source
+                            .get(r.start as usize..r.end as usize)
+                            .ok_or_else(|| {
+                                Error::internal_invariant("HTML raw span out of range")
+                            })?,
+                    );
+                }
+                AnswerValue::Bytes(out)
+            }
+            Representation::Text => {
+                let mut out = String::new();
+                for r in &raws {
+                    let bytes = source
+                        .get(r.start as usize..r.end as usize)
+                        .ok_or_else(|| Error::internal_invariant("HTML raw span out of range"))?;
+                    out.push_str(&String::from_utf8_lossy(bytes));
+                }
+                AnswerValue::Text(out)
+            }
+            _ => {
+                let mut out: Vec<String> = Vec::new();
+                for r in &raws {
+                    out.push(format!(
+                        concat!(
+                            "{{\"name\":\"{}\",\"index\":{},\"span\":[{},{}],",
+                            "\"element_span\":[{},{}],\"len\":{}}}"
+                        ),
+                        json_escape(&r.name),
+                        r.ordinal,
+                        r.start,
+                        r.end,
+                        r.element_start,
+                        r.element_end,
+                        r.end.saturating_sub(r.start),
+                    ));
+                }
+                AnswerValue::Json(format!("{{\"scripts\":[{}]}}", out.join(",")))
+            }
+        };
+        Ok(self.html_answer(req, answer, provenance, None, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over element names, attribute names/values, and
+    /// character data; each match reports its element path, role, and exact span.
+    fn html_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let matches = html_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "HTML find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"path\":\"{}\",\"role\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.path),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("html;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.html_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    /// The `index`-th heading element (`h1`..`h6`) in document order.
+    fn html_heading(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let heads = html_headings(&model, &source)?;
+        let (node_idx, level) = heads.get(index as usize).copied().ok_or_else(|| {
+            Error::unsupported_feature(format!("HTML document has no heading {index}"))
+        })?;
+        let node = model
+            .node(node_idx)
+            .ok_or_else(|| Error::internal_invariant("HTML heading index out of range"))?
+            .clone();
+        let text = html_subtree_text(&model, &source, node_idx)?;
+        let span = Some((node.start, node.end));
+        let provenance = format!("html;heading={index};level={level}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(html_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"html\",\"heading\":{},\"level\":{},",
+                    "\"span\":[{},{}],\"text_len\":{}}}"
+                ),
+                index,
+                level,
+                node.start,
+                node.end,
+                text.len(),
+            )),
+        };
+        Ok(self.html_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th anchor (`<a href=…>`) in document order.
+    fn html_link(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let anchors = html_anchors(&model, &source)?;
+        let node_idx = anchors.get(index as usize).copied().ok_or_else(|| {
+            Error::unsupported_feature(format!("HTML document has no link {index}"))
+        })?;
+        let node = model
+            .node(node_idx)
+            .ok_or_else(|| Error::internal_invariant("HTML link index out of range"))?
+            .clone();
+        let text = html_subtree_text(&model, &source, node_idx)?;
+        // The `href` value (raw, entity references unexpanded).
+        let mut href = String::new();
+        for &a in &node.attrs {
+            let attr = model
+                .attr(a)
+                .ok_or_else(|| Error::internal_invariant("HTML attribute out of range"))?;
+            if html_attr_name(&source, attr)?.eq_ignore_ascii_case("href") {
+                href = core::str::from_utf8(html_attr_value_bytes(&source, attr)?)
+                    .map_err(|_| Error::internal_invariant("HTML href is not UTF-8"))?
+                    .to_string();
+                break;
+            }
+        }
+        let span = Some((node.start, node.end));
+        let provenance = format!("html;link={index};href_len={}", href.len());
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(href.into_bytes()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"html\",\"link\":{},\"href\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                index,
+                json_escape(&href),
+                node.start,
+                node.end,
+                json_escape(&text),
+            )),
+        };
+        Ok(self.html_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_html(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.html_common_metadata(req),
+            Selector::Text => self.html_common_text(req),
+            Selector::Heading(i) => self.html_heading(req, *i),
+            Selector::Link(i) => self.html_link(req, *i),
+            Selector::SearchMatch(p) => self.html_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "HTML does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn html_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let text = html_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.html_answer(
+            req,
+            AnswerValue::Text(text),
+            "html;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn html_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.html_model()?;
+        let (source, root) = self.html_source()?;
+        let mut elements = 0u64;
+        let mut text_nodes = 0u64;
+        let mut comments = 0u64;
+        let mut doctypes = 0u64;
+        let mut raw = 0u64;
+        for n in &model.nodes {
+            match n.kind {
+                crate::adapter::html::K_ELEMENT => elements += 1,
+                crate::adapter::html::K_TEXT => text_nodes += 1,
+                crate::adapter::html::K_COMMENT => comments += 1,
+                crate::adapter::html::K_DOCTYPE => doctypes += 1,
+                crate::adapter::html::K_RAW_TEXT => raw += 1,
+                _ => {}
+            }
+        }
+        let headings = html_headings(&model, &source)?.len();
+        let links = html_anchors(&model, &source)?.len();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"html\",\"nodes\":{},\"elements\":{},",
+                "\"attrs\":{},\"text\":{},\"comments\":{},\"doctype\":{},",
+                "\"raw_text\":{},\"headings\":{},\"links\":{},",
+                "\"max_depth\":{},\"bytes\":{}}}"
+            ),
+            model.nodes.len(),
+            elements,
+            model.attrs.len(),
+            text_nodes,
+            comments,
+            doctypes,
+            raw,
+            headings,
+            links,
+            model.max_depth,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.html_answer(
+            req,
+            value,
+            "html;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// The stable name of an attribute quoting tag.
+#[cfg(feature = "html")]
+fn quote_name(quote: u8) -> &'static str {
+    match quote {
+        0 => "none",
+        1 => "single",
+        2 => "double",
+        _ => "unquoted",
     }
 }
 

@@ -203,6 +203,18 @@ pub enum NodeKind {
     /// root, keyed by `sha256(source)` per ADR-0060). XML has no package layer.
     /// Derived, never exact.
     XmlModel = 0x2B,
+    /// The canonical, representation-preserving HTML document model (Phase 21.10):
+    /// every element's qualified-name/start-tag/end-tag/full span, every attribute's
+    /// name/quoted-value/inner-value/full span (quoted, single-quoted, unquoted, or
+    /// boolean), every text run, comment, DOCTYPE, and raw `<script>`/`<style>`
+    /// content, all in document order. The parser is bounded and
+    /// error-recovering (implicit tag closing, void elements, stray end tags);
+    /// entity references are surfaced literally (never expanded) and `script`/`style`
+    /// content is captured as raw bytes (never executed). It is derived on demand
+    /// from the exact source (its single dependency is the `DocumentExact` root,
+    /// keyed by `sha256(source)` per ADR-0060). HTML has no package layer. Derived,
+    /// never exact.
+    HtmlModel = 0x2C,
 }
 
 impl NodeKind {
@@ -252,6 +264,7 @@ impl NodeKind {
             0x29 => NodeKind::CsvModel,
             0x2A => NodeKind::MarkdownModel,
             0x2B => NodeKind::XmlModel,
+            0x2C => NodeKind::HtmlModel,
             _ => return None,
         })
     }
@@ -302,6 +315,7 @@ impl NodeKind {
             NodeKind::CsvModel => "CsvModel",
             NodeKind::MarkdownModel => "MarkdownModel",
             NodeKind::XmlModel => "XmlModel",
+            NodeKind::HtmlModel => "HtmlModel",
         }
     }
 

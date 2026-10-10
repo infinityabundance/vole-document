@@ -350,6 +350,32 @@ pub struct Limits {
     /// parsing. Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.8.1).
     pub max_markdown_document_bytes: u64,
+    // The HTML caps below bound the derived, span-preserving, error-recovering HTML
+    // model (Phase 21.10). HTML is not a package: the whole source is the exact
+    // leaf, and everything derived is `Q_gen` only. Unlike XML the HTML scanner is
+    // **error-recovering** (implicit tag closing, void elements, unquoted
+    // attributes, stray end tags), so a malformed document is recovered rather than
+    // declined — only a bound or a forbidden DOCTYPE internal subset declines.
+    /// Maximum element (and raw-text) nesting depth accepted. A deeper document is
+    /// a typed resource-limit decline (Phase 21.10).
+    pub max_html_depth: u32,
+    /// Maximum nodes (elements, text runs, comments, DOCTYPE, raw text) accepted in
+    /// one document. An over-large document declines typed rather than allocating
+    /// (Phase 21.10).
+    pub max_html_nodes: u32,
+    /// Maximum attributes accepted across one document (Phase 21.10).
+    pub max_html_attrs: u64,
+    /// Maximum total text bytes accepted across one document. A larger document
+    /// declines typed (Phase 21.10).
+    pub max_html_text_bytes: u64,
+    /// Maximum total raw `<script>`/`<style>` content bytes accepted across one
+    /// document (their raw text is captured, never executed or parsed) (Phase
+    /// 21.10).
+    pub max_html_script_bytes: u64,
+    /// Maximum source length admitted for byte-based HTML detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.10).
+    pub max_html_document_bytes: u64,
 }
 
 impl Limits {
@@ -465,6 +491,12 @@ impl Limits {
         max_markdown_inline_spans: 1 << 24,
         max_markdown_code_bytes: 1 << 28,
         max_markdown_document_bytes: 1 << 34,
+        max_html_depth: 256,
+        max_html_nodes: 1 << 24,
+        max_html_attrs: 1 << 26,
+        max_html_text_bytes: 1 << 28,
+        max_html_script_bytes: 1 << 28,
+        max_html_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -579,6 +611,12 @@ impl Limits {
         max_markdown_inline_spans: 1 << 16,
         max_markdown_code_bytes: 1 << 20,
         max_markdown_document_bytes: 1 << 26,
+        max_html_depth: 64,
+        max_html_nodes: 1 << 16,
+        max_html_attrs: 1 << 16,
+        max_html_text_bytes: 1 << 20,
+        max_html_script_bytes: 1 << 20,
+        max_html_document_bytes: 1 << 26,
     };
 }
 

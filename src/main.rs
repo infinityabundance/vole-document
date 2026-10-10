@@ -117,7 +117,9 @@ const USAGE_FIELD: &str = "\
         --md-heading N | --md-block N | --md-code N | --md-link N |
         --md-find PATTERN |
         --xml-path P | --xml-element P | --xml-attr PATH@NAME |
-        --xml-namespaces | --xml-find PATTERN) --kind metadata|text|structure|operators|
+        --xml-namespaces | --xml-find PATTERN |
+        --html-path P | --html-element P | --html-attr PATH@NAME |
+        --html-scripts | --html-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1667,6 +1669,26 @@ struct FieldArgs {
     /// (Phase 21.9).
     #[cfg(feature = "xml")]
     xml_find: Option<String>,
+    /// `--html-path P`: resolve a simple element path (`/html/body[2]/p`; `""` is the
+    /// root element), returning the element's name, exact source span, and exact
+    /// bytes (Phase 21.10).
+    #[cfg(feature = "html")]
+    html_path: Option<String>,
+    /// `--html-element P`: the structural view of an element (name, spans,
+    /// attributes, quoting) at the same path (Phase 21.10).
+    #[cfg(feature = "html")]
+    html_element: Option<String>,
+    /// `--html-attr PATH@NAME`: an attribute's exact value / spans (Phase 21.10).
+    #[cfg(feature = "html")]
+    html_attr: Option<String>,
+    /// `--html-scripts`: every raw `<script>`/`<style>` element in document order
+    /// (Phase 21.10). Their content is captured raw and never executed.
+    #[cfg(feature = "html")]
+    html_scripts: bool,
+    /// `--html-find`: a lexical, case-sensitive search over HTML names/values/text
+    /// (Phase 21.10).
+    #[cfg(feature = "html")]
+    html_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -2173,6 +2195,27 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--xml-find" => {
                 out.xml_find = Some(field_arg_value(args, &mut i, "--xml-find", inline)?);
             }
+            #[cfg(feature = "html")]
+            "--html-path" => {
+                out.html_path = Some(field_arg_value(args, &mut i, "--html-path", inline)?);
+            }
+            #[cfg(feature = "html")]
+            "--html-element" => {
+                out.html_element = Some(field_arg_value(args, &mut i, "--html-element", inline)?);
+            }
+            #[cfg(feature = "html")]
+            "--html-attr" => {
+                out.html_attr = Some(field_arg_value(args, &mut i, "--html-attr", inline)?);
+            }
+            #[cfg(feature = "html")]
+            "--html-scripts" => {
+                out.html_scripts = true;
+                i += 1;
+            }
+            #[cfg(feature = "html")]
+            "--html-find" => {
+                out.html_find = Some(field_arg_value(args, &mut i, "--html-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2620,6 +2663,30 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.xml_find {
             chosen.push(Selector::XmlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // HTML: `--html-path`/`--html-element` address a node by element path;
+    // `--html-attr` addresses an attribute as `PATH@NAME`; `--html-scripts` lists
+    // raw script/style elements; `--html-find` is a lexical search. Each stands alone
+    // (Phase 21.10).
+    #[cfg(feature = "html")]
+    {
+        if let Some(path) = &out.html_path {
+            chosen.push(Selector::HtmlPath { path: path.clone() });
+        }
+        if let Some(path) = &out.html_element {
+            chosen.push(Selector::HtmlElement { path: path.clone() });
+        }
+        if let Some(spec) = &out.html_attr {
+            chosen.push(Selector::HtmlAttr { spec: spec.clone() });
+        }
+        if out.html_scripts {
+            chosen.push(Selector::HtmlScripts);
+        }
+        if let Some(pattern) = &out.html_find {
+            chosen.push(Selector::HtmlFind {
                 pattern: pattern.clone(),
             });
         }

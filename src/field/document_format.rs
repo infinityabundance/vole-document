@@ -142,6 +142,13 @@ pub enum DocumentFormat {
     /// package: the exact leaf is the whole source, and every node/attribute span
     /// is a `Q_gen` projection (Phase 21.9).
     Xml,
+    /// A standalone HTML document (the source is not well-formed XML and carries
+    /// clear HTML structure — a `<!doctype html>`, an `<html`/`<head`/`<body` tag,
+    /// or a preponderance of known HTML tags). Parsed by a bounded,
+    /// **error-recovering** scanner. Not a package: the exact leaf is the whole
+    /// source, and every element/attribute/text/comment/raw-text span is a `Q_gen`
+    /// projection (Phase 21.10).
+    Html,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -163,6 +170,7 @@ impl DocumentFormat {
             DocumentFormat::Csv => "csv",
             DocumentFormat::Markdown => "markdown",
             DocumentFormat::Xml => "xml",
+            DocumentFormat::Html => "html",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -183,6 +191,7 @@ impl DocumentFormat {
             DocumentFormat::Csv => "csv",
             DocumentFormat::Markdown => "markdown",
             DocumentFormat::Xml => "xml",
+            DocumentFormat::Html => "html",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -203,6 +212,7 @@ impl DocumentFormat {
             DocumentFormat::Csv => cfg!(feature = "csv"),
             DocumentFormat::Markdown => cfg!(feature = "markdown"),
             DocumentFormat::Xml => cfg!(feature = "xml"),
+            DocumentFormat::Html => cfg!(feature = "html"),
         }
     }
 
@@ -233,6 +243,7 @@ impl DocumentFormat {
             "csv" => Some(DocumentFormat::Csv),
             "markdown" => Some(DocumentFormat::Markdown),
             "xml" => Some(DocumentFormat::Xml),
+            "html" => Some(DocumentFormat::Html),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -300,6 +311,20 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "xml")]
     if crate::adapter::xml::detect(source, limits) {
         return DocumentFormat::Xml;
+    }
+    // HTML is the error-recovering markup Wave-2 format (Phase 21.10). Precedence
+    // note (explicit): XML is tried **before** HTML. XML detection requires
+    // well-formedness and exactly one root element, so any document XML accepts is
+    // genuinely XML (this includes a fully well-formed XHTML document). HTML only
+    // claims the `<`-bearing sources that XML declines — real HTML5 is almost never
+    // well-formed XML (void elements, optional end tags, unquoted attributes,
+    // undeclared named entities). Detection is conservative: the source must carry
+    // clear HTML structure (a `<!doctype html>`, an `<html`/`<head`/`<body` tag, or
+    // a preponderance of known HTML tags). Plain prose and non-HTML `<`-junk stay
+    // Opaque rather than being guessed to be HTML.
+    #[cfg(feature = "html")]
+    if crate::adapter::html::detect(source, limits) {
+        return DocumentFormat::Html;
     }
     DocumentFormat::Opaque
 }

@@ -70,6 +70,11 @@ pub enum ErrorClass {
     /// construct (an unterminated fenced code block close, a bad reference
     /// definition, or an input that carries no structural mark).
     InvalidMarkdownStructure,
+    /// An HTML document structure error (Phase 21.10+): a forbidden construct
+    /// (a DOCTYPE with an internal subset), a non-UTF-8/UTF-16/NUL byte string, or
+    /// an input that carries no HTML structure. Malformed HTML is otherwise
+    /// **recovered** by the adapter, never a panic.
+    InvalidHtmlStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -101,6 +106,7 @@ impl ErrorClass {
             ErrorClass::InvalidYamlStructure => 22,
             ErrorClass::InvalidCsvStructure => 23,
             ErrorClass::InvalidMarkdownStructure => 24,
+            ErrorClass::InvalidHtmlStructure => 25,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -131,6 +137,7 @@ impl ErrorClass {
             ErrorClass::InvalidYamlStructure => "InvalidYamlStructure",
             ErrorClass::InvalidCsvStructure => "InvalidCsvStructure",
             ErrorClass::InvalidMarkdownStructure => "InvalidMarkdownStructure",
+            ErrorClass::InvalidHtmlStructure => "InvalidHtmlStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -215,6 +222,7 @@ impl Error {
     ctor!(invalid_yaml_structure, InvalidYamlStructure);
     ctor!(invalid_csv_structure, InvalidCsvStructure);
     ctor!(invalid_markdown_structure, InvalidMarkdownStructure);
+    ctor!(invalid_html_structure, InvalidHtmlStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 
@@ -249,6 +257,7 @@ mod tests {
             ErrorClass::InvalidYamlStructure,
             ErrorClass::InvalidCsvStructure,
             ErrorClass::InvalidMarkdownStructure,
+            ErrorClass::InvalidHtmlStructure,
             ErrorClass::InternalInvariant,
         ];
         let mut codes: Vec<i32> = classes.iter().map(|c| c.exit_code()).collect();

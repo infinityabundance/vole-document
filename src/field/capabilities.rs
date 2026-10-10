@@ -200,6 +200,13 @@ const XML_NATIVE: &[&str] = &[
     "xml-namespaces",
     "xml-find",
 ];
+const HTML_NATIVE: &[&str] = &[
+    "html-path",
+    "html-element",
+    "html-attr",
+    "html-scripts",
+    "html-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -375,6 +382,17 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 XML_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Html => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("heading", COMMON_TEXT_META),
+                    caps("link", COMMON_METADATA),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                HTML_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

@@ -311,6 +311,23 @@ markdown = []
 # is `Q_gen` — so enabling it changes no `.voldoc` bytes. It is never in `default`
 # on its own (it is implied by `opc` and `epub`).
 xml = ["dep:quick-xml"]
+# Phase 21.10: the HTML adapter — the error-recovering markup Wave-2 format. Like
+# JSON/YAML/CSV/Markdown/XML it is not a package (no OPC/ZIP layer): the exact leaf
+# is the whole source (a `DocumentExact`) and every derived observation is a
+# bounded, span-preserving (`Q_gen`) projection. Unlike XML, HTML is **error-
+# recovering**: the bounded scanner applies implicit tag closing (a new `<p>`/`<li>`
+# closes the previous one), honours void elements (`<br>`/`<img>`/…), accepts
+# unquoted/boolean attributes, recovers from stray end tags and unterminated
+# constructs, and captures `<script>`/`<style>` content as **raw bytes** (never
+# parsed and never executed). Entity references are surfaced literally (never
+# expanded) and a DOCTYPE carrying an internal subset is declined. Detection is
+# conservative (no magic bytes beyond `<`): XML is tried first, so a fully
+# well-formed XHTML document stays XML, and a plain-prose or non-HTML `<`-junk
+# source stays Opaque. It is **dependency-free** (`html = []`, no `quick-xml`): the
+# HTML scanner is bespoke and does not use the shared XML policy. It adds **no**
+# decoder behavior: the HTML model is never on the exactness path, so enabling it
+# never changes `.voldoc` bytes and exactness is untouched. Never in `default`.
+html = []
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

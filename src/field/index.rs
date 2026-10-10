@@ -206,6 +206,15 @@ pub const SEL_MARKDOWN_MODEL: u8 = 22;
 /// exact source (its single dependency is the `DocumentExact` root, keyed by
 /// `sha256(source)` per ADR-0060); XML has no package layer.
 pub const SEL_XML_MODEL: u8 = 23;
+/// Selector kind: the canonical HTML document model (Phase 21.10).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as a bounded, **error-recovering**, representation-preserving
+/// HTML arena (element/attribute/text/comment/DOCTYPE/raw-`script`-`style` spans, in
+/// document order) as `Q_gen` derived state. It is computed on demand from the exact
+/// source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); HTML has no package layer.
+pub const SEL_HTML_MODEL: u8 = 24;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

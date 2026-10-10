@@ -10,6 +10,8 @@ pub mod csv;
 pub mod docx;
 #[cfg(feature = "epub")]
 pub mod epub;
+#[cfg(feature = "html")]
+pub mod html;
 #[cfg(feature = "json")]
 pub mod json;
 #[cfg(feature = "markdown")]

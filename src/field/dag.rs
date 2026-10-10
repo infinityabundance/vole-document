@@ -1095,6 +1095,39 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::HtmlModel => {
+            // The canonical HTML document model is derived on demand from the exact
+            // source. HTML has no package layer, so its single dependency is the
+            // exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060):
+            // the model node *reads the source bytes*, so it must carry a
+            // source-identity input, never alias another field's source. The parser
+            // is bounded and error-recovering; all bounds live in `adapter::html`.
+            #[cfg(feature = "html")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("HtmlModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::html::build_html_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "html"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "HTML support is not compiled in (feature `html`)",
+                ));
+            }
+        }
         NodeKind::XlsxModel => {
             // The canonical XLSX (SpreadsheetML) discovery model is derived on
             // demand from the canonical OPC model (the single dependency). XML
