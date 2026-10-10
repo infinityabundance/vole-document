@@ -8,7 +8,10 @@
 # separated by **workload** (narrow observation vs full materialize).
 #
 #   docker compose run --rm --no-TTY realcorpus sh tools/realcorpus/fetch-formats.sh
-#   docker compose run --rm --no-TTY analytical bash tools/realformats-stratified-court.sh
+#   docker compose run --rm --no-TTY doc-baseline bash tools/realformats-stratified-court.sh
+#
+# The lane is recorded via SERVICE (default `analytical`); both `analytical` and
+# `doc-baseline` are capped identically, share the cargo volume, and carry python3.
 #
 # If samples are absent it runs what it can and records SKIPPED/BLOCKED rows (it
 # does NOT fabricate). FAILs only if a *present* sample is not byte-exact.
@@ -31,6 +34,10 @@ case "$PROFILE" in
     release) BUILD_ARGS="--release --locked --all-features"; BIN=${BIN:-target/release/vole-document} ;;
     *)       BUILD_ARGS="--locked --all-features";           BIN=${BIN:-${VOLE_BIN:-target/debug/vole-document}} ;;
 esac
+# The lane that actually runs the court. It is recorded in the receipt, so it must
+# match the service invoked; both `analytical` and `doc-baseline` are capped
+# identically and share the cargo volume, and the driver is python3-stdlib-only.
+SERVICE=${SERVICE:-analytical}
 
 rm -rf "$CAMPAIGN"
 mkdir -p "$RAW"
@@ -58,7 +65,7 @@ cat > "$CAMPAIGN/environment.json" <<EOF
   "utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "measured_commit": "$(git rev-parse HEAD 2>/dev/null || echo unknown)",
   "tree_state": "$(git status --porcelain | tr '\n' ' ' | sed 's/"/\\"/g')",
-  "service": "analytical",
+  "service": "$SERVICE",
   "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
   "rustc": "$(rustc --version)",
   "cargo": "$(cargo --version)",
@@ -81,8 +88,8 @@ cp "$RAW/stratified.json" "$CAMPAIGN/receipt.json"
 cat > "$CAMPAIGN/commands.txt" <<'EOF'
 # acquisition (network-capable, capped realcorpus lane):
 docker compose run --rm --no-TTY realcorpus sh tools/realcorpus/fetch-formats.sh
-# stratified court (pinned analytical lane; RELEASE VOLE + python3):
-docker compose run --rm --no-TTY analytical bash tools/realformats-stratified-court.sh
+# stratified court (pinned @@SERVICE@@ lane; RELEASE VOLE + python3):
+docker compose run --rm --no-TTY @@SERVICE@@ bash tools/realformats-stratified-court.sh
 # inside the court:
 #   cargo build --release --locked --all-features
 #   python3 tools/fixtures/realformats-stratified.py --bin <BIN> --corpus realformats-v1 \
@@ -92,6 +99,9 @@ docker compose run --rm --no-TTY analytical bash tools/realformats-stratified-co
 # the copy is DELETED; then a fresh `materialize --exact --packed` process must
 # reproduce length + SHA-256 + cmp of the in-memory original.
 EOF
+# Substitute the actual lane name (done after the heredoc so backticks in the body
+# are never evaluated by the shell).
+sed -i "s/@@SERVICE@@/${SERVICE}/g" "$CAMPAIGN/commands.txt"
 
 {
     echo "# Phase 21.15 (ITEM 2) — stratified real-world multi-format court"
@@ -227,7 +237,7 @@ PY
     echo "  reproduce \`length + SHA-256 + cmp\`."
     echo "- **Missing samples are SKIPPED/BLOCKED, never fabricated.** Nothing here is"
     echo "  run on the host; the acquisition ran in the capped \`realcorpus\` lane and the"
-    echo "  court in the capped \`analytical\` lane."
+    echo "  court in the capped \`$SERVICE\` lane."
 } > "$CAMPAIGN/SUMMARY.md"
 
 echo

@@ -1974,7 +1974,12 @@ fn is_bare_key_char(c: u8) -> bool {
 fn is_value_end(c: Option<u8>) -> bool {
     match c {
         None => true,
-        Some(c) => matches!(c, b' ' | b'\t' | b'\n' | b'\r' | b'#'),
+        // A bare value (`true`/`false`) must be followed by a value terminator: end
+        // of input, whitespace, a comment, or — inside an array or inline table — a
+        // structural `,`/`]`/`}` with no intervening space (`[true,false]`,
+        // `{ a = true, b = false }`). Omitting the structural terminators declined
+        // every valid TOML document that packed a boolean against `,`.
+        Some(c) => matches!(c, b' ' | b'\t' | b'\n' | b'\r' | b'#' | b',' | b']' | b'}'),
     }
 }
 

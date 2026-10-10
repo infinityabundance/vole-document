@@ -218,6 +218,45 @@ fn detection_is_byte_based_and_conservative() {
 }
 
 #[test]
+fn mbox_envelope_is_skipped_and_boundaryless_multipart_is_declined() {
+    use vole_document::adapter::eml::parse;
+
+    // Phase 21.15 fix: a leading Unix-mbox `From ` envelope line is skipped so the
+    // real RFC 5322 message behind it is detected and modelled (regression for the
+    // CPython `test_email` mbox fixtures).
+    let mbox: &[u8] = b"From MAILER-DAEMON Fri Apr 06 16:46:09 2001\nFrom: a@b\nDate: Fri, 06 Apr 2001 00:00:00 +0000\nMessage-ID: <m@b>\nSubject: hi\n\nbody\n";
+    assert_eq!(
+        detect_document_format(mbox, Limits::DEFAULT),
+        DocumentFormat::Eml
+    );
+    let m = parse(mbox, Limits::DEFAULT).unwrap();
+    let root = m.part(0).unwrap();
+    // The envelope is not a header: the first real header is `From`, and the root
+    // entity still spans the whole document (exactness authority is unaffected).
+    assert_eq!(root.headers[0].name, "From");
+    assert_eq!(root.entity_start, 0);
+    assert_eq!(root.entity_end, mbox.len() as u64);
+
+    // A `multipart/*` root that names no `boundary` cannot be modelled, so it is not
+    // admitted as EML (this keeps detection consistent with `parse`; regression for
+    // the truncated CPython fixture).
+    let boundaryless: &[u8] =
+        b"From: a@b\nMIME-Version: 1.0\nContent-Type: multipart/report; report-type=delivery-status\n\nbody\n";
+    assert_eq!(
+        detect_document_format(boundaryless, Limits::DEFAULT),
+        DocumentFormat::Opaque
+    );
+    assert!(parse(boundaryless, Limits::DEFAULT).is_err());
+
+    // Prose that merely begins with `From ` and carries no four-digit year is not an
+    // envelope, so there is no header block and it stays Opaque.
+    assert_eq!(
+        detect_document_format(b"From here on we proceed.\n\nbody\n", Limits::DEFAULT),
+        DocumentFormat::Opaque
+    );
+}
+
+#[test]
 fn header_order_and_duplicates_and_folding_are_preserved() {
     use vole_document::adapter::eml::parse;
 

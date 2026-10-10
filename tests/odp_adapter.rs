@@ -340,6 +340,34 @@ fn detection_and_capabilities_are_byte_based() {
 }
 
 #[test]
+fn detection_prefers_odf_mimetype_over_embedded_object_media_type() {
+    // Phase 21.15 fix: an ODP that *embeds a spreadsheet* lists the spreadsheet
+    // media type in its manifest (one file-entry per embedded object), so scanning
+    // the whole manifest made it look like both an ODP and an ODS and forced the
+    // ambiguous case to Opaque. The mandatory `mimetype` member is authoritative.
+    let mimetype = b"application/vnd.oasis.opendocument.presentation";
+    let manifest = concat!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>"#,
+        r#"<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0">"#,
+        r#"<manifest:file-entry manifest:media-type="application/vnd.oasis.opendocument.presentation" manifest:full-path="/"/>"#,
+        r#"<manifest:file-entry manifest:media-type="application/vnd.oasis.opendocument.spreadsheet" manifest:full-path="Object 1/"/>"#,
+        r#"</manifest:manifest>"#
+    );
+    let entries = vec![
+        Entry::stored("mimetype", mimetype),
+        Entry::stored("META-INF/manifest.xml", manifest.as_bytes()),
+    ];
+    let zip = build_zip(&entries);
+    assert_eq!(
+        detect_document_format(&zip, Limits::DEFAULT),
+        DocumentFormat::Odp
+    );
+    let fx = Fixture::from_source("emb", &zip);
+    let field = Field::open(&fx.store, &fx.report.field, Limits::DEFAULT).unwrap();
+    assert_eq!(field.materialize_exact(Limits::DEFAULT).unwrap(), fx.source);
+}
+
+#[test]
 fn metadata_reports_slide_count_names_and_title() {
     let mut fx = Fixture::named("meta-basic", "basic.odp");
     let (meta, _) = observe_eq(

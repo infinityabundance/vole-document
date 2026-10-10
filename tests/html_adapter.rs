@@ -187,9 +187,32 @@ fn detection_is_byte_based_and_conservative() {
         detect_document_format(b"<html><body><br></body></html>", Limits::DEFAULT),
         DocumentFormat::Html
     );
-    // XML is tried first: a fully well-formed XHTML source stays Xml.
+    // A document-level HTML marker (an `<html>` root, or a `<!doctype html>`) wins
+    // `Html` over the generic `Xml` fallback, even when the source is also fully
+    // well-formed XML (XHTML).
     assert_eq!(
         detect_document_format(b"<html><body><p>x</p></body></html>", Limits::DEFAULT),
+        DocumentFormat::Html
+    );
+    assert_eq!(
+        detect_document_format(
+            b"<!DOCTYPE html><html><body><p>x</p></body></html>",
+            Limits::DEFAULT
+        ),
+        DocumentFormat::Html
+    );
+    // A bare XML tree whose root is not `html` stays Xml.
+    assert_eq!(
+        detect_document_format(b"<catalog><item>x</item></catalog>", Limits::DEFAULT),
+        DocumentFormat::Xml
+    );
+    // An XML tree that only *mentions* `<html>` as a non-root descendant is Xml: the
+    // marker rule requires the root element (or a doctype), never a nested tag.
+    assert_eq!(
+        detect_document_format(
+            b"<xsl:stylesheet xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"><xsl:template><html/></xsl:template></xsl:stylesheet>",
+            Limits::DEFAULT
+        ),
         DocumentFormat::Xml
     );
     // Plain prose and non-HTML `<`-junk stay Opaque.

@@ -82,6 +82,9 @@ const ODP_MANIFEST_MEMBER: &[u8] = b"META-INF/manifest.xml";
 /// The OpenDocument *presentation* media-type fragment (Phase 21.4.1).
 #[cfg(feature = "odp")]
 const ODP_PRESENTATION_FRAGMENT: &[u8] = b"application/vnd.oasis.opendocument.presentation";
+/// The ODF media-type prefix shared by every OpenDocument package.
+#[cfg(any(feature = "odt", feature = "ods", feature = "odp"))]
+const ODF_MEDIA_PREFIX: &[u8] = b"application/vnd.oasis.opendocument.";
 /// The SpreadsheetML workbook main content-type fragment (Phase 21.1.1).
 #[cfg(feature = "xlsx")]
 const XLSX_MAIN_FRAGMENT: &[u8] = b"spreadsheetml.sheet.main+xml";
@@ -423,6 +426,18 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     if crate::adapter::markdown::detect(source, limits) {
         return DocumentFormat::Markdown;
     }
+    // HTML document-level marker (Phase 21.10 / 21.15 fix): a `<!doctype html>` or
+    // an `<html>` root element is a more specific signal than the generic XML
+    // fallback, so a **well-formed XHTML page** is classified `Html`, not `Xml`
+    // (XML's well-formedness parser would otherwise claim it). The general XML
+    // branch below is still tried before the general HTML branch, so a bare XML
+    // tree stays XML and HTML only claims the sources XML declines.
+    #[cfg(feature = "html")]
+    if crate::adapter::html::has_document_marker(source)
+        && crate::adapter::html::detect(source, limits)
+    {
+        return DocumentFormat::Html;
+    }
     // XML is the structured-tree Wave-2 format for a bare XML source (Phase 21.9).
     // It has no package layer and no magic bytes beyond `<`, so it is detected last
     // and conservatively: only after the PDF/ZIP/JSON/YAML/CSV/Markdown families are
@@ -435,14 +450,14 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
         return DocumentFormat::Xml;
     }
     // HTML is the error-recovering markup Wave-2 format (Phase 21.10). Precedence
-    // note (explicit): XML is tried **before** HTML. XML detection requires
-    // well-formedness and exactly one root element, so any document XML accepts is
-    // genuinely XML (this includes a fully well-formed XHTML document). HTML only
-    // claims the `<`-bearing sources that XML declines — real HTML5 is almost never
-    // well-formed XML (void elements, optional end tags, unquoted attributes,
-    // undeclared named entities). Detection is conservative: the source must carry
-    // clear HTML structure (a `<!doctype html>`, an `<html`/`<head`/`<body` tag, or
-    // a preponderance of known HTML tags). Plain prose and non-HTML `<`-junk stay
+    // note (explicit): a *document-level* HTML marker is handled above (before XML);
+    // for every other `<`-bearing source XML is tried before HTML, so any document
+    // XML accepts (a bare XML tree) is genuinely XML. HTML then claims the
+    // `<`-bearing sources XML declines — real HTML5 is almost never well-formed XML
+    // (void elements, optional end tags, unquoted attributes, undeclared named
+    // entities). Detection is conservative: the source must carry clear HTML
+    // structure (a `<!doctype html>`, an `<html`/`<head`/`<body` tag, or a
+    // preponderance of known HTML tags). Plain prose and non-HTML `<`-junk stay
     // Opaque rather than being guessed to be HTML.
     #[cfg(feature = "html")]
     if crate::adapter::html::detect(source, limits) {
@@ -530,42 +545,54 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
     #[cfg(not(feature = "pptx"))]
     let is_pptx = false;
 
-    // ODT: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
-    // declares an OpenDocument text media type.
-    #[cfg(feature = "odt")]
-    let is_odt = mimetype
+    // The mandatory ODF `mimetype` member is **authoritative** when it names an
+    // OpenDocument media type (ODF 1.2 §3.2: the package's own media type). An ODP
+    // that *embeds a spreadsheet* lists both media types in `META-INF/manifest.xml`
+    // (one per file-entry), so scanning the whole manifest would make it look like an
+    // ODP *and* an ODS and force the ambiguous case below to Opaque. Only when the
+    // `mimetype` member is absent or is not an ODF media type do we fall back to the
+    // manifest scan (for a non-conformant package).
+    #[cfg(any(feature = "odt", feature = "ods", feature = "odp"))]
+    let odf_mimetype = mimetype
         .as_deref()
-        .is_some_and(|m| contains(m, ODT_TEXT_FRAGMENT))
-        || member_decoded(&physical, source, ODT_MANIFEST_MEMBER, limits)
+        .filter(|m| contains(m, ODF_MEDIA_PREFIX));
+
+    // ODT: an ODF package whose mandatory `mimetype` (or, absent that,
+    // `META-INF/manifest.xml`) declares an OpenDocument text media type.
+    #[cfg(feature = "odt")]
+    let is_odt = match odf_mimetype {
+        Some(m) => contains(m, ODT_TEXT_FRAGMENT),
+        None => member_decoded(&physical, source, ODT_MANIFEST_MEMBER, limits)
             .as_deref()
-            .is_some_and(|m| contains(m, ODT_TEXT_FRAGMENT));
+            .is_some_and(|m| contains(m, ODT_TEXT_FRAGMENT)),
+    };
     #[cfg(not(feature = "odt"))]
     let is_odt = false;
 
-    // ODS: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
+    // ODS: an ODF package whose mandatory `mimetype` (or, absent that, the manifest)
     // declares an OpenDocument *spreadsheet* media type. The positive spreadsheet
     // fragment keeps it mutually exclusive with ODT (a text document declares the
     // text media type, never the spreadsheet one).
     #[cfg(feature = "ods")]
-    let is_ods = mimetype
-        .as_deref()
-        .is_some_and(|m| contains(m, ODS_SPREADSHEET_FRAGMENT))
-        || member_decoded(&physical, source, ODS_MANIFEST_MEMBER, limits)
+    let is_ods = match odf_mimetype {
+        Some(m) => contains(m, ODS_SPREADSHEET_FRAGMENT),
+        None => member_decoded(&physical, source, ODS_MANIFEST_MEMBER, limits)
             .as_deref()
-            .is_some_and(|m| contains(m, ODS_SPREADSHEET_FRAGMENT));
+            .is_some_and(|m| contains(m, ODS_SPREADSHEET_FRAGMENT)),
+    };
     #[cfg(not(feature = "ods"))]
     let is_ods = false;
 
-    // ODP: an ODF package whose mandatory `mimetype` (or `META-INF/manifest.xml`)
+    // ODP: an ODF package whose mandatory `mimetype` (or, absent that, the manifest)
     // declares an OpenDocument *presentation* media type. The positive presentation
     // fragment keeps it mutually exclusive with ODT/ODS.
     #[cfg(feature = "odp")]
-    let is_odp = mimetype
-        .as_deref()
-        .is_some_and(|m| contains(m, ODP_PRESENTATION_FRAGMENT))
-        || member_decoded(&physical, source, ODP_MANIFEST_MEMBER, limits)
+    let is_odp = match odf_mimetype {
+        Some(m) => contains(m, ODP_PRESENTATION_FRAGMENT),
+        None => member_decoded(&physical, source, ODP_MANIFEST_MEMBER, limits)
             .as_deref()
-            .is_some_and(|m| contains(m, ODP_PRESENTATION_FRAGMENT));
+            .is_some_and(|m| contains(m, ODP_PRESENTATION_FRAGMENT)),
+    };
     #[cfg(not(feature = "odp"))]
     let is_odp = false;
 
@@ -590,7 +617,11 @@ fn detect_zip_family(source: &[u8], limits: Limits) -> Option<DocumentFormat> {
 const EPUB_MIMETYPE_MEMBER: &[u8] = b"mimetype";
 
 /// Decode one member's bytes by exact name, bounded and decline-safe: encrypted,
-/// oversized, unsupported-method, or out-of-range members yield `None`.
+/// oversized, unsupported-method, or out-of-range members yield `None`. The name
+/// match is ASCII case-insensitive, mirroring the OPC layer
+/// ([`crate::field::opc`]), which resolves the well-known control parts
+/// (`[Content_Types].xml`, `_rels/.rels`) case-insensitively; a package that
+/// lowercases them is still identified (Phase 21.15 fix).
 #[cfg(feature = "package")]
 fn member_decoded(
     physical: &crate::adapter::package::ZipPhysical,
@@ -599,7 +630,10 @@ fn member_decoded(
     limits: Limits,
 ) -> Option<Vec<u8>> {
     const FLAG_ENCRYPTED: u16 = 0x0001;
-    let member = physical.members.iter().find(|m| m.name == name)?;
+    let member = physical
+        .members
+        .iter()
+        .find(|m| m.name.eq_ignore_ascii_case(name))?;
     if member.flags & FLAG_ENCRYPTED != 0 || member.uncompressed_size > limits.max_xml_part_bytes {
         return None;
     }

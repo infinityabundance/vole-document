@@ -58,9 +58,13 @@
 //!
 //! ## Detection
 //!
-//! [`detect`] is deliberately conservative. XML is tried **before** HTML in
-//! `detect_document_format`, so a well-formed XML/XHTML source stays XML; HTML only
-//! claims the `<`-bearing sources XML declines. A source qualifies as HTML only if
+//! [`detect`] is deliberately conservative. A source carrying a **document-level**
+//! HTML marker — a `<!doctype html>` or an `<html>` root element
+//! ([`has_document_marker`]) — is classified `Html` even when it is also well-formed
+//! XML, so a well-formed XHTML page is not stolen by the generic `Xml` fallback. For
+//! every other `<`-bearing source XML is tried **before** HTML in
+//! `detect_document_format`, so a bare XML tree stays XML and HTML only claims the
+//! sources XML declines. A source qualifies as HTML only if
 //! it carries clear HTML structure — a `<!doctype html>`, an `<html`/`<head`/
 //! `<body` tag, or a preponderance of known HTML tags — and then parses within every
 //! cap. Plain prose and non-HTML `<`-junk stay
@@ -506,6 +510,58 @@ pub fn has_html_structure(source: &[u8]) -> bool {
     // carry no `<html>`/`<head>`/`<body>` and no `<!doctype html>`; requiring a
     // clear majority keeps plain prose that merely mentions a tag or two Opaque.
     known >= 3 && known.saturating_mul(4) >= total.saturating_mul(3)
+}
+
+/// Whether `source` carries a **document-level** HTML marker: a `<!doctype html>`
+/// (HTML5 or XHTML) or an `<html>` *root* element (the first element start tag in
+/// the document, after any prolog/comment/doctype/PI). This is a stronger signal
+/// than [`has_html_structure`] and gives `Html` precedence over the generic `Xml`
+/// fallback: a well-formed XHTML page is classified `Html`, while an arbitrary XML
+/// tree that merely mentions `<html>` somewhere (e.g. an XSLT template) is not.
+pub fn has_document_marker(source: &[u8]) -> bool {
+    if find_ci(source, b"<!doctype html").is_some() {
+        return true;
+    }
+    first_element_name(source).is_some_and(|n| n.eq_ignore_ascii_case(b"html"))
+}
+
+/// The name of the first element start tag in `source`, skipping the XML/HTML
+/// prolog, comments, a doctype, and processing instructions.
+fn first_element_name(source: &[u8]) -> Option<&[u8]> {
+    let mut i = 0usize;
+    while i < source.len() {
+        if source[i] != b'<' {
+            i += 1;
+            continue;
+        }
+        let rest = &source[i + 1..];
+        if rest.starts_with(b"!--") {
+            let from = i + 4;
+            i = match source[from..].windows(3).position(|w| w == b"-->") {
+                Some(p) => from + p + 3,
+                None => source.len(),
+            };
+            continue;
+        }
+        if rest.starts_with(b"!") || rest.starts_with(b"?") {
+            let from = i + 1;
+            i = match source[from..].iter().position(|&b| b == b'>') {
+                Some(p) => from + p + 1,
+                None => source.len(),
+            };
+            continue;
+        }
+        if rest.first().is_some_and(u8::is_ascii_alphabetic) {
+            let start = i + 1;
+            let mut j = start;
+            while j < source.len() && is_tag_name_char(source[j]) {
+                j += 1;
+            }
+            return Some(&source[start..j]);
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Whether `source` contains a start tag named `name` (case-insensitive) followed by

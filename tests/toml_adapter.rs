@@ -232,6 +232,31 @@ fn detection_is_byte_based_and_conservative() {
 }
 
 #[test]
+fn bool_structural_terminators_inside_collections_are_toml() {
+    // Phase 21.15 fix: a bare `true`/`false` packed against a structural `,`/`]`/`}`
+    // with no intervening space is valid TOML (`[true,false]`, `{a=true,b=false}`);
+    // rejecting it declined every real crate manifest whose inline table or array
+    // ended a boolean against a comma. Regression for serde/cargo `Cargo.toml`.
+    for doc in [
+        &b"a = [true,false]\n"[..],
+        &b"a = { b = true, c = false }\n"[..],
+        &b"a = { b = \"x\", c = true, d = false }\n"[..],
+        &b"[t]\nlist = [ 1, true ]\nflag = false\n"[..],
+    ] {
+        assert_eq!(
+            detect_document_format(doc, Limits::DEFAULT),
+            DocumentFormat::Toml,
+            "{doc:?}"
+        );
+    }
+    // A bare word is still not a TOML value.
+    assert_eq!(
+        detect_document_format(b"a = truely\n", Limits::DEFAULT),
+        DocumentFormat::Opaque
+    );
+}
+
+#[test]
 fn model_preserves_spelling_spans_and_comments() {
     use vole_document::adapter::toml::{
         K_FLOAT, K_INTEGER, resolve_path, scalar_spelling, string_content, table_keys, token_bytes,

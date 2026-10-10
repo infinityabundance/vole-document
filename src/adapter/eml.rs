@@ -849,7 +849,14 @@ struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    fn parse_entity(&mut self, start: u64, end: u64, parent: u32, depth: u32) -> Result<u32> {
+    fn parse_entity(
+        &mut self,
+        entity_start: u64,
+        header_start: u64,
+        end: u64,
+        parent: u32,
+        depth: u32,
+    ) -> Result<u32> {
         if depth > self.limits.max_eml_depth {
             return Err(Error::resource_limit(format!(
                 "EML part nesting exceeds the {}-deep cap",
@@ -862,27 +869,27 @@ impl<'a> Parser<'a> {
                 self.limits.max_eml_parts
             )));
         }
-        if end < start {
+        if end < entity_start {
             return Err(corrupt("entity span is inverted"));
         }
-        if end - start > self.limits.max_eml_part_bytes {
+        if end - entity_start > self.limits.max_eml_part_bytes {
             return Err(Error::resource_limit(format!(
                 "EML part is {} bytes, above the {}-byte part cap",
-                end - start,
+                end - entity_start,
                 self.limits.max_eml_part_bytes
             )));
         }
         let scan = scan_headers(
             self.source,
             &self.lines,
-            start,
+            header_start,
             end,
             self.limits
                 .max_eml_headers
                 .saturating_sub(self.header_count),
         )?;
         self.header_count = self.header_count.saturating_add(scan.headers.len() as u32);
-        let body_start = scan.body_start.max(start);
+        let body_start = scan.body_start.max(header_start);
         let body_end = end;
 
         let content_type = scan
@@ -942,9 +949,9 @@ impl<'a> Parser<'a> {
             parent,
             depth,
             kind: K_MESSAGE,
-            entity_start: start,
+            entity_start,
             entity_end: end,
-            header_start: start,
+            header_start,
             header_end: body_start,
             body_start,
             body_end,
@@ -973,11 +980,11 @@ impl<'a> Parser<'a> {
                 })?;
             let ranges = self.split_multipart(body_start, body_end, &boundary)?;
             for (ps, pe) in ranges {
-                let child = self.parse_entity(ps, pe, index, depth + 1)?;
+                let child = self.parse_entity(ps, ps, pe, index, depth + 1)?;
                 children.push(child);
             }
         } else if media_type == "message/rfc822" && body_start < body_end {
-            let child = self.parse_entity(body_start, body_end, index, depth + 1)?;
+            let child = self.parse_entity(body_start, body_start, body_end, index, depth + 1)?;
             children.push(child);
         }
 
@@ -1073,10 +1080,11 @@ pub fn parse(source: &[u8], limits: Limits) -> Result<EmlModel> {
         )));
     }
     let lines = build_lines(source);
+    let envelope = mbox_envelope_len(source);
     let scan = scan_headers(
         source,
         &lines,
-        0,
+        envelope,
         source.len() as u64,
         limits.max_eml_headers,
     )?;
@@ -1086,7 +1094,9 @@ pub fn parse(source: &[u8], limits: Limits) -> Result<EmlModel> {
         ));
     }
     // Build the model with a fresh parser (re-scans the root header block, which is
-    // cheap, and keeps the recursive parser uniform).
+    // cheap, and keeps the recursive parser uniform). The root entity spans the whole
+    // document (including a leading mbox `From ` envelope, which is not RFC 5322
+    // content); the header block begins after that envelope.
     let mut parser = Parser {
         source,
         lines,
@@ -1094,7 +1104,7 @@ pub fn parse(source: &[u8], limits: Limits) -> Result<EmlModel> {
         parts: Vec::new(),
         header_count: 0,
     };
-    parser.parse_entity(0, source.len() as u64, u32::MAX, 0)?;
+    parser.parse_entity(0, envelope, source.len() as u64, u32::MAX, 0)?;
 
     let mut model = EmlModel {
         doc_len: source.len() as u64,
@@ -1165,16 +1175,19 @@ pub fn build_eml_model(source: &[u8], limits: Limits) -> Result<Vec<u8>> {
 ///
 /// Conservative by construction: prose without a header block, a colon-bearing note
 /// without a body separator, and any earlier format are all rejected. Only the
-/// header block is scanned, never the MIME tree.
+/// header block is scanned, never the MIME tree — except that a `multipart/*` root
+/// naming no `boundary` is declined too, because `parse` cannot model it. A leading
+/// Unix-mbox `From ` envelope line is skipped before the header scan.
 pub fn detect(source: &[u8], limits: Limits) -> bool {
     if source.len() as u64 > limits.max_eml_document_bytes {
         return false;
     }
     let lines = build_lines(source);
+    let envelope = mbox_envelope_len(source);
     let Ok(scan) = scan_headers(
         source,
         &lines,
-        0,
+        envelope,
         source.len() as u64,
         limits.max_eml_headers,
     ) else {
@@ -1183,12 +1196,64 @@ pub fn detect(source: &[u8], limits: Limits) -> bool {
     if scan.headers.is_empty() || !scan.terminated_by_blank {
         return false;
     }
-    scan.headers.iter().any(|h| {
+    if !scan.headers.iter().any(|h| {
         h.name_is("from")
             || h.name_is("date")
             || h.name_is("message-id")
             || h.name_is("mime-version")
-    })
+    }) {
+        return false;
+    }
+    // Keep detection consistent with `parse`: a `multipart/*` root that declares no
+    // `boundary` is not modellable (the MIME tree cannot be split), so it is not
+    // admitted as EML even though its header block is otherwise well-formed.
+    if let Some(ct) = scan
+        .headers
+        .iter()
+        .rev()
+        .find(|h| h.name_is("content-type"))
+    {
+        let parsed = parse_content_type(Some(ct.value.as_str()));
+        if is_multipart_media_type(&parsed.media_type)
+            && parsed.boundary.as_deref().is_none_or(|b| b.is_empty())
+        {
+            return false;
+        }
+    }
+    true
+}
+
+/// The byte length of a leading Unix-mbox `From ` separator line (the "From_"
+/// envelope), or `0` when the source does not begin with one.
+///
+/// An mbox envelope is a line beginning with the five bytes `From ` — a space, not
+/// the colon of the RFC 5322 `From:` header — at column 0, followed by a sender and
+/// an `asctime` stamp. It is a mailbox delimiter, not part of the RFC 5322 message,
+/// but it is common in real message files, so the header scan skips it. The line
+/// must be non-empty after `From ` and contain a four-digit year so that prose
+/// beginning "From ..." is not mistaken for an envelope; anything else falls
+/// through to the ordinary header scan and stays Opaque.
+fn mbox_envelope_len(source: &[u8]) -> u64 {
+    const PREFIX: &[u8] = b"From ";
+    if !source.starts_with(PREFIX) {
+        return 0;
+    }
+    let mut eol = PREFIX.len();
+    while eol < source.len() && source[eol] != b'\n' && source[eol] != b'\r' {
+        eol += 1;
+    }
+    let line = &source[PREFIX.len()..eol];
+    if line.is_empty() || !line.windows(4).any(|w| w.iter().all(u8::is_ascii_digit)) {
+        return 0;
+    }
+    // Include the line ending so the header block starts on the next line.
+    if eol < source.len() && source[eol] == b'\r' {
+        eol += 1;
+    }
+    if eol < source.len() && source[eol] == b'\n' {
+        eol += 1;
+    }
+    eol as u64
 }
 
 /// The exact raw (encoded) body bytes of a part.
