@@ -24,6 +24,8 @@
 //! [`crate::ErrorClass::UnsupportedFeature`], never a silently empty answer.
 
 use std::cell::{Cell, RefCell};
+#[cfg(feature = "csv")]
+use std::collections::BTreeMap;
 #[cfg(feature = "docx")]
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -10214,18 +10216,26 @@ impl<S: SeedStore> Ctx<'_, S> {
         let (source, root) = self.csv_source()?;
         let rows = model.records.len();
         let header_cols = model.header().map_or(0, |r| r.fields.len());
-        let mut modal = 0usize;
-        let mut modal_freq = 0usize;
+        // One pass over the records: histogram the field counts and count ragged
+        // rows. An empty table leaves the histogram empty and `modal` at 0.
+        let mut histogram: BTreeMap<usize, usize> = BTreeMap::new();
         let mut ragged = 0u64;
         for r in &model.records {
             let n = r.fields.len();
-            let freq = model.records.iter().filter(|x| x.fields.len() == n).count();
+            *histogram.entry(n).or_insert(0) += 1;
+            if n != header_cols {
+                ragged += 1;
+            }
+        }
+        // The modal column count is the highest-frequency field count; ties are
+        // broken toward the larger count. Ascending iteration plus the `n > modal`
+        // tie-break reproduces the previous O(n^2) scan exactly.
+        let mut modal = 0usize;
+        let mut modal_freq = 0usize;
+        for (&n, &freq) in &histogram {
             if freq > modal_freq || (freq == modal_freq && n > modal) {
                 modal = n;
                 modal_freq = freq;
-            }
-            if n != header_cols {
-                ragged += 1;
             }
         }
         let value = AnswerValue::Json(format!(
