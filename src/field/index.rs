@@ -298,6 +298,18 @@ pub const SEL_CBOR_MODEL: u8 = 31;
 /// `sha256(source)` per ADR-0060); MessagePack has no package layer. Derived, never
 /// exact.
 pub const SEL_MSGPACK_MODEL: u8 = 32;
+/// Selector kind: the canonical config-family model (Phase 21.20).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as INI / `.env` / Java `.properties` into a bounded,
+/// representation-preserving arena (exact line spans and terminators, exact
+/// key/separator/value spans per entry, the recorded dialect, the `export`
+/// marker, quoting and inline-comment facts, `properties` trailing-`\`
+/// continuations, and `\uXXXX` escapes preserved as spelling) as `Q_gen` derived
+/// state. It is computed on demand from the exact source (its single dependency is
+/// the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); the config
+/// family has no package layer. Derived, never exact.
+pub const SEL_CONFIG_MODEL: u8 = 33;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

@@ -547,6 +547,14 @@ fn limits_never_change_reconstructed_bytes() {
         max_msgpack_bin_bytes: 1 << 50,
         max_msgpack_ext_bytes: 1 << 50,
         max_msgpack_document_bytes: 1 << 50,
+        max_config_lines: 1 << 30,
+        max_config_nodes: 1 << 30,
+        max_config_entries: 1 << 30,
+        max_config_depth: 1 << 12,
+        max_config_line_bytes: 1 << 50,
+        max_config_key_bytes: 1 << 30,
+        max_config_value_bytes: 1 << 50,
+        max_config_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

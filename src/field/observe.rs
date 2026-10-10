@@ -47,6 +47,16 @@ use crate::adapter::cbor::{
     resolve_pointer as cbor_resolve_pointer, subtree_text as cbor_subtree_text,
     token_bytes as cbor_token_bytes,
 };
+#[cfg(feature = "config")]
+use crate::adapter::config::{
+    CfgLine, ConfigModel, F_CONTINUED, F_DOUBLE_QUOTED, F_EXPORT, F_INLINE_COMMENT,
+    F_SINGLE_QUOTED, L_COMMENT, L_ENTRY, L_SECTION, canonical_text as config_canonical_text,
+    decode_key as config_decode_key, decode_value as config_decode_value,
+    dialect_name as config_dialect_name, find as config_find_matches,
+    key_bytes as config_key_bytes, line_bytes as config_line_bytes,
+    line_kind_name as config_line_kind_name, role_name as config_role_name,
+    terminator_name as config_terminator_name,
+};
 #[cfg(feature = "csv")]
 use crate::adapter::csv::{
     CsvModel, StreamRecord as CsvStreamRecord, canonical_text as csv_canonical_text,
@@ -177,6 +187,8 @@ use crate::field::document_format::DocumentFormat;
 use crate::field::index::SEL_ARROW_MODEL;
 #[cfg(feature = "cbor")]
 use crate::field::index::SEL_CBOR_MODEL;
+#[cfg(feature = "config")]
+use crate::field::index::SEL_CONFIG_MODEL;
 #[cfg(feature = "csv")]
 use crate::field::index::SEL_CSV_MODEL;
 #[cfg(feature = "docx")]
@@ -845,6 +857,45 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A config-family line by 0-based logical index (Phase 21.20), e.g. `0`. A
+    /// `properties` logical line that used trailing-`\` continuations counts as a
+    /// single line. `ExactBytes` returns the line's exact content bytes (its
+    /// terminator excluded); `Text` the decoded line; `Metadata`/`Structure` a
+    /// descriptor with the line kind, its exact spans, and its entry facts. The
+    /// config family has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "config")]
+    ConfigLine {
+        /// The 0-based logical line index.
+        index: u32,
+    },
+    /// A config-family entry by 0-based entry ordinal (Phase 21.20), i.e. the
+    /// `index`-th key/value line in source order (comments, blanks, and sections are
+    /// skipped). `ExactBytes` returns the entry's exact content bytes; `Text` the
+    /// decoded `key=value`; `Metadata`/`Structure` a descriptor with exact key,
+    /// separator, and value spans, the quoting/`export`/continuation/inline-comment
+    /// facts, and the duplicate-key match count (duplicates are reported, never
+    /// collapsed).
+    #[cfg(feature = "config")]
+    ConfigEntry {
+        /// The 0-based entry ordinal in source order.
+        index: u32,
+    },
+    /// A config-family section header by name (Phase 21.20). The answer reports the
+    /// matching header lines (by name), their exact spans, and the match count; an
+    /// unknown name declines typed.
+    #[cfg(feature = "config")]
+    ConfigSection {
+        /// The section name (the bytes between `[` and `]`).
+        name: String,
+    },
+    /// A lexical, case-sensitive search over config keys and values (Phase 21.20),
+    /// in source order. Each match reports its line index, entry ordinal, role
+    /// (`key`/`value`), and exact span. Never an embedding or a model call.
+    #[cfg(feature = "config")]
+    ConfigFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// A YAML node addressed by a dotted path (Phase 21.6.1), e.g. `a.b.0`. The
     /// optional first segment `docN` selects a document (default 0). The answer
     /// reports the node's kind/style, its exact source span, and (for `ExactBytes`)
@@ -1468,6 +1519,14 @@ impl Selector {
             Selector::MsgpackNode { pointer } => format!("msgpack-node:{pointer}"),
             #[cfg(feature = "msgpack")]
             Selector::MsgpackFind { pattern } => format!("msgpack-find:{pattern}"),
+            #[cfg(feature = "config")]
+            Selector::ConfigLine { index } => format!("config-line:{index}"),
+            #[cfg(feature = "config")]
+            Selector::ConfigEntry { index } => format!("config-entry:{index}"),
+            #[cfg(feature = "config")]
+            Selector::ConfigSection { name } => format!("config-section:{name}"),
+            #[cfg(feature = "config")]
+            Selector::ConfigFind { pattern } => format!("config-find:{pattern}"),
             #[cfg(feature = "yaml")]
             Selector::YamlPath { path } => format!("yaml-path:{path}"),
             #[cfg(feature = "yaml")]
@@ -3385,6 +3444,25 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "msgpack")]
             (Selector::MsgpackFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.msgpack_find(req, pattern)
+            }
+            #[cfg(feature = "config")]
+            (
+                Selector::ConfigLine { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.config_line(req, *index),
+            #[cfg(feature = "config")]
+            (
+                Selector::ConfigEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.config_entry(req, *index),
+            #[cfg(feature = "config")]
+            (
+                Selector::ConfigSection { name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.config_section(req, name),
+            #[cfg(feature = "config")]
+            (Selector::ConfigFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.config_find(req, pattern)
             }
             #[cfg(feature = "yaml")]
             (Selector::YamlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -8849,6 +8927,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Config => {
+                #[cfg(feature = "config")]
+                {
+                    self.common_config(req)?
+                }
+                #[cfg(not(feature = "config"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "config support is not compiled in (feature `config`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -11294,6 +11384,338 @@ fn msgpack_hex(bytes: &[u8]) -> String {
         out.push(DIGITS[(b & 0x0f) as usize] as char);
     }
     out
+}
+
+// ---------------------------------------------------------------------------
+// Config-family observations (Phase 21.20)
+// ---------------------------------------------------------------------------
+
+/// The config family (INI / `.env` / Java `.properties`) has no package layer:
+/// the exact leaf is the whole source, and every line/entry/section observation is
+/// a bounded, span-preserving (`Q_gen`) projection of it (ADR-0060: the model node
+/// depends on the `sha256(source)` root).
+#[cfg(feature = "config")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the config-family model (derived, `Q_gen`).
+    fn config_model(&mut self) -> Result<(ConfigModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_CONFIG_MODEL, 0), "config model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((ConfigModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn config_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn config_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn config_line_text(model: &ConfigModel, source: &[u8], line: &CfgLine) -> Result<String> {
+        match line.kind {
+            L_ENTRY => {
+                let k = config_decode_key(source, line)?;
+                let v = config_decode_value(model.dialect, source, line)?;
+                Ok(format!("{k}={v}"))
+            }
+            L_SECTION => config_decode_key(source, line),
+            _ => Ok(String::from_utf8_lossy(config_line_bytes(source, line)?).into_owned()),
+        }
+    }
+
+    /// The number of entries whose decoded key equals `key` (duplicates reported).
+    fn config_key_matches(model: &ConfigModel, source: &[u8], key: &str) -> usize {
+        model
+            .lines
+            .iter()
+            .filter(|l| l.kind == L_ENTRY)
+            .filter(|l| config_decode_key(source, l).is_ok_and(|k| k == key))
+            .count()
+    }
+
+    /// The physical line index of the `index`-th entry, or `0` when out of range
+    /// (the caller has already validated the entry exists).
+    fn config_entry_line_index(model: &ConfigModel, index: u32) -> u32 {
+        let mut seen = 0u32;
+        for (i, l) in model.lines.iter().enumerate() {
+            if l.kind == L_ENTRY {
+                if seen == index {
+                    return i as u32;
+                }
+                seen += 1;
+            }
+        }
+        0
+    }
+
+    fn config_line_structure(
+        model: &ConfigModel,
+        source: &[u8],
+        index: u32,
+        line: &CfgLine,
+    ) -> Result<String> {
+        let mut extra = String::new();
+        if line.kind == L_ENTRY {
+            let k = config_decode_key(source, line)?;
+            let v = config_decode_value(model.dialect, source, line)?;
+            let same = Self::config_key_matches(model, source, &k);
+            extra = format!(
+                concat!(
+                    ",\"key\":\"{}\",\"value\":\"{}\",",
+                    "\"key_span\":[{},{}],\"sep_span\":[{},{}],\"value_span\":[{},{}],",
+                    "\"export\":{},\"single_quoted\":{},\"double_quoted\":{},",
+                    "\"continued\":{},\"inline_comment\":{},\"same_key_entries\":{}"
+                ),
+                json_escape(&k),
+                json_escape(&v),
+                line.key_start,
+                line.key_end,
+                line.sep_start,
+                line.sep_end,
+                line.value_start,
+                line.value_end,
+                line.flags & F_EXPORT != 0,
+                line.flags & F_SINGLE_QUOTED != 0,
+                line.flags & F_DOUBLE_QUOTED != 0,
+                line.flags & F_CONTINUED != 0,
+                line.flags & F_INLINE_COMMENT != 0,
+                same,
+            );
+        } else if line.kind == L_SECTION {
+            let name = config_decode_key(source, line)?;
+            extra = format!(",\"name\":\"{}\"", json_escape(&name));
+        } else if line.kind == L_COMMENT {
+            extra = format!(",\"marker\":\"{}\"", line.marker as char);
+        }
+        Ok(format!(
+            concat!(
+                "{{\"line\":{},\"kind\":\"{}\",\"dialect\":\"{}\",",
+                "\"span\":[{},{}],\"terminator\":\"{}\",\"marker\":{}{}}}"
+            ),
+            index,
+            config_line_kind_name(line.kind),
+            config_dialect_name(model.dialect),
+            line.start,
+            line.end,
+            config_terminator_name(line.terminator),
+            line.marker,
+            extra,
+        ))
+    }
+
+    /// A config line by 0-based logical index.
+    fn config_line(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let line = *model
+            .line(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("config has no line {index}")))?;
+        let span = Some((line.start, line.end));
+        let provenance = format!(
+            "config;line={index};kind={};dialect={}",
+            config_line_kind_name(line.kind),
+            config_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(config_line_bytes(&source, &line)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::config_line_text(&model, &source, &line)?)
+            }
+            _ => AnswerValue::Json(Self::config_line_structure(&model, &source, index, &line)?),
+        };
+        Ok(self.config_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A config entry by 0-based entry ordinal.
+    fn config_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let line = *model
+            .nth_entry(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("config has no entry {index}")))?;
+        let key = config_decode_key(&source, &line)?;
+        let same = Self::config_key_matches(&model, &source, &key);
+        let line_index = Self::config_entry_line_index(&model, index);
+        let span = Some((line.start, line.end));
+        let provenance = format!(
+            "config;entry={index};key={key};matches={same};dialect={}",
+            config_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(config_line_bytes(&source, &line)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::config_line_text(&model, &source, &line)?)
+            }
+            _ => AnswerValue::Json(Self::config_line_structure(
+                &model, &source, line_index, &line,
+            )?),
+        };
+        Ok(self.config_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A section header by name; duplicates are reported.
+    fn config_section(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let mut hits: Vec<String> = Vec::new();
+        let mut first_line: Option<usize> = None;
+        for (i, line) in model.lines.iter().enumerate() {
+            if line.kind != L_SECTION {
+                continue;
+            }
+            if config_decode_key(&source, line)? == name {
+                if first_line.is_none() {
+                    first_line = Some(i);
+                }
+                hits.push(format!(
+                    "{{\"line\":{},\"span\":[{},{}]}}",
+                    i, line.start, line.end
+                ));
+            }
+        }
+        let Some(first) = first_line else {
+            return Err(Error::unsupported_feature(format!(
+                "config has no section named {name:?}"
+            )));
+        };
+        let count = hits.len();
+        let span = Some((model.lines[first].start, model.lines[first].end));
+        let provenance = format!("config;section={name};matches={count}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(config_key_bytes(&source, &model.lines[first])?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(name.to_string()),
+            _ => AnswerValue::Json(format!(
+                "{{\"name\":\"{}\",\"matches\":{},\"headers\":[{}]}}",
+                json_escape(name),
+                count,
+                hits.join(",")
+            )),
+        };
+        Ok(self.config_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over decoded keys and values.
+    fn config_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let matches = config_find_matches(&model, &source, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"line\":{},\"entry\":{},\"role\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.line,
+                m.entry,
+                config_role_name(m.role),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("config;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.config_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_config(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.config_common_metadata(req),
+            Selector::Text => self.config_common_text(req),
+            Selector::SearchMatch(p) => self.config_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "config does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn config_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let text = config_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.config_answer(
+            req,
+            AnswerValue::Text(text),
+            "config;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn config_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let entries = model.entry_count();
+        let sections = model.section_count();
+        let comments = model.lines.iter().filter(|l| l.kind == L_COMMENT).count();
+        let blanks = model
+            .lines
+            .iter()
+            .filter(|l| l.kind == crate::adapter::config::L_BLANK)
+            .count();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"config\",\"dialect\":\"{}\",",
+                "\"lines\":{},\"entries\":{},\"sections\":{},\"comments\":{},",
+                "\"blanks\":{},\"trailing_terminator\":{},\"bytes\":{}}}"
+            ),
+            config_dialect_name(model.dialect),
+            model.lines.len(),
+            entries,
+            sections,
+            comments,
+            blanks,
+            model.trailing_terminator,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.config_answer(
+            req,
+            value,
+            "config;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
 }
 
 // ---------------------------------------------------------------------------

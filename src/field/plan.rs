@@ -468,6 +468,17 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["CborModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-nodes", "whole-document"]),
         }),
+        #[cfg(feature = "config")]
+        (Selector::ConfigLine { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::ConfigEntry { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::ConfigSection { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::ConfigFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["ConfigModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-lines", "whole-document"]),
+        }),
         #[cfg(feature = "yaml")]
         (Selector::YamlPath { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
         | (Selector::YamlNode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
@@ -619,6 +630,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::ArrowIpc => &["ArrowModel", "DocumentExact"],
         DocumentFormat::Cbor => &["CborModel", "DocumentExact"],
         DocumentFormat::Msgpack => &["MsgpackModel", "DocumentExact"],
+        DocumentFormat::Config => &["ConfigModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

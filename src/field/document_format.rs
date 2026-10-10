@@ -223,6 +223,16 @@ pub enum DocumentFormat {
     /// `bin`, float width, and extension type/length are `Q_gen` projections
     /// (Phase 21.19).
     Msgpack,
+    /// A config-family document (INI, `.env`, or Java `.properties`). The whole
+    /// source is a bounded, line-based key/value document; detection is
+    /// deliberately conservative and requires a **dialect-distinguishing signal**,
+    /// so the pure `KEY=VALUE` overlap between `env` and `properties` (and plain
+    /// prose, and a `#!` script) stays `Opaque` rather than being guessed. Not a
+    /// package: the exact leaf is the whole source, the recorded dialect lives in
+    /// the model, and every line's content span, key/separator/value span, quoting,
+    /// inline-comment, `export`, continuation, and `\uXXXX`-spelling fact is a
+    /// `Q_gen` projection (Phase 21.20).
+    Config,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -253,6 +263,7 @@ impl DocumentFormat {
             DocumentFormat::ArrowIpc => "arrow",
             DocumentFormat::Cbor => "cbor",
             DocumentFormat::Msgpack => "msgpack",
+            DocumentFormat::Config => "config",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -282,6 +293,7 @@ impl DocumentFormat {
             DocumentFormat::ArrowIpc => "arrow",
             DocumentFormat::Cbor => "cbor",
             DocumentFormat::Msgpack => "msgpack",
+            DocumentFormat::Config => "config",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -311,6 +323,7 @@ impl DocumentFormat {
             DocumentFormat::ArrowIpc => cfg!(feature = "arrow"),
             DocumentFormat::Cbor => cfg!(feature = "cbor"),
             DocumentFormat::Msgpack => cfg!(feature = "msgpack"),
+            DocumentFormat::Config => cfg!(feature = "config"),
         }
     }
 
@@ -350,6 +363,7 @@ impl DocumentFormat {
             "arrow" => Some(DocumentFormat::ArrowIpc),
             "cbor" => Some(DocumentFormat::Cbor),
             "msgpack" => Some(DocumentFormat::Msgpack),
+            "config" => Some(DocumentFormat::Config),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -504,6 +518,26 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "toml")]
     if crate::adapter::toml::detect(source, limits) {
         return DocumentFormat::Toml;
+    }
+    // The config family (INI / `.env` / Java `.properties`) is the key/value line
+    // Wave-2 format (Phase 21.20). Precedence (explicit): it is tried **after** the
+    // strong, fully-parsed tree formats (JSON/JSON5/JSONL/YAML/TOML) — a TOML
+    // document is very often a syntactically valid INI file, so a source that is
+    // valid TOML must stay `Toml` (never reclassified) — and **before** CSV/Markdown/
+    // XML/HTML. It precedes CSV deliberately: a config file whose values contain
+    // commas (e.g. `A=x,y`) has a consistent field count and would otherwise be
+    // stolen by the CSV detector, whereas the config `KEY=VALUE` shape is the more
+    // specific signal. Config has **no magic bytes**, so detection is deliberately
+    // conservative and requires a **dialect-distinguishing signal**: an INI
+    // `[section]` header; a properties `:`/whitespace separator, `!` comment,
+    // `\uXXXX` escape, continuation, or non-identifier key (plus a strong `=`/`:`
+    // separator somewhere); or an `env` `export ` prefix. The pure `KEY=VALUE`
+    // overlap between `env` and `properties`, plain prose, a two-column `a b`
+    // blob, and a `#!` script all stay `Opaque` rather than being guessed; a plain
+    // `.txt`/Markdown/code source is never claimed.
+    #[cfg(feature = "config")]
+    if crate::adapter::config::detect(source, limits) {
+        return DocumentFormat::Config;
     }
     // CSV/TSV is the first **tabular** Wave-2 format (Phase 21.7.1). It has no
     // magic bytes, so it is detected last and conservatively: only after the
@@ -784,6 +818,7 @@ mod tests {
             DocumentFormat::ArrowIpc,
             DocumentFormat::Cbor,
             DocumentFormat::Msgpack,
+            DocumentFormat::Config,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

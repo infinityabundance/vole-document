@@ -239,6 +239,18 @@ fn ingest_pdf_stage_b(
         return ingest_msgpack_stage_b(store, source, manifest, limits);
     }
 
+    // The config family (INI / `.env` / Java `.properties`) is the key/value line
+    // Wave-2 format, also with no package layer: it is inverted by a dedicated
+    // (non-PDF) tail that adds the derived `ConfigModel` node over the exact root
+    // (Phase 21.20). It is checked here — after the JSON family, the binary
+    // structured-tree family, and TOML — so a config source (which detection admits
+    // only on a dialect-distinguishing signal) is never misrouted to the tabular or
+    // prose tails.
+    #[cfg(feature = "config")]
+    if fmt == crate::field::document_format::DocumentFormat::Config {
+        return ingest_config_stage_b(store, source, manifest, limits);
+    }
+
     // Parquet is the analytical Wave-2 format, also with no package layer: it is
     // inverted by a dedicated (non-PDF) tail that adds the derived `ParquetModel`
     // node over the exact root (Phase 21.14).
@@ -681,6 +693,97 @@ fn ingest_msgpack_stage_b(
 
     Ok(IngestReport {
         format: crate::field::document_format::DocumentFormat::Msgpack,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The config-family (INI / `.env` / Java `.properties`) ingest tail (Phase 21.20).
+///
+/// The config family has no package layer, so there is nothing to scan: the exact
+/// authority is the whole source (`DocumentExact`) and the only derived node is
+/// the representation-preserving [`NodeKind::ConfigModel`], whose single dependency
+/// is that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node
+/// reads the source bytes, so it must carry a source-identity input and can never
+/// alias another field's source. The model is never on the exactness path. The
+/// recorded dialect is echoed into the provenance token (as CSV records its
+/// dialect), so a common observation can report it without re-reading the source.
+#[cfg(feature = "config")]
+fn ingest_config_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_CONFIG_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    // A bounded dialect sniff so the provenance token is informative without
+    // parsing the whole document. Detection already admitted the source, so a
+    // failure here is only possible under a tighter cap; it degrades gracefully.
+    let dialect = crate::adapter::config::classify(source, limits).ok();
+    let mut model = SeedNode::new(
+        NodeKind::ConfigModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "config:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_CONFIG_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let dialect_token = match dialect {
+        Some(d) => format!("dialect={}", crate::adapter::config::dialect_name(d)),
+        None => "dialect=none".to_string(),
+    };
+    let provenance = format!(
+        "{}field:ingest-config;model=1;{};nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Config.provenance_prefix(),
+        dialect_token,
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Config,
         field,
         root_node: manifest.root_node,
         index_root: Some(index_root),

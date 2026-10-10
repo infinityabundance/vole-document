@@ -231,6 +231,12 @@ const PARQUET_NATIVE: &[&str] = &[
 const ARROW_NATIVE: &[&str] = &["arrow-schema", "arrow-column", "arrow-batch", "arrow-cell"];
 const CBOR_NATIVE: &[&str] = &["cbor-pointer", "cbor-node", "cbor-find"];
 const MSGPACK_NATIVE: &[&str] = &["msgpack-pointer", "msgpack-node", "msgpack-find"];
+const CONFIG_NATIVE: &[&str] = &[
+    "config-line",
+    "config-entry",
+    "config-section",
+    "config-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -494,6 +500,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 MSGPACK_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Config => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                CONFIG_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

@@ -554,6 +554,33 @@ pub struct Limits {
     /// parsing. Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.19).
     pub max_msgpack_document_bytes: u64,
+    // The config-family caps below bound the derived, span-preserving key/value
+    // model (Phase 21.20). The config family (INI / `.env` / `.properties`) is not
+    // a package: the whole source is the exact leaf, and everything derived is
+    // `Q_gen` only.
+    /// Maximum physical lines accepted across one config document. An over-large
+    /// document declines typed rather than allocating (Phase 21.20).
+    pub max_config_lines: u32,
+    /// Maximum total model nodes (lines) accepted across one config document
+    /// (Phase 21.20).
+    pub max_config_nodes: u32,
+    /// Maximum entries accepted across one config document (Phase 21.20).
+    pub max_config_entries: u32,
+    /// Maximum `properties` logical-line continuation depth accepted (the number
+    /// of physical lines merged by trailing `\` continuations). A deeper logical
+    /// line is not detected as config (and any direct parse declines typed) rather
+    /// than risking an unbounded scan (Phase 21.20).
+    pub max_config_depth: u32,
+    /// Maximum length of one (logical) config line in bytes (Phase 21.20).
+    pub max_config_line_bytes: u64,
+    /// Maximum length of one config key token in bytes (Phase 21.20).
+    pub max_config_key_bytes: u64,
+    /// Maximum length of one config value token in bytes (Phase 21.20).
+    pub max_config_value_bytes: u64,
+    /// Maximum source length admitted for byte-based config detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.20).
+    pub max_config_document_bytes: u64,
 }
 
 impl Limits {
@@ -721,6 +748,14 @@ impl Limits {
         max_msgpack_bin_bytes: 1 << 28,
         max_msgpack_ext_bytes: 1 << 28,
         max_msgpack_document_bytes: 1 << 34,
+        max_config_lines: 1 << 24,
+        max_config_nodes: 1 << 24,
+        max_config_entries: 1 << 24,
+        max_config_depth: 4096,
+        max_config_line_bytes: 1 << 26,
+        max_config_key_bytes: 1 << 20,
+        max_config_value_bytes: 1 << 28,
+        max_config_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -887,6 +922,14 @@ impl Limits {
         max_msgpack_bin_bytes: 1 << 20,
         max_msgpack_ext_bytes: 1 << 20,
         max_msgpack_document_bytes: 1 << 26,
+        max_config_lines: 1 << 16,
+        max_config_nodes: 1 << 16,
+        max_config_entries: 1 << 16,
+        max_config_depth: 64,
+        max_config_line_bytes: 1 << 20,
+        max_config_key_bytes: 1 << 14,
+        max_config_value_bytes: 1 << 20,
+        max_config_document_bytes: 1 << 26,
     };
 }
 

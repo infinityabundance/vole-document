@@ -290,6 +290,16 @@ pub enum NodeKind {
     /// root, keyed by `sha256(source)` per ADR-0060). MessagePack has no package layer.
     /// Derived, never exact.
     MsgpackModel = 0x34,
+    /// The canonical, representation-preserving config-family model (Phase 21.20):
+    /// the whole source parsed as INI / `.env` / Java `.properties` into a bounded
+    /// arena of lines (exact content spans and terminators) with exact key,
+    /// separator, and value spans per entry, the recorded dialect, the `export`
+    /// marker, quoting and inline-comment facts, `properties` trailing-`\`
+    /// continuations, and `\uXXXX` escapes preserved as spelling. It is computed on
+    /// demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060); the config family has no
+    /// package layer. Derived, never exact.
+    ConfigModel = 0x35,
 }
 
 impl NodeKind {
@@ -348,6 +358,7 @@ impl NodeKind {
             0x32 => NodeKind::Json5Model,
             0x33 => NodeKind::CborModel,
             0x34 => NodeKind::MsgpackModel,
+            0x35 => NodeKind::ConfigModel,
             _ => return None,
         })
     }
@@ -407,6 +418,7 @@ impl NodeKind {
             NodeKind::Json5Model => "Json5Model",
             NodeKind::CborModel => "CborModel",
             NodeKind::MsgpackModel => "MsgpackModel",
+            NodeKind::ConfigModel => "ConfigModel",
         }
     }
 

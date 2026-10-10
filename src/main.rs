@@ -114,6 +114,8 @@ const USAGE_FIELD: &str = "\
         --json5-comments |
         --cbor-pointer PATH | --cbor-node PATH | --cbor-find PATTERN |
         --msgpack-pointer PATH | --msgpack-node PATH | --msgpack-find PATTERN |
+        --config-line N | --config-entry N | --config-section NAME |
+        --config-find PATTERN |
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
@@ -1652,6 +1654,20 @@ struct FieldArgs {
     /// keys/values (Phase 21.19).
     #[cfg(feature = "msgpack")]
     msgpack_find: Option<String>,
+    /// `--config-line N`: the N-th (0-based) logical config line (Phase 21.20).
+    #[cfg(feature = "config")]
+    config_line: Option<u32>,
+    /// `--config-entry N`: the N-th (0-based) config entry in source order
+    /// (Phase 21.20).
+    #[cfg(feature = "config")]
+    config_entry: Option<u32>,
+    /// `--config-section NAME`: a config `[section]` header by name (Phase 21.20).
+    #[cfg(feature = "config")]
+    config_section: Option<String>,
+    /// `--config-find PATTERN`: a lexical, case-sensitive search over config keys
+    /// and values (Phase 21.20).
+    #[cfg(feature = "config")]
+    config_find: Option<String>,
     /// `--yaml-path PATH`: resolve a dotted YAML path (optional leading `docN`),
     /// returning the node's kind/style, exact source span, and exact token bytes
     /// (Phase 21.6.1).
@@ -2266,6 +2282,29 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "msgpack")]
             "--msgpack-find" => {
                 out.msgpack_find = Some(field_arg_value(args, &mut i, "--msgpack-find", inline)?);
+            }
+            #[cfg(feature = "config")]
+            "--config-line" => {
+                out.config_line = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--config-line", inline)?,
+                    "--config-line",
+                )?);
+            }
+            #[cfg(feature = "config")]
+            "--config-entry" => {
+                out.config_entry = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--config-entry", inline)?,
+                    "--config-entry",
+                )?);
+            }
+            #[cfg(feature = "config")]
+            "--config-section" => {
+                out.config_section =
+                    Some(field_arg_value(args, &mut i, "--config-section", inline)?);
+            }
+            #[cfg(feature = "config")]
+            "--config-find" => {
+                out.config_find = Some(field_arg_value(args, &mut i, "--config-find", inline)?);
             }
             #[cfg(feature = "yaml")]
             "--yaml-path" => {
@@ -2927,6 +2966,26 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.msgpack_find {
             chosen.push(Selector::MsgpackFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Config family: `--config-line`/`--config-entry`/`--config-section` address a
+    // line, an entry, or a section by name; `--config-find` is a lexical search.
+    // Each stands alone (Phase 21.20).
+    #[cfg(feature = "config")]
+    {
+        if let Some(index) = out.config_line {
+            chosen.push(Selector::ConfigLine { index });
+        }
+        if let Some(index) = out.config_entry {
+            chosen.push(Selector::ConfigEntry { index });
+        }
+        if let Some(name) = &out.config_section {
+            chosen.push(Selector::ConfigSection { name: name.clone() });
+        }
+        if let Some(pattern) = &out.config_find {
+            chosen.push(Selector::ConfigFind {
                 pattern: pattern.clone(),
             });
         }

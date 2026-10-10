@@ -110,6 +110,11 @@ pub enum ErrorClass {
     /// a map key with no value, an over-long declared length, or a `str` that is not
     /// valid UTF-8.
     InvalidMsgpackStructure,
+    /// A config-family structure error (Phase 21.20+): a line that is not a valid
+    /// INI/`.env`/`.properties` construct under the detected dialect, an unterminated
+    /// quoted value, or a source that carries no config-family dialect signal at all
+    /// (so it stays `Opaque`).
+    InvalidConfigStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -150,6 +155,7 @@ impl ErrorClass {
             ErrorClass::InvalidJson5Structure => 31,
             ErrorClass::InvalidCborStructure => 32,
             ErrorClass::InvalidMsgpackStructure => 33,
+            ErrorClass::InvalidConfigStructure => 34,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -189,6 +195,7 @@ impl ErrorClass {
             ErrorClass::InvalidJson5Structure => "InvalidJson5Structure",
             ErrorClass::InvalidCborStructure => "InvalidCborStructure",
             ErrorClass::InvalidMsgpackStructure => "InvalidMsgpackStructure",
+            ErrorClass::InvalidConfigStructure => "InvalidConfigStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -282,6 +289,7 @@ impl Error {
     ctor!(invalid_json5_structure, InvalidJson5Structure);
     ctor!(invalid_cbor_structure, InvalidCborStructure);
     ctor!(invalid_msgpack_structure, InvalidMsgpackStructure);
+    ctor!(invalid_config_structure, InvalidConfigStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

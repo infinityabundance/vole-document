@@ -481,6 +481,25 @@ cbor = ["json"]
 # vocabulary ([`crate::adapter::json::MatchRole`], pointer escaping), so it implies
 # `json`.
 msgpack = ["json"]
+# Phase 21.20: the config-family adapter — one bounded, representation-preserving
+# adapter covering INI, `.env`, and Java `.properties`, recording the dialect in
+# the model exactly as CSV records its delimiter/terminator dialect. Like the
+# other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
+# the whole source (a `DocumentExact`, RAW-like authority) and every derived
+# observation is a bounded, span-preserving (`Q_gen`) projection of it. It adds a
+# bounded, line-based parser that preserves representation — exact spans for
+# sections, keys, separators, values, and comments; line order; the `export`
+# marker, quoting style, inline comments, and `properties` trailing-`\`
+# continuations; and Java `\uXXXX` escapes **as spelling** (never expanded).
+# Duplicate keys are preserved and reported (the representation-preserving
+# policy), never collapsed. Detection is deliberately conservative (no magic
+# bytes) and requires a dialect-distinguishing signal, so the pure `KEY=VALUE`
+# overlap between `env` and `properties`, plain prose, and a `#!`-shebang script
+# all stay `Opaque` rather than being guessed. It adds **no** decoder behavior:
+# the config model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. Dependency-free (`config = []`) and
+# never in `default`.
+config = []
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

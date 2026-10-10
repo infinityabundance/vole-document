@@ -1,0 +1,11 @@
+fixtures 11
+config_fixtures 4
+exact_ok 11
+exact_fail 0
+surface_fail 0
+typed_declines_ok 4
+cross_format_controls_ok 3
+usage_ok 1
+opaque_controls_ok 4
+opaque_controls 4
+binary eb7c9dc84921ba19096dde6a4a8b116f49ce12e13dd0d8928343b0886d764151
