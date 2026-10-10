@@ -1,0 +1,163 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-7-csv-econ-33ff5c61",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "36d8d55c6e50497a28ed8e520d94694172dcbbc5167512f56801a90cfa482d37",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-10-phase21-7-csv-econ-33ff5c61",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927",
+    "derives_from": "doc-baseline (same pinned base digest)",
+    "duckdb_version": "1.5.6",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "basic.csv": {
+        "len": 43,
+        "sha256": "84a071172374ac2a32846bd21eea81d9f92663f2764f195e9a9cdaf750471d1f"
+      },
+      "bom.csv": {
+        "len": 15,
+        "sha256": "c343c48b2c2addd839e582588df0b11d048e624ea0bd8a2f0589fcb8bb18e318"
+      },
+      "crlf.csv": {
+        "len": 54,
+        "sha256": "bce76e2e2db18f0bb92f10ef41497cd2df40495fb08d6dc1a994ae09cb39a9ed"
+      },
+      "quoted.csv": {
+        "len": 57,
+        "sha256": "4bd04183959ecaacc75f18635237bc982e82df2b1dae851598b82e5e61bf9287"
+      },
+      "ragged.csv": {
+        "len": 45,
+        "sha256": "fd9dc65ce5f8b39834c345893e84646454d4bd8b26baacc5d09ddf912717cc82"
+      },
+      "tsv.tsv": {
+        "len": 49,
+        "sha256": "b4e81925df9e06281fcb754a62c671e5a452a23600c6db01a4c9af50a589d861"
+      }
+    },
+    "large_file": {
+      "fixture": "large.csv",
+      "read_col": 2,
+      "read_row": 500000,
+      "ref_value": "0",
+      "src_bytes": 52428807,
+      "src_mb": 50.0
+    },
+    "measured_commit": "33ff5c61d005e294cfc62dd1aeb21d9c22d2c399",
+    "phase": "21.7 \u2014 CSV/TSV economic court (VOLE vs SQLite vs DuckDB)",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 4943,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "analytical",
+    "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M src/field/observe.rs ?? evidence/campaigns/2026-10-10-identity-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase12-removal-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-1-xlsx-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-3-ods-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-4-1-odp-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-5-1-json-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-6-1-yaml-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-7-1-csv-33ff5c61/ ?? evidence/campaigns/2026-10-10-phase21-7-1-csv-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-7-csv-econ-33ff5c61/ ?? evidence/campaigns/2026-10-10-realformats-smoke-7f007e2e/ ?? evidence/campaigns/2026-10-10-release-primacy-7f007e2e/ ",
+    "utc": "2026-10-10T11:46:33Z",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1.duckdb": {
+      "equal": 6
+    },
+    "Q1.sqlite": {
+      "equal": 6
+    },
+    "Q2.duckdb": {
+      "capability-gap": 6
+    },
+    "Q2.sqlite": {
+      "capability-gap": 6
+    },
+    "Q3.duckdb": {
+      "capability-gap": 6
+    },
+    "Q3.sqlite": {
+      "capability-gap": 6
+    },
+    "Q4.duckdb": {
+      "equal": 5,
+      "mismatch": 1
+    },
+    "Q4.sqlite": {
+      "equal": 6
+    },
+    "Q5.duckdb": {
+      "equal": 6
+    },
+    "Q5.sqlite": {
+      "equal": 6
+    },
+    "Q6.duckdb": {
+      "equal": 6
+    },
+    "Q6.sqlite": {
+      "equal": 6
+    },
+    "Q7.duckdb": {
+      "equal": 6
+    },
+    "Q7.sqlite": {
+      "equal": 6
+    },
+    "Q8.duckdb": {
+      "capability-gap": 6
+    },
+    "Q8.sqlite": {
+      "equal": 6
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 21721); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 6,
+  "exact_ok": 6,
+  "fixtures": [
+    "basic.csv",
+    "quoted.csv",
+    "crlf.csv",
+    "bom.csv",
+    "ragged.csv",
+    "tsv.tsv"
+  ],
+  "lanes": [
+    "vole",
+    "sqlite",
+    "duckdb"
+  ],
+  "large_file": [
+    {
+      "ingest_us": "807462",
+      "lane": "vole",
+      "mbps": "61.922",
+      "read_us": "158844",
+      "read_value": "0",
+      "src_bytes": "52428807",
+      "store_bytes": "104862352"
+    },
+    {
+      "ingest_us": "7546227",
+      "lane": "sqlite",
+      "mbps": "6.626",
+      "read_us": "129",
+      "read_value": "0",
+      "src_bytes": "52428807",
+      "store_bytes": "270970997"
+    },
+    {
+      "ingest_us": "510254",
+      "lane": "duckdb",
+      "mbps": "97.990",
+      "read_us": "1074",
+      "read_value": "0",
+      "src_bytes": "52428807",
+      "store_bytes": "4335268"
+    }
+  ],
+  "phase": "21.7 \u2014 CSV/TSV economic court (VOLE vs SQLite vs DuckDB)",
+  "verdict": "PASS"
+}

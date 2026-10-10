@@ -1,0 +1,1 @@
+{"decline": {"code": "no-record-bytes", "detail": "the columnar projection keeps no exact record bytes or span"}, "declined": true, "detail": {}, "lane": "duckdb", "native": true, "q": "Q3", "value": null}
