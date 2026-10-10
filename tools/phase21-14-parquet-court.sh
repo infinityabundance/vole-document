@@ -289,6 +289,10 @@ echo "=== aggregate ==="
 python3 "$BASE" aggregate --raw "$RAW" --campaign "$CAMPAIGN" --env "$CAMPAIGN/environment.json"
 verdict_rc=$?
 
+# Bound oversized raw evidence: the large fixture's verbatim Q1 dumps are replaced
+# with length+SHA-256+prefix receipts; the full dumps are gitignored.
+python3 tools/fixtures/phase21-14-bound.py "$RAW"
+
 EXACT_OK=$(awk -F'\t' 'NR>1 && $2=="true"' "$RAW/exact.tsv" | wc -l | tr -d ' ')
 EXACT_N=$(awk -F'\t' 'NR>1' "$RAW/exact.tsv" | wc -l | tr -d ' ')
 

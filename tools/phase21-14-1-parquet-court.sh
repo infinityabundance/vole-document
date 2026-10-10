@@ -161,6 +161,10 @@ for f in $ALL; do
 done
 printf '\n]\n' >> "$RAW/results.json"
 
+# Bound oversized raw evidence: the large fixture's verbatim table/column dumps are
+# replaced with length+SHA-256+prefix receipts; the full dumps are gitignored.
+python3 tools/fixtures/phase21-14-bound.py "$RAW"
+
 echo "=== exactness after source + descriptor deletion ==="
 cat "$RAW/results.json" | jq -c '.[] | {fixture,format,exact,decline_rc,ctl_rc}'
 
