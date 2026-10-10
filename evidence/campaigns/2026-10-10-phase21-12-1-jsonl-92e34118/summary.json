@@ -1,0 +1,10 @@
+{
+  "fixtures": 9,
+  "normal": 6,
+  "exact_ok": 9,
+  "exact_fail": 0,
+  "typed_declines_ok": 6,
+  "json_control_ok": 1,
+  "opaque_controls_ok": 2,
+  "opaque_controls": 2
+}

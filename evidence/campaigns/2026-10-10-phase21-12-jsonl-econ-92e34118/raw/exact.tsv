@@ -1,0 +1,7 @@
+fixture	vole_ok	sqlite_ok	conv_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+basic.ndjson	true	true	false	true	true	true	3282	16620
+shapes.ndjson	true	true	false	true	true	true	3268	16928
+unicode.ndjson	true	true	false	true	true	true	3367	16367
+crlf.ndjson	true	true	false	true	true	true	3321	16209
+blank.ndjson	true	true	false	true	true	true	3206	16338
+large.ndjson	true	true	false	true	true	true	10669	17949
