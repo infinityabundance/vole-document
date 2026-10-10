@@ -1,0 +1,7 @@
+{
+  // tsconfig-style JSON with comments
+  "compilerOptions": {
+    "strict": true, /* a block comment */
+    "target": "ES2020",
+  },
+}

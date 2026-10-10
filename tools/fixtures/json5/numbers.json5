@@ -1,0 +1,1 @@
+{ plus: +1, dot: .5, trail: 5., hex: 0xff, inf: Infinity, ninf: -Infinity, nan: NaN, exp: 1e3, negz: -0 }

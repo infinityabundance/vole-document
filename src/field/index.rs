@@ -265,6 +265,16 @@ pub const SEL_PARQUET_MODEL: u8 = 28;
 /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); Arrow has no
 /// package layer. Derived, never exact.
 pub const SEL_ARROW_MODEL: u8 = 29;
+/// Selector kind: the canonical JSON5 / JSONC structured-tree model (Phase 21.17.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as exactly one JSON5 value into a bounded,
+/// representation-preserving arena (token spans, member order, duplicate keys,
+/// numeric/escape/quoting spelling, comment spans, and a recorded dialect) as
+/// `Q_gen` derived state. It is computed on demand from the exact source (its single
+/// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+/// JSON5 has no package layer. Derived, never exact.
+pub const SEL_JSON5_MODEL: u8 = 30;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

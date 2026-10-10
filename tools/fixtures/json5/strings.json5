@@ -1,0 +1,2 @@
+{ single: 'a\tb', hex: '\x41', nul: '\0', uni: '\u00e9', cont: 'line\
+break' }

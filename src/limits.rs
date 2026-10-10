@@ -280,6 +280,30 @@ pub struct Limits {
     /// fall back to [`crate::field::document_format::DocumentFormat::Opaque`]
     /// (Phase 21.5.1).
     pub max_json_document_bytes: u64,
+    // The JSON5/JSONC caps below bound the derived, span-preserving structured
+    // model (Phase 21.17.1). Like JSON, JSON5 is not a package: the whole source
+    // parses as exactly one JSON5 value beneath these caps, and everything derived
+    // is `Q_gen` only.
+    /// Maximum JSON5 container nesting depth accepted (objects/arrays). A deeper
+    /// document is not detected as JSON5 (and any direct parse declines typed)
+    /// rather than risking unbounded recursion (Phase 21.17.1).
+    pub max_json5_depth: u32,
+    /// Maximum JSON5 nodes (values plus object member keys) accepted in one
+    /// document. An over-large document declines typed rather than allocating
+    /// (Phase 21.17.1).
+    pub max_json5_nodes: u32,
+    /// Maximum total raw string-token bytes accepted across one JSON5 document
+    /// (the bytes between the quotes, escapes included). A conservative upper bound
+    /// on the decoded text (Phase 21.17.1).
+    pub max_json5_string_bytes: u64,
+    /// Maximum comments (`//` and `/* … */`) accepted in one JSON5 document. An
+    /// over-commented document declines typed rather than allocating (Phase
+    /// 21.17.1).
+    pub max_json5_comments: u32,
+    /// Maximum source length admitted for byte-based JSON5/JSONC detection. Larger
+    /// inputs fall back to [`crate::field::document_format::DocumentFormat::Opaque`]
+    /// (Phase 21.17.1).
+    pub max_json5_document_bytes: u64,
     // The YAML caps below bound the derived, span-preserving structured-tree model
     // (Phase 21.6.1). Like JSON, YAML is not a package: the whole source parses as a
     // bounded stream of documents beneath these caps, and everything derived is
@@ -586,6 +610,11 @@ impl Limits {
         max_json_nodes: 1 << 24,
         max_json_string_bytes: 1 << 28,
         max_json_document_bytes: 1 << 34,
+        max_json5_depth: 256,
+        max_json5_nodes: 1 << 24,
+        max_json5_string_bytes: 1 << 28,
+        max_json5_comments: 1 << 22,
+        max_json5_document_bytes: 1 << 34,
         max_yaml_depth: 256,
         max_yaml_nodes: 1 << 24,
         max_yaml_scalars: 1 << 24,
@@ -737,6 +766,11 @@ impl Limits {
         max_json_nodes: 1 << 16,
         max_json_string_bytes: 1 << 20,
         max_json_document_bytes: 1 << 26,
+        max_json5_depth: 64,
+        max_json5_nodes: 1 << 16,
+        max_json5_string_bytes: 1 << 20,
+        max_json5_comments: 1 << 12,
+        max_json5_document_bytes: 1 << 26,
         max_yaml_depth: 64,
         max_yaml_nodes: 1 << 16,
         max_yaml_scalars: 1 << 16,

@@ -184,6 +184,12 @@ const ODP_NATIVE: &[&str] = &[
     "member",
 ];
 const JSON_NATIVE: &[&str] = &["json-pointer", "json-node", "json-find"];
+const JSON5_NATIVE: &[&str] = &[
+    "json5-pointer",
+    "json5-node",
+    "json5-find",
+    "json5-comments",
+];
 const YAML_NATIVE: &[&str] = &[
     "yaml-path",
     "yaml-node",
@@ -358,6 +364,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 JSON_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Json5 => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                JSON5_NATIVE.to_vec(),
             ),
             DocumentFormat::Yaml => (
                 vec![

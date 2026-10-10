@@ -126,6 +126,14 @@ pub enum DocumentFormat {
     /// A structured JSON document (the whole source parses as exactly one JSON
     /// value). Not a package: the exact leaf is the whole source (Phase 21.5.1).
     Json,
+    /// A structured JSON5 / JSONC document (the whole source parses as exactly one
+    /// JSON5 value and uses at least one JSON5/JSONC-only construct — a comment, a
+    /// trailing comma, an unquoted key, a single-quoted string, a hex/leading-dot/
+    /// `Infinity`/`NaN` number, a string continuation, or the extended whitespace
+    /// set). A source that is **strict JSON** stays [`DocumentFormat::Json`]; the
+    /// recorded dialect distinguishes `jsonc` (comments/trailing commas only) from
+    /// `json5`. Not a package: the exact leaf is the whole source (Phase 21.17.1).
+    Json5,
     /// A structured YAML document (the whole source parses as a bounded YAML
     /// stream whose every document root is a mapping or a sequence). Not a package:
     /// the exact leaf is the whole source (Phase 21.6.1).
@@ -203,6 +211,7 @@ impl DocumentFormat {
             DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Pptx => "pptx",
             DocumentFormat::Json => "json",
+            DocumentFormat::Json5 => "json5",
             DocumentFormat::Yaml => "yaml",
             DocumentFormat::Csv => "csv",
             DocumentFormat::Markdown => "markdown",
@@ -229,6 +238,7 @@ impl DocumentFormat {
             DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Pptx => "pptx",
             DocumentFormat::Json => "json",
+            DocumentFormat::Json5 => "json5",
             DocumentFormat::Yaml => "yaml",
             DocumentFormat::Csv => "csv",
             DocumentFormat::Markdown => "markdown",
@@ -255,6 +265,7 @@ impl DocumentFormat {
             DocumentFormat::Xlsx => cfg!(feature = "xlsx"),
             DocumentFormat::Pptx => cfg!(feature = "pptx"),
             DocumentFormat::Json => cfg!(feature = "json"),
+            DocumentFormat::Json5 => cfg!(feature = "json5"),
             DocumentFormat::Yaml => cfg!(feature = "yaml"),
             DocumentFormat::Csv => cfg!(feature = "csv"),
             DocumentFormat::Markdown => cfg!(feature = "markdown"),
@@ -291,6 +302,7 @@ impl DocumentFormat {
             "xlsx" => Some(DocumentFormat::Xlsx),
             "pptx" => Some(DocumentFormat::Pptx),
             "json" => Some(DocumentFormat::Json),
+            "json5" => Some(DocumentFormat::Json5),
             "yaml" => Some(DocumentFormat::Yaml),
             "csv" => Some(DocumentFormat::Csv),
             "markdown" => Some(DocumentFormat::Markdown),
@@ -352,6 +364,19 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "json")]
     if crate::adapter::json::detect(source, limits) {
         return DocumentFormat::Json;
+    }
+    // JSON5/JSONC is the **structured-extra** Wave-2 format (Phase 21.17.1), also
+    // with no package layer. It is tried **immediately after JSON** and before
+    // JSONL/YAML/TOML/CSV/Markdown/XML/HTML: JSON5 is a superset of JSON, so a
+    // strict JSON source is already claimed by the JSON detector above, and this
+    // detector requires at least one JSON5/JSONC-only construct (a comment, a
+    // trailing comma, an unquoted key, a single quote, a hex/leading-dot/
+    // `Infinity`/`NaN` number, a string continuation, or the extended whitespace
+    // set). A strict JSON document is therefore never reclassified, and a plain
+    // non-JSON blob stays Opaque.
+    #[cfg(feature = "json5")]
+    if crate::adapter::json5::detect(source, limits) {
+        return DocumentFormat::Json5;
     }
     // JSONL/NDJSON is the **line/event-stream** Wave-2 format (Phase 21.12), also
     // with no package layer. It is tried **immediately after JSON** because it is the
@@ -671,6 +696,7 @@ mod tests {
             DocumentFormat::Xlsx,
             DocumentFormat::Pptx,
             DocumentFormat::Json,
+            DocumentFormat::Json5,
             DocumentFormat::Yaml,
             DocumentFormat::Csv,
             DocumentFormat::Markdown,

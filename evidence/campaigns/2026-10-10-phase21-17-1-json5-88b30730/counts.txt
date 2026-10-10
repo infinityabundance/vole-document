@@ -1,0 +1,10 @@
+fixtures 10
+normal 7
+exact_ok 10
+exact_fail 0
+surface_fail 0
+typed_declines_ok 7
+json_control_ok 1
+opaque_controls_ok 2
+opaque_controls 2
+binary 3b385ff7f742bd01aacdddfead4d0b967cf2ff9f83ba856b4b0ccb162e545ae2

@@ -18,6 +18,8 @@ pub mod epub;
 pub mod html;
 #[cfg(feature = "json")]
 pub mod json;
+#[cfg(feature = "json5")]
+pub mod json5;
 #[cfg(feature = "jsonl")]
 pub mod jsonl;
 #[cfg(feature = "markdown")]

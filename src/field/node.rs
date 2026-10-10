@@ -258,6 +258,16 @@ pub enum NodeKind {
     /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
     /// ADR-0060). Arrow has no package layer. Derived, never exact.
     ArrowModel = 0x31,
+    /// The canonical, representation-preserving JSON5 / JSONC structured-tree model
+    /// (Phase 21.17.1): the same representation guarantees as [`NodeKind::JsonModel`]
+    /// (exact token spans, member order, duplicate keys, numeric/escape spelling)
+    /// plus the JSON5 superset — unquoted keys, single-quoted strings, trailing
+    /// commas, hex/leading-dot/`Infinity`/`NaN` numbers, string continuations, the
+    /// extended whitespace set, and every comment's exact span — and a recorded
+    /// dialect (`jsonc` vs `json5`). It is derived on demand from the exact source
+    /// (its single dependency is the `DocumentExact` root, keyed by `sha256(source)`
+    /// per ADR-0060). JSON5 has no package layer. Derived, never exact.
+    Json5Model = 0x32,
 }
 
 impl NodeKind {
@@ -313,6 +323,7 @@ impl NodeKind {
             0x2F => NodeKind::EmlModel,
             0x30 => NodeKind::ParquetModel,
             0x31 => NodeKind::ArrowModel,
+            0x32 => NodeKind::Json5Model,
             _ => return None,
         })
     }
@@ -369,6 +380,7 @@ impl NodeKind {
             NodeKind::EmlModel => "EmlModel",
             NodeKind::ParquetModel => "ParquetModel",
             NodeKind::ArrowModel => "ArrowModel",
+            NodeKind::Json5Model => "Json5Model",
         }
     }
 

@@ -260,6 +260,25 @@ pptx = ["opc"]
 # bytes and exactness is untouched. Dependency-free (`json = []`) and never in
 # `default`.
 json = []
+# Phase 21.17.1: the JSON5 / JSONC adapter — the **structured-extra** Wave-2 format.
+# JSON5 is an ECMAScript 5.1 superset of JSON, and JSONC is its tsconfig-style
+# "JSON with Comments" subset. Like the other Wave-2 formats it is not a package
+# (no OPC/ZIP layer): the exact leaf is the whole source (a `DocumentExact`,
+# RAW-like authority) and every derived observation is a bounded, span-preserving
+# (`Q_gen`) projection of it. Rather than a second node arena it **reuses the JSON
+# adapter's** `JNode` arena (exact token spans, member order, duplicate keys,
+# numeric/escape spelling), adding the JSON5 superset — `//`/`/* … */` comments
+# (their exact spans recorded, never dropped), unquoted IdentifierName keys,
+# single-quoted strings, trailing commas, hex / leading-dot / `Infinity` / `NaN`
+# numbers, line-continuation strings, additional escapes, and the extended Unicode
+# whitespace set — plus a recorded dialect (`jsonc` when the only extensions are
+# comments/trailing commas, else `json5`). A strict JSON source is never
+# reclassified (detection requires at least one JSON5/JSONC-only construct), so it
+# stays `json`. It adds **no** decoder behavior: the JSON5 model is never on the
+# exactness path, so enabling it never changes `.voldoc` bytes and exactness is
+# untouched. Dependency-free (`json5` pulls no external crate) and never in
+# `default`; it reuses the JSON adapter, so it implies `json`.
+json5 = ["json"]
 # Phase 21.6.1: the YAML adapter — the second **Wave-2 structured-tree** format.
 # Like JSON, YAML is not a package (no OPC/ZIP layer): the exact leaf is the whole
 # source (a `DocumentExact`, RAW-like authority) and every derived observation is a

@@ -74,6 +74,14 @@ use crate::adapter::json::{
     kind_name as json_kind_name, resolve_pointer as json_resolve_pointer,
     token_bytes as json_token_bytes,
 };
+#[cfg(feature = "json5")]
+use crate::adapter::json5::{
+    Json5Model, canonical_text as json5_canonical_text,
+    comment_kind_name as json5_comment_kind_name, decode_key as json5_decode_key,
+    decode_string as json5_decode_string, dialect_name as json5_dialect_name,
+    find as json5_find_matches, find_parent as json5_find_parent, kind_name as json5_kind_name,
+    resolve_pointer as json5_resolve_pointer, token_bytes as json5_token_bytes,
+};
 #[cfg(feature = "jsonl")]
 use crate::adapter::jsonl::{
     JsonlModel, canonical_text as jsonl_canonical_text, find as jsonl_find_matches,
@@ -165,6 +173,8 @@ use crate::field::index::SEL_EPUB_MODEL;
 use crate::field::index::SEL_HTML_MODEL;
 #[cfg(feature = "json")]
 use crate::field::index::SEL_JSON_MODEL;
+#[cfg(feature = "json5")]
+use crate::field::index::SEL_JSON5_MODEL;
 #[cfg(feature = "jsonl")]
 use crate::field::index::SEL_JSONL_MODEL;
 #[cfg(feature = "markdown")]
@@ -732,6 +742,35 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A JSON5/JSONC node addressed by an RFC 6901 pointer (Phase 21.17.1), e.g.
+    /// `/a/0`. Same addressing as [`Selector::JsonPointer`] but resolved against
+    /// the JSON5 superset (unquoted keys and single-quoted strings resolve too).
+    /// JSON5 has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "json5")]
+    Json5Pointer {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A JSON5/JSONC node's structural view (Phase 21.17.1): kind, span,
+    /// parent/child spans, and, for objects, each member's key and key/value spans.
+    /// Same RFC 6901 addressing as [`Selector::Json5Pointer`].
+    #[cfg(feature = "json5")]
+    Json5Node {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A lexical, case-sensitive search over JSON5 object keys and string values
+    /// (Phase 21.17.1). Never an embedding or a model call.
+    #[cfg(feature = "json5")]
+    Json5Find {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// Every comment (`//` line and `/* … */` block) of a JSON5/JSONC document in
+    /// source order, each with its kind and exact span (Phase 21.17.1). Comments
+    /// are never silently dropped.
+    #[cfg(feature = "json5")]
+    Json5Comments,
     /// A YAML node addressed by a dotted path (Phase 21.6.1), e.g. `a.b.0`. The
     /// optional first segment `docN` selects a document (default 0). The answer
     /// reports the node's kind/style, its exact source span, and (for `ExactBytes`)
@@ -1335,6 +1374,14 @@ impl Selector {
             Selector::JsonNode { pointer } => format!("json-node:{pointer}"),
             #[cfg(feature = "json")]
             Selector::JsonFind { pattern } => format!("json-find:{pattern}"),
+            #[cfg(feature = "json5")]
+            Selector::Json5Pointer { pointer } => format!("json5-pointer:{pointer}"),
+            #[cfg(feature = "json5")]
+            Selector::Json5Node { pointer } => format!("json5-node:{pointer}"),
+            #[cfg(feature = "json5")]
+            Selector::Json5Find { pattern } => format!("json5-find:{pattern}"),
+            #[cfg(feature = "json5")]
+            Selector::Json5Comments => "json5-comments".to_string(),
             #[cfg(feature = "yaml")]
             Selector::YamlPath { path } => format!("yaml-path:{path}"),
             #[cfg(feature = "yaml")]
@@ -3206,6 +3253,24 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "json")]
             (Selector::JsonFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.json_find(req, pattern)
+            }
+            #[cfg(feature = "json5")]
+            (
+                Selector::Json5Pointer { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.json5_pointer(req, pointer),
+            #[cfg(feature = "json5")]
+            (
+                Selector::Json5Node { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.json5_node(req, pointer),
+            #[cfg(feature = "json5")]
+            (Selector::Json5Find { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.json5_find(req, pattern)
+            }
+            #[cfg(feature = "json5")]
+            (Selector::Json5Comments, R::Text | R::Metadata | R::Structure) => {
+                self.json5_comments(req)
             }
             #[cfg(feature = "yaml")]
             (Selector::YamlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -8558,6 +8623,18 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Xlsx => self.common_xlsx(req)?,
             DocumentFormat::Pptx => self.common_pptx(req)?,
             DocumentFormat::Json => self.common_json(req)?,
+            DocumentFormat::Json5 => {
+                #[cfg(feature = "json5")]
+                {
+                    self.common_json5(req)?
+                }
+                #[cfg(not(feature = "json5"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "JSON5 support is not compiled in (feature `json5`)",
+                    ));
+                }
+            }
             DocumentFormat::Yaml => self.common_yaml(req)?,
             DocumentFormat::Csv => self.common_csv(req)?,
             DocumentFormat::Markdown => self.common_markdown(req)?,
@@ -10256,6 +10333,423 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "jsonl;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// JSON5 / JSONC observations (Phase 21.17.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "json5")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the JSON5/JSONC structured-tree model (derived, `Q_gen`).
+    fn json5_model(&mut self) -> Result<(Json5Model, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_JSON5_MODEL, 0), "JSON5 model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((Json5Model::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn json5_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn json5_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn json5_node_text(
+        model: &Json5Model,
+        source: &[u8],
+        index: u32,
+        node: &crate::adapter::json::JNode,
+    ) -> Result<String> {
+        if node.kind == crate::adapter::json5::K_STRING {
+            json5_decode_string(source, node)
+        } else if crate::adapter::json5::is_container(node.kind) {
+            crate::adapter::json5::subtree_text(model, source, index)
+        } else {
+            Ok(String::from_utf8_lossy(json5_token_bytes(source, node)?).into_owned())
+        }
+    }
+
+    /// Resolve `pointer` and answer per representation: `ExactBytes` returns the
+    /// exact token bytes; `Text` the decoded string (or the canonical subtree for a
+    /// container/scalar); `Metadata`/`Structure` a JSON5 descriptor with the kind,
+    /// the exact span, the recorded dialect, and the duplicate-key match count.
+    fn json5_pointer(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let r = json5_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("JSON5 pointer resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "json5;pointer={pointer};kind={};matches={}",
+            json5_kind_name(node.kind),
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(json5_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::json5_node_text(&model, &source, index, &node)?)
+            }
+            _ => {
+                let token =
+                    String::from_utf8_lossy(json5_token_bytes(&source, &node)?).into_owned();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"pointer\":\"{}\",\"kind\":\"{}\",",
+                        "\"span\":[{},{}],\"matches\":{},\"token\":\"{}\",",
+                        "\"dialect\":\"{}\",\"top_type\":\"{}\"}}"
+                    ),
+                    json_escape(pointer),
+                    json5_kind_name(node.kind),
+                    node.start,
+                    node.end,
+                    r.matches,
+                    json_escape(&token),
+                    json5_dialect_name(model.dialect),
+                    json5_kind_name(model.top_type),
+                ))
+            }
+        };
+        Ok(self.json5_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The structural view of a JSON5 node: kind, span, parent span, and (for
+    /// containers) the child spans; object member keys and key/value spans are
+    /// exposed separately, and duplicate keys are reported, never hidden.
+    fn json5_node(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let r = json5_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("JSON5 node resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "json5;node={pointer};kind={};children={}",
+            json5_kind_name(node.kind),
+            node.children.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(json5_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::json5_node_text(&model, &source, index, &node)?)
+            }
+            _ => AnswerValue::Json(
+                self.json5_node_structure(&model, &source, pointer, index, &node)?,
+            ),
+        };
+        Ok(self.json5_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn json5_node_structure(
+        &self,
+        model: &Json5Model,
+        source: &[u8],
+        pointer: &str,
+        index: u32,
+        node: &crate::adapter::json::JNode,
+    ) -> Result<String> {
+        let parent_span = match json5_find_parent(model, index) {
+            Some(p) => model
+                .node(p)
+                .map_or("null".to_string(), |n| format!("[{},{}]", n.start, n.end)),
+            None => "null".to_string(),
+        };
+        let mut extra = String::new();
+        if node.kind == crate::adapter::json5::K_OBJECT {
+            let mut members: Vec<String> = Vec::new();
+            let mut keys: Vec<String> = Vec::new();
+            let mut i = 0usize;
+            while i + 1 < node.children.len() {
+                let key_node = model
+                    .node(node.children[i])
+                    .ok_or_else(|| Error::internal_invariant("JSON5 key index out of range"))?;
+                let val_node = model
+                    .node(node.children[i + 1])
+                    .ok_or_else(|| Error::internal_invariant("JSON5 value index out of range"))?;
+                i += 2;
+                let key = json5_decode_key(source, key_node)?;
+                keys.push(key.clone());
+                members.push(format!(
+                    concat!(
+                        "{{\"key\":\"{}\",\"key_kind\":\"{}\",\"key_span\":[{},{}],",
+                        "\"value_kind\":\"{}\",\"value_span\":[{},{}]}}"
+                    ),
+                    json_escape(&key),
+                    json5_kind_name(key_node.kind),
+                    key_node.start,
+                    key_node.end,
+                    json5_kind_name(val_node.kind),
+                    val_node.start,
+                    val_node.end,
+                ));
+            }
+            let mut dupes: Vec<String> = Vec::new();
+            for (idx, k) in keys.iter().enumerate() {
+                if keys[..idx].contains(k) && !dupes.contains(k) {
+                    dupes.push(k.clone());
+                }
+            }
+            let dupes_json = dupes
+                .iter()
+                .map(|d| format!("\"{}\"", json_escape(d)))
+                .collect::<Vec<_>>()
+                .join(",");
+            extra = format!(
+                ",\"members\":[{}],\"duplicate_keys\":[{}]",
+                members.join(","),
+                dupes_json
+            );
+        } else if node.kind == crate::adapter::json5::K_ARRAY {
+            let mut elems: Vec<String> = Vec::new();
+            for (i, child) in node.children.iter().enumerate() {
+                let cn = model
+                    .node(*child)
+                    .ok_or_else(|| Error::internal_invariant("JSON5 element out of range"))?;
+                elems.push(format!(
+                    "{{\"index\":{},\"kind\":\"{}\",\"span\":[{},{}]}}",
+                    i,
+                    json5_kind_name(cn.kind),
+                    cn.start,
+                    cn.end
+                ));
+            }
+            extra = format!(",\"elements\":[{}]", elems.join(","));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"pointer\":\"{}\",\"kind\":\"{}\",\"span\":[{},{}],",
+                "\"parent_span\":{},\"children\":{}{}}}"
+            ),
+            json_escape(pointer),
+            json5_kind_name(node.kind),
+            node.start,
+            node.end,
+            parent_span,
+            node.children.len(),
+            extra,
+        ))
+    }
+
+    /// A bounded lexical search over keys and string values; each match reports its
+    /// canonical pointer, role (key/value), and exact source span.
+    fn json5_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let matches = json5_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "JSON5 find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"pointer\":\"{}\",\"role\":\"{}\",",
+                    "\"kind\":\"string\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("json5;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.json5_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    /// Every comment in source order, each with its kind and exact span. `Text`
+    /// returns the exact comment bytes (newline-joined); `Metadata`/`Structure` a
+    /// bounded JSON descriptor.
+    fn json5_comments(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let provenance = format!(
+            "json5;comments={};dialect={}",
+            model.comments.len(),
+            json5_dialect_name(model.dialect)
+        );
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => {
+                let mut text = String::new();
+                for (i, c) in model.comments.iter().enumerate() {
+                    if i > 0 {
+                        text.push('\n');
+                    }
+                    let s = usize::try_from(c.start)
+                        .map_err(|_| Error::internal_invariant("JSON5 comment span overflow"))?;
+                    let e = usize::try_from(c.end)
+                        .map_err(|_| Error::internal_invariant("JSON5 comment span overflow"))?;
+                    let bytes = source.get(s..e).ok_or_else(|| {
+                        Error::internal_invariant("JSON5 comment span outside the source")
+                    })?;
+                    text.push_str(&String::from_utf8_lossy(bytes));
+                    if text.len() as u64 > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "JSON5 comments exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                }
+                AnswerValue::Text(text)
+            }
+            _ => {
+                let mut out: Vec<String> = Vec::new();
+                for (i, c) in model.comments.iter().enumerate() {
+                    out.push(format!(
+                        "{{\"index\":{},\"kind\":\"{}\",\"span\":[{},{}]}}",
+                        i,
+                        json5_comment_kind_name(c.kind),
+                        c.start,
+                        c.end
+                    ));
+                }
+                AnswerValue::Json(format!(
+                    "{{\"dialect\":\"{}\",\"comments\":{},\"spans\":[{}]}}",
+                    json5_dialect_name(model.dialect),
+                    model.comments.len(),
+                    out.join(",")
+                ))
+            }
+        };
+        Ok(self.json5_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_json5(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.json5_common_metadata(req),
+            Selector::Text => self.json5_common_text(req),
+            Selector::SearchMatch(p) => self.json5_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "JSON5 does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn json5_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let text = json5_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.json5_answer(
+            req,
+            AnswerValue::Text(text),
+            "json5;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn json5_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let mut objects = 0u64;
+        let mut members = 0u64;
+        let mut arrays = 0u64;
+        let mut elements = 0u64;
+        let mut dup_keys = 0u64;
+        for n in &model.nodes {
+            if n.kind == crate::adapter::json5::K_OBJECT {
+                objects += 1;
+                let mut seen: Vec<String> = Vec::new();
+                let mut i = 0usize;
+                while i + 1 < n.children.len() {
+                    members += 1;
+                    if let Some(k) = model.node(n.children[i])
+                        && let Ok(s) = json5_decode_key(&source, k)
+                    {
+                        if seen.contains(&s) {
+                            dup_keys += 1;
+                        } else {
+                            seen.push(s);
+                        }
+                    }
+                    i += 2;
+                }
+            } else if n.kind == crate::adapter::json5::K_ARRAY {
+                arrays += 1;
+                elements += n.children.len() as u64;
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"json5\",\"dialect\":\"{}\",\"top_type\":\"{}\",",
+                "\"nodes\":{},\"max_depth\":{},\"bytes\":{},",
+                "\"objects\":{},\"members\":{},\"arrays\":{},\"array_elements\":{},",
+                "\"duplicate_keys\":{},\"comments\":{},",
+                "\"trailing_commas\":{},\"unquoted_keys\":{}}}"
+            ),
+            json5_dialect_name(model.dialect),
+            json5_kind_name(model.top_type),
+            model.nodes.len(),
+            model.max_depth,
+            model.doc_len,
+            objects,
+            members,
+            arrays,
+            elements,
+            dup_keys,
+            model.comments.len(),
+            model.trailing_commas,
+            model.unquoted_keys,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.json5_answer(
+            req,
+            value,
+            "json5;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

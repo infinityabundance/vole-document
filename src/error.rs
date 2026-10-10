@@ -96,6 +96,10 @@ pub enum ErrorClass {
     /// `ARROW1` magic, a truncated or out-of-bounds Flatbuffers metadata table, an
     /// invalid message framing, or a buffer span outside the message body.
     InvalidArrowStructure,
+    /// A JSON5/JSONC structure error (Phase 21.17.1+): a malformed token, an
+    /// unterminated string/comment/container, a bad escape or identifier, or a
+    /// trailing byte after the single top-level value.
+    InvalidJson5Structure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -133,6 +137,7 @@ impl ErrorClass {
             ErrorClass::InvalidEmlStructure => 28,
             ErrorClass::InvalidParquetStructure => 29,
             ErrorClass::InvalidArrowStructure => 30,
+            ErrorClass::InvalidJson5Structure => 31,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -169,6 +174,7 @@ impl ErrorClass {
             ErrorClass::InvalidEmlStructure => "InvalidEmlStructure",
             ErrorClass::InvalidParquetStructure => "InvalidParquetStructure",
             ErrorClass::InvalidArrowStructure => "InvalidArrowStructure",
+            ErrorClass::InvalidJson5Structure => "InvalidJson5Structure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -259,6 +265,7 @@ impl Error {
     ctor!(invalid_eml_structure, InvalidEmlStructure);
     ctor!(invalid_parquet_structure, InvalidParquetStructure);
     ctor!(invalid_arrow_structure, InvalidArrowStructure);
+    ctor!(invalid_json5_structure, InvalidJson5Structure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

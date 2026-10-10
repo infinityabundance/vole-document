@@ -1,0 +1,8 @@
+{
+  // a line comment
+  unquoted: 'single',
+  hex: 0xFF,
+  /* a block comment */ trailing: [1, 2,],
+  $dollar: 1,
+  _under: 2,
+}

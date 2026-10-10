@@ -110,6 +110,8 @@ const USAGE_FIELD: &str = "\
         --odp-slide N | --odp-shape I | --odp-notes N | --odp-masters |
         --odp-media N | --odp-tables | --odp-find PATTERN |
         --json-pointer PATH | --json-node PATH | --json-find PATTERN |
+        --json5-pointer PATH | --json5-node PATH | --json5-find PATTERN |
+        --json5-comments |
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
@@ -1603,6 +1605,23 @@ struct FieldArgs {
     /// (Phase 21.5.1).
     #[cfg(feature = "json")]
     json_find: Option<String>,
+    /// `--json5-pointer POINTER`: resolve an RFC 6901 pointer against the JSON5
+    /// superset, returning the node's kind, exact source span, dialect, and exact
+    /// token bytes (Phase 21.17.1).
+    #[cfg(feature = "json5")]
+    json5_pointer: Option<String>,
+    /// `--json5-node POINTER`: the structural view of a JSON5 node (kind, span,
+    /// parent/child spans, member key/value spans) (Phase 21.17.1).
+    #[cfg(feature = "json5")]
+    json5_node: Option<String>,
+    /// `--json5-find`: a lexical, case-sensitive search over JSON5 keys/strings
+    /// (Phase 21.17.1).
+    #[cfg(feature = "json5")]
+    json5_find: Option<String>,
+    /// `--json5-comments`: every `//`/`/* … */` comment in source order, with its
+    /// kind and exact span (Phase 21.17.1).
+    #[cfg(feature = "json5")]
+    json5_comments: bool,
     /// `--yaml-path PATH`: resolve a dotted YAML path (optional leading `docN`),
     /// returning the node's kind/style, exact source span, and exact token bytes
     /// (Phase 21.6.1).
@@ -2175,6 +2194,23 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "json")]
             "--json-find" => {
                 out.json_find = Some(field_arg_value(args, &mut i, "--json-find", inline)?);
+            }
+            #[cfg(feature = "json5")]
+            "--json5-pointer" => {
+                out.json5_pointer = Some(field_arg_value(args, &mut i, "--json5-pointer", inline)?);
+            }
+            #[cfg(feature = "json5")]
+            "--json5-node" => {
+                out.json5_node = Some(field_arg_value(args, &mut i, "--json5-node", inline)?);
+            }
+            #[cfg(feature = "json5")]
+            "--json5-find" => {
+                out.json5_find = Some(field_arg_value(args, &mut i, "--json5-find", inline)?);
+            }
+            #[cfg(feature = "json5")]
+            "--json5-comments" => {
+                out.json5_comments = true;
+                i += 1;
             }
             #[cfg(feature = "yaml")]
             "--yaml-path" => {
@@ -2772,6 +2808,30 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
             chosen.push(Selector::JsonFind {
                 pattern: pattern.clone(),
             });
+        }
+    }
+    // JSON5/JSONC: `--json5-pointer`/`--json5-node` address a node by RFC 6901
+    // pointer against the JSON5 superset; `--json5-find` is a lexical search;
+    // `--json5-comments` lists every comment. Each stands alone (Phase 21.17.1).
+    #[cfg(feature = "json5")]
+    {
+        if let Some(pointer) = &out.json5_pointer {
+            chosen.push(Selector::Json5Pointer {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pointer) = &out.json5_node {
+            chosen.push(Selector::Json5Node {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pattern) = &out.json5_find {
+            chosen.push(Selector::Json5Find {
+                pattern: pattern.clone(),
+            });
+        }
+        if out.json5_comments {
+            chosen.push(Selector::Json5Comments);
         }
     }
     // YAML: `--yaml-path`/`--yaml-node` address a node by dotted path;
