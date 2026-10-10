@@ -2,6 +2,83 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.35] — Phase 21 Wave 2: JSON5/JSONC, CBOR, MessagePack, config, RSS/Atom, GeoJSON, KML/GPX, Jupyter notebook — *unreleased*
+
+- **21.17 — JSON5/JSONC adapter + economic court.** Non-default `json5 = ["json"]`
+  (dependency-free; reuses the JSON parser). A representation-preserving
+  **superset**: comments with spans, unquoted keys, single-quoted strings,
+  trailing commas, hex/leading-dot/`Infinity`/`NaN` numbers, string continuations,
+  the extended whitespace set, member order, duplicate keys, and a recorded
+  `jsonc`-vs-`json5` dialect. Strict JSON stays `Json`. Native `--json5-pointer`/
+  `--json5-node`/`--json5-find`/`--json5-comments`; common metadata/text/search-match.
+  Exact 10/10 · 9/9; economic court vs SQLite (strict-JSON normalized) **and** a
+  conventional JSON5→object load; the strict-JSON lane cannot represent `NaN`/
+  `Infinity` (recorded). `2026-10-10-phase21-17-1-json5-88b30730`,
+  `…-phase21-17-json5-econ-10f5b898`.
+- **21.18 — CBOR (RFC 8949) adapter + economic court.** Non-default, dependency-free
+  `cbor = ["json"]`. Binary structured tree; **no magic bytes** (the self-described
+  tag `55799`, or a full well-formed parse reaching ≥ 3 nodes). Every major type,
+  encoding width, byte-vs-text, tags (never resolved), map order + duplicate keys,
+  float width, definite/indefinite form. Native `--cbor-pointer`/`--cbor-node`/
+  `--cbor-find`. Exact 16/16 · 20/20; economic court vs SQLite (strict-JSON
+  normalized) **and** a conventional CBOR→host load; the small-int/short-container
+  prefix **overlaps MessagePack** (recorded; ambiguous inputs stay `Opaque`).
+  `2026-10-10-phase21-18-1-cbor-f7093672`, `…-phase21-18-cbor-econ-6aecd8c5`.
+- **21.19 — MessagePack adapter + economic court.** Non-default, dependency-free
+  `msgpack = ["json"]`. Binary structured tree; **no magic bytes**; the exact format
+  byte (encoding width **and** signedness), `str` vs `bin`, map order + duplicate
+  keys, float width, extension type + payload length. Native `--msgpack-pointer`/
+  `--msgpack-node`/`--msgpack-find`. Exact 17/17 (incl. a CBOR coexistence
+  control) · 21/21. CBOR is tried first, so a CBOR document is never stolen.
+  `2026-10-10-phase21-19-1-msgpack-f7093672`, `…-phase21-19-msgpack-econ-6aecd8c5`.
+- **21.20 — config (INI/`.env`/Java properties) adapter + economic court.**
+  Non-default, dependency-free `config = []`. One bounded key/value-line parser
+  preserving the dialect, exact spans, line order, the `export` marker, quoting,
+  properties continuations and `\uXXXX` spelling; duplicate keys reported. TOML is
+  tried first (an INI-shaped TOML stays `Toml`); the pure `KEY=VALUE`
+  env-vs-properties overlap stays `Opaque` (recorded). Native `--config-line`/
+  `--config-entry`/`--config-section`/`--config-find`. Exact 11/11 · 14/14.
+  `2026-10-10-phase21-20-1-config-646e812b`, `…-phase21-20-config-econ-735d9b69`.
+- **21.21 — RSS/Atom feed adapter + economic court.** Non-default `feed = ["xml"]`
+  (reuses the XML parser). RSS 2.0 `<rss><channel>` and Atom 1.0 `<feed>`+`<entry>`;
+  recorded dialect, element/attribute spans, element order, attribute spelling,
+  Atom namespace. Tried **before** the generic XML detector; plain XML and older
+  namespaces (RSS 1.0, Atom 0.3) stay `Xml`. Native `--feed-channel`/`--feed-field`/
+  `--feed-entry`/`--feed-entry-field`/`--feed-find`. Exact 7/7 · 11/11.
+  `2026-10-10-phase21-21-1-feed-d426b43a`, `…-phase21-21-feed-econ-735d9b69`.
+- **21.22 — GeoJSON (RFC 7946) adapter + economic court.** Non-default
+  `geojson = ["json"]` (reuses the JSON parser). Bounded semantic sub-detection
+  **before** the generic JSON detector; the exact `type` token, `coordinates`
+  nesting with exact numeric spelling, `properties` order + duplicates,
+  `id`/`bbox`/`geometry`/`features` order and foreign members; plain JSON stays
+  `Json`. Native `--geojson-type`/`--geojson-feature`/`--geojson-geometry`/
+  `--geojson-coordinates`/`--geojson-property`/`--geojson-find`. Exact 8/8 · 11/11.
+  `2026-10-10-phase21-22-1-geojson-670675f9`, `…-phase21-22-geojson-econ-735d9b69`.
+- **21.23 — KML 2.2/GPX 1.1 adapter + economic court.** Non-default `gis = ["xml"]`
+  (reuses the XML parser). Bounded semantic sub-detection **before** the generic XML
+  detector; recorded dialect, element/attribute spans, element order, KML
+  `<coordinates>`/GPX `lat`/`lon` spelling, namespace declaration. Plain XML and
+  older namespaces (KML 2.0/2.1, GPX 1.0) stay `Xml`. Native `--gis-root`/
+  `--gis-field`/`--gis-record`/`--gis-record-field`/`--gis-point`/`--gis-find`.
+  Exact 8/8 · 10/10. `2026-10-10-phase21-23-1-gis-aed361cf`,
+  `…-phase21-23-gis-econ-735d9b69`.
+- **21.24 — Jupyter notebook (`.ipynb`) adapter + economic court.** Non-default
+  `notebook = ["json"]` (reuses the JSON parser). Bounded semantic sub-detection
+  **before** the generic JSON detector; exact `nbformat`/`nbformat_minor`, exact
+  `cell_type`/`output_type`, the exact `source` form (string vs line array, never
+  re-joined), `execution_count`, cell/output order, `metadata`, `attachments`.
+  Plain JSON / non-nbformat `cells` stay `Json`. Native `--notebook-nbformat`/
+  `--notebook-cell`/`--notebook-cell-type`/`--notebook-cell-source`/
+  `--notebook-cell-output`/`--notebook-find`. Exact 7/7 · 11/11.
+  `2026-10-10-phase21-24-1-notebook-b6860e87`, `…-phase21-24-notebook-econ-735d9b69`.
+- **GeoJSON JSON-validity defect fixed.** The 21.20–21.24 economic courts found
+  that **7 GeoJSON observation projections emitted invalid JSON** (a stray `"`);
+  the adapter court's substring assertions had missed it. Found by parsing the
+  outputs in the economic court and fixed in `src/field/observe.rs` (commit
+  `ba4df0d4`). All five profile-format economic courts re-sealed
+  (`…-phase21-{20,21,22,23,24}-*-econ-735d9b69`); the JSON validity checks are now
+  part of the courts.
+
 ## [0.1.0-alpha.34] — Phase 21 Wave 2: Markdown, XML, HTML, TOML, JSONL, EML/MIME, Parquet, Arrow IPC + the real-world court — *unreleased*
 
 - **21.8 — Markdown adapter + economic court.** Non-default, dependency-free

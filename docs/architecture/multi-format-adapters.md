@@ -286,6 +286,38 @@ problem preserves the exact bytes and declines only the decode.
   `DocumentExact` root (ADR-0060). The DuckDB comparator wins the analytical axes
   and reads a recorded Parquet projection of the same table.
 
+## Structured-extra, binary, config, feed and GIS adapters (Phase 21 Wave 2)
+
+The next eight Wave-2 subphases (21.17–21.24) reuse an existing physical layer
+and pay mostly for their own span policy. All are non-default, and all keep the
+exact leaf as the **whole source** (RAW authority) with the derived model off the
+exactness path (ADR-0060).
+
+- **JSON5 / JSONC** (`json5 = ["json"]`) reuses the JSON parser and span policy:
+  comments with spans, unquoted keys, single quotes, trailing commas,
+  hex/leading-dot/`Infinity`/`NaN` numbers, string continuations, the extended
+  whitespace set, and a recorded `jsonc`-vs-`json5` dialect. Strict JSON stays
+  `Json`. Native `json5-*`.
+- **CBOR** (`cbor = ["json"]`) and **MessagePack** (`msgpack = ["json"]`) are the
+  binary structured-tree formats. No magic bytes; each preserves the
+  encoding/format byte, byte-vs-text, tags/extension types (never resolved), map
+  order/duplicate keys, and float width. CBOR is tried before MessagePack (the
+  self-described tag is the stronger signal); the ambiguous small-int/
+  short-container seam is a recorded negative. Native `cbor-*` / `msgpack-*`.
+- **Config (INI / `.env` / Java `.properties`)** (`config = []`) is one bounded
+  key/value-line parser preserving the dialect, exact spans, `export`/quoting/
+  continuations and `\uXXXX` spelling, with duplicate keys reported. The pure
+  `KEY=VALUE` env-vs-properties overlap stays `Opaque`. Native `config-*`.
+- **RSS / Atom** (`feed = ["xml"]`), **GeoJSON** (`geojson = ["json"]`),
+  **KML / GPX** (`gis = ["xml"]`) and the **Jupyter notebook**
+  (`notebook = ["json"]`) are **bounded semantic sub-detections** over an
+  existing physical layer (XML or JSON), run before the generic detector of that
+  layer: a feed needs `<rss><channel>` or an Atom `<feed>`+`<entry>`; GeoJSON a
+  `"type"` among the nine RFC 7946 names with a consistent shape; KML/GPX the
+  KML 2.2 / GPX 1.1 namespace with a structural child; a notebook an integer
+  `nbformat` and nbformat-shaped `cells`. Plain XML/JSON stays `Xml`/`Json`.
+  Native `feed-*` / `geojson-*` / `gis-*` / `notebook-*`.
+
 ## Shared vocabulary (ADR-0031)
 Common selectors/representations are added additively: `metadata`, `text`,
 `heading`, `block`, `table`, `cell`, `resource`, `link`, `find`. Native selectors
@@ -316,6 +348,7 @@ tagged `format=<fmt>;common;<native>`.
 | ODS adapter / economic court | exact 8/8 · 8/8 | `evidence/campaigns/2026-10-09-phase21-3-ods-ef26d97/`, `…/2026-10-09-phase21-3-2-ods-3dd5827/` |
 | ODP adapter / economic court | exact 6/6 · 8/8 | `evidence/campaigns/2026-10-09-phase21-4-1-odp-957a800/`, `…/2026-10-09-phase21-4-odp-econ-957a800/` |
 | Wave-2 adapters (Markdown/XML/HTML/TOML/JSONL/EML/Parquet/Arrow) | exact 12/12·10/10·10/10·10/10·9/9·7/7·13/13·18/18 | `evidence/campaigns/2026-10-10-phase21-8-1-markdown-0e6a97c3/` … `…/2026-10-10-phase21-16-1-arrow-4fdc7ad0/` |
+| Wave-2 adapters (JSON5/CBOR/MessagePack/config/feed/GeoJSON/GIS/notebook) | exact 10/10·16/16·17/17·11/11·7/7·8/8·8/8·7/7 | `evidence/campaigns/2026-10-10-phase21-17-1-json5-88b30730/` … `…/2026-10-10-phase21-24-1-notebook-b6860e87/` |
 | Stratified real-world multi-format court (52 real + 8 hostile) | 60/60 byte-exact | `evidence/campaigns/2026-10-10-realformats-stratified-3529688e/` |
 
 Interpretation. The ablation ladder attributes the small-document win to the

@@ -77,6 +77,14 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | EML/MIME adapter / economic court (SQLite + `email`) | exact 7/7 · 6/6 | `evidence/campaigns/2026-10-10-phase21-13-1-eml-02dc88a7/`, `…/2026-10-10-phase21-13-eml-econ-02dc88a7/` |
 | Parquet adapter / economic court (SQLite + DuckDB/Parquet) | exact 13/13 · 7/7 | `evidence/campaigns/2026-10-10-phase21-14-1-parquet-bfe32a33/`, `…/2026-10-10-phase21-14-parquet-econ-bfe32a33/` |
 | Arrow IPC adapter / economic court (SQLite + DuckDB projection) | exact 18/18 · 3/3 | `evidence/campaigns/2026-10-10-phase21-16-1-arrow-4fdc7ad0/`, `…/2026-10-10-phase21-16-arrow-econ-4fdc7ad0/` |
+| JSON5/JSONC adapter / economic court (SQLite + conventional JSON5 load) | exact 10/10 · 9/9 | `evidence/campaigns/2026-10-10-phase21-17-1-json5-88b30730/`, `…/2026-10-10-phase21-17-json5-econ-10f5b898/` |
+| CBOR adapter / economic court (SQLite + conventional CBOR load) | exact 16/16 · 20/20 | `evidence/campaigns/2026-10-10-phase21-18-1-cbor-f7093672/`, `…/2026-10-10-phase21-18-cbor-econ-6aecd8c5/` |
+| MessagePack adapter / economic court (SQLite + conventional MessagePack load) | exact 17/17 · 21/21 | `evidence/campaigns/2026-10-10-phase21-19-1-msgpack-f7093672/`, `…/2026-10-10-phase21-19-msgpack-econ-6aecd8c5/` |
+| Config family (INI/`.env`/properties) adapter / economic court | exact 11/11 · 14/14 | `evidence/campaigns/2026-10-10-phase21-20-1-config-646e812b/`, `…/2026-10-10-phase21-20-config-econ-735d9b69/` |
+| RSS/Atom feed adapter / economic court | exact 7/7 · 11/11 | `evidence/campaigns/2026-10-10-phase21-21-1-feed-d426b43a/`, `…/2026-10-10-phase21-21-feed-econ-735d9b69/` |
+| GeoJSON adapter / economic court (found+fixed JSON-validity defect) | exact 8/8 · 11/11 | `evidence/campaigns/2026-10-10-phase21-22-1-geojson-670675f9/`, `…/2026-10-10-phase21-22-geojson-econ-735d9b69/` |
+| KML/GPX adapter / economic court | exact 8/8 · 10/10 | `evidence/campaigns/2026-10-10-phase21-23-1-gis-aed361cf/`, `…/2026-10-10-phase21-23-gis-econ-735d9b69/` |
+| Jupyter notebook adapter / economic court | exact 7/7 · 11/11 | `evidence/campaigns/2026-10-10-phase21-24-1-notebook-b6860e87/`, `…/2026-10-10-phase21-24-notebook-econ-735d9b69/` |
 | Cross-field identity court (ADR-0060) | 12/12 | `evidence/campaigns/2026-10-09-identity-3400385/`, re-sealed `…/2026-10-10-identity-7f007e2e/` |
 | Real-format smoke (independently sourced) | 12/12 exact | `evidence/campaigns/2026-10-09-realformats-smoke-3400385/` |
 | Stratified real-world multi-format court (52 real + 8 hostile) | 60/60 byte-exact | `evidence/campaigns/2026-10-10-realformats-stratified-3529688e/` (prior `…/2026-10-10-realformats-stratified-92edce73/`) |
@@ -389,6 +397,150 @@ typed. **DuckDB wins the analytical axes** and reads a **Parquet projection** of
 the same logical table (the pinned wheel has no Arrow IPC file reader) — the
 substitution is recorded. See [Formats/Arrow](../formats/arrow.md).
 
+## JSON5 / JSONC (structured extra)
+
+JSON5/JSONC is the Wave-2 **structured-extra** format (`json5 = ["json"]`,
+**non-default**, dependency-free; reuses the JSON parser). Strict JSON is tried
+first and is never reclassified; JSON5/JSONC then requires at least one
+JSON5/JSONC-only construct. It records the dialect (`jsonc` vs `json5`).
+
+| Property | JSON5 / JSONC |
+|---|---|
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `json5-pointer` (RFC 6901), `json5-node`, `json5-find`, `json5-comments` |
+| Representation preserved | comments with spans, unquoted keys, single quotes, trailing commas, hex/leading-dot/`Infinity`/`NaN` numbers, string continuations, extended whitespace, member order, duplicate keys, spelling, recorded dialect |
+
+**Honest negative:** the strict-JSON comparator lane cannot represent `NaN`/
+`Infinity`, so it declines those fixtures. See [Formats/JSON5](../formats/json5.md).
+
+## CBOR (binary structured tree)
+
+CBOR (RFC 8949) is the Wave-2 **binary structured-tree** format (`cbor = ["json"]`,
+**non-default**, dependency-free; reuses the JSON match vocabulary).
+
+| Property | CBOR |
+|---|---|
+| Byte-based detection | **no magic bytes**: the self-described tag `55799`, or a full-input well-formed parse whose root is a container/tag reaching ≥ 3 nodes |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `cbor-pointer` (RFC 6901), `cbor-node`, `cbor-find` |
+| Representation preserved | every major type, encoding width, byte-vs-text strings, tag numbers (never resolved), map order + duplicate keys, float width, definite/indefinite form |
+
+**Honest negative:** the small-int/short-container prefix **overlaps MessagePack's**
+`fixint`/`fixarray`; ambiguous inputs are not guessed (they stay `Opaque`). See
+[Formats/CBOR](../formats/cbor.md).
+
+## MessagePack (binary structured tree)
+
+MessagePack is the Wave-2 **binary structured-tree** sibling of CBOR
+(`msgpack = ["json"]`, **non-default**, dependency-free).
+
+| Property | MessagePack |
+|---|---|
+| Byte-based detection | **no magic bytes**: a full-input well-formed parse whose root is a container reaching ≥ 3 items and ≥ 8 bytes, or a MessagePack-only head byte `0xdc..=0xdf` |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `msgpack-pointer` (RFC 6901), `msgpack-node`, `msgpack-find` |
+| Representation preserved | exact format byte (encoding width **and signedness**), `str` vs `bin`, map order + duplicate keys, float width, extension type + payload length |
+
+**Coexistence:** CBOR is tried **before** MessagePack, so a CBOR document stays
+`Cbor` and is never stolen; the shared ambiguous seam is a recorded negative. See
+[Formats/MessagePack](../formats/msgpack.md).
+
+## Config family (INI / `.env` / Java properties)
+
+The config family is the Wave-2 key/value-line format (`config = []`,
+**non-default**, dependency-free); one adapter covers all three dialects.
+
+| Property | Config (INI/`.env`/properties) |
+|---|---|
+| Byte-based detection | **no magic bytes**: INI needs `[section]`; properties needs a strong `=`/`:` plus a properties-only construct; `env` needs `export ` |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `config-line`, `config-entry`, `config-section`, `config-find` |
+| Representation preserved | recorded dialect; section/key/separator/value/comment spans; line order; `export` marker, quoting, inline comments; properties continuations and `\uXXXX` spelling; duplicate keys reported |
+
+**Honest negative:** a pure `KEY=VALUE` file is the same shape under `env` and
+properties; it is **not guessed** and stays `Opaque`. TOML is tried first, so an
+INI-shaped TOML stays `Toml`. See [Formats/Config](../formats/config.md).
+
+## RSS / Atom (feeds)
+
+RSS 2.0 / Atom 1.0 is the Wave-2 **syndication** format (`feed = ["xml"]`,
+**non-default**; reuses the XML parser).
+
+| Property | Feed (RSS/Atom) |
+|---|---|
+| Byte-based detection | a `<rss>` root with a `<channel>` child, or an Atom `<feed>` root in the Atom namespace with an `<entry>` child (before the generic XML detector) |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `feed-channel`, `feed-field`, `feed-entry`, `feed-entry-field`, `feed-find` |
+| Representation preserved | recorded dialect; element/attribute spans; element order; attribute spelling (Atom `link href/rel`, RSS `guid isPermaLink`); Atom namespace declaration |
+
+**Honest negative:** RSS 1.0 (`rdf:RDF`) and Atom 0.3 stay `Xml`. See
+[Formats/Feed](../formats/feed.md).
+
+## GeoJSON (spatial)
+
+GeoJSON (RFC 7946) is the Wave-2 **spatial** format (`geojson = ["json"]`,
+**non-default**, dependency-free; reuses the JSON parser).
+
+| Property | GeoJSON |
+|---|---|
+| Byte-based detection | root object with a string `"type"` among the nine RFC 7946 names **and** a consistent shape (before the generic JSON detector) |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `geojson-type`, `geojson-feature`, `geojson-geometry`, `geojson-coordinates`, `geojson-property`, `geojson-find` |
+| Representation preserved | exact `"type"` token; `coordinates` nesting with each number's exact spelling; `properties` order + duplicates; `id`/`bbox`/`geometry`/`features` order; foreign members |
+
+**Honest negative:** a shaped-but-numerically-invalid document is preserved
+verbatim (no positional validation). A found-and-fixed defect (7 observation
+projections emitted invalid JSON; fixed in `src/field/observe.rs`, commit
+`ba4df0d4`) is recorded. See [Formats/GeoJSON](../formats/geojson.md).
+
+## KML / GPX (geospatial)
+
+KML 2.2 / GPX 1.1 is the Wave-2 **geospatial** format (`gis = ["xml"]`,
+**non-default**; reuses the XML parser).
+
+| Property | GIS (KML/GPX) |
+|---|---|
+| Byte-based detection | a `<kml>` root in the KML 2.2 namespace with a `Document`/`Folder`/`Placemark` child, or a `<gpx>` root in the GPX 1.1 namespace with a `metadata`/`wpt`/`rte`/`trk` child (before the generic XML detector) |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `gis-root`, `gis-field`, `gis-record`, `gis-record-field`, `gis-point`, `gis-find` |
+| Representation preserved | recorded dialect; element/attribute spans; element order; attribute spelling (KML `coordinates`, GPX `lat`/`lon`); namespace declaration |
+
+**Honest negative:** older KML (2.0/2.1) and GPX 1.0 namespaces stay `Xml`; the
+positional grammars are not validated. See [Formats/GIS](../formats/gis.md).
+
+## Jupyter notebook (`.ipynb`)
+
+A Jupyter notebook is the Wave-2 **document-shaped** format (`notebook = ["json"]`,
+**non-default**, dependency-free; reuses the JSON parser).
+
+| Property | Notebook |
+|---|---|
+| Byte-based detection | root object with a plain non-negative integer-literal `nbformat` (≥ 1) and an array `cells`, every cell an object with a string `cell_type`, every recognized field nbformat-shaped (after GeoJSON, before the generic JSON detector) |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `notebook-nbformat`, `notebook-cell`, `notebook-cell-type`, `notebook-cell-source`, `notebook-cell-output`, `notebook-find` |
+| Representation preserved | exact `nbformat`/`nbformat_minor`; exact `cell_type`/`output_type`; exact `source` form (string vs line array, never re-joined); `execution_count`; cell/output order; `metadata`; `attachments` |
+
+**Honest negative:** a plain JSON document, or a `cells`-bearing non-nbformat
+document, stays `Json`; `cell_type`/`output_type` and `nbformat` are not
+restricted; a number literal is never reparsed. See
+[Formats/Notebook](../formats/notebook.md).
+
 > **Comparator repairs (JSON/YAML).** The JSON economic court was **repaired**
 > after review (SQLite **3.51.1 with JSONB** via a pinned `pysqlite3-binary` wheel;
 > duplicate-key accounting fixed with `json_tree`; an independent
@@ -403,6 +555,44 @@ substitution is recorded. See [Formats/Arrow](../formats/arrow.md).
 > Q3 1 equal/7 both-decline; Q4 7 equal/1 both-decline; Q6 8 equal; Q7 1
 > equal/7 both-decline; **0 mismatches**), leaving exact closure + economics.
 > `[SUPERSEDED: evidence/campaigns/2026-10-09-phase21-6-yaml-econ-ceab8ec]`.
+
+## Detection order (Phase 21, frozen)
+
+Format is detected from bytes, never a file name, in this fixed order (a source
+declined by every branch stays `Opaque` and round-trips exactly through RAW):
+
+```text
+PDF
+  → ZIP family (OPC/OCF): DOCX, XLSX, PPTX, EPUB, ODT, ODS, ODP
+  → Parquet (PAR1 magic)
+  → Arrow IPC (ARROW1 magic)
+  → GeoJSON   (JSON bytes; bounded semantic sub-detection)
+  → Notebook  (JSON bytes; bounded semantic sub-detection)
+  → JSON      (generic)
+  → JSON5/JSONC
+  → JSONL/NDJSON
+  → CBOR      (binary; before MessagePack by construction)
+  → MessagePack
+  → EML/MIME
+  → YAML
+  → TOML      (before CSV/Markdown/XML/HTML)
+  → Config    (INI/`.env`/properties; before CSV)
+  → CSV/TSV
+  → Markdown
+  → Feed      (XML bytes; before the generic XML detector)
+  → GIS       (XML bytes; before the generic XML detector)
+  → HTML      (document-level marker: `<!doctype html>`/`<html>` root)
+  → XML       (bare, well-formed)
+  → HTML      (error-recovering fallback)
+  → Opaque
+```
+
+The load-bearing placements: the strong magic-byte binaries run before the weak
+no-magic-byte heuristics; the JSON-based sub-formats (GeoJSON, notebook) run
+before the generic JSON detector but a strict-JSON document stays `Json`; CBOR
+runs before MessagePack (its self-described tag is the strongest binary signal);
+TOML wins over INI/config and CSV; and the XML-based sub-formats (feed, GIS) run
+before the generic XML detector. See the adapter pages for each boundary.
 
 ## Detection repair (Phase 21.15)
 
@@ -425,7 +615,11 @@ the ODS adapter needs `package,opc,ods`, the ODP adapter `package,opc,odp`, and 
 JSON adapter the dependency-free `json`, and the YAML adapter `yaml`; the
 CSV/TSV adapter `csv`. The Wave-2 fine-grained adapters are the dependency-free
 `markdown`, `html`, `toml`, `eml`, `parquet` and `arrow` features (plus
-`jsonl = ["json"]` and `xml = ["dep:quick-xml"]`), all **non-default**.
+`jsonl = ["json"]` and `xml = ["dep:quick-xml"]`), all **non-default**. The
+Wave-2 remainder adds the dependency-free `config` feature and the JSON-reusing
+`json5`, `cbor`, `msgpack`, `geojson` and `notebook` features (each `= ["json"]`),
+plus the XML-reusing `feed` and `gis` features (each `= ["xml"]`) — all
+**non-default**.
 `deflate-replay` is opt-in (pulls LGPL
 `cabac`). A descriptor that needs a capability the build lacks sets a mandatory
 feature bit and fails closed with `unsupported-feature` (exit 6).
@@ -448,9 +642,10 @@ ADR-0053); `--promote` is refuted on the tested corpus and default-off (ADR-0046
 
 ## Not supported
 
-Beyond the six office formats (PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP) the
-Phase-21 Wave 2 **listed** formats are implemented (JSON, YAML, CSV/TSV,
-Markdown, XML, HTML, TOML, JSONL, EML/MIME, Parquet, Arrow IPC); the remaining
-Wave-2 families (see [Roadmap](../project/roadmap.md)) are `PROPOSED`. Any source
-that is not a recognized format still round-trips exactly through the opaque
-`RAW` lane.
+Beyond the six office formats (PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP), the
+Phase-21 Wave 2 formats implemented so far are JSON, YAML, CSV/TSV, Markdown,
+XML, HTML, TOML, JSONL, EML/MIME, Parquet, Arrow IPC, JSON5/JSONC, CBOR,
+MessagePack, config (INI/`.env`/properties), RSS/Atom, GeoJSON, KML/GPX and the
+Jupyter notebook; the remaining Wave-2 families (see
+[Roadmap](../project/roadmap.md)) are `PROPOSED`. Any source that is not a
+recognized format still round-trips exactly through the opaque `RAW` lane.

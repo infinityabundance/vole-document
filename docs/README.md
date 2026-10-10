@@ -45,6 +45,14 @@ Per-format authority boundaries, native inverse representation, and exactness.
 - [EML/MIME](formats/eml.md)
 - [Parquet](formats/parquet.md)
 - [Arrow IPC](formats/arrow.md)
+- [JSON5 / JSONC](formats/json5.md)
+- [CBOR](formats/cbor.md)
+- [MessagePack](formats/msgpack.md)
+- [INI / .env / properties](formats/config.md)
+- [RSS / Atom](formats/feed.md)
+- [GeoJSON](formats/geojson.md)
+- [KML / GPX](formats/gis.md)
+- [Jupyter notebook](formats/notebook.md)
 
 ## Reference
 
@@ -79,7 +87,9 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   [Phase 21](phases/phase-21-plan.md) (format programme — **Wave 1 complete**: XLSX,
   PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2 listed
   formats complete**: JSON, YAML, CSV/TSV, Markdown, XML, HTML, TOML, JSONL,
-  EML/MIME, Parquet and Arrow IPC adapters + economic courts; also a permanent
+  EML/MIME, Parquet and Arrow IPC adapters + economic courts, plus the
+  subphases 21.17–21.24 (JSON5/JSONC, CBOR, MessagePack, config, RSS/Atom,
+  GeoJSON, KML/GPX, Jupyter notebook) adapters + economic courts; also a permanent
   cross-field identity court, a stratified real-world court, and the JSON/YAML
   span-preserving comparator corrections); the Phase 22
   programme is pre-registered in

@@ -23,7 +23,12 @@
 > branch, each with an adapter + sealed economic court: **JSON** (21.5),
 > **YAML** (21.6), **CSV/TSV** (21.7), **Markdown** (21.8), **XML** (21.9),
 > **HTML** (21.10), **TOML** (21.11), **JSONL/NDJSON** (21.12), **EML/MIME**
-> (21.13), **Parquet** (21.14) and **Arrow IPC** (21.16). Review-driven
+> (21.13), **Parquet** (21.14) and **Arrow IPC** (21.16). **The next eight
+> Wave-2 subphases (21.17–21.24) have since shipped** on the same branch, each
+> with an adapter court + a sealed economic court: **JSON5/JSONC** (21.17),
+> **CBOR** (21.18), **MessagePack** (21.19), **config / INI / `.env` /
+> properties** (21.20), **RSS/Atom** (21.21), **GeoJSON** (21.22), **KML/GPX**
+> (21.23) and the **Jupyter notebook / `.ipynb`** (21.24). Review-driven
 > corrections also landed on this branch: the **JSON comparator** was repaired
 > (modern SQLite+JSONB, fixed duplicate-key accounting, an independent
 > span-preserving baseline), the **YAML comparator** got the same
@@ -31,7 +36,10 @@
 > O(n²), a permanent **cross-field identity court** was added (ADR-0060), the
 > **stratified real-world court** sealed (52 real + 8 hostile, 60/60 byte-exact),
 > and a **detection repair** fixed five real-world detection root causes. The
-> remaining Wave-2 families below are not started.
+> 21.20–21.24 economic courts also found and fixed a **GeoJSON JSON-validity
+> defect** (7 observation projections emitted invalid JSON; fixed in
+> `src/field/observe.rs`, commit `ba4df0d4`). The remaining Wave-2 families
+> (21.25–21.35) are not started.
 >
 > Branch: `phase21-wave2` @ `v0.1.0-alpha.33`+ (Wave 2). Wave 1 shipped as
 > `v0.1.0-alpha.30`, JSON as `v0.1.0-alpha.31`, YAML as `v0.1.0-alpha.32` on
@@ -118,7 +126,8 @@ targets for exactly this reason.
 ### Wave 2 — the remaining order (frozen)
 
 Beyond the eleven shipped Wave-2 formats, the remaining families are decomposed
-into one subphase each. The order is again chosen for **maximum reuse** — the
+into one subphase each. **21.17–21.24 have since shipped** (marked below); the
+rest (21.25–21.35) are not started. The order is again chosen for **maximum reuse** — the
 structured-tree, tabular, XML, JSON and MIME layers are already paid for, so a
 format enters by reusing one of them and paying mostly for its own span policy.
 Each subphase is the established unit: **adapter → tests → adapter court →
@@ -126,14 +135,14 @@ economic court → docs**, with a sealed receipt per court, and it may be closed
 an honest negative if the court declines it.
 
 ```text
-21.17  JSON5 / JSONC        (structured extra; reuses the JSON parser + span policy)
-21.18  CBOR                 (binary structured; new byte/integer/float policy)
-21.19  MessagePack          (binary structured; new byte/integer/float policy)
-21.20  INI / .env / properties   (config; trivial line grammar)
-21.21  RSS / Atom           (feeds; reuses the XML parser + span policy)
-21.22  GeoJSON              (GIS; reuses the JSON parser + geo semantics)
-21.23  KML / GPX            (GIS; reuses the XML parser + geo semantics)
-21.24  Jupyter notebook     (.ipynb; reuses the JSON parser + cell/output model)
+21.17  JSON5 / JSONC        (structured extra; reuses the JSON parser + span policy)  — SHIPPED
+21.18  CBOR                 (binary structured; new byte/integer/float policy)         — SHIPPED
+21.19  MessagePack          (binary structured; new byte/integer/float policy)         — SHIPPED
+21.20  INI / .env / properties   (config; trivial line grammar)                          — SHIPPED
+21.21  RSS / Atom           (feeds; reuses the XML parser + span policy)               — SHIPPED
+21.22  GeoJSON              (GIS; reuses the JSON parser + geo semantics)              — SHIPPED
+21.23  KML / GPX            (GIS; reuses the XML parser + geo semantics)               — SHIPPED
+21.24  Jupyter notebook     (.ipynb; reuses the JSON parser + cell/output model)       — SHIPPED
 21.25  PSV / fixed-width    (tabular extra; reuses the tabular layer)
 21.26  reST / AsciiDoc / MDX (docs; reuses the prose/line layer)
 21.27  MHTML                (messaging + web; reuses the MIME + HTML layers)
