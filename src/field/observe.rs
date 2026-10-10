@@ -148,6 +148,14 @@ use crate::adapter::msgpack::{
     kind_name as msgpack_kind_name, resolve_pointer as msgpack_resolve_pointer,
     subtree_text as msgpack_subtree_text, token_bytes as msgpack_token_bytes,
 };
+#[cfg(feature = "notebook")]
+use crate::adapter::notebook::{
+    NotebookModel, canonical_text as notebook_canonical_text,
+    cell_type_of as notebook_cell_type_of, find as notebook_find_matches,
+    member_keys as notebook_member_keys, member_string_value as notebook_member_string_value,
+    object_member as notebook_object_member, output_type_of as notebook_output_type_of,
+    token_bytes as notebook_token_bytes,
+};
 #[cfg(feature = "odp")]
 use crate::adapter::odp::{
     ContentModel as OdpContentModel, OdpExtractProfile, OdpModel, OdpShape, OdpTable,
@@ -240,6 +248,8 @@ use crate::field::index::SEL_JSONL_MODEL;
 use crate::field::index::SEL_MARKDOWN_MODEL;
 #[cfg(feature = "msgpack")]
 use crate::field::index::SEL_MSGPACK_MODEL;
+#[cfg(feature = "notebook")]
+use crate::field::index::SEL_NOTEBOOK_MODEL;
 #[cfg(feature = "odp")]
 use crate::field::index::SEL_ODP_MODEL;
 #[cfg(feature = "ods")]
@@ -1092,6 +1102,67 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The `nbformat` of a Jupyter notebook (Phase 21.24). `ExactBytes` returns the
+    /// exact `nbformat` integer token; `Text` the decoded decimal value;
+    /// `Metadata`/`Structure` a descriptor with the `nbformat`, the `nbformat_minor`,
+    /// the cell count, the total output count, and the byte length. A notebook has no
+    /// package layer, so the source *is* the whole document.
+    #[cfg(feature = "notebook")]
+    NotebookNbformat,
+    /// A Jupyter notebook cell by 0-based ordinal (Phase 21.24), in document order.
+    /// `ExactBytes` returns the cell object's whole source span; `Text` its canonical
+    /// JSON projection; `Metadata`/`Structure` a descriptor with the `cell_type`, the
+    /// `source` form/span, the `execution_count` token, the output count, and the
+    /// `metadata`/`attachments` presence. An out-of-range index declines typed.
+    #[cfg(feature = "notebook")]
+    NotebookCell {
+        /// The 0-based cell ordinal in document order.
+        index: u32,
+    },
+    /// The exact `cell_type` string of the `index`-th Jupyter notebook cell
+    /// (Phase 21.24). `ExactBytes` returns the exact `cell_type` string token (with
+    /// quotes); `Text` the decoded name; `Metadata`/`Structure` a descriptor with the
+    /// cell ordinal and the type. An out-of-range index declines typed.
+    #[cfg(feature = "notebook")]
+    NotebookCellType {
+        /// The 0-based cell ordinal in document order.
+        index: u32,
+    },
+    /// The `source` of the `index`-th Jupyter notebook cell (Phase 21.24),
+    /// **preserving its exact representation**: a `string` source is returned decoded
+    /// for `Text`, an array-of-lines source is returned as its canonical JSON array
+    /// (never re-joined or split). `ExactBytes` returns the source value's exact span;
+    /// `Metadata`/`Structure` a descriptor with the cell ordinal, the form, the span,
+    /// and the element count. A cell with no `source` declines typed, as does an
+    /// out-of-range index.
+    #[cfg(feature = "notebook")]
+    NotebookCellSource {
+        /// The 0-based cell ordinal in document order.
+        index: u32,
+    },
+    /// One output of one Jupyter notebook cell, addressed as `CELL:OUTPUT`
+    /// (Phase 21.24). `ExactBytes` returns the output object's whole source span;
+    /// `Text` its canonical JSON projection; `Metadata`/`Structure` a descriptor with
+    /// the exact `output_type` string and the type-specific fields (a `stream`'s
+    /// `name`/`text` form, an `execute_result`/`display_data`'s `data` keys, an
+    /// `error`'s `ename`/`evalue`/`traceback` count). An out-of-range cell/output
+    /// declines typed.
+    #[cfg(feature = "notebook")]
+    NotebookCellOutput {
+        /// The 0-based cell ordinal in document order.
+        cell: u32,
+        /// The 0-based output ordinal within the cell.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over Jupyter notebook object keys and string
+    /// values (Phase 21.24), reusing the shared JSON match vocabulary. Each match
+    /// reports its canonical RFC 6901 pointer, role (key/value), and exact source
+    /// span. Never an embedding or a model call.
+    #[cfg(feature = "notebook")]
+    NotebookFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// A YAML node addressed by a dotted path (Phase 21.6.1), e.g. `a.b.0`. The
     /// optional first segment `docN` selects a document (default 0). The answer
     /// reports the node's kind/style, its exact source span, and (for `ExactBytes`)
@@ -1761,6 +1832,20 @@ impl Selector {
             Selector::GisPoint { index } => format!("gis-point:{index}"),
             #[cfg(feature = "gis")]
             Selector::GisFind { pattern } => format!("gis-find:{pattern}"),
+            #[cfg(feature = "notebook")]
+            Selector::NotebookNbformat => "notebook-nbformat".to_string(),
+            #[cfg(feature = "notebook")]
+            Selector::NotebookCell { index } => format!("notebook-cell:{index}"),
+            #[cfg(feature = "notebook")]
+            Selector::NotebookCellType { index } => format!("notebook-cell-type:{index}"),
+            #[cfg(feature = "notebook")]
+            Selector::NotebookCellSource { index } => format!("notebook-cell-source:{index}"),
+            #[cfg(feature = "notebook")]
+            Selector::NotebookCellOutput { cell, index } => {
+                format!("notebook-cell-output:{cell}:{index}")
+            }
+            #[cfg(feature = "notebook")]
+            Selector::NotebookFind { pattern } => format!("notebook-find:{pattern}"),
             #[cfg(feature = "yaml")]
             Selector::YamlPath { path } => format!("yaml-path:{path}"),
             #[cfg(feature = "yaml")]
@@ -3128,7 +3213,8 @@ fn opt_u8_json(v: Option<u8>) -> String {
     feature = "xlsx",
     feature = "pptx",
     feature = "eml",
-    feature = "parquet"
+    feature = "parquet",
+    feature = "notebook"
 ))]
 fn opt_str_json(v: Option<&str>) -> String {
     match v {
@@ -3775,6 +3861,34 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "gis")]
             (Selector::GisFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.gis_find(req, pattern)
+            }
+            #[cfg(feature = "notebook")]
+            (Selector::NotebookNbformat, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.notebook_nbformat(req)
+            }
+            #[cfg(feature = "notebook")]
+            (
+                Selector::NotebookCell { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.notebook_cell(req, *index),
+            #[cfg(feature = "notebook")]
+            (
+                Selector::NotebookCellType { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.notebook_cell_type(req, *index),
+            #[cfg(feature = "notebook")]
+            (
+                Selector::NotebookCellSource { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.notebook_cell_source(req, *index),
+            #[cfg(feature = "notebook")]
+            (
+                Selector::NotebookCellOutput { cell, index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.notebook_cell_output(req, *cell, *index),
+            #[cfg(feature = "notebook")]
+            (Selector::NotebookFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.notebook_find(req, pattern)
             }
             #[cfg(feature = "yaml")]
             (Selector::YamlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -9287,6 +9401,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Notebook => {
+                #[cfg(feature = "notebook")]
+                {
+                    self.common_notebook(req)?
+                }
+                #[cfg(not(feature = "notebook"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "notebook support is not compiled in (feature `notebook`)",
+                    ));
+                }
+            }
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -13292,6 +13418,502 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "gis;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Jupyter notebook observations (Phase 21.24)
+// ---------------------------------------------------------------------------
+
+/// A notebook's physical bytes are JSON, so the exact leaf is the whole source, and
+/// every nbformat/cell/output observation is a bounded, span-preserving (`Q_gen`)
+/// projection of the shared JSON parse (ADR-0060: the model node depends on the
+/// `sha256(source)` root).
+#[cfg(feature = "notebook")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the notebook model (derived, `Q_gen`).
+    fn notebook_model(&mut self) -> Result<(NotebookModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_NOTEBOOK_MODEL, 0), "notebook model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((NotebookModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn notebook_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn notebook_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// A JSON leaf/container node as text: a string is decoded; a container is its
+    /// canonical JSON projection; a scalar is its literal token.
+    fn notebook_node_text(
+        model: &NotebookModel,
+        source: &[u8],
+        index: u32,
+        node: &crate::adapter::json::JNode,
+    ) -> Result<String> {
+        if node.kind == crate::adapter::json::K_STRING {
+            json_decode_string(source, node)
+        } else if crate::adapter::json::is_container(node.kind) {
+            crate::adapter::json::subtree_text(&model.json, source, index)
+        } else {
+            Ok(String::from_utf8_lossy(json_token_bytes(source, node)?).into_owned())
+        }
+    }
+
+    /// The exact literal token of one object member's value (a number, `null`, or a
+    /// quoted string token), or `null` when absent. Used where the member is known to
+    /// be a number or `null`, so embedding the token verbatim stays valid JSON.
+    fn notebook_member_literal(
+        model: &NotebookModel,
+        source: &[u8],
+        obj: u32,
+        key: &str,
+    ) -> Result<String> {
+        match notebook_object_member(model, source, obj, key)? {
+            Some(v) => {
+                let n = model
+                    .node(v)
+                    .ok_or_else(|| Error::internal_invariant("notebook member out of range"))?;
+                Ok(String::from_utf8_lossy(notebook_token_bytes(source, n)?).into_owned())
+            }
+            None => Ok("null".to_string()),
+        }
+    }
+
+    /// The member keys of an object member (`document order, duplicates preserved`) as
+    /// a JSON array, or `null` when the member is absent or not an object.
+    fn notebook_keys_json(
+        model: &NotebookModel,
+        source: &[u8],
+        obj: u32,
+        key: &str,
+    ) -> Result<String> {
+        match notebook_member_keys(model, source, obj, key)? {
+            Some(keys) => {
+                let parts: Vec<String> = keys
+                    .iter()
+                    .map(|k| format!("\"{}\"", json_escape(k)))
+                    .collect();
+                Ok(format!("[{}]", parts.join(",")))
+            }
+            None => Ok("null".to_string()),
+        }
+    }
+
+    /// The `source`/`execution_count`/`metadata`/`attachments` descriptor of a cell.
+    fn notebook_cell_descriptor(
+        model: &NotebookModel,
+        source: &[u8],
+        index: u32,
+        a: &crate::adapter::notebook::CellAnchor,
+    ) -> Result<String> {
+        use crate::adapter::notebook::{ABSENT, SRC_LINES, source_form_name};
+        let node = model
+            .node(a.node)
+            .ok_or_else(|| Error::internal_invariant("notebook cell node out of range"))?;
+        let cell_type = notebook_cell_type_of(model, source, a.node)?.unwrap_or_default();
+        let (source_span, source_elements) = if a.source_node == ABSENT {
+            ("null".to_string(), 0u32)
+        } else {
+            let sn = model
+                .node(a.source_node)
+                .ok_or_else(|| Error::internal_invariant("notebook source node out of range"))?;
+            let elems = if a.source_form == SRC_LINES {
+                sn.children.len() as u32
+            } else {
+                1
+            };
+            (format!("[{},{}]", sn.start, sn.end), elems)
+        };
+        // A number or `null` token is embedded verbatim (it is already valid JSON).
+        let exec = Self::notebook_member_literal(model, source, a.node, "execution_count")?;
+        let attachments = Self::notebook_keys_json(model, source, a.node, "attachments")?;
+        let has_metadata = a.metadata_node != ABSENT;
+        Ok(format!(
+            "{{\"index\":{index},\"cell_type\":\"{}\",\"span\":[{},{}],\"source_form\":\"{}\",\"source_span\":{source_span},\"source_elements\":{source_elements},\"execution_count\":{exec},\"outputs\":{},\"metadata\":{has_metadata},\"attachments\":{attachments}}}",
+            json_escape(&cell_type),
+            node.start,
+            node.end,
+            source_form_name(a.source_form),
+            a.outputs.len(),
+        ))
+    }
+
+    fn notebook_nbformat(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let node = model
+            .node(model.nbformat_node)
+            .ok_or_else(|| Error::internal_invariant("notebook nbformat node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(notebook_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(model.nbformat.to_string()),
+            _ => AnswerValue::Json(Self::notebook_metadata_json(&model)),
+        };
+        Ok(self.notebook_answer(
+            req,
+            value,
+            format!("notebook;nbformat={}", model.nbformat),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn notebook_metadata_json(model: &NotebookModel) -> String {
+        format!(
+            concat!(
+                "{{\"format\":\"notebook\",\"nbformat\":{},\"nbformat_minor\":{},",
+                "\"cells\":{},\"outputs\":{},\"bytes\":{}}}"
+            ),
+            model.nbformat,
+            model.nbformat_minor,
+            model.cell_count(),
+            model.output_count(),
+            model.doc_len(),
+        )
+    }
+
+    fn notebook_cell(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let a = model
+            .cell(index)
+            .cloned()
+            .ok_or_else(|| Error::unsupported_feature(format!("notebook has no cell {index}")))?;
+        let node = model
+            .node(a.node)
+            .ok_or_else(|| Error::internal_invariant("notebook cell node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(notebook_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::notebook_node_text(&model, &source, a.node, &node)?)
+            }
+            _ => AnswerValue::Json(Self::notebook_cell_descriptor(&model, &source, index, &a)?),
+        };
+        Ok(self.notebook_answer(
+            req,
+            value,
+            format!("notebook;cell={index}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn notebook_cell_type(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let a = model
+            .cell(index)
+            .cloned()
+            .ok_or_else(|| Error::unsupported_feature(format!("notebook has no cell {index}")))?;
+        let node = model
+            .node(a.cell_type_node)
+            .ok_or_else(|| Error::internal_invariant("notebook cell_type node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let cell_type = notebook_cell_type_of(&model, &source, a.node)?.unwrap_or_default();
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(notebook_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(cell_type.clone()),
+            _ => AnswerValue::Json(format!(
+                "{{\"index\":{index},\"cell_type\":\"{}\"}}",
+                json_escape(&cell_type)
+            )),
+        };
+        Ok(self.notebook_answer(
+            req,
+            value,
+            format!("notebook;cell={index};cell_type={cell_type}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn notebook_cell_source(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        use crate::adapter::notebook::{ABSENT, SRC_LINES, SRC_STRING, source_form_name};
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let a = model
+            .cell(index)
+            .cloned()
+            .ok_or_else(|| Error::unsupported_feature(format!("notebook has no cell {index}")))?;
+        if a.source_node == ABSENT {
+            return Err(Error::unsupported_feature(format!(
+                "notebook cell {index} has no source"
+            )));
+        }
+        let node = model
+            .node(a.source_node)
+            .ok_or_else(|| Error::internal_invariant("notebook source node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(notebook_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => match a.source_form {
+                // A string source is returned decoded (its text, not its token).
+                SRC_STRING => AnswerValue::Text(json_decode_string(&source, &node)?),
+                // An array-of-lines source is returned as its canonical JSON array —
+                // never re-joined or normalized (representation preserved).
+                SRC_LINES => AnswerValue::Text(crate::adapter::json::subtree_text(
+                    &model.json,
+                    &source,
+                    a.source_node,
+                )?),
+                _ => AnswerValue::Text(String::new()),
+            },
+            _ => AnswerValue::Json(format!(
+                "{{\"cell\":{index},\"form\":\"{}\",\"span\":[{},{}],\"elements\":{},\"bytes\":{}}}",
+                source_form_name(a.source_form),
+                node.start,
+                node.end,
+                if a.source_form == SRC_LINES {
+                    node.children.len()
+                } else {
+                    1
+                },
+                node.end - node.start,
+            )),
+        };
+        Ok(self.notebook_answer(
+            req,
+            value,
+            format!("notebook;cell={index};source"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn notebook_cell_output(
+        &mut self,
+        req: &ObserveRequest,
+        cell: u32,
+        index: u32,
+    ) -> Result<FieldAnswer> {
+        use crate::adapter::notebook::output_class_of;
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let a = model
+            .cell(cell)
+            .cloned()
+            .ok_or_else(|| Error::unsupported_feature(format!("notebook has no cell {cell}")))?;
+        let out = *a.outputs.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("notebook cell {cell} has no output {index}"))
+        })?;
+        let node = model
+            .node(out)
+            .ok_or_else(|| Error::internal_invariant("notebook output node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(notebook_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::notebook_node_text(&model, &source, out, &node)?)
+            }
+            _ => {
+                let oty = notebook_output_type_of(&model, &source, out)?.unwrap_or_default();
+                let mut fields: Vec<String> = vec![format!(
+                    "\"cell\":{cell},\"index\":{index},\"output_type\":\"{}\",\"span\":[{},{}]",
+                    json_escape(&oty),
+                    node.start,
+                    node.end,
+                )];
+                match output_class_of(&oty) {
+                    crate::adapter::notebook::O_STREAM => {
+                        let name = match notebook_member_string_value(&model, &source, out, "name")?
+                        {
+                            Some(s) => opt_str_json(Some(s.as_str())),
+                            None => "null".to_string(),
+                        };
+                        let text_form = match notebook_object_member(&model, &source, out, "text")?
+                        {
+                            Some(t) => {
+                                let tn = model.node(t).ok_or_else(|| {
+                                    Error::internal_invariant("notebook stream text out of range")
+                                })?;
+                                if tn.kind == crate::adapter::json::K_STRING {
+                                    "string"
+                                } else if tn.kind == crate::adapter::json::K_ARRAY {
+                                    "lines"
+                                } else {
+                                    "other"
+                                }
+                            }
+                            None => "null",
+                        };
+                        fields.push(format!("\"name\":{name}"));
+                        fields.push(format!("\"text_form\":\"{text_form}\""));
+                    }
+                    crate::adapter::notebook::O_EXECUTE_RESULT => {
+                        let exec =
+                            Self::notebook_member_literal(&model, &source, out, "execution_count")?;
+                        let data = Self::notebook_keys_json(&model, &source, out, "data")?;
+                        fields.push(format!("\"execution_count\":{exec}"));
+                        fields.push(format!("\"data_keys\":{data}"));
+                    }
+                    crate::adapter::notebook::O_DISPLAY_DATA => {
+                        let data = Self::notebook_keys_json(&model, &source, out, "data")?;
+                        fields.push(format!("\"data_keys\":{data}"));
+                    }
+                    crate::adapter::notebook::O_ERROR => {
+                        let ename =
+                            match notebook_member_string_value(&model, &source, out, "ename")? {
+                                Some(s) => opt_str_json(Some(s.as_str())),
+                                None => "null".to_string(),
+                            };
+                        let evalue =
+                            match notebook_member_string_value(&model, &source, out, "evalue")? {
+                                Some(s) => opt_str_json(Some(s.as_str())),
+                                None => "null".to_string(),
+                            };
+                        let tb = match notebook_object_member(&model, &source, out, "traceback")? {
+                            Some(t) => {
+                                let tn = model.node(t).ok_or_else(|| {
+                                    Error::internal_invariant("notebook traceback out of range")
+                                })?;
+                                if tn.kind == crate::adapter::json::K_ARRAY {
+                                    tn.children.len().to_string()
+                                } else {
+                                    "null".to_string()
+                                }
+                            }
+                            None => "null".to_string(),
+                        };
+                        fields.push(format!("\"ename\":{ename}"));
+                        fields.push(format!("\"evalue\":{evalue}"));
+                        fields.push(format!("\"traceback\":{tb}"));
+                    }
+                    _ => {}
+                }
+                AnswerValue::Json(format!("{{{}}}", fields.join(",")))
+            }
+        };
+        Ok(self.notebook_answer(
+            req,
+            value,
+            format!("notebook;cell={cell};output={index}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over notebook keys and string values, reusing the
+    /// shared JSON match vocabulary.
+    fn notebook_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let matches = notebook_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "notebook find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"pointer\":\"{}\",\"role\":\"{}\",\"kind\":\"string\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("notebook;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.notebook_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_notebook(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.notebook_common_metadata(req),
+            Selector::Text => self.notebook_common_text(req),
+            Selector::SearchMatch(p) => self.notebook_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "notebook does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn notebook_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let text = notebook_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.notebook_answer(
+            req,
+            AnswerValue::Text(text),
+            "notebook;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn notebook_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let value = AnswerValue::Json(Self::notebook_metadata_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.notebook_answer(
+            req,
+            value,
+            "notebook;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

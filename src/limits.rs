@@ -650,6 +650,28 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.23).
     pub max_gis_document_bytes: u64,
+    // The Jupyter notebook caps below bound the derived, span-preserving notebook model
+    // (Phase 21.24). A notebook's physical bytes are JSON, so the shared JSON parser's
+    // caps also apply; these add the semantic bounds on top. A notebook is not a
+    // package: the whole source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum cell count accepted across one notebook. An over-large document
+    /// declines typed rather than allocating (Phase 21.24).
+    pub max_notebook_cells: u32,
+    /// Maximum total output count accepted across one notebook (every code cell's
+    /// `outputs` array) (Phase 21.24).
+    pub max_notebook_outputs: u32,
+    /// Maximum embedded JSON node count accepted for one notebook, in addition to the
+    /// JSON caps the shared parser already enforces (Phase 21.24).
+    pub max_notebook_nodes: u32,
+    /// Maximum notebook structural nesting depth accepted (Phase 21.24).
+    pub max_notebook_depth: u32,
+    /// Maximum aggregate cell `source` token bytes accepted across one notebook
+    /// (Phase 21.24).
+    pub max_notebook_source_bytes: u64,
+    /// Maximum source length admitted for byte-based notebook detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.24).
+    pub max_notebook_document_bytes: u64,
 }
 
 impl Limits {
@@ -843,6 +865,12 @@ impl Limits {
         max_gis_nodes: 1 << 24,
         max_gis_text_bytes: 1 << 28,
         max_gis_document_bytes: 1 << 34,
+        max_notebook_cells: 1 << 20,
+        max_notebook_outputs: 1 << 22,
+        max_notebook_nodes: 1 << 24,
+        max_notebook_depth: 256,
+        max_notebook_source_bytes: 1 << 28,
+        max_notebook_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1035,6 +1063,12 @@ impl Limits {
         max_gis_nodes: 1 << 16,
         max_gis_text_bytes: 1 << 20,
         max_gis_document_bytes: 1 << 26,
+        max_notebook_cells: 1 << 12,
+        max_notebook_outputs: 1 << 12,
+        max_notebook_nodes: 1 << 16,
+        max_notebook_depth: 64,
+        max_notebook_source_bytes: 1 << 20,
+        max_notebook_document_bytes: 1 << 26,
     };
 }
 

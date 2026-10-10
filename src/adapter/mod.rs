@@ -36,6 +36,8 @@ pub mod jsonl;
 pub mod markdown;
 #[cfg(feature = "msgpack")]
 pub mod msgpack;
+#[cfg(feature = "notebook")]
+pub mod notebook;
 #[cfg(feature = "odp")]
 pub mod odp;
 #[cfg(feature = "ods")]

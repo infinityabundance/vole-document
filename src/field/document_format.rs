@@ -269,6 +269,20 @@ pub enum DocumentFormat {
     /// geometry `coordinates`, GPX `lat`/`lon`), and the namespace declaration is a
     /// `Q_gen` projection (Phase 21.23).
     Gis,
+    /// A Jupyter notebook (`.ipynb`, nbformat) document. A notebook's physical bytes
+    /// are JSON, so its bytes are shared with [`DocumentFormat::Json`]; the recorded
+    /// `nbformat`/`nbformat_minor` and the cell anchors live in the model, exactly as a
+    /// feed records its dialect. Detection is a **bounded semantic test** run before the
+    /// generic JSON detector: the source parses as exactly one JSON value whose root is
+    /// an object with a plain non-negative integer-literal `nbformat` (≥ 1) and an array
+    /// `cells`, every cell an object with a string `cell_type`, and every present
+    /// recognized field nbformat-shaped. A plain JSON document, and a JSON document that
+    /// merely has a `cells` key but is not nbformat-shaped, stay
+    /// [`DocumentFormat::Json`]. Not a package: the exact leaf is the whole source, and
+    /// every JSON token span, the exact `cell_type`/`output_type` strings, the exact
+    /// `source` representation, and the cell/output order are `Q_gen` projections
+    /// (Phase 21.24).
+    Notebook,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -303,6 +317,7 @@ impl DocumentFormat {
             DocumentFormat::Feed => "feed",
             DocumentFormat::Geojson => "geojson",
             DocumentFormat::Gis => "gis",
+            DocumentFormat::Notebook => "notebook",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -336,6 +351,7 @@ impl DocumentFormat {
             DocumentFormat::Feed => "feed",
             DocumentFormat::Geojson => "geojson",
             DocumentFormat::Gis => "gis",
+            DocumentFormat::Notebook => "notebook",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -369,6 +385,7 @@ impl DocumentFormat {
             DocumentFormat::Feed => cfg!(feature = "feed"),
             DocumentFormat::Geojson => cfg!(feature = "geojson"),
             DocumentFormat::Gis => cfg!(feature = "gis"),
+            DocumentFormat::Notebook => cfg!(feature = "notebook"),
         }
     }
 
@@ -412,6 +429,7 @@ impl DocumentFormat {
             "feed" => Some(DocumentFormat::Feed),
             "geojson" => Some(DocumentFormat::Geojson),
             "gis" => Some(DocumentFormat::Gis),
+            "notebook" => Some(DocumentFormat::Notebook),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -474,6 +492,22 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "geojson")]
     if crate::adapter::geojson::detect(source, limits) {
         return DocumentFormat::Geojson;
+    }
+    // A Jupyter notebook (`.ipynb`, nbformat) is the **document-shaped** Wave-2 format
+    // (Phase 21.24), whose physical bytes are JSON, so it is a **bounded semantic
+    // sub-detection** run **before** the generic JSON detector below: the source must
+    // parse as exactly one JSON value that is an nbformat-shaped object — a plain
+    // non-negative integer-literal `nbformat` (≥ 1), an array `cells`, every cell an
+    // object with a string `cell_type`, and every present recognized field
+    // nbformat-shaped (a string-or-array-of-strings `source`, a number-or-null
+    // `execution_count`, object `metadata`/`attachments`, an array `outputs` of objects
+    // with a string `output_type`). A more specific claim than a bare JSON value, so it
+    // is tried first; a plain JSON document, and a JSON document that merely has a
+    // `cells` key but is not nbformat-shaped, decline here and are then claimed by the
+    // JSON detector (staying `Json`). Prose and malformed input stay `Opaque`.
+    #[cfg(feature = "notebook")]
+    if crate::adapter::notebook::detect(source, limits) {
+        return DocumentFormat::Notebook;
     }
     #[cfg(feature = "json")]
     if crate::adapter::json::detect(source, limits) {
@@ -916,6 +950,7 @@ mod tests {
             DocumentFormat::Feed,
             DocumentFormat::Geojson,
             DocumentFormat::Gis,
+            DocumentFormat::Notebook,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

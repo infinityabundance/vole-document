@@ -260,6 +260,14 @@ const GIS_NATIVE: &[&str] = &[
     "gis-point",
     "gis-find",
 ];
+const NOTEBOOK_NATIVE: &[&str] = &[
+    "notebook-nbformat",
+    "notebook-cell",
+    "notebook-cell-type",
+    "notebook-cell-source",
+    "notebook-cell-output",
+    "notebook-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -559,6 +567,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 GIS_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Notebook => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                NOTEBOOK_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

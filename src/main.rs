@@ -123,6 +123,9 @@ const USAGE_FIELD: &str = "\
         --geojson-find PATTERN |
         --gis-root | --gis-field NAME | --gis-record N |
         --gis-record-field N:NAME | --gis-point N | --gis-find PATTERN |
+        --notebook-nbformat | --notebook-cell N | --notebook-cell-type N |
+        --notebook-cell-source N | --notebook-cell-output N:M |
+        --notebook-find PATTERN |
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
@@ -1738,6 +1741,28 @@ struct FieldArgs {
     /// values (Phase 21.23).
     #[cfg(feature = "gis")]
     gis_find: Option<String>,
+    /// `--notebook-nbformat`: the Jupyter notebook's `nbformat` (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_nbformat: bool,
+    /// `--notebook-cell N`: the N-th (0-based) notebook cell in document order
+    /// (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_cell: Option<u32>,
+    /// `--notebook-cell-type N`: the N-th cell's exact `cell_type` string
+    /// (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_cell_type: Option<u32>,
+    /// `--notebook-cell-source N`: the N-th cell's `source`, representation preserved
+    /// (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_cell_source: Option<u32>,
+    /// `--notebook-cell-output N:M`: the M-th output of the N-th cell (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_cell_output: Option<String>,
+    /// `--notebook-find PATTERN`: a lexical, case-sensitive search over notebook keys
+    /// and string values (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_find: Option<String>,
     /// `--yaml-path PATH`: resolve a dotted YAML path (optional leading `docN`),
     /// returning the node's kind/style, exact source span, and exact token bytes
     /// (Phase 21.6.1).
@@ -2467,6 +2492,45 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "gis")]
             "--gis-find" => {
                 out.gis_find = Some(field_arg_value(args, &mut i, "--gis-find", inline)?);
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-nbformat" => {
+                out.notebook_nbformat = true;
+                i += 1;
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-cell" => {
+                out.notebook_cell = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--notebook-cell", inline)?,
+                    "--notebook-cell",
+                )?);
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-cell-type" => {
+                out.notebook_cell_type = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--notebook-cell-type", inline)?,
+                    "--notebook-cell-type",
+                )?);
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-cell-source" => {
+                out.notebook_cell_source = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--notebook-cell-source", inline)?,
+                    "--notebook-cell-source",
+                )?);
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-cell-output" => {
+                out.notebook_cell_output = Some(field_arg_value(
+                    args,
+                    &mut i,
+                    "--notebook-cell-output",
+                    inline,
+                )?);
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-find" => {
+                out.notebook_find = Some(field_arg_value(args, &mut i, "--notebook-find", inline)?);
             }
             #[cfg(feature = "yaml")]
             "--yaml-path" => {
@@ -3265,6 +3329,48 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.gis_find {
             chosen.push(Selector::GisFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Notebook: `--notebook-nbformat` addresses the `nbformat`; `--notebook-cell N` a
+    // cell; `--notebook-cell-type N` a cell's `cell_type`; `--notebook-cell-source N` a
+    // cell's source; `--notebook-cell-output N:M` one output of one cell;
+    // `--notebook-find` a lexical search. Each stands alone (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    {
+        if out.notebook_nbformat {
+            chosen.push(Selector::NotebookNbformat);
+        }
+        if let Some(index) = out.notebook_cell {
+            chosen.push(Selector::NotebookCell { index });
+        }
+        if let Some(index) = out.notebook_cell_type {
+            chosen.push(Selector::NotebookCellType { index });
+        }
+        if let Some(index) = out.notebook_cell_source {
+            chosen.push(Selector::NotebookCellSource { index });
+        }
+        if let Some(spec) = &out.notebook_cell_output {
+            let (cell, index) = spec.split_once(':').ok_or_else(|| {
+                Error::usage(format!(
+                    "--notebook-cell-output {spec:?} must be CELL:OUTPUT (a cell ordinal and an output ordinal)"
+                ))
+            })?;
+            let cell: u32 = cell.parse().map_err(|_| {
+                Error::usage(format!(
+                    "--notebook-cell-output {spec:?} has a bad cell ordinal {cell:?}"
+                ))
+            })?;
+            let index: u32 = index.parse().map_err(|_| {
+                Error::usage(format!(
+                    "--notebook-cell-output {spec:?} has a bad output ordinal {index:?}"
+                ))
+            })?;
+            chosen.push(Selector::NotebookCellOutput { cell, index });
+        }
+        if let Some(pattern) = &out.notebook_find {
+            chosen.push(Selector::NotebookFind {
                 pattern: pattern.clone(),
             });
         }

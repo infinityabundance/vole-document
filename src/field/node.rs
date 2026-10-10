@@ -338,6 +338,22 @@ pub enum NodeKind {
     /// (its single dependency is the `DocumentExact` root, keyed by `sha256(source)`
     /// per ADR-0060); a GIS document has no package layer. Derived, never exact.
     GisModel = 0x38,
+    /// The canonical, representation-preserving Jupyter notebook (`.ipynb`, nbformat)
+    /// model (Phase 21.24): the whole source parsed by the **shared JSON parser** into a
+    /// span-preserving JSON arena (exact token spans, member order, duplicate keys,
+    /// numeric/escape spelling) plus the notebook semantic anchors — the exact
+    /// `nbformat`/`nbformat_minor` tokens, the root `metadata` object node, and the
+    /// ordered cell anchors. Every cell preserves its exact `cell_type` string
+    /// (`code`/`markdown`/`raw`, or any other), its `source` **exactly as written** (a
+    /// single string or an array of line strings, never re-joined or normalized), its
+    /// `execution_count`/`metadata`/`attachments` when present, and its ordered
+    /// `outputs` with each output's exact `output_type` string
+    /// (`stream`/`execute_result`/`display_data`/`error`, or any other) and every field
+    /// token, including a `stream` `text` and an `execute_result`/`display_data` `data`
+    /// representation. It is computed on demand from the exact source (its single
+    /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+    /// a notebook has no package layer. Derived, never exact.
+    NotebookModel = 0x39,
 }
 
 impl NodeKind {
@@ -400,6 +416,7 @@ impl NodeKind {
             0x36 => NodeKind::FeedModel,
             0x37 => NodeKind::GeojsonModel,
             0x38 => NodeKind::GisModel,
+            0x39 => NodeKind::NotebookModel,
             _ => return None,
         })
     }
@@ -463,6 +480,7 @@ impl NodeKind {
             NodeKind::FeedModel => "FeedModel",
             NodeKind::GeojsonModel => "GeojsonModel",
             NodeKind::GisModel => "GisModel",
+            NodeKind::NotebookModel => "NotebookModel",
         }
     }
 

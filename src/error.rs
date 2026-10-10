@@ -133,6 +133,15 @@ pub enum ErrorClass {
     /// or with no `metadata`/`wpt`/`rte`/`trk` child, or a root that is not a KML/GPX
     /// document (so it stays `Xml`/`Opaque`).
     InvalidGisStructure,
+    /// A Jupyter notebook structure error (Phase 21.24+): a source that is not a single
+    /// JSON value, a root that is not an object with a plain non-negative integer-literal
+    /// `nbformat` (≥ 1) and an array `cells`, a cell that is not an object with a string
+    /// `cell_type`, a present-but-malformed recognized cell field (a `source` that is not
+    /// a string or array of strings, an `execution_count` that is neither a number nor
+    /// `null`, a non-object `metadata`/`attachments`, an `outputs` that is not an array of
+    /// objects with a string `output_type`), or a non-object root `metadata` — so it stays
+    /// `Json`/`Opaque` rather than being claimed.
+    InvalidNotebookStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -177,6 +186,7 @@ impl ErrorClass {
             ErrorClass::InvalidFeedStructure => 35,
             ErrorClass::InvalidGeojsonStructure => 36,
             ErrorClass::InvalidGisStructure => 37,
+            ErrorClass::InvalidNotebookStructure => 38,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -220,6 +230,7 @@ impl ErrorClass {
             ErrorClass::InvalidFeedStructure => "InvalidFeedStructure",
             ErrorClass::InvalidGeojsonStructure => "InvalidGeojsonStructure",
             ErrorClass::InvalidGisStructure => "InvalidGisStructure",
+            ErrorClass::InvalidNotebookStructure => "InvalidNotebookStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -317,6 +328,7 @@ impl Error {
     ctor!(invalid_feed_structure, InvalidFeedStructure);
     ctor!(invalid_geojson_structure, InvalidGeojsonStructure);
     ctor!(invalid_gis_structure, InvalidGisStructure);
+    ctor!(invalid_notebook_structure, InvalidNotebookStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

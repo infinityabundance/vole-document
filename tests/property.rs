@@ -573,6 +573,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_gis_nodes: 1 << 30,
         max_gis_text_bytes: 1 << 50,
         max_gis_document_bytes: 1 << 50,
+        max_notebook_cells: 1 << 30,
+        max_notebook_outputs: 1 << 30,
+        max_notebook_nodes: 1 << 30,
+        max_notebook_depth: 1 << 20,
+        max_notebook_source_bytes: 1 << 50,
+        max_notebook_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

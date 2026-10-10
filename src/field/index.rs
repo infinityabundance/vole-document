@@ -351,6 +351,21 @@ pub const SEL_GEOJSON_MODEL: u8 = 35;
 /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
 /// a GIS document has no package layer. Derived, never exact.
 pub const SEL_GIS_MODEL: u8 = 36;
+/// Selector kind: the canonical Jupyter notebook (`.ipynb`, nbformat) model
+/// (Phase 21.24).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed by the **shared JSON parser** into a bounded,
+/// representation-preserving JSON arena (exact token spans, member order,
+/// duplicate keys, numeric/escape spelling) plus the notebook semantic anchors —
+/// the exact `nbformat`/`nbformat_minor` tokens, the root `metadata` object node,
+/// and the ordered cell anchors (each cell's exact `cell_type` string, its `source`
+/// in its exact representation, `execution_count`, `metadata`, `attachments`, and
+/// its ordered `outputs` with each output's exact `output_type` string and fields).
+/// It is computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a notebook has no
+/// package layer. Derived, never exact.
+pub const SEL_NOTEBOOK_MODEL: u8 = 37;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;
