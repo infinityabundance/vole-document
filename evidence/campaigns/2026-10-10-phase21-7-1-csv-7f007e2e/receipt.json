@@ -1,0 +1,23 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-7-1-csv-7f007e2e",
+  "phase": "21.7.1 — CSV/TSV tabular surface + exact closure + model",
+  "utc": "2026-10-10T11:39:04Z",
+  "measured_commit": "7f007e2e11d1240f638fd10d8ebd3df2751dea33",
+  "tree_state": "?? evidence/campaigns/2026-10-10-identity-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase12-removal-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-1-xlsx-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-3-ods-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-4-1-odp-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-5-1-json-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-6-1-yaml-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-7-1-csv-7f007e2e/ ",
+  "service": "doc-baseline",
+  "profile": "debug",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "dcfad49a927c2f96c47515c5ec00fdde7b116fc563373483fee754af4af92cd1",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "fixtures": "basic.csv quoted.csv crlf.csv bom.csv ragged.csv tsv.tsv large.csv plain.txt malformed.csv onecol.csv",
+  "fixture_tool": "tools/fixtures/make-csv.py (stdlib only)",
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "observations": ["metadata", "text", "table", "cell", "search-match", "native csv-row", "native csv-cell", "native csv-header", "native csv-range", "native csv-find"],
+  "declines": "unsupported common pairs decline typed (rc 6); a plain-text, one-column, or malformed document is Opaque (rc 6), never a panic",
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "adr_0060": "the CsvModel node depends on the DocumentExact root (sha256(source)); no source-reading node aliases another field's source",
+  "verdict": "PASS"
+}

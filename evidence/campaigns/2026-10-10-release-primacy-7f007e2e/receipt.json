@@ -1,0 +1,147 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-release-primacy-7f007e2e",
+  "phase": "release primacy — exactness + ADR-0060 cross-field identity courts",
+  "commit": "7f007e2e11d1240f638fd10d8ebd3df2751dea33",
+  "short_commit": "7f007e2e",
+  "branch": "main",
+  "tag": "v0.1.0-alpha.33",
+  "invariant": "materialize(descriptor)==original_bytes and materialize(field_root)==original_bytes after source AND descriptor deletion, in a fresh process; checked as length + SHA-256 + cmp",
+  "verdict": "PASS",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "dcfad49a927c2f96c47515c5ec00fdde7b116fc563373483fee754af4af92cd1",
+  "courts": [
+    {
+      "name": "ADR-0060 permanent cross-field identity court",
+      "script": "tools/identity-court.sh",
+      "service": "doc-baseline",
+      "verdict": "PASS",
+      "exact_n": 12,
+      "exact_total": 12,
+      "unit": "checks",
+      "campaign": "evidence/campaigns/2026-10-10-identity-7f007e2e"
+    },
+    {
+      "name": "Phase 12.10 source-removal / restart court",
+      "script": "tools/phase12-removal-court.sh",
+      "service": "doc-baseline",
+      "verdict": "PASS",
+      "exact_n": 38,
+      "exact_total": 38,
+      "unit": "assertions",
+      "formats": ["pdf", "docx", "epub"],
+      "campaign": "evidence/campaigns/2026-10-10-phase12-removal-7f007e2e"
+    },
+    {
+      "name": "Phase 21.1.1 XLSX",
+      "script": "tools/phase21-1-xlsx-court.sh",
+      "service": "doc-baseline",
+      "verdict": "PASS",
+      "exact_n": 2,
+      "exact_total": 2,
+      "unit": "fixtures",
+      "campaign": "evidence/campaigns/2026-10-10-phase21-1-xlsx-7f007e2e"
+    },
+    {
+      "name": "Phase 21.3.1 ODS",
+      "script": "tools/phase21-3-1-ods-court.sh",
+      "service": "doc-baseline",
+      "verdict": "PASS",
+      "exact_n": 8,
+      "exact_total": 8,
+      "unit": "fixtures",
+      "campaign": "evidence/campaigns/2026-10-10-phase21-3-ods-7f007e2e"
+    },
+    {
+      "name": "Phase 21.4.1 ODP",
+      "script": "tools/phase21-4-1-odp-court.sh",
+      "service": "doc-baseline",
+      "verdict": "PASS",
+      "exact_n": 6,
+      "exact_total": 6,
+      "unit": "fixtures",
+      "campaign": "evidence/campaigns/2026-10-10-phase21-4-1-odp-7f007e2e"
+    },
+    {
+      "name": "Phase 21.5.1 JSON",
+      "script": "tools/phase21-5-1-json-court.sh",
+      "service": "doc-baseline",
+      "verdict": "PASS",
+      "exact_n": 8,
+      "exact_total": 8,
+      "unit": "fixtures",
+      "campaign": "evidence/campaigns/2026-10-10-phase21-5-1-json-7f007e2e"
+    },
+    {
+      "name": "Phase 21.6.1 YAML",
+      "script": "tools/phase21-6-1-yaml-court.sh",
+      "service": "doc-baseline",
+      "verdict": "PASS",
+      "exact_n": 10,
+      "exact_total": 10,
+      "unit": "fixtures",
+      "campaign": "evidence/campaigns/2026-10-10-phase21-6-1-yaml-7f007e2e"
+    },
+    {
+      "name": "Phase 21.7.1 CSV/TSV",
+      "script": "tools/phase21-7-1-csv-court.sh",
+      "service": "doc-baseline",
+      "verdict": "PASS",
+      "exact_n": 10,
+      "exact_total": 10,
+      "unit": "fixtures",
+      "campaign": "evidence/campaigns/2026-10-10-phase21-7-1-csv-7f007e2e",
+      "note": "completed after a long quadratic metadata observation on large.csv; see findings[0]"
+    },
+    {
+      "name": "Phase 21.5.3 stratified real-world multi-format smoke",
+      "script": "tools/realformats-smoke-court.sh",
+      "service": "doc-baseline",
+      "verdict": "PASS",
+      "exact_n": 12,
+      "exact_total": 12,
+      "unit": "samples",
+      "skipped": 0,
+      "campaign": "evidence/campaigns/2026-10-10-realformats-smoke-7f007e2e"
+    }
+  ],
+  "identity_court": {
+    "campaign": "evidence/campaigns/2026-10-10-identity-7f007e2e",
+    "invariant": "observation is a pure function of the field content id (NodeId)",
+    "cases": ["interleave", "programs", "edit", "cache-clear", "crash"],
+    "checks": {
+      "cache_clear_materialize_exact": true,
+      "cache_clear_same_answers": true,
+      "crash_recovery_build_exact": true,
+      "crash_store_reopens_no_wrong_bytes": true,
+      "edit_new_field_shows_marker": true,
+      "edit_no_other_field_affected": true,
+      "edit_original_field_unchanged": true,
+      "interleave_field_ids_independent": true,
+      "interleave_observations_equal": true,
+      "programs_identical_observations": true,
+      "programs_materialize_exact_source": true,
+      "programs_no_aliasing_other_document": true
+    },
+    "pass": 12,
+    "total": 12
+  },
+  "findings": [
+    {
+      "severity": "performance (non-blocking for exactness; primacy invariant NOT falsified)",
+      "summary": "csv_common_metadata computes the modal column count in O(records^2); the 50 MiB large.csv fixture (1,471,685 records) makes the CSV court's first observation take ~15 min.",
+      "location": "src/field/observe.rs:10212-10258 (loop at ~10220-10230)",
+      "root_cause": "for r in &model.records { let freq = model.records.iter().filter(|x| x.fields.len() == n).count(); ... } — a full re-scan of all records for every record.",
+      "measured_scaling_release_binary": {"50000": 1.047, "100000": 4.060, "200000": 16.028, "unit": "seconds", "ratio_per_doubling": "~4x (quadratic)"},
+      "observed": "a first run bounded at 15 min did not terminate (100% CPU, 0 bytes emitted on large.csv.metadata.json); a re-run with a larger bound completed and the court passed 10/10.",
+      "recommendation": "single-pass field-count histogram => O(records). NOT applied, because the courts must measure the unmodified release binary."
+    }
+  ],
+  "exactness_totals": {
+    "adapter_fixtures": {"exact": 44, "total": 44},
+    "removal_formats": {"exact": 3, "total": 3, "assertions": 38},
+    "real_world_samples": {"exact": 12, "total": 12, "skipped": 0},
+    "identity_checks": {"pass": 12, "total": 12}
+  },
+  "environment": "evidence/campaigns/2026-10-10-release-primacy-7f007e2e/environment.json",
+  "commands": "evidence/campaigns/2026-10-10-release-primacy-7f007e2e/commands.txt"
+}

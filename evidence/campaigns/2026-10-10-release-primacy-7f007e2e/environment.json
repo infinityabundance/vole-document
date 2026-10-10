@@ -1,0 +1,34 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-release-primacy-7f007e2e",
+  "phase": "release primacy — exactness + ADR-0060 cross-field identity courts",
+  "utc": "2026-10-10T12:00:00Z",
+  "measured_commit": "7f007e2e11d1240f638fd10d8ebd3df2751dea33",
+  "short_commit": "7f007e2e",
+  "branch": "main",
+  "tag": "v0.1.0-alpha.33",
+  "head_check": "git rev-parse HEAD == 7f007e2e11d1240f638fd10d8ebd3df2751dea33",
+  "tree_state": "clean at checkout; left dirty with new evidence/campaigns/2026-10-10-*-7f007e2e/ (see git status --short)",
+  "services": ["dev", "doc-baseline"],
+  "base_images": {
+    "BASE_STABLE": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "BASE_MSRV": "rust:1.89-slim-bookworm@sha256:d7fc7de78bb8c1469933aeecbf801314d30d7d6e9f0578bba4cfa285bfa37fe6",
+    "BASE_TOOLS": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+    "BASE_FUZZ": "rustlang/rust:nightly-bookworm-slim-2026-10-04@sha256:58f725c9459a637c19ddf24542d2aee7d93704684c9780b168e81504327ad297",
+    "note": "BASE_STABLE is the FROM of the dev/doc-baseline chain actually used here; the others are recorded for completeness from Dockerfile ARGs."
+  },
+  "built_images": {
+    "doc-baseline": "vole-document/doc-baseline:1.99.0 sha256:12de62c9ef3e4a292021358dec5755c68e2477a443de8cc1dc7cc7b6bf22f981",
+    "dev": "vole-document/dev:1.99.0 sha256:79f3ea2ad94b8f0b4e58692cbaf3e53eb2ef484add34a7b6e96004bb2e48b2c0"
+  },
+  "toolchain": {
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "python": "Python 3.11.2",
+    "arch": "x86_64"
+  },
+  "cargo_lock_sha256": "7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "dcfad49a927c2f96c47515c5ec00fdde7b116fc563373483fee754af4af92cd1",
+  "env_affecting_semantics": {"LC_ALL": "C"},
+  "caps_note": "No container cap was raised. compose.yaml mem_limit==memswap_limit per service; one cargo/CPU job at a time."
+}

@@ -1,0 +1,27 @@
+# Phase 12.10 source-removal / restart court — exact commands
+# Commit under test: 7f007e2e11d1240f638fd10d8ebd3df2751dea33 (branch main); dirty: ?? evidence/campaigns/2026-10-10-identity-7f007e2e/;?? evidence/campaigns/2026-10-10-phase12-removal-7f007e2e/;
+# Run (UTC): 2026-10-10T11:05:10Z
+# Base image (ARG BASE_STABLE): rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e
+# Service image: vole-document/db-baseline:1.99.0
+# Generator image: vole-document/producers:bookworm (python 3.11.2)
+# rustc 1.99.0, cargo 1.99.0 (5f94df478 2026-08-27), arch x86_64
+# Cargo.lock sha256: 7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927
+# All commands run inside pinned images; nothing on the host except git + docker.
+
+# 1) deterministic triplet (stdlib only, no VOLE code):
+docker compose run --rm --no-TTY producers python3 tools/fixtures/doc-triplet-gen.py evidence/scratch/phase12-triplet
+
+# 2) the court:
+docker compose run --rm --no-TTY db-baseline sh tools/phase12-removal-court.sh
+
+# Inside the court, per format in pdf/docx/epub:
+#   cp report.FMT WORK/source.FMT
+#   vole-document encode --force raw WORK/source.FMT WORK/source.FMT.voldoc
+#   vole-document field-ingest WORK/source.FMT.voldoc --store WORK/store
+#   <record length + sha256 of WORK/source.FMT>
+#   rm -f WORK/source.FMT WORK/source.FMT.voldoc          # source + descriptor gone
+#   vole-document find    --store WORK/store --field FIELD --text XF12A
+#   vole-document observe --store WORK/store --field FIELD --doc-text --kind text
+#   vole-document observe --store WORK/store --field FIELD <native|common selector>
+#   vole-document materialize --store WORK/store --field FIELD --exact --output OUT
+#   cmp OUT raw/FMT.source    # equal

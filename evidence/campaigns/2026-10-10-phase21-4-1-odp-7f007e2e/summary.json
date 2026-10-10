@@ -1,0 +1,7 @@
+{
+  "fixtures": 6,
+  "exact_ok": 6,
+  "exact_fail": 0,
+  "typed_declines_ok": 5,
+  "bomb_declines_ok": 1
+}

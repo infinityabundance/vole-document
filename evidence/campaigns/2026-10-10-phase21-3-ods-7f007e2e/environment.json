@@ -1,0 +1,30 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-3-ods-7f007e2e",
+  "phase": "21.3.1 — ODS ODF/XML surface + exact closure + model",
+  "utc": "2026-10-10T11:05:23Z",
+  "git_commit": "7f007e2e11d1240f638fd10d8ebd3df2751dea33",
+  "git_dirty": "?? evidence/campaigns/2026-10-10-identity-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase12-removal-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-1-xlsx-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-3-ods-7f007e2e/ ",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python3": "Python 3.11.2",
+  "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+  "cargo_lock_sha256": "7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "dcfad49a927c2f96c47515c5ec00fdde7b116fc563373483fee754af4af92cd1",
+  "profile": "debug",
+  "fixtures_tool": "tools/fixtures/make-ods.py",
+  "fixtures_sha256": {
+    "basic.ods": "2d16edfeb07d5fe3a66060163bdd95b85450d85c995dd27a0afcb03ae1cc668f",
+    "multi.ods": "f53a8b26a7964c68ffb253ac349bb0b5dbea347201d24590e68a283692f0bbcb",
+    "values.ods": "0416f37fae8ade84c4ab2eeb225557c92ad5c86fcd206c7707c7a39de17c3d40",
+    "merged.ods": "d6d494a0d094cbc4520d240f099ac97602eea151f0b59681e813eb7f2dabe948",
+    "named.ods": "0cc2f833b146e0958b9f229f1565240326bce38c35513a5c0d03f0e66f789b21",
+    "comments.ods": "55dc0b8bed3193967949f05c5c3eb1bf190c94b0f4b072320e9b4e0b376c6e24",
+    "styles.ods": "8de504519e8abdbc57e9e000f4a737b06f8aa9bd3ea6873226151d9c5cdb33d2",
+    "bomb.ods": "65a66aba3ae4de6a2b768d7912e0e7b8064a0f756a147fd7c2b5bf68bfcbe4f0"
+  },
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

@@ -1,0 +1,22 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-3-ods-7f007e2e",
+  "phase": "21.3.1 — ODS ODF/XML surface + exact closure + model",
+  "utc": "2026-10-10T11:05:23Z",
+  "measured_commit": "7f007e2e11d1240f638fd10d8ebd3df2751dea33",
+  "tree_state": "?? evidence/campaigns/2026-10-10-identity-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase12-removal-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-1-xlsx-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-3-ods-7f007e2e/ ",
+  "service": "doc-baseline",
+  "profile": "debug",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "dcfad49a927c2f96c47515c5ec00fdde7b116fc563373483fee754af4af92cd1",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "fixtures": "basic.ods multi.ods values.ods merged.ods named.ods comments.ods styles.ods bomb.ods",
+  "fixture_tool": "tools/fixtures/make-ods.py (stdlib only; no odfpy)",
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "observations": ["metadata", "text", "table", "cell", "native ods-sheet", "native ods-cell", "native ods-find", "native ods-styles", "native ods-named-expressions", "native ods-comments"],
+  "declines": "unsupported common pairs decline typed (rc 6); a repeated-row bomb declines typed (rc 8)",
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "verdict": "PASS"
+}

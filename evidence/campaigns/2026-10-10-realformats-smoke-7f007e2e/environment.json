@@ -1,0 +1,17 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-realformats-smoke-7f007e2e",
+  "phase": "21.5.3 — stratified real-world multi-format smoke",
+  "utc": "2026-10-10T11:39:52Z",
+  "measured_commit": "7f007e2e11d1240f638fd10d8ebd3df2751dea33",
+  "tree_state": "?? evidence/campaigns/2026-10-10-identity-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase12-removal-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-1-xlsx-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-3-ods-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-4-1-odp-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-5-1-json-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-6-1-yaml-7f007e2e/ ?? evidence/campaigns/2026-10-10-phase21-7-1-csv-7f007e2e/ ?? evidence/campaigns/2026-10-10-realformats-smoke-7f007e2e/ ",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "arch": "x86_64",
+  "bin": "./target/debug/vole-document",
+  "bin_sha256": "dcfad49a927c2f96c47515c5ec00fdde7b116fc563373483fee754af4af92cd1",
+  "manifest_sha256": "8e23e0a36d6ca5884e907904782f9d4260d8e6fe0365a1d51d100fb73648e7a9",
+  "driver_sha256": "72f7e68c3a98ec3d92548d5b24c69938fc6bb27721b751d80f9792eb0bb29568"
+}
