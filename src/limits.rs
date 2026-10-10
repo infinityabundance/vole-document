@@ -104,6 +104,11 @@ pub struct Limits {
     pub max_xml_attrs_per_element: u32,
     /// Maximum total text bytes accepted across a single XML part (Phase 12, §2).
     pub max_xml_text_bytes: u64,
+    /// Maximum source length admitted for byte-based standalone XML detection
+    /// (Phase 21.9). A bare XML source above this cap — whose adapter reads the
+    /// whole source as one `DocumentExact` — falls back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`].
+    pub max_xml_document_bytes: u64,
     /// Maximum relationships across all `.rels` parts (Phase 12, §3).
     pub max_opc_rels: u32,
     /// Maximum internal relationship traversal depth (Phase 12 cycles, §3).
@@ -384,6 +389,7 @@ impl Limits {
         max_xml_nodes: 1 << 24,
         max_xml_attrs_per_element: 4096,
         max_xml_text_bytes: 1 << 28,
+        max_xml_document_bytes: 1 << 34,
         max_opc_rels: 1 << 20,
         max_opc_rel_depth: 64,
         max_opc_content_types_overrides: 1 << 20,
@@ -497,6 +503,7 @@ impl Limits {
         max_xml_nodes: 1 << 16,
         max_xml_attrs_per_element: 256,
         max_xml_text_bytes: 1 << 20,
+        max_xml_document_bytes: 1 << 26,
         max_opc_rels: 1 << 14,
         max_opc_rel_depth: 16,
         max_opc_content_types_overrides: 1 << 12,

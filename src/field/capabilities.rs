@@ -193,6 +193,13 @@ const YAML_NATIVE: &[&str] = &[
 ];
 const CSV_NATIVE: &[&str] = &["csv-row", "csv-cell", "csv-header", "csv-range", "csv-find"];
 const MARKDOWN_NATIVE: &[&str] = &["md-heading", "md-block", "md-code", "md-link", "md-find"];
+const XML_NATIVE: &[&str] = &[
+    "xml-path",
+    "xml-element",
+    "xml-attr",
+    "xml-namespaces",
+    "xml-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -359,6 +366,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 MARKDOWN_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Xml => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                XML_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

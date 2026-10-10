@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!-- a comment -->
+<?target some data?>
+<r>
+  <cdata><![CDATA[a < b && c > d]]></cdata>
+  <ents>a &amp; b &lt; c</ents>
+</r>

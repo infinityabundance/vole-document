@@ -84,6 +84,14 @@ use crate::adapter::pptx::{
 use crate::adapter::xlsx::{
     SheetModel as XlsxSheetModel, WorkbookModel as XlsxWorkbookModel, XlsxExtractProfile, XlsxModel,
 };
+#[cfg(feature = "xml")]
+use crate::adapter::xml::{
+    XmlModel, attr_name as xml_attr_name, attr_value_bytes as xml_attr_value_bytes,
+    canonical_text as xml_canonical_text, element_name as xml_element_name,
+    find as xml_find_matches, kind_name as xml_kind_name, namespaces as xml_namespaces,
+    resolve_attr as xml_resolve_attr, resolve_path as xml_resolve_path,
+    subtree_text as xml_subtree_text, token_bytes as xml_token_bytes,
+};
 #[cfg(feature = "yaml")]
 use crate::adapter::yaml::{
     K_ALIAS as YAML_K_ALIAS, K_MAP as YAML_K_MAP, K_SCALAR as YAML_K_SCALAR, K_SEQ as YAML_K_SEQ,
@@ -119,6 +127,8 @@ use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::SEL_PPTX_MODEL;
 #[cfg(feature = "xlsx")]
 use crate::field::index::SEL_XLSX_MODEL;
+#[cfg(feature = "xml")]
+use crate::field::index::SEL_XML_MODEL;
 #[cfg(feature = "yaml")]
 use crate::field::index::SEL_YAML_MODEL;
 use crate::field::index::{
@@ -776,6 +786,42 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A standalone-XML element addressed by a simple element path
+    /// (`/a/b[2]/c`; `""` is the root element) (Phase 21.9). The answer reports
+    /// the element's qualified name, exact source span, and (for `ExactBytes`) its
+    /// exact bytes. XML has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "xml")]
+    XmlPath {
+        /// The element path (`""` is the root element).
+        path: String,
+    },
+    /// An element's structural view (Phase 21.9): kind, name, exact spans, and each
+    /// attribute's name/value/full span. Same addressing as [`Selector::XmlPath`].
+    #[cfg(feature = "xml")]
+    XmlElement {
+        /// The element path (`""` is the root element).
+        path: String,
+    },
+    /// An XML attribute addressed as `PATH@NAME` (`@NAME` addresses the root's
+    /// attribute) (Phase 21.9). `ExactBytes` returns the quoted value's exact
+    /// source bytes; `Text` the raw (unexpanded) value; `Metadata`/`Structure` a
+    /// descriptor with the name/value/full spans and the namespace flag.
+    #[cfg(feature = "xml")]
+    XmlAttr {
+        /// The `PATH@NAME` reference.
+        spec: String,
+    },
+    /// Every namespace declaration (`xmlns`/`xmlns:prefix`) in document order
+    /// (Phase 21.9): prefix, URI, carrying element, and exact declaration span.
+    #[cfg(feature = "xml")]
+    XmlNamespaces,
+    /// A lexical, case-sensitive search over element names, attribute names and
+    /// values, and character data (Phase 21.9). Never an embedding or a model call.
+    #[cfg(feature = "xml")]
+    XmlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
 }
 
 impl Selector {
@@ -1084,6 +1130,16 @@ impl Selector {
             Selector::MdLink { index } => format!("md-link:{index}"),
             #[cfg(feature = "markdown")]
             Selector::MdFind { pattern } => format!("md-find:{pattern}"),
+            #[cfg(feature = "xml")]
+            Selector::XmlPath { path } => format!("xml-path:{path}"),
+            #[cfg(feature = "xml")]
+            Selector::XmlElement { path } => format!("xml-element:{path}"),
+            #[cfg(feature = "xml")]
+            Selector::XmlAttr { spec } => format!("xml-attr:{spec}"),
+            #[cfg(feature = "xml")]
+            Selector::XmlNamespaces => "xml-namespaces".to_string(),
+            #[cfg(feature = "xml")]
+            Selector::XmlFind { pattern } => format!("xml-find:{pattern}"),
         }
     }
 
@@ -2925,6 +2981,27 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "markdown")]
             (Selector::MdFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.md_find(req, pattern)
+            }
+            #[cfg(feature = "xml")]
+            (Selector::XmlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.xml_path(req, path)
+            }
+            #[cfg(feature = "xml")]
+            (
+                Selector::XmlElement { path },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.xml_element(req, path),
+            #[cfg(feature = "xml")]
+            (Selector::XmlAttr { spec }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.xml_attr(req, spec)
+            }
+            #[cfg(feature = "xml")]
+            (Selector::XmlNamespaces, R::Text | R::Metadata | R::Structure) => {
+                self.xml_namespaces(req)
+            }
+            #[cfg(feature = "xml")]
+            (Selector::XmlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.xml_find(req, pattern)
             }
             _ => Err(Error::unsupported_feature(format!(
                 "unsupported observation: selector {} with representation {}",
@@ -8097,6 +8174,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Yaml => self.common_yaml(req)?,
             DocumentFormat::Csv => self.common_csv(req)?,
             DocumentFormat::Markdown => self.common_markdown(req)?,
+            DocumentFormat::Xml => self.common_xml(req)?,
             DocumentFormat::Opaque => {
                 return Err(Error::unsupported_feature(
                     "opaque fields have no common observations",
@@ -8447,6 +8525,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_markdown(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "Markdown observations require a build with the markdown feature",
+        ))
+    }
+
+    #[cfg(not(feature = "xml"))]
+    fn common_xml(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "XML observations require a build with the xml feature",
         ))
     }
 
@@ -10696,6 +10781,389 @@ fn opt_json(s: Option<&str>) -> String {
     match s {
         Some(x) => format!("\"{}\"", json_escape(x)),
         None => "null".to_string(),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// XML observations (Phase 21.9)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "xml")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the XML structured-tree model (derived, `Q_gen`).
+    fn xml_model(&mut self) -> Result<(XmlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_XML_MODEL, 0), "XML model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((XmlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn xml_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn xml_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// Resolve an element path and answer per representation: `ExactBytes` returns
+    /// the element's whole exact source bytes; `Text` the element's character data
+    /// (raw, entity references unexpanded); `Metadata`/`Structure` a descriptor with
+    /// the qualified name, exact spans, and the attribute count.
+    fn xml_path(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let r = xml_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("XML path resolved out of range"))?
+            .clone();
+        let name = xml_element_name(&source, &node)?.to_string();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "xml;path={path};kind={};name={};matches={}",
+            xml_kind_name(node.kind),
+            name,
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(xml_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model, &source, r.index)?),
+            _ => {
+                let text = xml_subtree_text(&model, &source, r.index)?;
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"path\":\"{}\",\"kind\":\"{}\",\"name\":\"{}\",",
+                        "\"span\":[{},{}],\"open_span\":[{},{}],\"close_span\":[{},{}],",
+                        "\"matches\":{},\"attrs\":{},\"text\":\"{}\"}}"
+                    ),
+                    json_escape(path),
+                    xml_kind_name(node.kind),
+                    json_escape(&name),
+                    node.start,
+                    node.end,
+                    node.start,
+                    node.open_end,
+                    node.close_start,
+                    node.end,
+                    r.matches,
+                    node.attrs.len(),
+                    json_escape(&text),
+                ))
+            }
+        };
+        Ok(self.xml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The structural view of an element: name, spans, child count, and each
+    /// attribute's name/value/spans (in source order).
+    fn xml_element(&mut self, req: &ObserveRequest, path: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let r = xml_resolve_path(&model, &source, path)?;
+        let node = model
+            .node(r.index)
+            .ok_or_else(|| Error::internal_invariant("XML element resolved out of range"))?
+            .clone();
+        let name = xml_element_name(&source, &node)?.to_string();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "xml;element={path};name={name};children={};attrs={}",
+            node.children.len(),
+            node.attrs.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(xml_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model, &source, r.index)?),
+            _ => AnswerValue::Json(self.xml_element_structure(&model, &source, path, &node)?),
+        };
+        Ok(self.xml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn xml_element_structure(
+        &self,
+        model: &XmlModel,
+        source: &[u8],
+        path: &str,
+        node: &crate::adapter::xml::XNode,
+    ) -> Result<String> {
+        let name = xml_element_name(source, node)?;
+        let mut attrs: Vec<String> = Vec::new();
+        for &a in &node.attrs {
+            let attr = model
+                .attr(a)
+                .ok_or_else(|| Error::internal_invariant("XML attribute out of range"))?;
+            let an = xml_attr_name(source, attr)?;
+            let av = core::str::from_utf8(xml_attr_value_bytes(source, attr)?)
+                .map_err(|_| Error::internal_invariant("XML attribute value is not UTF-8"))?;
+            attrs.push(format!(
+                concat!(
+                    "{{\"name\":\"{}\",\"value\":\"{}\",",
+                    "\"name_span\":[{},{}],\"value_span\":[{},{}],\"span\":[{},{}],",
+                    "\"ns\":{}}}"
+                ),
+                json_escape(an),
+                json_escape(av),
+                attr.name_start,
+                attr.name_end,
+                attr.value_start,
+                attr.value_end,
+                attr.span_start,
+                attr.span_end,
+                attr.is_ns != 0,
+            ));
+        }
+        let mut children: Vec<String> = Vec::new();
+        for &c in &node.children {
+            let cn = model
+                .node(c)
+                .ok_or_else(|| Error::internal_invariant("XML child out of range"))?;
+            children.push(format!(
+                "{{\"kind\":\"{}\",\"span\":[{},{}]}}",
+                xml_kind_name(cn.kind),
+                cn.start,
+                cn.end
+            ));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"path\":\"{}\",\"kind\":\"element\",\"name\":\"{}\",",
+                "\"span\":[{},{}],\"open_span\":[{},{}],\"close_span\":[{},{}],",
+                "\"ns_decl\":{},\"attrs\":[{}],\"children\":[{}]}}"
+            ),
+            json_escape(path),
+            json_escape(name),
+            node.start,
+            node.end,
+            node.start,
+            node.open_end,
+            node.close_start,
+            node.end,
+            node.ns_decl,
+            attrs.join(","),
+            children.join(","),
+        ))
+    }
+
+    /// Resolve `PATH@NAME` and answer per representation: `ExactBytes` returns the
+    /// attribute's exact quoted value bytes; `Text` the raw (unexpanded) value;
+    /// `Metadata`/`Structure` a descriptor with the name/value/spans and the
+    /// namespace flag.
+    fn xml_attr(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let ra = xml_resolve_attr(&model, &source, spec)?;
+        let attr = model
+            .attr(ra.index)
+            .ok_or_else(|| Error::internal_invariant("XML attribute resolved out of range"))?
+            .clone();
+        let name = xml_attr_name(&source, &attr)?.to_string();
+        let value = core::str::from_utf8(xml_attr_value_bytes(&source, &attr)?)
+            .map_err(|_| Error::internal_invariant("XML attribute value is not UTF-8"))?
+            .to_string();
+        let span = Some((attr.span_start, attr.span_end));
+        let provenance = format!("xml;attr={spec};name={name};matches={}", ra.matches);
+        let answer = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(xml_attr_value_bytes(&source, &attr)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(value.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"spec\":\"{}\",\"name\":\"{}\",\"value\":\"{}\",",
+                    "\"name_span\":[{},{}],\"value_span\":[{},{}],\"span\":[{},{}],",
+                    "\"matches\":{},\"ns\":{}}}"
+                ),
+                json_escape(spec),
+                json_escape(&name),
+                json_escape(&value),
+                attr.name_start,
+                attr.name_end,
+                attr.value_start,
+                attr.value_end,
+                attr.span_start,
+                attr.span_end,
+                ra.matches,
+                attr.is_ns != 0,
+            )),
+        };
+        Ok(self.xml_answer(req, answer, provenance, span, vec![model_id, root]))
+    }
+
+    /// Every namespace declaration in document order.
+    fn xml_namespaces(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let decls = xml_namespaces(&model, &source)?;
+        let provenance = format!("xml;namespaces={}", decls.len());
+        let answer = match req.representation {
+            Representation::Text => {
+                let mut lines: Vec<String> = Vec::new();
+                for d in &decls {
+                    lines.push(format!("{}={}", d.prefix, d.uri));
+                }
+                AnswerValue::Text(lines.join("\n"))
+            }
+            _ => {
+                let mut out: Vec<String> = Vec::new();
+                for d in &decls {
+                    out.push(format!(
+                        concat!(
+                            "{{\"prefix\":\"{}\",\"uri\":\"{}\",",
+                            "\"element\":{},\"span\":[{},{}]}}"
+                        ),
+                        json_escape(&d.prefix),
+                        json_escape(&d.uri),
+                        d.element,
+                        d.start,
+                        d.end,
+                    ));
+                }
+                AnswerValue::Json(format!("{{\"namespaces\":[{}]}}", out.join(",")))
+            }
+        };
+        Ok(self.xml_answer(req, answer, provenance, None, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over element names, attribute names/values, and
+    /// character data; each match reports its element path, role, and exact span.
+    fn xml_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let matches = xml_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "XML find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"path\":\"{}\",\"role\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.path),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("xml;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.xml_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_xml(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.xml_common_metadata(req),
+            Selector::Text => self.xml_common_text(req),
+            Selector::SearchMatch(p) => self.xml_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "XML does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn xml_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let text = xml_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.xml_answer(
+            req,
+            AnswerValue::Text(text),
+            "xml;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn xml_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xml_model()?;
+        let (source, root) = self.xml_source()?;
+        let mut elements = 0u64;
+        let mut text_nodes = 0u64;
+        let mut cdata = 0u64;
+        let mut comments = 0u64;
+        let mut pis = 0u64;
+        let mut doctypes = 0u64;
+        for n in &model.nodes {
+            match n.kind {
+                crate::adapter::xml::K_ELEMENT => elements += 1,
+                crate::adapter::xml::K_TEXT => text_nodes += 1,
+                crate::adapter::xml::K_CDATA => cdata += 1,
+                crate::adapter::xml::K_COMMENT => comments += 1,
+                crate::adapter::xml::K_PI => pis += 1,
+                crate::adapter::xml::K_DOCTYPE => doctypes += 1,
+                _ => {}
+            }
+        }
+        let ns = xml_namespaces(&model, &source)?.len();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"xml\",\"nodes\":{},\"elements\":{},",
+                "\"attrs\":{},\"text\":{},\"cdata\":{},\"comments\":{},",
+                "\"pi\":{},\"doctype\":{},\"namespaces\":{},",
+                "\"max_depth\":{},\"bytes\":{}}}"
+            ),
+            model.nodes.len(),
+            elements,
+            model.attrs.len(),
+            text_nodes,
+            cdata,
+            comments,
+            pis,
+            doctypes,
+            ns,
+            model.max_depth,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.xml_answer(
+            req,
+            value,
+            "xml;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
     }
 }
 

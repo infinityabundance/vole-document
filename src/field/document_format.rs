@@ -137,6 +137,11 @@ pub enum DocumentFormat {
     /// reference definition, or a footnote definition). Not a package: the exact
     /// leaf is the whole source (Phase 21.8.1).
     Markdown,
+    /// A standalone XML document (the whole source begins with `<` and parses as
+    /// well-formed XML with exactly one root element under the XML caps). Not a
+    /// package: the exact leaf is the whole source, and every node/attribute span
+    /// is a `Q_gen` projection (Phase 21.9).
+    Xml,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -157,6 +162,7 @@ impl DocumentFormat {
             DocumentFormat::Yaml => "yaml",
             DocumentFormat::Csv => "csv",
             DocumentFormat::Markdown => "markdown",
+            DocumentFormat::Xml => "xml",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -176,6 +182,7 @@ impl DocumentFormat {
             DocumentFormat::Yaml => "yaml",
             DocumentFormat::Csv => "csv",
             DocumentFormat::Markdown => "markdown",
+            DocumentFormat::Xml => "xml",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -195,6 +202,7 @@ impl DocumentFormat {
             DocumentFormat::Yaml => cfg!(feature = "yaml"),
             DocumentFormat::Csv => cfg!(feature = "csv"),
             DocumentFormat::Markdown => cfg!(feature = "markdown"),
+            DocumentFormat::Xml => cfg!(feature = "xml"),
         }
     }
 
@@ -224,6 +232,7 @@ impl DocumentFormat {
             "yaml" => Some(DocumentFormat::Yaml),
             "csv" => Some(DocumentFormat::Csv),
             "markdown" => Some(DocumentFormat::Markdown),
+            "xml" => Some(DocumentFormat::Xml),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -280,6 +289,17 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "markdown")]
     if crate::adapter::markdown::detect(source, limits) {
         return DocumentFormat::Markdown;
+    }
+    // XML is the structured-tree Wave-2 format for a bare XML source (Phase 21.9).
+    // It has no package layer and no magic bytes beyond `<`, so it is detected last
+    // and conservatively: only after the PDF/ZIP/JSON/YAML/CSV/Markdown families are
+    // declined, only when the source begins with `<` (an XML prolog or a root
+    // element start), and only when the whole source parses as well-formed XML with
+    // exactly one root element under the XML caps. `<-prefixed` junk and prose stay
+    // Opaque rather than being guessed to be XML.
+    #[cfg(feature = "xml")]
+    if crate::adapter::xml::detect(source, limits) {
+        return DocumentFormat::Xml;
     }
     DocumentFormat::Opaque
 }
@@ -473,6 +493,7 @@ mod tests {
             DocumentFormat::Yaml,
             DocumentFormat::Csv,
             DocumentFormat::Markdown,
+            DocumentFormat::Xml,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

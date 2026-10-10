@@ -115,7 +115,9 @@ const USAGE_FIELD: &str = "\
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
         --csv-find PATTERN |
         --md-heading N | --md-block N | --md-code N | --md-link N |
-        --md-find PATTERN) --kind metadata|text|structure|operators|
+        --md-find PATTERN |
+        --xml-path P | --xml-element P | --xml-attr PATH@NAME |
+        --xml-namespaces | --xml-find PATTERN) --kind metadata|text|structure|operators|
         encoded|decoded|exact|preview|lineage|full
     vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
         [--requests FILE|-] [--repeat N]
@@ -1646,6 +1648,25 @@ struct FieldArgs {
     /// (Phase 21.8.1).
     #[cfg(feature = "markdown")]
     md_find: Option<String>,
+    /// `--xml-path P`: resolve a simple element path (`/a/b[2]/c`; `""` is the root
+    /// element), returning the element's name, exact source span, and exact bytes
+    /// (Phase 21.9).
+    #[cfg(feature = "xml")]
+    xml_path: Option<String>,
+    /// `--xml-element P`: the structural view of an element (name, spans, attributes)
+    /// at the same path (Phase 21.9).
+    #[cfg(feature = "xml")]
+    xml_element: Option<String>,
+    /// `--xml-attr PATH@NAME`: an attribute's exact quoted value / spans (Phase 21.9).
+    #[cfg(feature = "xml")]
+    xml_attr: Option<String>,
+    /// `--xml-namespaces`: every namespace declaration in document order (Phase 21.9).
+    #[cfg(feature = "xml")]
+    xml_namespaces: bool,
+    /// `--xml-find`: a lexical, case-sensitive search over XML names/values/text
+    /// (Phase 21.9).
+    #[cfg(feature = "xml")]
+    xml_find: Option<String>,
     output: Option<PathBuf>,
     content: Option<PathBuf>,
     /// `observe-batch`: the request file (a path, or `-` for stdin; default stdin).
@@ -2131,6 +2152,27 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--md-find" => {
                 out.md_find = Some(field_arg_value(args, &mut i, "--md-find", inline)?);
             }
+            #[cfg(feature = "xml")]
+            "--xml-path" => {
+                out.xml_path = Some(field_arg_value(args, &mut i, "--xml-path", inline)?);
+            }
+            #[cfg(feature = "xml")]
+            "--xml-element" => {
+                out.xml_element = Some(field_arg_value(args, &mut i, "--xml-element", inline)?);
+            }
+            #[cfg(feature = "xml")]
+            "--xml-attr" => {
+                out.xml_attr = Some(field_arg_value(args, &mut i, "--xml-attr", inline)?);
+            }
+            #[cfg(feature = "xml")]
+            "--xml-namespaces" => {
+                out.xml_namespaces = true;
+                i += 1;
+            }
+            #[cfg(feature = "xml")]
+            "--xml-find" => {
+                out.xml_find = Some(field_arg_value(args, &mut i, "--xml-find", inline)?);
+            }
             "--output" => {
                 out.output = Some(PathBuf::from(field_arg_value(
                     args, &mut i, "--output", inline,
@@ -2555,6 +2597,29 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.md_find {
             chosen.push(Selector::MdFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // XML: `--xml-path`/`--xml-element` address a node by element path; `--xml-attr`
+    // addresses an attribute as `PATH@NAME`; `--xml-namespaces` lists declarations;
+    // `--xml-find` is a lexical search. Each stands alone (Phase 21.9).
+    #[cfg(feature = "xml")]
+    {
+        if let Some(path) = &out.xml_path {
+            chosen.push(Selector::XmlPath { path: path.clone() });
+        }
+        if let Some(path) = &out.xml_element {
+            chosen.push(Selector::XmlElement { path: path.clone() });
+        }
+        if let Some(spec) = &out.xml_attr {
+            chosen.push(Selector::XmlAttr { spec: spec.clone() });
+        }
+        if out.xml_namespaces {
+            chosen.push(Selector::XmlNamespaces);
+        }
+        if let Some(pattern) = &out.xml_find {
+            chosen.push(Selector::XmlFind {
                 pattern: pattern.clone(),
             });
         }

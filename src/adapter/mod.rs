@@ -28,6 +28,10 @@ pub mod pdf;
 pub mod pptx;
 #[cfg(feature = "xlsx")]
 pub mod xlsx;
+#[cfg(feature = "xml")]
+pub mod xml;
+#[cfg(feature = "xml")]
+pub(crate) mod xml_policy;
 #[cfg(feature = "yaml")]
 pub mod yaml;
 

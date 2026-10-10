@@ -71,6 +71,9 @@ __pycache__/
 # Phase 21.8 Markdown: the large generated fixture (regenerated at court time).
 /tools/fixtures/markdown/large.md
 
+# Phase 21.9 XML: the large generated fixture (regenerated at court time).
+/tools/fixtures/xml/large.xml
+
 # Phase 21.7.1 CSV court: a verbatim document-text observation of the ~50 MB
 # `large.csv` fixture is tens of MB. The court now writes the *uncapped* dump
 # only to gitignored scratch and commits a bounded receipt (text length +

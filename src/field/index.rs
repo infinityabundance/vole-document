@@ -197,6 +197,15 @@ pub const SEL_CSV_MODEL: u8 = 21;
 /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); Markdown has no
 /// package layer.
 pub const SEL_MARKDOWN_MODEL: u8 = 22;
+/// Selector kind: the canonical XML structured-tree model (Phase 21.9).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as well-formed XML into a bounded, representation-preserving
+/// arena (element/attribute/text/CDATA/comment/PI/DOCTYPE/namespace spans, in
+/// document order) as `Q_gen` derived state. It is computed on demand from the
+/// exact source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); XML has no package layer.
+pub const SEL_XML_MODEL: u8 = 23;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

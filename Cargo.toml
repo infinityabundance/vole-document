@@ -302,8 +302,14 @@ csv = []
 # never in `default`.
 markdown = []
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
-# both the OPC and EPUB cores. `quick-xml` only; adds **no** decoder behavior and is
-# never in `default` on its own (it is implied by `opc` and `epub`).
+# both the OPC and EPUB cores; Phase 21.9 also gates the standalone **XML adapter**
+# (the structured-tree format for a bare `.xml` source) on this same feature. The
+# policy is one place so every adapter hardens XML identically (`quick-xml`,
+# `default-features = false`: UTF-8 only, no DTD/entity resolver, no
+# `encoding_rs`). The adapter adds **no** decoder behavior — a standalone XML
+# source's exact leaf is the whole source (a `DocumentExact`) and every XML node
+# is `Q_gen` — so enabling it changes no `.voldoc` bytes. It is never in `default`
+# on its own (it is implied by `opc` and `epub`).
 xml = ["dep:quick-xml"]
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package

@@ -1,0 +1,4 @@
+<root xmlns="urn:default" xmlns:p="urn:p">
+  <child>plain</child>
+  <p:child p:attr="pv">prefixed</p:child>
+</root>

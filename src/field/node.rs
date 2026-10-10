@@ -193,6 +193,16 @@ pub enum NodeKind {
     /// root, keyed by `sha256(source)` per ADR-0060). Markdown has no package layer.
     /// Derived, never exact.
     MarkdownModel = 0x2A,
+    /// The canonical, representation-preserving XML structured-tree model
+    /// (Phase 21.9): every element's qualified-name/start-tag/end-tag/full span,
+    /// every attribute's name/quoted-value/inner-value/full span, every text run,
+    /// CDATA section, comment, processing instruction, DOCTYPE, and namespace
+    /// declaration, all in document order. Entity references are surfaced literally
+    /// (never expanded) and no DTD internal subset is processed. It is derived on
+    /// demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060). XML has no package layer.
+    /// Derived, never exact.
+    XmlModel = 0x2B,
 }
 
 impl NodeKind {
@@ -241,6 +251,7 @@ impl NodeKind {
             0x28 => NodeKind::YamlModel,
             0x29 => NodeKind::CsvModel,
             0x2A => NodeKind::MarkdownModel,
+            0x2B => NodeKind::XmlModel,
             _ => return None,
         })
     }
@@ -290,6 +301,7 @@ impl NodeKind {
             NodeKind::YamlModel => "YamlModel",
             NodeKind::CsvModel => "CsvModel",
             NodeKind::MarkdownModel => "MarkdownModel",
+            NodeKind::XmlModel => "XmlModel",
         }
     }
 
