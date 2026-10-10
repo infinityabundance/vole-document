@@ -20,7 +20,7 @@ phase results.
 - [The document field](architecture/document-field.md) — persistent, queryable representation.
 - [Observations and provenance](architecture/observations-and-provenance.md) — the typed observation algebra, `EXPLAIN`, and partial materialization.
 - [Persistence and caching](architecture/persistence-and-caching.md) — the seed DAG, stores, indexes, and the derived cache.
-- [Multi-format adapters](architecture/multi-format-adapters.md) — the shared ZIP layer and the PDF/DOCX/EPUB/ODT/XLSX/PPTX natives.
+- [Multi-format adapters](architecture/multi-format-adapters.md) — the shared ZIP layer and the PDF/DOCX/EPUB/ODT/XLSX/PPTX/ODS/ODP natives plus the Wave-2 structured/tabular/web/messaging/analytical adapters.
 
 ## Formats
 
@@ -37,6 +37,14 @@ Per-format authority boundaries, native inverse representation, and exactness.
 - [JSON](formats/json.md)
 - [YAML](formats/yaml.md)
 - [CSV/TSV](formats/csv.md)
+- [Markdown](formats/markdown.md)
+- [XML](formats/xml.md)
+- [HTML](formats/html.md)
+- [TOML](formats/toml.md)
+- [JSONL/NDJSON](formats/jsonl.md)
+- [EML/MIME](formats/eml.md)
+- [Parquet](formats/parquet.md)
+- [Arrow IPC](formats/arrow.md)
 
 ## Reference
 
@@ -69,9 +77,11 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   [Phase 25](phases/phase-25-results.md) (durability corrections: directory
   ancestry + unpublished-segment recovery); **in progress**:
   [Phase 21](phases/phase-21-plan.md) (format programme — **Wave 1 complete**: XLSX,
-  PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2 in
-  progress**: JSON, YAML and CSV/TSV done, Markdown/XML/… planned; also a
-  permanent cross-field identity court and a JSON-comparator correction); the Phase 22
+  PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2 listed
+  formats complete**: JSON, YAML, CSV/TSV, Markdown, XML, HTML, TOML, JSONL,
+  EML/MIME, Parquet and Arrow IPC adapters + economic courts; also a permanent
+  cross-field identity court, a stratified real-world court, and the JSON/YAML
+  span-preserving comparator corrections); the Phase 22
   programme is pre-registered in
   [phase-22-plan.md](phases/phase-22-plan.md).
 - [Independent reviews](reviews/) — adversarial skeptic findings.

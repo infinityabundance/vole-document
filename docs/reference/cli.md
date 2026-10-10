@@ -84,7 +84,15 @@ vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--p
     --odp-tables | --odp-find PATTERN |
     --json-pointer P | --json-node P | --json-find PATTERN |
     --yaml-path P | --yaml-node | --yaml-documents | --yaml-anchor NAME | --yaml-find PATTERN |
-    --csv-row N | --csv-cell R:C | --csv-cell R:COLNAME | --csv-header | --csv-range | --csv-find PATTERN)
+    --csv-row N | --csv-cell R:C | --csv-cell R:COLNAME | --csv-header | --csv-range | --csv-find PATTERN |
+    --md-heading N | --md-block N | --md-code | --md-link N | --md-find PATTERN |
+    --xml-path P | --xml-element | --xml-attr NAME | --xml-namespaces | --xml-find PATTERN |
+    --html-path P | --html-element | --html-attr NAME | --html-scripts | --html-find PATTERN |
+    --toml-path P | --toml-table | --toml-find PATTERN |
+    --jsonl-line N | --jsonl-pointer P | --jsonl-find PATTERN |
+    --eml-header NAME | --eml-part N | --eml-attachments | --eml-body | --eml-find PATTERN |
+    --parquet-schema | --parquet-column | --parquet-row-group | --parquet-cell |
+    --arrow-schema | --arrow-column | --arrow-batch | --arrow-cell)
     --kind KIND
 vole-document observe-batch --store DIR --field HEX [--entropyfs | --packed] [--promote[=BYTES]]
     [--requests FILE|-] [--repeat N]
@@ -130,6 +138,35 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
   `--csv-find`) need the non-default `csv` feature. Record/field bytes and the
   dialect are preserved; there is no CSV index, so the row/cell selectors are
   O(offset) bounded-memory scans.
+- The Markdown selectors (`--md-heading`, `--md-block`, `--md-code`, `--md-link`,
+  `--md-find`) need the non-default, dependency-free `markdown` feature. Blocks
+  carry exact source spans and bytes; the source is never re-flowed.
+- The XML selectors (`--xml-path`, `--xml-element`, `--xml-attr`,
+  `--xml-namespaces`, `--xml-find`) need the non-default `xml` feature. A DTD
+  internal subset is refused, so no entity is ever resolved.
+- The HTML selectors (`--html-path`, `--html-element`, `--html-attr`,
+  `--html-scripts`, `--html-find`) need the non-default, dependency-free `html`
+  feature. `script`/`style` content is captured as raw bytes, never executed; a
+  document-level HTML marker wins HTML over the XML fallback.
+- The TOML selectors (`--toml-path`, `--toml-table`, `--toml-find`) need the
+  non-default, dependency-free `toml` feature. Duplicate keys and table
+  redefinitions are typed declines, never silently collapsed.
+- The JSONL selectors (`--jsonl-line`, `--jsonl-pointer`, `--jsonl-find`) need the
+  non-default `jsonl` feature (which implies `json`). Each non-blank line must be
+  exactly one JSON value.
+- The EML selectors (`--eml-header`, `--eml-part`, `--eml-attachments`,
+  `--eml-body`, `--eml-find`) need the non-default, dependency-free `eml`
+  feature. Header spans/order/duplicates and the resolved MIME tree are preserved.
+- The Parquet selectors (`--parquet-schema`, `--parquet-column`,
+  `--parquet-row-group`, `--parquet-cell`) need the non-default, dependency-free
+  `parquet` feature. Unsupported codecs/encodings/types and bombs decline typed.
+- The Arrow selectors (`--arrow-schema`, `--arrow-column`, `--arrow-batch`,
+  `--arrow-cell`) need the non-default, dependency-free `arrow` feature. Nested
+  types, dictionary-encoded fields, big-endian bodies, and `BodyCompression`
+  decline typed.
+- The analytical formats (Parquet, Arrow IPC) and the tabular CSV/TSV court carry
+  the mandatory **DuckDB/Parquet** comparator; it wins the analytical axes, which
+  is recorded rather than hidden (ADR-0059).
 - `field-ingest` inverse-proceduralizes one `.voldoc` into a persistent field
   and prints its field id (`HEX`) and roots. The format is detected from bytes.
 - `observe` / `find` / `explain` / `preview` answer typed observations with

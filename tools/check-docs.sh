@@ -108,7 +108,14 @@ done
 note "OK: every ADR-NNNN reference resolves"
 
 # --- 1 + 4. internal Markdown links resolve ------------------------------
-md_files=$(find . -name '*.md' -not -path './target/*' -not -path './.git/*' -not -path './research/*')
+# `research/` is gitignored and intentionally excluded. Test fixtures and
+# pinned corpus/scratch data are Markdown *inputs* (whose link syntax is
+# deliberately not a real reference), not reader documentation, so they are
+# excluded from the reader-doc link scan too. Sealed receipts under
+# `evidence/campaigns/` remain scanned.
+md_files=$(find . -name '*.md' -not -path './target/*' -not -path './.git/*' \
+    -not -path './research/*' -not -path './tools/fixtures/*' \
+    -not -path './realformats-v1/*' -not -path './evidence/scratch/*')
 
 link_count=0
 for f in $md_files; do
