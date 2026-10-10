@@ -1,0 +1,7 @@
+fixture	vole_ok	sqlite_ok	conv_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+basic.xml	true	true	false	true	true	true	3353	20870
+namespaces.xml	true	true	false	true	true	true	3416	21374
+mixed.xml	true	true	false	true	true	true	3264	18356
+attrs.xml	true	true	false	true	true	true	4213	20064
+dtd.xml	true	true	false	true	true	true	3516	19391
+large.xml	true	true	false	true	true	true	11010	19508
