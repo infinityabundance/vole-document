@@ -24,12 +24,20 @@ The service is `FROM debian:bookworm-slim@sha256:3783cc…` (the same digest as 
 | `select-real100.py` | Deterministically builds the frozen selection → `sources/real100_selection.tsv`. |
 | `select-real100.sh` / `select-pilot.sh` | Acquisition drivers over the selection / pilot list. |
 | `verify.sh` | Gate: verifies every row, regenerates `SHA256SUMS`, optionally prints the diversity table. Exit non-zero on any hash/length/format mismatch. |
-| `formats-manifest.tsv` | **Phase 21.5.3 (FIX 4)** — a small pinned, checksummed set of *real-world* samples for the Wave-2 formats (XLSX, PPTX, ODS, ODP, JSON, YAML) from stable, permissively licensed public sources (Apache POI, odfpy, Natural Earth, Prometheus), pinned by tag/commit and by SHA-256. Bytes are gitignored. |
+| `formats-manifest.tsv` | A pinned, checksummed set of **52 real-world samples across 14 Wave-2 formats** (XLSX, PPTX, ODS, ODP, JSON, YAML, CSV, Markdown, XML, HTML, TOML, JSONL, EML, Parquet) from stable, permissively licensed public sources (Apache POI, odfpy, Natural Earth, Prometheus/Alertmanager, CommonMark, Apache Maven, MDN, serde/cargo, parquet-testing, openai-cookbook, CPython, jsonlines), pinned by tag/commit and by SHA-256, with a curated `complexity` stratum. Bytes are gitignored. |
+| `hostile-strata.tsv` | A pinned **malformed/hostile** stratum derived deterministically from pinned real bytes (truncation, wrong-magic, mid-structure corruption); each derived sample is pinned by SHA-256 so the derivation is falsifiable. |
 | `fetch-formats.sh` | Downloads + verifies the format manifest into gitignored `realformats-v1/documents/<format>/<id>` (`--check` verifies only). Never trusts the network: a length/SHA-256 mismatch fails. Runs in the `realcorpus` service. |
 
 The stratified smoke court for those samples is `tools/realformats-smoke-court.sh`
 (runs in `doc-baseline`); it reports **pooled costs alongside medians**, stratified
 by format and size class.
+
+The full **stratified real-world court** is `tools/realformats-stratified-court.sh`
+(runs in `analytical`, RELEASE VOLE); it ingests all 52 real samples plus the 8
+hostile derivations, asserts byte-exact closure from a deleted scratch copy in a
+fresh process, and reports **pooled costs alongside medians** per format, per size
+class, per complexity, and per stratum (real vs hostile), separated by **workload**
+(narrow `observe --metadata` vs full `materialize --exact`).
 
 ## Typical use
 
@@ -54,6 +62,12 @@ docker compose run --rm --no-TTY realcorpus python3 tools/realcorpus/check-diver
 # stratified smoke court (pooled costs alongside medians) in the doc-baseline lane.
 docker compose run --rm --no-TTY realcorpus sh tools/realcorpus/fetch-formats.sh
 docker compose run --rm --no-TTY doc-baseline bash tools/realformats-smoke-court.sh
+
+# Phase 21.15 (ITEM 2): acquire the 52-sample 14-format set, then run the full
+# stratified real-world court (pooled vs median per format/stratum/workload) in
+# the RELEASE analytical lane.
+docker compose run --rm --no-TTY realcorpus sh tools/realcorpus/fetch-formats.sh
+docker compose run --rm --no-TTY analytical bash tools/realformats-stratified-court.sh
 ```
 
 ## Format verification is by bytes

@@ -134,9 +134,11 @@ PY
     echo
     echo "## Scope (honest)"
     echo
-    echo "- **Bounded first step, not a population.** 12 real documents across 6"
-    echo "  formats; stratified by format and size class. It is a smoke court, not a"
-    echo "  claim about real-world distributions."
+    echo "- **Bounded first step, not the population.** It ingests the pinned samples"
+    echo "  in \`tools/realcorpus/formats-manifest.tsv\` (now 52 samples across 14"
+    echo "  formats), stratified by format and size class. The full stratified court"
+    echo "  (with a malformed/hostile stratum and a workload dimension) is"
+    echo "  \`tools/realformats-stratified-court.sh\` (Phase 21.15)."
     echo "- The samples come from stable, permissively licensed public sources (Apache"
     echo "  POI / odfpy / Natural Earth / Prometheus), pinned by tag or commit and by"
     echo "  SHA-256; the bytes are gitignored and re-verified on every acquisition."
