@@ -268,6 +268,17 @@ pub enum NodeKind {
     /// (its single dependency is the `DocumentExact` root, keyed by `sha256(source)`
     /// per ADR-0060). JSON5 has no package layer. Derived, never exact.
     Json5Model = 0x32,
+    /// The canonical, representation-preserving CBOR structured-tree model (Phase
+    /// 21.18): the same representation guarantees as [`NodeKind::JsonModel`] (exact
+    /// token spans, member order, duplicate keys) plus the CBOR-specific facts — the
+    /// major type of every item, the encoding width actually used (the head byte's
+    /// additional-information nibble), byte-vs-text string as distinct kinds, tag
+    /// numbers preserved verbatim (never resolved/expanded), float width
+    /// (half/single/double) with the IEEE-754 bits, simple values, and definite vs
+    /// indefinite-length items. It is derived on demand from the exact source (its
+    /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+    /// ADR-0060). CBOR has no package layer. Derived, never exact.
+    CborModel = 0x33,
 }
 
 impl NodeKind {
@@ -324,6 +335,7 @@ impl NodeKind {
             0x30 => NodeKind::ParquetModel,
             0x31 => NodeKind::ArrowModel,
             0x32 => NodeKind::Json5Model,
+            0x33 => NodeKind::CborModel,
             _ => return None,
         })
     }
@@ -381,6 +393,7 @@ impl NodeKind {
             NodeKind::ParquetModel => "ParquetModel",
             NodeKind::ArrowModel => "ArrowModel",
             NodeKind::Json5Model => "Json5Model",
+            NodeKind::CborModel => "CborModel",
         }
     }
 

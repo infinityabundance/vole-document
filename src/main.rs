@@ -112,6 +112,7 @@ const USAGE_FIELD: &str = "\
         --json-pointer PATH | --json-node PATH | --json-find PATTERN |
         --json5-pointer PATH | --json5-node PATH | --json5-find PATTERN |
         --json5-comments |
+        --cbor-pointer PATH | --cbor-node PATH | --cbor-find PATTERN |
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
@@ -1622,6 +1623,20 @@ struct FieldArgs {
     /// kind and exact span (Phase 21.17.1).
     #[cfg(feature = "json5")]
     json5_comments: bool,
+    /// `--cbor-pointer POINTER`: resolve an RFC 6901 pointer against the CBOR item
+    /// tree, returning the item's kind, exact source span, encoding width, and exact
+    /// token bytes (Phase 21.18).
+    #[cfg(feature = "cbor")]
+    cbor_pointer: Option<String>,
+    /// `--cbor-node POINTER`: the structural view of a CBOR item (kind, span,
+    /// encoding width, parent/child spans, map key/value kinds and spans) (Phase
+    /// 21.18).
+    #[cfg(feature = "cbor")]
+    cbor_node: Option<String>,
+    /// `--cbor-find`: a lexical, case-sensitive search over CBOR text keys/values
+    /// (Phase 21.18).
+    #[cfg(feature = "cbor")]
+    cbor_find: Option<String>,
     /// `--yaml-path PATH`: resolve a dotted YAML path (optional leading `docN`),
     /// returning the node's kind/style, exact source span, and exact token bytes
     /// (Phase 21.6.1).
@@ -2211,6 +2226,18 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--json5-comments" => {
                 out.json5_comments = true;
                 i += 1;
+            }
+            #[cfg(feature = "cbor")]
+            "--cbor-pointer" => {
+                out.cbor_pointer = Some(field_arg_value(args, &mut i, "--cbor-pointer", inline)?);
+            }
+            #[cfg(feature = "cbor")]
+            "--cbor-node" => {
+                out.cbor_node = Some(field_arg_value(args, &mut i, "--cbor-node", inline)?);
+            }
+            #[cfg(feature = "cbor")]
+            "--cbor-find" => {
+                out.cbor_find = Some(field_arg_value(args, &mut i, "--cbor-find", inline)?);
             }
             #[cfg(feature = "yaml")]
             "--yaml-path" => {
@@ -2832,6 +2859,27 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if out.json5_comments {
             chosen.push(Selector::Json5Comments);
+        }
+    }
+    // CBOR: `--cbor-pointer`/`--cbor-node` address an item by RFC 6901 pointer;
+    // `--cbor-find` is a lexical search over text keys/values. Each stands alone
+    // (Phase 21.18).
+    #[cfg(feature = "cbor")]
+    {
+        if let Some(pointer) = &out.cbor_pointer {
+            chosen.push(Selector::CborPointer {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pointer) = &out.cbor_node {
+            chosen.push(Selector::CborNode {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pattern) = &out.cbor_find {
+            chosen.push(Selector::CborFind {
+                pattern: pattern.clone(),
+            });
         }
     }
     // YAML: `--yaml-path`/`--yaml-node` address a node by dotted path;

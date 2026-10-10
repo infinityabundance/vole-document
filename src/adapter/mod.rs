@@ -6,6 +6,8 @@
 
 #[cfg(feature = "arrow")]
 pub mod arrow;
+#[cfg(feature = "cbor")]
+pub mod cbor;
 #[cfg(feature = "csv")]
 pub mod csv;
 #[cfg(feature = "docx")]

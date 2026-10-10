@@ -433,6 +433,30 @@ parquet = []
 # bytes and exactness is untouched. Dependency-free (`arrow = []`) and never in
 # `default`.
 arrow = []
+# Phase 21.18: the CBOR (RFC 8949) adapter — the **binary** structured-tree Wave-2
+# format. Like the other Wave-2 formats it is not a package (no OPC/ZIP layer):
+# the exact leaf is the whole source (a `DocumentExact`, RAW-like authority) and
+# every derived observation is a bounded, span-preserving (`Q_gen`) projection of
+# it. It adds a bounded, dependency-free CBOR reader that preserves representation
+# — exact byte spans for every token, the major type of every item, the encoding
+# width actually used (the head byte's additional-information nibble, so `0x1817`
+# is distinct from `0x17`), byte string vs text string as distinct kinds, tag
+# numbers preserved verbatim (never resolved/expanded), map key order and
+# duplicate keys, float width (half/single/double) with the IEEE-754 bits, simple
+# values, and definite vs indefinite-length items (the break-stop `0xff`).
+# Well-formedness is enforced (a trailing byte, an unterminated indefinite item, a
+# map key with no value, a reserved additional-information nibble, a non-minimal
+# simple value, or a non-UTF-8 text string is a typed decline, never a panic).
+# CBOR has **no magic bytes**, so detection is deliberately conservative: the
+# self-described-CBOR tag `55799` (`0xd9 0xd9 0xf7`), or a full-input well-formed
+# parse whose root is a container/tag and which is structurally non-trivial; every
+# other input stays `Opaque`. It adds **no** decoder behavior: the CBOR model is
+# never on the exactness path, so enabling it never changes `.voldoc` bytes and
+# exactness is untouched. Dependency-free (`cbor` pulls no external crate) and
+# never in `default`; it reuses the JSON adapter's shared structured-tree match
+# vocabulary ([`crate::adapter::json::MatchRole`], pointer escaping), so it
+# implies `json`.
+cbor = ["json"]
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

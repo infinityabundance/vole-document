@@ -100,6 +100,11 @@ pub enum ErrorClass {
     /// unterminated string/comment/container, a bad escape or identifier, or a
     /// trailing byte after the single top-level value.
     InvalidJson5Structure,
+    /// A CBOR structure error (Phase 21.18+): a malformed head (reserved additional
+    /// information, a non-minimal simple value), a truncated item, trailing bytes
+    /// after the single top-level item, an unterminated indefinite-length item, a
+    /// map key with no value, or a text string that is not valid UTF-8.
+    InvalidCborStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -138,6 +143,7 @@ impl ErrorClass {
             ErrorClass::InvalidParquetStructure => 29,
             ErrorClass::InvalidArrowStructure => 30,
             ErrorClass::InvalidJson5Structure => 31,
+            ErrorClass::InvalidCborStructure => 32,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -175,6 +181,7 @@ impl ErrorClass {
             ErrorClass::InvalidParquetStructure => "InvalidParquetStructure",
             ErrorClass::InvalidArrowStructure => "InvalidArrowStructure",
             ErrorClass::InvalidJson5Structure => "InvalidJson5Structure",
+            ErrorClass::InvalidCborStructure => "InvalidCborStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -266,6 +273,7 @@ impl Error {
     ctor!(invalid_parquet_structure, InvalidParquetStructure);
     ctor!(invalid_arrow_structure, InvalidArrowStructure);
     ctor!(invalid_json5_structure, InvalidJson5Structure);
+    ctor!(invalid_cbor_structure, InvalidCborStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

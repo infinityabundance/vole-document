@@ -458,6 +458,16 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["Json5Model", "DocumentExact"]),
             will_not_materialize: kinds(&["other-nodes", "whole-document"]),
         }),
+        #[cfg(feature = "cbor")]
+        (Selector::CborPointer { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::CborNode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::CborFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["CborModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-nodes", "whole-document"]),
+        }),
         #[cfg(feature = "yaml")]
         (Selector::YamlPath { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
         | (Selector::YamlNode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
@@ -607,6 +617,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Eml => &["EmlModel", "DocumentExact"],
         DocumentFormat::Parquet => &["ParquetModel", "DocumentExact"],
         DocumentFormat::ArrowIpc => &["ArrowModel", "DocumentExact"],
+        DocumentFormat::Cbor => &["CborModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

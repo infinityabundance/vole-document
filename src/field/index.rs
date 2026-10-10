@@ -275,6 +275,17 @@ pub const SEL_ARROW_MODEL: u8 = 29;
 /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
 /// JSON5 has no package layer. Derived, never exact.
 pub const SEL_JSON5_MODEL: u8 = 30;
+/// Selector kind: the canonical CBOR (RFC 8949) structured-tree model (Phase 21.18).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as exactly one CBOR item into a bounded,
+/// representation-preserving arena (each item's kind, exact byte span, encoding
+/// width, tag number, float width, definite/indefinite form, and ordered children —
+/// map member order and duplicate keys kept verbatim) as `Q_gen` derived state. It
+/// is computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); CBOR has no
+/// package layer. Derived, never exact.
+pub const SEL_CBOR_MODEL: u8 = 31;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

@@ -229,6 +229,7 @@ const PARQUET_NATIVE: &[&str] = &[
     "parquet-cell",
 ];
 const ARROW_NATIVE: &[&str] = &["arrow-schema", "arrow-column", "arrow-batch", "arrow-cell"];
+const CBOR_NATIVE: &[&str] = &["cbor-pointer", "cbor-node", "cbor-find"];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -474,6 +475,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 ARROW_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Cbor => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                CBOR_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

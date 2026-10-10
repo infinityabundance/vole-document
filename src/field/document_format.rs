@@ -194,6 +194,21 @@ pub enum DocumentFormat {
     /// record-batch inventory (with each batch's exact source span) and any decoded
     /// columnar values are `Q_gen` projections (Phase 21.16).
     ArrowIpc,
+    /// A CBOR (RFC 8949) structured-tree document. CBOR has **no magic bytes**, so
+    /// detection is deliberately conservative: either the self-described-CBOR tag
+    /// `55799` (`0xd9 0xd9 0xf7`) at the start of a source that then parses, in full,
+    /// as exactly one well-formed CBOR item; or a full-input well-formed parse whose
+    /// root is a container (array/map) or a tag and which reaches at least three
+    /// nodes (so a single scalar, an empty container, and any structurally trivial
+    /// input stay `Opaque`). A container head byte is always `>= 0x80`, so a
+    /// pure-ASCII text document is never claimed; and the whole-number/short-
+    /// container prefix overlaps MessagePack's fixint/fixarray encodings, so an
+    /// ambiguous or trivial input stays `Opaque` rather than being guessed
+    /// (recorded honestly; a Phase-21.19 MessagePack adapter must share the seam).
+    /// Not a package: the exact leaf is the whole source, and every item's kind,
+    /// exact span, encoding width, tag number, float width, and definite/indefinite
+    /// form are `Q_gen` projections (Phase 21.18).
+    Cbor,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -222,6 +237,7 @@ impl DocumentFormat {
             DocumentFormat::Eml => "eml",
             DocumentFormat::Parquet => "parquet",
             DocumentFormat::ArrowIpc => "arrow",
+            DocumentFormat::Cbor => "cbor",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -249,6 +265,7 @@ impl DocumentFormat {
             DocumentFormat::Eml => "eml",
             DocumentFormat::Parquet => "parquet",
             DocumentFormat::ArrowIpc => "arrow",
+            DocumentFormat::Cbor => "cbor",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -276,6 +293,7 @@ impl DocumentFormat {
             DocumentFormat::Eml => cfg!(feature = "eml"),
             DocumentFormat::Parquet => cfg!(feature = "parquet"),
             DocumentFormat::ArrowIpc => cfg!(feature = "arrow"),
+            DocumentFormat::Cbor => cfg!(feature = "cbor"),
         }
     }
 
@@ -313,6 +331,7 @@ impl DocumentFormat {
             "eml" => Some(DocumentFormat::Eml),
             "parquet" => Some(DocumentFormat::Parquet),
             "arrow" => Some(DocumentFormat::ArrowIpc),
+            "cbor" => Some(DocumentFormat::Cbor),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -391,6 +410,24 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "jsonl")]
     if crate::adapter::jsonl::detect(source, limits) {
         return DocumentFormat::Jsonl;
+    }
+    // CBOR is the **binary** structured-tree Wave-2 format (Phase 21.18), also with
+    // no package layer. It is tried **immediately after the JSON family** (JSON,
+    // JSON5, JSONL) and **before** the remaining textual heuristics
+    // (EML/YAML/TOML/CSV/Markdown/XML/HTML): the strong magic-byte binaries
+    // (PDF/ZIP/Parquet/Arrow) run above and are never reconsidered. CBOR has **no
+    // magic bytes**, so its detector is deliberately conservative — the
+    // self-described-CBOR tag `55799` (`0xd9 0xd9 0xf7`), or a full-input,
+    // well-formed parse whose root is a container/tag and which reaches at least
+    // three nodes. A container head byte is always `>= 0x80`, so no pure-ASCII
+    // document (JSON/YAML/TOML/XML/HTML/prose) can be claimed; a lone scalar, an
+    // empty container, a truncated item, and a structurally trivial input all stay
+    // `Opaque` rather than being guessed. The small-integer/short-array encodings
+    // overlap MessagePack's fixint/fixarray (recorded honestly; a Phase-21.19
+    // MessagePack adapter must share this seam).
+    #[cfg(feature = "cbor")]
+    if crate::adapter::cbor::detect(source, limits) {
+        return DocumentFormat::Cbor;
     }
     // EML/MIME is the **messaging** Wave-2 format (Phase 21.13), also with no package
     // layer. It is tried **immediately after JSONL** and **before YAML/TOML/CSV/
@@ -706,6 +743,8 @@ mod tests {
             DocumentFormat::Jsonl,
             DocumentFormat::Eml,
             DocumentFormat::Parquet,
+            DocumentFormat::ArrowIpc,
+            DocumentFormat::Cbor,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

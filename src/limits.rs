@@ -514,6 +514,23 @@ pub struct Limits {
     /// Maximum accepted Flatbuffers metadata (footer or message) byte length (Phase
     /// 21.16). A larger metadata declares typed before it is parsed.
     pub max_arrow_metadata_bytes: u64,
+    // The CBOR caps below bound the derived, span-preserving structured-tree model
+    // (Phase 21.18). CBOR is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen` only.
+    /// Maximum CBOR nesting depth accepted (arrays/maps/tags). A deeper document is
+    /// not detected as CBOR (and any direct parse declines typed) rather than risking
+    /// unbounded recursion (Phase 21.18).
+    pub max_cbor_depth: u32,
+    /// Maximum CBOR items accepted in one document. An over-large document declines
+    /// typed rather than allocating (Phase 21.18).
+    pub max_cbor_nodes: u32,
+    /// Maximum total raw byte-/text-string payload bytes accepted across one CBOR
+    /// document. An over-large document declines typed (Phase 21.18).
+    pub max_cbor_string_bytes: u64,
+    /// Maximum source length admitted for byte-based CBOR detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.18).
+    pub max_cbor_document_bytes: u64,
 }
 
 impl Limits {
@@ -671,6 +688,10 @@ impl Limits {
         max_arrow_decompressed_bytes: 1 << 30,
         max_arrow_document_bytes: 1 << 34,
         max_arrow_metadata_bytes: 1 << 26,
+        max_cbor_depth: 256,
+        max_cbor_nodes: 1 << 24,
+        max_cbor_string_bytes: 1 << 28,
+        max_cbor_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -827,6 +848,10 @@ impl Limits {
         max_arrow_decompressed_bytes: 1 << 20,
         max_arrow_document_bytes: 1 << 26,
         max_arrow_metadata_bytes: 1 << 20,
+        max_cbor_depth: 64,
+        max_cbor_nodes: 1 << 16,
+        max_cbor_string_bytes: 1 << 20,
+        max_cbor_document_bytes: 1 << 26,
     };
 }
 

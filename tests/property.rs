@@ -537,6 +537,10 @@ fn limits_never_change_reconstructed_bytes() {
         max_arrow_decompressed_bytes: 1 << 50,
         max_arrow_document_bytes: 1 << 50,
         max_arrow_metadata_bytes: 1 << 50,
+        max_cbor_depth: 1 << 12,
+        max_cbor_nodes: 1 << 30,
+        max_cbor_string_bytes: 1 << 50,
+        max_cbor_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);
