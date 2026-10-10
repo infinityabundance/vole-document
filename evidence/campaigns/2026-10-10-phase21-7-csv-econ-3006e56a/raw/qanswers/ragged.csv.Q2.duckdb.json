@@ -1,0 +1,1 @@
+{"decline": {"code": "no-raw-token", "detail": "CSV fields are unquoted into columns; no raw token/span is kept"}, "declined": true, "detail": {}, "lane": "duckdb", "native": true, "q": "Q2", "value": null}
