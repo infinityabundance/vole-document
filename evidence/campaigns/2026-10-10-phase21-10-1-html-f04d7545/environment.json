@@ -1,0 +1,20 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-10-1-html-f04d7545",
+  "phase": "21.10.1 — HTML error-recovering markup surface + exact closure",
+  "utc": "2026-10-10T12:59:46Z",
+  "git_commit": "f04d7545242f6e54efa7693b543f5cb6f2b377b5",
+  "git_dirty": " M .gitignore  M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-10-1-html-f04d7545/ ?? evidence/campaigns/2026-10-10-phase21-10-html-econ-f04d7545/ ?? src/adapter/html.rs ?? tests/html_adapter.rs ?? tools/fixtures/html/ ?? tools/fixtures/make-html.py ?? tools/fixtures/phase21-10-html-baseline.py ?? tools/fixtures/phase21-10-html-vole.py ?? tools/phase21-10-1-html-court.sh ?? tools/phase21-10-html-court.sh ",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python3": "Python 3.11.2",
+  "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+  "cargo_lock_sha256": "7a36c1cbcddffca16d2bf86ed46e36b18d054e987da81fe13e007968ea423927",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "eda16868af76728a4dc9b00ceb9c3c2dcddcfbd10993615e2ddd9cf2aefa6036",
+  "profile": "debug",
+  "fixtures_tool": "tools/fixtures/make-html.py",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

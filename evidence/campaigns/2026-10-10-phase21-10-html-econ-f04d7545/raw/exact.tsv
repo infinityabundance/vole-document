@@ -1,0 +1,7 @@
+fixture	vole_ok	sqlite_ok	conv_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+basic.html	true	true	false	true	true	true	3317	17596
+elements.html	true	true	false	true	true	true	3344	17808
+rawtext.html	true	true	false	true	true	true	3380	17533
+entities.html	true	true	false	true	true	true	4035	18619
+malformed.html	true	true	false	true	true	true	3389	17563
+large.html	true	true	false	true	true	true	12078	21401

@@ -1,0 +1,1 @@
+{"decline": {"code": "not-native", "detail": "a source-retaining SQLite load keeps no exact source span"}, "declined": true, "detail": {}, "lane": "sqlite", "q": "Q2", "value": null}
