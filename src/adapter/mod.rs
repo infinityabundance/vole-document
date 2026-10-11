@@ -34,6 +34,8 @@ pub mod fixedwidth;
 pub mod geojson;
 #[cfg(feature = "gis")]
 pub mod gis;
+#[cfg(feature = "hdf")]
+pub mod hdf;
 #[cfg(feature = "html")]
 pub mod html;
 #[cfg(feature = "json")]

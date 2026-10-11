@@ -496,6 +496,19 @@ pub const SEL_RTF_MODEL: u8 = 47;
 /// per ADR-0060); an archive has no separate package layer in this adapter. Derived,
 /// never exact.
 pub const SEL_CONTAINER_MODEL: u8 = 48;
+/// Selector kind: the canonical scientific-container model (Phase 21.34).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving projection with the **recorded dialect**
+/// (`netcdf`/`hdf5`): for NetCDF classic the dimension table, the global attribute
+/// list, and the variable list (name, dimensions, attributes, type, `vsize`, `begin`)
+/// with the record/array data layout; for the HDF5 subset the superblock, the group /
+/// dataset tree reached through the symbol-table link traversal, the datatype /
+/// dataspace / contiguous layout of each dataset, and the v1 object-header attribute
+/// messages. It is computed on demand from the exact source (its single dependency is
+/// the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); neither dialect
+/// has a separate package layer in this adapter. Derived, never exact.
+pub const SEL_HDF_MODEL: u8 = 49;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

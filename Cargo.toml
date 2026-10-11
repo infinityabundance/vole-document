@@ -55,6 +55,16 @@ name = "container_fixtures"
 path = "examples/container_fixtures.rs"
 required-features = ["container"]
 
+# The Phase-21.34 scientific-container court fixture generator. Feature-gated to the
+# adapter it exercises so the default build never compiles it. It writes small,
+# deterministic NetCDF classic (CDF-1/CDF-2) and HDF5-subset fixtures (plus malformed
+# and out-of-subset controls) byte-for-byte, so the court needs no python3, h5py,
+# netCDF, or `h5dump`.
+[[example]]
+name = "hdf_fixtures"
+path = "examples/hdf_fixtures.rs"
+required-features = ["hdf"]
+
 [dependencies]
 # Archival source identity. Pinned exactly for the first sealed universe.
 sha2 = "=0.10.9"
@@ -626,6 +636,25 @@ rtf = []
 # bytes and exactness is untouched. Because it needs the ZIP cover it implies
 # `package`; the TAR half is dependency-free. Never in `default`.
 container = ["package"]
+# Phase 21.34: the scientific-container adapter — **NetCDF classic** (CDF-1 / CDF-2)
+# and a **documented bounded subset of HDF5**. Like the other Wave-2 formats it is
+# not a package at the exactness layer: the exact leaf is the whole source (a
+# `DocumentExact`, RAW-like authority) and every derived observation is a bounded,
+# span-preserving (`Q_gen`) projection of it. NetCDF classic is fully parsed — the
+# magic, `numrecs` (incl. the `STREAMING` sentinel), the dimension list (incl. the
+# unlimited/record dimension), the global attribute list, and the variable list
+# (name, dimensions, per-variable attributes, type, `vsize`, `begin`) with exact
+# spans. HDF5 is a documented bounded subset — superblock v0/v1, the symbol-table
+# root-group link traversal to contiguous datasets and nested groups, v1 object
+# headers with their message list, the fixed-point/float/string datatype classes, the
+# simple/scalar dataspace, the contiguous data layout, and v1 attributes. Everything
+# outside the subset (superblock v2/v3, v2/v3 object headers, compact/chunked/virtual
+# layouts, filtered datasets, external data files, and every other datatype class)
+# declines **typed** — never a guess, never a panic. It adds **no** decoder behavior:
+# the model is never on the exactness path, so enabling it never changes `.voldoc`
+# bytes and exactness is untouched. **Dependency-free (`hdf = []` pulls no external
+# crate)** and never in `default`.
+hdf = []
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived

@@ -500,6 +500,21 @@ pub enum NodeKind {
     /// `PackageRoot` node, keyed by `sha256(source)` per ADR-0060); an archive has no
     /// separate package layer in this adapter. Derived, never exact.
     ContainerModel = 0x44,
+    /// The canonical, representation-preserving scientific-container model (Phase
+    /// 21.34): one adapter covering **NetCDF classic** (CDF-1/CDF-2) and a documented
+    /// **bounded subset of HDF5**, with the **recorded dialect** (`netcdf`/`hdf5`). For
+    /// NetCDF it records the magic/`numrecs`, the dimension table (with the unlimited
+    /// dimension), the global attribute list, and the variable list (name, dimensions,
+    /// attributes, type, `vsize`, `begin`) plus the record/array data layout. For HDF5
+    /// it records the superblock, the group/dataset tree reached through the symbol-
+    /// table link traversal, each dataset's datatype / simple-or-scalar dataspace /
+    /// contiguous data layout, and the v1 object-header attribute messages. Everything
+    /// outside the HDF5 subset declines typed. Nothing is decompressed, re-serialized,
+    /// or rewritten. It is computed on demand from the exact source (its single
+    /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+    /// neither dialect has a separate package layer in this adapter. Derived, never
+    /// exact.
+    HdfModel = 0x45,
 }
 
 impl NodeKind {
@@ -574,6 +589,7 @@ impl NodeKind {
             0x42 => NodeKind::BibModel,
             0x43 => NodeKind::RtfModel,
             0x44 => NodeKind::ContainerModel,
+            0x45 => NodeKind::HdfModel,
             _ => return None,
         })
     }
@@ -649,6 +665,7 @@ impl NodeKind {
             NodeKind::BibModel => "BibModel",
             NodeKind::RtfModel => "RtfModel",
             NodeKind::ContainerModel => "ContainerModel",
+            NodeKind::HdfModel => "HdfModel",
         }
     }
 

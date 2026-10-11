@@ -1591,6 +1591,39 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::HdfModel => {
+            // The canonical scientific-container model is derived on demand from the
+            // exact source. Neither NetCDF classic nor the HDF5 subset has a package
+            // layer, so its single dependency is the exact `DocumentExact` root (keyed
+            // by `sha256(source)` per ADR-0060): the model node *reads the source
+            // bytes*, so it must carry a source-identity input, never alias another
+            // field's source. Parsing and all bounds live in `adapter::hdf`.
+            #[cfg(feature = "hdf")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("HdfModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::hdf::build_hdf_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "hdf"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "scientific-container support is not compiled in (feature `hdf`)",
+                ));
+            }
+        }
         NodeKind::YamlModel => {
             // The canonical YAML structured-tree model is derived on demand from the
             // exact source. YAML has no package layer, so its single dependency is

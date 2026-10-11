@@ -210,6 +210,13 @@ pub enum ErrorClass {
     /// it stays `Opaque` rather than being claimed as a derived model. Detection
     /// and the whole-source exact leaf are unaffected.
     InvalidContainerStructure,
+    /// A scientific-container structure error (Phase 21.34): a NetCDF classic
+    /// (CDF-1/CDF-2) or HDF5 source that is structurally malformed — a bad tag, an
+    /// out-of-bounds declared offset, a truncated header/message, an unsatisfied
+    /// object-header message count, or a bad local heap / B-tree / symbol table — so
+    /// it stays `Opaque` rather than being claimed as a derived model. Detection and
+    /// the whole-source exact leaf are unaffected.
+    InvalidHdfStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -266,6 +273,7 @@ impl ErrorClass {
             ErrorClass::InvalidBibStructure => 47,
             ErrorClass::InvalidRtfStructure => 48,
             ErrorClass::InvalidContainerStructure => 49,
+            ErrorClass::InvalidHdfStructure => 50,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -321,6 +329,7 @@ impl ErrorClass {
             ErrorClass::InvalidBibStructure => "InvalidBibStructure",
             ErrorClass::InvalidRtfStructure => "InvalidRtfStructure",
             ErrorClass::InvalidContainerStructure => "InvalidContainerStructure",
+            ErrorClass::InvalidHdfStructure => "InvalidHdfStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -430,6 +439,7 @@ impl Error {
     ctor!(invalid_bib_structure, InvalidBibStructure);
     ctor!(invalid_rtf_structure, InvalidRtfStructure);
     ctor!(invalid_container_structure, InvalidContainerStructure);
+    ctor!(invalid_hdf_structure, InvalidHdfStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

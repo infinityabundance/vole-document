@@ -147,6 +147,13 @@ use crate::adapter::gis::{
     find as gis_find_matches, point_field_nodes as gis_point_field_nodes,
     record_field_nodes as gis_record_field_nodes, root_field_nodes as gis_root_field_nodes,
 };
+#[cfg(feature = "hdf")]
+use crate::adapter::hdf::{
+    HdfModel, NO_PARENT as HDF_NO_PARENT, attribute_bytes as hdf_attribute_bytes,
+    canonical_text as hdf_canonical_text, dialect_name as hdf_dialect_name,
+    field_name as hdf_field_name, find as hdf_find_matches, kind_name as hdf_kind_name,
+    object_bytes as hdf_object_bytes, object_path as hdf_object_path, type_name as hdf_type_name,
+};
 #[cfg(feature = "html")]
 use crate::adapter::html::{
     HtmlModel, anchors as html_anchors, attr_name as html_attr_name,
@@ -343,6 +350,8 @@ use crate::field::index::SEL_FIXEDWIDTH_MODEL;
 use crate::field::index::SEL_GEOJSON_MODEL;
 #[cfg(feature = "gis")]
 use crate::field::index::SEL_GIS_MODEL;
+#[cfg(feature = "hdf")]
+use crate::field::index::SEL_HDF_MODEL;
 #[cfg(feature = "html")]
 use crate::field::index::SEL_HTML_MODEL;
 #[cfg(feature = "json")]
@@ -1976,6 +1985,44 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The recorded scientific-container dialect (`netcdf` or `hdf5`), from the model
+    /// (Phase 21.34). `Text` returns the dialect name; `Metadata`/`Structure` a
+    /// descriptor with the object/dimension/attribute counts and the exact header span.
+    #[cfg(feature = "hdf")]
+    HdfDialect,
+    /// The `index`-th object (0-based, model order) (Phase 21.34): a group, an HDF5
+    /// dataset, or a NetCDF variable. `ExactBytes` returns the object's exact data span
+    /// (a group declines typed); `Text` its name (or path); `Metadata`/`Structure` a
+    /// descriptor with the kind, path, type, shape, parent/depth, and exact spans. An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "hdf")]
+    HdfObject {
+        /// The 0-based object index (model order).
+        index: u32,
+    },
+    /// The `index`-th NetCDF dimension (0-based) (Phase 21.34): its name, length, and
+    /// whether it is the unlimited/record dimension. HDF5 declines typed (its dims are
+    /// per dataset). An out-of-range index declines typed.
+    #[cfg(feature = "hdf")]
+    HdfDimension {
+        /// The 0-based dimension index.
+        index: u32,
+    },
+    /// The `index`-th global (NetCDF) / root-group (HDF5) attribute (Phase 21.34): its
+    /// name, type, element count, and exact value span. `ExactBytes` returns the value
+    /// bytes. An out-of-range index declines typed.
+    #[cfg(feature = "hdf")]
+    HdfAttribute {
+        /// The 0-based global/root attribute index.
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over every object, dimension, and
+    /// attribute name (Phase 21.34). Never an embedding or a model call.
+    #[cfg(feature = "hdf")]
+    HdfFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2595,6 +2642,16 @@ impl Selector {
             Selector::ContainerEntry { index } => format!("container-entry:{index}"),
             #[cfg(feature = "container")]
             Selector::ContainerFind { pattern } => format!("container-find:{pattern}"),
+            #[cfg(feature = "hdf")]
+            Selector::HdfDialect => "hdf-dialect".to_string(),
+            #[cfg(feature = "hdf")]
+            Selector::HdfObject { index } => format!("hdf-object:{index}"),
+            #[cfg(feature = "hdf")]
+            Selector::HdfDimension { index } => format!("hdf-dimension:{index}"),
+            #[cfg(feature = "hdf")]
+            Selector::HdfAttribute { index } => format!("hdf-attribute:{index}"),
+            #[cfg(feature = "hdf")]
+            Selector::HdfFind { pattern } => format!("hdf-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -4945,6 +5002,26 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "container")]
             (Selector::ContainerFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.container_find(req, pattern)
+            }
+            #[cfg(feature = "hdf")]
+            (Selector::HdfDialect, R::Text | R::Metadata | R::Structure) => self.hdf_dialect(req),
+            #[cfg(feature = "hdf")]
+            (
+                Selector::HdfObject { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.hdf_object(req, *index),
+            #[cfg(feature = "hdf")]
+            (Selector::HdfDimension { index }, R::Text | R::Metadata | R::Structure) => {
+                self.hdf_dimension(req, *index)
+            }
+            #[cfg(feature = "hdf")]
+            (
+                Selector::HdfAttribute { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.hdf_attribute(req, *index),
+            #[cfg(feature = "hdf")]
+            (Selector::HdfFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.hdf_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -10296,6 +10373,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Hdf => {
+                #[cfg(feature = "hdf")]
+                {
+                    self.common_hdf(req)?
+                }
+                #[cfg(not(feature = "hdf"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "scientific-container support is not compiled in (feature `hdf`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -14126,6 +14215,292 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "container;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Scientific-container observations (Phase 21.34)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "hdf")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the scientific-container model (derived, `Q_gen`).
+    fn hdf_model(&mut self) -> Result<(HdfModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_HDF_MODEL, 0), "hdf model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((HdfModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the field root (a `DocumentExact`,
+    /// keyed by `sha256(source)`) so the read is a real DAG dependency (ADR-0060),
+    /// never a bare source fetch.
+    fn hdf_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn hdf_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn hdf_dialect_json(model: &HdfModel) -> String {
+        format!(
+            concat!(
+                "{{\"format\":\"hdf\",\"dialect\":\"{}\",\"bytes\":{},",
+                "\"numrecs\":{},\"streaming\":{},\"objects\":{},\"groups\":{},",
+                "\"datasets\":{},\"dimensions\":{},\"attributes\":{},",
+                "\"header_span\":[{},{}]}}"
+            ),
+            hdf_dialect_name(model.dialect),
+            model.doc_len,
+            model.numrecs,
+            model.streaming,
+            model.objects.len(),
+            model.group_count(),
+            model.dataset_count(),
+            model.dimensions.len(),
+            model.attributes.len(),
+            model.header_span.0,
+            model.header_span.1,
+        )
+    }
+
+    /// The recorded scientific-container dialect (`netcdf`/`hdf5`), from the model.
+    fn hdf_dialect(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let d = hdf_dialect_name(model.dialect);
+        let provenance = format!(
+            "hdf;dialect={d};objects={};dimensions={}",
+            model.objects.len(),
+            model.dimensions.len()
+        );
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(d.to_string()),
+            _ => AnswerValue::Json(Self::hdf_dialect_json(&model)),
+        };
+        Ok(self.hdf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th object (0-based, model order).
+    fn hdf_object(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let o = model
+            .object(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("hdf has no object {index}")))?;
+        let path = hdf_object_path(&model, index);
+        let span = Some(o.data_span);
+        let provenance = format!(
+            "hdf;object={index};kind={};bytes={}",
+            hdf_kind_name(o.kind),
+            o.data_span.1.saturating_sub(o.data_span.0)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(hdf_object_bytes(&source, o)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(path),
+            _ => {
+                let shape = o
+                    .dims
+                    .iter()
+                    .map(|d| d.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let parent = if o.parent == HDF_NO_PARENT {
+                    "null".to_string()
+                } else {
+                    o.parent.to_string()
+                };
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"index\":{},\"dialect\":\"{}\",\"kind\":\"{}\",",
+                        "\"path\":\"{}\",\"name\":\"{}\",\"type\":\"{}\",",
+                        "\"elem_size\":{},\"shape\":[{}],\"parent\":{},\"depth\":{},",
+                        "\"is_record\":{},\"attributes\":{},\"offset\":{},",
+                        "\"span\":[{},{}],\"header_span\":[{},{}],\"data_span\":[{},{}]}}"
+                    ),
+                    index,
+                    hdf_dialect_name(model.dialect),
+                    hdf_kind_name(o.kind),
+                    json_escape(&path),
+                    json_escape(&String::from_utf8_lossy(&o.name)),
+                    hdf_type_name(o.ty),
+                    o.elem_size,
+                    shape,
+                    parent,
+                    o.depth,
+                    o.is_record,
+                    o.attrs.len(),
+                    o.offset,
+                    o.data_span.0,
+                    o.data_span.1,
+                    o.header_span.0,
+                    o.header_span.1,
+                    o.data_span.0,
+                    o.data_span.1,
+                ))
+            }
+        };
+        Ok(self.hdf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th NetCDF dimension.
+    fn hdf_dimension(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let d = model
+            .dimension(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("hdf has no dimension {index}")))?;
+        let name = String::from_utf8_lossy(&d.name).into_owned();
+        let span = Some(d.name_span);
+        let provenance = format!("hdf;dimension={index};unlimited={}", d.unlimited);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(name),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"index\":{},\"name\":\"{}\",\"length\":{},",
+                    "\"unlimited\":{},\"name_span\":[{},{}]}}"
+                ),
+                index,
+                json_escape(&name),
+                d.length,
+                d.unlimited,
+                d.name_span.0,
+                d.name_span.1,
+            )),
+        };
+        let _ = source;
+        Ok(self.hdf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th global (NetCDF) / root-group (HDF5) attribute.
+    fn hdf_attribute(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let a = model
+            .attribute(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("hdf has no attribute {index}")))?;
+        let name = String::from_utf8_lossy(&a.name).into_owned();
+        let span = Some(a.data_span);
+        let provenance = format!(
+            "hdf;attribute={index};type={};values={}",
+            hdf_type_name(a.ty),
+            a.num_values
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(hdf_attribute_bytes(&source, a)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(name),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"index\":{},\"name\":\"{}\",\"type\":\"{}\",",
+                    "\"num_values\":{},\"value_bytes\":{},\"span\":[{},{}],",
+                    "\"name_span\":[{},{}]}}"
+                ),
+                index,
+                json_escape(&name),
+                hdf_type_name(a.ty),
+                a.num_values,
+                a.value.len(),
+                a.data_span.0,
+                a.data_span.1,
+                a.name_span.0,
+                a.name_span.1,
+            )),
+        };
+        Ok(self.hdf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over every object/dimension/attribute name.
+    fn hdf_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (_, root) = self.hdf_source()?;
+        let matches = hdf_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"entry\":{},\"field\":\"{}\",\"span\":[{},{}],\"text\":\"{}\"}}"),
+                m.entry,
+                hdf_field_name(m.field),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("hdf;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.hdf_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_hdf(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.hdf_common_metadata(req),
+            Selector::Text => self.hdf_common_text(req),
+            Selector::SearchMatch(p) => self.hdf_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "hdf does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn hdf_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let text = hdf_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.hdf_answer(
+            req,
+            AnswerValue::Text(text),
+            "hdf;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn hdf_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let value = AnswerValue::Json(Self::hdf_dialect_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.hdf_answer(
+            req,
+            value,
+            "hdf;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

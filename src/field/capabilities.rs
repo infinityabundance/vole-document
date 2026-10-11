@@ -344,6 +344,14 @@ const RTF_NATIVE: &[&str] = &[
 
 const CONTAINER_NATIVE: &[&str] = &["container-dialect", "container-entry", "container-find"];
 
+const HDF_NATIVE: &[&str] = &[
+    "hdf-dialect",
+    "hdf-object",
+    "hdf-dimension",
+    "hdf-attribute",
+    "hdf-find",
+];
+
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
 const COMMON_TEXT_META: &[&str] = &["text", "metadata"];
@@ -759,6 +767,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 CONTAINER_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Hdf => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                HDF_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

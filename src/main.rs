@@ -158,6 +158,8 @@ const USAGE_FIELD: &str = "\
         --rtf-header | --rtf-group N | --rtf-control N | --rtf-hex N |
         --rtf-unicode N | --rtf-text N | --rtf-dest NAME[:N] | --rtf-find PATTERN |
         --container-dialect | --container-entry N | --container-find PATTERN |
+        --hdf-dialect | --hdf-object N | --hdf-dimension N | --hdf-attribute N |
+        --hdf-find PATTERN |
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
@@ -2108,6 +2110,27 @@ struct FieldArgs {
     /// name and linkname (Phase 21.33).
     #[cfg(feature = "container")]
     container_find: Option<String>,
+    /// `--hdf-dialect`: the scientific container's recorded dialect (`netcdf`/`hdf5`)
+    /// with the object/dimension/attribute counts and the exact header span (Phase
+    /// 21.34).
+    #[cfg(feature = "hdf")]
+    hdf_dialect: bool,
+    /// `--hdf-object N`: the N-th (0-based) object (a group, an HDF5 dataset, or a
+    /// NetCDF variable) with its kind, path, type, shape, parent/depth, and exact spans
+    /// (Phase 21.34).
+    #[cfg(feature = "hdf")]
+    hdf_object: Option<u32>,
+    /// `--hdf-dimension N`: the N-th (0-based) NetCDF dimension (Phase 21.34). HDF5
+    /// declines typed (its dims are per dataset).
+    #[cfg(feature = "hdf")]
+    hdf_dimension: Option<u32>,
+    /// `--hdf-attribute N`: the N-th (0-based) global/root attribute (Phase 21.34).
+    #[cfg(feature = "hdf")]
+    hdf_attribute: Option<u32>,
+    /// `--hdf-find PATTERN`: a lexical, case-sensitive search over every object,
+    /// dimension, and attribute name (Phase 21.34).
+    #[cfg(feature = "hdf")]
+    hdf_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -3192,6 +3215,30 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--container-find" => {
                 out.container_find =
                     Some(field_arg_value(args, &mut i, "--container-find", inline)?);
+            }
+            #[cfg(feature = "hdf")]
+            "--hdf-dialect" => {
+                out.hdf_dialect = true;
+                i += 1;
+            }
+            #[cfg(feature = "hdf")]
+            "--hdf-object" => {
+                let v = field_arg_value(args, &mut i, "--hdf-object", inline)?;
+                out.hdf_object = Some(parse_field_u32(&v, "--hdf-object")?);
+            }
+            #[cfg(feature = "hdf")]
+            "--hdf-dimension" => {
+                let v = field_arg_value(args, &mut i, "--hdf-dimension", inline)?;
+                out.hdf_dimension = Some(parse_field_u32(&v, "--hdf-dimension")?);
+            }
+            #[cfg(feature = "hdf")]
+            "--hdf-attribute" => {
+                let v = field_arg_value(args, &mut i, "--hdf-attribute", inline)?;
+                out.hdf_attribute = Some(parse_field_u32(&v, "--hdf-attribute")?);
+            }
+            #[cfg(feature = "hdf")]
+            "--hdf-find" => {
+                out.hdf_find = Some(field_arg_value(args, &mut i, "--hdf-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -4290,6 +4337,30 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.container_find {
             chosen.push(Selector::ContainerFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Scientific container (NetCDF classic / HDF5-subset): `--hdf-dialect` the recorded
+    // dialect; `--hdf-object N` an object by 0-based index; `--hdf-dimension N` a NetCDF
+    // dimension; `--hdf-attribute N` a global/root attribute; `--hdf-find` a lexical
+    // search. Each stands alone (Phase 21.34).
+    #[cfg(feature = "hdf")]
+    {
+        if out.hdf_dialect {
+            chosen.push(Selector::HdfDialect);
+        }
+        if let Some(index) = out.hdf_object {
+            chosen.push(Selector::HdfObject { index });
+        }
+        if let Some(index) = out.hdf_dimension {
+            chosen.push(Selector::HdfDimension { index });
+        }
+        if let Some(index) = out.hdf_attribute {
+            chosen.push(Selector::HdfAttribute { index });
+        }
+        if let Some(pattern) = &out.hdf_find {
+            chosen.push(Selector::HdfFind {
                 pattern: pattern.clone(),
             });
         }

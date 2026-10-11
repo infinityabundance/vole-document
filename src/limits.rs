@@ -935,6 +935,34 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.33).
     pub max_container_document_bytes: u64,
+    // The scientific-container caps below bound the derived, span-preserving model
+    // (Phase 21.34). A NetCDF classic or HDF5 source has no package layer: the whole
+    // source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum object (group / dataset / variable) count accepted for one scientific
+    /// container. An over-large source declines typed (Phase 21.34).
+    pub max_hdf_objects: u64,
+    /// Maximum dimension count accepted (NetCDF dimension table, or an HDF5 dataspace
+    /// rank). An over-large source declines typed (Phase 21.34).
+    pub max_hdf_dimensions: u64,
+    /// Maximum **aggregate** attribute count accepted across one source (global /
+    /// root-group + every object's attributes). An over-large source declines typed
+    /// (Phase 21.34).
+    pub max_hdf_attributes: u64,
+    /// Maximum group nesting depth accepted (root = 0). A deeper source declines
+    /// typed (Phase 21.34).
+    pub max_hdf_depth: u32,
+    /// Maximum **aggregate** name byte count accepted across one source. This is a
+    /// whole-source budget; an over-large source declines typed (Phase 21.34).
+    pub max_hdf_name_bytes: u64,
+    /// Maximum byte length of one name. A longer name declines typed (Phase 21.34).
+    pub max_hdf_entry_name_bytes: u64,
+    /// Maximum byte length of one attribute value. A larger value declines typed
+    /// (Phase 21.34).
+    pub max_hdf_attr_value_bytes: u64,
+    /// Maximum source length admitted for scientific-container detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.34).
+    pub max_hdf_document_bytes: u64,
 }
 
 impl Limits {
@@ -1201,6 +1229,14 @@ impl Limits {
         max_container_extensions: 1 << 20,
         max_container_path_depth: 256,
         max_container_document_bytes: 1 << 34,
+        max_hdf_objects: 1 << 20,
+        max_hdf_dimensions: 1 << 20,
+        max_hdf_attributes: 1 << 22,
+        max_hdf_depth: 64,
+        max_hdf_name_bytes: 1 << 26,
+        max_hdf_entry_name_bytes: 1 << 16,
+        max_hdf_attr_value_bytes: 1 << 24,
+        max_hdf_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1466,6 +1502,14 @@ impl Limits {
         max_container_extensions: 1 << 12,
         max_container_path_depth: 64,
         max_container_document_bytes: 1 << 26,
+        max_hdf_objects: 1 << 12,
+        max_hdf_dimensions: 1 << 12,
+        max_hdf_attributes: 1 << 14,
+        max_hdf_depth: 32,
+        max_hdf_name_bytes: 1 << 18,
+        max_hdf_entry_name_bytes: 1 << 14,
+        max_hdf_attr_value_bytes: 1 << 16,
+        max_hdf_document_bytes: 1 << 26,
     };
 }
 

@@ -413,6 +413,20 @@ pub enum DocumentFormat {
     /// the whole source (a `DocumentExact`, RAW-like authority) and every derived
     /// observation is a bounded, span-preserving (`Q_gen`) projection of it.
     Container,
+    /// A scientific container (Phase 21.34): a NetCDF classic (CDF-1/CDF-2) file or an
+    /// HDF5 file (a documented bounded subset). The recorded dialect
+    /// (`netcdf`/`hdf5`) lives in the model, exactly as the archive container records
+    /// `zip`/`tar`. This is deliberately a **scan-only scientific format**: it is not
+    /// an office package. Detection is a **strong magic-byte** test — NetCDF requires
+    /// `CDF\x01`/`CDF\x02` at offset 0; HDF5 requires the 8-byte signature
+    /// `\x89HDF\r\n\x1a\n` at offset 0 or 512 with a superblock version in `0..=3`, an
+    /// offset/length size in `{2,4,8}`, and a superblock that fits inside the source.
+    /// Not a package: the exact leaf is the whole source (a `DocumentExact`, RAW-like
+    /// authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+    /// projection of it. NetCDF classic is supported in full; HDF5 is a documented
+    /// bounded subset (symbol-table groups + contiguous datasets + v1 object headers),
+    /// and everything outside it declines **typed**.
+    Hdf,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -459,6 +473,7 @@ impl DocumentFormat {
             DocumentFormat::Bib => "bib",
             DocumentFormat::Rtf => "rtf",
             DocumentFormat::Container => "container",
+            DocumentFormat::Hdf => "hdf",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -504,6 +519,7 @@ impl DocumentFormat {
             DocumentFormat::Bib => "bib",
             DocumentFormat::Rtf => "rtf",
             DocumentFormat::Container => "container",
+            DocumentFormat::Hdf => "hdf",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -549,6 +565,7 @@ impl DocumentFormat {
             DocumentFormat::Bib => cfg!(feature = "bib"),
             DocumentFormat::Rtf => cfg!(feature = "rtf"),
             DocumentFormat::Container => cfg!(feature = "container"),
+            DocumentFormat::Hdf => cfg!(feature = "hdf"),
         }
     }
 
@@ -604,6 +621,7 @@ impl DocumentFormat {
             "bib" => Some(DocumentFormat::Bib),
             "rtf" => Some(DocumentFormat::Rtf),
             "container" => Some(DocumentFormat::Container),
+            "hdf" => Some(DocumentFormat::Hdf),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -636,6 +654,21 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "container")]
     if crate::adapter::container::detect(source, limits) {
         return DocumentFormat::Container;
+    }
+    // The scientific container (Phase 21.34) is a **standalone** format with strong
+    // magics: NetCDF classic (`CDF\x01`/`CDF\x02` at offset 0) and HDF5 (the 8-byte
+    // signature at offset 0 or 512 plus a validated superblock). It is inserted with
+    // the other strong-magic binaries (after the office ZIP family and the archive
+    // container, before Parquet) and **before** every weak, no-magic-byte heuristic
+    // (JSON/YAML/CSV/Markdown/XML/HTML), which a binary scientific file must never be
+    // guessed to be. It is deliberately conservative on HDF5: a random
+    // `\x89HDF`-prefixed blob with a bad superblock, and prose, stay `Opaque`.
+    // NetCDF's magic is the 4-byte `CDF\x01`/`CDF\x02`; a `CDF`-prefixed blob is
+    // admitted here and its derived model then declines typed if the header is
+    // malformed (the whole-source exact leaf is always unaffected).
+    #[cfg(feature = "hdf")]
+    if crate::adapter::hdf::detect(source, limits) {
+        return DocumentFormat::Hdf;
     }
     // Parquet is the **analytical** Wave-2 format (Phase 21.14), with no package
     // layer. Its detection is a strong magic-byte contract — `PAR1` at both ends

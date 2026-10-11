@@ -1,0 +1,1 @@
+error: UnsupportedFeature: HDF5 filtered datasets are outside the supported subset
