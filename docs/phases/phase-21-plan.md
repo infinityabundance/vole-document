@@ -50,7 +50,7 @@
 >the legacy **DOC/XLS/PPT/MSG *semantic* models** built on top of the CFBF
 >physical layer (not started).
 >
-> Branch: `phase21-wave2` @ `v0.1.0-alpha.36`+ (Wave 2). Wave 1 shipped as
+> Branch: `phase21-wave2` @ `v0.1.0-alpha.35` (Wave 2; the batch 21.17–21.35). Wave 1 shipped as
 > `v0.1.0-alpha.30`, JSON as `v0.1.0-alpha.31`, YAML as `v0.1.0-alpha.32` on
 > `main`. The Phase-22 economic programme (22.1–22.7) is complete and released in
 > `v0.1.0-alpha.29`.
