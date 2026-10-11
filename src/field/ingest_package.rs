@@ -27,6 +27,8 @@
 use crate::adapter::package::zip::{ZipMember, scan};
 use crate::container::{Descriptor, ParsedDescriptor};
 use crate::error::{Error, Result};
+#[cfg(feature = "container")]
+use crate::field::index::SEL_CONTAINER_MODEL;
 #[cfg(feature = "docx")]
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "epub")]
@@ -749,6 +751,41 @@ fn ingest_package_from_source(
         pptx_model_nodes = 0;
     }
 
+    // The generic archive-container model (Phase 21.33): a single derived node that
+    // materializes the canonical ZIP member model on demand from the exact package
+    // root. It is created **only** when the input is detected as a plain container
+    // (a generic ZIP), so an office package never carries it (an office ZIP is
+    // detected as its office format, not `Container`). It reuses the byte-authoritative
+    // ZIP physical layer; exactness is untouched.
+    #[cfg(feature = "container")]
+    let container_model_nodes: u64 =
+        if detected_format == crate::field::document_format::DocumentFormat::Container {
+            let mut container_model = SeedNode::new(
+                NodeKind::ContainerModel,
+                limits.max_output_bytes,
+                Vec::new(),
+                vec![root_id],
+                "pkg:container-model",
+            );
+            container_model.limits.max_output_bytes = limits.max_output_bytes;
+            charge_node(&mut node_count)?;
+            let (container_id, _) = put_counted(store, &container_model, &mut share)?;
+            push_entry(
+                &mut entries,
+                IndexEntry {
+                    key: SelectorKey::new(SEL_CONTAINER_MODEL, 0),
+                    out_off: 0,
+                    out_len: 0,
+                    node_id: container_id,
+                },
+            )?;
+            1
+        } else {
+            0
+        };
+    #[cfg(not(feature = "container"))]
+    let container_model_nodes: u64 = 0;
+
     let index_before = dir_bytes(&store.root().join("index"));
     let (index_root, index_node_count) = if entries.is_empty() {
         (None, 0)
@@ -770,7 +807,7 @@ fn ingest_package_from_source(
         node_count,
         index_node_count,
         provenance: format!(
-            "{}id_shared={};res_shared={};field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={};odt={};ods={};odp={};xlsx={};pptx={};resource_blobs={}",
+            "{}id_shared={};res_shared={};field:package;members={};raw={};decoded={};declined={};opc={};docx={};epub={};odt={};ods={};odp={};xlsx={};pptx={};container={};resource_blobs={}",
             detected_format.provenance_prefix(),
             share.nodes_id_shared,
             share.shared_resource_ids,
@@ -786,6 +823,7 @@ fn ingest_package_from_source(
             odp_model_nodes,
             xlsx_model_nodes,
             pptx_model_nodes,
+            container_model_nodes,
             share.resource_blob_nodes,
         ),
     };

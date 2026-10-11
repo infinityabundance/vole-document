@@ -483,6 +483,23 @@ pub enum NodeKind {
     /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
     /// ADR-0060); RTF has no package layer. Derived, never exact.
     RtfModel = 0x43,
+    /// The canonical, representation-preserving generic archive-container model
+    /// (Phase 21.33): one adapter covering **ZIP** and **TAR** with the **recorded
+    /// dialect** (`zip`/`tar`). For ZIP it reuses the byte-authoritative physical
+    /// layer ([`crate::adapter::package::zip`]) and records the ordered
+    /// central-directory member list — raw name bytes (case, UTF-8 flag bit 11, and
+    /// non-UTF-8 bytes preserved), compression method, both declared sizes, CRC-32,
+    /// local-header offset, and each member's exact raw byte span — plus the
+    /// end-of-central-directory record and archive comment. For TAR it records the
+    /// standard 512-byte headers (name/prefix, mode, uid/gid, size, mtime, typeflag,
+    /// linkname, `ustar` magic/version), the old-GNU/v7 variant, the GNU long-name
+    /// (`L`)/long-link (`K`) extensions and the PAX (`x`/`g`) records folded into the
+    /// following member, and every member's exact (512-byte-aligned) span. Nothing is
+    /// unzipped, re-zipped, decompressed, or re-serialized. It is computed on demand
+    /// from the exact source (its single dependency is the `DocumentExact` or
+    /// `PackageRoot` node, keyed by `sha256(source)` per ADR-0060); an archive has no
+    /// separate package layer in this adapter. Derived, never exact.
+    ContainerModel = 0x44,
 }
 
 impl NodeKind {
@@ -556,6 +573,7 @@ impl NodeKind {
             0x41 => NodeKind::ApispecModel,
             0x42 => NodeKind::BibModel,
             0x43 => NodeKind::RtfModel,
+            0x44 => NodeKind::ContainerModel,
             _ => return None,
         })
     }
@@ -630,6 +648,7 @@ impl NodeKind {
             NodeKind::ApispecModel => "ApispecModel",
             NodeKind::BibModel => "BibModel",
             NodeKind::RtfModel => "RtfModel",
+            NodeKind::ContainerModel => "ContainerModel",
         }
     }
 

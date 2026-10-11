@@ -1,0 +1,22 @@
+[
+{
+  "fixture": "single.xlsx",
+  "src_len": 2997,
+  "src_sha256": "0c79770deb946471b2248ae6c65416e8b57e214e451d07a07ed0952430556603",
+  "out_len": 2997,
+  "out_sha256": "0c79770deb946471b2248ae6c65416e8b57e214e451d07a07ed0952430556603",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6
+},
+{
+  "fixture": "multi.xlsx",
+  "src_len": 3260,
+  "src_sha256": "ba56e76a23189c4c97d887128197571fc82b709c5385837f29237c11a4d8f00b",
+  "out_len": 3260,
+  "out_sha256": "ba56e76a23189c4c97d887128197571fc82b709c5385837f29237c11a4d8f00b",
+  "cmp_ok": true,
+  "exact": true,
+  "decline_rc": 6
+}
+]

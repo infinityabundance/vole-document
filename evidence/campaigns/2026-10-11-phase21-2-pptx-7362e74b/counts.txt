@@ -1,0 +1,8 @@
+fixtures 5
+exact_ok 5
+exact_fail 0
+typed_declines_ok 5
+sldidlst_order_ok true
+table_text_ok true
+store_regular_file_bytes 109805
+binary 012025271efc6e813801bbf681c5cb53fe1d45364f2222a584f1db34cb4195d2

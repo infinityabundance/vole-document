@@ -86,6 +86,14 @@ use crate::adapter::config::{
     line_kind_name as config_line_kind_name, role_name as config_role_name,
     terminator_name as config_terminator_name,
 };
+#[cfg(feature = "container")]
+use crate::adapter::container::{
+    ContainerModel, canonical_text as container_canonical_text,
+    dialect_name as container_dialect_name, entry_bytes as container_entry_bytes,
+    entry_is_dir as container_is_dir, entry_kind_name as container_kind_name,
+    entry_name_text as container_name_text, field_name as container_field_name,
+    find as container_find_matches,
+};
 #[cfg(feature = "csv")]
 use crate::adapter::csv::{
     CsvModel, StreamRecord as CsvStreamRecord, canonical_text as csv_canonical_text,
@@ -317,6 +325,8 @@ use crate::field::index::SEL_BIB_MODEL;
 use crate::field::index::SEL_CBOR_MODEL;
 #[cfg(feature = "config")]
 use crate::field::index::SEL_CONFIG_MODEL;
+#[cfg(feature = "container")]
+use crate::field::index::SEL_CONTAINER_MODEL;
 #[cfg(feature = "csv")]
 use crate::field::index::SEL_CSV_MODEL;
 #[cfg(feature = "docx")]
@@ -1945,6 +1955,27 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The recorded archive-container dialect (`zip` or `tar`), from the model
+    /// (Phase 21.33). `Text` returns the dialect name; `Metadata`/`Structure` a
+    /// descriptor with the member count and the exact archive trailer span.
+    #[cfg(feature = "container")]
+    ContainerDialect,
+    /// The `index`-th archive member (0-based, in archive order) (Phase 21.33): its
+    /// raw name bytes (lossy UTF-8 for `Text`), method/typeflag, declared sizes, and
+    /// exact spans. `ExactBytes` returns the member's exact raw byte span; an
+    /// out-of-range index declines typed.
+    #[cfg(feature = "container")]
+    ContainerEntry {
+        /// The 0-based member index (archive order).
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over every archive member name and
+    /// linkname (Phase 21.33). Never an embedding or a model call.
+    #[cfg(feature = "container")]
+    ContainerFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2558,6 +2589,12 @@ impl Selector {
             Selector::RtfDestination { spec } => format!("rtf-dest:{spec}"),
             #[cfg(feature = "rtf")]
             Selector::RtfFind { pattern } => format!("rtf-find:{pattern}"),
+            #[cfg(feature = "container")]
+            Selector::ContainerDialect => "container-dialect".to_string(),
+            #[cfg(feature = "container")]
+            Selector::ContainerEntry { index } => format!("container-entry:{index}"),
+            #[cfg(feature = "container")]
+            Selector::ContainerFind { pattern } => format!("container-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -4895,6 +4932,19 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "rtf")]
             (Selector::RtfFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.rtf_find(req, pattern)
+            }
+            #[cfg(feature = "container")]
+            (Selector::ContainerDialect, R::Text | R::Metadata | R::Structure) => {
+                self.container_dialect(req)
+            }
+            #[cfg(feature = "container")]
+            (
+                Selector::ContainerEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.container_entry(req, *index),
+            #[cfg(feature = "container")]
+            (Selector::ContainerFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.container_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -10234,6 +10284,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Container => {
+                #[cfg(feature = "container")]
+                {
+                    self.common_container(req)?
+                }
+                #[cfg(not(feature = "container"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "container support is not compiled in (feature `container`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -13844,6 +13906,226 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "rtf;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Archive-container observations (Phase 21.33)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "container")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the archive-container model (derived, `Q_gen`).
+    fn container_model(&mut self) -> Result<(ContainerModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_CONTAINER_MODEL, 0), "container model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((ContainerModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the field root (a `DocumentExact`
+    /// for TAR, or the `PackageRoot` of the reused ZIP physical layer) so the read is
+    /// a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn container_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn container_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The recorded archive-container dialect (`zip`/`tar`), from the model.
+    fn container_dialect(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.container_model()?;
+        let (source, root) = self.container_source()?;
+        let d = container_dialect_name(model.dialect);
+        let provenance = format!("container;dialect={d};members={}", model.entries.len());
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(d.to_string()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"container\",\"dialect\":\"{}\",\"bytes\":{},",
+                    "\"members\":{},\"trailer_span\":[{},{}]}}"
+                ),
+                d,
+                model.doc_len,
+                model.entries.len(),
+                model.trailer.0,
+                model.trailer.1
+            )),
+        };
+        Ok(self.container_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th archive member (0-based, archive order).
+    fn container_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.container_model()?;
+        let (source, root) = self.container_source()?;
+        let e = model.entry(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("container has no member {index}"))
+        })?;
+        let span = Some(e.span);
+        let provenance = format!(
+            "container;entry={index};kind={};bytes={}",
+            container_kind_name(model.dialect, e),
+            e.span.1.saturating_sub(e.span.0)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(container_entry_bytes(&source, e)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(container_name_text(e)),
+            _ => {
+                let name = container_name_text(e);
+                let link = String::from_utf8_lossy(&e.linkname).into_owned();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"index\":{},\"name\":\"{}\",\"kind\":\"{}\",",
+                        "\"method\":{},\"flags\":{},\"typeflag\":{},",
+                        "\"crc32\":{},\"compressed_size\":{},\"uncompressed_size\":{},",
+                        "\"mode\":{},\"uid\":{},\"gid\":{},\"mtime\":{},",
+                        "\"span\":[{},{}],\"header_span\":[{},{}],\"data_span\":[{},{}],",
+                        "\"name_span\":[{},{}],\"linkname\":\"{}\",\"ext\":{},",
+                        "\"directory\":{}}}"
+                    ),
+                    index,
+                    json_escape(&name),
+                    container_kind_name(model.dialect, e),
+                    e.method,
+                    e.flags,
+                    e.typeflag,
+                    e.crc32,
+                    e.compressed_size,
+                    e.uncompressed_size,
+                    e.mode,
+                    e.uid,
+                    e.gid,
+                    e.mtime,
+                    e.span.0,
+                    e.span.1,
+                    e.header.0,
+                    e.header.1,
+                    e.data.0,
+                    e.data.1,
+                    e.name_span.0,
+                    e.name_span.1,
+                    json_escape(&link),
+                    e.ext,
+                    container_is_dir(model.dialect, e),
+                ))
+            }
+        };
+        Ok(self.container_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over every member name and linkname.
+    fn container_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.container_model()?;
+        let (_, root) = self.container_source()?;
+        let matches = container_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"entry\":{},\"field\":\"{}\",\"span\":[{},{}],\"text\":\"{}\"}}"),
+                m.entry,
+                container_field_name(m.field),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("container;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.container_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_container(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.container_common_metadata(req),
+            Selector::Text => self.container_common_text(req),
+            Selector::SearchMatch(p) => self.container_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "container does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn container_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.container_model()?;
+        let (source, root) = self.container_source()?;
+        let text = container_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.container_answer(
+            req,
+            AnswerValue::Text(text),
+            "container;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn container_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.container_model()?;
+        let (source, root) = self.container_source()?;
+        let dirs = model
+            .entries
+            .iter()
+            .filter(|e| container_is_dir(model.dialect, e))
+            .count();
+        let names_bytes: u64 = model.entries.iter().map(|e| e.name.len() as u64).sum();
+        let d = container_dialect_name(model.dialect);
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"container\",\"dialect\":\"{}\",\"bytes\":{},",
+                "\"members\":{},\"directories\":{},\"name_bytes\":{},",
+                "\"trailer_span\":[{},{}]}}"
+            ),
+            d,
+            model.doc_len,
+            model.entries.len(),
+            dirs,
+            names_bytes,
+            model.trailer.0,
+            model.trailer.1,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.container_answer(
+            req,
+            value,
+            "container;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

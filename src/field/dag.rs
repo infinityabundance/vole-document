@@ -1557,6 +1557,40 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::ContainerModel => {
+            // The canonical archive-container model is derived on demand from the exact
+            // source. A container has no separate package layer in this adapter, so its
+            // single dependency is the exact source root (a `DocumentExact` for a TAR
+            // tail, or the `PackageRoot` of the reused ZIP physical layer), keyed by
+            // `sha256(source)` per ADR-0060: the model node *reads the source bytes*, so
+            // it must carry a source-identity input, never alias another field's source.
+            // Parsing and all bounds live in `adapter::container`.
+            #[cfg(feature = "container")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("ContainerModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::container::build_container_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "container"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "container support is not compiled in (feature `container`)",
+                ));
+            }
+        }
         NodeKind::YamlModel => {
             // The canonical YAML structured-tree model is derived on demand from the
             // exact source. YAML has no package layer, so its single dependency is

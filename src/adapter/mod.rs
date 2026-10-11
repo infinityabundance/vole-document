@@ -16,6 +16,8 @@ pub mod bib;
 pub mod cbor;
 #[cfg(feature = "config")]
 pub mod config;
+#[cfg(feature = "container")]
+pub mod container;
 #[cfg(feature = "csv")]
 pub mod csv;
 #[cfg(feature = "docx")]

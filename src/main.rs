@@ -157,6 +157,7 @@ const USAGE_FIELD: &str = "\
         --bib-find PATTERN |
         --rtf-header | --rtf-group N | --rtf-control N | --rtf-hex N |
         --rtf-unicode N | --rtf-text N | --rtf-dest NAME[:N] | --rtf-find PATTERN |
+        --container-dialect | --container-entry N | --container-find PATTERN |
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
@@ -2095,6 +2096,18 @@ struct FieldArgs {
     /// run (Phase 21.32).
     #[cfg(feature = "rtf")]
     rtf_find: Option<String>,
+    /// `--container-dialect`: the archive container's recorded dialect (`zip`/`tar`)
+    /// with the member count and the exact archive trailer span (Phase 21.33).
+    #[cfg(feature = "container")]
+    container_dialect: bool,
+    /// `--container-entry N`: the N-th (0-based) archive member with its raw name,
+    /// method/typeflag, declared sizes, and exact spans (Phase 21.33).
+    #[cfg(feature = "container")]
+    container_entry: Option<u32>,
+    /// `--container-find PATTERN`: a lexical, case-sensitive search over every member
+    /// name and linkname (Phase 21.33).
+    #[cfg(feature = "container")]
+    container_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -3164,6 +3177,21 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "rtf")]
             "--rtf-find" => {
                 out.rtf_find = Some(field_arg_value(args, &mut i, "--rtf-find", inline)?);
+            }
+            #[cfg(feature = "container")]
+            "--container-dialect" => {
+                out.container_dialect = true;
+                i += 1;
+            }
+            #[cfg(feature = "container")]
+            "--container-entry" => {
+                let v = field_arg_value(args, &mut i, "--container-entry", inline)?;
+                out.container_entry = Some(parse_field_u32(&v, "--container-entry")?);
+            }
+            #[cfg(feature = "container")]
+            "--container-find" => {
+                out.container_find =
+                    Some(field_arg_value(args, &mut i, "--container-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -4245,6 +4273,23 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.rtf_find {
             chosen.push(Selector::RtfFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Generic archive container (ZIP/TAR): `--container-dialect` the recorded dialect;
+    // `--container-entry N` a member by 0-based index; `--container-find` a lexical
+    // search. Each stands alone (Phase 21.33).
+    #[cfg(feature = "container")]
+    {
+        if out.container_dialect {
+            chosen.push(Selector::ContainerDialect);
+        }
+        if let Some(index) = out.container_entry {
+            chosen.push(Selector::ContainerEntry { index });
+        }
+        if let Some(pattern) = &out.container_find {
+            chosen.push(Selector::ContainerFind {
                 pattern: pattern.clone(),
             });
         }

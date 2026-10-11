@@ -402,6 +402,17 @@ pub enum DocumentFormat {
     /// and every plain text run byte-exactly (never whitespace-normalized) — Phase
     /// 21.32.
     Rtf,
+    /// A generic archive container (Phase 21.33): a standalone **ZIP** archive (a
+    /// valid EOCD and a coherent central directory) or a standalone **TAR** archive
+    /// (a valid `ustar`/old-GNU or v7 header whose checksum matches). The recorded
+    /// dialect (`zip`/`tar`) lives in the model, exactly as CSV/config/feed record
+    /// theirs. This is deliberately a **plain archive**, never an office package: the
+    /// ZIP-family office formats (DOCX/EPUB/ODT/ODS/ODP/XLSX/PPTX) are detected
+    /// **before** this adapter, so a `.docx`/`.xlsx`/`.odt` source still detects as
+    /// its office format and is never reclassified. Not a package: the exact leaf is
+    /// the whole source (a `DocumentExact`, RAW-like authority) and every derived
+    /// observation is a bounded, span-preserving (`Q_gen`) projection of it.
+    Container,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -447,6 +458,7 @@ impl DocumentFormat {
             DocumentFormat::Apispec => "apispec",
             DocumentFormat::Bib => "bib",
             DocumentFormat::Rtf => "rtf",
+            DocumentFormat::Container => "container",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -491,6 +503,7 @@ impl DocumentFormat {
             DocumentFormat::Apispec => "apispec",
             DocumentFormat::Bib => "bib",
             DocumentFormat::Rtf => "rtf",
+            DocumentFormat::Container => "container",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -535,6 +548,7 @@ impl DocumentFormat {
             DocumentFormat::Apispec => cfg!(feature = "apispec"),
             DocumentFormat::Bib => cfg!(feature = "bib"),
             DocumentFormat::Rtf => cfg!(feature = "rtf"),
+            DocumentFormat::Container => cfg!(feature = "container"),
         }
     }
 
@@ -589,6 +603,7 @@ impl DocumentFormat {
             "apispec" => Some(DocumentFormat::Apispec),
             "bib" => Some(DocumentFormat::Bib),
             "rtf" => Some(DocumentFormat::Rtf),
+            "container" => Some(DocumentFormat::Container),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -608,6 +623,19 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
         if let Some(format) = detect_zip_family(source, limits) {
             return format;
         }
+    }
+    // The generic archive container (Phase 21.33) is a **standalone** format, never
+    // an office package: a plain ZIP (a valid EOCD + coherent central directory) or a
+    // plain TAR (a strong 512-byte header whose checksum matches). It is inserted
+    // **after** the entire office ZIP family above — so an office package is never
+    // reclassified as a plain archive — and **before** every weak, no-magic-byte
+    // heuristic (JSON/YAML/CSV/Markdown/XML/HTML), which a binary archive must never
+    // be guessed to be. It is deliberately conservative: a `PK`-prefixed blob without
+    // a valid EOCD, a 512-byte-junk blob whose checksum fails, and prose all stay
+    // `Opaque`.
+    #[cfg(feature = "container")]
+    if crate::adapter::container::detect(source, limits) {
+        return DocumentFormat::Container;
     }
     // Parquet is the **analytical** Wave-2 format (Phase 21.14), with no package
     // layer. Its detection is a strong magic-byte contract — `PAR1` at both ends

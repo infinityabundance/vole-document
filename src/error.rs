@@ -203,6 +203,13 @@ pub enum ErrorClass {
     /// or trailing bytes after the root group) — so it stays `Opaque` rather than being
     /// claimed as a derived model. Detection and the exact leaf are unaffected.
     InvalidRtfStructure,
+    /// A generic archive-container structure error (Phase 21.33): a source that is
+    /// neither a valid ZIP (magic + EOCD + coherent central directory) nor a valid
+    /// TAR (a strong header whose checksum matches), or a container whose TAR
+    /// member is truncated / has a bad checksum / has a malformed PAX record — so
+    /// it stays `Opaque` rather than being claimed as a derived model. Detection
+    /// and the whole-source exact leaf are unaffected.
+    InvalidContainerStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -258,6 +265,7 @@ impl ErrorClass {
             ErrorClass::InvalidApispecStructure => 46,
             ErrorClass::InvalidBibStructure => 47,
             ErrorClass::InvalidRtfStructure => 48,
+            ErrorClass::InvalidContainerStructure => 49,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -312,6 +320,7 @@ impl ErrorClass {
             ErrorClass::InvalidApispecStructure => "InvalidApispecStructure",
             ErrorClass::InvalidBibStructure => "InvalidBibStructure",
             ErrorClass::InvalidRtfStructure => "InvalidRtfStructure",
+            ErrorClass::InvalidContainerStructure => "InvalidContainerStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -420,6 +429,7 @@ impl Error {
     ctor!(invalid_apispec_structure, InvalidApispecStructure);
     ctor!(invalid_bib_structure, InvalidBibStructure);
     ctor!(invalid_rtf_structure, InvalidRtfStructure);
+    ctor!(invalid_container_structure, InvalidContainerStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

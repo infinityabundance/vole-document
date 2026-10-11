@@ -1,0 +1,15 @@
+fixture	format	src_len	src_sha	out_len	out_sha	cmp	exact	decline_rc	ctl_rc
+office.docx	docx	-	-	-	-	-	-	-	6
+office.odt	odt	-	-	-	-	-	-	-	6
+pk_junk.bin	opaque	-	-	-	-	-	-	-	6
+prose.txt	opaque	-	-	-	-	-	-	-	6
+bad_eocd.zip	opaque	-	-	-	-	-	-	-	6
+bad_checksum.tar	opaque	-	-	-	-	-	-	-	6
+truncated.zip	opaque	-	-	-	-	-	-	-	6
+truncated.tar	container	-	-	-	-	-	-	-	49
+zip_stored.zip	container	132	b8a806de38df0fcefbb607bf7a2bead906004297ac7e0f4434b7957f4b77b805	132	b8a806de38df0fcefbb607bf7a2bead906004297ac7e0f4434b7957f4b77b805	true	true	-	-
+zip_multi.zip	container	505	cb8c8766017baa068150bc4d668ea0f3fc49095c7dcfac673380229045c7cb30	505	cb8c8766017baa068150bc4d668ea0f3fc49095c7dcfac673380229045c7cb30	true	true	-	-
+zip_nonutf8.zip	container	125	eb6ee73c21e02ef262f0b21b0e3558ab915181902d5b99ef19122df783a8b716	125	eb6ee73c21e02ef262f0b21b0e3558ab915181902d5b99ef19122df783a8b716	true	true	-	-
+zip_empty.zip	container	22	8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85	22	8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85	true	true	-	-
+tar_ustar.tar	container	3584	17979da216035acdf5b7a5985523d7b0b7ea0860203f68a8058196099e325eb7	3584	17979da216035acdf5b7a5985523d7b0b7ea0860203f68a8058196099e325eb7	true	true	-	-
+tar_extended.tar	container	5632	cfcaa23eb4a39580d4c76140717f7fbc13782a3868498c10058db83cd4a2918d	5632	cfcaa23eb4a39580d4c76140717f7fbc13782a3868498c10058db83cd4a2918d	true	true	-	-

@@ -1,0 +1,15 @@
+docker compose run --rm --no-TTY dev sh tools/phase21-33-1-container-court.sh
+# inside the court:
+#   cargo build --locked --all-features
+#   cargo run --locked --all-features --example container_fixtures -- CORPUS
+#   target/debug/vole-document field-build FIXTURE --store STORE --voldoc F.voldoc
+#   target/debug/vole-document observe --store STORE --field HEX (--metadata|--doc-text|--container-dialect|--container-entry 0|--container-find PAT) --kind metadata|text|exact
+#   rm source F.voldoc
+#   target/debug/vole-document materialize --store STORE --field HEX --exact --output OUT ; cmp OUT source
+# Full gate (dev service):
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features
+#   cargo test --locked
+#   cargo test --locked --no-default-features
+#   MSRV: docker compose run --rm --no-TTY msrv cargo build --locked --all-features

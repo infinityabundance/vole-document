@@ -483,6 +483,19 @@ pub const SEL_BIB_MODEL: u8 = 46;
 /// source (its single dependency is the `DocumentExact` root, keyed by `sha256(source)`
 /// per ADR-0060); RTF has no package layer. Derived, never exact.
 pub const SEL_RTF_MODEL: u8 = 47;
+/// Selector kind: the canonical generic archive-container model (Phase 21.33).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving archive projection — for ZIP the ordered
+/// central-directory member list (raw name bytes, method, both declared sizes, CRC-32,
+/// exact local-header/payload spans, data descriptor) plus the EOCD; for TAR the
+/// standard 512-byte member headers (with the GNU/PAX extensions folded in) plus the
+/// end-of-archive trailer — with the **recorded dialect** (`zip`/`tar`) as `Q_gen`
+/// derived state. It is computed on demand from the exact source (its single
+/// dependency is the `DocumentExact` or `PackageRoot` node, keyed by `sha256(source)`
+/// per ADR-0060); an archive has no separate package layer in this adapter. Derived,
+/// never exact.
+pub const SEL_CONTAINER_MODEL: u8 = 48;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

@@ -46,6 +46,15 @@ name = "deflate_ablation"
 path = "examples/deflate_ablation.rs"
 required-features = ["deflate-ablation"]
 
+# The Phase-21.33 archive-container court fixture generator. Feature-gated to the
+# adapter it exercises (which implies `package` for the reused ZIP physical layer)
+# so the default build never compiles it. It writes small, deterministic ZIP/TAR
+# fixtures (and office/malformed controls) so the court needs no python3 or `zip`.
+[[example]]
+name = "container_fixtures"
+path = "examples/container_fixtures.rs"
+required-features = ["container"]
+
 [dependencies]
 # Archival source identity. Pinned exactly for the first sealed universe.
 sha2 = "=0.10.9"
@@ -601,6 +610,22 @@ bib = ["json"]
 # `Opaque`. **Dependency-free (`rtf = []` pulls no external crate)** and never in
 # `default`.
 rtf = []
+# Phase 21.33: the generic archive-container adapter — ZIP and TAR as **standalone**
+# formats (not the office packages built on ZIP). Like the other Wave-2 formats it
+# is not a package at the exactness layer: the exact leaf is the whole source (a
+# `DocumentExact`, RAW-like authority) and every derived observation is a bounded,
+# span-preserving (`Q_gen`) projection of it. It **reuses the byte-authoritative ZIP
+# physical layer** ([`crate::adapter::package::zip`], Phase 12.1) for ZIP — never a
+# second ZIP scanner — and adds a bounded TAR parser (standard 512-byte headers,
+# the old-GNU/v7 variant, the GNU long-name `L`/long-link `K` extensions, and the
+# PAX `x`/`g` extension records). It preserves representation: every member's raw
+# name bytes (incl. non-UTF-8 / ZIP UTF-8 flag bit 11), method, both declared sizes,
+# CRC-32, spans, and **exact raw byte span** are recorded; nothing is unzipped,
+# re-zipped, decompressed, or re-serialized. It adds **no** decoder behavior: the
+# model is never on the exactness path, so enabling it never changes `.voldoc`
+# bytes and exactness is untouched. Because it needs the ZIP cover it implies
+# `package`; the TAR half is dependency-free. Never in `default`.
+container = ["package"]
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived

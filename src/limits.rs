@@ -912,6 +912,29 @@ pub struct Limits {
     /// inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.32).
     pub max_rtf_document_bytes: u64,
+    // The container caps below bound the derived, span-preserving model (Phase 21.33).
+    // A generic ZIP/TAR archive has no package layer: the whole source is the exact
+    // leaf, and everything derived is `Q_gen`.
+    /// Maximum member count accepted for one archive container. An over-large
+    /// archive declines typed rather than allocating (Phase 21.33).
+    pub max_container_members: u64,
+    /// Maximum **aggregate** name byte count accepted across one container's members.
+    /// This is a whole-archive budget; an over-large archive declines typed (Phase
+    /// 21.33).
+    pub max_container_name_bytes: u64,
+    /// Maximum byte length of one member name. A longer name declines typed (Phase
+    /// 21.33).
+    pub max_container_entry_name_bytes: u64,
+    /// Maximum TAR extension-record (GNU `L`/`K`, PAX `x`/`g`) count accepted across
+    /// one archive. An over-large archive declines typed (Phase 21.33).
+    pub max_container_extensions: u64,
+    /// Maximum member path depth (number of `/`-separated components; a flat name is
+    /// depth 1) accepted. A deeper path declines typed (Phase 21.33).
+    pub max_container_path_depth: u64,
+    /// Maximum source length admitted for byte-based container detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.33).
+    pub max_container_document_bytes: u64,
 }
 
 impl Limits {
@@ -1172,6 +1195,12 @@ impl Limits {
         max_rtf_text_bytes: 1 << 30,
         max_rtf_hex_escapes: 1 << 24,
         max_rtf_document_bytes: 1 << 34,
+        max_container_members: 1 << 20,
+        max_container_name_bytes: 1 << 26,
+        max_container_entry_name_bytes: 1 << 16,
+        max_container_extensions: 1 << 20,
+        max_container_path_depth: 256,
+        max_container_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1431,6 +1460,12 @@ impl Limits {
         max_rtf_text_bytes: 1 << 20,
         max_rtf_hex_escapes: 1 << 16,
         max_rtf_document_bytes: 1 << 26,
+        max_container_members: 1 << 12,
+        max_container_name_bytes: 1 << 18,
+        max_container_entry_name_bytes: 1 << 14,
+        max_container_extensions: 1 << 12,
+        max_container_path_depth: 64,
+        max_container_document_bytes: 1 << 26,
     };
 }
 

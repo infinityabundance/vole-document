@@ -640,6 +640,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_rtf_text_bytes: 1 << 50,
         max_rtf_hex_escapes: 1 << 30,
         max_rtf_document_bytes: 1 << 50,
+        max_container_members: 1 << 30,
+        max_container_name_bytes: 1 << 50,
+        max_container_entry_name_bytes: 1 << 50,
+        max_container_extensions: 1 << 30,
+        max_container_path_depth: 1 << 12,
+        max_container_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);
