@@ -161,6 +161,8 @@ const USAGE_FIELD: &str = "\
         --hdf-dialect | --hdf-object N | --hdf-dimension N | --hdf-attribute N |
         --hdf-find PATTERN |
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
+        --xls-biff | --xls-sheet N | --xls-cell N | --xls-record N | --xls-find PATTERN |
+        --xls-text |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
         --parquet-cell R:C |
@@ -2167,6 +2169,31 @@ struct FieldArgs {
     /// text (Phase 26.1).
     #[cfg(feature = "doc")]
     doc_find: Option<String>,
+    /// `--xls-biff`: the legacy Excel 97–2003 (`.xls`) BIFF header — the version, the
+    /// `Workbook`/`Book` stream selection, the root substream type, the record count,
+    /// and the exact stream span (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_biff: bool,
+    /// `--xls-text`: the common document text (canonical `text`) — the sheet-ordered
+    /// sheet names and their label/string cell values (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_text: bool,
+    /// `--xls-sheet N`: the N-th (0-based) sheet (`BOUNDSHEET`) with its name, `BOF`
+    /// stream position, sheet type, visibility state, and spans (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_sheet: Option<u32>,
+    /// `--xls-cell N`: the N-th (0-based) cell with its kind, row/column, exact record
+    /// span, and exact stored value spelling (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_cell: Option<u32>,
+    /// `--xls-record N`: the N-th (0-based) BIFF record with its id, payload length,
+    /// stream offset, and exact spans (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_record: Option<u32>,
+    /// `--xls-find PATTERN`: a lexical, case-sensitive search over each sheet name and
+    /// each shared string (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -3313,6 +3340,35 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "doc")]
             "--doc-find" => {
                 out.doc_find = Some(field_arg_value(args, &mut i, "--doc-find", inline)?);
+            }
+            #[cfg(feature = "xls")]
+            "--xls-biff" => {
+                out.xls_biff = true;
+                i += 1;
+            }
+            #[cfg(feature = "xls")]
+            "--xls-text" => {
+                out.xls_text = true;
+                i += 1;
+            }
+            #[cfg(feature = "xls")]
+            "--xls-sheet" => {
+                let v = field_arg_value(args, &mut i, "--xls-sheet", inline)?;
+                out.xls_sheet = Some(parse_field_u32(&v, "--xls-sheet")?);
+            }
+            #[cfg(feature = "xls")]
+            "--xls-cell" => {
+                let v = field_arg_value(args, &mut i, "--xls-cell", inline)?;
+                out.xls_cell = Some(parse_field_u32(&v, "--xls-cell")?);
+            }
+            #[cfg(feature = "xls")]
+            "--xls-record" => {
+                let v = field_arg_value(args, &mut i, "--xls-record", inline)?;
+                out.xls_record = Some(parse_field_u32(&v, "--xls-record")?);
+            }
+            #[cfg(feature = "xls")]
+            "--xls-find" => {
+                out.xls_find = Some(field_arg_value(args, &mut i, "--xls-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -4475,6 +4531,33 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.doc_find {
             chosen.push(Selector::DocFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Legacy Excel 97–2003 (`.xls`, BIFF8): `--xls-biff` the BIFF header; `--xls-sheet N`
+    // a sheet by 0-based index; `--xls-cell N` a cell by 0-based index; `--xls-record N`
+    // a BIFF record by 0-based index; `--xls-find` a lexical search. Each stands alone
+    // (Phase 26.2).
+    #[cfg(feature = "xls")]
+    {
+        if out.xls_biff {
+            chosen.push(Selector::XlsBiff);
+        }
+        if out.xls_text {
+            chosen.push(Selector::Text);
+        }
+        if let Some(index) = out.xls_sheet {
+            chosen.push(Selector::XlsSheet { index });
+        }
+        if let Some(index) = out.xls_cell {
+            chosen.push(Selector::XlsCell { index });
+        }
+        if let Some(index) = out.xls_record {
+            chosen.push(Selector::XlsRecord { index });
+        }
+        if let Some(pattern) = &out.xls_find {
+            chosen.push(Selector::XlsFind {
                 pattern: pattern.clone(),
             });
         }

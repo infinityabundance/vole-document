@@ -1,0 +1,1 @@
+error: InvalidXlsStructure: xls: an SST string is truncated or its CONTINUE is malformed

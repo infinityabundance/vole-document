@@ -794,6 +794,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Hdf => &["HdfModel", "DocumentExact"],
         DocumentFormat::Cfbf => &["CfbfModel", "DocumentExact"],
         DocumentFormat::Doc => &["DocModel", "DocumentExact"],
+        DocumentFormat::Xls => &["XlsModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

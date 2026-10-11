@@ -82,6 +82,8 @@ pub mod rst;
 pub mod rtf;
 #[cfg(feature = "toml")]
 pub mod toml;
+#[cfg(feature = "xls")]
+pub mod xls;
 #[cfg(feature = "xlsx")]
 pub mod xlsx;
 #[cfg(feature = "xml")]

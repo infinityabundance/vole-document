@@ -309,6 +309,14 @@ use crate::adapter::toml::{
     string_content as toml_string_content, table_keys as toml_table_keys,
     token_bytes as toml_token_bytes,
 };
+#[cfg(feature = "xls")]
+use crate::adapter::xls::{
+    XlsCell, XlsModel, XlsSheet, canonical_text as xls_canonical_text,
+    cell_kind_name as xls_cell_kind_name, field_name as xls_field_name, find as xls_find_matches,
+    rk_value as xls_rk_value, sheet_type_name as xls_sheet_type_name, state_name as xls_state_name,
+    stream_name as xls_stream_name, substream_name as xls_substream_name,
+    version_name as xls_version_name,
+};
 #[cfg(feature = "xlsx")]
 use crate::adapter::xlsx::{
     SheetModel as XlsxSheetModel, WorkbookModel as XlsxWorkbookModel, XlsxExtractProfile, XlsxModel,
@@ -410,6 +418,8 @@ use crate::field::index::SEL_RST_MODEL;
 use crate::field::index::SEL_RTF_MODEL;
 #[cfg(feature = "toml")]
 use crate::field::index::SEL_TOML_MODEL;
+#[cfg(feature = "xls")]
+use crate::field::index::SEL_XLS_MODEL;
 #[cfg(feature = "xlsx")]
 use crate::field::index::SEL_XLSX_MODEL;
 #[cfg(feature = "xml")]
@@ -2101,6 +2111,47 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The legacy Excel 97–2003 (`.xls`, BIFF8) BIFF header (Phase 26.2): the BIFF
+    /// version with its name, the `Workbook`/`Book` stream selection, the root substream
+    /// type, the record count, and the exact stream span. `Text` returns the BIFF
+    /// version name; `Metadata`/`Structure` the descriptor JSON.
+    #[cfg(feature = "xls")]
+    XlsBiff,
+    /// The `index`-th sheet (`BOUNDSHEET`, 0-based, sheet order) of a legacy Excel
+    /// 97–2003 (`.xls`) workbook (Phase 26.2): its name, `BOF` stream position, sheet
+    /// type, visibility state, its `BOF` and `DIMENSIONS` spans, and its cell range.
+    /// An out-of-range index declines typed.
+    #[cfg(feature = "xls")]
+    XlsSheet {
+        /// The 0-based sheet index (sheet order).
+        index: u32,
+    },
+    /// The `index`-th cell (0-based, the sheet-ordered cell arena) of a legacy Excel
+    /// 97–2003 (`.xls`) workbook (Phase 26.2): its kind, row/column, exact record span,
+    /// and exact stored value spelling (`RK`'s compact numeric encoding is decoded). An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "xls")]
+    XlsCell {
+        /// The 0-based global cell index (sheet order, then record order).
+        index: u32,
+    },
+    /// The `index`-th BIFF record (0-based, stream order) of a legacy Excel 97–2003
+    /// (`.xls`) workbook (Phase 26.2): its id (with a stable name), payload length,
+    /// stream offset, and exact record/payload spans. An out-of-range index declines
+    /// typed.
+    #[cfg(feature = "xls")]
+    XlsRecord {
+        /// The 0-based record index (stream order).
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over each sheet name and each shared
+    /// string of a legacy Excel 97–2003 (`.xls`) workbook (Phase 26.2). Never an
+    /// embedding or a model call.
+    #[cfg(feature = "xls")]
+    XlsFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2746,6 +2797,16 @@ impl Selector {
             Selector::DocText => "doc-text".to_string(),
             #[cfg(feature = "doc")]
             Selector::DocFind { pattern } => format!("doc-find:{pattern}"),
+            #[cfg(feature = "xls")]
+            Selector::XlsBiff => "xls-biff".to_string(),
+            #[cfg(feature = "xls")]
+            Selector::XlsSheet { index } => format!("xls-sheet:{index}"),
+            #[cfg(feature = "xls")]
+            Selector::XlsCell { index } => format!("xls-cell:{index}"),
+            #[cfg(feature = "xls")]
+            Selector::XlsRecord { index } => format!("xls-record:{index}"),
+            #[cfg(feature = "xls")]
+            Selector::XlsFind { pattern } => format!("xls-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -5145,6 +5206,25 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "doc")]
             (Selector::DocFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.doc_find(req, pattern)
+            }
+            #[cfg(feature = "xls")]
+            (Selector::XlsBiff, R::Text | R::Metadata | R::Structure) => self.xls_biff(req),
+            #[cfg(feature = "xls")]
+            (Selector::XlsSheet { index }, R::Text | R::Metadata | R::Structure) => {
+                self.xls_sheet(req, *index)
+            }
+            #[cfg(feature = "xls")]
+            (Selector::XlsCell { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.xls_cell(req, *index)
+            }
+            #[cfg(feature = "xls")]
+            (
+                Selector::XlsRecord { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.xls_record(req, *index),
+            #[cfg(feature = "xls")]
+            (Selector::XlsFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.xls_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -10532,6 +10612,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Xls => {
+                #[cfg(feature = "xls")]
+                {
+                    self.common_xls(req)?
+                }
+                #[cfg(not(feature = "xls"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "legacy Excel support is not compiled in (feature `xls`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -15117,6 +15209,344 @@ impl<S: SeedStore> Ctx<'_, S> {
             span,
             vec![model_id, root],
         ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy Excel 97–2003 (`.xls`, BIFF8) observations (Phase 26.2)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "xls")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the legacy-XLS model (derived, `Q_gen`).
+    fn xls_model(&mut self) -> Result<(XlsModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_XLS_MODEL, 0), "xls model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((XlsModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the read
+    /// is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn xls_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn xls_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn xls_meta_json(model: &XlsModel) -> String {
+        let (sst_total, sst_unique, sst_strings) = match &model.sst {
+            Some(s) => (s.cst_total, s.cst_unique, s.strings.len() as u32),
+            None => (0, 0, 0),
+        };
+        format!(
+            concat!(
+                "{{\"format\":\"xls\",\"version\":\"{}\",\"biff_version\":{},",
+                "\"stream\":\"{}\",\"root_substream\":\"{}\",\"records\":{},",
+                "\"sheets\":{},\"sst_total\":{},\"sst_unique\":{},\"sst_strings\":{},",
+                "\"cells\":{},\"text_units\":{},\"xf\":{},\"formats\":{},",
+                "\"wb_span\":[{},{}]}}"
+            ),
+            xls_version_name(model.biff_version),
+            model.biff_version,
+            xls_stream_name(model.stream_name),
+            xls_substream_name(model.root_substream),
+            model.records.len(),
+            model.sheets.len(),
+            sst_total,
+            sst_unique,
+            sst_strings,
+            model.cells.len(),
+            model.text_units(),
+            model.xf_spans.len(),
+            model.format_spans.len(),
+            model.wb_span.0,
+            model.wb_span.1,
+        )
+    }
+
+    fn xls_cell_value_json(model: &XlsModel, cell: &XlsCell) -> String {
+        match cell.kind {
+            crate::adapter::xls::CELL_LABELSST => {
+                let text = model.label_text(cell).unwrap_or_default();
+                format!(
+                    "{{\"kind\":\"labelsst\",\"isst\":{},\"text\":\"{}\"}}",
+                    cell.isst,
+                    json_escape(&text)
+                )
+            }
+            crate::adapter::xls::CELL_NUMBER => format!(
+                "{{\"kind\":\"number\",\"num\":{}}}",
+                json_num(f64::from_bits(cell.num_bits))
+            ),
+            crate::adapter::xls::CELL_RK => format!(
+                "{{\"kind\":\"rk\",\"rk\":{},\"value\":{}}}",
+                cell.rk_raw,
+                json_num(xls_rk_value(cell.rk_raw))
+            ),
+            crate::adapter::xls::CELL_BOOLERR => format!(
+                "{{\"kind\":\"boolerr\",\"value\":{},\"error\":{}}}",
+                cell.bool_err, cell.is_error
+            ),
+            crate::adapter::xls::CELL_FORMULA => {
+                if cell.has_string {
+                    format!(
+                        "{{\"kind\":\"formula\",\"special\":\"string\",\"text\":\"{}\"}}",
+                        json_escape(&String::from_utf16_lossy(&cell.text))
+                    )
+                } else if cell.formula_special == crate::adapter::xls::FORMULA_NUMERIC {
+                    format!(
+                        "{{\"kind\":\"formula\",\"num\":{}}}",
+                        json_num(f64::from_bits(cell.num_bits))
+                    )
+                } else {
+                    format!(
+                        "{{\"kind\":\"formula\",\"special\":{}}}",
+                        cell.formula_special
+                    )
+                }
+            }
+            crate::adapter::xls::CELL_BLANK => "{\"kind\":\"blank\"}".to_string(),
+            _ => "{\"kind\":\"mulblank\"}".to_string(),
+        }
+    }
+
+    fn xls_sheet_json(index: u32, sheet: &XlsSheet) -> String {
+        format!(
+            concat!(
+                "{{\"index\":{},\"name\":\"{}\",\"pos\":{},\"type\":\"{}\",",
+                "\"state\":\"{}\",\"compressed\":{},\"cells\":[{},{}],",
+                "\"bof_span\":[{},{}],\"dim_span\":[{},{}],\"rows\":{},",
+                "\"rec_span\":[{},{}]}}"
+            ),
+            index,
+            json_escape(&String::from_utf16_lossy(&sheet.name)),
+            sheet.pos,
+            xls_sheet_type_name(sheet.dt),
+            xls_state_name(sheet.state),
+            sheet.name_compressed,
+            sheet.cell_start,
+            sheet.cell_end,
+            sheet.bof_span.0,
+            sheet.bof_span.1,
+            sheet.dim_span.0,
+            sheet.dim_span.1,
+            sheet.row_spans.len(),
+            sheet.rec_span.0,
+            sheet.rec_span.1,
+        )
+    }
+
+    fn xls_record_json(rec: &crate::adapter::xls::XlsRecord) -> String {
+        let pl = rec.payload_span();
+        format!(
+            concat!(
+                "{{\"id\":{},\"id_hex\":\"0x{:04X}\",\"len\":{},\"stream_off\":{},",
+                "\"span\":[{},{}],\"payload\":[{},{}]}}"
+            ),
+            rec.id, rec.id, rec.len, rec.stream_off, rec.span.0, rec.span.1, pl.0, pl.1,
+        )
+    }
+
+    /// The legacy-XLS BIFF header, from the model.
+    fn xls_biff(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (_, root) = self.xls_source()?;
+        let v = xls_version_name(model.biff_version);
+        let provenance = format!(
+            "xls;version={v};records={};sheets={}",
+            model.records.len(),
+            model.sheets.len()
+        );
+        let span = Some(model.wb_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(v.to_string()),
+            _ => AnswerValue::Json(Self::xls_meta_json(&model)),
+        };
+        Ok(self.xls_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th sheet (0-based, sheet order).
+    fn xls_sheet(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (_, root) = self.xls_source()?;
+        let sheet = model
+            .sheet(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("xls has no sheet {index}")))?;
+        let name = String::from_utf16_lossy(&sheet.name);
+        let provenance = format!(
+            "xls;sheet={index};pos={};type={}",
+            sheet.pos,
+            xls_sheet_type_name(sheet.dt)
+        );
+        let span = Some(sheet.rec_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(name),
+            _ => AnswerValue::Json(Self::xls_sheet_json(index, sheet)),
+        };
+        Ok(self.xls_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th cell (0-based, the sheet-ordered cell arena).
+    fn xls_cell(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (source, root) = self.xls_source()?;
+        let cell = model
+            .cell(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("xls has no cell {index}")))?;
+        let provenance = format!(
+            "xls;cell={index};kind={};row={};col={}",
+            xls_cell_kind_name(cell.kind),
+            cell.row,
+            cell.col
+        );
+        let span = Some(cell.rec_span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, cell.rec_span)?),
+            Representation::Text => AnswerValue::Text(Self::xls_cell_value_json(&model, cell)),
+            _ => AnswerValue::Json(format!(
+                concat!("{{\"index\":{},\"row\":{},\"col\":{},\"span\":[{},{}],\"value\":{}}}"),
+                index,
+                cell.row,
+                cell.col,
+                cell.rec_span.0,
+                cell.rec_span.1,
+                Self::xls_cell_value_json(&model, cell),
+            )),
+        };
+        Ok(self.xls_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th BIFF record (0-based, stream order).
+    fn xls_record(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (source, root) = self.xls_source()?;
+        let rec = model
+            .records
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("xls has no record {index}")))?;
+        let provenance = format!("xls;record={index};id=0x{:04X}", rec.id);
+        let span = Some(rec.span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, rec.span)?),
+            Representation::Text => AnswerValue::Text(format!("0x{:04X}", rec.id)),
+            _ => AnswerValue::Json(Self::xls_record_json(rec)),
+        };
+        Ok(self.xls_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The sheet-ordered canonical text (sheet names and their label/formula strings).
+    fn xls_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (source, root) = self.xls_source()?;
+        let text = xls_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some(model.wb_span);
+        Ok(self.xls_answer(
+            req,
+            AnswerValue::Text(text),
+            "xls;text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over the sheet names and shared strings.
+    fn xls_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (_, root) = self.xls_source()?;
+        let matches = xls_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"field\":\"{}\",\"index\":{},\"span\":[{},{}],\"text\":\"{}\"}}"),
+                xls_field_name(m.field),
+                m.index,
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("xls;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.xls_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_xls(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.xls_common_metadata(req),
+            Selector::Text => self.xls_text(req),
+            Selector::SearchMatch(p) => self.xls_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "xls does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn xls_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (source, root) = self.xls_source()?;
+        let value = AnswerValue::Json(Self::xls_meta_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.xls_answer(
+            req,
+            value,
+            "xls;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// The exact bytes of a source span, fail-closed.
+#[cfg(feature = "xls")]
+fn span_bytes(source: &[u8], span: (u64, u64)) -> Result<Vec<u8>> {
+    let s = usize::try_from(span.0)
+        .map_err(|_| Error::internal_invariant("xls span offset is out of range"))?;
+    let e = usize::try_from(span.1)
+        .map_err(|_| Error::internal_invariant("xls span end is out of range"))?;
+    source
+        .get(s..e)
+        .map(|b| b.to_vec())
+        .ok_or_else(|| Error::internal_invariant("xls span is outside the source"))
+}
+
+/// Render a finite `f64` as a JSON number; non-finite values become `null`.
+#[cfg(feature = "xls")]
+fn json_num(v: f64) -> String {
+    if v.is_finite() {
+        format!("{v}")
+    } else {
+        "null".to_string()
     }
 }
 

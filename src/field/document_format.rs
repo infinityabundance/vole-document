@@ -459,6 +459,23 @@ pub enum DocumentFormat {
     /// every derived observation is a bounded, span-preserving (`Q_gen`) projection of
     /// it. Everything outside the documented subset declines **typed**.
     Doc,
+    /// A legacy Excel 97–2003 spreadsheet (`.xls`, BIFF8) (Phase 26.2): a CFBF/OLE2
+    /// compound file whose `Workbook` stream (the legacy `Book` name is accepted too)
+    /// opens with a BIFF8 `BOF` (id `0x0809`, version `0x0600`) whose substream type is
+    /// a recognized worksheet/globals type. Detection is built **on top of** the CFBF
+    /// detector — the source must be a compound file the CFBF layer accepts and its
+    /// `Workbook`/`Book` stream must begin with that `BOF` — so a generic compound file
+    /// stays [`Cfbf`](DocumentFormat::Cfbf), a `.doc` stays [`Doc`](DocumentFormat::Doc),
+    /// and a non-CFBF source (including a `.xlsx`, an OPC ZIP) is unaffected. The
+    /// recorded model carries the BIFF version, the record list with exact spans, the
+    /// `BOUNDSHEET` sheets (name, `BOF` stream position, in order), the `SST` shared
+    /// string table (with `CONTINUE` reassembly), and the per-sheet cell records
+    /// (`LABELSST`/`NUMBER`/`RK`/`BOOLERR`/`FORMULA`+`STRING`/`BLANK`/`MULBLANK`) with
+    /// their row/column, exact record span, and exact stored value spelling. Not a
+    /// package: the exact leaf is the whole source (a `DocumentExact`) and every derived
+    /// observation is a bounded, span-preserving (`Q_gen`) projection of it. Everything
+    /// outside the documented subset declines **typed**.
+    Xls,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -508,6 +525,7 @@ impl DocumentFormat {
             DocumentFormat::Hdf => "hdf",
             DocumentFormat::Cfbf => "cfbf",
             DocumentFormat::Doc => "doc",
+            DocumentFormat::Xls => "xls",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -556,6 +574,7 @@ impl DocumentFormat {
             DocumentFormat::Hdf => "hdf",
             DocumentFormat::Cfbf => "cfbf",
             DocumentFormat::Doc => "doc",
+            DocumentFormat::Xls => "xls",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -604,6 +623,7 @@ impl DocumentFormat {
             DocumentFormat::Hdf => cfg!(feature = "hdf"),
             DocumentFormat::Cfbf => cfg!(feature = "cfbf"),
             DocumentFormat::Doc => cfg!(feature = "doc"),
+            DocumentFormat::Xls => cfg!(feature = "xls"),
         }
     }
 
@@ -662,6 +682,7 @@ impl DocumentFormat {
             "hdf" => Some(DocumentFormat::Hdf),
             "cfbf" => Some(DocumentFormat::Cfbf),
             "doc" => Some(DocumentFormat::Doc),
+            "xls" => Some(DocumentFormat::Xls),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -730,6 +751,15 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
         #[cfg(feature = "doc")]
         if crate::adapter::doc::detect(source, limits) {
             return DocumentFormat::Doc;
+        }
+        // A legacy Excel 97–2003 (`.xls`, BIFF8) source is a CFBF compound file whose
+        // `Workbook`/`Book` stream opens with a BIFF8 `BOF`. Its detector is likewise
+        // built **on top of** the CFBF detector and runs here (after the Word detector,
+        // which cannot match an Excel compound file), before the generic `Cfbf` claim,
+        // so a `.xls` becomes `Xls` while a generic compound file stays `Cfbf`.
+        #[cfg(feature = "xls")]
+        if crate::adapter::xls::detect(source, limits) {
+            return DocumentFormat::Xls;
         }
         return DocumentFormat::Cfbf;
     }

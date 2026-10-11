@@ -1,0 +1,1 @@
+error: InvalidDocStructure: doc: the CLX lies outside the table stream

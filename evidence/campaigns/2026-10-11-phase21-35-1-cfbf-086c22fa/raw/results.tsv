@@ -1,0 +1,11 @@
+fixture	format	src_len	src_sha	out_len	out_sha	cmp	exact	decline_rc	ctl_rc
+cfbf_badtype.cfb	cfbf	-	-	-	-	-	-	-	51
+cfbf_cyclic.cfb	cfbf	-	-	-	-	-	-	-	51
+cfbf_truncated_stream.cfb	cfbf	-	-	-	-	-	-	-	51
+cfbf_bad_dir_sector.cfb	opaque	-	-	-	-	-	-	-	6
+cfbf_badsig.cfb	opaque	-	-	-	-	-	-	-	6
+cfbf_badshift.cfb	opaque	-	-	-	-	-	-	-	6
+sig_only.bin	opaque	-	-	-	-	-	-	-	6
+prose.txt	opaque	-	-	-	-	-	-	-	6
+cfbf_v3.cfb	cfbf	8192	2b5565f90840d428f3646c4f9418d8bfc7d03e5f169565aa564cb6b3b697476b	8192	2b5565f90840d428f3646c4f9418d8bfc7d03e5f169565aa564cb6b3b697476b	true	true	-	-
+cfbf_v4.cfb	cfbf	28672	73a8ac9feb027fbf48e1263981cfdfc63d49148f703b4b57c42a0de3e0cd014f	28672	73a8ac9feb027fbf48e1263981cfdfc63d49148f703b4b57c42a0de3e0cd014f	true	true	-	-

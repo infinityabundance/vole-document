@@ -86,6 +86,17 @@ name = "doc_fixtures"
 path = "examples/doc_fixtures.rs"
 required-features = ["doc"]
 
+# The Phase-26.2 legacy Excel 97–2003 (`.xls`, BIFF8) court fixture generator.
+# Feature-gated to the adapter it exercises so the default build never compiles it. It
+# writes small, deterministic `.xls` compound files (a `Workbook` stream with a valid
+# BIFF8 `BOF`, a `BOUNDSHEET` inventory, an `SST` with a `CONTINUE`-split string, cells
+# of each supported kind, plus malformed controls) byte-for-byte, so the court needs no
+# Excel, LibreOffice, or OLE tooling.
+[[example]]
+name = "xls_fixtures"
+path = "examples/xls_fixtures.rs"
+required-features = ["xls"]
+
 [dependencies]
 # Archival source identity. Pinned exactly for the first sealed universe.
 sha2 = "=0.10.9"
@@ -716,6 +727,27 @@ cfbf = []
 # `.voldoc` bytes and exactness is untouched. It implies `cfbf` (the reused physical
 # layer) and is never in `default`.
 doc = ["cfbf"]
+# Phase 26.2: the legacy Excel 97–2003 (`.xls`, BIFF8) **semantic** adapter, built on
+# the CFBF/OLE2 physical layer (21.35). Like every Wave-2 format it is not a package
+# at the exactness layer: the exact leaf is the whole source (a `DocumentExact`,
+# RAW-like authority) and every derived observation is a bounded, span-preserving
+# (`Q_gen`) projection of it. It **reuses the CFBF resolver** (never a second OLE
+# parser) to obtain the `Workbook` (or legacy `Book`) stream as an exact byte span,
+# then parses a documented bounded subset of its **BIFF8 record stream**: the
+# `[u16 id][u16 len][payload]` records with their exact spans, the `BOF`/`EOF`
+# substream framing and the BIFF version (`0x0600`), `BOUNDSHEET` (the sheet name and
+# its `BOF` stream position, in order), the `SST` shared-string table (with
+# `CONTINUE` reassembly of continued strings), and the per-sheet cell records
+# (`LABELSST`/`NUMBER`/`RK`/`BOOLERR`/`FORMULA`+`STRING`/`BLANK`/`MULBLANK`) with their
+# row/column, exact record span, and exact stored value spelling (`RK`'s compact
+# numeric encoding is decoded). `DIMENSIONS`/`ROW`/`FORMAT`/`XF` are recorded by span.
+# Nothing is normalized or re-serialized. Everything outside the subset declines
+# **typed** (a bad `BOF` version, an unknown substream type, a truncated record, an
+# out-of-range `BOUNDSHEET` position, an `SST` count mismatch, a malformed `CONTINUE`).
+# It adds **no** decoder behavior: the model is never on the exactness path, so
+# enabling it never changes `.voldoc` bytes and exactness is untouched. It implies
+# `cfbf` (the reused physical layer) and is never in `default`.
+xls = ["cfbf"]
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived

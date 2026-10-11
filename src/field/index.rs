@@ -538,6 +538,22 @@ pub const SEL_CFBF_MODEL: u8 = 50;
 /// adapter. Derived, never exact.
 pub const SEL_DOC_MODEL: u8 = 51;
 
+/// Selector kind: the canonical legacy Excel 97–2003 (`.xls`, BIFF8) semantic model
+/// (Phase 26.2).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving semantic projection built on the CFBF/OLE2
+/// physical layer (21.35): the BIFF8 record stream (every record's exact span and
+/// stream offset), the `BOF`/`EOF` framing and version, the `BOUNDSHEET` sheets (name
+/// and `BOF` position, in order), the `SST` shared-string table (with `CONTINUE`
+/// reassembly), and the per-sheet cell records (`LABELSST`/`NUMBER`/`RK`/`BOOLERR`/
+/// `FORMULA`+`STRING`/`BLANK`/`MULBLANK`) with their row/column, exact record span,
+/// and exact stored value spelling. It is computed on demand from the exact source
+/// (its single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+/// ADR-0060); a `.xls` has no separate package layer in this adapter. Derived, never
+/// exact.
+pub const SEL_XLS_MODEL: u8 = 52;
+
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;
 /// Node kind: a run of child pointers.

@@ -1691,6 +1691,40 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::XlsModel => {
+            // The canonical legacy Excel 97–2003 (`.xls`, BIFF8) semantic model is
+            // derived on demand from the exact source. A `.xls` has no package layer
+            // beyond the reused CFBF physical layer, so its single dependency is the
+            // exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the
+            // model node *reads the source bytes*, so it must carry a source-identity
+            // input, never alias another field's source. Parsing (on top of the CFBF
+            // resolver) and all bounds live in `adapter::xls`.
+            #[cfg(feature = "xls")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("XlsModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::xls::build_xls_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "xls"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "legacy Excel support is not compiled in (feature `xls`)",
+                ));
+            }
+        }
         NodeKind::YamlModel => {
             // The canonical YAML structured-tree model is derived on demand from the
             // exact source. YAML has no package layer, so its single dependency is

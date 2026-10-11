@@ -234,6 +234,15 @@ pub enum ErrorClass {
     /// it declines typed rather than being claimed as a derived model. Detection and
     /// the whole-source exact leaf are unaffected.
     InvalidDocStructure,
+    /// A legacy Excel 97–2003 (`.xls`, BIFF8) structure error (Phase 26.2): a compound
+    /// file whose `Workbook`/`Book` stream begins with a BIFF8 `BOF` but whose semantic
+    /// body is malformed or outside the documented subset — a bad `BOF` version, an
+    /// unrecognized substream type, a leading substream that is not workbook globals, a
+    /// truncated record, an out-of-range `BOUNDSHEET` position, an `SST` count mismatch
+    /// or a malformed `CONTINUE`, or a `FORMULA` string result with no `STRING` record —
+    /// so it declines typed rather than being claimed as a derived model. Detection and
+    /// the whole-source exact leaf are unaffected.
+    InvalidXlsStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -293,6 +302,7 @@ impl ErrorClass {
             ErrorClass::InvalidHdfStructure => 50,
             ErrorClass::InvalidCfbfStructure => 51,
             ErrorClass::InvalidDocStructure => 52,
+            ErrorClass::InvalidXlsStructure => 53,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -351,6 +361,7 @@ impl ErrorClass {
             ErrorClass::InvalidHdfStructure => "InvalidHdfStructure",
             ErrorClass::InvalidCfbfStructure => "InvalidCfbfStructure",
             ErrorClass::InvalidDocStructure => "InvalidDocStructure",
+            ErrorClass::InvalidXlsStructure => "InvalidXlsStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -463,6 +474,7 @@ impl Error {
     ctor!(invalid_hdf_structure, InvalidHdfStructure);
     ctor!(invalid_cfbf_structure, InvalidCfbfStructure);
     ctor!(invalid_doc_structure, InvalidDocStructure);
+    ctor!(invalid_xls_structure, InvalidXlsStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

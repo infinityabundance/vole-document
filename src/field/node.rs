@@ -545,6 +545,23 @@ pub enum NodeKind {
     /// is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a `.doc`
     /// has no separate package layer in this adapter. Derived, never exact.
     DocModel = 0x47,
+    /// The canonical, representation-preserving legacy Excel 97–2003 (`.xls`, BIFF8)
+    /// **semantic** model (Phase 26.2), built on the CFBF/OLE2 physical layer (21.35).
+    /// It **reuses the CFBF resolver** (never a second OLE parser) to obtain the
+    /// `Workbook` stream (the legacy `Book` name is accepted too), records the BIFF8
+    /// record stream — every `[u16 id][u16 length][payload]` record with its exact byte
+    /// span and stream offset, the `BOF`/`EOF` substream framing, and the record's
+    /// fields — the `BOUNDSHEET` sheets (name, `BOF` stream position, visibility, and
+    /// type, in order), the `SST` shared-string table (with `CONTINUE` reassembly of
+    /// continued strings), and the per-sheet cell records
+    /// (`LABELSST`/`NUMBER`/`RK`/`BOOLERR`/`FORMULA`+`STRING`/`BLANK`/`MULBLANK`) with
+    /// their row/column, exact record span, and exact stored value spelling (`RK`'s
+    /// compact numeric encoding is decoded). `DIMENSIONS`/`ROW`/`FORMAT`/`XF` are
+    /// recorded by span. Nothing is normalized or re-serialized. It is computed on
+    /// demand from the exact source (its single dependency is the `DocumentExact` root,
+    /// keyed by `sha256(source)` per ADR-0060); a `.xls` has no separate package layer
+    /// in this adapter. Derived, never exact.
+    XlsModel = 0x48,
 }
 
 impl NodeKind {
@@ -622,6 +639,7 @@ impl NodeKind {
             0x45 => NodeKind::HdfModel,
             0x46 => NodeKind::CfbfModel,
             0x47 => NodeKind::DocModel,
+            0x48 => NodeKind::XlsModel,
             _ => return None,
         })
     }
@@ -700,6 +718,7 @@ impl NodeKind {
             NodeKind::HdfModel => "HdfModel",
             NodeKind::CfbfModel => "CfbfModel",
             NodeKind::DocModel => "DocModel",
+            NodeKind::XlsModel => "XlsModel",
         }
     }
 

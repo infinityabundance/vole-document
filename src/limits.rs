@@ -1010,6 +1010,29 @@ pub struct Limits {
     /// inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 26.1).
     pub max_doc_document_bytes: u64,
+    // The legacy Excel 97–2003 (`.xls`, BIFF8) caps below bound the derived,
+    // span-preserving semantic model (Phase 26.2). A `.xls` reuses the CFBF physical
+    // layer; the whole source is the exact leaf and everything derived is `Q_gen`.
+    /// Maximum sheet (`BOUNDSHEET`) count accepted for one workbook. An over-large
+    /// sheet inventory declines typed (Phase 26.2).
+    pub max_xls_sheets: u64,
+    /// Maximum BIFF record count accepted for one workbook stream (bounds the record
+    /// scan and the model). An over-large stream declines typed (Phase 26.2).
+    pub max_xls_records: u64,
+    /// Maximum unique `SST` string count accepted. An over-large shared-string table
+    /// declines typed (Phase 26.2).
+    pub max_xls_sst_strings: u64,
+    /// Maximum cell count accepted across all sheets (bounds the cell arena). An
+    /// over-large workbook declines typed (Phase 26.2).
+    pub max_xls_cells: u64,
+    /// Maximum aggregate derived text code-unit count accepted (the sum of every `SST`
+    /// string, sheet name, and `FORMULA` string result). This whole-workbook budget
+    /// bounds the derived text; an over-large workbook declines typed (Phase 26.2).
+    pub max_xls_text_bytes: u64,
+    /// Maximum source length admitted for legacy-XLS detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 26.2).
+    pub max_xls_document_bytes: u64,
 }
 
 impl Limits {
@@ -1296,6 +1319,12 @@ impl Limits {
         max_doc_fib_fields: 1 << 12,
         max_doc_stream_bytes: 1 << 34,
         max_doc_document_bytes: 1 << 34,
+        max_xls_sheets: 1 << 12,
+        max_xls_records: 1 << 20,
+        max_xls_sst_strings: 1 << 20,
+        max_xls_cells: 1 << 22,
+        max_xls_text_bytes: 1 << 31,
+        max_xls_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1581,6 +1610,12 @@ impl Limits {
         max_doc_fib_fields: 1 << 10,
         max_doc_stream_bytes: 1 << 26,
         max_doc_document_bytes: 1 << 26,
+        max_xls_sheets: 1 << 10,
+        max_xls_records: 1 << 14,
+        max_xls_sst_strings: 1 << 14,
+        max_xls_cells: 1 << 16,
+        max_xls_text_bytes: 1 << 20,
+        max_xls_document_bytes: 1 << 26,
     };
 }
 
