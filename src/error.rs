@@ -191,6 +191,12 @@ pub enum ErrorClass {
     /// or an input that exceeds a cap — so it stays `Json`/`Opaque` rather than being
     /// claimed.
     InvalidApispecStructure,
+    /// A bibliography structure error (Phase 21.31): a source that is not a recognized
+    /// bibliography (a BibTeX entry sequence, an RIS `TY`/`ER` entry sequence, or a
+    /// CSL-JSON item array/object carrying a string `id` and a string `type`), a
+    /// malformed entry/field, or an input that exceeds a cap — so it stays
+    /// `Json`/`Opaque` rather than being claimed.
+    InvalidBibStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -244,6 +250,7 @@ impl ErrorClass {
             ErrorClass::InvalidLogstreamStructure => 44,
             ErrorClass::InvalidPkgmetaStructure => 45,
             ErrorClass::InvalidApispecStructure => 46,
+            ErrorClass::InvalidBibStructure => 47,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -296,6 +303,7 @@ impl ErrorClass {
             ErrorClass::InvalidLogstreamStructure => "InvalidLogstreamStructure",
             ErrorClass::InvalidPkgmetaStructure => "InvalidPkgmetaStructure",
             ErrorClass::InvalidApispecStructure => "InvalidApispecStructure",
+            ErrorClass::InvalidBibStructure => "InvalidBibStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -402,6 +410,7 @@ impl Error {
     ctor!(invalid_logstream_structure, InvalidLogstreamStructure);
     ctor!(invalid_pkgmeta_structure, InvalidPkgmetaStructure);
     ctor!(invalid_apispec_structure, InvalidApispecStructure);
+    ctor!(invalid_bib_structure, InvalidBibStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

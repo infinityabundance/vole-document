@@ -373,6 +373,18 @@ pub enum DocumentFormat {
     /// object/member/`$ref` span is a `Q_gen` projection — `$ref` targets are preserved
     /// verbatim and never resolved (Phase 21.30).
     Apispec,
+    /// A bibliography document — **BibTeX** (`.bib`), **RIS**, or **CSL-JSON**. One
+    /// adapter covers the three dialects and records the dialect in the model, exactly
+    /// as CSV/config/feed/pkgmeta/apispec record theirs. BibTeX and RIS are text (no
+    /// magic bytes); CSL-JSON's physical bytes are JSON, so its **bounded semantic
+    /// sub-detection runs before the generic JSON detector**: the root must be an
+    /// **array** of objects (or a single object) each carrying a string `id` **and** a
+    /// string `type`. A plain JSON array, a JSON array of non-CSL objects, a generic
+    /// JSON object, and prose stay [`DocumentFormat::Json`]/[`DocumentFormat::Opaque`].
+    /// Not a package: the exact leaf is the whole source, and every entry/field/item
+    /// token span (and each value's exact spelling and delimiters) is a `Q_gen`
+    /// projection (Phase 21.31).
+    Bib,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -416,6 +428,7 @@ impl DocumentFormat {
             DocumentFormat::Logstream => "logstream",
             DocumentFormat::Pkgmeta => "pkgmeta",
             DocumentFormat::Apispec => "apispec",
+            DocumentFormat::Bib => "bib",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -458,6 +471,7 @@ impl DocumentFormat {
             DocumentFormat::Logstream => "logstream",
             DocumentFormat::Pkgmeta => "pkgmeta",
             DocumentFormat::Apispec => "apispec",
+            DocumentFormat::Bib => "bib",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -500,6 +514,7 @@ impl DocumentFormat {
             DocumentFormat::Logstream => cfg!(feature = "logstream"),
             DocumentFormat::Pkgmeta => cfg!(feature = "pkgmeta"),
             DocumentFormat::Apispec => cfg!(feature = "apispec"),
+            DocumentFormat::Bib => cfg!(feature = "bib"),
         }
     }
 
@@ -552,6 +567,7 @@ impl DocumentFormat {
             "logstream" => Some(DocumentFormat::Logstream),
             "pkgmeta" => Some(DocumentFormat::Pkgmeta),
             "apispec" => Some(DocumentFormat::Apispec),
+            "bib" => Some(DocumentFormat::Bib),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -663,6 +679,23 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "apispec")]
     if crate::adapter::apispec::detect(source, limits) {
         return DocumentFormat::Apispec;
+    }
+    // A bibliography (Phase 21.31) — BibTeX, RIS, or CSL-JSON — is the
+    // **bibliography** Wave-2 format. BibTeX/RIS are line-anchored text and CSL-JSON's
+    // physical bytes are JSON, so this is a **bounded content-only test** run **before**
+    // the generic JSON detector below (a CSL-JSON array is otherwise claimed by the JSON
+    // detector, which is the weaker claim) and **before** the weak text heuristics
+    // (YAML/TOML/config/CSV/Markdown/RST/AsciiDoc/logstream/fixedwidth), which a BibTeX
+    // `@type{…}` file or an RIS `TY  - ` stream must never be guessed to be. It claims
+    // only on a strong signal: a line-anchored `@type{` entry sequence, an RIS `TY  - `
+    // entry sequence whose every entry is `ER  - `-terminated, or a JSON array (or
+    // single object) whose every element carries a string `id` **and** a string `type`.
+    // A plain JSON array, a JSON array of non-CSL objects, a generic JSON object, and
+    // prose decline here and are then claimed by the JSON detector (staying `Json`) or
+    // the opaque floor. Detection is content-only and never consults a file name.
+    #[cfg(feature = "bib")]
+    if crate::adapter::bib::detect(source, limits) {
+        return DocumentFormat::Bib;
     }
     #[cfg(feature = "json")]
     if crate::adapter::json::detect(source, limits) {
@@ -1209,6 +1242,7 @@ mod tests {
             DocumentFormat::Logstream,
             DocumentFormat::Pkgmeta,
             DocumentFormat::Apispec,
+            DocumentFormat::Bib,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

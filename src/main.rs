@@ -153,6 +153,8 @@ const USAGE_FIELD: &str = "\
         --pkgmeta-find PATTERN |
         --apispec-dialect | --apispec-version | --apispec-object N |
         --apispec-ref N | --apispec-find PATTERN |
+        --bib-dialect | --bib-entry N | --bib-field N:FIELD | --bib-key KEY |
+        --bib-find PATTERN |
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
@@ -2041,6 +2043,26 @@ struct FieldArgs {
     /// and string values (Phase 21.30).
     #[cfg(feature = "apispec")]
     apispec_find: Option<String>,
+    /// `--bib-dialect`: the bibliography document's recorded dialect
+    /// (`bibtex`/`ris`/`csl_json`) (Phase 21.31).
+    #[cfg(feature = "bib")]
+    bib_dialect: bool,
+    /// `--bib-entry N`: the N-th (0-based) bibliography entry (BibTeX/RIS) or item
+    /// (CSL-JSON) (Phase 21.31).
+    #[cfg(feature = "bib")]
+    bib_entry: Option<u32>,
+    /// `--bib-field N:FIELD`: an entry/item field by 0-based index and field name/tag
+    /// (Phase 21.31).
+    #[cfg(feature = "bib")]
+    bib_field: Option<String>,
+    /// `--bib-key KEY`: a bibliography entry by citation key (BibTeX), `ID` (RIS), or
+    /// item `id` (CSL-JSON) (Phase 21.31).
+    #[cfg(feature = "bib")]
+    bib_key: Option<String>,
+    /// `--bib-find PATTERN`: a lexical, case-sensitive search over entry types/keys,
+    /// field names, and field values (Phase 21.31).
+    #[cfg(feature = "bib")]
+    bib_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -3050,6 +3072,28 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "apispec")]
             "--apispec-find" => {
                 out.apispec_find = Some(field_arg_value(args, &mut i, "--apispec-find", inline)?);
+            }
+            #[cfg(feature = "bib")]
+            "--bib-dialect" => {
+                out.bib_dialect = true;
+                i += 1;
+            }
+            #[cfg(feature = "bib")]
+            "--bib-entry" => {
+                let v = field_arg_value(args, &mut i, "--bib-entry", inline)?;
+                out.bib_entry = Some(parse_field_u32(&v, "--bib-entry")?);
+            }
+            #[cfg(feature = "bib")]
+            "--bib-field" => {
+                out.bib_field = Some(field_arg_value(args, &mut i, "--bib-field", inline)?);
+            }
+            #[cfg(feature = "bib")]
+            "--bib-key" => {
+                out.bib_key = Some(field_arg_value(args, &mut i, "--bib-key", inline)?);
+            }
+            #[cfg(feature = "bib")]
+            "--bib-find" => {
+                out.bib_find = Some(field_arg_value(args, &mut i, "--bib-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -4074,6 +4118,30 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.apispec_find {
             chosen.push(Selector::ApispecFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Bibliography: `--bib-dialect` the recorded dialect; `--bib-entry N` addresses an
+    // entry/item by 0-based index; `--bib-field N:FIELD` a field by index and name;
+    // `--bib-key KEY` an entry by citation key/id; `--bib-find` is a lexical search.
+    // Each stands alone (Phase 21.31).
+    #[cfg(feature = "bib")]
+    {
+        if out.bib_dialect {
+            chosen.push(Selector::BibDialect);
+        }
+        if let Some(index) = out.bib_entry {
+            chosen.push(Selector::BibEntry { index });
+        }
+        if let Some(spec) = &out.bib_field {
+            chosen.push(Selector::BibField { spec: spec.clone() });
+        }
+        if let Some(spec) = &out.bib_key {
+            chosen.push(Selector::BibKey { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.bib_find {
+            chosen.push(Selector::BibFind {
                 pattern: pattern.clone(),
             });
         }

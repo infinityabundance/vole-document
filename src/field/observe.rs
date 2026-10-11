@@ -56,6 +56,19 @@ use crate::adapter::asciidoc::{
     find as adoc_find_matches, inline_kind_name as adoc_inline_kind_name,
     inline_text_bytes as adoc_inline_text_bytes,
 };
+#[cfg(feature = "bib")]
+use crate::adapter::bib::{
+    BibModel, NONE as BIB_NONE, canonical_text as bib_canonical_text,
+    dialect_name as bib_dialect_name, entry_bytes as bib_entry_bytes,
+    entry_field_index as bib_entry_field_index, entry_key_index as bib_entry_key_index,
+    entry_key_text as bib_entry_key_text, entry_kind_name as bib_entry_kind_name,
+    entry_type_text as bib_entry_type_text, field_name_text as bib_field_name_text,
+    field_value_bytes as bib_field_value_bytes, field_value_text as bib_field_value_text,
+    find as bib_find_matches, item_bytes as bib_item_bytes, item_id_text as bib_item_id_text,
+    item_member_node as bib_item_member_node, item_type_text as bib_item_type_text,
+    node_token_bytes as bib_node_token_bytes, node_value_text as bib_node_value_text,
+    role_name as bib_role_name, value_kind_name as bib_value_kind_name,
+};
 #[cfg(feature = "cbor")]
 use crate::adapter::cbor::{
     CborModel, canonical_text as cbor_canonical_text, decode_text as cbor_decode_text,
@@ -286,6 +299,8 @@ use crate::field::index::SEL_APISPEC_MODEL;
 use crate::field::index::SEL_ARROW_MODEL;
 #[cfg(feature = "asciidoc")]
 use crate::field::index::SEL_ASCIIDOC_MODEL;
+#[cfg(feature = "bib")]
+use crate::field::index::SEL_BIB_MODEL;
 #[cfg(feature = "cbor")]
 use crate::field::index::SEL_CBOR_MODEL;
 #[cfg(feature = "config")]
@@ -1799,6 +1814,52 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The **recorded dialect** of a bibliography document (Phase 21.31): one of
+    /// `bibtex` / `ris` / `csl_json`. `Text` returns the dialect name;
+    /// `Metadata`/`Structure` a descriptor with the dialect, the entry/item and field
+    /// counts, the BOM length, and the byte length. A bibliography has no package layer,
+    /// so the source *is* the whole document.
+    #[cfg(feature = "bib")]
+    BibDialect,
+    /// The `index`-th recorded bibliography **entry** (BibTeX/RIS) or **item**
+    /// (CSL-JSON) (0-based) (Phase 21.31). `ExactBytes` returns the entry/item's exact
+    /// source bytes; `Text` its entry key (BibTeX), `TY` value (RIS), or string `id`
+    /// (CSL-JSON); `Metadata`/`Structure` a descriptor. An out-of-range index declines
+    /// typed.
+    #[cfg(feature = "bib")]
+    BibEntry {
+        /// The 0-based entry (or item) index.
+        index: u32,
+    },
+    /// A field of an entry (or a member of a CSL-JSON item) as `N:FIELD` (Phase 21.31):
+    /// `N` is a 0-based entry/item index and `FIELD` is a BibTeX field name
+    /// (case-insensitive) or RIS tag / CSL-JSON member key (exact). `ExactBytes`
+    /// returns the value's exact bytes (delimiters included); `Text` its decoded text;
+    /// `Metadata`/`Structure` a descriptor. A malformed reference is a usage error; an
+    /// absent entry or field declines typed.
+    #[cfg(feature = "bib")]
+    BibField {
+        /// The `N:FIELD` reference.
+        spec: String,
+    },
+    /// A bibliography entry looked up by its **citation key** (BibTeX), its `ID` field
+    /// (RIS), or its string `id` (CSL-JSON) (Phase 21.31). `ExactBytes` returns the
+    /// matching entry's exact bytes; `Text` its key/id; `Metadata`/`Structure` a
+    /// descriptor. An absent key declines typed.
+    #[cfg(feature = "bib")]
+    BibKey {
+        /// The citation key / item id.
+        spec: String,
+    },
+    /// A bounded, case-sensitive lexical search over every bibliography entry type/key,
+    /// field name, and field value (Phase 21.31; CSL-JSON matches reuse the shared JSON
+    /// match vocabulary and report their canonical RFC 6901 pointer). Never an embedding
+    /// or a model call.
+    #[cfg(feature = "bib")]
+    BibFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2386,6 +2447,16 @@ impl Selector {
             Selector::ApispecRef { index } => format!("apispec-ref:{index}"),
             #[cfg(feature = "apispec")]
             Selector::ApispecFind { pattern } => format!("apispec-find:{pattern}"),
+            #[cfg(feature = "bib")]
+            Selector::BibDialect => "bib-dialect".to_string(),
+            #[cfg(feature = "bib")]
+            Selector::BibEntry { index } => format!("bib-entry:{index}"),
+            #[cfg(feature = "bib")]
+            Selector::BibField { spec } => format!("bib-field:{spec}"),
+            #[cfg(feature = "bib")]
+            Selector::BibKey { spec } => format!("bib-key:{spec}"),
+            #[cfg(feature = "bib")]
+            Selector::BibFind { pattern } => format!("bib-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -4670,6 +4741,25 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "apispec")]
             (Selector::ApispecFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.apispec_find(req, pattern)
+            }
+            #[cfg(feature = "bib")]
+            (Selector::BibDialect, R::Text | R::Metadata | R::Structure) => self.bib_dialect(req),
+            #[cfg(feature = "bib")]
+            (
+                Selector::BibEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.bib_entry(req, *index),
+            #[cfg(feature = "bib")]
+            (Selector::BibField { spec }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.bib_field(req, spec)
+            }
+            #[cfg(feature = "bib")]
+            (Selector::BibKey { spec }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.bib_key(req, spec)
+            }
+            #[cfg(feature = "bib")]
+            (Selector::BibFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.bib_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -9985,6 +10075,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Bib => {
+                #[cfg(feature = "bib")]
+                {
+                    self.common_bib(req)?
+                }
+                #[cfg(not(feature = "bib"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "bibliography support is not compiled in (feature `bib`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -12736,6 +12838,414 @@ impl<S: SeedStore> Ctx<'_, S> {
             vec![model_id, root],
         ))
     }
+}
+
+// ---------------------------------------------------------------------------
+// Bibliography observations (Phase 21.31)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "bib")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the bibliography model (derived, `Q_gen`).
+    fn bib_model(&mut self) -> Result<(BibModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_BIB_MODEL, 0), "bibliography model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((BibModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn bib_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn bib_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The recorded dialect. `Text` returns the dialect name; `Metadata`/`Structure` a
+    /// descriptor with the dialect, the entry/item/field counts, and the byte length.
+    fn bib_dialect(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        let dialect = bib_dialect_name(model.dialect).to_string();
+        let provenance = format!("bib;dialect={dialect}");
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(dialect.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"bib\",\"dialect\":\"{}\",\"records\":{},",
+                    "\"entries\":{},\"items\":{},\"fields\":{},\"bom\":{},\"bytes\":{}}}"
+                ),
+                json_escape(&dialect),
+                model.record_count(),
+                model.entries.len(),
+                model.items.len(),
+                model.field_count(),
+                model.bom_len,
+                model.doc_len(),
+            )),
+        };
+        Ok(self.bib_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th recorded entry (BibTeX/RIS) or item (CSL-JSON). `ExactBytes`
+    /// returns its exact source bytes; `Text` its key/id; `Metadata`/`Structure` a
+    /// descriptor.
+    fn bib_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        if model.is_json() {
+            let it = model.item(index).ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "bibliography has no item {index} (item count {})",
+                    model.items.len()
+                ))
+            })?;
+            let id = bib_item_id_text(&model, &source, it)?;
+            let ty = bib_item_type_text(&model, &source, it)?;
+            let span = Some((it.start, it.end));
+            let provenance = format!("bib;item={index};dialect=csl_json;id={id}");
+            let value = match req.representation {
+                Representation::ExactBytes => {
+                    AnswerValue::Bytes(bib_item_bytes(&model, &source, it)?.to_vec())
+                }
+                Representation::Text => AnswerValue::Text(id.clone()),
+                _ => AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"dialect\":\"csl_json\",\"item\":{},\"id\":\"{}\",",
+                        "\"type\":\"{}\",\"span\":[{},{}]}}"
+                    ),
+                    index,
+                    json_escape(&id),
+                    json_escape(&ty),
+                    it.start,
+                    it.end,
+                )),
+            };
+            return Ok(self.bib_answer(req, value, provenance, span, vec![model_id, root]));
+        }
+        let e = model.entry(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "bibliography has no entry {index} (entry count {})",
+                model.entries.len()
+            ))
+        })?;
+        let key = bib_entry_key_text(&source, e)?;
+        let ty = bib_entry_type_text(&source, e)?;
+        let name = if model.dialect == crate::adapter::bib::D_BIBTEX {
+            key.clone()
+        } else {
+            ty.clone()
+        };
+        let span = Some((e.start, e.end));
+        let provenance = format!(
+            "bib;entry={index};dialect={};kind={};fields={}",
+            bib_dialect_name(model.dialect),
+            bib_entry_kind_name(e.kind),
+            e.fields.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(bib_entry_bytes(&source, e)?.to_vec()),
+            Representation::Text => AnswerValue::Text(name.clone()),
+            _ => {
+                let mut fs: Vec<String> = Vec::new();
+                for f in &e.fields {
+                    let fname = bib_field_name_text(&source, f)?;
+                    fs.push(format!(
+                        concat!(
+                            "{{\"name\":\"{}\",\"kind\":\"{}\",\"flags\":{},",
+                            "\"name_span\":[{},{}],\"value_span\":[{},{}]}}"
+                        ),
+                        json_escape(&fname),
+                        bib_value_kind_name(f.value_kind),
+                        f.flags,
+                        f.name_start,
+                        f.name_end,
+                        f.value_start,
+                        f.value_end,
+                    ));
+                }
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"dialect\":\"{}\",\"entry\":{},\"kind\":\"{}\",\"type\":\"{}\",",
+                        "\"key\":\"{}\",\"type_span\":[{},{}],\"key_span\":[{},{}],",
+                        "\"span\":[{},{}],\"duplicates\":{},\"fields\":[{}]}}"
+                    ),
+                    bib_dialect_name(model.dialect),
+                    index,
+                    bib_entry_kind_name(e.kind),
+                    json_escape(&ty),
+                    json_escape(&key),
+                    e.type_start,
+                    e.type_end,
+                    e.key_start,
+                    e.key_end,
+                    e.start,
+                    e.end,
+                    e.duplicate_field_count(),
+                    fs.join(","),
+                ))
+            }
+        };
+        Ok(self.bib_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A field of an entry/item as `N:FIELD`. `ExactBytes` returns the value's exact
+    /// bytes; `Text` its decoded text; `Metadata`/`Structure` a descriptor.
+    fn bib_field(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        let (index, field) = parse_bib_field_ref(spec)?;
+        if model.is_json() {
+            let it = model.item(index).ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "bibliography has no item {index} (item count {})",
+                    model.items.len()
+                ))
+            })?;
+            let node = bib_item_member_node(&model, &source, index, field)?.ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "bibliography item {index} has no member {field:?}"
+                ))
+            })?;
+            let n = model.node(node).ok_or_else(|| {
+                Error::internal_invariant("bibliography member node is out of range")
+            })?;
+            let kind = crate::adapter::json::kind_name(n.kind);
+            let span = Some((n.start, n.end));
+            let provenance = format!("bib;item={index};member={field};kind={kind}");
+            let value = match req.representation {
+                Representation::ExactBytes => {
+                    AnswerValue::Bytes(bib_node_token_bytes(&model, &source, node)?.to_vec())
+                }
+                Representation::Text => {
+                    AnswerValue::Text(bib_node_value_text(&model, &source, node)?)
+                }
+                _ => AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"dialect\":\"csl_json\",\"item\":{},\"id\":\"{}\",",
+                        "\"member\":\"{}\",\"value_kind\":\"{}\",\"span\":[{},{}]}}"
+                    ),
+                    index,
+                    json_escape(&bib_item_id_text(&model, &source, it)?),
+                    json_escape(field),
+                    kind,
+                    n.start,
+                    n.end,
+                )),
+            };
+            return Ok(self.bib_answer(req, value, provenance, span, vec![model_id, root]));
+        }
+        let e = model.entry(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "bibliography has no entry {index} (entry count {})",
+                model.entries.len()
+            ))
+        })?;
+        let fi = bib_entry_field_index(&model, &source, index, field)?.ok_or_else(|| {
+            Error::unsupported_feature(format!("bibliography entry {index} has no field {field:?}"))
+        })?;
+        let f = &e.fields[fi as usize];
+        let fname = bib_field_name_text(&source, f)?;
+        let span = Some((f.value_start, f.value_end));
+        let provenance = format!(
+            "bib;entry={index};field={fname};kind={};flags={}",
+            bib_value_kind_name(f.value_kind),
+            f.flags
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(bib_field_value_bytes(&source, f)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(bib_field_value_text(&source, f)?),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dialect\":\"{}\",\"entry\":{},\"field\":\"{}\",\"field_index\":{},",
+                    "\"value_kind\":\"{}\",\"flags\":{},\"name_span\":[{},{}],\"value_span\":[{},{}]}}"
+                ),
+                bib_dialect_name(model.dialect),
+                index,
+                json_escape(&fname),
+                fi,
+                bib_value_kind_name(f.value_kind),
+                f.flags,
+                f.name_start,
+                f.name_end,
+                f.value_start,
+                f.value_end,
+            )),
+        };
+        Ok(self.bib_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// An entry looked up by its citation key (BibTeX), `ID` field (RIS), or string
+    /// `id` (CSL-JSON). Resolves and defers to [`Self::bib_entry`].
+    fn bib_key(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, _) = self.bib_model()?;
+        let (source, _) = self.bib_source()?;
+        let index = bib_entry_key_index(&model, &source, spec)?.ok_or_else(|| {
+            Error::unsupported_feature(format!("bibliography has no key {spec:?}"))
+        })?;
+        self.bib_entry(req, index)
+    }
+
+    /// A bounded lexical search over every entry type/key, field name, and value (or,
+    /// for CSL-JSON, the shared JSON match vocabulary).
+    fn bib_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        let matches = bib_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "bibliography find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            let entry = if m.entry == BIB_NONE {
+                "null".to_string()
+            } else {
+                m.entry.to_string()
+            };
+            let field = if m.field == BIB_NONE {
+                "null".to_string()
+            } else {
+                m.field.to_string()
+            };
+            out.push(format!(
+                concat!(
+                    "{{\"entry\":{},\"field\":{},\"role\":\"{}\",",
+                    "\"pointer\":\"{}\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                entry,
+                field,
+                bib_role_name(m.role),
+                json_escape(&m.pointer),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("bib;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.bib_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_bib(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.bib_common_metadata(req),
+            Selector::Text => self.bib_common_text(req),
+            Selector::SearchMatch(p) => self.bib_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "bibliography does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn bib_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        let text = bib_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.bib_answer(
+            req,
+            AnswerValue::Text(text),
+            "bib;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn bib_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        let dialect = bib_dialect_name(model.dialect).to_string();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"bib\",\"dialect\":\"{}\",\"records\":{},",
+                "\"entries\":{},\"items\":{},\"fields\":{},\"arena_nodes\":{},",
+                "\"bom\":{},\"trailing_newline\":{},\"bytes\":{}}}"
+            ),
+            json_escape(&dialect),
+            model.record_count(),
+            model.entries.len(),
+            model.items.len(),
+            model.field_count(),
+            model.arena_len(),
+            model.bom_len,
+            model.trailing_newline,
+            model.doc_len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.bib_answer(
+            req,
+            value,
+            "bib;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// Parse a `N:FIELD` bibliography field reference. `N` is a 0-based entry/item index;
+/// the field is a BibTeX field name (case-insensitive) or a RIS tag / CSL-JSON member
+/// key. A missing/non-numeric `N` or an empty field is a usage error.
+#[cfg(feature = "bib")]
+fn parse_bib_field_ref(spec: &str) -> Result<(u32, &str)> {
+    let (n, field) = spec.split_once(':').ok_or_else(|| {
+        Error::usage(format!(
+            "bibliography field reference {spec:?} must be N:FIELD"
+        ))
+    })?;
+    if n.is_empty() || (n.len() > 1 && n.starts_with('0')) {
+        return Err(Error::usage(format!(
+            "bibliography field reference {spec:?} must have a canonical entry index"
+        )));
+    }
+    let index: u32 = n.parse().map_err(|_| {
+        Error::usage(format!(
+            "bibliography field reference {spec:?} has a non-numeric entry index"
+        ))
+    })?;
+    if field.is_empty() {
+        return Err(Error::usage(format!(
+            "bibliography field reference {spec:?} must have a non-empty field"
+        )));
+    }
+    Ok((index, field))
 }
 
 // ---------------------------------------------------------------------------

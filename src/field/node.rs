@@ -458,6 +458,19 @@ pub enum NodeKind {
     /// `sha256(source)` per ADR-0060); an API spec has no package layer. Derived, never
     /// exact.
     ApispecModel = 0x41,
+    /// The canonical, representation-preserving bibliography model (Phase 21.31): one
+    /// adapter covering **BibTeX**, **RIS**, and **CSL-JSON**, with the **recorded
+    /// dialect** (`bibtex` / `ris` / `csl_json`). For the text dialects it is the
+    /// entry/field arena (entry key, entry type and field names *as written*, field
+    /// order, every value's exact spelling and delimiters, duplicate-field flags, RIS
+    /// tag separator and multi-line continuation spans); for CSL-JSON it embeds the
+    /// reused JSON arena (member order, duplicate keys, numeric/string-escape spelling,
+    /// exact token spans) plus the item projection (each item's string `id` and `type`
+    /// node). Nothing is normalized or re-serialized. It is computed on demand from the
+    /// exact source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); a bibliography has no package layer. Derived,
+    /// never exact.
+    BibModel = 0x42,
 }
 
 impl NodeKind {
@@ -529,6 +542,7 @@ impl NodeKind {
             0x3F => NodeKind::LogstreamModel,
             0x40 => NodeKind::PkgmetaModel,
             0x41 => NodeKind::ApispecModel,
+            0x42 => NodeKind::BibModel,
             _ => return None,
         })
     }
@@ -601,6 +615,7 @@ impl NodeKind {
             NodeKind::LogstreamModel => "LogstreamModel",
             NodeKind::PkgmetaModel => "PkgmetaModel",
             NodeKind::ApispecModel => "ApispecModel",
+            NodeKind::BibModel => "BibModel",
         }
     }
 

@@ -323,6 +323,14 @@ const APISPEC_NATIVE: &[&str] = &[
     "apispec-find",
 ];
 
+const BIB_NATIVE: &[&str] = &[
+    "bib-dialect",
+    "bib-entry",
+    "bib-field",
+    "bib-key",
+    "bib-find",
+];
+
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
 const COMMON_TEXT_META: &[&str] = &["text", "metadata"];
@@ -711,6 +719,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 APISPEC_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Bib => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                BIB_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

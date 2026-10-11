@@ -628,6 +628,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_apispec_refs: 1 << 30,
         max_apispec_depth: 1 << 12,
         max_apispec_document_bytes: 1 << 50,
+        max_bib_entries: 1 << 30,
+        max_bib_fields: 1 << 30,
+        max_bib_value_bytes: 1 << 50,
+        max_bib_nodes: 1 << 30,
+        max_bib_depth: 1 << 12,
+        max_bib_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

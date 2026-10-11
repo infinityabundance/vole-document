@@ -482,6 +482,18 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["ApispecModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-objects", "whole-document"]),
         }),
+        #[cfg(feature = "bib")]
+        (Selector::BibDialect, R::Metadata | R::Structure | R::Text)
+        | (Selector::BibEntry { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::BibField { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::BibKey { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::BibFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["BibModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-entries", "whole-document"]),
+        }),
         #[cfg(feature = "json5")]
         (Selector::Json5Pointer { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
         | (Selector::Json5Node { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
@@ -715,6 +727,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Logstream => &["LogstreamModel", "DocumentExact"],
         DocumentFormat::Pkgmeta => &["PkgmetaModel", "DocumentExact"],
         DocumentFormat::Apispec => &["ApispecModel", "DocumentExact"],
+        DocumentFormat::Bib => &["BibModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

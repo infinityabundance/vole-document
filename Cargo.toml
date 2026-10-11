@@ -553,6 +553,31 @@ pkgmeta = ["json", "toml"]
 # untouched. **Dependency-free (`apispec` pulls no external crate)** and never in
 # `default`; it reuses the JSON adapter, so it implies `json`.
 apispec = ["json"]
+# Phase 21.31: the bibliography adapter — the **bibliography** Wave-2 format. One
+# bounded adapter covers three dialects: **BibTeX** (`.bib`), **RIS**, and **CSL-JSON**,
+# recording the dialect in the model (as CSV/config/feed/pkgmeta/apispec do). BibTeX and
+# RIS are line-anchored text (no magic bytes); CSL-JSON is written in JSON, so this
+# adapter **reuses the shared representation-preserving JSON parser** (Phase 21.5.1's
+# `json` feature) — never a second JSON parser. It preserves representation: BibTeX
+# keeps the entry key, the entry type and field names *as written*, the field order,
+# every value's exact spelling and delimiters (brace/quoted/number/macro kept distinct,
+# `#` concatenation recorded, duplicate fields preserved and reported), and the
+# whitespace/`@comment`/`%` bytes between entries; RIS keeps the two-space `XX  - `
+# tag separator, the multi-line continuation span, and the entry order; CSL-JSON keeps
+# member order, duplicate keys, numeric/string-escape spelling, key quoting, and every
+# exact token span. Detection is a bounded, **content-only** test (never a file name):
+# a line-anchored `@type{` entry sequence, an RIS `TY  - ` sequence whose every entry is
+# `ER  - `-terminated, or a JSON array (or single object) whose every element carries a
+# string `id` **and** a string `type`. It runs **before** the generic JSON detector (a
+# CSL-JSON array is otherwise claimed by JSON) and before the weak text heuristics; a
+# plain JSON array, a JSON array of non-CSL objects, and prose stay `Json`/`Opaque`. Like
+# the other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is the
+# whole source (a `DocumentExact`, RAW-like authority) and every derived observation is a
+# bounded, span-preserving (`Q_gen`) projection of it. It adds **no** decoder behavior:
+# the model is never on the exactness path, so enabling it never changes `.voldoc` bytes
+# and exactness is untouched. **Dependency-free (`bib` pulls no external crate)** and
+# never in `default`; it reuses the JSON adapter, so it implies `json`.
+bib = ["json"]
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived

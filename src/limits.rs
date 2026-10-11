@@ -861,6 +861,34 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.30).
     pub max_apispec_document_bytes: u64,
+    // The bibliography caps below bound the derived, span-preserving model
+    // (Phase 21.31). One adapter covers three dialects (BibTeX, RIS, CSL-JSON); the
+    // text dialects are bounded directly, and the CSL-JSON dialect reuses the shared
+    // JSON parser (whose caps also apply), so these add the semantic bounds on top. A
+    // bibliography is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen`.
+    /// Maximum entry (BibTeX/RIS) or item (CSL-JSON) count accepted for one
+    /// bibliography. An over-large document declines typed rather than allocating
+    /// (Phase 21.31).
+    pub max_bib_entries: u32,
+    /// Maximum total field (BibTeX/RIS) or member (CSL-JSON) count accepted across one
+    /// bibliography. This is a whole-document budget; an over-large document declines
+    /// typed rather than allocating (Phase 21.31).
+    pub max_bib_fields: u64,
+    /// Maximum byte length of one BibTeX/RIS value (delimiters included) or one
+    /// recorded CSL-JSON string value. A longer value declines typed (Phase 21.31).
+    pub max_bib_value_bytes: u64,
+    /// Maximum embedded JSON node count accepted for one CSL-JSON document, in
+    /// addition to the JSON caps the shared parser already enforces (Phase 21.31).
+    pub max_bib_nodes: u32,
+    /// Maximum structural recursion depth accepted (BibTeX/RIS brace nesting, or
+    /// CSL-JSON container nesting; root = 1). A deeper document declines typed
+    /// (Phase 21.31).
+    pub max_bib_depth: u32,
+    /// Maximum source length admitted for byte-based bibliography detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.31).
+    pub max_bib_document_bytes: u64,
 }
 
 impl Limits {
@@ -1109,6 +1137,12 @@ impl Limits {
         max_apispec_refs: 1 << 22,
         max_apispec_depth: 256,
         max_apispec_document_bytes: 1 << 34,
+        max_bib_entries: 1 << 22,
+        max_bib_fields: 1 << 24,
+        max_bib_value_bytes: 1 << 26,
+        max_bib_nodes: 1 << 24,
+        max_bib_depth: 256,
+        max_bib_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1356,6 +1390,12 @@ impl Limits {
         max_apispec_refs: 1 << 14,
         max_apispec_depth: 64,
         max_apispec_document_bytes: 1 << 26,
+        max_bib_entries: 1 << 12,
+        max_bib_fields: 1 << 14,
+        max_bib_value_bytes: 1 << 16,
+        max_bib_nodes: 1 << 16,
+        max_bib_depth: 64,
+        max_bib_document_bytes: 1 << 26,
     };
 }
 
