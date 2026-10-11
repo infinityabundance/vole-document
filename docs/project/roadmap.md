@@ -290,8 +290,8 @@ count**. Plan: [phase-21-plan.md](../phases/phase-21-plan.md); decision:
 | Wave 2 — CFBF / OLE | The compound-document physical layer, unlocking legacy DOC/XLS/PPT/MSG. | **Complete — adopted.** 21.35.1 a bounded, dependency-free `cfbf = []` adapter parsing the 512-byte header, DIFAT/FAT/MiniFAT, the 128-byte directory entries (verbatim UTF-16LE names, reconstructed sibling/child tree), and each stream's exact span; adapter exactness **2/2**. Economic court: build **0.643/0.627** · **0.815/0.796**, storage **1.481/1.467** · **333.156/290.461**, cold **0.023/0.023** · **0.027/0.027**, warm **0.113/0.111** · **1.880/1.848**; exact 7/7. **This is the physical layer only** (the legacy DOC/XLS/PPT/MSG *semantic* models are later work); a **non-contiguous stream chain declines `ExactBytes`** (a bounding hull is recorded); storage-vs-SQLite is a recorded loss; **`comparator_absent`** (no faithful stdlib CFBF decoder). `2026-10-11-phase21-35-1-cfbf-42791bce`, `2026-10-11-phase21-35-cfbf-econ-372a86e0` |
 
 With the **Wave-2 order now complete (21.1–21.35, offices + all families)**, the
-only remaining format work is the **legacy DOC/XLS/PPT/MSG *semantic* models** on
-top of the CFBF physical layer (not started).
+remaining format work was the **legacy DOC/XLS/PPT/MSG *semantic* models** on top
+of the CFBF physical layer — **now shipped in [Phase 26](#phase-26-outcomes)**.
 
 ### Cross-format review-driven corrections (Phase 21 Wave 2)
 
@@ -304,6 +304,27 @@ top of the CFBF physical layer (not started).
 | Detection repair (Phase 21.15) | Five detection root causes the stratified court surfaced: case-insensitive OPC/ODF control parts, ODF `mimetype` precedence, HTML-document-marker precedence over XML, mbox-envelope skip + boundary-less multipart decline, TOML boolean structural terminators. All 60 samples remain byte-exact; legitimate declines recorded. Re-sealed `2026-10-10-realformats-stratified-3529688e` |
 | CSV O(n²)→O(n) metadata fix | `csv_common_metadata` re-scanned every record per record; `observe --metadata` on the 50 MiB `large.csv` (~1.47M records) took ~16.5 min. Replaced with a single field-count histogram: ~0.5 s (482,098 us), with the metadata value, field id, source span and dependency ids **byte-identical**. `2026-10-10-phase21-7-1-csv-3006e56a`, `2026-10-10-phase21-7-csv-econ-3006e56a` |
 | YAML span-preserving comparator (Phase 21.6.2) | Parity with the JSON repair: a bounded stdlib span-preserving YAML scanner **and** a hash-pinned modern SQLite (3.51.1, JSONB). VOLE's representation advantages shrink/vanish (Q2 8 equal; Q3 1 equal/7 both-decline; Q4 7 equal/1 both-decline; Q6 8 equal; Q7 1 equal/7 both-decline; **0 mismatches**); exact 8/8. Prior `2026-10-09-phase21-6-yaml-econ-ceab8ec` marked `[SUPERSEDED]`; re-sealed `2026-10-10-phase21-6-yaml-econ-92edce73` |
+
+## Phase-26 outcomes (legacy Office semantics, real-world scale, Arrow comparator)
+
+Phase 26 closes the three items `v0.1.0-alpha.35` recorded as *not done*: the four
+legacy CFBF **semantic** models, a genuinely larger real-world population, and a
+real Arrow reader for the Arrow court. Plan: [phase-26-plan.md](../phases/phase-26-plan.md);
+results: [phase-26-results.md](../phases/phase-26-results.md).
+
+| Item | Question | Outcome |
+|---|---|---|
+| 26.1 DOC | Does a legacy Word 97–2003 `.doc` close exactly and expose a representation-preserving FIB / piece-table / text model on top of CFBF, honestly at the detection boundary? | **Complete — shipped.** Non-default `doc = ["cfbf"]`. Bounded MS-DOC (FIB `0xA5EC`/`nFib`, `fcMin`/`fcMac`, `ccp*`, `fcClx`/`lcbClx`, the piece table incl. compressed CP1252 and uncompressed UTF-16LE pieces); whole-source exact leaf. Adapter-court H1 **2/2** exact, 4 structural declines (`InvalidDocStructure` 52), 3 CFBF + 1 opaque control. `2026-10-11-phase26-1-1-doc-966c3fd4` |
+| 26.2 XLS | The legacy BIFF8 workbook, reusing CFBF. | **Complete — shipped.** Non-default `xls = ["cfbf"]`. Bounded BIFF8 record stream (`BOF`/`EOF`, `BOUNDSHEET`, `SST`+`CONTINUE`, cell records `LABELSST`/`NUMBER`/`RK`/`BOOLERR`/`FORMULA`+`STRING`/`BLANK`/`MULBLANK` with row/col and exact span); H1 **1/1** exact, 4 declines (`InvalidXlsStructure` 53), 3 CFBF + 1 opaque. `2026-10-11-phase26-2-1-xls-966c3fd4` |
+| 26.3 PPT | The legacy MS-PPT record stream, reusing CFBF. | **Complete — shipped.** Non-default `ppt = ["cfbf"]`. Bounded MS-PPT (`RecordHeader`, `Document` container, `SlideListWithText` slides, `TextCharsAtom`/`TextBytesAtom` runs); H1 **1/1** exact, 5 declines (`InvalidPptStructure` 54), 2 CFBF + 1 opaque. `2026-10-11-phase26-3-1-ppt-966c3fd4` |
+| 26.4 MSG | The legacy MS-OXMSG MAPI property streams, reusing CFBF. | **Complete — shipped.** Non-default `msg = ["cfbf"]`. Bounded MS-OXMSG (`__properties_version1.0` header + 16-byte fixed entries, `__substg1.0_*` sub-streams, recipient/attachment sub-storages); H1 **1/1** exact, 8 declines (`InvalidMsgStructure` 55), 2 CFBF + 1 opaque. All six real `.msg` samples in the v2 population were detected as `msg`. `2026-10-11-phase26-4-1-msg-966c3fd4` |
+| 26.5 population v2 | A stratified population, not a smoke, with detection reconciliation. | **Complete — shipped.** **308 samples (284 real + 24 hostile) across 41 formats**, all **byte-exact**, 0 skipped/blocked; pinned by length + SHA-256 + license + `redistributable`; **32 findings** reconciled (2 genuine adapter bugs **fixed with regression tests** — RTF trailing NUL/whitespace padding, EML RFC 2231 extended boundary; 30 recorded typed declines / detector-precedence misclassifications); `msgpack`/`fixedwidth` have no real sample (recorded); the 60-sample v1 court is the historical control. `2026-10-11-realformats-stratified-v2-703ca5ac` |
+| 26.6 pyarrow lane | Measure Arrow with a real Arrow reader, on equal contract. | **Complete — shipped.** Found and fixed a **corpus-conformance defect** (the hand-crafted IPC was not conformant: bare `Field.type` union tag, table-encoded Blocks, wrong `metaDataLength`) in the generator **and** VOLE's footer `Block` reader; added the hash-pinned **`pyarrow 25.0.1`** lane; fixtures regenerated (H1 suite `tests/arrow_adapter.rs` 13/13). Equal contract: VOLE **build ≈0.51×** and **cold**; **pyarrow wins warm ≈7.3× median** and **storage** (VOLE store ≈2.16× the Arrow file; the file ≈0.46× VOLE's store); `0 mismatches` where pyarrow answers; pyarrow **declines** exact spans (Q3) and byte authority (Q6 `not-native`). Stream fixtures without the `ARROW1` magic decline `Opaque` (recorded caveat). `2026-10-11-phase21-16-arrow-econ-74965426` |
+
+**Scope note.** The four legacy formats have **no separate economic court**: no
+faithful conventional decoder exists for legacy binary Office/MS-OXMSG, so an
+economic comparison would be `comparator_absent` (as recorded for HDF5/CFBF);
+their validation is the adapter courts plus the stratified population.
 
 ## Unmeasured gates
 

@@ -2,6 +2,81 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.36] — Phase 26: legacy Office/MSG semantics, real-world scale, and the Arrow comparator — *unreleased*
+
+- **26.1 — legacy Word 97–2003 (`.doc`, MS-DOC) semantic model.** Non-default
+  `doc = ["cfbf"]`, built **on top of** the CFBF/OLE2 physical layer (21.35). The
+  exact leaf is the whole source (a RAW-like `DocumentExact`); every derived
+  observation is a bounded, span-preserving (`Q_gen`) projection. Bounded MS-DOC:
+  the Word FIB (`wIdent` `0xA5EC`, `nFib`/version, `fWhichTblStm`, `fcMin`/`fcMac`,
+  `cbMac`, the `ccp*` counts, `fcClx`/`lcbClx`) and the piece table (`Prc`/`Pcdt`
+  `PlcPcd`: CP array + 8-byte PCDs) with each piece's resolved `fc`, compressed
+  flag, exact `WordDocument`-stream span and decoded text (a compressed CP1252 and
+  an uncompressed UTF-16LE piece, in both `0Table` and `1Table` docs). Native
+  `doc-fib`/`doc-piece`/`doc-text`/`doc-find`; common metadata/text/search-match.
+  Adapter-court H1 **2/2** exact, 4 structural declines (`InvalidDocStructure` 52),
+  3 CFBF + 1 opaque control. `2026-10-11-phase26-1-1-doc-966c3fd4`.
+- **26.2 — legacy Excel 97–2003 (`.xls`, BIFF8) semantic model.** Non-default
+  `xls = ["cfbf"]`. Bounded BIFF8 record stream (`BOF`/`EOF` framing, `BOUNDSHEET`
+  sheets, `SST` with `CONTINUE` reassembly, and each cell of every supported kind —
+  `LABELSST`/`NUMBER`/`RK`/`BOOLERR`/`FORMULA`+`STRING`/`BLANK`/`MULBLANK` — with
+  row/column, exact record span, and exact stored value spelling, the `RK` compact
+  encoding decoded). Native `xls-biff`/`xls-sheet`/`xls-cell`/`xls-record`/`xls-find`.
+  H1 **1/1** exact, 4 declines (`InvalidXlsStructure` 53), 3 CFBF + 1 opaque.
+  `2026-10-11-phase26-2-1-xls-966c3fd4`.
+- **26.3 — legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) semantic model.** Non-default
+  `ppt = ["cfbf"]`. Bounded MS-PPT record stream (the 8-byte `RecordHeader`, the
+  `Document` container, the `SlideListWithText` slides by `persistIdRef`, and the
+  `TextCharsAtom` (UTF-16LE) / `TextBytesAtom` (CP1252) runs with exact spans and
+  decoded text). Native `ppt-document`/`ppt-slide`/`ppt-run`/`ppt-record`/`ppt-find`.
+  H1 **1/1** exact, 5 declines (`InvalidPptStructure` 54), 2 CFBF + 1 opaque.
+  `2026-10-11-phase26-3-1-ppt-966c3fd4`.
+- **26.4 — legacy Outlook message (`.msg`, MS-OXMSG) semantic model.** Non-default
+  `msg = ["cfbf"]`. Bounded MS-OXMSG: the top-level `__properties_version1.0` header
+  (32 B) + 16-byte fixed property entries in order, the `__substg1.0_<PPPPTTTT>`
+  sub-streams (`0x001F` UTF-16LE, `0x001E` ANSI/CP1252, `0x0102` binary), and the
+  recipient/attachment sub-storages with their own property lists. Native
+  `msg-summary`/`msg-property`/`msg-recipient`/`msg-attachment`/`msg-find`. H1
+  **1/1** exact, 8 declines (`InvalidMsgStructure` 55), 2 CFBF + 1 opaque.
+  `2026-10-11-phase26-4-1-msg-966c3fd4`.
+  All four detectors run **inside the CFBF branch** in the fixed order **DOC → XLS →
+  PPT → MSG** before the generic `Cfbf` claim (a generic compound file stays `Cfbf`;
+  a `.docx`/`.xlsx`/`.pptx` is an OPC ZIP and never reaches here). The four legacy
+  formats have **no separate economic court** (no faithful conventional decoder
+  exists — the `comparator_absent` situation recorded for HDF5/CFBF); their
+  validation is the adapter courts plus the stratified population.
+- **26.5 — stratified real-world population v2 + detection reconciliation.**
+  **308 samples (284 real + 24 hostile) across 41 formats**, every one byte-exact,
+  0 skipped/blocked; stratified by format/size/complexity/hostility and each pinned
+  by length + SHA-256 + license + `redistributable`. **32 findings reconciled:** the
+  **2 genuine adapter bugs are fixed with focused regression tests** — the RTF
+  detector now tolerates trailing NUL/ASCII-whitespace padding
+  (`rtf::tests::trailing_padding_parses_and_keeps_the_root_group_span`) and the EML
+  detector/parser now decode RFC 2231 extended boundaries
+  (`eml::tests::rfc2231_extended_boundary_is_decoded`) — and the other **30 are
+  recorded typed declines / detector-precedence misclassifications** with reasons
+  (e.g. real `.doc`/`.xls`/`.ppt` files outside the bounded legacy model stay at the
+  generic `Cfbf` layer). `msgpack`/`fixedwidth` have **no real sample** (recorded).
+  The 60-sample v1 court remains the historical control.
+  `2026-10-11-realformats-stratified-v2-703ca5ac`.
+- **26.6 — Arrow economic comparator: pyarrow lane + corpus-conformance
+  correction.** The prior court's comparator read a **Parquet projection** because
+  the pinned DuckDB wheel has no Arrow IPC file reader, so no real Arrow reader was
+  ever in the loop; the hand-crafted corpus was therefore **not conformant Arrow
+  IPC** (a bare `Field.type` union tag, footer `recordBatches` encoded as a vector of
+  *tables* not `Block` *structs*, and `Block.metaDataLength` missing the 8-byte
+  message prefix). The generator (`tools/fixtures/make-arrow.py`) and VOLE's footer
+  `Block` reader (`src/adapter/arrow.rs`) were corrected and the fixtures
+  regenerated; a hash-pinned **`pyarrow 25.0.1`** lane now opens the `.arrow` file
+  directly (`tests/arrow_adapter.rs` **13/13**). Equal contract: VOLE exactness
+  **3/3**; VOLE **build ≈0.512×** and **cold**; **pyarrow wins warm ≈7.295×**
+  (geomean 9.452×) and **storage** (VOLE store ≈**2.156×** the Arrow file; the file
+  ≈**0.46×** VOLE's store); **0 mismatches** where pyarrow answers; pyarrow
+  **declines** exact spans (Q3) and byte authority (Q6 `not-native`). Stream fixtures
+  without the leading `ARROW1` magic decline `Opaque` (recorded caveat).
+  `2026-10-11-phase21-16-arrow-econ-74965426`; the prior `…-phase21-16-{1-arrow,arrow-econ}-4fdc7ad0`
+  campaigns carry `CORRECTION.md` amendments.
+
 ## [0.1.0-alpha.35] — Phase 21 Wave 2: the remaining structured/tabular/document/web/messaging/analytical/legacy formats — *unreleased*
 
 - **21.17 — JSON5/JSONC adapter + economic court.** Non-default `json5 = ["json"]`

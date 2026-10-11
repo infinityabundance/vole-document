@@ -1,6 +1,7 @@
 # Phase 26 — Legacy Office semantics, real-world scale, and the Arrow comparator
 
-> **Status:** planned (frozen contract below). Branch `phase26`.
+> **Status:** shipped — subphases 26.1–26.6 complete (frozen contract below).
+> Branch `phase26`. Results: [phase-26-results.md](phase-26-results.md).
 > Phase 21 completed the format surface (Wave 1 office + the full Wave 2 breadth),
 > including the **CFBF/OLE2 physical layer** (21.35) that this phase builds the
 > legacy **semantic** models on. Phase 26 closes the three items the Phase-21

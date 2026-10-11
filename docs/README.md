@@ -66,6 +66,10 @@ Per-format authority boundaries, native inverse representation, and exactness.
 - [ZIP / TAR containers](formats/container.md)
 - [NetCDF classic / HDF5](formats/hdf.md)
 - [CFBF / OLE2](formats/cfbf.md)
+- [DOC — legacy Word 97–2003](formats/doc.md)
+- [XLS — legacy Excel 97–2003 (BIFF8)](formats/xls.md)
+- [PPT — legacy PowerPoint 97–2003](formats/ppt.md)
+- [MSG — legacy Outlook message](formats/msg.md)
 
 ## Reference
 
@@ -96,7 +100,10 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   [Phase 23](phases/phase-23-results.md) (durability: directory `fsync` + a
   model-based power-loss proxy),
   [Phase 25](phases/phase-25-results.md) (durability corrections: directory
-  ancestry + unpublished-segment recovery); **in progress**:
+  ancestry + unpublished-segment recovery),
+  [Phase 26](phases/phase-26-results.md) (legacy DOC/XLS/PPT/MSG semantic models +
+  stratified real-world population v2 + the pyarrow Arrow comparator lane);
+  **in progress**:
   [Phase 21](phases/phase-21-plan.md) (format programme — **Wave 1 complete**: XLSX,
   PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2
   complete**: JSON, YAML, CSV/TSV, Markdown, XML, HTML, TOML, JSONL, EML/MIME,
@@ -107,8 +114,10 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   bibliography, RTF, ZIP/TAR containers, NetCDF classic/HDF5 subset, CFBF/OLE2
   physical layer) adapters + economic courts; also a permanent cross-field
   identity court, a stratified real-world court, and the JSON/YAML span-preserving
-  comparator corrections; the legacy DOC/XLS/PPT/MSG *semantic* models on top of
-  CFBF remain future work); the Phase 22 programme is pre-registered in
+  comparator corrections: the legacy DOC/XLS/PPT/MSG *semantic* models on top of
+  CFBF **now ship in [Phase 26](phases/phase-26-results.md)** (adapter courts +
+  the stratified real-world population v2 + the pyarrow Arrow comparator lane), so
+  those are no longer future work); the Phase 22 programme is pre-registered in
   [phase-22-plan.md](phases/phase-22-plan.md).
 - [Independent reviews](reviews/) — adversarial skeptic findings.
 - [Evidence index](evidence/README.md) — campaigns and measurement reports.
