@@ -70,6 +70,8 @@ pub mod pkgmeta;
 pub mod pptx;
 #[cfg(feature = "rst")]
 pub mod rst;
+#[cfg(feature = "rtf")]
+pub mod rtf;
 #[cfg(feature = "toml")]
 pub mod toml;
 #[cfg(feature = "xlsx")]

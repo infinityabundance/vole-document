@@ -494,6 +494,21 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["BibModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-entries", "whole-document"]),
         }),
+        #[cfg(feature = "rtf")]
+        (Selector::RtfHeader, R::Metadata | R::Structure | R::Text)
+        | (Selector::RtfGroup { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfControl { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfHex { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfUnicode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfText { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfDestination { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["RtfModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-groups", "whole-document"]),
+        }),
         #[cfg(feature = "json5")]
         (Selector::Json5Pointer { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
         | (Selector::Json5Node { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
@@ -728,6 +743,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Pkgmeta => &["PkgmetaModel", "DocumentExact"],
         DocumentFormat::Apispec => &["ApispecModel", "DocumentExact"],
         DocumentFormat::Bib => &["BibModel", "DocumentExact"],
+        DocumentFormat::Rtf => &["RtfModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

@@ -260,6 +260,18 @@ use crate::adapter::rst::{
     content_bytes as rst_content_bytes, find as rst_find_matches,
     inline_kind_name as rst_inline_kind_name, inline_text_bytes as rst_inline_text_bytes,
 };
+#[cfg(feature = "rtf")]
+use crate::adapter::rtf::{
+    D_COLOR_TABLE, D_FONT_TABLE, D_IGNORE, D_INFO, D_OBJECT, D_PICT, D_STYLESHEET, NO_GROUP,
+    RtfModel, canonical_text as rtf_canonical_text, charset_name as rtf_charset_name,
+    control_bytes as rtf_control_bytes, control_kind_name as rtf_control_kind_name,
+    control_name_bytes as rtf_control_name_bytes, control_param as rtf_control_param,
+    destination_bytes as rtf_destination_bytes, destination_kind_for_name as rtf_destination_kind,
+    destination_name as rtf_destination_name, find as rtf_find_matches,
+    group_bytes as rtf_group_bytes, group_content_bytes as rtf_group_content_bytes,
+    hex_bytes as rtf_hex_bytes, hex_char as rtf_hex_char, text_run_bytes as rtf_text_run_bytes,
+    unicode_bytes as rtf_unicode_bytes, unicode_char as rtf_unicode_char,
+};
 #[cfg(feature = "toml")]
 use crate::adapter::toml::{
     TNode as TomlNode, TomlModel, canonical_text as toml_canonical_text, find as toml_find_matches,
@@ -357,6 +369,8 @@ use crate::field::index::SEL_PKGMETA_MODEL;
 use crate::field::index::SEL_PPTX_MODEL;
 #[cfg(feature = "rst")]
 use crate::field::index::SEL_RST_MODEL;
+#[cfg(feature = "rtf")]
+use crate::field::index::SEL_RTF_MODEL;
 #[cfg(feature = "toml")]
 use crate::field::index::SEL_TOML_MODEL;
 #[cfg(feature = "xlsx")]
@@ -1860,6 +1874,77 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The RTF header (`{\rtf1\ansi\deffN …}`) (Phase 21.32): the exact `\rtf`
+    /// version number and control-word span, the charset control word, and `\deffN`.
+    /// `Text` returns a compact canonical string; `Metadata`/`Structure` a descriptor
+    /// with every recorded span. RTF has no package layer, so the source *is* the whole
+    /// document.
+    #[cfg(feature = "rtf")]
+    RtfHeader,
+    /// The `index`-th group `{ … }` (0-based, the outermost group is 0) with its exact
+    /// brace span, parent, nesting depth, and destination kind (Phase 21.32).
+    /// `ExactBytes` returns the exact group bytes (braces included); `Text` its inner
+    /// content; `Metadata`/`Structure` a descriptor. An out-of-range index declines
+    /// typed.
+    #[cfg(feature = "rtf")]
+    RtfGroup {
+        /// The 0-based group index (the outermost group is 0).
+        index: u32,
+    },
+    /// The `index`-th control word or control symbol (Phase 21.32). `ExactBytes`
+    /// returns its exact spelling (including any numeric parameter); `Text` its name;
+    /// `Metadata`/`Structure` a descriptor with the name/parameter spans and whether a
+    /// terminating delimiter space followed. An out-of-range index declines typed.
+    #[cfg(feature = "rtf")]
+    RtfControl {
+        /// The 0-based control index.
+        index: u32,
+    },
+    /// The `index`-th `\'hh` hex escape (Phase 21.32). `ExactBytes` returns the
+    /// `\'hh` spelling; `Text` the decoded scalar under the declared charset;
+    /// `Metadata`/`Structure` a descriptor with the decoded byte and span. An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "rtf")]
+    RtfHex {
+        /// The 0-based hex-escape index.
+        index: u32,
+    },
+    /// The `index`-th `\uN` Unicode escape (Phase 21.32). `ExactBytes` returns the
+    /// `\uN` spelling; `Text` the decoded scalar; `Metadata`/`Structure` a descriptor
+    /// with the value and the active `\ucN` fallback count. An out-of-range index
+    /// declines typed.
+    #[cfg(feature = "rtf")]
+    RtfUnicode {
+        /// The 0-based Unicode-escape index.
+        index: u32,
+    },
+    /// The `index`-th plain text run (Phase 21.32), byte-exact (never
+    /// whitespace-normalized). `ExactBytes` returns its exact bytes; `Text` its text;
+    /// `Metadata`/`Structure` a descriptor with its span. An out-of-range index declines
+    /// typed.
+    #[cfg(feature = "rtf")]
+    RtfText {
+        /// The 0-based text-run index.
+        index: u32,
+    },
+    /// A destination named by `spec` (Phase 21.32) — one of `fonttbl`, `colortbl`,
+    /// `stylesheet`, `info`, `pict`, `object`, or `ignore` — with an optional
+    /// `:N` ordinal among destinations of that name (default `0`). `ExactBytes` returns
+    /// the destination group's exact bytes; `Text` its inner content; `Metadata`/
+    /// `Structure` a descriptor. A malformed reference is a usage error; an absent
+    /// destination declines typed.
+    #[cfg(feature = "rtf")]
+    RtfDestination {
+        /// The `NAME` or `NAME:N` reference.
+        spec: String,
+    },
+    /// A bounded, case-sensitive lexical search over every RTF plain text run
+    /// (Phase 21.32). Never an embedding or a model call.
+    #[cfg(feature = "rtf")]
+    RtfFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2457,6 +2542,22 @@ impl Selector {
             Selector::BibKey { spec } => format!("bib-key:{spec}"),
             #[cfg(feature = "bib")]
             Selector::BibFind { pattern } => format!("bib-find:{pattern}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfHeader => "rtf-header".to_string(),
+            #[cfg(feature = "rtf")]
+            Selector::RtfGroup { index } => format!("rtf-group:{index}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfControl { index } => format!("rtf-control:{index}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfHex { index } => format!("rtf-hex:{index}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfUnicode { index } => format!("rtf-unicode:{index}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfText { index } => format!("rtf-text:{index}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfDestination { spec } => format!("rtf-dest:{spec}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfFind { pattern } => format!("rtf-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -4760,6 +4861,40 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "bib")]
             (Selector::BibFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.bib_find(req, pattern)
+            }
+            #[cfg(feature = "rtf")]
+            (Selector::RtfHeader, R::Text | R::Metadata | R::Structure) => self.rtf_header(req),
+            #[cfg(feature = "rtf")]
+            (
+                Selector::RtfGroup { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rtf_group(req, *index),
+            #[cfg(feature = "rtf")]
+            (
+                Selector::RtfControl { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rtf_control(req, *index),
+            #[cfg(feature = "rtf")]
+            (Selector::RtfHex { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.rtf_hex(req, *index)
+            }
+            #[cfg(feature = "rtf")]
+            (
+                Selector::RtfUnicode { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rtf_unicode(req, *index),
+            #[cfg(feature = "rtf")]
+            (Selector::RtfText { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.rtf_text(req, *index)
+            }
+            #[cfg(feature = "rtf")]
+            (
+                Selector::RtfDestination { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rtf_destination(req, spec),
+            #[cfg(feature = "rtf")]
+            (Selector::RtfFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.rtf_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -10087,6 +10222,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Rtf => {
+                #[cfg(feature = "rtf")]
+                {
+                    self.common_rtf(req)?
+                }
+                #[cfg(not(feature = "rtf"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "RTF support is not compiled in (feature `rtf`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -13246,6 +13393,492 @@ fn parse_bib_field_ref(spec: &str) -> Result<(u32, &str)> {
         )));
     }
     Ok((index, field))
+}
+
+// ---------------------------------------------------------------------------
+// RTF observations (Phase 21.32)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "rtf")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the RTF model (derived, `Q_gen`).
+    fn rtf_model(&mut self) -> Result<(RtfModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_RTF_MODEL, 0), "RTF model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((RtfModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn rtf_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn rtf_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The RTF header (`{\rtf1\ansi\deffN …}`): the exact `\rtf` version, the charset
+    /// control word, and `\deffN`. `Text` returns a compact canonical string;
+    /// `Metadata`/`Structure` a descriptor with every recorded span.
+    fn rtf_header(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let h = &model.header;
+        let charset = rtf_charset_name(h.charset);
+        let provenance = format!("rtf;header;version={};charset={charset}", h.version);
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => {
+                let deff = match h.deff_value() {
+                    Some(v) => format!(" deff{v}"),
+                    None => String::new(),
+                };
+                AnswerValue::Text(format!("rtf{} {charset}{deff}", h.version))
+            }
+            _ => {
+                let deff = match h.deff_value() {
+                    Some(v) => v.to_string(),
+                    None => "null".to_string(),
+                };
+                let deff_span = if h.has_deff {
+                    format!("[{},{}]", h.deff_start, h.deff_end)
+                } else {
+                    "null".to_string()
+                };
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"format\":\"rtf\",\"version\":{},\"charset\":\"{}\",",
+                        "\"deff\":{},\"rtf_span\":[{},{}],\"version_span\":[{},{}],",
+                        "\"charset_span\":[{},{}],\"deff_span\":{}}}"
+                    ),
+                    h.version,
+                    charset,
+                    deff,
+                    h.rtf_start,
+                    h.rtf_end,
+                    h.version_start,
+                    h.version_end,
+                    h.charset_start,
+                    h.charset_end,
+                    deff_span,
+                ))
+            }
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th group `{ … }` with its exact brace span, parent, depth, and
+    /// destination kind.
+    fn rtf_group(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let g = model.group(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("RTF document has no group {index}"))
+        })?;
+        let span_bytes = rtf_group_bytes(&source, g)?;
+        let content = rtf_group_content_bytes(&source, g)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((g.start, g.end));
+        let provenance = format!(
+            "rtf;group={index};depth={};dest={}",
+            g.depth,
+            rtf_destination_name(g.dest)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => {
+                let parent = if g.parent == NO_GROUP {
+                    "null".to_string()
+                } else {
+                    g.parent.to_string()
+                };
+                let dest = if g.dest == 0 {
+                    "null".to_string()
+                } else {
+                    format!("\"{}\"", rtf_destination_name(g.dest))
+                };
+                let mut ce = g.end.saturating_sub(1);
+                let cs = g.start.saturating_add(1);
+                if ce < cs {
+                    ce = cs;
+                }
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"group\":{},\"parent\":{},\"depth\":{},\"dest\":{},",
+                        "\"span\":[{},{}],\"content_span\":[{},{}]}}"
+                    ),
+                    index, parent, g.depth, dest, g.start, g.end, cs, ce,
+                ))
+            }
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th control word or control symbol.
+    fn rtf_control(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let c = model.control(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("RTF document has no control {index}"))
+        })?;
+        let span_bytes = rtf_control_bytes(&source, c)?;
+        let name = String::from_utf8_lossy(rtf_control_name_bytes(&source, c)?).into_owned();
+        let span = Some((c.start, c.end));
+        let provenance = format!(
+            "rtf;control={index};kind={};name={name}",
+            rtf_control_kind_name(c.kind)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(name),
+            _ => {
+                let param = match rtf_control_param(&source, c) {
+                    Some(v) => v.to_string(),
+                    None => "null".to_string(),
+                };
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"control\":{},\"group\":{},\"kind\":\"{}\",\"name\":\"{}\",",
+                        "\"span\":[{},{}],\"name_span\":[{},{}],\"param\":{},",
+                        "\"param_span\":[{},{}],\"delimited\":{}}}"
+                    ),
+                    index,
+                    c.group,
+                    rtf_control_kind_name(c.kind),
+                    json_escape(&name),
+                    c.start,
+                    c.end,
+                    c.name_start,
+                    c.name_end,
+                    param,
+                    c.param_start,
+                    c.param_end,
+                    c.delimited,
+                ))
+            }
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th `\'hh` hex escape.
+    fn rtf_hex(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let h = model.hex_escape(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("RTF document has no hex escape {index}"))
+        })?;
+        let span_bytes = rtf_hex_bytes(&source, h)?;
+        let ch = rtf_hex_char(model.header.charset, h.byte);
+        let span = Some((h.start, h.end));
+        let provenance = format!(
+            "rtf;hex={index};byte={};charset={}",
+            h.byte,
+            rtf_charset_name(model.header.charset)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(ch.to_string()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"hex\":{},\"group\":{},\"byte\":{},\"char\":\"{}\",",
+                    "\"charset\":\"{}\",\"span\":[{},{}]}}"
+                ),
+                index,
+                h.group,
+                h.byte,
+                json_escape(&ch.to_string()),
+                rtf_charset_name(model.header.charset),
+                h.start,
+                h.end,
+            )),
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th `\uN` Unicode escape (with its active `\ucN` fallback count).
+    fn rtf_unicode(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let u = model.unicode_escape(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("RTF document has no unicode escape {index}"))
+        })?;
+        let span_bytes = rtf_unicode_bytes(&source, u)?;
+        let ch = rtf_unicode_char(u.code);
+        let span = Some((u.start, u.end));
+        let provenance = format!("rtf;unicode={index};code={};uc={}", u.code, u.uc);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => {
+                AnswerValue::Text(ch.map(|c| c.to_string()).unwrap_or_default())
+            }
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"unicode\":{},\"group\":{},\"code\":{},\"uc\":{},",
+                    "\"char\":{},\"span\":[{},{}]}}"
+                ),
+                index,
+                u.group,
+                u.code,
+                u.uc,
+                match ch {
+                    Some(c) => format!("\"{}\"", json_escape(&c.to_string())),
+                    None => "null".to_string(),
+                },
+                u.start,
+                u.end,
+            )),
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th plain text run (byte-exact).
+    fn rtf_text(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let t = model.text_run(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("RTF document has no text run {index}"))
+        })?;
+        let span_bytes = rtf_text_run_bytes(&source, t)?;
+        let text = String::from_utf8_lossy(span_bytes).into_owned();
+        let span = Some((t.start, t.end));
+        let provenance = format!(
+            "rtf;text={index};group={};bytes={}",
+            t.group,
+            span_bytes.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!("{{\"text\":{},\"group\":{},\"span\":[{},{}],\"bytes\":{}}}"),
+                index,
+                t.group,
+                t.start,
+                t.end,
+                span_bytes.len(),
+            )),
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A destination named by `NAME` or `NAME:N`.
+    fn rtf_destination(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let (name, ord) = parse_rtf_dest_ref(spec)?;
+        let kind = rtf_destination_kind(name).ok_or_else(|| {
+            Error::usage(format!(
+                "RTF destination {name:?} is not one of fonttbl/colortbl/stylesheet/info/pict/object/ignore"
+            ))
+        })?;
+        let idxs = model.destinations_of_kind(kind);
+        let di = *idxs.get(ord as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "RTF document has no destination {name} {ord} (count {})",
+                idxs.len()
+            ))
+        })?;
+        let d = model
+            .destination(di)
+            .ok_or_else(|| Error::internal_invariant("RTF destination index is out of range"))?;
+        let g = model
+            .group(d.group)
+            .ok_or_else(|| Error::internal_invariant("RTF destination group is out of range"))?;
+        let span_bytes = rtf_destination_bytes(&source, &model, d)?;
+        let content = rtf_group_content_bytes(&source, g)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((g.start, g.end));
+        let provenance = format!(
+            "rtf;dest={name};ordinal={ord};kind={};group={}",
+            rtf_destination_name(d.kind),
+            d.group
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dest\":\"{}\",\"ordinal\":{},\"destination\":{},\"group\":{},",
+                    "\"span\":[{},{}],\"name_span\":[{},{}]}}"
+                ),
+                rtf_destination_name(d.kind),
+                ord,
+                di,
+                d.group,
+                g.start,
+                g.end,
+                d.name_start,
+                d.name_end,
+            )),
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over every RTF plain text run.
+    fn rtf_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let matches = rtf_find_matches(&source, &model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"run\":{},\"group\":{},\"span\":[{},{}],\"text\":\"{}\"}}"),
+                m.run,
+                m.group,
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("rtf;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.rtf_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_rtf(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.rtf_common_metadata(req),
+            Selector::Text => self.rtf_common_text(req),
+            Selector::SearchMatch(p) => self.rtf_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "RTF does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the exact source (lossily decoded), never rendered.
+    fn rtf_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.rtf_source()?;
+        let text = rtf_canonical_text(&source, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.rtf_answer(
+            req,
+            AnswerValue::Text(text),
+            "rtf;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn rtf_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let words = model
+            .controls
+            .iter()
+            .filter(|c| c.kind == crate::adapter::rtf::C_WORD)
+            .count();
+        let symbols = model.controls.len() - words;
+        let text_bytes: u64 = model.text_runs.iter().map(|t| t.end - t.start).sum();
+        let dcount = |k: u8| model.destinations_of_kind(k).len();
+        let h = &model.header;
+        let deff = match h.deff_value() {
+            Some(v) => v.to_string(),
+            None => "null".to_string(),
+        };
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"rtf\",\"bytes\":{},\"groups\":{},\"max_depth\":{},",
+                "\"controls\":{},\"words\":{},\"symbols\":{},\"text_runs\":{},",
+                "\"text_bytes\":{},\"hex_escapes\":{},\"unicode_escapes\":{},",
+                "\"destinations\":{},\"fonttbl\":{},\"colortbl\":{},\"stylesheet\":{},",
+                "\"info\":{},\"pict\":{},\"object\":{},\"ignore\":{},",
+                "\"version\":{},\"charset\":\"{}\",\"deff\":{}}}"
+            ),
+            model.doc_len,
+            model.groups.len(),
+            model.max_depth(),
+            model.controls.len(),
+            words,
+            symbols,
+            model.text_runs.len(),
+            text_bytes,
+            model.hex.len(),
+            model.unicode.len(),
+            model.destinations.len(),
+            dcount(D_FONT_TABLE),
+            dcount(D_COLOR_TABLE),
+            dcount(D_STYLESHEET),
+            dcount(D_INFO),
+            dcount(D_PICT),
+            dcount(D_OBJECT),
+            dcount(D_IGNORE),
+            h.version,
+            rtf_charset_name(h.charset),
+            deff,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.rtf_answer(
+            req,
+            value,
+            "rtf;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// Parse a `NAME` or `NAME:N` RTF destination reference. `NAME` is a destination name
+/// and `N` is a canonical 0-based ordinal among destinations of that name (default 0).
+#[cfg(feature = "rtf")]
+fn parse_rtf_dest_ref(spec: &str) -> Result<(&str, u32)> {
+    let (name, ord) = match spec.split_once(':') {
+        Some((n, o)) => (n, Some(o)),
+        None => (spec, None),
+    };
+    if name.is_empty() {
+        return Err(Error::usage(format!(
+            "RTF destination reference {spec:?} must name a destination"
+        )));
+    }
+    let ord = match ord {
+        None => 0,
+        Some(o) => {
+            if o.is_empty() || (o.len() > 1 && o.starts_with('0')) {
+                return Err(Error::usage(format!(
+                    "RTF destination reference {spec:?} must have a canonical ordinal"
+                )));
+            }
+            o.parse::<u32>().map_err(|_| {
+                Error::usage(format!(
+                    "RTF destination reference {spec:?} has a non-numeric ordinal"
+                ))
+            })?
+        }
+    };
+    Ok((name, ord))
 }
 
 // ---------------------------------------------------------------------------

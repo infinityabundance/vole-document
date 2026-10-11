@@ -197,6 +197,12 @@ pub enum ErrorClass {
     /// malformed entry/field, or an input that exceeds a cap — so it stays
     /// `Json`/`Opaque` rather than being claimed.
     InvalidBibStructure,
+    /// An RTF (Rich Text Format) structure error (Phase 21.32): a source that begins
+    /// with `{\rtf<digit>` but is not well-formed under the bounded group-brace
+    /// grammar (an unbalanced brace, a trailing backslash, an over-long control word,
+    /// or trailing bytes after the root group) — so it stays `Opaque` rather than being
+    /// claimed as a derived model. Detection and the exact leaf are unaffected.
+    InvalidRtfStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -251,6 +257,7 @@ impl ErrorClass {
             ErrorClass::InvalidPkgmetaStructure => 45,
             ErrorClass::InvalidApispecStructure => 46,
             ErrorClass::InvalidBibStructure => 47,
+            ErrorClass::InvalidRtfStructure => 48,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -304,6 +311,7 @@ impl ErrorClass {
             ErrorClass::InvalidPkgmetaStructure => "InvalidPkgmetaStructure",
             ErrorClass::InvalidApispecStructure => "InvalidApispecStructure",
             ErrorClass::InvalidBibStructure => "InvalidBibStructure",
+            ErrorClass::InvalidRtfStructure => "InvalidRtfStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -411,6 +419,7 @@ impl Error {
     ctor!(invalid_pkgmeta_structure, InvalidPkgmetaStructure);
     ctor!(invalid_apispec_structure, InvalidApispecStructure);
     ctor!(invalid_bib_structure, InvalidBibStructure);
+    ctor!(invalid_rtf_structure, InvalidRtfStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

@@ -331,6 +331,17 @@ const BIB_NATIVE: &[&str] = &[
     "bib-find",
 ];
 
+const RTF_NATIVE: &[&str] = &[
+    "rtf-header",
+    "rtf-group",
+    "rtf-control",
+    "rtf-hex",
+    "rtf-unicode",
+    "rtf-text",
+    "rtf-dest",
+    "rtf-find",
+];
+
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
 const COMMON_TEXT_META: &[&str] = &["text", "metadata"];
@@ -728,6 +739,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 BIB_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Rtf => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                RTF_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

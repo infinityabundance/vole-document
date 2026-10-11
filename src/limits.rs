@@ -889,6 +889,29 @@ pub struct Limits {
     /// parsing. Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.31).
     pub max_bib_document_bytes: u64,
+    // The RTF caps below bound the derived, span-preserving model (Phase 21.32). RTF
+    // is a text group-brace grammar with control words; it is not a package: the whole
+    // source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum group (`{ … }`) count accepted for one RTF document. An over-large
+    /// document declines typed rather than allocating (Phase 21.32).
+    pub max_rtf_groups: u32,
+    /// Maximum group nesting depth accepted (the outermost group is depth 1). A deeper
+    /// document declines typed (Phase 21.32).
+    pub max_rtf_depth: u32,
+    /// Maximum control word / control symbol / hex escape / Unicode escape count
+    /// accepted across one RTF document. An over-large document declines typed rather
+    /// than allocating (Phase 21.32).
+    pub max_rtf_control_words: u64,
+    /// Maximum total plain-text byte count accepted across one RTF document. An
+    /// over-large document declines typed rather than allocating (Phase 21.32).
+    pub max_rtf_text_bytes: u64,
+    /// Maximum `\'hh` hex-escape count accepted across one RTF document. An over-large
+    /// document declines typed rather than allocating (Phase 21.32).
+    pub max_rtf_hex_escapes: u64,
+    /// Maximum source length admitted for byte-based RTF detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.32).
+    pub max_rtf_document_bytes: u64,
 }
 
 impl Limits {
@@ -1143,6 +1166,12 @@ impl Limits {
         max_bib_nodes: 1 << 24,
         max_bib_depth: 256,
         max_bib_document_bytes: 1 << 34,
+        max_rtf_groups: 1 << 22,
+        max_rtf_depth: 256,
+        max_rtf_control_words: 1 << 24,
+        max_rtf_text_bytes: 1 << 30,
+        max_rtf_hex_escapes: 1 << 24,
+        max_rtf_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1396,6 +1425,12 @@ impl Limits {
         max_bib_nodes: 1 << 16,
         max_bib_depth: 64,
         max_bib_document_bytes: 1 << 26,
+        max_rtf_groups: 1 << 12,
+        max_rtf_depth: 64,
+        max_rtf_control_words: 1 << 16,
+        max_rtf_text_bytes: 1 << 20,
+        max_rtf_hex_escapes: 1 << 16,
+        max_rtf_document_bytes: 1 << 26,
     };
 }
 

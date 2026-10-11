@@ -472,6 +472,17 @@ pub const SEL_APISPEC_MODEL: u8 = 45;
 /// keyed by `sha256(source)` per ADR-0060); a bibliography has no package layer.
 /// Derived, never exact.
 pub const SEL_BIB_MODEL: u8 = 46;
+/// Selector kind: the canonical RTF (Rich Text Format) model (Phase 21.32).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving group-brace projection — the header
+/// (`\rtfN`/charset/`\deffN`), every group with its exact brace span and nesting depth,
+/// every control word/symbol, every `\'hh` hex escape and `\uN` Unicode escape (with
+/// the active `\ucN` fallback count), every destination verbatim, and every plain text
+/// run byte-exactly — as `Q_gen` derived state. It is computed on demand from the exact
+/// source (its single dependency is the `DocumentExact` root, keyed by `sha256(source)`
+/// per ADR-0060); RTF has no package layer. Derived, never exact.
+pub const SEL_RTF_MODEL: u8 = 47;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

@@ -385,6 +385,23 @@ pub enum DocumentFormat {
     /// token span (and each value's exact spelling and delimiters) is a `Q_gen`
     /// projection (Phase 21.31).
     Bib,
+    /// An RTF (Rich Text Format) document. RTF is a text, group-brace grammar with
+    /// control words — closer to a bounded tree (like XML) than to a flat line format —
+    /// but it is *not* a package: there is no OPC/ZIP layer, so the exact leaf is the
+    /// whole source (a `DocumentExact`, RAW-like authority) and every derived
+    /// observation is a bounded, span-preserving (`Q_gen`) projection of it. Detection
+    /// is a **strong magic + brace-balance** test: the source must begin (after an
+    /// optional UTF-8 BOM) with `{\rtf` followed by a digit, and its group braces must
+    /// balance under a bounded scan (respecting `\\`/`\{`/`\}`, `\'hh`, control words,
+    /// and `\binN`), with the outermost group closing exactly at end of input. A plain
+    /// text source, a leading-`{` blob, and every other format are therefore never
+    /// stolen; they stay `Opaque`. The adapter preserves the header, every group with
+    /// its exact brace span and nesting, every control word/symbol, every `\'hh` hex
+    /// escape and `\uN` Unicode escape (with its `\ucN` fallback), every destination
+    /// (`\fonttbl`/`\colortbl`/`\stylesheet`/`\info`/`\pict`/`\object`/`\*`) verbatim,
+    /// and every plain text run byte-exactly (never whitespace-normalized) — Phase
+    /// 21.32.
+    Rtf,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -429,6 +446,7 @@ impl DocumentFormat {
             DocumentFormat::Pkgmeta => "pkgmeta",
             DocumentFormat::Apispec => "apispec",
             DocumentFormat::Bib => "bib",
+            DocumentFormat::Rtf => "rtf",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -472,6 +490,7 @@ impl DocumentFormat {
             DocumentFormat::Pkgmeta => "pkgmeta",
             DocumentFormat::Apispec => "apispec",
             DocumentFormat::Bib => "bib",
+            DocumentFormat::Rtf => "rtf",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -515,6 +534,7 @@ impl DocumentFormat {
             DocumentFormat::Pkgmeta => cfg!(feature = "pkgmeta"),
             DocumentFormat::Apispec => cfg!(feature = "apispec"),
             DocumentFormat::Bib => cfg!(feature = "bib"),
+            DocumentFormat::Rtf => cfg!(feature = "rtf"),
         }
     }
 
@@ -568,6 +588,7 @@ impl DocumentFormat {
             "pkgmeta" => Some(DocumentFormat::Pkgmeta),
             "apispec" => Some(DocumentFormat::Apispec),
             "bib" => Some(DocumentFormat::Bib),
+            "rtf" => Some(DocumentFormat::Rtf),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -696,6 +717,19 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "bib")]
     if crate::adapter::bib::detect(source, limits) {
         return DocumentFormat::Bib;
+    }
+    // RTF (Rich Text Format, Phase 21.32) is a text group-brace grammar with a strong
+    // header magic (`{\rtf<digit>`), so it is tried here with the **strong-magic**
+    // detectors (right after the binary magics PDF/ZIP/Parquet/Arrow and before the
+    // JSON family). Its detection is magic + a bounded brace-balance scan, so no other
+    // format's bytes can steal it and it can steal no other format: an RTF source
+    // begins with `{`, which is not a valid JSON document (JSON would need a valid
+    // value), not a config `KEY=VALUE` line, and not a Markdown/RST structural mark;
+    // and the binary detectors above reject it. A plain text or leading-`{` blob stays
+    // `Opaque`.
+    #[cfg(feature = "rtf")]
+    if crate::adapter::rtf::detect(source, limits) {
+        return DocumentFormat::Rtf;
     }
     #[cfg(feature = "json")]
     if crate::adapter::json::detect(source, limits) {
@@ -1243,6 +1277,7 @@ mod tests {
             DocumentFormat::Pkgmeta,
             DocumentFormat::Apispec,
             DocumentFormat::Bib,
+            DocumentFormat::Rtf,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

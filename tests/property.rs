@@ -634,6 +634,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_bib_nodes: 1 << 30,
         max_bib_depth: 1 << 12,
         max_bib_document_bytes: 1 << 50,
+        max_rtf_groups: 1 << 30,
+        max_rtf_depth: 1 << 12,
+        max_rtf_control_words: 1 << 30,
+        max_rtf_text_bytes: 1 << 50,
+        max_rtf_hex_escapes: 1 << 30,
+        max_rtf_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

@@ -471,6 +471,18 @@ pub enum NodeKind {
     /// `sha256(source)` per ADR-0060); a bibliography has no package layer. Derived,
     /// never exact.
     BibModel = 0x42,
+    /// The canonical, representation-preserving RTF (Rich Text Format) model
+    /// (Phase 21.32): the whole source parsed into a bounded, span-preserving
+    /// group-brace model — the header (`\rtfN` version, charset, `\deffN`), every
+    /// group with its exact brace span and nesting depth, every control word (with its
+    /// optional numeric parameter) and control symbol, every `\'hh` hex escape and
+    /// `\uN` Unicode escape (with the active `\ucN` fallback count), every destination
+    /// (`\fonttbl`/`\colortbl`/`\stylesheet`/`\info`/`\pict`/`\object`/`\*`) verbatim,
+    /// and every plain text run byte-exactly (never whitespace-normalized). Nothing is
+    /// normalized or re-serialized. It is computed on demand from the exact source (its
+    /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+    /// ADR-0060); RTF has no package layer. Derived, never exact.
+    RtfModel = 0x43,
 }
 
 impl NodeKind {
@@ -543,6 +555,7 @@ impl NodeKind {
             0x40 => NodeKind::PkgmetaModel,
             0x41 => NodeKind::ApispecModel,
             0x42 => NodeKind::BibModel,
+            0x43 => NodeKind::RtfModel,
             _ => return None,
         })
     }
@@ -616,6 +629,7 @@ impl NodeKind {
             NodeKind::PkgmetaModel => "PkgmetaModel",
             NodeKind::ApispecModel => "ApispecModel",
             NodeKind::BibModel => "BibModel",
+            NodeKind::RtfModel => "RtfModel",
         }
     }
 

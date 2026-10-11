@@ -578,6 +578,29 @@ apispec = ["json"]
 # and exactness is untouched. **Dependency-free (`bib` pulls no external crate)** and
 # never in `default`; it reuses the JSON adapter, so it implies `json`.
 bib = ["json"]
+# Phase 21.32: the RTF (Rich Text Format) adapter — the **word-processor markup**
+# Wave-2 format. RTF is a text, group-brace grammar with control words (like a
+# bounded tree), but it is *not* a package (no OPC/ZIP layer): the exact leaf is the
+# whole source (a `DocumentExact`, RAW-like authority) and every derived observation
+# is a bounded, span-preserving (`Q_gen`) projection of it. This adapter preserves
+# representation: the header (`{\rtf1\ansi\deffN …}` with the exact `\rtf` version
+# and charset/`\deff` control words), every group `{ … }` with its **exact brace
+# span** and nesting depth, every control word (`\word` with its optional numeric
+# parameter, `\fs24`) and control symbol (`\\`, `\{`, `\}`, `\~`, `\-`, `\_`,
+# `\*`), every hex escape (`\'hh`, spelling preserved with the decoded byte under the
+# declared charset) and Unicode escape (`\uN` with its `\ucN` fallback count — the
+# literal form and the fallback bytes are preserved, never dropped), every
+# destination (`\*` ignore-destination, `\fonttbl`, `\colortbl`, `\stylesheet`,
+# `\info`, and `\pict`/`\object` binary groups) verbatim with exact spans, and every
+# plain text run between control words **byte-exactly** (never whitespace-normalized
+# — RTF uses a space to terminate a control word). It adds **no** decoder behavior:
+# the model is never on the exactness path, so enabling it never changes `.voldoc`
+# bytes and exactness is untouched. Detection is a strong magic test — the source must
+# begin (after an optional UTF-8 BOM) with `{\rtf` followed by a digit, and its group
+# braces must be balanced under a bounded scan — so a plain text/`{`-junk source stays
+# `Opaque`. **Dependency-free (`rtf = []` pulls no external crate)** and never in
+# `default`.
+rtf = []
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived

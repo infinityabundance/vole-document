@@ -155,6 +155,8 @@ const USAGE_FIELD: &str = "\
         --apispec-ref N | --apispec-find PATTERN |
         --bib-dialect | --bib-entry N | --bib-field N:FIELD | --bib-key KEY |
         --bib-find PATTERN |
+        --rtf-header | --rtf-group N | --rtf-control N | --rtf-hex N |
+        --rtf-unicode N | --rtf-text N | --rtf-dest NAME[:N] | --rtf-find PATTERN |
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
@@ -2063,6 +2065,36 @@ struct FieldArgs {
     /// field names, and field values (Phase 21.31).
     #[cfg(feature = "bib")]
     bib_find: Option<String>,
+    /// `--rtf-header`: the RTF header (`{\rtf1\ansi\deffN …}`) with the exact `\rtf`
+    /// version, the charset control word, and `\deffN` (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_header: bool,
+    /// `--rtf-group N`: the N-th (0-based) group `{ … }` with its exact brace span,
+    /// parent, nesting depth, and destination kind (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_group: Option<u32>,
+    /// `--rtf-control N`: the N-th (0-based) control word or control symbol (Phase
+    /// 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_control: Option<u32>,
+    /// `--rtf-hex N`: the N-th (0-based) `\'hh` hex escape (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_hex: Option<u32>,
+    /// `--rtf-unicode N`: the N-th (0-based) `\uN` Unicode escape with its active
+    /// `\ucN` fallback count (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_unicode: Option<u32>,
+    /// `--rtf-text N`: the N-th (0-based) plain text run, byte-exactly (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_text: Option<u32>,
+    /// `--rtf-dest SPEC`: a destination named by `NAME` or `NAME:N` (fonttbl/
+    /// colortbl/stylesheet/info/pict/object/ignore) (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_dest: Option<String>,
+    /// `--rtf-find PATTERN`: a lexical, case-sensitive search over every plain text
+    /// run (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -3094,6 +3126,44 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "bib")]
             "--bib-find" => {
                 out.bib_find = Some(field_arg_value(args, &mut i, "--bib-find", inline)?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-header" => {
+                out.rtf_header = true;
+                i += 1;
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-group" => {
+                let v = field_arg_value(args, &mut i, "--rtf-group", inline)?;
+                out.rtf_group = Some(parse_field_u32(&v, "--rtf-group")?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-control" => {
+                let v = field_arg_value(args, &mut i, "--rtf-control", inline)?;
+                out.rtf_control = Some(parse_field_u32(&v, "--rtf-control")?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-hex" => {
+                let v = field_arg_value(args, &mut i, "--rtf-hex", inline)?;
+                out.rtf_hex = Some(parse_field_u32(&v, "--rtf-hex")?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-unicode" => {
+                let v = field_arg_value(args, &mut i, "--rtf-unicode", inline)?;
+                out.rtf_unicode = Some(parse_field_u32(&v, "--rtf-unicode")?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-text" => {
+                let v = field_arg_value(args, &mut i, "--rtf-text", inline)?;
+                out.rtf_text = Some(parse_field_u32(&v, "--rtf-text")?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-dest" => {
+                out.rtf_dest = Some(field_arg_value(args, &mut i, "--rtf-dest", inline)?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-find" => {
+                out.rtf_find = Some(field_arg_value(args, &mut i, "--rtf-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -4142,6 +4212,39 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.bib_find {
             chosen.push(Selector::BibFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // RTF: `--rtf-header` the header; `--rtf-group N`/`--rtf-control N`/`--rtf-hex N`/
+    // `--rtf-unicode N`/`--rtf-text N` address a group/control/hex/unicode/text-run by
+    // 0-based index; `--rtf-dest NAME[:N]` a destination; `--rtf-find` is a lexical
+    // search. Each stands alone (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    {
+        if out.rtf_header {
+            chosen.push(Selector::RtfHeader);
+        }
+        if let Some(index) = out.rtf_group {
+            chosen.push(Selector::RtfGroup { index });
+        }
+        if let Some(index) = out.rtf_control {
+            chosen.push(Selector::RtfControl { index });
+        }
+        if let Some(index) = out.rtf_hex {
+            chosen.push(Selector::RtfHex { index });
+        }
+        if let Some(index) = out.rtf_unicode {
+            chosen.push(Selector::RtfUnicode { index });
+        }
+        if let Some(index) = out.rtf_text {
+            chosen.push(Selector::RtfText { index });
+        }
+        if let Some(spec) = &out.rtf_dest {
+            chosen.push(Selector::RtfDestination { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.rtf_find {
+            chosen.push(Selector::RtfFind {
                 pattern: pattern.clone(),
             });
         }
