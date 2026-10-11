@@ -36,8 +36,12 @@ Per-format authority boundaries, native inverse representation, and exactness.
 - [ODP](formats/odp.md)
 - [JSON](formats/json.md)
 - [YAML](formats/yaml.md)
-- [CSV/TSV](formats/csv.md)
+- [CSV/TSV/PSV](formats/csv.md)
+- [Fixed-width](formats/fixedwidth.md)
 - [Markdown](formats/markdown.md)
+- [reStructuredText](formats/rst.md)
+- [AsciiDoc](formats/asciidoc.md)
+- [MDX](formats/mdx.md)
 - [XML](formats/xml.md)
 - [HTML](formats/html.md)
 - [TOML](formats/toml.md)
@@ -89,7 +93,8 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   formats complete**: JSON, YAML, CSV/TSV, Markdown, XML, HTML, TOML, JSONL,
   EML/MIME, Parquet and Arrow IPC adapters + economic courts, plus the
   subphases 21.17–21.24 (JSON5/JSONC, CBOR, MessagePack, config, RSS/Atom,
-  GeoJSON, KML/GPX, Jupyter notebook) adapters + economic courts; also a permanent
+  GeoJSON, KML/GPX, Jupyter notebook) and 21.25/21.26 (PSV + fixed-width;
+  reStructuredText + AsciiDoc + MDX) adapters + economic courts; also a permanent
   cross-field identity court, a stratified real-world court, and the JSON/YAML
   span-preserving comparator corrections); the Phase 22
   programme is pre-registered in

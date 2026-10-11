@@ -38,8 +38,11 @@
 > and a **detection repair** fixed five real-world detection root causes. The
 > 21.20–21.24 economic courts also found and fixed a **GeoJSON JSON-validity
 > defect** (7 observation projections emitted invalid JSON; fixed in
-> `src/field/observe.rs`, commit `ba4df0d4`). The remaining Wave-2 families
-> (21.25–21.35) are not started.
+> `src/field/observe.rs`, commit `ba4df0d4`). **The tabular extra (21.25, PSV +
+> fixed-width) and the prose formats (21.26.1 reStructuredText, 21.26.2 AsciiDoc,
+> 21.26.3 MDX) have since shipped** on the same branch, each with an adapter court
+> + a sealed economic court. The remaining Wave-2 families (21.27–21.35) are not
+> started.
 >
 > Branch: `phase21-wave2` @ `v0.1.0-alpha.33`+ (Wave 2). Wave 1 shipped as
 > `v0.1.0-alpha.30`, JSON as `v0.1.0-alpha.31`, YAML as `v0.1.0-alpha.32` on
@@ -126,8 +129,9 @@ targets for exactly this reason.
 ### Wave 2 — the remaining order (frozen)
 
 Beyond the eleven shipped Wave-2 formats, the remaining families are decomposed
-into one subphase each. **21.17–21.24 have since shipped** (marked below); the
-rest (21.25–21.35) are not started. The order is again chosen for **maximum reuse** — the
+into one subphase each. **21.17–21.24 have since shipped** (marked below), and
+**21.25 and 21.26.1–21.26.3 have since shipped**; the rest (21.27–21.35) are not
+started. The order is again chosen for **maximum reuse** — the
 structured-tree, tabular, XML, JSON and MIME layers are already paid for, so a
 format enters by reusing one of them and paying mostly for its own span policy.
 Each subphase is the established unit: **adapter → tests → adapter court →
@@ -143,8 +147,8 @@ an honest negative if the court declines it.
 21.22  GeoJSON              (GIS; reuses the JSON parser + geo semantics)              — SHIPPED
 21.23  KML / GPX            (GIS; reuses the XML parser + geo semantics)               — SHIPPED
 21.24  Jupyter notebook     (.ipynb; reuses the JSON parser + cell/output model)       — SHIPPED
-21.25  PSV / fixed-width    (tabular extra; reuses the tabular layer)
-21.26  reST / AsciiDoc / MDX (docs; reuses the prose/line layer)
+21.25  PSV / fixed-width    (tabular extra; reuses the tabular layer)                  — SHIPPED
+21.26  reST / AsciiDoc / MDX (docs; reuses the prose/line layer)                       — SHIPPED (21.26.1/2/3)
 21.27  MHTML                (messaging + web; reuses the MIME + HTML layers)
 21.28  syslog / log streams (line/event stream; reuses the JSONL line policy)
 21.29  package metadata      (package.json / pyproject.toml / Cargo.toml / lockfiles)

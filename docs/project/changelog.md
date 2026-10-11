@@ -2,6 +2,95 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.36] — Phase 21 Wave 2: PSV + fixed-width, reStructuredText, AsciiDoc, MDX — *unreleased*
+
+- **21.25 — PSV (pipe dialect) + fixed-width (column-position) tabular extra.**
+  The **pipe** delimiter is added as the CSV/TSV adapter's **third recorded
+  dialect** (one parser, three delimiters — never a second parser; tried after
+  comma and tab and **declined on a GFM/Markdown delimiter row**, so a Markdown
+  pipe table is never stolen); PSV needs no new feature gate. A **distinct**
+  fixed-width adapter (`fixedwidth = ["csv"]`, **non-default**) is added for
+  character-position columns: the inferred per-column start/end positions and
+  widths, the uniform record width, every record's exact content span and every
+  field's exact padded bytes, the terminator, a BOM, and the header row. Native
+  `--fixedwidth-row`/`--fixedwidth-cell`/`--fixedwidth-header`/
+  `--fixedwidth-columns`/`--fixedwidth-range`/`--fixedwidth-find`; common
+  metadata/text/table/cell/search-match. Detection is maximally conservative
+  (**≥ 3 sampled records of identical byte width**, ≥ 2 non-empty columns,
+  interior gaps ≥ 2 columns wide) and **declines anything that also parses as a
+  delimited or Markdown table**; `parse` re-validates every line
+  (`invalid-fixedwidth-structure`, exit 39). Adapter exactness **10/10**
+  (4 fixed-width + 3 delimited + 1 Markdown + 2 opaque controls). Economic court
+  vs a **source-retaining SQLite store** and a **conventional decode-to-host
+  load**: exact 11/11; build **0.909/0.939** · **1.157/1.140**, storage
+  **0.583/0.590** · **21.801/8.652** (ratio-of-sums **0.901**), cold
+  **0.027/0.034** · **0.028/0.036**, warm **0.057/0.081** · **0.737/0.555**
+  (median/geomean). An ambiguous aligned-text blob **is** claimed (recorded);
+  positions are **byte** positions; cold ratios are Python-startup-dominated.
+  `2026-10-10-phase21-25-1-tabular-e3c77a86`,
+  `…-phase21-25-tabular-econ-f0a3a5cf`.
+- **21.26.1 — reStructuredText (Docutils) adapter + economic court.** Non-default,
+  dependency-free `rst = []`. A bounded, line-based Docutils-subset parser keeping
+  exact block/inline byte spans: section titles with their exact underline/
+  overline adornment and a recorded hierarchy, paragraphs, explicit markup
+  (comments, directives preserved **verbatim**, substitution definitions,
+  footnotes/citations, hyperlink targets), field/option/definition lists, literal
+  and doctest blocks, bullet/enumerated lists with nesting, inline markup, and
+  grid/simple tables. Detection requires a reST-**specific** signal (explicit
+  markup, a grid/simple table, a field list, a literal/doctest block, or a
+  non-Markdown adornment); Markdown is tried first, so a Markdown document is
+  never stolen. Native `--rst-heading`/`--rst-block`/`--rst-directive`/
+  `--rst-inline`/`--rst-find`. Adapter exactness **8/8**; economic court exact
+  **9/9** — build **0.902/0.928** SQLite · **1.223/1.232** conv, storage
+  **0.602/0.599** · **9.160/7.032**, cold **0.029/0.031** · **0.030/0.033**, warm
+  **0.086/0.097** · **1.058/0.889**. `2026-10-10-phase21-26-1-rst-91b02068`,
+  `…-phase21-26-1-rst-econ-f0a3a5cf`.
+- **21.26.2 — AsciiDoc (Asciidoctor) adapter + economic court.** Non-default,
+  dependency-free `asciidoc = []`. A bounded, line-based AsciiDoc-subset parser
+  keeping exact block/inline byte spans: a level-0 document title and `==`+
+  sections with their exact `=` marker and a recorded level, document attributes
+  (`:name: value` / `:name!:`) with attribute references (`{name}`) surfaced
+  literally (never expanded), block attribute lines attached to the following
+  block, delimited blocks (listing/literal/example/sidebar/quote/open/passthrough)
+  with their exact delimiter and verbatim content, unordered/ordered/description
+  lists with nesting, `|===` tables, admonitions, and inline markup plus the
+  `link:`/`image:`/`include::`/`xref:`/bare-URL macros. Detection requires an
+  AsciiDoc-**specific** mark (a document title, a `==`+ section, a `|===` table, a
+  complete delimited block, or a block-attribute line followed by a block);
+  Markdown and reST are tried first. Native `--adoc-heading`/`--adoc-block`/
+  `--adoc-attribute`/`--adoc-inline`/`--adoc-find`. Adapter exactness **11/11**;
+  economic court exact **11/11** — build **0.915/0.944** · **1.254/1.243**,
+  storage **0.602/0.608** · **7.475/6.129**, cold **0.028/0.030** · **0.030/0.032**,
+  warm **0.086/0.097** · **1.069/0.907**. `2026-10-10-phase21-26-2-asciidoc-91b02068`,
+  `…-phase21-26-2-asciidoc-econ-f0a3a5cf`.
+- **21.26.3 — MDX (Markdown + JSX/ESM) adapter + economic court.** Non-default
+  `mdx = ["markdown"]`; MDX is a **superset** of Markdown, so this adapter
+  **reuses the Markdown parser and model** (never a second prose parser) and layers
+  exact-span MDX constructs on top: top-level ESM `import`/`export` statements,
+  JSX elements and fragments with their attributes and nested children (recorded
+  as extents, **never executed and never parsed as JavaScript**), and MDX `{ … }`
+  expressions inline and block (brace-balanced, with string literals, escapes, and
+  comments respected). Detection is tried **before** generic Markdown and HTML and
+  requires an MDX-**specific** signal on top of a successful Markdown parse (a
+  top-level ESM statement, a JSX component/fragment, a JSX-specific attribute, or
+  a whole-line block expression); the scanner skips fenced/indented code, front
+  matter, and inline code spans. Native `--mdx-heading`/`--mdx-block`/`--mdx-esm`/
+  `--mdx-jsx`/`--mdx-expression`/`--mdx-find`. Adapter exactness **11/11** (5 MDX
+  + 6 controls); economic court exact **12/12** — build **0.904/0.911** ·
+  **1.202/1.195**, storage **0.594/0.599** · **9.932/6.197**, cold
+  **0.029/0.032** · **0.029/0.034**, warm **0.081/0.093** · **1.027/0.836**.
+  `2026-10-10-phase21-26-3-mdx-91b02068`, `…-phase21-26-3-mdx-econ-f0a3a5cf`.
+- **Recorded boundaries (honest negatives).** PSV **declines on a GFM delimiter
+  row**; fixed-width **requires ≥ 3 uniform-width records** and **declines on
+  delimited/Markdown input**; reST **claims spaced `:name:` field lists ahead of
+  AsciiDoc**; AsciiDoc **needs an AsciiDoc-specific mark** (a single-non-blank-line
+  `====`/`++++`/`....` block is a reST overline title; only the no-space
+  `:name:value` spelling stays AsciiDoc); MDX **needs an ESM/JSX/expression
+  signal**, `Html` stays `html`, and an inline `{x}` alone does not promote
+  Markdown. The four economic courts are measured by the shared
+  `tools/fixtures/textfmt-court.sh` engine; **cold ratios are Python-startup-
+  dominated**, and only exact closure (Q6) is a byte-authority claim.
+
 ## [0.1.0-alpha.35] — Phase 21 Wave 2: JSON5/JSONC, CBOR, MessagePack, config, RSS/Atom, GeoJSON, KML/GPX, Jupyter notebook — *unreleased*
 
 - **21.17 — JSON5/JSONC adapter + economic court.** Non-default `json5 = ["json"]`

@@ -85,6 +85,10 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | GeoJSON adapter / economic court (found+fixed JSON-validity defect) | exact 8/8 · 11/11 | `evidence/campaigns/2026-10-10-phase21-22-1-geojson-670675f9/`, `…/2026-10-10-phase21-22-geojson-econ-735d9b69/` |
 | KML/GPX adapter / economic court | exact 8/8 · 10/10 | `evidence/campaigns/2026-10-10-phase21-23-1-gis-aed361cf/`, `…/2026-10-10-phase21-23-gis-econ-735d9b69/` |
 | Jupyter notebook adapter / economic court | exact 7/7 · 11/11 | `evidence/campaigns/2026-10-10-phase21-24-1-notebook-b6860e87/`, `…/2026-10-10-phase21-24-notebook-econ-735d9b69/` |
+| PSV (pipe dialect) + fixed-width adapter / economic court | exact 10/10 · 11/11 | `evidence/campaigns/2026-10-10-phase21-25-1-tabular-e3c77a86/`, `…/2026-10-10-phase21-25-tabular-econ-f0a3a5cf/` |
+| reStructuredText adapter / economic court | exact 8/8 · 9/9 | `evidence/campaigns/2026-10-10-phase21-26-1-rst-91b02068/`, `…/2026-10-10-phase21-26-1-rst-econ-f0a3a5cf/` |
+| AsciiDoc adapter / economic court | exact 11/11 · 11/11 | `evidence/campaigns/2026-10-10-phase21-26-2-asciidoc-91b02068/`, `…/2026-10-10-phase21-26-2-asciidoc-econ-f0a3a5cf/` |
+| MDX adapter / economic court | exact 11/11 · 12/12 | `evidence/campaigns/2026-10-10-phase21-26-3-mdx-91b02068/`, `…/2026-10-10-phase21-26-3-mdx-econ-f0a3a5cf/` |
 | Cross-field identity court (ADR-0060) | 12/12 | `evidence/campaigns/2026-10-09-identity-3400385/`, re-sealed `…/2026-10-10-identity-7f007e2e/` |
 | Real-format smoke (independently sourced) | 12/12 exact | `evidence/campaigns/2026-10-09-realformats-smoke-3400385/` |
 | Stratified real-world multi-format court (52 real + 8 hostile) | 60/60 byte-exact | `evidence/campaigns/2026-10-10-realformats-stratified-3529688e/` (prior `…/2026-10-10-realformats-stratified-92edce73/`) |
@@ -223,20 +227,23 @@ A normalizing "YAML→JSON" pipeline expands anchors/aliases and merges `<<`, dr
 tags/styles/comments — the adapter surfaces them instead. See
 [Formats/YAML](../formats/yaml.md).
 
-## CSV / TSV (tabular)
+## CSV / TSV / PSV (tabular)
 
-CSV/TSV is the tabular family (Wave 2); the `csv = []` feature is **non-default and
-dependency-free**. Detection is conservative (CSV has no magic bytes): a delimiter
-(comma or tab) is accepted only if it yields a modal field count ≥ 2 over a strict
-majority of a sampled prefix; prose/one-column/malformed → Opaque.
+CSV/TSV/PSV is the tabular family (Wave 2); the `csv = []` feature is **non-default and
+dependency-free**. One parser records **three delimiters** (comma, tab, pipe — PSV
+is the third dialect, subphase 21.25.1). Detection is conservative (CSV has no
+magic bytes): a delimiter is accepted only if it yields a modal field count ≥ 2
+over a strict majority of a sampled prefix, with comma then tab then pipe; the
+pipe dialect is **declined on a GFM/Markdown delimiter row**, so a Markdown pipe
+table is never stolen. Prose/one-column/malformed → Opaque.
 
-| Property | CSV / TSV |
+| Property | CSV / TSV / PSV |
 |---|---|
 | Physical authority | the whole source (RAW authority) |
 | `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
 | Common observations | `metadata`, `text`, `table`, `cell`, `find` |
 | Native observations | `csv-row`, `csv-cell` (`R:C` or `R:COLNAME`), `csv-header`, `csv-range`, `csv-find` |
-| Representation preserved | exact record/field byte spans; dialect (delimiter/quote/line-terminator); quoting, CRLF, BOM kept |
+| Representation preserved | exact record/field byte spans; recorded dialect (comma/tab/pipe, quote, line terminator); quoting, CRLF, BOM kept |
 
 **Honest cost:** VOLE has **no CSV index** — `csv-row`/`csv-cell` are O(offset)
 bounded-memory scans, and the mandatory **DuckDB/Parquet** comparator wins storage,
@@ -260,6 +267,92 @@ stays Opaque.
 | Representation preserved | exact block/inline byte spans and bytes; the source is never re-flowed; headings/levels, lists, fenced code + language, blockquotes, GFM tables, links/images, reference definitions, footnotes, front matter |
 
 See [Formats/Markdown](../formats/markdown.md).
+
+## Fixed-width (column-position tables)
+
+Fixed-width is the Wave-2 **column-position** tabular format (`fixedwidth =
+["csv"]`, **non-default**; a **distinct** adapter, not a fourth CSV delimiter,
+subphase 21.25.1).
+
+| Property | Fixed-width |
+|---|---|
+| Byte-based detection | **no magic bytes**: ≥ 3 sampled records of *identical* byte width, an inferred layout with interior whitespace gaps ≥ 2 columns wide and ≥ 2 non-empty columns — and only after declining any delimited (CSV/TSV/PSV) or Markdown table |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `table`, `cell`, `search-match` |
+| Native observations | `fixedwidth-row`, `fixedwidth-cell`, `fixedwidth-header`, `fixedwidth-columns`, `fixedwidth-range`, `fixedwidth-find` |
+| Representation preserved | inferred per-column start/end positions and widths; the uniform record width; each record's exact content span and each field's exact padded bytes; terminator; BOM; header row |
+
+**Honest negative:** a trimmed variable-width file and a single-space two-column
+layout are not claimed; an **ambiguous aligned-text blob** (equal-length lines,
+≥ 2-wide gaps, ≥ 3 lines) **is** claimed (it is not distinguishable from a
+fixed-width table), and positions are **byte** positions. See
+[Formats/Fixed-width](../formats/fixedwidth.md).
+
+## reStructuredText (prose)
+
+reStructuredText (Docutils) is a Wave-2 **prose** format (`rst = []`,
+**non-default**, dependency-free; subphase 21.26.1). It has **no magic bytes**, so
+detection requires a reST-**specific** signal (explicit markup, a grid/simple
+table, a field list, a literal/doctest block, or a non-Markdown section
+adornment); Markdown is tried first, so a Markdown document is never stolen, and
+plain prose stays Opaque.
+
+| Property | reStructuredText |
+|---|---|
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `heading`, `block`, `search-match` |
+| Native observations | `rst-heading`, `rst-block`, `rst-directive`, `rst-inline`, `rst-find` |
+| Representation preserved | exact block/inline byte spans and bytes; section titles with their exact adornment and recorded hierarchy; directives verbatim; targets/footnotes/substitutions; field/option/definition lists; literal/doctest blocks; list nesting; grid/simple tables |
+
+**Honest negative:** a `-`/`*`/`_` adornment (≥ 3) is a Markdown thematic break,
+`~` (≥ 3) a Markdown fence, `#` a Markdown ATX heading; a tiny `:name: value` /
+`.. name:: body` is claimed by YAML first. See [Formats/reST](../formats/rst.md).
+
+## AsciiDoc (prose)
+
+AsciiDoc (Asciidoctor) is a Wave-2 **prose** format (`asciidoc = []`,
+**non-default**, dependency-free; subphase 21.26.2). It has **no magic bytes**, so
+detection requires an AsciiDoc-**specific** mark (a level-0 document title, a
+`==`+ section, a `|===` table, a complete delimited block, or a block-attribute
+line followed by a block); Markdown and reST are tried first, so neither is
+stolen, and plain prose stays Opaque.
+
+| Property | AsciiDoc |
+|---|---|
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `heading`, `block`, `search-match` |
+| Native observations | `adoc-heading`, `adoc-block`, `adoc-attribute`, `adoc-inline`, `adoc-find` |
+| Representation preserved | exact block/inline byte spans and bytes; document title/sections with exact `=` marker and level; document attributes with references (`{name}`) literal; block-attribute lines attached to the following block; every delimited block kind with its exact delimiter and verbatim content; list nesting; `|===` tables; admonitions; inline markup and `link:`/`image:`/`include::`/`xref:`/bare-URL macros |
+
+**Honest negative:** a single-non-blank-line `====`/`++++`/`....` block is a reST
+overline title (reST claims it); the spaced `:name: value` and unset `:name!:`
+forms are reST field lists, so only the no-space `:name:value` spelling stays
+AsciiDoc. See [Formats/AsciiDoc](../formats/asciidoc.md).
+
+## MDX (Markdown + JSX/ESM)
+
+MDX is a Wave-2 **prose** format that is a **superset** of Markdown (`mdx =
+["markdown"]`, **non-default**; it **reuses the Markdown parser/model**, never a
+second prose parser; subphase 21.26.3). It has **no magic bytes**, so detection is
+tried **before** generic Markdown and HTML and requires an MDX-**specific** signal
+on top of a successful Markdown parse (a top-level ESM `import`/`export`, a JSX
+component/fragment, a JSX-specific attribute, or a whole-line block expression).
+
+| Property | MDX |
+|---|---|
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `heading`, `block`, `search-match` |
+| Native observations | `mdx-heading`, `mdx-block`, `mdx-esm`, `mdx-jsx`, `mdx-expression`, `mdx-find` |
+| Representation preserved | exact ESM/JSX/expression spans; JSX attributes and nested children (recorded as extents, never executed or parsed as JavaScript); brace-balanced inline/block expressions; the full reused Markdown surface |
+
+**Honest negative:** a lowercase, quoted-attribute-only HTML element carries no
+MDX signal and stays `Html`; an inline `{x}` alone does not promote Markdown; a
+component inside a Markdown table cell admits MDX (documented over-approximation).
+See [Formats/MDX](../formats/mdx.md).
 
 ## XML (structured tree)
 
@@ -577,8 +670,12 @@ PDF
   → YAML
   → TOML      (before CSV/Markdown/XML/HTML)
   → Config    (INI/`.env`/properties; before CSV)
-  → CSV/TSV
+  → CSV/TSV/PSV
+  → MDX       (Markdown bytes; before Markdown and HTML)
   → Markdown
+  → reST      (prose; immediately after Markdown)
+  → AsciiDoc  (prose; immediately after reST)
+  → Fixed-width (column-position; after the delimited/Markdown detectors)
   → Feed      (XML bytes; before the generic XML detector)
   → GIS       (XML bytes; before the generic XML detector)
   → HTML      (document-level marker: `<!doctype html>`/`<html>` root)
@@ -591,7 +688,10 @@ The load-bearing placements: the strong magic-byte binaries run before the weak
 no-magic-byte heuristics; the JSON-based sub-formats (GeoJSON, notebook) run
 before the generic JSON detector but a strict-JSON document stays `Json`; CBOR
 runs before MessagePack (its self-described tag is the strongest binary signal);
-TOML wins over INI/config and CSV; and the XML-based sub-formats (feed, GIS) run
+TOML wins over INI/config and CSV; **MDX runs before generic Markdown** (so a
+Markdown document is never stolen), the prose detectors run in the fixed order
+**MDX → Markdown → reST → AsciiDoc**, and **fixed-width runs after** every
+delimited and Markdown detector; and the XML-based sub-formats (feed, GIS) run
 before the generic XML detector. See the adapter pages for each boundary.
 
 ## Detection repair (Phase 21.15)
@@ -619,7 +719,10 @@ CSV/TSV adapter `csv`. The Wave-2 fine-grained adapters are the dependency-free
 Wave-2 remainder adds the dependency-free `config` feature and the JSON-reusing
 `json5`, `cbor`, `msgpack`, `geojson` and `notebook` features (each `= ["json"]`),
 plus the XML-reusing `feed` and `gis` features (each `= ["xml"]`) — all
-**non-default**.
+**non-default**. The tabular extra adds the dependency-free `fixedwidth =
+["csv"]` feature (PSV needs none — it lives inside `csv`); the prose extra adds
+the dependency-free `rst` and `asciidoc` features and the Markdown-reusing `mdx =
+["markdown"]` feature — all **non-default**.
 `deflate-replay` is opt-in (pulls LGPL
 `cabac`). A descriptor that needs a capability the build lacks sets a mandatory
 feature bit and fails closed with `unsupported-feature` (exit 6).
@@ -643,9 +746,10 @@ ADR-0053); `--promote` is refuted on the tested corpus and default-off (ADR-0046
 ## Not supported
 
 Beyond the six office formats (PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP), the
-Phase-21 Wave 2 formats implemented so far are JSON, YAML, CSV/TSV, Markdown,
-XML, HTML, TOML, JSONL, EML/MIME, Parquet, Arrow IPC, JSON5/JSONC, CBOR,
-MessagePack, config (INI/`.env`/properties), RSS/Atom, GeoJSON, KML/GPX and the
-Jupyter notebook; the remaining Wave-2 families (see
-[Roadmap](../project/roadmap.md)) are `PROPOSED`. Any source that is not a
-recognized format still round-trips exactly through the opaque `RAW` lane.
+Phase-21 Wave 2 formats implemented so far are JSON, YAML, CSV/TSV/PSV,
+fixed-width, Markdown, reStructuredText, AsciiDoc, MDX, XML, HTML, TOML, JSONL,
+EML/MIME, Parquet, Arrow IPC, JSON5/JSONC, CBOR, MessagePack, config
+(INI/`.env`/properties), RSS/Atom, GeoJSON, KML/GPX and the Jupyter notebook; the
+remaining Wave-2 families (see [Roadmap](../project/roadmap.md)) are `PROPOSED`.
+Any source that is not a recognized format still round-trips exactly through the
+opaque `RAW` lane.
