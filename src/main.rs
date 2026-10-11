@@ -163,6 +163,8 @@ const USAGE_FIELD: &str = "\
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
         --xls-biff | --xls-sheet N | --xls-cell N | --xls-record N | --xls-find PATTERN |
         --xls-text |
+        --ppt-document | --ppt-slide N | --ppt-run N | --ppt-record N |
+        --ppt-find PATTERN | --ppt-text |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
         --parquet-cell R:C |
@@ -2194,6 +2196,31 @@ struct FieldArgs {
     /// each shared string (Phase 26.2).
     #[cfg(feature = "xls")]
     xls_find: Option<String>,
+    /// `--ppt-document`: the legacy PowerPoint 97–2003 (`.ppt`) `Document` header — the
+    /// record/slide/run counts, the `Current User` presence, and the exact stream span
+    /// (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_document: bool,
+    /// `--ppt-text`: the common presentation text (canonical `text`) — the slide-ordered
+    /// text runs (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_text: bool,
+    /// `--ppt-slide N`: the N-th (0-based) slide with its `persistIdRef`, `cTexts`, and
+    /// spans (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_slide: Option<u32>,
+    /// `--ppt-run N`: the N-th (0-based) text run with its slide, kind, exact text-atom
+    /// span, and decoded text (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_run: Option<u32>,
+    /// `--ppt-record N`: the N-th (0-based) MS-PPT record with its `recVer`/
+    /// `recInstance`/`recType`/`recLen`, depth, and exact spans (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_record: Option<u32>,
+    /// `--ppt-find PATTERN`: a lexical, case-sensitive search over each decoded text run
+    /// (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -3369,6 +3396,35 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "xls")]
             "--xls-find" => {
                 out.xls_find = Some(field_arg_value(args, &mut i, "--xls-find", inline)?);
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-document" => {
+                out.ppt_document = true;
+                i += 1;
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-text" => {
+                out.ppt_text = true;
+                i += 1;
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-slide" => {
+                let v = field_arg_value(args, &mut i, "--ppt-slide", inline)?;
+                out.ppt_slide = Some(parse_field_u32(&v, "--ppt-slide")?);
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-run" => {
+                let v = field_arg_value(args, &mut i, "--ppt-run", inline)?;
+                out.ppt_run = Some(parse_field_u32(&v, "--ppt-run")?);
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-record" => {
+                let v = field_arg_value(args, &mut i, "--ppt-record", inline)?;
+                out.ppt_record = Some(parse_field_u32(&v, "--ppt-record")?);
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-find" => {
+                out.ppt_find = Some(field_arg_value(args, &mut i, "--ppt-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -4558,6 +4614,33 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.xls_find {
             chosen.push(Selector::XlsFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Legacy PowerPoint 97–2003 (`.ppt`, MS-PPT): `--ppt-document` the `Document` header;
+    // `--ppt-slide N` a slide by 0-based index; `--ppt-run N` a text run by 0-based
+    // index; `--ppt-record N` a record by 0-based index; `--ppt-find` a lexical search.
+    // Each stands alone (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    {
+        if out.ppt_document {
+            chosen.push(Selector::PptDocument);
+        }
+        if out.ppt_text {
+            chosen.push(Selector::Text);
+        }
+        if let Some(index) = out.ppt_slide {
+            chosen.push(Selector::PptSlide { index });
+        }
+        if let Some(index) = out.ppt_run {
+            chosen.push(Selector::PptRun { index });
+        }
+        if let Some(index) = out.ppt_record {
+            chosen.push(Selector::PptRecord { index });
+        }
+        if let Some(pattern) = &out.ppt_find {
+            chosen.push(Selector::PptFind {
                 pattern: pattern.clone(),
             });
         }

@@ -277,6 +277,12 @@ use crate::adapter::pkgmeta::{
     section_bytes as pkgmeta_section_bytes, section_kind_name as pkgmeta_section_kind_name,
     section_name as pkgmeta_section_name,
 };
+#[cfg(feature = "ppt")]
+use crate::adapter::ppt::{
+    PptModel, PptRun, PptSlide, canonical_text as ppt_canonical_text, field_name as ppt_field_name,
+    find as ppt_find_matches, record_type_name as ppt_record_type_name,
+    run_kind_name as ppt_run_kind_name, slide_list_name as ppt_slide_list_name,
+};
 #[cfg(feature = "pptx")]
 use crate::adapter::pptx::{
     NotesModel as PptxNotesModel, PptxExtractProfile, PptxModel, PptxShape, PptxTable,
@@ -410,6 +416,8 @@ use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::SEL_PARQUET_MODEL;
 #[cfg(feature = "pkgmeta")]
 use crate::field::index::SEL_PKGMETA_MODEL;
+#[cfg(feature = "ppt")]
+use crate::field::index::SEL_PPT_MODEL;
 #[cfg(feature = "pptx")]
 use crate::field::index::SEL_PPTX_MODEL;
 #[cfg(feature = "rst")]
@@ -2152,6 +2160,47 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) `Document` header (Phase 26.3):
+    /// the record count, the slide count, the text-run counts, the `Current User`
+    /// presence, and the exact `PowerPoint Document` stream span. `Text` returns the
+    /// stable version name; `Metadata`/`Structure` the descriptor JSON.
+    #[cfg(feature = "ppt")]
+    PptDocument,
+    /// The `index`-th slide (0-based, `SlideListWithText`/`SlidePersistAtom` order) of a
+    /// legacy PowerPoint 97–2003 (`.ppt`) presentation (Phase 26.3): its `persistIdRef`,
+    /// declared `cTexts`, its `SlidePersistAtom` span, and its run range. An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "ppt")]
+    PptSlide {
+        /// The 0-based slide index (slide-list order).
+        index: u32,
+    },
+    /// The `index`-th text run (0-based, the slide-ordered run arena) of a legacy
+    /// PowerPoint 97–2003 (`.ppt`) presentation (Phase 26.3): its slide, kind
+    /// (`chars`/`bytes`), exact text-atom span, and decoded text. `ExactBytes` returns
+    /// the text atom's exact bytes; an out-of-range index declines typed.
+    #[cfg(feature = "ppt")]
+    PptRun {
+        /// The 0-based global run index (slide order, then record order).
+        index: u32,
+    },
+    /// The `index`-th MS-PPT record (0-based, stream order) of a legacy PowerPoint
+    /// 97–2003 (`.ppt`) presentation (Phase 26.3): its `recVer`, `recInstance`,
+    /// `recType` (with a stable name), payload length, stream offset, nesting depth,
+    /// and exact record/payload spans. An out-of-range index declines typed.
+    #[cfg(feature = "ppt")]
+    PptRecord {
+        /// The 0-based record index (stream order).
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over each decoded text run of a legacy
+    /// PowerPoint 97–2003 (`.ppt`) presentation (Phase 26.3). Never an embedding or a
+    /// model call.
+    #[cfg(feature = "ppt")]
+    PptFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2807,6 +2856,16 @@ impl Selector {
             Selector::XlsRecord { index } => format!("xls-record:{index}"),
             #[cfg(feature = "xls")]
             Selector::XlsFind { pattern } => format!("xls-find:{pattern}"),
+            #[cfg(feature = "ppt")]
+            Selector::PptDocument => "ppt-document".to_string(),
+            #[cfg(feature = "ppt")]
+            Selector::PptSlide { index } => format!("ppt-slide:{index}"),
+            #[cfg(feature = "ppt")]
+            Selector::PptRun { index } => format!("ppt-run:{index}"),
+            #[cfg(feature = "ppt")]
+            Selector::PptRecord { index } => format!("ppt-record:{index}"),
+            #[cfg(feature = "ppt")]
+            Selector::PptFind { pattern } => format!("ppt-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -5225,6 +5284,25 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "xls")]
             (Selector::XlsFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.xls_find(req, pattern)
+            }
+            #[cfg(feature = "ppt")]
+            (Selector::PptDocument, R::Text | R::Metadata | R::Structure) => self.ppt_document(req),
+            #[cfg(feature = "ppt")]
+            (Selector::PptSlide { index }, R::Text | R::Metadata | R::Structure) => {
+                self.ppt_slide(req, *index)
+            }
+            #[cfg(feature = "ppt")]
+            (Selector::PptRun { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.ppt_run(req, *index)
+            }
+            #[cfg(feature = "ppt")]
+            (
+                Selector::PptRecord { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.ppt_record(req, *index),
+            #[cfg(feature = "ppt")]
+            (Selector::PptFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.ppt_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -10624,6 +10702,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Ppt => {
+                #[cfg(feature = "ppt")]
+                {
+                    self.common_ppt(req)?
+                }
+                #[cfg(not(feature = "ppt"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "legacy PowerPoint support is not compiled in (feature `ppt`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -15527,8 +15617,284 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 }
 
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the legacy-PPT model (derived, `Q_gen`).
+    fn ppt_model(&mut self) -> Result<(PptModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_PPT_MODEL, 0), "ppt model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((PptModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the read
+    /// is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn ppt_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn ppt_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn ppt_meta_json(model: &PptModel) -> String {
+        format!(
+            concat!(
+                "{{\"format\":\"ppt\",\"version\":\"{}\",\"stream\":\"{}\",",
+                "\"records\":{},\"slides\":{},\"runs\":{},\"chars\":{},\"bytes\":{},",
+                "\"text_units\":{},\"current_user\":{},\"stream_span\":[{},{}]}}"
+            ),
+            "powerpoint97-2003",
+            crate::adapter::ppt::STREAM_POWERPOINT_DOCUMENT,
+            model.records.len(),
+            model.slides.len(),
+            model.runs.len(),
+            model.char_runs(),
+            model.byte_runs(),
+            model.text_units(),
+            model.current_user.is_some(),
+            model.stream_span.0,
+            model.stream_span.1,
+        )
+    }
+
+    fn ppt_run_json(index: u32, run: &PptRun) -> String {
+        format!(
+            concat!(
+                "{{\"index\":{},\"slide\":{},\"kind\":\"{}\",\"rec_type\":{},",
+                "\"type\":\"{}\",\"span\":[{},{}],\"header_span\":[{},{}],\"text\":\"{}\"}}"
+            ),
+            index,
+            run.slide,
+            ppt_run_kind_name(run.kind),
+            run.rec_type,
+            ppt_record_type_name(run.rec_type),
+            run.span.0,
+            run.span.1,
+            run.header_span.0,
+            run.header_span.1,
+            json_escape(&String::from_utf16_lossy(&run.text)),
+        )
+    }
+
+    fn ppt_slide_json(index: u32, slide: &PptSlide, model: &PptModel) -> String {
+        let text: String = model
+            .slide_runs(slide)
+            .iter()
+            .map(|r| String::from_utf16_lossy(&r.text))
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!(
+            concat!(
+                "{{\"index\":{},\"persist_id_ref\":{},\"c_texts\":{},\"list\":\"{}\",",
+                "\"sp_span\":[{},{}],\"runs\":[{},{}],\"text\":\"{}\"}}"
+            ),
+            index,
+            slide.persist_id_ref,
+            slide.c_texts,
+            ppt_slide_list_name(slide.list_instance),
+            slide.sp_span.0,
+            slide.sp_span.1,
+            slide.run_start,
+            slide.run_end,
+            json_escape(&text),
+        )
+    }
+
+    fn ppt_record_json(rec: &crate::adapter::ppt::PptRecord) -> String {
+        let pl = rec.payload_span();
+        format!(
+            concat!(
+                "{{\"id\":{},\"id_hex\":\"0x{:04X}\",\"type\":\"{}\",",
+                "\"rec_ver\":{},\"rec_instance\":{},\"len\":{},\"depth\":{},",
+                "\"stream_off\":{},\"span\":[{},{}],\"payload\":[{},{}]}}"
+            ),
+            rec.rec_type,
+            rec.rec_type,
+            ppt_record_type_name(rec.rec_type),
+            rec.rec_ver,
+            rec.rec_instance,
+            rec.len,
+            rec.depth,
+            rec.stream_off,
+            rec.span.0,
+            rec.span.1,
+            pl.0,
+            pl.1,
+        )
+    }
+
+    /// The legacy-PPT `Document` header, from the model.
+    fn ppt_document(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (_, root) = self.ppt_source()?;
+        let v = "powerpoint97-2003";
+        let provenance = format!(
+            "ppt;version={v};records={};slides={}",
+            model.records.len(),
+            model.slides.len()
+        );
+        let span = Some(model.stream_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(v.to_string()),
+            _ => AnswerValue::Json(Self::ppt_meta_json(&model)),
+        };
+        Ok(self.ppt_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th slide (0-based, slide-list order).
+    fn ppt_slide(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (_, root) = self.ppt_source()?;
+        let slide = model
+            .slide(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("ppt has no slide {index}")))?;
+        let provenance = format!("ppt;slide={index};persist={}", slide.persist_id_ref);
+        let span = Some(slide.sp_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(
+                model
+                    .slide_runs(slide)
+                    .iter()
+                    .map(|r| String::from_utf16_lossy(&r.text))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ),
+            _ => AnswerValue::Json(Self::ppt_slide_json(index, slide, &model)),
+        };
+        Ok(self.ppt_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th text run (0-based, the slide-ordered run arena).
+    fn ppt_run(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (source, root) = self.ppt_source()?;
+        let run = model
+            .run(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("ppt has no run {index}")))?;
+        let provenance = format!(
+            "ppt;run={index};slide={};kind={}",
+            run.slide,
+            ppt_run_kind_name(run.kind)
+        );
+        let span = Some(run.span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, run.span)?),
+            Representation::Text => AnswerValue::Text(String::from_utf16_lossy(&run.text)),
+            _ => AnswerValue::Json(Self::ppt_run_json(index, run)),
+        };
+        Ok(self.ppt_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th MS-PPT record (0-based, stream order).
+    fn ppt_record(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (source, root) = self.ppt_source()?;
+        let rec = model
+            .records
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("ppt has no record {index}")))?;
+        let provenance = format!("ppt;record={index};id=0x{:04X}", rec.rec_type);
+        let span = Some(rec.span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, rec.span)?),
+            Representation::Text => AnswerValue::Text(format!("0x{:04X}", rec.rec_type)),
+            _ => AnswerValue::Json(Self::ppt_record_json(rec)),
+        };
+        Ok(self.ppt_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The slide-ordered canonical text (the run texts).
+    fn ppt_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (source, root) = self.ppt_source()?;
+        let text = ppt_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some(model.stream_span);
+        Ok(self.ppt_answer(
+            req,
+            AnswerValue::Text(text),
+            "ppt;text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over the decoded text runs.
+    fn ppt_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (_, root) = self.ppt_source()?;
+        let matches = ppt_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"field\":\"{}\",\"index\":{},\"span\":[{},{}],\"text\":\"{}\"}}"),
+                ppt_field_name(m.field),
+                m.index,
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("ppt;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.ppt_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_ppt(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.ppt_common_metadata(req),
+            Selector::Text => self.ppt_text(req),
+            Selector::SearchMatch(p) => self.ppt_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "ppt does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn ppt_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (source, root) = self.ppt_source()?;
+        let value = AnswerValue::Json(Self::ppt_meta_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.ppt_answer(
+            req,
+            value,
+            "ppt;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
 /// The exact bytes of a source span, fail-closed.
-#[cfg(feature = "xls")]
+#[cfg(any(feature = "xls", feature = "ppt"))]
 fn span_bytes(source: &[u8], span: (u64, u64)) -> Result<Vec<u8>> {
     let s = usize::try_from(span.0)
         .map_err(|_| Error::internal_invariant("xls span offset is out of range"))?;

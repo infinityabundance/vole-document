@@ -672,6 +672,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_xls_cells: 1 << 30,
         max_xls_text_bytes: 1 << 50,
         max_xls_document_bytes: 1 << 50,
+        max_ppt_records: 1 << 30,
+        max_ppt_slides: 1 << 30,
+        max_ppt_runs: 1 << 30,
+        max_ppt_depth: 1 << 10,
+        max_ppt_text_bytes: 1 << 50,
+        max_ppt_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

@@ -1,0 +1,1 @@
+error: InvalidDocStructure: doc: the piece CP array is not monotonic

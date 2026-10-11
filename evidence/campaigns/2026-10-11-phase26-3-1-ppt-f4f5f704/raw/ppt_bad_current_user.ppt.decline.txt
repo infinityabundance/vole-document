@@ -1,0 +1,1 @@
+error: InvalidPptStructure: ppt: the Current User UserEditAtom offset lies outside the stream

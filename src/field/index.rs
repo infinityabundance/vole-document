@@ -554,6 +554,22 @@ pub const SEL_DOC_MODEL: u8 = 51;
 /// exact.
 pub const SEL_XLS_MODEL: u8 = 52;
 
+/// Selector kind: the canonical legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) semantic
+/// model (Phase 26.3).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving semantic projection built on the CFBF/OLE2
+/// physical layer (21.35): the MS-PPT record stream (every record's `recVer`/
+/// `recInstance`/`recType`/`recLen`, exact span, stream offset, and nesting depth), the
+/// `Document` container, the `SlideListWithText` containers' `SlidePersistAtom` entries
+/// (slide order by `persistIdRef`), and the `TextCharsAtom` (UTF-16LE) /
+/// `TextBytesAtom` (CP1252) runs with their exact spans and decoded text; the
+/// `Current User` stream's `UserEditAtom` offset is recorded when it resolves. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a `.ppt` has no
+/// separate package layer in this adapter. Derived, never exact.
+pub const SEL_PPT_MODEL: u8 = 53;
+
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;
 /// Node kind: a run of child pointers.

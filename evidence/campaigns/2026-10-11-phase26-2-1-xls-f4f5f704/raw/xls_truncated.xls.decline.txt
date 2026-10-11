@@ -1,0 +1,1 @@
+error: InvalidXlsStructure: xls: a BIFF record extends past the stream

@@ -1,0 +1,10 @@
+fixture	format	src_len	src_sha	out_len	out_sha	cmp	exact	decline_rc	ctl_rc
+ppt_bad_document.ppt	ppt	-	-	-	-	-	-	-	54
+ppt_overrun.ppt	ppt	-	-	-	-	-	-	-	54
+ppt_text_mismatch.ppt	ppt	-	-	-	-	-	-	-	54
+ppt_truncated.ppt	ppt	-	-	-	-	-	-	-	54
+ppt_bad_current_user.ppt	ppt	-	-	-	-	-	-	-	54
+generic_cfbf.bin	cfbf	-	-	-	-	-	-	-	6
+ppt_bad_first_record.ppt	cfbf	-	-	-	-	-	-	-	6
+prose.txt	opaque	-	-	-	-	-	-	-	6
+ppt_valid.ppt	ppt	2560	0316e7dbbe31f13fa7cfcf86147d9df654c5e70401805b6a5bfbc4e065b05ff3	2560	0316e7dbbe31f13fa7cfcf86147d9df654c5e70401805b6a5bfbc4e065b05ff3	true	true	-	-

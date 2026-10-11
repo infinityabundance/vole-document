@@ -97,6 +97,17 @@ name = "xls_fixtures"
 path = "examples/xls_fixtures.rs"
 required-features = ["xls"]
 
+# The Phase-26.3 legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) court fixture generator.
+# Feature-gated to the adapter it exercises so the default build never compiles it. It
+# writes small, deterministic `.ppt` compound files (a `PowerPoint Document` stream with
+# a valid `Document` record, a `SlideListWithText` with two `SlidePersistAtom` slides, a
+# `TextCharsAtom` and a `TextBytesAtom` run, a `Current User` stream, plus malformed
+# controls) byte-for-byte, so the court needs no PowerPoint, LibreOffice, or OLE tooling.
+[[example]]
+name = "ppt_fixtures"
+path = "examples/ppt_fixtures.rs"
+required-features = ["ppt"]
+
 [dependencies]
 # Archival source identity. Pinned exactly for the first sealed universe.
 sha2 = "=0.10.9"
@@ -748,6 +759,27 @@ doc = ["cfbf"]
 # enabling it never changes `.voldoc` bytes and exactness is untouched. It implies
 # `cfbf` (the reused physical layer) and is never in `default`.
 xls = ["cfbf"]
+# Phase 26.3: the legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) **semantic** adapter, built
+# on the CFBF/OLE2 physical layer (21.35). Like every Wave-2 format it is not a package
+# at the exactness layer: the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It **reuses the CFBF resolver** (never a second OLE parser) to obtain
+# the `PowerPoint Document` stream as an exact byte span, then parses a documented
+# bounded subset of its **record stream**: the 8-byte `RecordHeader` records (recVer /
+# recInstance / recType / recLen) with their exact spans, offsets, and nesting depths;
+# the `Document` container (`recType 1000`, `recVer 0xF`); the `SlideListWithText`
+# containers (`recType 4080`) with their `SlidePersistAtom` entries (`recType 1011`,
+# giving the slide order by `persistIdRef`); and the `TextCharsAtom` (UTF-16LE) /
+# `TextBytesAtom` (CP1252) runs (`recType 4000`/`4008`) with their exact spans and
+# decoded text. The `Current User` stream's `UserEditAtom` offset is recorded when it
+# resolves. Nothing is normalized or re-serialized. Everything outside the subset
+# declines **typed** (a truncated record header, a `recLen` that overruns the stream, a
+# record that overruns its container, an odd-length `TextCharsAtom`, a text atom with no
+# `SlidePersistAtom`, an unresolvable `Current User` offset). It adds **no** decoder
+# behavior: the model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. It implies `cfbf` (the reused physical
+# layer) and is never in `default`.
+ppt = ["cfbf"]
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived

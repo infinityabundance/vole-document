@@ -243,6 +243,16 @@ pub enum ErrorClass {
     /// so it declines typed rather than being claimed as a derived model. Detection and
     /// the whole-source exact leaf are unaffected.
     InvalidXlsStructure,
+    /// A legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) structure error (Phase 26.3): a
+    /// compound file whose `PowerPoint Document` stream begins with a `Document`
+    /// record but whose semantic body is malformed or outside the documented subset —
+    /// a truncated record header, a `recLen` that overruns the stream, a record that
+    /// overruns its enclosing container, an odd-length `TextCharsAtom`, a text atom
+    /// with no preceding `SlidePersistAtom`, or a `Current User` stream whose declared
+    /// `UserEditAtom` offset does not resolve — so it declines typed rather than being
+    /// claimed as a derived model. Detection and the whole-source exact leaf are
+    /// unaffected.
+    InvalidPptStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -303,6 +313,7 @@ impl ErrorClass {
             ErrorClass::InvalidCfbfStructure => 51,
             ErrorClass::InvalidDocStructure => 52,
             ErrorClass::InvalidXlsStructure => 53,
+            ErrorClass::InvalidPptStructure => 54,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -362,6 +373,7 @@ impl ErrorClass {
             ErrorClass::InvalidCfbfStructure => "InvalidCfbfStructure",
             ErrorClass::InvalidDocStructure => "InvalidDocStructure",
             ErrorClass::InvalidXlsStructure => "InvalidXlsStructure",
+            ErrorClass::InvalidPptStructure => "InvalidPptStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -475,6 +487,7 @@ impl Error {
     ctor!(invalid_cfbf_structure, InvalidCfbfStructure);
     ctor!(invalid_doc_structure, InvalidDocStructure);
     ctor!(invalid_xls_structure, InvalidXlsStructure);
+    ctor!(invalid_ppt_structure, InvalidPptStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

@@ -476,6 +476,25 @@ pub enum DocumentFormat {
     /// observation is a bounded, span-preserving (`Q_gen`) projection of it. Everything
     /// outside the documented subset declines **typed**.
     Xls,
+    /// A legacy PowerPoint 97–2003 presentation (`.ppt`, MS-PPT) (Phase 26.3): a
+    /// CFBF/OLE2 compound file whose `PowerPoint Document` stream begins with a
+    /// `Document` record (`recVer 0xF`, `recType 1000`). Detection is built **on top
+    /// of** the CFBF detector — the source must be a compound file the CFBF layer
+    /// accepts and its `PowerPoint Document` stream must begin with that `Document`
+    /// record — so a generic compound file stays [`Cfbf`](DocumentFormat::Cfbf), a
+    /// `.doc` stays [`Doc`](DocumentFormat::Doc), a `.xls` stays
+    /// [`Xls`](DocumentFormat::Xls), and a non-CFBF source (including a `.pptx`, an OPC
+    /// ZIP) is unaffected. The recorded model carries the MS-PPT record stream (every
+    /// record's `recVer`/`recInstance`/`recType`/`recLen`, exact span, stream offset,
+    /// and nesting depth), the slides from the `SlideListWithText` containers'
+    /// `SlidePersistAtom` entries (in order, by `persistIdRef`), and the
+    /// `TextCharsAtom` (UTF-16LE) / `TextBytesAtom` (CP1252) runs with their exact
+    /// spans and decoded text; the `Current User` stream's `UserEditAtom` offset is
+    /// recorded when it resolves. Not a package: the exact leaf is the whole source (a
+    /// `DocumentExact`) and every derived observation is a bounded, span-preserving
+    /// (`Q_gen`) projection of it. Everything outside the documented subset declines
+    /// **typed**.
+    Ppt,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -526,6 +545,7 @@ impl DocumentFormat {
             DocumentFormat::Cfbf => "cfbf",
             DocumentFormat::Doc => "doc",
             DocumentFormat::Xls => "xls",
+            DocumentFormat::Ppt => "ppt",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -575,6 +595,7 @@ impl DocumentFormat {
             DocumentFormat::Cfbf => "cfbf",
             DocumentFormat::Doc => "doc",
             DocumentFormat::Xls => "xls",
+            DocumentFormat::Ppt => "ppt",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -624,6 +645,7 @@ impl DocumentFormat {
             DocumentFormat::Cfbf => cfg!(feature = "cfbf"),
             DocumentFormat::Doc => cfg!(feature = "doc"),
             DocumentFormat::Xls => cfg!(feature = "xls"),
+            DocumentFormat::Ppt => cfg!(feature = "ppt"),
         }
     }
 
@@ -683,6 +705,7 @@ impl DocumentFormat {
             "cfbf" => Some(DocumentFormat::Cfbf),
             "doc" => Some(DocumentFormat::Doc),
             "xls" => Some(DocumentFormat::Xls),
+            "ppt" => Some(DocumentFormat::Ppt),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -760,6 +783,16 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
         #[cfg(feature = "xls")]
         if crate::adapter::xls::detect(source, limits) {
             return DocumentFormat::Xls;
+        }
+        // A legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) source is a CFBF compound file
+        // whose `PowerPoint Document` stream opens with a `Document` record (recVer
+        // 0xF, recType 1000). Its detector is likewise built **on top of** the CFBF
+        // detector and runs here (after the Word and Excel detectors, which cannot
+        // match a PowerPoint compound file), before the generic `Cfbf` claim, so a
+        // `.ppt` becomes `Ppt` while a generic compound file stays `Cfbf`.
+        #[cfg(feature = "ppt")]
+        if crate::adapter::ppt::detect(source, limits) {
+            return DocumentFormat::Ppt;
         }
         return DocumentFormat::Cfbf;
     }

@@ -562,6 +562,21 @@ pub enum NodeKind {
     /// keyed by `sha256(source)` per ADR-0060); a `.xls` has no separate package layer
     /// in this adapter. Derived, never exact.
     XlsModel = 0x48,
+    /// The canonical, representation-preserving legacy PowerPoint 97–2003 (`.ppt`,
+    /// MS-PPT) **semantic** model (Phase 26.3), built on the CFBF/OLE2 physical layer
+    /// (21.35). It **reuses the CFBF resolver** (never a second OLE parser) to obtain
+    /// the `PowerPoint Document` stream as an exact byte span, records the MS-PPT
+    /// record stream — every 8-byte `RecordHeader` (`recVer`/`recInstance`/`recType`/
+    /// `recLen`) with its exact span, stream offset, and nesting depth — the `Document`
+    /// container, the `SlideListWithText` containers' `SlidePersistAtom` entries
+    /// (slide order by `persistIdRef`), and the `TextCharsAtom` (UTF-16LE) /
+    /// `TextBytesAtom` (CP1252) runs with their exact spans and decoded text; the
+    /// `Current User` stream's `UserEditAtom` offset is recorded when it resolves.
+    /// Nothing is normalized or re-serialized. It is computed on demand from the exact
+    /// source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); a `.ppt` has no separate package layer in this
+    /// adapter. Derived, never exact.
+    PptModel = 0x49,
 }
 
 impl NodeKind {
@@ -640,6 +655,7 @@ impl NodeKind {
             0x46 => NodeKind::CfbfModel,
             0x47 => NodeKind::DocModel,
             0x48 => NodeKind::XlsModel,
+            0x49 => NodeKind::PptModel,
             _ => return None,
         })
     }
@@ -719,6 +735,7 @@ impl NodeKind {
             NodeKind::CfbfModel => "CfbfModel",
             NodeKind::DocModel => "DocModel",
             NodeKind::XlsModel => "XlsModel",
+            NodeKind::PptModel => "PptModel",
         }
     }
 

@@ -1033,6 +1033,29 @@ pub struct Limits {
     /// inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 26.2).
     pub max_xls_document_bytes: u64,
+    // The legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) caps below bound the derived,
+    // span-preserving semantic model (Phase 26.3). A `.ppt` reuses the CFBF physical
+    // layer; the whole source is the exact leaf and everything derived is `Q_gen`.
+    /// Maximum record count accepted for one `PowerPoint Document` stream (bounds the
+    /// record scan and the model). An over-large stream declines typed (Phase 26.3).
+    pub max_ppt_records: u64,
+    /// Maximum slide (`SlidePersistAtom`) count accepted for one presentation. An
+    /// over-large slide inventory declines typed (Phase 26.3).
+    pub max_ppt_slides: u64,
+    /// Maximum text-run (`TextCharsAtom`/`TextBytesAtom`) count accepted (bounds the run
+    /// arena). An over-large presentation declines typed (Phase 26.3).
+    pub max_ppt_runs: u64,
+    /// Maximum record nesting depth accepted (the `Document` container is depth 0). A
+    /// deeper nesting declines typed (Phase 26.3).
+    pub max_ppt_depth: u32,
+    /// Maximum aggregate decoded text code-unit count accepted (the sum of every text
+    /// run). This whole-presentation budget bounds the derived text; an over-large
+    /// presentation declines typed (Phase 26.3).
+    pub max_ppt_text_bytes: u64,
+    /// Maximum source length admitted for legacy-PPT detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 26.3).
+    pub max_ppt_document_bytes: u64,
 }
 
 impl Limits {
@@ -1325,6 +1348,12 @@ impl Limits {
         max_xls_cells: 1 << 22,
         max_xls_text_bytes: 1 << 31,
         max_xls_document_bytes: 1 << 34,
+        max_ppt_records: 1 << 20,
+        max_ppt_slides: 1 << 12,
+        max_ppt_runs: 1 << 22,
+        max_ppt_depth: 64,
+        max_ppt_text_bytes: 1 << 31,
+        max_ppt_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1616,6 +1645,12 @@ impl Limits {
         max_xls_cells: 1 << 16,
         max_xls_text_bytes: 1 << 20,
         max_xls_document_bytes: 1 << 26,
+        max_ppt_records: 1 << 14,
+        max_ppt_slides: 1 << 10,
+        max_ppt_runs: 1 << 16,
+        max_ppt_depth: 32,
+        max_ppt_text_bytes: 1 << 20,
+        max_ppt_document_bytes: 1 << 26,
     };
 }
 

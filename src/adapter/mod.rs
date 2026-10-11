@@ -74,6 +74,8 @@ pub mod parquet;
 pub mod pdf;
 #[cfg(feature = "pkgmeta")]
 pub mod pkgmeta;
+#[cfg(feature = "ppt")]
+pub mod ppt;
 #[cfg(feature = "pptx")]
 pub mod pptx;
 #[cfg(feature = "rst")]
