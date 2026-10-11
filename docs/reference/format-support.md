@@ -76,7 +76,7 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | JSONL adapter / economic court (SQLite + per-line load) | exact 9/9 · 6/6 | `evidence/campaigns/2026-10-10-phase21-12-1-jsonl-92e34118/`, `…/2026-10-10-phase21-12-jsonl-econ-92e34118/` |
 | EML/MIME adapter / economic court (SQLite + `email`) | exact 7/7 · 6/6 | `evidence/campaigns/2026-10-10-phase21-13-1-eml-02dc88a7/`, `…/2026-10-10-phase21-13-eml-econ-02dc88a7/` |
 | Parquet adapter / economic court (SQLite + DuckDB/Parquet) | exact 13/13 · 7/7 | `evidence/campaigns/2026-10-10-phase21-14-1-parquet-bfe32a33/`, `…/2026-10-10-phase21-14-parquet-econ-bfe32a33/` |
-| Arrow IPC adapter / economic court (SQLite + DuckDB projection) | exact 18/18 · 3/3 | `evidence/campaigns/2026-10-10-phase21-16-1-arrow-4fdc7ad0/`, `…/2026-10-10-phase21-16-arrow-econ-4fdc7ad0/` |
+| Arrow IPC adapter / economic court (SQLite + DuckDB projection + hash-pinned **pyarrow 25.0.1** lane) | exact 13/13 · 3/3 | `evidence/campaigns/2026-10-10-phase21-16-1-arrow-4fdc7ad0/`, `…/2026-10-11-phase21-16-arrow-econ-74965426/` (fixtures regenerated to conformant Arrow IPC — see the campaigns' `CORRECTION.md`) |
 | JSON5/JSONC adapter / economic court (SQLite + conventional JSON5 load) | exact 10/10 · 9/9 | `evidence/campaigns/2026-10-10-phase21-17-1-json5-88b30730/`, `…/2026-10-10-phase21-17-json5-econ-10f5b898/` |
 | CBOR adapter / economic court (SQLite + conventional CBOR load) | exact 16/16 · 20/20 | `evidence/campaigns/2026-10-10-phase21-18-1-cbor-f7093672/`, `…/2026-10-10-phase21-18-cbor-econ-6aecd8c5/` |
 | MessagePack adapter / economic court (SQLite + conventional MessagePack load) | exact 17/17 · 21/21 | `evidence/campaigns/2026-10-10-phase21-19-1-msgpack-f7093672/`, `…/2026-10-10-phase21-19-msgpack-econ-6aecd8c5/` |
@@ -98,9 +98,11 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | archive-container (ZIP/TAR) adapter / economic court | exact 6/6 · 12/12 | `evidence/campaigns/2026-10-11-phase21-33-1-container-7362e74b/`, `…/2026-10-11-phase21-33-container-econ-372a86e0/` |
 | scientific-container (NetCDF/HDF5) adapter / economic court | exact 4/4 · 8/8 | `evidence/campaigns/2026-10-10-phase21-34-1-hdf-ea347edb/`, `…/2026-10-11-phase21-34-hdf-econ-372a86e0/` |
 | CFBF/OLE2 adapter / economic court | exact 2/2 · 7/7 | `evidence/campaigns/2026-10-11-phase21-35-1-cfbf-42791bce/`, `…/2026-10-11-phase21-35-cfbf-econ-372a86e0/` |
+| Legacy DOC / XLS / PPT / MSG semantic-model adapter courts (Phase 26.1–26.4) | exact 2/2 · 1/1 · 1/1 · 1/1 | `evidence/campaigns/2026-10-11-phase26-1-1-doc-966c3fd4/`, `…/2026-10-11-phase26-2-1-xls-966c3fd4/`, `…/2026-10-11-phase26-3-1-ppt-966c3fd4/`, `…/2026-10-11-phase26-4-1-msg-966c3fd4/` |
 | Cross-field identity court (ADR-0060) | 12/12 | `evidence/campaigns/2026-10-09-identity-3400385/`, re-sealed `…/2026-10-10-identity-7f007e2e/` |
 | Real-format smoke (independently sourced) | 12/12 exact | `evidence/campaigns/2026-10-09-realformats-smoke-3400385/` |
-| Stratified real-world multi-format court (52 real + 8 hostile) | 60/60 byte-exact | `evidence/campaigns/2026-10-10-realformats-stratified-3529688e/` (prior `…/2026-10-10-realformats-stratified-92edce73/`) |
+| Stratified real-world multi-format court v1 (52 real + 8 hostile; historical control) | 60/60 byte-exact | `evidence/campaigns/2026-10-10-realformats-stratified-3529688e/` (prior `…/2026-10-10-realformats-stratified-92edce73/`) |
+| Stratified real-world population **v2** (284 real + 24 hostile, 41 formats; Phase 26.5) | 308/308 byte-exact, 0 skipped/blocked, 32 findings reconciled | `evidence/campaigns/2026-10-11-realformats-stratified-v2-703ca5ac/` |
 | JSON comparator repair (modern SQLite+JSONB, span-preserving baseline) | exact 7/7 | `evidence/campaigns/2026-10-09-phase21-5-json-econ-3400385/` |
 | YAML span-preserving comparator (parity with the JSON court) | exact 8/8 | `evidence/campaigns/2026-10-10-phase21-6-yaml-econ-92edce73/` |
 | CSV O(n²)→O(n) metadata fix (`csv_common_metadata`) | large.csv metadata ~16.5 min → ~0.5 s | `evidence/campaigns/2026-10-10-phase21-7-1-csv-3006e56a/`, `…/2026-10-10-phase21-7-csv-econ-3006e56a/` |
@@ -836,11 +838,34 @@ A CFBF/OLE2 compound file is the Wave-2 **compound-document physical layer**
 | Representation preserved | recorded dialect (`cfb3`/`cfb4`); header/DIFAT/FAT/MiniFAT; 128-byte directory entries with verbatim UTF-16LE names and the reconstructed sibling/child tree; each stream's exact span (regular + mini) |
 
 **Honest negatives:** this is the **physical layer only** — the legacy DOC/XLS/PPT/MSG
-*semantic* models are later work; a plausible header with a malformed body is
-admitted and declines typed (`InvalidCfbfStructure`, exit 51); a **non-contiguous
-stream chain records a bounding hull and its `ExactBytes` declines typed** rather
-than returning interleaved foreign bytes; a signature-only blob and prose stay
-`Opaque`. See [Formats/CFBF](../formats/cfbf.md).
+*semantic* models are built **on top of** it in Phase 26 (below); a plausible header
+with a malformed body is admitted and declines typed (`InvalidCfbfStructure`, exit
+51); a **non-contiguous stream chain records a bounding hull and its `ExactBytes`
+declines typed** rather than returning interleaved foreign bytes; a signature-only
+blob and prose stay `Opaque`. See [Formats/CFBF](../formats/cfbf.md).
+
+## Legacy Office / Outlook semantic models (Phase 26)
+
+Four **CFBF-based legacy semantic models** reuse the CFBF/OLE2 physical layer above.
+Each is a **bounded** subset over a named stream (or set of streams): the exact leaf
+is the **whole source** (RAW authority) and every derived observation is a
+span-preserving (`Q_gen`) projection. All four features are **non-default** and
+build on `cfbf`.
+
+| Format | Feature | Detection (on top of CFBF) | Exact leaf | Common obs. | Native observations |
+|---|---|---|---|---|---|
+| DOC (MS-DOC, Word 97–2003) | `doc = ["cfbf"]` | `WordDocument` opens with the Word FIB `0xA5EC` + plausible `nFib` + a selected table stream | whole source | `metadata`, `text`, `search-match` | `doc-fib`, `doc-piece`, `doc-text`, `doc-find` |
+| XLS (BIFF8, Excel 97–2003) | `xls = ["cfbf"]` | `Workbook`/`Book` opens with a BIFF8 `BOF` (id `0x0809`, version `0x0600`) | whole source | `metadata`, `text`, `search-match` | `xls-biff`, `xls-sheet`, `xls-cell`, `xls-record`, `xls-find` |
+| PPT (MS-PPT, PowerPoint 97–2003) | `ppt = ["cfbf"]` | `PowerPoint Document` opens with a `Document` record (`recVer 0xF`, `recType 1000`) | whole source | `metadata`, `text`, `search-match` | `ppt-document`, `ppt-slide`, `ppt-run`, `ppt-record`, `ppt-find` |
+| MSG (MS-OXMSG, Outlook) | `msg = ["cfbf"]` | root storage has `__properties_version1.0` | whole source | `metadata`, `text`, `search-match` | `msg-summary`, `msg-property`, `msg-recipient`, `msg-attachment`, `msg-find` |
+
+Each model declines out-of-subset constructs **typed** (`InvalidDocStructure` 52,
+`InvalidXlsStructure` 53, `InvalidPptStructure` 54, `InvalidMsgStructure` 55), never
+guessing and never panicking. Adapter-court H1 exactness: **2/2 · 1/1 · 1/1 · 1/1**.
+The four legacy formats have **no separate economic court** (no faithful
+conventional decoder exists — the same `comparator_absent` situation as HDF5/CFBF).
+See [DOC](../formats/doc.md), [XLS](../formats/xls.md), [PPT](../formats/ppt.md),
+[MSG](../formats/msg.md).
 
 ## Detection order (Phase 21, frozen)
 
@@ -853,6 +878,11 @@ PDF
   → Container (standalone ZIP/TAR; after the office family)
   → Hdf       (scientific container; NetCDF/HDF5 magic)
   → Cfbf      (OLE2 compound-file magic + validated header)
+      → DOC   (Word FIB `0xA5EC`; before the generic Cfbf claim)
+      → XLS   (BIFF8 BOF `0x0809`/`0x0600`; before the generic Cfbf claim)
+      → PPT   (PowerPoint Document `recType 1000`; before the generic Cfbf claim)
+      → MSG   (root `__properties_version1.0`; before the generic Cfbf claim)
+      → Cfbf  (the generic physical-layer claim)
   → Parquet (PAR1 magic)
   → Arrow IPC (ARROW1 magic)
   → GeoJSON   (JSON bytes; bounded semantic sub-detection)
@@ -889,7 +919,10 @@ PDF
 The load-bearing placements: the strong magic-byte binaries (PDF, the office ZIP
 family, the standalone **container**, the scientific **hdf**, **cfbf**, Parquet,
 Arrow IPC, and the magic-bearing **RTF**) run before the weak no-magic-byte
-heuristics; the standalone container and the scientific/compound containers run
+heuristics; the four legacy semantic sub-detectors run **inside the CFBF branch**, in
+the fixed order **DOC → XLS → PPT → MSG**, each before the generic `Cfbf` claim (so
+a recognized legacy file becomes its own format and a generic compound file stays
+`Cfbf`); the standalone container and the scientific/compound containers run
 **after the office ZIP family** (so an office package is never reclassified as a
 plain archive, an `.h5`, or a `.cfb`); the JSON-based sub-formats (GeoJSON,
 notebook, pkgmeta, apispec, bib) run before the generic JSON detector but a
@@ -934,7 +967,9 @@ plus the XML-reusing `feed` and `gis` features (each `= ["xml"]`) — all
 the dependency-free `rst` and `asciidoc` features and the Markdown-reusing `mdx =
 ["markdown"]` feature — all **non-default**. The final Wave-2 families add the
 remaining adapters, all **non-default**: the dependency-free `logstream`, `rtf`,
-`hdf` and `cfbf` features; the EML+HTML-reusing `mhtml = ["eml", "html"]`; the
+`hdf` and `cfbf` features; the four legacy semantic models on top of CFBF — `doc`,
+`xls`, `ppt` and `msg`, each `= ["cfbf"]` (Phase 26); the EML+HTML-reusing
+`mhtml = ["eml", "html"]`; the
 JSON+TOML-reusing `pkgmeta = ["json", "toml"]`; the JSON-reusing `apispec =
 ["json"]` and `bib = ["json"]`; and the package-reusing `container =
 ["package"]` (the TAR half is dependency-free).
@@ -967,7 +1002,8 @@ IPC, JSON5/JSONC, CBOR, MessagePack, config (INI/`.env`/properties), RSS/Atom,
 GeoJSON, KML/GPX, the Jupyter notebook, MHTML, syslog/log streams, package
 metadata, API/spec (JSON Schema/OpenAPI/Swagger/AsyncAPI), bibliography
 (BibTeX/RIS/CSL-JSON), RTF, standalone ZIP/TAR containers, scientific containers
-(NetCDF classic / HDF5 subset) and CFBF/OLE2. **The Wave-2 order is complete.**
-The legacy DOC/XLS/PPT/MSG *semantic* models on top of the CFBF physical layer
-remain future work. Any source that is not a recognized format still round-trips
-exactly through the opaque `RAW` lane.
+(NetCDF classic / HDF5 subset) and CFBF/OLE2, plus — from Phase 26 — the legacy
+**DOC/XLS/PPT/MSG semantic models** on top of the CFBF physical layer (non-default
+`doc`/`xls`/`ppt`/`msg`, each `= ["cfbf"]`). **The Wave-2 order and the legacy
+semantic models are complete.** Any source that is not a recognized format still
+round-trips exactly through the opaque `RAW` lane.

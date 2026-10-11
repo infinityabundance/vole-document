@@ -988,6 +988,106 @@ pub struct Limits {
     /// inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.35).
     pub max_cfbf_document_bytes: u64,
+    // The legacy Word 97–2003 (`.doc`, MS-DOC) caps below bound the derived,
+    // span-preserving semantic model (Phase 26.1). A `.doc` reuses the CFBF physical
+    // layer; the whole source is the exact leaf and everything derived is `Q_gen`.
+    /// Maximum piece-table piece count accepted for one document. An over-large
+    /// piece table declines typed (Phase 26.1).
+    pub max_doc_pieces: u64,
+    /// Maximum aggregate raw text byte length accepted across one document's pieces
+    /// (the sum of each piece's `WordDocument`-stream byte span; a compressed piece is
+    /// one byte per character, an uncompressed piece two). This whole-document budget
+    /// bounds the decoded text; an over-large document declines typed (Phase 26.1).
+    pub max_doc_text_bytes: u64,
+    /// Maximum `fibRgFcLcb` pair count (`cbRgFcLcb`) accepted. It bounds the FIB walk
+    /// (the piece-table location lives at pair index 33). An over-large FIB declines
+    /// typed (Phase 26.1).
+    pub max_doc_fib_fields: u64,
+    /// Maximum byte length of the `WordDocument` or table stream accepted. A larger
+    /// stream declines typed (Phase 26.1).
+    pub max_doc_stream_bytes: u64,
+    /// Maximum source length admitted for legacy-DOC detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 26.1).
+    pub max_doc_document_bytes: u64,
+    // The legacy Excel 97–2003 (`.xls`, BIFF8) caps below bound the derived,
+    // span-preserving semantic model (Phase 26.2). A `.xls` reuses the CFBF physical
+    // layer; the whole source is the exact leaf and everything derived is `Q_gen`.
+    /// Maximum sheet (`BOUNDSHEET`) count accepted for one workbook. An over-large
+    /// sheet inventory declines typed (Phase 26.2).
+    pub max_xls_sheets: u64,
+    /// Maximum BIFF record count accepted for one workbook stream (bounds the record
+    /// scan and the model). An over-large stream declines typed (Phase 26.2).
+    pub max_xls_records: u64,
+    /// Maximum unique `SST` string count accepted. An over-large shared-string table
+    /// declines typed (Phase 26.2).
+    pub max_xls_sst_strings: u64,
+    /// Maximum cell count accepted across all sheets (bounds the cell arena). An
+    /// over-large workbook declines typed (Phase 26.2).
+    pub max_xls_cells: u64,
+    /// Maximum aggregate derived text code-unit count accepted (the sum of every `SST`
+    /// string, sheet name, and `FORMULA` string result). This whole-workbook budget
+    /// bounds the derived text; an over-large workbook declines typed (Phase 26.2).
+    pub max_xls_text_bytes: u64,
+    /// Maximum source length admitted for legacy-XLS detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 26.2).
+    pub max_xls_document_bytes: u64,
+    // The legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) caps below bound the derived,
+    // span-preserving semantic model (Phase 26.3). A `.ppt` reuses the CFBF physical
+    // layer; the whole source is the exact leaf and everything derived is `Q_gen`.
+    /// Maximum record count accepted for one `PowerPoint Document` stream (bounds the
+    /// record scan and the model). An over-large stream declines typed (Phase 26.3).
+    pub max_ppt_records: u64,
+    /// Maximum slide (`SlidePersistAtom`) count accepted for one presentation. An
+    /// over-large slide inventory declines typed (Phase 26.3).
+    pub max_ppt_slides: u64,
+    /// Maximum text-run (`TextCharsAtom`/`TextBytesAtom`) count accepted (bounds the run
+    /// arena). An over-large presentation declines typed (Phase 26.3).
+    pub max_ppt_runs: u64,
+    /// Maximum record nesting depth accepted (the `Document` container is depth 0). A
+    /// deeper nesting declines typed (Phase 26.3).
+    pub max_ppt_depth: u32,
+    /// Maximum aggregate decoded text code-unit count accepted (the sum of every text
+    /// run). This whole-presentation budget bounds the derived text; an over-large
+    /// presentation declines typed (Phase 26.3).
+    pub max_ppt_text_bytes: u64,
+    /// Maximum source length admitted for legacy-PPT detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 26.3).
+    pub max_ppt_document_bytes: u64,
+    // The legacy Outlook message (`.msg`, MS-OXMSG) caps below bound the derived,
+    // span-preserving semantic model (Phase 26.4). A `.msg` reuses the CFBF physical
+    // layer (21.35); the caps bound the property entries, the variable-size substreams,
+    // the recipient/attachment sub-storages, the aggregate stream-name bytes, the
+    // aggregate value bytes, the derived text, and the whole source.
+    /// Maximum fixed-size property entries accepted across the message and every
+    /// sub-storage. An over-large property list declines typed (Phase 26.4).
+    pub max_msg_properties: u64,
+    /// Maximum variable-size substreams accepted across the message and every
+    /// sub-storage. An over-large message declines typed (Phase 26.4).
+    pub max_msg_substreams: u64,
+    /// Maximum recipient sub-storages accepted. An over-large recipient inventory
+    /// declines typed (Phase 26.4).
+    pub max_msg_recipients: u64,
+    /// Maximum attachment sub-storages accepted. An over-large attachment inventory
+    /// declines typed (Phase 26.4).
+    pub max_msg_attachments: u64,
+    /// Maximum aggregate substream-name byte count accepted across one message. An
+    /// over-large message declines typed (Phase 26.4).
+    pub max_msg_name_bytes: u64,
+    /// Maximum aggregate substream value byte length accepted across one message (the
+    /// sum of every substream's exact byte span). This whole-message budget bounds the
+    /// decoded values; an over-large message declines typed (Phase 26.4).
+    pub max_msg_value_bytes: u64,
+    /// Maximum aggregate decoded text code-unit count accepted (the sum of every
+    /// `PT_UNICODE`/`PT_STRING8` substream's decoded text). This whole-message budget
+    /// bounds the derived text; an over-large message declines typed (Phase 26.4).
+    pub max_msg_text_bytes: u64,
+    /// Maximum source length admitted for legacy-MSG detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 26.4).
+    pub max_msg_document_bytes: u64,
 }
 
 impl Limits {
@@ -1269,6 +1369,31 @@ impl Limits {
         max_cfbf_entry_name_bytes: 1 << 16,
         max_cfbf_chain_sectors: 1 << 24,
         max_cfbf_document_bytes: 1 << 34,
+        max_doc_pieces: 1 << 20,
+        max_doc_text_bytes: 1 << 31,
+        max_doc_fib_fields: 1 << 12,
+        max_doc_stream_bytes: 1 << 34,
+        max_doc_document_bytes: 1 << 34,
+        max_xls_sheets: 1 << 12,
+        max_xls_records: 1 << 20,
+        max_xls_sst_strings: 1 << 20,
+        max_xls_cells: 1 << 22,
+        max_xls_text_bytes: 1 << 31,
+        max_xls_document_bytes: 1 << 34,
+        max_ppt_records: 1 << 20,
+        max_ppt_slides: 1 << 12,
+        max_ppt_runs: 1 << 22,
+        max_ppt_depth: 64,
+        max_ppt_text_bytes: 1 << 31,
+        max_ppt_document_bytes: 1 << 34,
+        max_msg_properties: 1 << 20,
+        max_msg_substreams: 1 << 20,
+        max_msg_recipients: 1 << 12,
+        max_msg_attachments: 1 << 12,
+        max_msg_name_bytes: 1 << 26,
+        max_msg_value_bytes: 1 << 31,
+        max_msg_text_bytes: 1 << 31,
+        max_msg_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1549,6 +1674,31 @@ impl Limits {
         max_cfbf_entry_name_bytes: 1 << 14,
         max_cfbf_chain_sectors: 1 << 16,
         max_cfbf_document_bytes: 1 << 26,
+        max_doc_pieces: 1 << 12,
+        max_doc_text_bytes: 1 << 20,
+        max_doc_fib_fields: 1 << 10,
+        max_doc_stream_bytes: 1 << 26,
+        max_doc_document_bytes: 1 << 26,
+        max_xls_sheets: 1 << 10,
+        max_xls_records: 1 << 14,
+        max_xls_sst_strings: 1 << 14,
+        max_xls_cells: 1 << 16,
+        max_xls_text_bytes: 1 << 20,
+        max_xls_document_bytes: 1 << 26,
+        max_ppt_records: 1 << 14,
+        max_ppt_slides: 1 << 10,
+        max_ppt_runs: 1 << 16,
+        max_ppt_depth: 32,
+        max_ppt_text_bytes: 1 << 20,
+        max_ppt_document_bytes: 1 << 26,
+        max_msg_properties: 1 << 14,
+        max_msg_substreams: 1 << 14,
+        max_msg_recipients: 1 << 10,
+        max_msg_attachments: 1 << 10,
+        max_msg_name_bytes: 1 << 18,
+        max_msg_value_bytes: 1 << 20,
+        max_msg_text_bytes: 1 << 20,
+        max_msg_document_bytes: 1 << 26,
     };
 }
 

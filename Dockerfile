@@ -262,6 +262,21 @@ RUN printf 'pysqlite3-binary==0.5.4.post2 \
       > /tmp/pysqlite3-requirements.txt \
  && pip3 install --break-system-packages --no-cache-dir --no-deps --require-hashes -r /tmp/pysqlite3-requirements.txt \
  && rm -f /tmp/pysqlite3-requirements.txt
+#
+# Phase 26.6 (26.6) correction: the Arrow economic court's comparator previously
+# read a **Parquet projection** because the pinned DuckDB wheel exposes only the
+# Arrow C data interface, not an Arrow IPC file reader. `pyarrow` *is* the
+# reference Arrow IPC reader, so the court's third comparator lane opens the
+# `.arrow` file directly and measures Arrow on its own terms. Hash-pinned cp311
+# manylinux_2_28 x86_64 wheel (pyarrow 25.0.1:
+#   25f8720bf6387d5dc2ebd2622112de630760419e4b66134405dd24110d15f37e).
+# `--no-deps`: the wheel's metadata declares no runtime dependencies and the lane's
+# operations (open_file, to_pylist, pyarrow.compute) run without numpy.
+RUN printf 'pyarrow==25.0.1 \
+  --hash=sha256:25f8720bf6387d5dc2ebd2622112de630760419e4b66134405dd24110d15f37e\n' \
+      > /tmp/pyarrow-requirements.txt \
+ && pip3 install --break-system-packages --no-cache-dir --no-deps --require-hashes -r /tmp/pyarrow-requirements.txt \
+ && rm -f /tmp/pyarrow-requirements.txt
 WORKDIR /work
 
 # ---------------------------------------------------------------------------

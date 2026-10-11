@@ -529,6 +529,71 @@ pub enum NodeKind {
     /// a compound file has no separate package layer in this adapter. Derived, never
     /// exact.
     CfbfModel = 0x46,
+    /// The canonical, representation-preserving legacy Word 97–2003 (`.doc`, MS-DOC)
+    /// **semantic** model (Phase 26.1), built on the CFBF/OLE2 physical layer (21.35).
+    /// It **reuses the CFBF resolver** (never a second OLE parser) to obtain the
+    /// `WordDocument` stream and the table stream (`0Table`/`1Table` per the FIB
+    /// `fWhichTblStm` flag), records the Word FIB — `wIdent` `0xA5EC`, the `nFib` with
+    /// its recorded Word version, the `fWhichTblStm` flag, `fcMin`/`fcMac`, the
+    /// `ccpText`/`ccpFtn`/`ccpHdd`/… section counts, and `fcClx`/`lcbClx` — and parses
+    /// the **piece table (CLX)**: the zero-or-more `Prc` (0x01) records, the `Pcdt`
+    /// (0x02) record, and its `PlcPcd` (`n+1` CP values plus `n` 8-byte PCDs). Every
+    /// piece keeps its resolved `fc`, its **compressed** flag (a compressed piece is
+    /// CP1252 single-byte text, an uncompressed piece UTF-16LE), its **exact byte span
+    /// in the `WordDocument` stream**, and its decoded text. Nothing is re-encoded or
+    /// re-flowed. It is computed on demand from the exact source (its single dependency
+    /// is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a `.doc`
+    /// has no separate package layer in this adapter. Derived, never exact.
+    DocModel = 0x47,
+    /// The canonical, representation-preserving legacy Excel 97–2003 (`.xls`, BIFF8)
+    /// **semantic** model (Phase 26.2), built on the CFBF/OLE2 physical layer (21.35).
+    /// It **reuses the CFBF resolver** (never a second OLE parser) to obtain the
+    /// `Workbook` stream (the legacy `Book` name is accepted too), records the BIFF8
+    /// record stream — every `[u16 id][u16 length][payload]` record with its exact byte
+    /// span and stream offset, the `BOF`/`EOF` substream framing, and the record's
+    /// fields — the `BOUNDSHEET` sheets (name, `BOF` stream position, visibility, and
+    /// type, in order), the `SST` shared-string table (with `CONTINUE` reassembly of
+    /// continued strings), and the per-sheet cell records
+    /// (`LABELSST`/`NUMBER`/`RK`/`BOOLERR`/`FORMULA`+`STRING`/`BLANK`/`MULBLANK`) with
+    /// their row/column, exact record span, and exact stored value spelling (`RK`'s
+    /// compact numeric encoding is decoded). `DIMENSIONS`/`ROW`/`FORMAT`/`XF` are
+    /// recorded by span. Nothing is normalized or re-serialized. It is computed on
+    /// demand from the exact source (its single dependency is the `DocumentExact` root,
+    /// keyed by `sha256(source)` per ADR-0060); a `.xls` has no separate package layer
+    /// in this adapter. Derived, never exact.
+    XlsModel = 0x48,
+    /// The canonical, representation-preserving legacy PowerPoint 97–2003 (`.ppt`,
+    /// MS-PPT) **semantic** model (Phase 26.3), built on the CFBF/OLE2 physical layer
+    /// (21.35). It **reuses the CFBF resolver** (never a second OLE parser) to obtain
+    /// the `PowerPoint Document` stream as an exact byte span, records the MS-PPT
+    /// record stream — every 8-byte `RecordHeader` (`recVer`/`recInstance`/`recType`/
+    /// `recLen`) with its exact span, stream offset, and nesting depth — the `Document`
+    /// container, the `SlideListWithText` containers' `SlidePersistAtom` entries
+    /// (slide order by `persistIdRef`), and the `TextCharsAtom` (UTF-16LE) /
+    /// `TextBytesAtom` (CP1252) runs with their exact spans and decoded text; the
+    /// `Current User` stream's `UserEditAtom` offset is recorded when it resolves.
+    /// Nothing is normalized or re-serialized. It is computed on demand from the exact
+    /// source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); a `.ppt` has no separate package layer in this
+    /// adapter. Derived, never exact.
+    PptModel = 0x49,
+    /// The canonical, representation-preserving legacy Outlook message (`.msg`,
+    /// MS-OXMSG) **semantic** model (Phase 26.4), built on the CFBF/OLE2 physical layer
+    /// (21.35). It **reuses the CFBF resolver** (never a second OLE parser) to obtain
+    /// the root `__properties_version1.0` stream, the root `__substg1.0_<PPPPTTTT>`
+    /// variable-size streams, the optional `__nameid_version1.0` stream, and the
+    /// recipient (`__recip_version1.0_<id>`) / attachment (`__attach_version1.0_<id>`)
+    /// sub-storages as exact byte spans. It records the message header (`Reserved`,
+    /// `NextRecipientId`, `NextAttachmentId`, `RecipientCount`, `AttachmentCount`, and
+    /// the trailing `Reserved`), the fixed-size 16-byte property entries (raw tag, flags,
+    /// value bytes, exact span, owner) in order, the variable-size substreams with type
+    /// `0x001F` (UTF-16LE) / `0x001E` (ANSI/CP1252) decoded and `0x0102` (binary) kept
+    /// as exact bytes, and every recipient/attachment sub-storage's own property list
+    /// and substreams (order and ids preserved). Nothing is normalized or re-serialized.
+    /// It is computed on demand from the exact source (its single dependency is the
+    /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a `.msg` has no
+    /// separate package layer in this adapter. Derived, never exact.
+    MsgModel = 0x4A,
 }
 
 impl NodeKind {
@@ -605,6 +670,10 @@ impl NodeKind {
             0x44 => NodeKind::ContainerModel,
             0x45 => NodeKind::HdfModel,
             0x46 => NodeKind::CfbfModel,
+            0x47 => NodeKind::DocModel,
+            0x48 => NodeKind::XlsModel,
+            0x49 => NodeKind::PptModel,
+            0x4A => NodeKind::MsgModel,
             _ => return None,
         })
     }
@@ -682,6 +751,10 @@ impl NodeKind {
             NodeKind::ContainerModel => "ContainerModel",
             NodeKind::HdfModel => "HdfModel",
             NodeKind::CfbfModel => "CfbfModel",
+            NodeKind::DocModel => "DocModel",
+            NodeKind::XlsModel => "XlsModel",
+            NodeKind::PptModel => "PptModel",
+            NodeKind::MsgModel => "MsgModel",
         }
     }
 

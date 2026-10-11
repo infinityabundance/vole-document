@@ -522,6 +522,72 @@ pub const SEL_HDF_MODEL: u8 = 49;
 /// ADR-0060); a compound file has no separate package layer in this adapter. Derived,
 /// never exact.
 pub const SEL_CFBF_MODEL: u8 = 50;
+/// Selector kind: the canonical legacy Word 97–2003 (`.doc`, MS-DOC) semantic model
+/// (Phase 26.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving semantic projection built on the CFBF/OLE2
+/// physical layer (21.35): the Word FIB (the `wIdent` `0xA5EC`, the `nFib` with the
+/// recorded Word version, the `fWhichTblStm` flag selecting `0Table`/`1Table`, the
+/// `fcMin`/`fcMac` bounds, the `ccpText`/`ccpFtn`/`ccpHdd`/… section counts, and
+/// `fcClx`/`lcbClx`) plus the **piece table (CLX)** — the resolved piece list, each
+/// with its CP range, its resolved `fc`, its **compressed** flag, and its **exact byte
+/// span in the `WordDocument` stream**, and its decoded text. It is computed on demand
+/// from the exact source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); a `.doc` has no separate package layer in this
+/// adapter. Derived, never exact.
+pub const SEL_DOC_MODEL: u8 = 51;
+
+/// Selector kind: the canonical legacy Excel 97–2003 (`.xls`, BIFF8) semantic model
+/// (Phase 26.2).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving semantic projection built on the CFBF/OLE2
+/// physical layer (21.35): the BIFF8 record stream (every record's exact span and
+/// stream offset), the `BOF`/`EOF` framing and version, the `BOUNDSHEET` sheets (name
+/// and `BOF` position, in order), the `SST` shared-string table (with `CONTINUE`
+/// reassembly), and the per-sheet cell records (`LABELSST`/`NUMBER`/`RK`/`BOOLERR`/
+/// `FORMULA`+`STRING`/`BLANK`/`MULBLANK`) with their row/column, exact record span,
+/// and exact stored value spelling. It is computed on demand from the exact source
+/// (its single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+/// ADR-0060); a `.xls` has no separate package layer in this adapter. Derived, never
+/// exact.
+pub const SEL_XLS_MODEL: u8 = 52;
+
+/// Selector kind: the canonical legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) semantic
+/// model (Phase 26.3).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving semantic projection built on the CFBF/OLE2
+/// physical layer (21.35): the MS-PPT record stream (every record's `recVer`/
+/// `recInstance`/`recType`/`recLen`, exact span, stream offset, and nesting depth), the
+/// `Document` container, the `SlideListWithText` containers' `SlidePersistAtom` entries
+/// (slide order by `persistIdRef`), and the `TextCharsAtom` (UTF-16LE) /
+/// `TextBytesAtom` (CP1252) runs with their exact spans and decoded text; the
+/// `Current User` stream's `UserEditAtom` offset is recorded when it resolves. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a `.ppt` has no
+/// separate package layer in this adapter. Derived, never exact.
+pub const SEL_PPT_MODEL: u8 = 53;
+
+/// Selector kind: the canonical legacy Outlook message (`.msg`, MS-OXMSG) semantic
+/// model (Phase 26.4).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving semantic projection built on the CFBF/OLE2
+/// physical layer (21.35): the top-level message `__properties_version1.0` header
+/// (`Reserved`, `NextRecipientId`, `NextAttachmentId`, `RecipientCount`,
+/// `AttachmentCount`, and the trailing `Reserved`) and its fixed-size 16-byte property
+/// entries (raw tag, flags, value bytes, exact span, owner) in order; the root
+/// `__substg1.0_<PPPPTTTT>` variable-size substreams with type `0x001F` (UTF-16LE) /
+/// `0x001E` (ANSI/CP1252) decoded and `0x0102` (binary) kept as exact bytes; the
+/// optional `__nameid_version1.0` stream span; and the recipient
+/// (`__recip_version1.0_<id>`) / attachment (`__attach_version1.0_<id>`) sub-storages,
+/// each with its own property list and substreams (order and ids preserved). It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a `.msg` has no
+/// separate package layer in this adapter. Derived, never exact.
+pub const SEL_MSG_MODEL: u8 = 54;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

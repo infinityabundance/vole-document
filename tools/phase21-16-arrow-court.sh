@@ -7,10 +7,11 @@
 #       `materialize --exact == source` (length + SHA-256 + `cmp`) after the source
 #       file AND the standalone descriptor are deleted, in a fresh process. The court
 #       FAILS unless this is 100 %.
-#   H2 (contract questions) — the three lanes (VOLE, a source-retaining SQLite
-#       baseline, a DuckDB analytical baseline) answer the SAME six questions Q1–Q6
-#       where they can, and every question a lane cannot answer is a TYPED decline,
-#       never a silent empty answer.
+#   H2 (contract questions) — the four lanes (VOLE, a source-retaining SQLite
+#       baseline, a DuckDB analytical baseline over a Parquet projection, and a
+#       `pyarrow` lane over the Arrow IPC file itself) answer the SAME six
+#       questions Q1–Q6 where they can, and every question a lane cannot answer is a
+#       TYPED decline, never a silent empty answer.
 #   H3 (cross-lane agreement) — where all lanes answer, comparable values agree (a
 #       column's values, a predicate count, a lexical-find count, a column's
 #       min/max). VOLE answers Q6 (exact raw bytes) and Q3 (the exact buffer span);
@@ -21,14 +22,19 @@
 #       cluster bootstrap by fixture; ratio-of-sums reported separately), every raw
 #       sample retained. Wall times are microseconds (`us`).
 #
-# The pinned DuckDB wheel exposes only the Arrow **C data interface** scanners
-# (`arrow_scan*`), not an Arrow IPC file reader, so the comparator reads a **Parquet
-# projection** of the same logical table (`make-arrow.py --econ` writes both). It
-# will very likely win the analytical axes (projection, predicate execution,
-# compressed pages, metadata statistics); the court says so plainly. It is not a
-# source-retaining store, so Q6 is a typed `not-native` decline. VOLE is an archival
-# field with typed observations, not a query engine; its predicate/find counts are a
-# decoded column plus a count in the driver.
+# Four lanes run alongside VOLE. (1) A source-retaining SQLite lane that keeps the
+# original Arrow bytes verbatim (so it can answer Q6). (2) A DuckDB lane reading a
+# **Parquet projection** of the same logical table, because the pinned DuckDB wheel
+# exposes only the Arrow **C data interface** scanners (`arrow_scan*`), not an Arrow
+# IPC file reader. (3) A `pyarrow` lane (Phase 26.6) that opens the Arrow IPC file
+# **directly** with the reference Arrow reader — Arrow measured on its own terms,
+# with no Parquet surrogate. The analytical lanes win the analytical axes
+# (projection, predicate execution, metadata statistics); the court says so plainly.
+# DuckDB and pyarrow are not source-retaining stores, so Q6 is a typed `not-native`
+# decline for both, and neither exposes a column's exact source buffer span or
+# min/max statistics, so Q3 is a typed `not-retained` decline for both. VOLE is an
+# archival field with typed observations, not a query engine; its predicate/find
+# counts are a decoded column plus a count in the driver.
 #
 # Honest scope: a self-authored corpus; only Q6 is a byte-authority claim.
 #
@@ -49,6 +55,7 @@ export PYTHONDONTWRITEBYTECODE=1
 
 BASE=tools/fixtures/phase21-16-arrow-baseline.py
 DUCK=tools/fixtures/phase21-16-arrow-duckdb.py
+PYARROW=tools/fixtures/phase21-16-arrow-pyarrow.py
 VOLE=tools/fixtures/phase21-16-arrow-vole.py
 SHA=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 STAMP=$(date -u +%Y-%m-%d)
@@ -115,6 +122,7 @@ build_lane() { # fixture lane dir
                     --profile runtime --packed > "$dir/build.json" 2> "$dir/build.err" ;;
         sqlite) python3 "$BASE" build --source "$WORK/ref/$f" --table-source "$WORK/ref/$pf" --db "$dir/x.sqlite" > "$dir/build.json" 2> "$dir/build.err" ;;
         duckdb) python3 "$DUCK" build --source "$WORK/ref/$pf" --dir "$dir/dd" > "$dir/build.json" 2> "$dir/build.err" ;;
+        pyarrow) python3 "$PYARROW" build --source "$WORK/ref/$f" --dir "$dir/pd" > "$dir/build.json" 2> "$dir/build.err" ;;
     esac
 }
 
@@ -129,11 +137,12 @@ EOF
     VDIR="$WORK/lanes/$f.vole"
     SDIR="$WORK/lanes/$f.sqlite"
     DDIR="$WORK/lanes/$f.duckdb"
+    PDIR="$WORK/lanes/$f.pyarrow"
 
     for rep in $(seq 1 "$REPS"); do
-        if [ $((rep % 2)) -eq 1 ]; then order="vole sqlite duckdb"; else order="duckdb sqlite vole"; fi
+        if [ $((rep % 2)) -eq 1 ]; then order="vole sqlite duckdb pyarrow"; else order="pyarrow duckdb sqlite vole"; fi
         for lane in $order; do
-            case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; duckdb) dir="$DDIR" ;; esac
+            case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; duckdb) dir="$DDIR" ;; pyarrow) dir="$PDIR" ;; esac
             t0=$(now_ns)
             build_lane "$f" "$lane" "$dir"; rc=$?
             t1=$(now_ns)
@@ -143,8 +152,8 @@ EOF
         done
     done
 
-    for lane in vole sqlite duckdb; do
-        case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; duckdb) dir="$DDIR" ;; esac
+    for lane in vole sqlite duckdb pyarrow; do
+        case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; duckdb) dir="$DDIR" ;; pyarrow) dir="$PDIR" ;; esac
         bytes=$(find "$dir" -type f -printf '%s\n' | awk '{s+=$1} END{print s+0}')
         files=$(find "$dir" -type f | wc -l | tr -d ' ')
         printf '%s\t%s\t%s\t%s\n' "$f" "$lane" "$bytes" "$files" >> "$RAW/storage.tsv"
@@ -153,7 +162,7 @@ EOF
     FIELD=$(python3 -c "import json,sys;print(json.load(open('$VDIR/build.json'))['ingest']['field'])" 2>/dev/null || echo "")
 
     for rep in $(seq 1 "$REPS"); do
-        if [ $((rep % 2)) -eq 1 ]; then order="vole sqlite duckdb"; else order="duckdb sqlite vole"; fi
+        if [ $((rep % 2)) -eq 1 ]; then order="vole sqlite duckdb pyarrow"; else order="pyarrow duckdb sqlite vole"; fi
         for lane in $order; do
             if [ "$lane" = "vole" ]; then
                 [ -n "$FIELD" ] || { echo "FINDING: no VOLE field for $f" >&2; continue; }
@@ -184,7 +193,7 @@ EOF
                     wus=$(python3 -c "import json;b=json.load(open('$SDIR/sess$rep.json'))['batch'];print(next((x['us'] for x in b if x['q']=='$q'),0))" 2>/dev/null || echo 0)
                     printf '%s\t%s\t%s\t%s\t0\t%s\n' "$f" "$lane" "$q" "$rep" "$wus" >> "$RAW/warm.tsv"
                 done
-            else
+            elif [ "$lane" = "duckdb" ]; then
                 for q in Q1 Q2 Q3 Q4 Q5 Q6; do
                     t0=$(now_ns)
                     python3 "$DUCK" query --dir "$DDIR/dd" --q "$q" --plan "$PLAN" \
@@ -198,6 +207,22 @@ EOF
                     --plan "$PLAN" --out "$DDIR/sess$rep.json" >/dev/null 2>&1
                 for q in Q1 Q2 Q3 Q4 Q5 Q6; do
                     wus=$(python3 -c "import json;b=json.load(open('$DDIR/sess$rep.json'))['batch'];print(next((x['us'] for x in b if x['q']=='$q'),0))" 2>/dev/null || echo 0)
+                    printf '%s\t%s\t%s\t%s\t0\t%s\n' "$f" "$lane" "$q" "$rep" "$wus" >> "$RAW/warm.tsv"
+                done
+            else
+                for q in Q1 Q2 Q3 Q4 Q5 Q6; do
+                    t0=$(now_ns)
+                    python3 "$PYARROW" query --dir "$PDIR/pd" --q "$q" --plan "$PLAN" \
+                        --out "$PDIR/run${rep}_$q.json" >/dev/null 2>&1; rc=$?
+                    t1=$(now_ns)
+                    us=$(( (t1 - t0) / 1000 ))
+                    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$lane" "$q" "$rep" "$rc" "$us" >> "$RAW/cold.tsv"
+                    if [ "$rep" -eq 1 ]; then cp "$PDIR/run${rep}_$q.json" "$RAW/qanswers/$f.$q.pyarrow.json"; fi
+                done
+                python3 "$PYARROW" session --dir "$PDIR/pd" --queries Q1,Q2,Q3,Q4,Q5,Q6 \
+                    --plan "$PLAN" --out "$PDIR/sess$rep.json" >/dev/null 2>&1
+                for q in Q1 Q2 Q3 Q4 Q5 Q6; do
+                    wus=$(python3 -c "import json;b=json.load(open('$PDIR/sess$rep.json'))['batch'];print(next((x['us'] for x in b if x['q']=='$q'),0))" 2>/dev/null || echo 0)
                     printf '%s\t%s\t%s\t%s\t0\t%s\n' "$f" "$lane" "$q" "$rep" "$wus" >> "$RAW/warm.tsv"
                 done
             fi
@@ -231,11 +256,12 @@ EOF
 done
 
 DUCKDB_VERSION=$(python3 -c 'import duckdb; print(duckdb.__version__)')
+PYARROW_VERSION=$(python3 -c 'import pyarrow; print(pyarrow.__version__)')
 FIX_JSON=$(python3 -c "import json;rows=[l.split('\t') for l in open('$RAW/fixtures.tsv').read().splitlines()[1:] if l];print(json.dumps({r[0]:{'len':int(r[1]),'sha256':r[2]} for r in rows},sort_keys=True))")
 cat > "$CAMPAIGN/environment.json" <<EOF
 {
   "campaign": "$CAMPAIGN",
-  "phase": "21.16 — Arrow IPC economic court (VOLE vs SQLite vs DuckDB)",
+  "phase": "26.6 — Arrow IPC economic court (VOLE vs SQLite vs DuckDB vs pyarrow)",
   "utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "measured_commit": "$(git rev-parse HEAD 2>/dev/null || echo unknown)",
   "tree_state": "$(git status --porcelain | tr '\n' ' ' | sed 's/"/\\"/g')",
@@ -246,7 +272,9 @@ cat > "$CAMPAIGN/environment.json" <<EOF
   "python": "$(python3 --version)",
   "sqlite3": "$(sqlite3 --version)",
   "duckdb_version": "$DUCKDB_VERSION",
-  "duckdb_arrow": "the pinned wheel exposes only arrow_scan/arrow_scan_dumb (C data interface), not an Arrow IPC file reader; the comparator reads a Parquet projection",
+  "pyarrow_version": "$PYARROW_VERSION",
+  "pyarrow_basis": "hash-pinned cp311 manylinux_2_28 x86_64 wheel, --no-deps (pyarrow 25.0.1); the lane opens the Arrow IPC file directly",
+  "duckdb_arrow": "the pinned wheel exposes only arrow_scan/arrow_scan_dumb (C data interface), not an Arrow IPC file reader; the DuckDB comparator reads a Parquet projection",
   "arch": "$(uname -m)",
   "cargo_lock_sha256": "$(sha256sum Cargo.lock | cut -d' ' -f1)",
   "bin": "$BIN",
@@ -275,6 +303,8 @@ docker compose run --rm --no-TTY analytical bash tools/phase21-16-arrow-court.sh
 #           python3 tools/fixtures/phase21-16-arrow-baseline.py materialize --db D --out OUT
 #   DuckDB: python3 tools/fixtures/phase21-16-arrow-duckdb.py build --source F.parquet --dir DD
 #           python3 tools/fixtures/phase21-16-arrow-duckdb.py query --dir DD --q Qn --plan ... --out OUT
+#   pyarrow: python3 tools/fixtures/phase21-16-arrow-pyarrow.py build --source F.arrow --dir PD
+#           python3 tools/fixtures/phase21-16-arrow-pyarrow.py query --dir PD --q Qn --plan ... --out OUT
 #   aggregate: python3 tools/fixtures/phase21-16-arrow-baseline.py aggregate --raw RAW --campaign CAMPAIGN --env ENV
 EOF
 
@@ -297,7 +327,7 @@ fi
 cat > "$CAMPAIGN/receipt.json" <<EOF
 {
   "campaign": "$CAMPAIGN",
-  "phase": "21.16 — Arrow IPC analytical economic court",
+  "phase": "26.6 — Arrow IPC analytical economic court (VOLE vs SQLite vs DuckDB vs pyarrow)",
   "utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "measured_commit": "$(git rev-parse HEAD 2>/dev/null || echo unknown)",
   "tree_state": "$(git status --porcelain | tr '\n' ' ' | sed 's/"/\\"/g')",
@@ -306,33 +336,37 @@ cat > "$CAMPAIGN/receipt.json" <<EOF
   "bin": "$BIN",
   "bin_sha256": "$(sha256sum "$BIN" | cut -d' ' -f1)",
   "duckdb_version": "$DUCKDB_VERSION",
-  "lanes": ["vole", "sqlite", "duckdb"],
+  "pyarrow_version": "$PYARROW_VERSION",
+  "lanes": ["vole", "sqlite", "duckdb", "pyarrow"],
   "questions": {"Q1": "column values", "Q2": "predicate count", "Q3": "buffer span + min/max", "Q4": "record-batch count", "Q5": "lexical find count", "Q6": "exact closure"},
   "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
   "exact_ok": $EXACT_OK,
   "exact_n": $EXACT_N,
   "verdict_rule": "FAIL only if VOLE exactness is not 100% (or a cross-lane mismatch is recorded)",
-  "honest_scope": "self-authored corpus; only Q6 is a byte-authority claim; DuckDB reads a Parquet projection of the same logical table (its wheel has no Arrow IPC reader) and wins the analytical axes",
+  "honest_scope": "self-authored corpus; only Q6 is a byte-authority claim; DuckDB reads a Parquet projection (its wheel has no Arrow IPC reader) while the pyarrow lane opens the Arrow IPC file directly; both decline Q3 (no source span/statistics) and Q6 (not a source-retaining store)",
   "verdict": "$verdict"
 }
 EOF
 
 {
-    echo "# Phase 21.16 — Arrow IPC (analytical Wave 2) economic court"
+    echo "# Phase 26.6 — Arrow IPC (analytical Wave 2) economic court (+ pyarrow lane)"
     echo
     echo "**Question.** On a self-authored Arrow IPC corpus, how do VOLE (an archival"
-    echo "field with typed observations), a source-retaining SQLite baseline, and the"
-    echo "DuckDB analytical comparator answer six contract questions, and does VOLE"
-    echo "still close **exactly**?"
+    echo "field with typed observations), a source-retaining SQLite baseline, a DuckDB"
+    echo "analytical baseline over a Parquet projection, and a pyarrow lane over the"
+    echo "Arrow IPC file itself answer six contract questions, and does VOLE still close"
+    echo "**exactly**?"
     echo
-    echo "**Headline (recorded plainly).** DuckDB wins the analytical axes: columnar"
-    echo "projection, predicate execution, and metadata statistics are native to it,"
-    echo "while VOLE materializes a bounded observation and counts in the driver. The"
-    echo "pinned DuckDB wheel has no Arrow IPC file reader, so the comparator reads a"
-    echo "**Parquet projection** of the same logical table. VOLE's unique claims are"
-    echo "exactness (Q6, byte-authority) and the exact buffer span (Q3) from the"
-    echo "archival metadata; DuckDB is not a source-retaining store (Q6 declines"
-    echo "\`not-native\`)."
+    echo "**Headline (recorded plainly).** pyarrow — the reference Arrow reader, opening"
+    echo "the \`.arrow\` file directly — and DuckDB both win the analytical computation axes"
+    echo "(columnar projection, predicate execution, metadata statistics), while VOLE"
+    echo "materializes a bounded observation and counts in the driver. DuckDB still reads a"
+    echo "**Parquet projection** because its pinned wheel has no Arrow IPC reader; only the"
+    echo "pyarrow lane measures Arrow on its own terms. VOLE's unique claims are exactness"
+    echo "(Q6, byte-authority) and the exact buffer span (Q3) from the archival metadata;"
+    echo "neither DuckDB nor pyarrow is a source-retaining store (Q6 declines"
+    echo "\`not-native\`) and neither exposes a source buffer span or min/max statistics"
+    echo "(Q3 declines)."
     echo
     echo "## Matrix"
     echo

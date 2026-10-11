@@ -161,6 +161,12 @@ const USAGE_FIELD: &str = "\
         --hdf-dialect | --hdf-object N | --hdf-dimension N | --hdf-attribute N |
         --hdf-find PATTERN |
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
+        --xls-biff | --xls-sheet N | --xls-cell N | --xls-record N | --xls-find PATTERN |
+        --xls-text |
+        --ppt-document | --ppt-slide N | --ppt-run N | --ppt-record N |
+        --ppt-find PATTERN | --ppt-text |
+        --msg-summary | --msg-property N | --msg-recipient N | --msg-attachment N |
+        --msg-find PATTERN | --msg-text |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
         --parquet-cell R:C |
@@ -2148,6 +2154,100 @@ struct FieldArgs {
     /// entry name (Phase 21.35).
     #[cfg(feature = "cfbf")]
     cfbf_find: Option<String>,
+    /// `--doc-fib`: the legacy Word 97–2003 (`.doc`) FIB — the `nFib` with its Word
+    /// version, the `fWhichTblStm` table selection, `fcMin`/`fcMac`, the `ccp*` section
+    /// counts, and `fcClx`/`lcbClx` (Phase 26.1).
+    #[cfg(feature = "doc")]
+    doc_fib: bool,
+    /// `--doc-piece N`: the N-th (0-based) piece of the piece table, with its CP range,
+    /// resolved `fc`, compressed flag, and exact `WordDocument`-stream byte span; as
+    /// `--kind exact` it returns the piece's exact bytes (Phase 26.1).
+    #[cfg(feature = "doc")]
+    doc_piece: Option<u32>,
+    /// `--doc-body`: the native document-text selector (canonical `doc-text`), the
+    /// concatenation of the piece texts over `[0, ccpText)` (Phase 26.1). The
+    /// format-neutral common text is `--doc-text`.
+    #[cfg(feature = "doc")]
+    doc_body: bool,
+    /// `--doc-find PATTERN`: a lexical, case-sensitive search over each piece's decoded
+    /// text (Phase 26.1).
+    #[cfg(feature = "doc")]
+    doc_find: Option<String>,
+    /// `--xls-biff`: the legacy Excel 97–2003 (`.xls`) BIFF header — the version, the
+    /// `Workbook`/`Book` stream selection, the root substream type, the record count,
+    /// and the exact stream span (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_biff: bool,
+    /// `--xls-text`: the common document text (canonical `text`) — the sheet-ordered
+    /// sheet names and their label/string cell values (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_text: bool,
+    /// `--xls-sheet N`: the N-th (0-based) sheet (`BOUNDSHEET`) with its name, `BOF`
+    /// stream position, sheet type, visibility state, and spans (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_sheet: Option<u32>,
+    /// `--xls-cell N`: the N-th (0-based) cell with its kind, row/column, exact record
+    /// span, and exact stored value spelling (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_cell: Option<u32>,
+    /// `--xls-record N`: the N-th (0-based) BIFF record with its id, payload length,
+    /// stream offset, and exact spans (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_record: Option<u32>,
+    /// `--xls-find PATTERN`: a lexical, case-sensitive search over each sheet name and
+    /// each shared string (Phase 26.2).
+    #[cfg(feature = "xls")]
+    xls_find: Option<String>,
+    /// `--ppt-document`: the legacy PowerPoint 97–2003 (`.ppt`) `Document` header — the
+    /// record/slide/run counts, the `Current User` presence, and the exact stream span
+    /// (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_document: bool,
+    /// `--ppt-text`: the common presentation text (canonical `text`) — the slide-ordered
+    /// text runs (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_text: bool,
+    /// `--ppt-slide N`: the N-th (0-based) slide with its `persistIdRef`, `cTexts`, and
+    /// spans (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_slide: Option<u32>,
+    /// `--ppt-run N`: the N-th (0-based) text run with its slide, kind, exact text-atom
+    /// span, and decoded text (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_run: Option<u32>,
+    /// `--ppt-record N`: the N-th (0-based) MS-PPT record with its `recVer`/
+    /// `recInstance`/`recType`/`recLen`, depth, and exact spans (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_record: Option<u32>,
+    /// `--ppt-find PATTERN`: a lexical, case-sensitive search over each decoded text run
+    /// (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    ppt_find: Option<String>,
+    /// `--msg-summary`: the legacy Outlook message (`.msg`, MS-OXMSG) header and
+    /// inventory — the message header, the property/substream/recipient/attachment
+    /// counts, and the exact `__properties_version1.0` stream span (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_summary: bool,
+    /// `--msg-text`: the common message text (canonical `text`) — the decoded substream
+    /// texts in canonical order (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_text: bool,
+    /// `--msg-property N`: the N-th (0-based) top-level fixed-size property entry with
+    /// its raw tag (and id/type), flags, value bytes, and exact span (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_property: Option<u32>,
+    /// `--msg-recipient N`: the N-th (0-based) recipient sub-storage with its id,
+    /// directory index, and its own property entries and substreams (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_recipient: Option<u32>,
+    /// `--msg-attachment N`: the N-th (0-based) attachment sub-storage with its id,
+    /// directory index, and its own property entries and substreams (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_attachment: Option<u32>,
+    /// `--msg-find PATTERN`: a lexical, case-sensitive search over each decoded
+    /// substream text (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -3275,6 +3375,112 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "cfbf")]
             "--cfbf-find" => {
                 out.cfbf_find = Some(field_arg_value(args, &mut i, "--cfbf-find", inline)?);
+            }
+            #[cfg(feature = "doc")]
+            "--doc-fib" => {
+                out.doc_fib = true;
+                i += 1;
+            }
+            #[cfg(feature = "doc")]
+            "--doc-piece" => {
+                let v = field_arg_value(args, &mut i, "--doc-piece", inline)?;
+                out.doc_piece = Some(parse_field_u32(&v, "--doc-piece")?);
+            }
+            #[cfg(feature = "doc")]
+            "--doc-body" => {
+                out.doc_body = true;
+                i += 1;
+            }
+            #[cfg(feature = "doc")]
+            "--doc-find" => {
+                out.doc_find = Some(field_arg_value(args, &mut i, "--doc-find", inline)?);
+            }
+            #[cfg(feature = "xls")]
+            "--xls-biff" => {
+                out.xls_biff = true;
+                i += 1;
+            }
+            #[cfg(feature = "xls")]
+            "--xls-text" => {
+                out.xls_text = true;
+                i += 1;
+            }
+            #[cfg(feature = "xls")]
+            "--xls-sheet" => {
+                let v = field_arg_value(args, &mut i, "--xls-sheet", inline)?;
+                out.xls_sheet = Some(parse_field_u32(&v, "--xls-sheet")?);
+            }
+            #[cfg(feature = "xls")]
+            "--xls-cell" => {
+                let v = field_arg_value(args, &mut i, "--xls-cell", inline)?;
+                out.xls_cell = Some(parse_field_u32(&v, "--xls-cell")?);
+            }
+            #[cfg(feature = "xls")]
+            "--xls-record" => {
+                let v = field_arg_value(args, &mut i, "--xls-record", inline)?;
+                out.xls_record = Some(parse_field_u32(&v, "--xls-record")?);
+            }
+            #[cfg(feature = "xls")]
+            "--xls-find" => {
+                out.xls_find = Some(field_arg_value(args, &mut i, "--xls-find", inline)?);
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-document" => {
+                out.ppt_document = true;
+                i += 1;
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-text" => {
+                out.ppt_text = true;
+                i += 1;
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-slide" => {
+                let v = field_arg_value(args, &mut i, "--ppt-slide", inline)?;
+                out.ppt_slide = Some(parse_field_u32(&v, "--ppt-slide")?);
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-run" => {
+                let v = field_arg_value(args, &mut i, "--ppt-run", inline)?;
+                out.ppt_run = Some(parse_field_u32(&v, "--ppt-run")?);
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-record" => {
+                let v = field_arg_value(args, &mut i, "--ppt-record", inline)?;
+                out.ppt_record = Some(parse_field_u32(&v, "--ppt-record")?);
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-find" => {
+                out.ppt_find = Some(field_arg_value(args, &mut i, "--ppt-find", inline)?);
+            }
+            #[cfg(feature = "msg")]
+            "--msg-summary" => {
+                out.msg_summary = true;
+                i += 1;
+            }
+            #[cfg(feature = "msg")]
+            "--msg-text" => {
+                out.msg_text = true;
+                i += 1;
+            }
+            #[cfg(feature = "msg")]
+            "--msg-property" => {
+                let v = field_arg_value(args, &mut i, "--msg-property", inline)?;
+                out.msg_property = Some(parse_field_u32(&v, "--msg-property")?);
+            }
+            #[cfg(feature = "msg")]
+            "--msg-recipient" => {
+                let v = field_arg_value(args, &mut i, "--msg-recipient", inline)?;
+                out.msg_recipient = Some(parse_field_u32(&v, "--msg-recipient")?);
+            }
+            #[cfg(feature = "msg")]
+            "--msg-attachment" => {
+                let v = field_arg_value(args, &mut i, "--msg-attachment", inline)?;
+                out.msg_attachment = Some(parse_field_u32(&v, "--msg-attachment")?);
+            }
+            #[cfg(feature = "msg")]
+            "--msg-find" => {
+                out.msg_find = Some(field_arg_value(args, &mut i, "--msg-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -4417,6 +4623,108 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.cfbf_find {
             chosen.push(Selector::CfbfFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Legacy Word 97–2003 (`.doc`, MS-DOC): `--doc-fib` the FIB; `--doc-piece N` a piece
+    // by 0-based index; `--doc-body` the native document text (canonical `doc-text`);
+    // `--doc-find` a lexical search. Each stands alone (Phase 26.1).
+    #[cfg(feature = "doc")]
+    {
+        if out.doc_fib {
+            chosen.push(Selector::DocFib);
+        }
+        if let Some(index) = out.doc_piece {
+            chosen.push(Selector::DocPiece { index });
+        }
+        if out.doc_body {
+            chosen.push(Selector::DocText);
+        }
+        if let Some(pattern) = &out.doc_find {
+            chosen.push(Selector::DocFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Legacy Excel 97–2003 (`.xls`, BIFF8): `--xls-biff` the BIFF header; `--xls-sheet N`
+    // a sheet by 0-based index; `--xls-cell N` a cell by 0-based index; `--xls-record N`
+    // a BIFF record by 0-based index; `--xls-find` a lexical search. Each stands alone
+    // (Phase 26.2).
+    #[cfg(feature = "xls")]
+    {
+        if out.xls_biff {
+            chosen.push(Selector::XlsBiff);
+        }
+        if out.xls_text {
+            chosen.push(Selector::Text);
+        }
+        if let Some(index) = out.xls_sheet {
+            chosen.push(Selector::XlsSheet { index });
+        }
+        if let Some(index) = out.xls_cell {
+            chosen.push(Selector::XlsCell { index });
+        }
+        if let Some(index) = out.xls_record {
+            chosen.push(Selector::XlsRecord { index });
+        }
+        if let Some(pattern) = &out.xls_find {
+            chosen.push(Selector::XlsFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Legacy PowerPoint 97–2003 (`.ppt`, MS-PPT): `--ppt-document` the `Document` header;
+    // `--ppt-slide N` a slide by 0-based index; `--ppt-run N` a text run by 0-based
+    // index; `--ppt-record N` a record by 0-based index; `--ppt-find` a lexical search.
+    // Each stands alone (Phase 26.3).
+    #[cfg(feature = "ppt")]
+    {
+        if out.ppt_document {
+            chosen.push(Selector::PptDocument);
+        }
+        if out.ppt_text {
+            chosen.push(Selector::Text);
+        }
+        if let Some(index) = out.ppt_slide {
+            chosen.push(Selector::PptSlide { index });
+        }
+        if let Some(index) = out.ppt_run {
+            chosen.push(Selector::PptRun { index });
+        }
+        if let Some(index) = out.ppt_record {
+            chosen.push(Selector::PptRecord { index });
+        }
+        if let Some(pattern) = &out.ppt_find {
+            chosen.push(Selector::PptFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Legacy Outlook message (`.msg`, MS-OXMSG): `--msg-summary` the message header and
+    // inventory; `--msg-property N` a top-level fixed-size property entry by 0-based
+    // index; `--msg-recipient N`/`--msg-attachment N` a sub-storage by 0-based index;
+    // `--msg-find` a lexical search over decoded substream texts. Each stands alone
+    // (Phase 26.4).
+    #[cfg(feature = "msg")]
+    {
+        if out.msg_summary {
+            chosen.push(Selector::MsgSummary);
+        }
+        if out.msg_text {
+            chosen.push(Selector::Text);
+        }
+        if let Some(index) = out.msg_property {
+            chosen.push(Selector::MsgProperty { index });
+        }
+        if let Some(index) = out.msg_recipient {
+            chosen.push(Selector::MsgRecipient { index });
+        }
+        if let Some(index) = out.msg_attachment {
+            chosen.push(Selector::MsgAttachment { index });
+        }
+        if let Some(pattern) = &out.msg_find {
+            chosen.push(Selector::MsgFind {
                 pattern: pattern.clone(),
             });
         }

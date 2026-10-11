@@ -224,6 +224,47 @@ pub enum ErrorClass {
     /// so it stays `Opaque` rather than being claimed as a derived model. Detection
     /// and the whole-source exact leaf are unaffected.
     InvalidCfbfStructure,
+    /// A legacy Word 97–2003 (`.doc`, MS-DOC) structure error (Phase 26.1): a
+    /// compound file whose `WordDocument` stream begins with the Word FIB magic but
+    /// whose semantic body is malformed or outside the documented subset — a bad
+    /// `wIdent`, an implausible `nFib`, an out-of-range `fcClx`/`lcbClx`, a CLX past
+    /// the table stream, a `Pcdt` with no piece table, a CP array that is not
+    /// monotonic (or does not start at 0), a PCD `fc` outside the `WordDocument`
+    /// stream, or a declared section total that disagrees with the piece table — so
+    /// it declines typed rather than being claimed as a derived model. Detection and
+    /// the whole-source exact leaf are unaffected.
+    InvalidDocStructure,
+    /// A legacy Excel 97–2003 (`.xls`, BIFF8) structure error (Phase 26.2): a compound
+    /// file whose `Workbook`/`Book` stream begins with a BIFF8 `BOF` but whose semantic
+    /// body is malformed or outside the documented subset — a bad `BOF` version, an
+    /// unrecognized substream type, a leading substream that is not workbook globals, a
+    /// truncated record, an out-of-range `BOUNDSHEET` position, an `SST` count mismatch
+    /// or a malformed `CONTINUE`, or a `FORMULA` string result with no `STRING` record —
+    /// so it declines typed rather than being claimed as a derived model. Detection and
+    /// the whole-source exact leaf are unaffected.
+    InvalidXlsStructure,
+    /// A legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) structure error (Phase 26.3): a
+    /// compound file whose `PowerPoint Document` stream begins with a `Document`
+    /// record but whose semantic body is malformed or outside the documented subset —
+    /// a truncated record header, a `recLen` that overruns the stream, a record that
+    /// overruns its enclosing container, an odd-length `TextCharsAtom`, a text atom
+    /// with no preceding `SlidePersistAtom`, or a `Current User` stream whose declared
+    /// `UserEditAtom` offset does not resolve — so it declines typed rather than being
+    /// claimed as a derived model. Detection and the whole-source exact leaf are
+    /// unaffected.
+    InvalidPptStructure,
+    /// A legacy Outlook message (`.msg`, MS-OXMSG) structure error (Phase 26.4): a
+    /// compound file whose root has a `__properties_version1.0` stream but whose
+    /// semantic body is malformed or outside the documented subset — a
+    /// `__properties_version1.0` shorter than its header, a fixed property entry that
+    /// overruns the stream, a `__substg1.0_*` name that is not `PPPPTTTT` hex, a
+    /// `__substg1.0_*` stream with an unsupported property type or that is not
+    /// referenced by any fixed entry, a sub-storage without its own
+    /// `__properties_version1.0`, or a declared `RecipientCount`/`AttachmentCount`
+    /// that disagrees with the sub-storages — so it declines typed rather than being
+    /// claimed as a derived model. Detection and the whole-source exact leaf are
+    /// unaffected.
+    InvalidMsgStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -282,6 +323,10 @@ impl ErrorClass {
             ErrorClass::InvalidContainerStructure => 49,
             ErrorClass::InvalidHdfStructure => 50,
             ErrorClass::InvalidCfbfStructure => 51,
+            ErrorClass::InvalidDocStructure => 52,
+            ErrorClass::InvalidXlsStructure => 53,
+            ErrorClass::InvalidPptStructure => 54,
+            ErrorClass::InvalidMsgStructure => 55,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -339,6 +384,10 @@ impl ErrorClass {
             ErrorClass::InvalidContainerStructure => "InvalidContainerStructure",
             ErrorClass::InvalidHdfStructure => "InvalidHdfStructure",
             ErrorClass::InvalidCfbfStructure => "InvalidCfbfStructure",
+            ErrorClass::InvalidDocStructure => "InvalidDocStructure",
+            ErrorClass::InvalidXlsStructure => "InvalidXlsStructure",
+            ErrorClass::InvalidPptStructure => "InvalidPptStructure",
+            ErrorClass::InvalidMsgStructure => "InvalidMsgStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -450,6 +499,10 @@ impl Error {
     ctor!(invalid_container_structure, InvalidContainerStructure);
     ctor!(invalid_hdf_structure, InvalidHdfStructure);
     ctor!(invalid_cfbf_structure, InvalidCfbfStructure);
+    ctor!(invalid_doc_structure, InvalidDocStructure);
+    ctor!(invalid_xls_structure, InvalidXlsStructure);
+    ctor!(invalid_ppt_structure, InvalidPptStructure);
+    ctor!(invalid_msg_structure, InvalidMsgStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

@@ -1,0 +1,12 @@
+# acquisition (network-capable, capped realcorpus lane):
+MANIFEST=tools/realcorpus/formats-manifest-v2.tsv docker compose run --rm --no-TTY realcorpus sh tools/realcorpus/fetch-formats.sh
+# stratified v2 court (pinned analytical lane; RELEASE VOLE + python3):
+docker compose run --rm --no-TTY analytical sh tools/realformats-stratified-v2-court.sh
+# inside the court:
+#   cargo build --release --locked --all-features
+#   python3 tools/fixtures/realformats-stratified-v2.py --bin <BIN> --corpus realformats-v1 \
+#       --manifest tools/realcorpus/formats-manifest-v2.tsv \
+#       --hostile tools/realcorpus/hostile-strata-v2.tsv --out <RAW>
+# Per sample: field-build --profile runtime --packed on a scratch COPY of the bytes;
+# the copy is DELETED; then a fresh `materialize --exact --packed` process must
+# reproduce length + SHA-256 + cmp of the in-memory original.

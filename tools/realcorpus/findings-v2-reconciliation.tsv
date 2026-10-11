@@ -1,0 +1,16 @@
+format	detected	resolution
+arrow	opaque	recorded decline — a bare Arrow IPC *stream* (no leading `ARROW1` magic); the arrow detector admits file format (magic+footer) and magic-prefixed streams only (src/adapter/arrow.rs). The whole-source exact leaf is unaffected.
+asciidoc	rst	recorded misclassification — the reST detector (tried before AsciiDoc; the precedence is load-bearing for real reST) claims attribute-only/locale/CHANGELOG AsciiDoc via its field-list/adornment signal (src/adapter/rst.rs, asciidoc.rs). Not reordered.
+asciidoc	opaque	recorded decline — a `* xref:` link-list-only AsciiDoc page carries no AsciiDoc-specific block/title signal, so it stays Opaque rather than being guessed (src/adapter/asciidoc.rs).
+cbor	opaque	recorded decline — small CBOR values (a lone integer, a tagged date) and a multi-value concatenation fall below the detector's ≥3-node/container/self-describe threshold; conservative by design (src/adapter/cbor.rs).
+doc	cfbf	recorded decline — a genuine CFBF compound file whose `WordDocument` stream is present but whose Word FIB variant the legacy .doc detector does not claim, so it stays at the generic CFBF physical layer (src/adapter/doc.rs).
+eml	opaque	recorded decline — a multi-message mbox fixture whose root `multipart/report` boundary the header scan cannot parse; the multipart-without-boundary guard declines rather than admit an unmodellable tree (src/adapter/eml.rs).
+gis	xml	recorded decline — GPX 1.0 (not 1.1) and a namespace-less KML do not match the exact KML 2.2 / GPX 1.1 namespace URI the gis detector requires, so they stay Xml (src/adapter/gis.rs).
+logstream	config	recorded misclassification — the config detector (`KEY=VALUE` shape) claims an OpenStack log stream that the line-dialect log detector declines (src/adapter/logstream.rs, config.rs).
+logstream	csv	recorded misclassification — the CSV detector claims a Windows event-style log whose lines have a consistent field count; the every-line-dialect log detector declines it (src/adapter/logstream.rs, csv.rs).
+logstream	opaque	recorded decline — HPC/Mac/Proxifier/Spark logs contain lines that do not match any dialect (RFC 5424/3164 or a leading timestamp/level), so the whole-file detector declines (src/adapter/logstream.rs).
+ppt	cfbf	recorded decline — a genuine CFBF file whose `PowerPoint Document` stream is present but whose record variant the legacy .ppt detector does not claim, so it stays at the generic CFBF physical layer (src/adapter/ppt.rs).
+pptx	opaque	recorded decline — a valid OOXML deck whose OPC control-member decode declines (oversized/unsupported member), so detection stays Opaque (the whole-source exact leaf is unaffected).
+rst	markdown	recorded misclassification — the reST detector declines a real CPython `whatsnew` document and the Markdown detector claims it via its structural marks (src/adapter/rst.rs, markdown.rs).
+xls	cfbf	recorded decline — a genuine CFBF file whose BIFF8 `Workbook`/`Book` stream is present but whose BIFF variant the legacy .xls detector does not claim, so it stays at the generic CFBF physical layer (src/adapter/xls.rs).
+yaml	config	recorded misclassification — a GitHub Actions workflow that the YAML detector declines is claimed by the config detector (`KEY: value`/`on:` shape) (src/adapter/yaml.rs, config.rs).

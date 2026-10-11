@@ -22,6 +22,8 @@ pub mod config;
 pub mod container;
 #[cfg(feature = "csv")]
 pub mod csv;
+#[cfg(feature = "doc")]
+pub mod doc;
 #[cfg(feature = "docx")]
 pub mod docx;
 #[cfg(feature = "eml")]
@@ -54,6 +56,8 @@ pub mod markdown;
 pub mod mdx;
 #[cfg(feature = "mhtml")]
 pub mod mhtml;
+#[cfg(feature = "msg")]
+pub mod msg;
 #[cfg(feature = "msgpack")]
 pub mod msgpack;
 #[cfg(feature = "notebook")]
@@ -72,6 +76,8 @@ pub mod parquet;
 pub mod pdf;
 #[cfg(feature = "pkgmeta")]
 pub mod pkgmeta;
+#[cfg(feature = "ppt")]
+pub mod ppt;
 #[cfg(feature = "pptx")]
 pub mod pptx;
 #[cfg(feature = "rst")]
@@ -80,6 +86,8 @@ pub mod rst;
 pub mod rtf;
 #[cfg(feature = "toml")]
 pub mod toml;
+#[cfg(feature = "xls")]
+pub mod xls;
 #[cfg(feature = "xlsx")]
 pub mod xlsx;
 #[cfg(feature = "xml")]

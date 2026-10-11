@@ -1,0 +1,14 @@
+fixtures 5
+normal 1
+exact_ok 1
+exact_fail 0
+surface_fail 0
+cells_ok 1
+cells_n 1
+structural_declines_ok 4
+structural_declines 4
+cfbf_controls_ok 3
+cfbf_controls 3
+opaque_controls_ok 1
+opaque_controls 1
+binary 891a6e7d0bd46f3c806a7d73a880bebc43c877cc4ff7258f51f23dce59d52ac0

@@ -1,0 +1,11 @@
+fixtures 7
+normal 2
+exact_ok 2
+exact_fail 0
+surface_fail 0
+native_entry_ok 2
+native_entry_n 2
+opaque_controls_ok 5
+opaque_controls 5
+structural_decline_ok 3
+binary f3b7670723d047709ac28d397687dbeeb66c2b471d95ce7da0530de1426d1ff8

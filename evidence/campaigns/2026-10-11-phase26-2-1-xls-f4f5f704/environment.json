@@ -1,0 +1,19 @@
+{
+  "campaign": "evidence/campaigns/2026-10-11-phase26-2-1-xls-f4f5f704",
+  "phase": "26.2.1 — legacy Excel 97–2003 (.xls, BIFF8) semantic surface + exact closure on the CFBF/OLE2 physical layer",
+  "utc": "2026-10-11T17:55:59Z",
+  "git_commit": "f4f5f7045b04120e2a698a42deb8949fcc9635fd",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-11-phase26-1-1-doc-f4f5f704/ ?? evidence/campaigns/2026-10-11-phase26-2-1-xls-f4f5f704/ ?? evidence/campaigns/2026-10-11-phase26-3-1-ppt-f4f5f704/ ?? examples/ppt_fixtures.rs ?? src/adapter/ppt.rs ?? tests/ppt_adapter.rs ?? tools/phase26-3-1-ppt-court.sh ",
+  "arch": "x86_64",
+  "service": "dev",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "dfa3028aae1cd611ec74594ad670175dc8f4f61a5f5f697d8140f5b17f1595f7",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "b3eb593752f3292a40008b73b3dd3bb66fcd405c7e1b1ac1db86218d3f008706",
+  "profile": "debug",
+  "fixtures_tool": "examples/xls_fixtures.rs (dependency-free .xls/BIFF8-in-CFBF writer; no python3, no Excel/LibreOffice, no external OLE tooling)",
+  "external_oracles": "none (the XLS model is validated internally; no external Excel parser is invoked)",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

@@ -443,6 +443,78 @@ pub enum DocumentFormat {
     /// physical layer that unlocks the legacy DOC/XLS/PPT/MSG semantic models (later
     /// subphases).
     Cfbf,
+    /// A legacy Word 97–2003 document (`.doc`, MS-DOC) (Phase 26.1): a CFBF/OLE2
+    /// compound file whose `WordDocument` stream opens with the Word FIB (magic
+    /// `0xA5EC`) and whose table stream (`0Table`/`1Table` per the FIB `fWhichTblStm`
+    /// flag) carries the piece table. Detection is built **on top of** the CFBF
+    /// detector — the source must be a compound file the CFBF layer accepts, its
+    /// `WordDocument` stream must begin with the FIB magic and a plausible Word
+    /// 97–2003 `nFib`, and its table stream must exist — so a generic compound file
+    /// without a Word FIB stays [`Cfbf`](DocumentFormat::Cfbf) and a non-CFBF source is
+    /// unaffected. The recorded model carries the FIB (`nFib`/version, the
+    /// `fWhichTblStm` flag, `fcMin`/`fcMac`, the `ccp*` section counts, `fcClx`/
+    /// `lcbClx`) and the piece table (each piece's CP range, resolved `fc`, compressed
+    /// flag, exact `WordDocument`-stream byte span, and decoded text). Not a package:
+    /// the exact leaf is the whole source (a `DocumentExact`, RAW-like authority) and
+    /// every derived observation is a bounded, span-preserving (`Q_gen`) projection of
+    /// it. Everything outside the documented subset declines **typed**.
+    Doc,
+    /// A legacy Excel 97–2003 spreadsheet (`.xls`, BIFF8) (Phase 26.2): a CFBF/OLE2
+    /// compound file whose `Workbook` stream (the legacy `Book` name is accepted too)
+    /// opens with a BIFF8 `BOF` (id `0x0809`, version `0x0600`) whose substream type is
+    /// a recognized worksheet/globals type. Detection is built **on top of** the CFBF
+    /// detector — the source must be a compound file the CFBF layer accepts and its
+    /// `Workbook`/`Book` stream must begin with that `BOF` — so a generic compound file
+    /// stays [`Cfbf`](DocumentFormat::Cfbf), a `.doc` stays [`Doc`](DocumentFormat::Doc),
+    /// and a non-CFBF source (including a `.xlsx`, an OPC ZIP) is unaffected. The
+    /// recorded model carries the BIFF version, the record list with exact spans, the
+    /// `BOUNDSHEET` sheets (name, `BOF` stream position, in order), the `SST` shared
+    /// string table (with `CONTINUE` reassembly), and the per-sheet cell records
+    /// (`LABELSST`/`NUMBER`/`RK`/`BOOLERR`/`FORMULA`+`STRING`/`BLANK`/`MULBLANK`) with
+    /// their row/column, exact record span, and exact stored value spelling. Not a
+    /// package: the exact leaf is the whole source (a `DocumentExact`) and every derived
+    /// observation is a bounded, span-preserving (`Q_gen`) projection of it. Everything
+    /// outside the documented subset declines **typed**.
+    Xls,
+    /// A legacy PowerPoint 97–2003 presentation (`.ppt`, MS-PPT) (Phase 26.3): a
+    /// CFBF/OLE2 compound file whose `PowerPoint Document` stream begins with a
+    /// `Document` record (`recVer 0xF`, `recType 1000`). Detection is built **on top
+    /// of** the CFBF detector — the source must be a compound file the CFBF layer
+    /// accepts and its `PowerPoint Document` stream must begin with that `Document`
+    /// record — so a generic compound file stays [`Cfbf`](DocumentFormat::Cfbf), a
+    /// `.doc` stays [`Doc`](DocumentFormat::Doc), a `.xls` stays
+    /// [`Xls`](DocumentFormat::Xls), and a non-CFBF source (including a `.pptx`, an OPC
+    /// ZIP) is unaffected. The recorded model carries the MS-PPT record stream (every
+    /// record's `recVer`/`recInstance`/`recType`/`recLen`, exact span, stream offset,
+    /// and nesting depth), the slides from the `SlideListWithText` containers'
+    /// `SlidePersistAtom` entries (in order, by `persistIdRef`), and the
+    /// `TextCharsAtom` (UTF-16LE) / `TextBytesAtom` (CP1252) runs with their exact
+    /// spans and decoded text; the `Current User` stream's `UserEditAtom` offset is
+    /// recorded when it resolves. Not a package: the exact leaf is the whole source (a
+    /// `DocumentExact`) and every derived observation is a bounded, span-preserving
+    /// (`Q_gen`) projection of it. Everything outside the documented subset declines
+    /// **typed**.
+    Ppt,
+    /// A legacy Outlook message (`.msg`, MS-OXMSG) (Phase 26.4): a CFBF/OLE2 compound
+    /// file whose **root storage** has a `__properties_version1.0` stream. Detection is
+    /// built **on top of** the CFBF detector — the source must be a compound file the
+    /// CFBF layer accepts and must have a root-level `__properties_version1.0` stream —
+    /// so a generic compound file stays [`Cfbf`](DocumentFormat::Cfbf), a `.doc` stays
+    /// [`Doc`](DocumentFormat::Doc), a `.xls` stays [`Xls`](DocumentFormat::Xls), a
+    /// `.ppt` stays [`Ppt`](DocumentFormat::Ppt), and a non-CFBF source is unaffected.
+    /// The recorded model carries the top-level message header (`Reserved`,
+    /// `NextRecipientId`, `NextAttachmentId`, `RecipientCount`, `AttachmentCount`, and
+    /// the trailing `Reserved`), the fixed-size 16-byte property entries (raw tag,
+    /// flags, value bytes, exact span, owner) in order, the variable-size
+    /// `__substg1.0_<PPPPTTTT>` substreams (`0x001F` UTF-16LE and `0x001E` ANSI/CP1252
+    /// decoded, `0x0102` binary kept as exact bytes) with their exact spans, and the
+    /// recipient (`__recip_version1.0_<id>`) / attachment (`__attach_version1.0_<id>`)
+    /// sub-storages with their own property lists and substreams (order and ids
+    /// preserved). Not a package: the exact leaf is the whole source (a
+    /// `DocumentExact`) and every derived observation is a bounded, span-preserving
+    /// (`Q_gen`) projection of it. Everything outside the documented subset declines
+    /// **typed**.
+    Msg,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -491,6 +563,10 @@ impl DocumentFormat {
             DocumentFormat::Container => "container",
             DocumentFormat::Hdf => "hdf",
             DocumentFormat::Cfbf => "cfbf",
+            DocumentFormat::Doc => "doc",
+            DocumentFormat::Xls => "xls",
+            DocumentFormat::Ppt => "ppt",
+            DocumentFormat::Msg => "msg",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -538,6 +614,10 @@ impl DocumentFormat {
             DocumentFormat::Container => "container",
             DocumentFormat::Hdf => "hdf",
             DocumentFormat::Cfbf => "cfbf",
+            DocumentFormat::Doc => "doc",
+            DocumentFormat::Xls => "xls",
+            DocumentFormat::Ppt => "ppt",
+            DocumentFormat::Msg => "msg",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -585,6 +665,10 @@ impl DocumentFormat {
             DocumentFormat::Container => cfg!(feature = "container"),
             DocumentFormat::Hdf => cfg!(feature = "hdf"),
             DocumentFormat::Cfbf => cfg!(feature = "cfbf"),
+            DocumentFormat::Doc => cfg!(feature = "doc"),
+            DocumentFormat::Xls => cfg!(feature = "xls"),
+            DocumentFormat::Ppt => cfg!(feature = "ppt"),
+            DocumentFormat::Msg => cfg!(feature = "msg"),
         }
     }
 
@@ -642,6 +726,10 @@ impl DocumentFormat {
             "container" => Some(DocumentFormat::Container),
             "hdf" => Some(DocumentFormat::Hdf),
             "cfbf" => Some(DocumentFormat::Cfbf),
+            "doc" => Some(DocumentFormat::Doc),
+            "xls" => Some(DocumentFormat::Xls),
+            "ppt" => Some(DocumentFormat::Ppt),
+            "msg" => Some(DocumentFormat::Msg),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -702,6 +790,46 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     // whole-source exact leaf is always unaffected).
     #[cfg(feature = "cfbf")]
     if crate::adapter::cfbf::detect(source, limits) {
+        // A legacy Word 97–2003 (`.doc`, MS-DOC) source is a CFBF compound file whose
+        // `WordDocument` stream opens with the Word FIB. The legacy-DOC detector is
+        // built **on top of** the CFBF detector and runs here, before the generic
+        // `Cfbf` claim, so a `.doc` becomes `Doc` while a generic compound file
+        // without a Word FIB stays `Cfbf`. A non-CFBF source is never reached.
+        #[cfg(feature = "doc")]
+        if crate::adapter::doc::detect(source, limits) {
+            return DocumentFormat::Doc;
+        }
+        // A legacy Excel 97–2003 (`.xls`, BIFF8) source is a CFBF compound file whose
+        // `Workbook`/`Book` stream opens with a BIFF8 `BOF`. Its detector is likewise
+        // built **on top of** the CFBF detector and runs here (after the Word detector,
+        // which cannot match an Excel compound file), before the generic `Cfbf` claim,
+        // so a `.xls` becomes `Xls` while a generic compound file stays `Cfbf`.
+        #[cfg(feature = "xls")]
+        if crate::adapter::xls::detect(source, limits) {
+            return DocumentFormat::Xls;
+        }
+        // A legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) source is a CFBF compound file
+        // whose `PowerPoint Document` stream opens with a `Document` record (recVer
+        // 0xF, recType 1000). Its detector is likewise built **on top of** the CFBF
+        // detector and runs here (after the Word and Excel detectors, which cannot
+        // match a PowerPoint compound file), before the generic `Cfbf` claim, so a
+        // `.ppt` becomes `Ppt` while a generic compound file stays `Cfbf`.
+        #[cfg(feature = "ppt")]
+        if crate::adapter::ppt::detect(source, limits) {
+            return DocumentFormat::Ppt;
+        }
+        // A legacy Outlook message (`.msg`, MS-OXMSG) source is a CFBF compound file
+        // whose root storage has a `__properties_version1.0` stream. Its detector is
+        // likewise built **on top of** the CFBF detector and runs here (after the
+        // Word, Excel, and PowerPoint detectors and before the generic `Cfbf` claim),
+        // so a `.msg` becomes `Msg` while a generic compound file stays `Cfbf`. The
+        // boundary is honest: an OLE file that merely has a root-level stream with that
+        // name is admitted here, and its derived model then declines typed if the
+        // stream is not a well-formed message property list.
+        #[cfg(feature = "msg")]
+        if crate::adapter::msg::detect(source, limits) {
+            return DocumentFormat::Msg;
+        }
         return DocumentFormat::Cfbf;
     }
     // Parquet is the **analytical** Wave-2 format (Phase 21.14), with no package

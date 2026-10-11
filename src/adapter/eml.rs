@@ -747,7 +747,12 @@ fn parse_content_type(raw: Option<&str>) -> ContentType {
         let val = unquote(v.trim());
         match key.as_str() {
             "boundary" => boundary = Some(val),
+            // RFC 2231/5987 extended parameter syntax (`boundary*=`): the value is
+            // `charset'language'<percent-encoded value>`; the declared boundary is the
+            // decoded value. Real mail (e.g. `multipart/signed`) uses this form.
+            "boundary*" => boundary = Some(decode_rfc2231_extended(&val)),
             "charset" => charset = Some(val.to_ascii_lowercase()),
+            "charset*" => charset = Some(decode_rfc2231_extended(&val).to_ascii_lowercase()),
             _ => {}
         }
     }
@@ -756,6 +761,38 @@ fn parse_content_type(raw: Option<&str>) -> ContentType {
         boundary,
         charset,
     }
+}
+
+/// Decode an RFC 2231/5987 **extended parameter value** (`charset'language'value`):
+/// drop the `charset`/`language` prefix (up to the second `'`) and percent-decode
+/// the remainder (`%XX`). A value with no `'` prefix is percent-decoded as-is.
+fn decode_rfc2231_extended(s: &str) -> String {
+    let mut it = s.splitn(3, '\'');
+    let _charset = it.next();
+    let _language = it.next();
+    let value = it.next().unwrap_or(s);
+    percent_decode(value)
+}
+
+/// Percent-decode `%XX` escapes (RFC 3986); a malformed `%` sequence is kept
+/// verbatim (never a panic, never a partial byte).
+fn percent_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%'
+            && i + 2 < b.len()
+            && let (Some(hi), Some(lo)) = (hexval(b[i + 1]), hexval(b[i + 2]))
+        {
+            out.push((hi << 4) | lo);
+            i += 3;
+            continue;
+        }
+        out.push(b[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 /// Strip a single level of surrounding double quotes.
@@ -1558,6 +1595,27 @@ mod tests {
         assert!(!detect(b"From: Alpha to Beta\n", Limits::DEFAULT));
         // A header block without From/Date/Message-ID/MIME-Version is Opaque.
         assert!(!detect(b"X-Other: 1\nX-More: 2\n\nbody\n", Limits::DEFAULT));
+    }
+
+    #[test]
+    fn rfc2231_extended_boundary_is_decoded() {
+        // A real message declares its boundary with the RFC 2231 extended-parameter
+        // syntax (`boundary*=charset'lang'value`); the boundary is the decoded value,
+        // so the message is detected and its MIME tree is modeled.
+        let doc = b"From: a@b\r\nDate: x\r\nMessage-ID: <m>\r\nContent-Type: multipart/mixed; boundary*=\"utf-8'en'BND\"\r\n\r\npreamble\r\n--BND\r\nContent-Type: text/plain\r\n\r\nhi\r\n--BND--\r\n";
+        assert!(detect(doc, Limits::DEFAULT));
+        let m = parse(doc, Limits::DEFAULT).unwrap();
+        assert_eq!(m.parts.len(), 2);
+        let root = m.part(0).unwrap();
+        assert_eq!(root.boundary.as_deref(), Some("BND"));
+        // A `multipart/signed` root (declined for descent, as S/MIME) still *detects*
+        // when its boundary is an RFC 2231 extended parameter (the msg_33 real case).
+        let signed = b"From: a@b\r\nDate: x\r\nMessage-ID: <m>\r\nContent-Type: multipart/signed; micalg*=utf-8''pgp-md5; boundary*=\"iso-8859-1''SIGBND\"\r\n\r\n--SIGBND--\r\n";
+        assert!(detect(signed, Limits::DEFAULT));
+        // A malformed extended value (no usable boundary) still declines rather than
+        // admitting an unmodellable multipart.
+        let bad = b"From: a@b\r\nDate: x\r\nMessage-ID: <m>\r\nContent-Type: multipart/mixed; boundary*=\"utf-8''\"\r\n\r\nbody\r\n";
+        assert!(!detect(bad, Limits::DEFAULT));
     }
 
     #[test]

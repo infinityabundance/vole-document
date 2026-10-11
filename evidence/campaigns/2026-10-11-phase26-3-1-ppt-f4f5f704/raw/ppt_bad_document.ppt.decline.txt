@@ -1,0 +1,1 @@
+error: InvalidPptStructure: ppt: a record extends past its enclosing container

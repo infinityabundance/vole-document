@@ -1657,6 +1657,142 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::DocModel => {
+            // The canonical legacy Word 97–2003 (`.doc`, MS-DOC) semantic model is
+            // derived on demand from the exact source. A `.doc` has no package layer
+            // beyond the reused CFBF physical layer, so its single dependency is the
+            // exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the
+            // model node *reads the source bytes*, so it must carry a source-identity
+            // input, never alias another field's source. Parsing (on top of the CFBF
+            // resolver) and all bounds live in `adapter::doc`.
+            #[cfg(feature = "doc")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("DocModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::doc::build_doc_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "doc"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "legacy Word support is not compiled in (feature `doc`)",
+                ));
+            }
+        }
+        NodeKind::XlsModel => {
+            // The canonical legacy Excel 97–2003 (`.xls`, BIFF8) semantic model is
+            // derived on demand from the exact source. A `.xls` has no package layer
+            // beyond the reused CFBF physical layer, so its single dependency is the
+            // exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the
+            // model node *reads the source bytes*, so it must carry a source-identity
+            // input, never alias another field's source. Parsing (on top of the CFBF
+            // resolver) and all bounds live in `adapter::xls`.
+            #[cfg(feature = "xls")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("XlsModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::xls::build_xls_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "xls"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "legacy Excel support is not compiled in (feature `xls`)",
+                ));
+            }
+        }
+        NodeKind::PptModel => {
+            // The canonical legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) semantic model is
+            // derived on demand from the exact source. A `.ppt` has no package layer
+            // beyond the reused CFBF physical layer, so its single dependency is the
+            // exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the
+            // model node *reads the source bytes*, so it must carry a source-identity
+            // input, never alias another field's source. Parsing (on top of the CFBF
+            // resolver) and all bounds live in `adapter::ppt`.
+            #[cfg(feature = "ppt")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PptModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::ppt::build_ppt_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "ppt"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "legacy PowerPoint support is not compiled in (feature `ppt`)",
+                ));
+            }
+        }
+        NodeKind::MsgModel => {
+            // The canonical legacy Outlook message (`.msg`, MS-OXMSG) semantic model is
+            // derived on demand from the exact source. A `.msg` has no package layer
+            // beyond the reused CFBF physical layer, so its single dependency is the
+            // exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the
+            // model node *reads the source bytes*, so it must carry a source-identity
+            // input, never alias another field's source. Parsing (on top of the CFBF
+            // resolver) and all bounds live in `adapter::msg`.
+            #[cfg(feature = "msg")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("MsgModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::msg::build_msg_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "msg"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "legacy Outlook message support is not compiled in (feature `msg`)",
+                ));
+            }
+        }
         NodeKind::YamlModel => {
             // The canonical YAML structured-tree model is derived on demand from the
             // exact source. YAML has no package layer, so its single dependency is

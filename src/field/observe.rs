@@ -109,6 +109,12 @@ use crate::adapter::csv::{
     record_at as csv_record_at, record_bytes as csv_record_bytes,
     sniff_dialect as csv_sniff_dialect,
 };
+#[cfg(feature = "doc")]
+use crate::adapter::doc::{
+    DocModel, DocPiece, canonical_text as doc_canonical_text, field_name as doc_field_name,
+    find as doc_find_matches, piece_bytes as doc_piece_bytes, piece_text as doc_piece_text,
+    version_name as doc_version_name,
+};
 #[cfg(feature = "docx")]
 use crate::adapter::docx::wml::StoryModel;
 #[cfg(feature = "docx")]
@@ -223,6 +229,12 @@ use crate::adapter::mhtml::{
     MhtmlModel, find as mhtml_find_matches, resource_bytes as mhtml_resource_bytes,
     root_body_bytes as mhtml_root_body_bytes,
 };
+#[cfg(feature = "msg")]
+use crate::adapter::msg::{
+    MsgModel, MsgProperty, MsgStorage, MsgSubstream, canonical_text as msg_canonical_text,
+    field_name as msg_field_name, find as msg_find_matches, property_name as msg_property_name,
+    property_type_name as msg_property_type_name,
+};
 #[cfg(feature = "msgpack")]
 use crate::adapter::msgpack::{
     MsgpackModel, canonical_text as msgpack_canonical_text, decode_text as msgpack_decode_text,
@@ -271,6 +283,12 @@ use crate::adapter::pkgmeta::{
     section_bytes as pkgmeta_section_bytes, section_kind_name as pkgmeta_section_kind_name,
     section_name as pkgmeta_section_name,
 };
+#[cfg(feature = "ppt")]
+use crate::adapter::ppt::{
+    PptModel, PptRun, PptSlide, canonical_text as ppt_canonical_text, field_name as ppt_field_name,
+    find as ppt_find_matches, record_type_name as ppt_record_type_name,
+    run_kind_name as ppt_run_kind_name, slide_list_name as ppt_slide_list_name,
+};
 #[cfg(feature = "pptx")]
 use crate::adapter::pptx::{
     NotesModel as PptxNotesModel, PptxExtractProfile, PptxModel, PptxShape, PptxTable,
@@ -302,6 +320,14 @@ use crate::adapter::toml::{
     resolve_path as toml_resolve_path, scalar_spelling as toml_scalar_spelling,
     string_content as toml_string_content, table_keys as toml_table_keys,
     token_bytes as toml_token_bytes,
+};
+#[cfg(feature = "xls")]
+use crate::adapter::xls::{
+    XlsCell, XlsModel, XlsSheet, canonical_text as xls_canonical_text,
+    cell_kind_name as xls_cell_kind_name, field_name as xls_field_name, find as xls_find_matches,
+    rk_value as xls_rk_value, sheet_type_name as xls_sheet_type_name, state_name as xls_state_name,
+    stream_name as xls_stream_name, substream_name as xls_substream_name,
+    version_name as xls_version_name,
 };
 #[cfg(feature = "xlsx")]
 use crate::adapter::xlsx::{
@@ -346,6 +372,8 @@ use crate::field::index::SEL_CONFIG_MODEL;
 use crate::field::index::SEL_CONTAINER_MODEL;
 #[cfg(feature = "csv")]
 use crate::field::index::SEL_CSV_MODEL;
+#[cfg(feature = "doc")]
+use crate::field::index::SEL_DOC_MODEL;
 #[cfg(feature = "docx")]
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "eml")]
@@ -378,6 +406,8 @@ use crate::field::index::SEL_MARKDOWN_MODEL;
 use crate::field::index::SEL_MDX_MODEL;
 #[cfg(feature = "mhtml")]
 use crate::field::index::SEL_MHTML_MODEL;
+#[cfg(feature = "msg")]
+use crate::field::index::SEL_MSG_MODEL;
 #[cfg(feature = "msgpack")]
 use crate::field::index::SEL_MSGPACK_MODEL;
 #[cfg(feature = "notebook")]
@@ -394,6 +424,8 @@ use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::SEL_PARQUET_MODEL;
 #[cfg(feature = "pkgmeta")]
 use crate::field::index::SEL_PKGMETA_MODEL;
+#[cfg(feature = "ppt")]
+use crate::field::index::SEL_PPT_MODEL;
 #[cfg(feature = "pptx")]
 use crate::field::index::SEL_PPTX_MODEL;
 #[cfg(feature = "rst")]
@@ -402,6 +434,8 @@ use crate::field::index::SEL_RST_MODEL;
 use crate::field::index::SEL_RTF_MODEL;
 #[cfg(feature = "toml")]
 use crate::field::index::SEL_TOML_MODEL;
+#[cfg(feature = "xls")]
+use crate::field::index::SEL_XLS_MODEL;
 #[cfg(feature = "xlsx")]
 use crate::field::index::SEL_XLSX_MODEL;
 #[cfg(feature = "xml")]
@@ -2063,6 +2097,159 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The legacy Word 97–2003 (`.doc`, MS-DOC) FIB (Phase 26.1): the `wIdent`, the
+    /// `nFib` with its recorded Word version, the `fWhichTblStm` flag (selecting
+    /// `0Table`/`1Table`), the `fcMin`/`fcMac` bounds, the `ccp*` section counts, and
+    /// the `fcClx`/`lcbClx` piece-table location, with the exact stream spans. `Text`
+    /// returns the Word version name; `Metadata`/`Structure` the descriptor JSON.
+    #[cfg(feature = "doc")]
+    DocFib,
+    /// The `index`-th piece of the legacy Word 97–2003 (`.doc`) piece table (0-based,
+    /// piece order) (Phase 26.1): its CP range, resolved `fc`, compressed flag, and its
+    /// exact byte span in the `WordDocument` stream. `ExactBytes` returns the piece's
+    /// exact bytes; `Text` its decoded text; `Metadata`/`Structure` a descriptor. An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "doc")]
+    DocPiece {
+        /// The 0-based piece index (piece order).
+        index: u32,
+    },
+    /// The document text of a legacy Word 97–2003 (`.doc`) source (Phase 26.1): the
+    /// concatenation of the piece texts over the main-text range `[0, ccpText)`.
+    /// `Text` returns it.
+    #[cfg(feature = "doc")]
+    DocText,
+    /// A bounded, case-sensitive lexical search over each piece's decoded text
+    /// (Phase 26.1). A match is reported only within one piece. Never an embedding or a
+    /// model call.
+    #[cfg(feature = "doc")]
+    DocFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The legacy Excel 97–2003 (`.xls`, BIFF8) BIFF header (Phase 26.2): the BIFF
+    /// version with its name, the `Workbook`/`Book` stream selection, the root substream
+    /// type, the record count, and the exact stream span. `Text` returns the BIFF
+    /// version name; `Metadata`/`Structure` the descriptor JSON.
+    #[cfg(feature = "xls")]
+    XlsBiff,
+    /// The `index`-th sheet (`BOUNDSHEET`, 0-based, sheet order) of a legacy Excel
+    /// 97–2003 (`.xls`) workbook (Phase 26.2): its name, `BOF` stream position, sheet
+    /// type, visibility state, its `BOF` and `DIMENSIONS` spans, and its cell range.
+    /// An out-of-range index declines typed.
+    #[cfg(feature = "xls")]
+    XlsSheet {
+        /// The 0-based sheet index (sheet order).
+        index: u32,
+    },
+    /// The `index`-th cell (0-based, the sheet-ordered cell arena) of a legacy Excel
+    /// 97–2003 (`.xls`) workbook (Phase 26.2): its kind, row/column, exact record span,
+    /// and exact stored value spelling (`RK`'s compact numeric encoding is decoded). An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "xls")]
+    XlsCell {
+        /// The 0-based global cell index (sheet order, then record order).
+        index: u32,
+    },
+    /// The `index`-th BIFF record (0-based, stream order) of a legacy Excel 97–2003
+    /// (`.xls`) workbook (Phase 26.2): its id (with a stable name), payload length,
+    /// stream offset, and exact record/payload spans. An out-of-range index declines
+    /// typed.
+    #[cfg(feature = "xls")]
+    XlsRecord {
+        /// The 0-based record index (stream order).
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over each sheet name and each shared
+    /// string of a legacy Excel 97–2003 (`.xls`) workbook (Phase 26.2). Never an
+    /// embedding or a model call.
+    #[cfg(feature = "xls")]
+    XlsFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) `Document` header (Phase 26.3):
+    /// the record count, the slide count, the text-run counts, the `Current User`
+    /// presence, and the exact `PowerPoint Document` stream span. `Text` returns the
+    /// stable version name; `Metadata`/`Structure` the descriptor JSON.
+    #[cfg(feature = "ppt")]
+    PptDocument,
+    /// The `index`-th slide (0-based, `SlideListWithText`/`SlidePersistAtom` order) of a
+    /// legacy PowerPoint 97–2003 (`.ppt`) presentation (Phase 26.3): its `persistIdRef`,
+    /// declared `cTexts`, its `SlidePersistAtom` span, and its run range. An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "ppt")]
+    PptSlide {
+        /// The 0-based slide index (slide-list order).
+        index: u32,
+    },
+    /// The `index`-th text run (0-based, the slide-ordered run arena) of a legacy
+    /// PowerPoint 97–2003 (`.ppt`) presentation (Phase 26.3): its slide, kind
+    /// (`chars`/`bytes`), exact text-atom span, and decoded text. `ExactBytes` returns
+    /// the text atom's exact bytes; an out-of-range index declines typed.
+    #[cfg(feature = "ppt")]
+    PptRun {
+        /// The 0-based global run index (slide order, then record order).
+        index: u32,
+    },
+    /// The `index`-th MS-PPT record (0-based, stream order) of a legacy PowerPoint
+    /// 97–2003 (`.ppt`) presentation (Phase 26.3): its `recVer`, `recInstance`,
+    /// `recType` (with a stable name), payload length, stream offset, nesting depth,
+    /// and exact record/payload spans. An out-of-range index declines typed.
+    #[cfg(feature = "ppt")]
+    PptRecord {
+        /// The 0-based record index (stream order).
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over each decoded text run of a legacy
+    /// PowerPoint 97–2003 (`.ppt`) presentation (Phase 26.3). Never an embedding or a
+    /// model call.
+    #[cfg(feature = "ppt")]
+    PptFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The legacy Outlook message (`.msg`, MS-OXMSG) summary (Phase 26.4): the message
+    /// header, the property/substream/recipient/attachment counts, the aggregate
+    /// decoded text units, and the exact `__properties_version1.0` stream span. `Text`
+    /// returns the stable version name; `Metadata`/`Structure` the descriptor JSON.
+    #[cfg(feature = "msg")]
+    MsgSummary,
+    /// The `index`-th top-level fixed-size property entry (0-based, property order) of
+    /// a legacy Outlook message (Phase 26.4): its raw tag (and id/type), the well-known
+    /// property name, the flags, the 8 value bytes, the owning storage, and the exact
+    /// 16-byte entry span. `ExactBytes` returns the entry's exact bytes; an out-of-range
+    /// index declines typed.
+    #[cfg(feature = "msg")]
+    MsgProperty {
+        /// The 0-based property-entry index (property order).
+        index: u32,
+    },
+    /// The `index`-th recipient sub-storage (0-based, directory order) of a legacy
+    /// Outlook message (Phase 26.4): its id, directory index, exact storage/property
+    /// spans, and its own property entries and substreams. `ExactBytes` returns the
+    /// storage's exact 128-byte directory entry; an out-of-range index declines typed.
+    #[cfg(feature = "msg")]
+    MsgRecipient {
+        /// The 0-based recipient index (directory order).
+        index: u32,
+    },
+    /// The `index`-th attachment sub-storage (0-based, directory order) of a legacy
+    /// Outlook message (Phase 26.4): its id, directory index, exact storage/property
+    /// spans, and its own property entries and substreams. `ExactBytes` returns the
+    /// storage's exact 128-byte directory entry; an out-of-range index declines typed.
+    #[cfg(feature = "msg")]
+    MsgAttachment {
+        /// The 0-based attachment index (directory order).
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over each decoded substream text of a
+    /// legacy Outlook message (Phase 26.4). Never an embedding or a model call.
+    #[cfg(feature = "msg")]
+    MsgFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2700,6 +2887,44 @@ impl Selector {
             Selector::CfbfStream { index } => format!("cfbf-stream:{index}"),
             #[cfg(feature = "cfbf")]
             Selector::CfbfFind { pattern } => format!("cfbf-find:{pattern}"),
+            #[cfg(feature = "doc")]
+            Selector::DocFib => "doc-fib".to_string(),
+            #[cfg(feature = "doc")]
+            Selector::DocPiece { index } => format!("doc-piece:{index}"),
+            #[cfg(feature = "doc")]
+            Selector::DocText => "doc-text".to_string(),
+            #[cfg(feature = "doc")]
+            Selector::DocFind { pattern } => format!("doc-find:{pattern}"),
+            #[cfg(feature = "xls")]
+            Selector::XlsBiff => "xls-biff".to_string(),
+            #[cfg(feature = "xls")]
+            Selector::XlsSheet { index } => format!("xls-sheet:{index}"),
+            #[cfg(feature = "xls")]
+            Selector::XlsCell { index } => format!("xls-cell:{index}"),
+            #[cfg(feature = "xls")]
+            Selector::XlsRecord { index } => format!("xls-record:{index}"),
+            #[cfg(feature = "xls")]
+            Selector::XlsFind { pattern } => format!("xls-find:{pattern}"),
+            #[cfg(feature = "ppt")]
+            Selector::PptDocument => "ppt-document".to_string(),
+            #[cfg(feature = "ppt")]
+            Selector::PptSlide { index } => format!("ppt-slide:{index}"),
+            #[cfg(feature = "ppt")]
+            Selector::PptRun { index } => format!("ppt-run:{index}"),
+            #[cfg(feature = "ppt")]
+            Selector::PptRecord { index } => format!("ppt-record:{index}"),
+            #[cfg(feature = "ppt")]
+            Selector::PptFind { pattern } => format!("ppt-find:{pattern}"),
+            #[cfg(feature = "msg")]
+            Selector::MsgSummary => "msg-summary".to_string(),
+            #[cfg(feature = "msg")]
+            Selector::MsgProperty { index } => format!("msg-property:{index}"),
+            #[cfg(feature = "msg")]
+            Selector::MsgRecipient { index } => format!("msg-recipient:{index}"),
+            #[cfg(feature = "msg")]
+            Selector::MsgAttachment { index } => format!("msg-attachment:{index}"),
+            #[cfg(feature = "msg")]
+            Selector::MsgFind { pattern } => format!("msg-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -5086,6 +5311,78 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "cfbf")]
             (Selector::CfbfFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.cfbf_find(req, pattern)
+            }
+            #[cfg(feature = "doc")]
+            (Selector::DocFib, R::Text | R::Metadata | R::Structure) => self.doc_fib(req),
+            #[cfg(feature = "doc")]
+            (
+                Selector::DocPiece { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.doc_piece(req, *index),
+            #[cfg(feature = "doc")]
+            (Selector::DocText, R::Text | R::Metadata | R::Structure) => self.doc_text(req),
+            #[cfg(feature = "doc")]
+            (Selector::DocFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.doc_find(req, pattern)
+            }
+            #[cfg(feature = "xls")]
+            (Selector::XlsBiff, R::Text | R::Metadata | R::Structure) => self.xls_biff(req),
+            #[cfg(feature = "xls")]
+            (Selector::XlsSheet { index }, R::Text | R::Metadata | R::Structure) => {
+                self.xls_sheet(req, *index)
+            }
+            #[cfg(feature = "xls")]
+            (Selector::XlsCell { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.xls_cell(req, *index)
+            }
+            #[cfg(feature = "xls")]
+            (
+                Selector::XlsRecord { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.xls_record(req, *index),
+            #[cfg(feature = "xls")]
+            (Selector::XlsFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.xls_find(req, pattern)
+            }
+            #[cfg(feature = "ppt")]
+            (Selector::PptDocument, R::Text | R::Metadata | R::Structure) => self.ppt_document(req),
+            #[cfg(feature = "ppt")]
+            (Selector::PptSlide { index }, R::Text | R::Metadata | R::Structure) => {
+                self.ppt_slide(req, *index)
+            }
+            #[cfg(feature = "ppt")]
+            (Selector::PptRun { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.ppt_run(req, *index)
+            }
+            #[cfg(feature = "ppt")]
+            (
+                Selector::PptRecord { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.ppt_record(req, *index),
+            #[cfg(feature = "ppt")]
+            (Selector::PptFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.ppt_find(req, pattern)
+            }
+            #[cfg(feature = "msg")]
+            (Selector::MsgSummary, R::Text | R::Metadata | R::Structure) => self.msg_summary(req),
+            #[cfg(feature = "msg")]
+            (
+                Selector::MsgProperty { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.msg_property(req, *index),
+            #[cfg(feature = "msg")]
+            (
+                Selector::MsgRecipient { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.msg_recipient(req, *index),
+            #[cfg(feature = "msg")]
+            (
+                Selector::MsgAttachment { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.msg_attachment(req, *index),
+            #[cfg(feature = "msg")]
+            (Selector::MsgFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.msg_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -10461,6 +10758,54 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Doc => {
+                #[cfg(feature = "doc")]
+                {
+                    self.common_doc(req)?
+                }
+                #[cfg(not(feature = "doc"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "legacy Word support is not compiled in (feature `doc`)",
+                    ));
+                }
+            }
+            DocumentFormat::Xls => {
+                #[cfg(feature = "xls")]
+                {
+                    self.common_xls(req)?
+                }
+                #[cfg(not(feature = "xls"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "legacy Excel support is not compiled in (feature `xls`)",
+                    ));
+                }
+            }
+            DocumentFormat::Ppt => {
+                #[cfg(feature = "ppt")]
+                {
+                    self.common_ppt(req)?
+                }
+                #[cfg(not(feature = "ppt"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "legacy PowerPoint support is not compiled in (feature `ppt`)",
+                    ));
+                }
+            }
+            DocumentFormat::Msg => {
+                #[cfg(feature = "msg")]
+                {
+                    self.common_msg(req)?
+                }
+                #[cfg(not(feature = "msg"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "legacy Outlook message support is not compiled in (feature `msg`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -14837,6 +15182,1145 @@ impl<S: SeedStore> Ctx<'_, S> {
             span,
             vec![model_id, root],
         ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy Word 97–2003 (`.doc`, MS-DOC) observations (Phase 26.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "doc")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the legacy-DOC model (derived, `Q_gen`).
+    fn doc_model(&mut self) -> Result<(DocModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_DOC_MODEL, 0), "doc model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((DocModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the read
+    /// is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn doc_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn doc_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn doc_text_units(model: &DocModel) -> u64 {
+        model.pieces.iter().map(|p| p.text.len() as u64).sum()
+    }
+
+    fn doc_fib_json(model: &DocModel) -> String {
+        let f = &model.fib;
+        format!(
+            concat!(
+                "{{\"format\":\"doc\",\"version\":\"{}\",\"nFib\":{},\"table\":\"{}\",",
+                "\"pieces\":{},\"text_units\":{},\"ccp_text\":{},\"ccp_ftn\":{},",
+                "\"ccp_hdd\":{},\"fc_min\":{},\"fc_mac\":{},\"fc_clx\":{},\"lcb_clx\":{},",
+                "\"wd_span\":[{},{}],\"tbl_span\":[{},{}],\"clx_span\":[{},{}]}}"
+            ),
+            doc_version_name(f.n_fib),
+            f.n_fib,
+            f.table_stream(),
+            model.pieces.len(),
+            Self::doc_text_units(model),
+            f.ccp_text,
+            f.ccp_ftn,
+            f.ccp_hdd,
+            f.fc_min,
+            f.fc_mac,
+            f.fc_clx,
+            f.lcb_clx,
+            model.wd_span.0,
+            model.wd_span.1,
+            model.tbl_span.0,
+            model.tbl_span.1,
+            model.clx_span.0,
+            model.clx_span.1,
+        )
+    }
+
+    fn doc_piece_json(model: &DocModel, index: u32, p: &DocPiece) -> String {
+        let doc_span = model.piece_source_span(p);
+        format!(
+            concat!(
+                "{{\"index\":{},\"cp_start\":{},\"cp_end\":{},\"fc\":{},",
+                "\"compressed\":{},\"units\":{},\"span\":[{},{}],\"doc_span\":[{},{}]}}"
+            ),
+            index,
+            p.cp_start,
+            p.cp_end,
+            p.fc,
+            p.compressed,
+            p.text.len(),
+            p.span.0,
+            p.span.1,
+            doc_span.0,
+            doc_span.1,
+        )
+    }
+
+    /// The legacy-DOC FIB and version, from the model.
+    fn doc_fib(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (_, root) = self.doc_source()?;
+        let v = doc_version_name(model.fib.n_fib);
+        let provenance = format!(
+            "doc;version={v};nFib={};pieces={}",
+            model.fib.n_fib,
+            model.pieces.len()
+        );
+        let span = Some(model.wd_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(v.to_string()),
+            _ => AnswerValue::Json(Self::doc_fib_json(&model)),
+        };
+        Ok(self.doc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th piece of the piece table (0-based, piece order).
+    fn doc_piece(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (source, root) = self.doc_source()?;
+        let p = model
+            .piece(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("doc has no piece {index}")))?;
+        let span = Some(model.piece_source_span(p));
+        let provenance = format!(
+            "doc;piece={index};cp={}:{};compressed={}",
+            p.cp_start, p.cp_end, p.compressed
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(doc_piece_bytes(&source, &model, p)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(doc_piece_text(p)),
+            _ => AnswerValue::Json(Self::doc_piece_json(&model, index, p)),
+        };
+        Ok(self.doc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The document text (the concatenation of the piece texts over `[0, ccpText)`).
+    fn doc_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (source, root) = self.doc_source()?;
+        let text = doc_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some(model.wd_span);
+        Ok(self.doc_answer(
+            req,
+            AnswerValue::Text(text),
+            "doc;text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over each piece's decoded text.
+    fn doc_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (_, root) = self.doc_source()?;
+        let matches = doc_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let base = model.wd_span.0;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"piece\":{},\"field\":\"{}\",\"span\":[{},{}],\"text\":\"{}\"}}"),
+                m.piece,
+                doc_field_name(m.field),
+                base.saturating_add(m.start),
+                base.saturating_add(m.end),
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("doc;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.doc_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_doc(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.doc_common_metadata(req),
+            Selector::Text => self.doc_text(req),
+            Selector::SearchMatch(p) => self.doc_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "doc does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn doc_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (source, root) = self.doc_source()?;
+        let value = AnswerValue::Json(Self::doc_fib_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.doc_answer(
+            req,
+            value,
+            "doc;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy Excel 97–2003 (`.xls`, BIFF8) observations (Phase 26.2)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "xls")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the legacy-XLS model (derived, `Q_gen`).
+    fn xls_model(&mut self) -> Result<(XlsModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_XLS_MODEL, 0), "xls model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((XlsModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the read
+    /// is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn xls_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn xls_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn xls_meta_json(model: &XlsModel) -> String {
+        let (sst_total, sst_unique, sst_strings) = match &model.sst {
+            Some(s) => (s.cst_total, s.cst_unique, s.strings.len() as u32),
+            None => (0, 0, 0),
+        };
+        format!(
+            concat!(
+                "{{\"format\":\"xls\",\"version\":\"{}\",\"biff_version\":{},",
+                "\"stream\":\"{}\",\"root_substream\":\"{}\",\"records\":{},",
+                "\"sheets\":{},\"sst_total\":{},\"sst_unique\":{},\"sst_strings\":{},",
+                "\"cells\":{},\"text_units\":{},\"xf\":{},\"formats\":{},",
+                "\"wb_span\":[{},{}]}}"
+            ),
+            xls_version_name(model.biff_version),
+            model.biff_version,
+            xls_stream_name(model.stream_name),
+            xls_substream_name(model.root_substream),
+            model.records.len(),
+            model.sheets.len(),
+            sst_total,
+            sst_unique,
+            sst_strings,
+            model.cells.len(),
+            model.text_units(),
+            model.xf_spans.len(),
+            model.format_spans.len(),
+            model.wb_span.0,
+            model.wb_span.1,
+        )
+    }
+
+    fn xls_cell_value_json(model: &XlsModel, cell: &XlsCell) -> String {
+        match cell.kind {
+            crate::adapter::xls::CELL_LABELSST => {
+                let text = model.label_text(cell).unwrap_or_default();
+                format!(
+                    "{{\"kind\":\"labelsst\",\"isst\":{},\"text\":\"{}\"}}",
+                    cell.isst,
+                    json_escape(&text)
+                )
+            }
+            crate::adapter::xls::CELL_NUMBER => format!(
+                "{{\"kind\":\"number\",\"num\":{}}}",
+                json_num(f64::from_bits(cell.num_bits))
+            ),
+            crate::adapter::xls::CELL_RK => format!(
+                "{{\"kind\":\"rk\",\"rk\":{},\"value\":{}}}",
+                cell.rk_raw,
+                json_num(xls_rk_value(cell.rk_raw))
+            ),
+            crate::adapter::xls::CELL_BOOLERR => format!(
+                "{{\"kind\":\"boolerr\",\"value\":{},\"error\":{}}}",
+                cell.bool_err, cell.is_error
+            ),
+            crate::adapter::xls::CELL_FORMULA => {
+                if cell.has_string {
+                    format!(
+                        "{{\"kind\":\"formula\",\"special\":\"string\",\"text\":\"{}\"}}",
+                        json_escape(&String::from_utf16_lossy(&cell.text))
+                    )
+                } else if cell.formula_special == crate::adapter::xls::FORMULA_NUMERIC {
+                    format!(
+                        "{{\"kind\":\"formula\",\"num\":{}}}",
+                        json_num(f64::from_bits(cell.num_bits))
+                    )
+                } else {
+                    format!(
+                        "{{\"kind\":\"formula\",\"special\":{}}}",
+                        cell.formula_special
+                    )
+                }
+            }
+            crate::adapter::xls::CELL_BLANK => "{\"kind\":\"blank\"}".to_string(),
+            _ => "{\"kind\":\"mulblank\"}".to_string(),
+        }
+    }
+
+    fn xls_sheet_json(index: u32, sheet: &XlsSheet) -> String {
+        format!(
+            concat!(
+                "{{\"index\":{},\"name\":\"{}\",\"pos\":{},\"type\":\"{}\",",
+                "\"state\":\"{}\",\"compressed\":{},\"cells\":[{},{}],",
+                "\"bof_span\":[{},{}],\"dim_span\":[{},{}],\"rows\":{},",
+                "\"rec_span\":[{},{}]}}"
+            ),
+            index,
+            json_escape(&String::from_utf16_lossy(&sheet.name)),
+            sheet.pos,
+            xls_sheet_type_name(sheet.dt),
+            xls_state_name(sheet.state),
+            sheet.name_compressed,
+            sheet.cell_start,
+            sheet.cell_end,
+            sheet.bof_span.0,
+            sheet.bof_span.1,
+            sheet.dim_span.0,
+            sheet.dim_span.1,
+            sheet.row_spans.len(),
+            sheet.rec_span.0,
+            sheet.rec_span.1,
+        )
+    }
+
+    fn xls_record_json(rec: &crate::adapter::xls::XlsRecord) -> String {
+        let pl = rec.payload_span();
+        format!(
+            concat!(
+                "{{\"id\":{},\"id_hex\":\"0x{:04X}\",\"len\":{},\"stream_off\":{},",
+                "\"span\":[{},{}],\"payload\":[{},{}]}}"
+            ),
+            rec.id, rec.id, rec.len, rec.stream_off, rec.span.0, rec.span.1, pl.0, pl.1,
+        )
+    }
+
+    /// The legacy-XLS BIFF header, from the model.
+    fn xls_biff(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (_, root) = self.xls_source()?;
+        let v = xls_version_name(model.biff_version);
+        let provenance = format!(
+            "xls;version={v};records={};sheets={}",
+            model.records.len(),
+            model.sheets.len()
+        );
+        let span = Some(model.wb_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(v.to_string()),
+            _ => AnswerValue::Json(Self::xls_meta_json(&model)),
+        };
+        Ok(self.xls_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th sheet (0-based, sheet order).
+    fn xls_sheet(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (_, root) = self.xls_source()?;
+        let sheet = model
+            .sheet(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("xls has no sheet {index}")))?;
+        let name = String::from_utf16_lossy(&sheet.name);
+        let provenance = format!(
+            "xls;sheet={index};pos={};type={}",
+            sheet.pos,
+            xls_sheet_type_name(sheet.dt)
+        );
+        let span = Some(sheet.rec_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(name),
+            _ => AnswerValue::Json(Self::xls_sheet_json(index, sheet)),
+        };
+        Ok(self.xls_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th cell (0-based, the sheet-ordered cell arena).
+    fn xls_cell(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (source, root) = self.xls_source()?;
+        let cell = model
+            .cell(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("xls has no cell {index}")))?;
+        let provenance = format!(
+            "xls;cell={index};kind={};row={};col={}",
+            xls_cell_kind_name(cell.kind),
+            cell.row,
+            cell.col
+        );
+        let span = Some(cell.rec_span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, cell.rec_span)?),
+            Representation::Text => AnswerValue::Text(Self::xls_cell_value_json(&model, cell)),
+            _ => AnswerValue::Json(format!(
+                concat!("{{\"index\":{},\"row\":{},\"col\":{},\"span\":[{},{}],\"value\":{}}}"),
+                index,
+                cell.row,
+                cell.col,
+                cell.rec_span.0,
+                cell.rec_span.1,
+                Self::xls_cell_value_json(&model, cell),
+            )),
+        };
+        Ok(self.xls_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th BIFF record (0-based, stream order).
+    fn xls_record(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (source, root) = self.xls_source()?;
+        let rec = model
+            .records
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("xls has no record {index}")))?;
+        let provenance = format!("xls;record={index};id=0x{:04X}", rec.id);
+        let span = Some(rec.span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, rec.span)?),
+            Representation::Text => AnswerValue::Text(format!("0x{:04X}", rec.id)),
+            _ => AnswerValue::Json(Self::xls_record_json(rec)),
+        };
+        Ok(self.xls_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The sheet-ordered canonical text (sheet names and their label/formula strings).
+    fn xls_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (source, root) = self.xls_source()?;
+        let text = xls_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some(model.wb_span);
+        Ok(self.xls_answer(
+            req,
+            AnswerValue::Text(text),
+            "xls;text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over the sheet names and shared strings.
+    fn xls_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (_, root) = self.xls_source()?;
+        let matches = xls_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"field\":\"{}\",\"index\":{},\"span\":[{},{}],\"text\":\"{}\"}}"),
+                xls_field_name(m.field),
+                m.index,
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("xls;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.xls_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_xls(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.xls_common_metadata(req),
+            Selector::Text => self.xls_text(req),
+            Selector::SearchMatch(p) => self.xls_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "xls does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn xls_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.xls_model()?;
+        let (source, root) = self.xls_source()?;
+        let value = AnswerValue::Json(Self::xls_meta_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.xls_answer(
+            req,
+            value,
+            "xls;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+#[cfg(feature = "ppt")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the legacy-PPT model (derived, `Q_gen`).
+    fn ppt_model(&mut self) -> Result<(PptModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_PPT_MODEL, 0), "ppt model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((PptModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the read
+    /// is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn ppt_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn ppt_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn ppt_meta_json(model: &PptModel) -> String {
+        format!(
+            concat!(
+                "{{\"format\":\"ppt\",\"version\":\"{}\",\"stream\":\"{}\",",
+                "\"records\":{},\"slides\":{},\"runs\":{},\"chars\":{},\"bytes\":{},",
+                "\"text_units\":{},\"current_user\":{},\"stream_span\":[{},{}]}}"
+            ),
+            "powerpoint97-2003",
+            crate::adapter::ppt::STREAM_POWERPOINT_DOCUMENT,
+            model.records.len(),
+            model.slides.len(),
+            model.runs.len(),
+            model.char_runs(),
+            model.byte_runs(),
+            model.text_units(),
+            model.current_user.is_some(),
+            model.stream_span.0,
+            model.stream_span.1,
+        )
+    }
+
+    fn ppt_run_json(index: u32, run: &PptRun) -> String {
+        format!(
+            concat!(
+                "{{\"index\":{},\"slide\":{},\"kind\":\"{}\",\"rec_type\":{},",
+                "\"type\":\"{}\",\"span\":[{},{}],\"header_span\":[{},{}],\"text\":\"{}\"}}"
+            ),
+            index,
+            run.slide,
+            ppt_run_kind_name(run.kind),
+            run.rec_type,
+            ppt_record_type_name(run.rec_type),
+            run.span.0,
+            run.span.1,
+            run.header_span.0,
+            run.header_span.1,
+            json_escape(&String::from_utf16_lossy(&run.text)),
+        )
+    }
+
+    fn ppt_slide_json(index: u32, slide: &PptSlide, model: &PptModel) -> String {
+        let text: String = model
+            .slide_runs(slide)
+            .iter()
+            .map(|r| String::from_utf16_lossy(&r.text))
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!(
+            concat!(
+                "{{\"index\":{},\"persist_id_ref\":{},\"c_texts\":{},\"list\":\"{}\",",
+                "\"sp_span\":[{},{}],\"runs\":[{},{}],\"text\":\"{}\"}}"
+            ),
+            index,
+            slide.persist_id_ref,
+            slide.c_texts,
+            ppt_slide_list_name(slide.list_instance),
+            slide.sp_span.0,
+            slide.sp_span.1,
+            slide.run_start,
+            slide.run_end,
+            json_escape(&text),
+        )
+    }
+
+    fn ppt_record_json(rec: &crate::adapter::ppt::PptRecord) -> String {
+        let pl = rec.payload_span();
+        format!(
+            concat!(
+                "{{\"id\":{},\"id_hex\":\"0x{:04X}\",\"type\":\"{}\",",
+                "\"rec_ver\":{},\"rec_instance\":{},\"len\":{},\"depth\":{},",
+                "\"stream_off\":{},\"span\":[{},{}],\"payload\":[{},{}]}}"
+            ),
+            rec.rec_type,
+            rec.rec_type,
+            ppt_record_type_name(rec.rec_type),
+            rec.rec_ver,
+            rec.rec_instance,
+            rec.len,
+            rec.depth,
+            rec.stream_off,
+            rec.span.0,
+            rec.span.1,
+            pl.0,
+            pl.1,
+        )
+    }
+
+    /// The legacy-PPT `Document` header, from the model.
+    fn ppt_document(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (_, root) = self.ppt_source()?;
+        let v = "powerpoint97-2003";
+        let provenance = format!(
+            "ppt;version={v};records={};slides={}",
+            model.records.len(),
+            model.slides.len()
+        );
+        let span = Some(model.stream_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(v.to_string()),
+            _ => AnswerValue::Json(Self::ppt_meta_json(&model)),
+        };
+        Ok(self.ppt_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th slide (0-based, slide-list order).
+    fn ppt_slide(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (_, root) = self.ppt_source()?;
+        let slide = model
+            .slide(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("ppt has no slide {index}")))?;
+        let provenance = format!("ppt;slide={index};persist={}", slide.persist_id_ref);
+        let span = Some(slide.sp_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(
+                model
+                    .slide_runs(slide)
+                    .iter()
+                    .map(|r| String::from_utf16_lossy(&r.text))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ),
+            _ => AnswerValue::Json(Self::ppt_slide_json(index, slide, &model)),
+        };
+        Ok(self.ppt_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th text run (0-based, the slide-ordered run arena).
+    fn ppt_run(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (source, root) = self.ppt_source()?;
+        let run = model
+            .run(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("ppt has no run {index}")))?;
+        let provenance = format!(
+            "ppt;run={index};slide={};kind={}",
+            run.slide,
+            ppt_run_kind_name(run.kind)
+        );
+        let span = Some(run.span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, run.span)?),
+            Representation::Text => AnswerValue::Text(String::from_utf16_lossy(&run.text)),
+            _ => AnswerValue::Json(Self::ppt_run_json(index, run)),
+        };
+        Ok(self.ppt_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th MS-PPT record (0-based, stream order).
+    fn ppt_record(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (source, root) = self.ppt_source()?;
+        let rec = model
+            .records
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("ppt has no record {index}")))?;
+        let provenance = format!("ppt;record={index};id=0x{:04X}", rec.rec_type);
+        let span = Some(rec.span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, rec.span)?),
+            Representation::Text => AnswerValue::Text(format!("0x{:04X}", rec.rec_type)),
+            _ => AnswerValue::Json(Self::ppt_record_json(rec)),
+        };
+        Ok(self.ppt_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The slide-ordered canonical text (the run texts).
+    fn ppt_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (source, root) = self.ppt_source()?;
+        let text = ppt_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some(model.stream_span);
+        Ok(self.ppt_answer(
+            req,
+            AnswerValue::Text(text),
+            "ppt;text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over the decoded text runs.
+    fn ppt_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (_, root) = self.ppt_source()?;
+        let matches = ppt_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"field\":\"{}\",\"index\":{},\"span\":[{},{}],\"text\":\"{}\"}}"),
+                ppt_field_name(m.field),
+                m.index,
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("ppt;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.ppt_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_ppt(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.ppt_common_metadata(req),
+            Selector::Text => self.ppt_text(req),
+            Selector::SearchMatch(p) => self.ppt_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "ppt does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn ppt_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (source, root) = self.ppt_source()?;
+        let value = AnswerValue::Json(Self::ppt_meta_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.ppt_answer(
+            req,
+            value,
+            "ppt;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy Outlook message (`.msg`, MS-OXMSG) observations (Phase 26.4)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "msg")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the legacy-MSG model (derived, `Q_gen`).
+    fn msg_model(&mut self) -> Result<(MsgModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_MSG_MODEL, 0), "msg model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((MsgModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the read
+    /// is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn msg_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn msg_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn msg_summary_json(model: &MsgModel) -> String {
+        format!(
+            concat!(
+                "{{\"format\":\"msg\",\"version\":\"{}\",\"stream\":\"{}\",",
+                "\"nameid\":{},\"properties\":{},\"substreams\":{},\"recipients\":{},",
+                "\"attachments\":{},\"text_units\":{},\"property_span\":[{},{}],",
+                "\"header\":{{\"next_recipient_id\":{},\"next_attachment_id\":{},",
+                "\"recipient_count\":{},\"attachment_count\":{}}}}}"
+            ),
+            MSG_VERSION,
+            crate::adapter::msg::STREAM_PROPERTIES,
+            model.nameid_span.is_some(),
+            model.properties.len(),
+            model.all_substreams().len(),
+            model.recipients.len(),
+            model.attachments.len(),
+            model.text_units(),
+            model.property_span.0,
+            model.property_span.1,
+            model.header.next_recipient_id,
+            model.header.next_attachment_id,
+            model.header.recipient_count,
+            model.header.attachment_count,
+        )
+    }
+
+    fn msg_property_json(index: u32, p: &MsgProperty) -> String {
+        format!(
+            concat!(
+                "{{\"index\":{},\"tag\":{},\"tag_hex\":\"0x{:08X}\",\"id\":{},",
+                "\"id_hex\":\"0x{:04X}\",\"property\":\"{}\",\"type\":{},",
+                "\"type_name\":\"{}\",\"flags\":{},\"value_hex\":\"{}\",",
+                "\"span\":[{},{}],\"owner\":{}}}"
+            ),
+            index,
+            p.tag,
+            p.tag,
+            p.id(),
+            p.id(),
+            msg_property_name(p.id()),
+            p.prop_type(),
+            msg_property_type_name(p.prop_type()),
+            p.flags,
+            crate::integrity::to_hex(&p.value),
+            p.span.0,
+            p.span.1,
+            p.owner,
+        )
+    }
+
+    fn msg_substream_json(index: u32, owner: u32, s: &MsgSubstream) -> String {
+        let text = match &s.text {
+            Some(t) => format!("\"{}\"", json_escape(t)),
+            None => "null".to_string(),
+        };
+        format!(
+            concat!(
+                "{{\"index\":{},\"owner\":{},\"stream\":\"{}\",\"tag_hex\":\"0x{:08X}\",",
+                "\"id\":{},\"id_hex\":\"0x{:04X}\",\"property\":\"{}\",\"type\":{},",
+                "\"type_name\":\"{}\",\"dir_index\":{},\"span\":[{},{}],\"len\":{},",
+                "\"text\":{}}}"
+            ),
+            index,
+            owner,
+            json_escape(&s.name),
+            s.tag,
+            s.id(),
+            s.id(),
+            msg_property_name(s.id()),
+            s.prop_type(),
+            msg_property_type_name(s.prop_type()),
+            s.dir_index,
+            s.span.0,
+            s.span.1,
+            s.len,
+            text,
+        )
+    }
+
+    fn msg_storage_json(kind: &str, index: u32, s: &MsgStorage) -> String {
+        let mut subs: Vec<String> = Vec::new();
+        for (i, sub) in s.substreams.iter().enumerate() {
+            subs.push(Self::msg_substream_json(i as u32, s.dir_index, sub));
+        }
+        format!(
+            concat!(
+                "{{\"kind\":\"{}\",\"index\":{},\"id\":{},\"dir_index\":{},",
+                "\"span\":[{},{}],\"props_span\":[{},{}],\"properties\":{},",
+                "\"substreams\":[{}]}}"
+            ),
+            kind,
+            index,
+            s.id,
+            s.dir_index,
+            s.span.0,
+            s.span.1,
+            s.props_span.0,
+            s.props_span.1,
+            s.properties.len(),
+            subs.join(","),
+        )
+    }
+
+    /// The legacy-MSG summary, from the model.
+    fn msg_summary(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (_, root) = self.msg_source()?;
+        let provenance = format!(
+            "msg;version={MSG_VERSION};properties={};substreams={};recipients={};attachments={}",
+            model.properties.len(),
+            model.all_substreams().len(),
+            model.recipients.len(),
+            model.attachments.len()
+        );
+        let span = Some(model.property_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(MSG_VERSION.to_string()),
+            _ => AnswerValue::Json(Self::msg_summary_json(&model)),
+        };
+        Ok(self.msg_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th top-level fixed-size property entry (0-based).
+    fn msg_property(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (source, root) = self.msg_source()?;
+        let p = model
+            .property(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("msg has no property {index}")))?;
+        let provenance = format!(
+            "msg;property={index};id=0x{:04X};name={}",
+            p.id(),
+            msg_property_name(p.id())
+        );
+        let span = Some(p.span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, p.span)?),
+            Representation::Text => AnswerValue::Text(msg_property_name(p.id()).to_string()),
+            _ => AnswerValue::Json(Self::msg_property_json(index, p)),
+        };
+        Ok(self.msg_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th recipient sub-storage (0-based, directory order).
+    fn msg_recipient(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        self.msg_storage(req, index, true)
+    }
+
+    /// The `index`-th attachment sub-storage (0-based, directory order).
+    fn msg_attachment(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        self.msg_storage(req, index, false)
+    }
+
+    fn msg_storage(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        recipient: bool,
+    ) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (source, root) = self.msg_source()?;
+        let (kind, storage) = if recipient {
+            (
+                "recipient",
+                model.recipient(index).ok_or_else(|| {
+                    Error::unsupported_feature(format!("msg has no recipient {index}"))
+                })?,
+            )
+        } else {
+            (
+                "attachment",
+                model.attachment(index).ok_or_else(|| {
+                    Error::unsupported_feature(format!("msg has no attachment {index}"))
+                })?,
+            )
+        };
+        let provenance = format!("msg;{kind}={index};id={}", storage.id);
+        let span = Some(storage.span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, storage.span)?),
+            Representation::Text => {
+                let text: Vec<String> = storage
+                    .substreams
+                    .iter()
+                    .filter_map(|s| s.text.clone())
+                    .collect();
+                AnswerValue::Text(text.join("\n"))
+            }
+            _ => AnswerValue::Json(Self::msg_storage_json(kind, index, storage)),
+        };
+        Ok(self.msg_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The canonical decoded text (top-level, then recipients, then attachments).
+    fn msg_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (source, root) = self.msg_source()?;
+        let text = msg_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some(model.property_span);
+        Ok(self.msg_answer(
+            req,
+            AnswerValue::Text(text),
+            "msg;text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over the decoded substream texts.
+    fn msg_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (_, root) = self.msg_source()?;
+        let matches = msg_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"field\":\"{}\",\"index\":{},\"owner\":{},",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                msg_field_name(m.field),
+                m.index,
+                m.owner,
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("msg;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.msg_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_msg(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.msg_common_metadata(req),
+            Selector::Text => self.msg_text(req),
+            Selector::SearchMatch(p) => self.msg_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "msg does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn msg_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (source, root) = self.msg_source()?;
+        let value = AnswerValue::Json(Self::msg_summary_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.msg_answer(
+            req,
+            value,
+            "msg;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// The stable version name recorded for a legacy Outlook message.
+#[cfg(feature = "msg")]
+const MSG_VERSION: &str = "outlook-msg-ms-oxmsg";
+
+/// The exact bytes of a source span, fail-closed.
+#[cfg(any(feature = "xls", feature = "ppt", feature = "msg"))]
+fn span_bytes(source: &[u8], span: (u64, u64)) -> Result<Vec<u8>> {
+    let s = usize::try_from(span.0)
+        .map_err(|_| Error::internal_invariant("xls span offset is out of range"))?;
+    let e = usize::try_from(span.1)
+        .map_err(|_| Error::internal_invariant("xls span end is out of range"))?;
+    source
+        .get(s..e)
+        .map(|b| b.to_vec())
+        .ok_or_else(|| Error::internal_invariant("xls span is outside the source"))
+}
+
+/// Render a finite `f64` as a JSON number; non-finite values become `null`.
+#[cfg(feature = "xls")]
+fn json_num(v: f64) -> String {
+    if v.is_finite() {
+        format!("{v}")
+    } else {
+        "null".to_string()
     }
 }
 

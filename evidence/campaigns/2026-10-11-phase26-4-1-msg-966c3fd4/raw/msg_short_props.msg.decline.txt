@@ -1,0 +1,1 @@
+error: InvalidMsgStructure: msg: __properties_version1.0 is shorter than the 32-byte message header

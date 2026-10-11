@@ -194,7 +194,7 @@ def aggregate(raw, campaign, env_path=None):
                 env = {}
 
     fixtures = [r["fixture"] for r in read_tsv(os.path.join(raw, "fixtures.tsv"))]
-    lanes = ["vole", "sqlite", "duckdb"]
+    lanes = ["vole", "sqlite", "duckdb", "pyarrow"]
 
     build_rows = read_tsv(os.path.join(raw, "build.tsv"))
     storage_rows = read_tsv(os.path.join(raw, "storage.tsv"))
@@ -247,7 +247,7 @@ def aggregate(raw, campaign, env_path=None):
     qcompare = {}
     for q in QS:
         counts = {}
-        for other in ("sqlite", "duckdb"):
+        for other in ("sqlite", "duckdb", "pyarrow"):
             n_equal = n_gap = n_both = n_mismatch = 0
             for fx in fixtures:
                 va = _envelope_value(os.path.join(raw, "qanswers", "%s.%s.vole.json" % (fx, q)))
@@ -272,7 +272,7 @@ def aggregate(raw, campaign, env_path=None):
 
     # --- MATRIX.md ----------------------------------------------------------
     lines = []
-    lines.append("# Phase 21.16 Arrow IPC economic court — matrix")
+    lines.append("# Phase 21.16 / 26.6 Arrow IPC economic court — matrix (four lanes)")
     lines.append("")
     lines.append("Self-authored corpus; only **Q6 (exact closure)** is a byte-authority claim.")
     lines.append("Ratios are VOLE / comparator; **< 1 favours VOLE**. Wall time is microseconds.")
@@ -288,16 +288,19 @@ def aggregate(raw, campaign, env_path=None):
     lines.append("## Cross-lane answer agreement (per fixture, VOLE vs comparator)")
     lines.append("")
     lines.append("| Q | question | vs sqlite (equal / gap / both-decline / mismatch) | "
-                 "vs duckdb (equal / gap / both-decline / mismatch) |")
-    lines.append("|---|---|---|---|")
+                 "vs duckdb (equal / gap / both-decline / mismatch) | "
+                 "vs pyarrow (equal / gap / both-decline / mismatch) |")
+    lines.append("|---|---|---|---|---|")
     for q in QS:
         c = qcompare[q]
-        lines.append("| %s | %s | %d / %d / %d / %d | %d / %d / %d / %d |" % (
+        lines.append("| %s | %s | %d / %d / %d / %d | %d / %d / %d / %d | %d / %d / %d / %d |" % (
             q, QDESC[q],
             c["sqlite"]["equal"], c["sqlite"]["capability_gap"], c["sqlite"]["both_decline"],
             c["sqlite"]["mismatch"],
             c["duckdb"]["equal"], c["duckdb"]["capability_gap"], c["duckdb"]["both_decline"],
-            c["duckdb"]["mismatch"]))
+            c["duckdb"]["mismatch"],
+            c["pyarrow"]["equal"], c["pyarrow"]["capability_gap"], c["pyarrow"]["both_decline"],
+            c["pyarrow"]["mismatch"]))
     lines.append("")
     lines.append("## Paired ratios VOLE/other (median + geometric mean, 95% CI by fixture)")
     lines.append("")
@@ -305,7 +308,7 @@ def aggregate(raw, campaign, env_path=None):
                  "wins | ties | losses | ratio of sums |")
     lines.append("|---|---|---:|---:|---:|---|---|---:|---:|---:|---:|")
     for metric, key in (("build", build_us), ("storage", store_bytes), ("cold", cold_us), ("warm", warm_us)):
-        for other in ("sqlite", "duckdb"):
+        for other in ("sqlite", "duckdb", "pyarrow"):
             ratios = {}
             sums_v = sums_o = 0
             for fx in fixtures:
@@ -337,31 +340,33 @@ def aggregate(raw, campaign, env_path=None):
                  "as such." % len(fixtures))
     lines.append("")
     lines.append("**Read `cold` with care.** VOLE's `cold` is a single in-process observation "
-                 "(the driver excludes its own Python startup), while the SQLite and DuckDB "
-                 "`cold` samples include a fresh-process Python + `duckdb` import (tens of "
+                 "(the driver excludes its own Python startup), while the SQLite, DuckDB and pyarrow "
+                 "`cold` samples include a fresh-process Python + `duckdb`/`pyarrow` import (tens of "
                  "milliseconds). `warm` and `build`/`storage` are the fairer comparisons; the "
                  "`cold` ratio is inflated by process startup and is retained only for completeness.")
     lines.append("")
-    lines.append("**Recorded plainly:** DuckDB wins the analytical axes (columnar projection, "
-                 "predicate execution, metadata statistics) — but note that the DuckDB lane reads "
-                 "a **Parquet projection** of the same logical table, because the pinned DuckDB "
-                 "wheel exposes only the Arrow **C data interface** scanners (`arrow_scan*`), not "
-                 "an Arrow IPC file reader. VOLE is an archival field with typed observations, not "
-                 "a query engine; its predicate/find counts are a decoded column plus a count in "
-                 "the driver. Only Q6 (exact closure) is a byte-authority claim, and only VOLE and "
-                 "the source-retaining SQLite lane can make it.")
+    lines.append("**Recorded plainly:** pyarrow (the reference Arrow reader, opening the `.arrow` "
+                 "file directly) and DuckDB both win the analytical computation axes (columnar "
+                 "projection, predicate execution, metadata statistics) — but the DuckDB lane reads a "
+                 "**Parquet projection** of the same logical table, because the pinned DuckDB wheel "
+                 "exposes only the Arrow **C data interface** scanners (`arrow_scan*`), not an Arrow IPC "
+                 "file reader. Only the pyarrow lane measures Arrow on its own terms. VOLE is an "
+                 "archival field with typed observations, not a query engine. Only Q6 (exact closure) "
+                 "is a byte-authority claim, and only VOLE and the source-retaining SQLite lane can "
+                 "make it; DuckDB and pyarrow decline Q6 (`not-native`), and both decline Q3 (no exact "
+                 "source buffer span or per-column statistics in the Arrow IPC metadata).")
     lines.append("")
 
     with open(os.path.join(campaign, "MATRIX.md"), "w") as f:
         f.write("\n".join(lines))
 
     # --- summary.json -------------------------------------------------------
-    total_mismatch = sum(qcompare[q][o]["mismatch"] for q in QS for o in ("sqlite", "duckdb"))
+    total_mismatch = sum(qcompare[q][o]["mismatch"] for q in QS for o in ("sqlite", "duckdb", "pyarrow"))
     verdict = "PASS"
     if exact_ok != exact_n or exact_n == 0 or total_mismatch > 0:
         verdict = "FAIL"
     summary = {
-        "phase": "21.16 — Arrow IPC analytical economic court",
+        "phase": "26.6 — Arrow IPC analytical economic court (VOLE vs SQLite vs DuckDB vs pyarrow)",
         "fixtures": fixtures,
         "lanes": lanes,
         "exact_ok": exact_ok,
