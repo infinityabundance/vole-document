@@ -1,0 +1,10 @@
+fixture	format	src_len	src_sha	out_len	out_sha	cmp	exact	decline_rc	ctl_rc
+xls_truncated.xls	xls	-	-	-	-	-	-	-	53
+xls_bad_sst_count.xls	xls	-	-	-	-	-	-	-	53
+xls_bad_boundsheet.xls	xls	-	-	-	-	-	-	-	53
+xls_malformed_continue.xls	xls	-	-	-	-	-	-	-	53
+xls_bad_bof.xls	cfbf	-	-	-	-	-	-	-	6
+xls_bad_type.xls	cfbf	-	-	-	-	-	-	-	6
+generic_cfbf.bin	cfbf	-	-	-	-	-	-	-	6
+prose.txt	opaque	-	-	-	-	-	-	-	6
+xls_valid.xls	xls	2560	3ce72b922da8652ca09506999cc8413b4a029b2288570b6194ddd3801004b706	2560	3ce72b922da8652ca09506999cc8413b4a029b2288570b6194ddd3801004b706	true	true	-	-

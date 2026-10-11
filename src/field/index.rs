@@ -570,6 +570,25 @@ pub const SEL_XLS_MODEL: u8 = 52;
 /// separate package layer in this adapter. Derived, never exact.
 pub const SEL_PPT_MODEL: u8 = 53;
 
+/// Selector kind: the canonical legacy Outlook message (`.msg`, MS-OXMSG) semantic
+/// model (Phase 26.4).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving semantic projection built on the CFBF/OLE2
+/// physical layer (21.35): the top-level message `__properties_version1.0` header
+/// (`Reserved`, `NextRecipientId`, `NextAttachmentId`, `RecipientCount`,
+/// `AttachmentCount`, and the trailing `Reserved`) and its fixed-size 16-byte property
+/// entries (raw tag, flags, value bytes, exact span, owner) in order; the root
+/// `__substg1.0_<PPPPTTTT>` variable-size substreams with type `0x001F` (UTF-16LE) /
+/// `0x001E` (ANSI/CP1252) decoded and `0x0102` (binary) kept as exact bytes; the
+/// optional `__nameid_version1.0` stream span; and the recipient
+/// (`__recip_version1.0_<id>`) / attachment (`__attach_version1.0_<id>`) sub-storages,
+/// each with its own property list and substreams (order and ids preserved). It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a `.msg` has no
+/// separate package layer in this adapter. Derived, never exact.
+pub const SEL_MSG_MODEL: u8 = 54;
+
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;
 /// Node kind: a run of child pointers.

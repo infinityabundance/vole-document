@@ -678,6 +678,14 @@ fn limits_never_change_reconstructed_bytes() {
         max_ppt_depth: 1 << 10,
         max_ppt_text_bytes: 1 << 50,
         max_ppt_document_bytes: 1 << 50,
+        max_msg_properties: 1 << 30,
+        max_msg_substreams: 1 << 30,
+        max_msg_recipients: 1 << 30,
+        max_msg_attachments: 1 << 30,
+        max_msg_name_bytes: 1 << 50,
+        max_msg_value_bytes: 1 << 50,
+        max_msg_text_bytes: 1 << 50,
+        max_msg_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

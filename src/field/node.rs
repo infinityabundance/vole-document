@@ -577,6 +577,23 @@ pub enum NodeKind {
     /// `sha256(source)` per ADR-0060); a `.ppt` has no separate package layer in this
     /// adapter. Derived, never exact.
     PptModel = 0x49,
+    /// The canonical, representation-preserving legacy Outlook message (`.msg`,
+    /// MS-OXMSG) **semantic** model (Phase 26.4), built on the CFBF/OLE2 physical layer
+    /// (21.35). It **reuses the CFBF resolver** (never a second OLE parser) to obtain
+    /// the root `__properties_version1.0` stream, the root `__substg1.0_<PPPPTTTT>`
+    /// variable-size streams, the optional `__nameid_version1.0` stream, and the
+    /// recipient (`__recip_version1.0_<id>`) / attachment (`__attach_version1.0_<id>`)
+    /// sub-storages as exact byte spans. It records the message header (`Reserved`,
+    /// `NextRecipientId`, `NextAttachmentId`, `RecipientCount`, `AttachmentCount`, and
+    /// the trailing `Reserved`), the fixed-size 16-byte property entries (raw tag, flags,
+    /// value bytes, exact span, owner) in order, the variable-size substreams with type
+    /// `0x001F` (UTF-16LE) / `0x001E` (ANSI/CP1252) decoded and `0x0102` (binary) kept
+    /// as exact bytes, and every recipient/attachment sub-storage's own property list
+    /// and substreams (order and ids preserved). Nothing is normalized or re-serialized.
+    /// It is computed on demand from the exact source (its single dependency is the
+    /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a `.msg` has no
+    /// separate package layer in this adapter. Derived, never exact.
+    MsgModel = 0x4A,
 }
 
 impl NodeKind {
@@ -656,6 +673,7 @@ impl NodeKind {
             0x47 => NodeKind::DocModel,
             0x48 => NodeKind::XlsModel,
             0x49 => NodeKind::PptModel,
+            0x4A => NodeKind::MsgModel,
             _ => return None,
         })
     }
@@ -736,6 +754,7 @@ impl NodeKind {
             NodeKind::DocModel => "DocModel",
             NodeKind::XlsModel => "XlsModel",
             NodeKind::PptModel => "PptModel",
+            NodeKind::MsgModel => "MsgModel",
         }
     }
 

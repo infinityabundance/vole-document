@@ -165,6 +165,8 @@ const USAGE_FIELD: &str = "\
         --xls-text |
         --ppt-document | --ppt-slide N | --ppt-run N | --ppt-record N |
         --ppt-find PATTERN | --ppt-text |
+        --msg-summary | --msg-property N | --msg-recipient N | --msg-attachment N |
+        --msg-find PATTERN | --msg-text |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
         --parquet-cell R:C |
@@ -2221,6 +2223,31 @@ struct FieldArgs {
     /// (Phase 26.3).
     #[cfg(feature = "ppt")]
     ppt_find: Option<String>,
+    /// `--msg-summary`: the legacy Outlook message (`.msg`, MS-OXMSG) header and
+    /// inventory — the message header, the property/substream/recipient/attachment
+    /// counts, and the exact `__properties_version1.0` stream span (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_summary: bool,
+    /// `--msg-text`: the common message text (canonical `text`) — the decoded substream
+    /// texts in canonical order (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_text: bool,
+    /// `--msg-property N`: the N-th (0-based) top-level fixed-size property entry with
+    /// its raw tag (and id/type), flags, value bytes, and exact span (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_property: Option<u32>,
+    /// `--msg-recipient N`: the N-th (0-based) recipient sub-storage with its id,
+    /// directory index, and its own property entries and substreams (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_recipient: Option<u32>,
+    /// `--msg-attachment N`: the N-th (0-based) attachment sub-storage with its id,
+    /// directory index, and its own property entries and substreams (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_attachment: Option<u32>,
+    /// `--msg-find PATTERN`: a lexical, case-sensitive search over each decoded
+    /// substream text (Phase 26.4).
+    #[cfg(feature = "msg")]
+    msg_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -3425,6 +3452,35 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "ppt")]
             "--ppt-find" => {
                 out.ppt_find = Some(field_arg_value(args, &mut i, "--ppt-find", inline)?);
+            }
+            #[cfg(feature = "msg")]
+            "--msg-summary" => {
+                out.msg_summary = true;
+                i += 1;
+            }
+            #[cfg(feature = "msg")]
+            "--msg-text" => {
+                out.msg_text = true;
+                i += 1;
+            }
+            #[cfg(feature = "msg")]
+            "--msg-property" => {
+                let v = field_arg_value(args, &mut i, "--msg-property", inline)?;
+                out.msg_property = Some(parse_field_u32(&v, "--msg-property")?);
+            }
+            #[cfg(feature = "msg")]
+            "--msg-recipient" => {
+                let v = field_arg_value(args, &mut i, "--msg-recipient", inline)?;
+                out.msg_recipient = Some(parse_field_u32(&v, "--msg-recipient")?);
+            }
+            #[cfg(feature = "msg")]
+            "--msg-attachment" => {
+                let v = field_arg_value(args, &mut i, "--msg-attachment", inline)?;
+                out.msg_attachment = Some(parse_field_u32(&v, "--msg-attachment")?);
+            }
+            #[cfg(feature = "msg")]
+            "--msg-find" => {
+                out.msg_find = Some(field_arg_value(args, &mut i, "--msg-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -4641,6 +4697,34 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.ppt_find {
             chosen.push(Selector::PptFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Legacy Outlook message (`.msg`, MS-OXMSG): `--msg-summary` the message header and
+    // inventory; `--msg-property N` a top-level fixed-size property entry by 0-based
+    // index; `--msg-recipient N`/`--msg-attachment N` a sub-storage by 0-based index;
+    // `--msg-find` a lexical search over decoded substream texts. Each stands alone
+    // (Phase 26.4).
+    #[cfg(feature = "msg")]
+    {
+        if out.msg_summary {
+            chosen.push(Selector::MsgSummary);
+        }
+        if out.msg_text {
+            chosen.push(Selector::Text);
+        }
+        if let Some(index) = out.msg_property {
+            chosen.push(Selector::MsgProperty { index });
+        }
+        if let Some(index) = out.msg_recipient {
+            chosen.push(Selector::MsgRecipient { index });
+        }
+        if let Some(index) = out.msg_attachment {
+            chosen.push(Selector::MsgAttachment { index });
+        }
+        if let Some(pattern) = &out.msg_find {
+            chosen.push(Selector::MsgFind {
                 pattern: pattern.clone(),
             });
         }

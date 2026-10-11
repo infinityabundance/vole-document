@@ -56,6 +56,8 @@ pub mod markdown;
 pub mod mdx;
 #[cfg(feature = "mhtml")]
 pub mod mhtml;
+#[cfg(feature = "msg")]
+pub mod msg;
 #[cfg(feature = "msgpack")]
 pub mod msgpack;
 #[cfg(feature = "notebook")]

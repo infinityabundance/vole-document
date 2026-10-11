@@ -229,6 +229,12 @@ use crate::adapter::mhtml::{
     MhtmlModel, find as mhtml_find_matches, resource_bytes as mhtml_resource_bytes,
     root_body_bytes as mhtml_root_body_bytes,
 };
+#[cfg(feature = "msg")]
+use crate::adapter::msg::{
+    MsgModel, MsgProperty, MsgStorage, MsgSubstream, canonical_text as msg_canonical_text,
+    field_name as msg_field_name, find as msg_find_matches, property_name as msg_property_name,
+    property_type_name as msg_property_type_name,
+};
 #[cfg(feature = "msgpack")]
 use crate::adapter::msgpack::{
     MsgpackModel, canonical_text as msgpack_canonical_text, decode_text as msgpack_decode_text,
@@ -400,6 +406,8 @@ use crate::field::index::SEL_MARKDOWN_MODEL;
 use crate::field::index::SEL_MDX_MODEL;
 #[cfg(feature = "mhtml")]
 use crate::field::index::SEL_MHTML_MODEL;
+#[cfg(feature = "msg")]
+use crate::field::index::SEL_MSG_MODEL;
 #[cfg(feature = "msgpack")]
 use crate::field::index::SEL_MSGPACK_MODEL;
 #[cfg(feature = "notebook")]
@@ -2201,6 +2209,47 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The legacy Outlook message (`.msg`, MS-OXMSG) summary (Phase 26.4): the message
+    /// header, the property/substream/recipient/attachment counts, the aggregate
+    /// decoded text units, and the exact `__properties_version1.0` stream span. `Text`
+    /// returns the stable version name; `Metadata`/`Structure` the descriptor JSON.
+    #[cfg(feature = "msg")]
+    MsgSummary,
+    /// The `index`-th top-level fixed-size property entry (0-based, property order) of
+    /// a legacy Outlook message (Phase 26.4): its raw tag (and id/type), the well-known
+    /// property name, the flags, the 8 value bytes, the owning storage, and the exact
+    /// 16-byte entry span. `ExactBytes` returns the entry's exact bytes; an out-of-range
+    /// index declines typed.
+    #[cfg(feature = "msg")]
+    MsgProperty {
+        /// The 0-based property-entry index (property order).
+        index: u32,
+    },
+    /// The `index`-th recipient sub-storage (0-based, directory order) of a legacy
+    /// Outlook message (Phase 26.4): its id, directory index, exact storage/property
+    /// spans, and its own property entries and substreams. `ExactBytes` returns the
+    /// storage's exact 128-byte directory entry; an out-of-range index declines typed.
+    #[cfg(feature = "msg")]
+    MsgRecipient {
+        /// The 0-based recipient index (directory order).
+        index: u32,
+    },
+    /// The `index`-th attachment sub-storage (0-based, directory order) of a legacy
+    /// Outlook message (Phase 26.4): its id, directory index, exact storage/property
+    /// spans, and its own property entries and substreams. `ExactBytes` returns the
+    /// storage's exact 128-byte directory entry; an out-of-range index declines typed.
+    #[cfg(feature = "msg")]
+    MsgAttachment {
+        /// The 0-based attachment index (directory order).
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over each decoded substream text of a
+    /// legacy Outlook message (Phase 26.4). Never an embedding or a model call.
+    #[cfg(feature = "msg")]
+    MsgFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2866,6 +2915,16 @@ impl Selector {
             Selector::PptRecord { index } => format!("ppt-record:{index}"),
             #[cfg(feature = "ppt")]
             Selector::PptFind { pattern } => format!("ppt-find:{pattern}"),
+            #[cfg(feature = "msg")]
+            Selector::MsgSummary => "msg-summary".to_string(),
+            #[cfg(feature = "msg")]
+            Selector::MsgProperty { index } => format!("msg-property:{index}"),
+            #[cfg(feature = "msg")]
+            Selector::MsgRecipient { index } => format!("msg-recipient:{index}"),
+            #[cfg(feature = "msg")]
+            Selector::MsgAttachment { index } => format!("msg-attachment:{index}"),
+            #[cfg(feature = "msg")]
+            Selector::MsgFind { pattern } => format!("msg-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -5303,6 +5362,27 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "ppt")]
             (Selector::PptFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.ppt_find(req, pattern)
+            }
+            #[cfg(feature = "msg")]
+            (Selector::MsgSummary, R::Text | R::Metadata | R::Structure) => self.msg_summary(req),
+            #[cfg(feature = "msg")]
+            (
+                Selector::MsgProperty { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.msg_property(req, *index),
+            #[cfg(feature = "msg")]
+            (
+                Selector::MsgRecipient { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.msg_recipient(req, *index),
+            #[cfg(feature = "msg")]
+            (
+                Selector::MsgAttachment { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.msg_attachment(req, *index),
+            #[cfg(feature = "msg")]
+            (Selector::MsgFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.msg_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -10714,6 +10794,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Msg => {
+                #[cfg(feature = "msg")]
+                {
+                    self.common_msg(req)?
+                }
+                #[cfg(not(feature = "msg"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "legacy Outlook message support is not compiled in (feature `msg`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -15617,6 +15709,7 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 }
 
+#[cfg(feature = "ppt")]
 impl<S: SeedStore> Ctx<'_, S> {
     /// Materialize and decode the legacy-PPT model (derived, `Q_gen`).
     fn ppt_model(&mut self) -> Result<(PptModel, NodeId)> {
@@ -15893,8 +15986,323 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Legacy Outlook message (`.msg`, MS-OXMSG) observations (Phase 26.4)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "msg")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the legacy-MSG model (derived, `Q_gen`).
+    fn msg_model(&mut self) -> Result<(MsgModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_MSG_MODEL, 0), "msg model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((MsgModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the read
+    /// is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn msg_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn msg_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn msg_summary_json(model: &MsgModel) -> String {
+        format!(
+            concat!(
+                "{{\"format\":\"msg\",\"version\":\"{}\",\"stream\":\"{}\",",
+                "\"nameid\":{},\"properties\":{},\"substreams\":{},\"recipients\":{},",
+                "\"attachments\":{},\"text_units\":{},\"property_span\":[{},{}],",
+                "\"header\":{{\"next_recipient_id\":{},\"next_attachment_id\":{},",
+                "\"recipient_count\":{},\"attachment_count\":{}}}}}"
+            ),
+            MSG_VERSION,
+            crate::adapter::msg::STREAM_PROPERTIES,
+            model.nameid_span.is_some(),
+            model.properties.len(),
+            model.all_substreams().len(),
+            model.recipients.len(),
+            model.attachments.len(),
+            model.text_units(),
+            model.property_span.0,
+            model.property_span.1,
+            model.header.next_recipient_id,
+            model.header.next_attachment_id,
+            model.header.recipient_count,
+            model.header.attachment_count,
+        )
+    }
+
+    fn msg_property_json(index: u32, p: &MsgProperty) -> String {
+        format!(
+            concat!(
+                "{{\"index\":{},\"tag\":{},\"tag_hex\":\"0x{:08X}\",\"id\":{},",
+                "\"id_hex\":\"0x{:04X}\",\"property\":\"{}\",\"type\":{},",
+                "\"type_name\":\"{}\",\"flags\":{},\"value_hex\":\"{}\",",
+                "\"span\":[{},{}],\"owner\":{}}}"
+            ),
+            index,
+            p.tag,
+            p.tag,
+            p.id(),
+            p.id(),
+            msg_property_name(p.id()),
+            p.prop_type(),
+            msg_property_type_name(p.prop_type()),
+            p.flags,
+            crate::integrity::to_hex(&p.value),
+            p.span.0,
+            p.span.1,
+            p.owner,
+        )
+    }
+
+    fn msg_substream_json(index: u32, owner: u32, s: &MsgSubstream) -> String {
+        let text = match &s.text {
+            Some(t) => format!("\"{}\"", json_escape(t)),
+            None => "null".to_string(),
+        };
+        format!(
+            concat!(
+                "{{\"index\":{},\"owner\":{},\"stream\":\"{}\",\"tag_hex\":\"0x{:08X}\",",
+                "\"id\":{},\"id_hex\":\"0x{:04X}\",\"property\":\"{}\",\"type\":{},",
+                "\"type_name\":\"{}\",\"dir_index\":{},\"span\":[{},{}],\"len\":{},",
+                "\"text\":{}}}"
+            ),
+            index,
+            owner,
+            json_escape(&s.name),
+            s.tag,
+            s.id(),
+            s.id(),
+            msg_property_name(s.id()),
+            s.prop_type(),
+            msg_property_type_name(s.prop_type()),
+            s.dir_index,
+            s.span.0,
+            s.span.1,
+            s.len,
+            text,
+        )
+    }
+
+    fn msg_storage_json(kind: &str, index: u32, s: &MsgStorage) -> String {
+        let mut subs: Vec<String> = Vec::new();
+        for (i, sub) in s.substreams.iter().enumerate() {
+            subs.push(Self::msg_substream_json(i as u32, s.dir_index, sub));
+        }
+        format!(
+            concat!(
+                "{{\"kind\":\"{}\",\"index\":{},\"id\":{},\"dir_index\":{},",
+                "\"span\":[{},{}],\"props_span\":[{},{}],\"properties\":{},",
+                "\"substreams\":[{}]}}"
+            ),
+            kind,
+            index,
+            s.id,
+            s.dir_index,
+            s.span.0,
+            s.span.1,
+            s.props_span.0,
+            s.props_span.1,
+            s.properties.len(),
+            subs.join(","),
+        )
+    }
+
+    /// The legacy-MSG summary, from the model.
+    fn msg_summary(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (_, root) = self.msg_source()?;
+        let provenance = format!(
+            "msg;version={MSG_VERSION};properties={};substreams={};recipients={};attachments={}",
+            model.properties.len(),
+            model.all_substreams().len(),
+            model.recipients.len(),
+            model.attachments.len()
+        );
+        let span = Some(model.property_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(MSG_VERSION.to_string()),
+            _ => AnswerValue::Json(Self::msg_summary_json(&model)),
+        };
+        Ok(self.msg_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th top-level fixed-size property entry (0-based).
+    fn msg_property(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (source, root) = self.msg_source()?;
+        let p = model
+            .property(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("msg has no property {index}")))?;
+        let provenance = format!(
+            "msg;property={index};id=0x{:04X};name={}",
+            p.id(),
+            msg_property_name(p.id())
+        );
+        let span = Some(p.span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, p.span)?),
+            Representation::Text => AnswerValue::Text(msg_property_name(p.id()).to_string()),
+            _ => AnswerValue::Json(Self::msg_property_json(index, p)),
+        };
+        Ok(self.msg_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th recipient sub-storage (0-based, directory order).
+    fn msg_recipient(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        self.msg_storage(req, index, true)
+    }
+
+    /// The `index`-th attachment sub-storage (0-based, directory order).
+    fn msg_attachment(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        self.msg_storage(req, index, false)
+    }
+
+    fn msg_storage(
+        &mut self,
+        req: &ObserveRequest,
+        index: u32,
+        recipient: bool,
+    ) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (source, root) = self.msg_source()?;
+        let (kind, storage) = if recipient {
+            (
+                "recipient",
+                model.recipient(index).ok_or_else(|| {
+                    Error::unsupported_feature(format!("msg has no recipient {index}"))
+                })?,
+            )
+        } else {
+            (
+                "attachment",
+                model.attachment(index).ok_or_else(|| {
+                    Error::unsupported_feature(format!("msg has no attachment {index}"))
+                })?,
+            )
+        };
+        let provenance = format!("msg;{kind}={index};id={}", storage.id);
+        let span = Some(storage.span);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes(&source, storage.span)?),
+            Representation::Text => {
+                let text: Vec<String> = storage
+                    .substreams
+                    .iter()
+                    .filter_map(|s| s.text.clone())
+                    .collect();
+                AnswerValue::Text(text.join("\n"))
+            }
+            _ => AnswerValue::Json(Self::msg_storage_json(kind, index, storage)),
+        };
+        Ok(self.msg_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The canonical decoded text (top-level, then recipients, then attachments).
+    fn msg_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (source, root) = self.msg_source()?;
+        let text = msg_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some(model.property_span);
+        Ok(self.msg_answer(
+            req,
+            AnswerValue::Text(text),
+            "msg;text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over the decoded substream texts.
+    fn msg_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (_, root) = self.msg_source()?;
+        let matches = msg_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"field\":\"{}\",\"index\":{},\"owner\":{},",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                msg_field_name(m.field),
+                m.index,
+                m.owner,
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("msg;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.msg_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_msg(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.msg_common_metadata(req),
+            Selector::Text => self.msg_text(req),
+            Selector::SearchMatch(p) => self.msg_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "msg does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn msg_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msg_model()?;
+        let (source, root) = self.msg_source()?;
+        let value = AnswerValue::Json(Self::msg_summary_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.msg_answer(
+            req,
+            value,
+            "msg;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// The stable version name recorded for a legacy Outlook message.
+#[cfg(feature = "msg")]
+const MSG_VERSION: &str = "outlook-msg-ms-oxmsg";
+
 /// The exact bytes of a source span, fail-closed.
-#[cfg(any(feature = "xls", feature = "ppt"))]
+#[cfg(any(feature = "xls", feature = "ppt", feature = "msg"))]
 fn span_bytes(source: &[u8], span: (u64, u64)) -> Result<Vec<u8>> {
     let s = usize::try_from(span.0)
         .map_err(|_| Error::internal_invariant("xls span offset is out of range"))?;

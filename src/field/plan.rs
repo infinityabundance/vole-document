@@ -555,6 +555,18 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["DocModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-pieces", "whole-document"]),
         }),
+        #[cfg(feature = "msg")]
+        (Selector::MsgSummary, R::Metadata | R::Structure | R::Text)
+        | (Selector::MsgProperty { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MsgRecipient { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MsgAttachment { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MsgFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["MsgModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-properties", "whole-document"]),
+        }),
         #[cfg(feature = "json5")]
         (Selector::Json5Pointer { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
         | (Selector::Json5Node { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
@@ -796,6 +808,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Doc => &["DocModel", "DocumentExact"],
         DocumentFormat::Xls => &["XlsModel", "DocumentExact"],
         DocumentFormat::Ppt => &["PptModel", "DocumentExact"],
+        DocumentFormat::Msg => &["MsgModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

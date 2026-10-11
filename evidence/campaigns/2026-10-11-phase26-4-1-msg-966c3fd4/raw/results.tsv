@@ -1,0 +1,13 @@
+fixture	format	src_len	src_sha	out_len	out_sha	cmp	exact	decline_rc	ctl_rc
+msg_short_props.msg	msg	-	-	-	-	-	-	-	55
+msg_entry_overrun.msg	msg	-	-	-	-	-	-	-	55
+msg_bad_substream_name.msg	msg	-	-	-	-	-	-	-	55
+msg_unreferenced_substream.msg	msg	-	-	-	-	-	-	-	55
+msg_unsupported_substream.msg	msg	-	-	-	-	-	-	-	55
+msg_count_mismatch.msg	msg	-	-	-	-	-	-	-	55
+msg_recip_no_props.msg	msg	-	-	-	-	-	-	-	55
+msg_bad_recip_suffix.msg	msg	-	-	-	-	-	-	-	55
+generic_cfbf.bin	cfbf	-	-	-	-	-	-	-	6
+msg_missing_props.msg	cfbf	-	-	-	-	-	-	-	6
+prose.txt	opaque	-	-	-	-	-	-	-	6
+msg_valid.msg	msg	5120	1ad39b5ecde606d5fd5a7eaf199d8b69842836f156ce27a782acdce21750d9be	5120	1ad39b5ecde606d5fd5a7eaf199d8b69842836f156ce27a782acdce21750d9be	true	true	-	-

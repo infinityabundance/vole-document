@@ -253,6 +253,18 @@ pub enum ErrorClass {
     /// claimed as a derived model. Detection and the whole-source exact leaf are
     /// unaffected.
     InvalidPptStructure,
+    /// A legacy Outlook message (`.msg`, MS-OXMSG) structure error (Phase 26.4): a
+    /// compound file whose root has a `__properties_version1.0` stream but whose
+    /// semantic body is malformed or outside the documented subset — a
+    /// `__properties_version1.0` shorter than its header, a fixed property entry that
+    /// overruns the stream, a `__substg1.0_*` name that is not `PPPPTTTT` hex, a
+    /// `__substg1.0_*` stream with an unsupported property type or that is not
+    /// referenced by any fixed entry, a sub-storage without its own
+    /// `__properties_version1.0`, or a declared `RecipientCount`/`AttachmentCount`
+    /// that disagrees with the sub-storages — so it declines typed rather than being
+    /// claimed as a derived model. Detection and the whole-source exact leaf are
+    /// unaffected.
+    InvalidMsgStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -314,6 +326,7 @@ impl ErrorClass {
             ErrorClass::InvalidDocStructure => 52,
             ErrorClass::InvalidXlsStructure => 53,
             ErrorClass::InvalidPptStructure => 54,
+            ErrorClass::InvalidMsgStructure => 55,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -374,6 +387,7 @@ impl ErrorClass {
             ErrorClass::InvalidDocStructure => "InvalidDocStructure",
             ErrorClass::InvalidXlsStructure => "InvalidXlsStructure",
             ErrorClass::InvalidPptStructure => "InvalidPptStructure",
+            ErrorClass::InvalidMsgStructure => "InvalidMsgStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -488,6 +502,7 @@ impl Error {
     ctor!(invalid_doc_structure, InvalidDocStructure);
     ctor!(invalid_xls_structure, InvalidXlsStructure);
     ctor!(invalid_ppt_structure, InvalidPptStructure);
+    ctor!(invalid_msg_structure, InvalidMsgStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

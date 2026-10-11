@@ -372,6 +372,14 @@ const PPT_NATIVE: &[&str] = &[
     "ppt-find",
 ];
 
+const MSG_NATIVE: &[&str] = &[
+    "msg-summary",
+    "msg-property",
+    "msg-recipient",
+    "msg-attachment",
+    "msg-find",
+];
+
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
 const COMMON_TEXT_META: &[&str] = &["text", "metadata"];
@@ -832,6 +840,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 PPT_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Msg => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                MSG_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

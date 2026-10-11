@@ -1,0 +1,14 @@
+fixtures 4
+normal 1
+exact_ok 1
+exact_fail 0
+surface_fail 0
+runs_ok 1
+runs_n 1
+structural_declines_ok 5
+structural_declines 5
+cfbf_controls_ok 2
+cfbf_controls 2
+opaque_controls_ok 1
+opaque_controls 1
+binary f3b7670723d047709ac28d397687dbeeb66c2b471d95ce7da0530de1426d1ff8

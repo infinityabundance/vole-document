@@ -1,0 +1,1 @@
+error: InvalidMsgStructure: msg: the header declares 2 recipients but the file has 1 recipient storages

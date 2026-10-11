@@ -1,0 +1,1 @@
+error: InvalidMsgStructure: msg: a recipient storage name suffix "x" is not decimal digits

@@ -495,6 +495,26 @@ pub enum DocumentFormat {
     /// (`Q_gen`) projection of it. Everything outside the documented subset declines
     /// **typed**.
     Ppt,
+    /// A legacy Outlook message (`.msg`, MS-OXMSG) (Phase 26.4): a CFBF/OLE2 compound
+    /// file whose **root storage** has a `__properties_version1.0` stream. Detection is
+    /// built **on top of** the CFBF detector — the source must be a compound file the
+    /// CFBF layer accepts and must have a root-level `__properties_version1.0` stream —
+    /// so a generic compound file stays [`Cfbf`](DocumentFormat::Cfbf), a `.doc` stays
+    /// [`Doc`](DocumentFormat::Doc), a `.xls` stays [`Xls`](DocumentFormat::Xls), a
+    /// `.ppt` stays [`Ppt`](DocumentFormat::Ppt), and a non-CFBF source is unaffected.
+    /// The recorded model carries the top-level message header (`Reserved`,
+    /// `NextRecipientId`, `NextAttachmentId`, `RecipientCount`, `AttachmentCount`, and
+    /// the trailing `Reserved`), the fixed-size 16-byte property entries (raw tag,
+    /// flags, value bytes, exact span, owner) in order, the variable-size
+    /// `__substg1.0_<PPPPTTTT>` substreams (`0x001F` UTF-16LE and `0x001E` ANSI/CP1252
+    /// decoded, `0x0102` binary kept as exact bytes) with their exact spans, and the
+    /// recipient (`__recip_version1.0_<id>`) / attachment (`__attach_version1.0_<id>`)
+    /// sub-storages with their own property lists and substreams (order and ids
+    /// preserved). Not a package: the exact leaf is the whole source (a
+    /// `DocumentExact`) and every derived observation is a bounded, span-preserving
+    /// (`Q_gen`) projection of it. Everything outside the documented subset declines
+    /// **typed**.
+    Msg,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -546,6 +566,7 @@ impl DocumentFormat {
             DocumentFormat::Doc => "doc",
             DocumentFormat::Xls => "xls",
             DocumentFormat::Ppt => "ppt",
+            DocumentFormat::Msg => "msg",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -596,6 +617,7 @@ impl DocumentFormat {
             DocumentFormat::Doc => "doc",
             DocumentFormat::Xls => "xls",
             DocumentFormat::Ppt => "ppt",
+            DocumentFormat::Msg => "msg",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -646,6 +668,7 @@ impl DocumentFormat {
             DocumentFormat::Doc => cfg!(feature = "doc"),
             DocumentFormat::Xls => cfg!(feature = "xls"),
             DocumentFormat::Ppt => cfg!(feature = "ppt"),
+            DocumentFormat::Msg => cfg!(feature = "msg"),
         }
     }
 
@@ -706,6 +729,7 @@ impl DocumentFormat {
             "doc" => Some(DocumentFormat::Doc),
             "xls" => Some(DocumentFormat::Xls),
             "ppt" => Some(DocumentFormat::Ppt),
+            "msg" => Some(DocumentFormat::Msg),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -793,6 +817,18 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
         #[cfg(feature = "ppt")]
         if crate::adapter::ppt::detect(source, limits) {
             return DocumentFormat::Ppt;
+        }
+        // A legacy Outlook message (`.msg`, MS-OXMSG) source is a CFBF compound file
+        // whose root storage has a `__properties_version1.0` stream. Its detector is
+        // likewise built **on top of** the CFBF detector and runs here (after the
+        // Word, Excel, and PowerPoint detectors and before the generic `Cfbf` claim),
+        // so a `.msg` becomes `Msg` while a generic compound file stays `Cfbf`. The
+        // boundary is honest: an OLE file that merely has a root-level stream with that
+        // name is admitted here, and its derived model then declines typed if the
+        // stream is not a well-formed message property list.
+        #[cfg(feature = "msg")]
+        if crate::adapter::msg::detect(source, limits) {
+            return DocumentFormat::Msg;
         }
         return DocumentFormat::Cfbf;
     }

@@ -1056,6 +1056,38 @@ pub struct Limits {
     /// inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 26.3).
     pub max_ppt_document_bytes: u64,
+    // The legacy Outlook message (`.msg`, MS-OXMSG) caps below bound the derived,
+    // span-preserving semantic model (Phase 26.4). A `.msg` reuses the CFBF physical
+    // layer (21.35); the caps bound the property entries, the variable-size substreams,
+    // the recipient/attachment sub-storages, the aggregate stream-name bytes, the
+    // aggregate value bytes, the derived text, and the whole source.
+    /// Maximum fixed-size property entries accepted across the message and every
+    /// sub-storage. An over-large property list declines typed (Phase 26.4).
+    pub max_msg_properties: u64,
+    /// Maximum variable-size substreams accepted across the message and every
+    /// sub-storage. An over-large message declines typed (Phase 26.4).
+    pub max_msg_substreams: u64,
+    /// Maximum recipient sub-storages accepted. An over-large recipient inventory
+    /// declines typed (Phase 26.4).
+    pub max_msg_recipients: u64,
+    /// Maximum attachment sub-storages accepted. An over-large attachment inventory
+    /// declines typed (Phase 26.4).
+    pub max_msg_attachments: u64,
+    /// Maximum aggregate substream-name byte count accepted across one message. An
+    /// over-large message declines typed (Phase 26.4).
+    pub max_msg_name_bytes: u64,
+    /// Maximum aggregate substream value byte length accepted across one message (the
+    /// sum of every substream's exact byte span). This whole-message budget bounds the
+    /// decoded values; an over-large message declines typed (Phase 26.4).
+    pub max_msg_value_bytes: u64,
+    /// Maximum aggregate decoded text code-unit count accepted (the sum of every
+    /// `PT_UNICODE`/`PT_STRING8` substream's decoded text). This whole-message budget
+    /// bounds the derived text; an over-large message declines typed (Phase 26.4).
+    pub max_msg_text_bytes: u64,
+    /// Maximum source length admitted for legacy-MSG detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 26.4).
+    pub max_msg_document_bytes: u64,
 }
 
 impl Limits {
@@ -1354,6 +1386,14 @@ impl Limits {
         max_ppt_depth: 64,
         max_ppt_text_bytes: 1 << 31,
         max_ppt_document_bytes: 1 << 34,
+        max_msg_properties: 1 << 20,
+        max_msg_substreams: 1 << 20,
+        max_msg_recipients: 1 << 12,
+        max_msg_attachments: 1 << 12,
+        max_msg_name_bytes: 1 << 26,
+        max_msg_value_bytes: 1 << 31,
+        max_msg_text_bytes: 1 << 31,
+        max_msg_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1651,6 +1691,14 @@ impl Limits {
         max_ppt_depth: 32,
         max_ppt_text_bytes: 1 << 20,
         max_ppt_document_bytes: 1 << 26,
+        max_msg_properties: 1 << 14,
+        max_msg_substreams: 1 << 14,
+        max_msg_recipients: 1 << 10,
+        max_msg_attachments: 1 << 10,
+        max_msg_name_bytes: 1 << 18,
+        max_msg_value_bytes: 1 << 20,
+        max_msg_text_bytes: 1 << 20,
+        max_msg_document_bytes: 1 << 26,
     };
 }
 
