@@ -1,0 +1,7 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+doc.rtf	true	true	true	true	true	3705	36705
+large.rtf	true	true	true	true	true	4501	28810
+broken.rtf	true	-	true	true	true	3025	-
+junk.txt	true	-	true	true	true	2849	-
+prose.txt	true	-	true	true	true	3279	-
+rtfx.rtf	true	-	true	true	true	3019	-

@@ -1,0 +1,8 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+base.mhtml	true	true	true	true	true	3459	28650
+nostart.mhtml	true	true	true	true	true	3271	28599
+envelope.mhtml	true	true	true	true	true	3483	30153
+large.mhtml	true	true	true	true	true	4366	28541
+plain.eml	true	-	true	true	true	3159	-
+plain.html	true	-	true	true	true	3326	-
+prose.txt	true	-	true	true	true	3366	-

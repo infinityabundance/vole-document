@@ -1,0 +1,8 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+cfbf_v3.cfb	true	true	true	true	true	4531	29728
+cfbf_v4.cfb	true	true	true	true	true	3902	39681
+cfbf_bad_dir_sector.cfb	true	-	true	true	true	3434	-
+cfbf_badshift.cfb	true	-	true	true	true	3424	-
+cfbf_badsig.cfb	true	-	true	true	true	3422	-
+prose.txt	true	-	true	true	true	3428	-
+sig_only.bin	true	-	true	true	true	3750	-

@@ -193,6 +193,171 @@ def probes_for(fmt, q, plan):
             return [(["--%s-find" % pfx, plan["find_pat"]], "text")]
         if q == "Q8":
             return [(["--%s-block" % pfx, str(plan["block"])], "exact")]
+    if fmt == "mhtml":
+        if q == "Q1":
+            return [(["--mhtml-root", "--kind", "text"], "text")]
+        if q in ("Q2", "Q3", "Q10", "Q12"):
+            return [(["--mhtml-root", "--kind", "metadata"], "structure")]
+        if q == "Q4":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q5":
+            return [(["--mhtml-location", "--kind", "metadata"], "metadata")]
+        if q == "Q7":
+            return [(["--mhtml-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q8":
+            return [(["--mhtml-root", "--kind", "exact"], "exact")]
+        if q == "Q9":
+            if plan.get("res") is None:
+                return []
+            return [(["--mhtml-resource", str(plan["res"]), "--kind", "metadata"],
+                     "structure")]
+        if q == "Q11":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+    if fmt == "logstream":
+        r = str(plan["rec"])
+        if q == "Q1":
+            return [(["--logstream-line", r, "--kind", "text"], "text")]
+        if q in ("Q2", "Q3", "Q5", "Q9", "Q10"):
+            return [(["--logstream-line", r, "--kind", "metadata"], "structure")]
+        if q == "Q4":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q7":
+            return [(["--logstream-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q8":
+            return [(["--logstream-field", r + ":" + plan["role"], "--kind", "exact"],
+                     "exact")]
+        if q == "Q11":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q12":
+            return [(["--logstream-line", r, "--kind", "exact"], "exact")]
+    if fmt == "pkgmeta":
+        s = str(plan["section"])
+        if q in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q8", "Q10"):
+            return [(["--pkgmeta-section", s, "--kind", "metadata"], "structure")]
+        if q == "Q7":
+            return [(["--pkgmeta-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q9":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q11":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q12":
+            return [(["--pkgmeta-entry", str(plan["entry"]), "--kind", "exact"], "exact")]
+    if fmt == "apispec":
+        o = str(plan["object"])
+        if q == "Q1":
+            return [(["--apispec-version", "--kind", "text"], "text")]
+        if q in ("Q2", "Q4", "Q10"):
+            return [(["--apispec-object", o, "--kind", "metadata"], "structure")]
+        if q == "Q3":
+            return [(["--apispec-dialect", "--kind", "text"], "text")]
+        if q == "Q5":
+            if plan.get("ref") is None:
+                return []
+            return [(["--apispec-ref", str(plan["ref"]), "--kind", "text"], "text")]
+        if q == "Q7":
+            return [(["--apispec-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q8":
+            if plan.get("ref") is None:
+                return []
+            return [(["--apispec-ref", str(plan["ref"]), "--kind", "exact"], "exact")]
+        if q == "Q9":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q11":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q12":
+            return [(["--apispec-version", "--kind", "exact"], "exact")]
+    if fmt == "bib":
+        e = str(plan["entry"])
+        if q == "Q1":
+            return [(["--bib-field", e + ":" + plan["field"], "--kind", "text"], "text")]
+        if q in ("Q2", "Q4", "Q5"):
+            return [(["--bib-entry", e, "--kind", "metadata"], "structure")]
+        if q == "Q3":
+            return [(["--bib-dialect", "--kind", "text"], "text")]
+        if q == "Q7":
+            return [(["--bib-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q8":
+            return [(["--bib-field", e + ":" + plan["field"], "--kind", "exact"],
+                     "exact")]
+        if q in ("Q9", "Q10", "Q11"):
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q12":
+            return [(["--bib-field", e + ":" + plan["field"], "--kind", "metadata"],
+                     "structure")]
+    if fmt == "rtf":
+        if q == "Q1":
+            return [(["--rtf-header", "--kind", "text"], "text")]
+        if q == "Q2":
+            return [(["--rtf-group", str(plan["group"]), "--kind", "metadata"],
+                     "structure")]
+        if q in ("Q3", "Q4", "Q9", "Q11"):
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q5":
+            return [(["--rtf-control", "0", "--kind", "text"], "text")]
+        if q == "Q7":
+            return [(["--rtf-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q8":
+            return [(["--rtf-control", "0", "--kind", "exact"], "exact")]
+        if q == "Q10":
+            return [(["--rtf-unicode", "0", "--kind", "metadata"], "structure")]
+        if q == "Q12":
+            return [(["--rtf-control", "0", "--kind", "metadata"], "structure")]
+    if fmt == "container":
+        e = str(plan["entry"])
+        if q == "Q1":
+            return [(["--container-entry", e, "--kind", "text"], "text")]
+        if q in ("Q2", "Q5", "Q9", "Q10", "Q12"):
+            return [(["--container-entry", e, "--kind", "metadata"], "structure")]
+        if q == "Q3":
+            return [(["--container-dialect", "--kind", "text"], "text")]
+        if q == "Q4":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q7":
+            return [(["--container-find", plan["find"], "--kind", "metadata"],
+                     "metadata")]
+        if q == "Q8":
+            return [(["--container-entry", e, "--kind", "exact"], "exact")]
+        if q == "Q11":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+    if fmt == "hdf":
+        o = str(plan["object"])
+        if q == "Q1":
+            return [(["--hdf-object", o, "--kind", "text"], "text")]
+        if q in ("Q2", "Q5", "Q12"):
+            return [(["--hdf-object", o, "--kind", "metadata"], "structure")]
+        if q == "Q3":
+            return [(["--hdf-dialect", "--kind", "text"], "text")]
+        if q == "Q4":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q7":
+            return [(["--hdf-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q8":
+            return [(["--hdf-object", o, "--kind", "exact"], "exact")]
+        if q == "Q9":
+            if plan.get("dim") is None:
+                return []
+            return [(["--hdf-dimension", str(plan["dim"]), "--kind", "text"], "text")]
+        if q == "Q10":
+            return [(["--hdf-attribute", str(plan["attr"]), "--kind", "text"], "text")]
+        if q == "Q11":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+    if fmt == "cfbf":
+        e = str(plan["entry"])
+        st = str(plan["stream"])
+        if q == "Q1":
+            return [(["--cfbf-entry", e, "--kind", "text"], "text")]
+        if q in ("Q2", "Q5", "Q10"):
+            return [(["--cfbf-entry", e, "--kind", "metadata"], "structure")]
+        if q == "Q3":
+            return [(["--cfbf-dialect", "--kind", "text"], "text")]
+        if q in ("Q4", "Q9", "Q11"):
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q7":
+            return [(["--cfbf-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q8":
+            return [(["--cfbf-stream", st, "--kind", "exact"], "exact")]
+        if q == "Q12":
+            return [(["--cfbf-stream", st, "--kind", "metadata"], "structure")]
     return []
 
 
@@ -432,6 +597,246 @@ def answer(fmt, q, plan, answers, rcs):
                 return envelope(q, v.get("format"))
             if q == "Q12":
                 return envelope(q, v.get("inline_spans"))
+        if fmt == "mhtml":
+            if q == "Q1":
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q3":
+                return envelope(q, v.get("media_type"))
+            if q == "Q4":
+                return envelope(q, v.get("headers"))
+            if q == "Q5":
+                return envelope(q, {"snapshot_content_location":
+                                    v.get("snapshot_content_location"),
+                                    "content_base": v.get("content_base")})
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted([[m.get("location"), m.get("name"),
+                                            m.get("text")] for m in ms]))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q9":
+                return envelope(q, v.get("media_type"))
+            if q == "Q10":
+                return envelope(q, v.get("cte"))
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, v.get("body_span"))
+        if fmt == "logstream":
+            if q == "Q1":
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q3":
+                return envelope(q, v.get("dialect"))
+            if q == "Q4":
+                return envelope(q, v.get("records"))
+            if q == "Q5":
+                return envelope(q, [f.get("role") for f in (v.get("fields") or [])])
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted([[str(m.get("record")), m.get("role"),
+                                            m.get("text")] for m in ms]))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q9":
+                return envelope(q, v.get("terminator"))
+            if q == "Q10":
+                return envelope(q, v.get("line_bytes"))
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+        if fmt == "pkgmeta":
+            if q in ("Q1", "Q3", "Q4"):
+                return envelope(q, {"Q1": v.get("name"), "Q3": v.get("role"),
+                                    "Q4": v.get("kind")}[q])
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q5":
+                return envelope(q, {"name": v.get("name"), "role": v.get("role"),
+                                    "kind": v.get("kind")})
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted([[str(m.get("section")), str(m.get("entry")),
+                                            m.get("role"), m.get("text")] for m in ms]))
+            if q == "Q8":
+                return envelope(q, v.get("entries"))
+            if q == "Q9":
+                return envelope(q, v.get("dialect"))
+            if q == "Q10":
+                return envelope(q, v.get("name_span"))
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+        if fmt == "apispec":
+            if q == "Q1":
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q3":
+                return envelope(q, a.get("text"))
+            if q == "Q4":
+                return envelope(q, {"role": v.get("role"), "members": v.get("members")})
+            if q == "Q5":
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted([[m.get("pointer"), m.get("role"),
+                                            m.get("text")] for m in ms]))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q9":
+                return envelope(q, v.get("refs"))
+            if q == "Q10":
+                return envelope(q, v.get("role"))
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+        if fmt == "bib":
+            if q == "Q1":
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q3":
+                return envelope(q, a.get("text"))
+            if q == "Q4":
+                if v.get("duplicates") is None:
+                    return envelope(q, declined=True, code="no-duplicate-model",
+                                    reason="a CSL item view exposes no duplicate-field count")
+                return envelope(q, v.get("duplicates"))
+            if q == "Q5":
+                return envelope(q, {"key": v.get("key", v.get("id")),
+                                    "type": v.get("type")})
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted([[str(m.get("entry")), str(m.get("field")),
+                                            m.get("text")] for m in ms]))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q9":
+                return envelope(q, v.get("records"))
+            if q == "Q10":
+                return envelope(q, v.get("fields"))
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, a.get("source_span"))
+        if fmt == "rtf":
+            if q in ("Q1", "Q5"):
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q3":
+                return envelope(q, v.get("version"))
+            if q == "Q4":
+                return envelope(q, v.get("fonttbl"))
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted([[str(m.get("run")), m.get("text")]
+                                           for m in ms]))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q9":
+                return envelope(q, v.get("hex_escapes"))
+            if q == "Q10":
+                return envelope(q, v.get("code"))
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, a.get("source_span"))
+        if fmt == "container":
+            if q == "Q1":
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q3":
+                return envelope(q, a.get("text"))
+            if q == "Q4":
+                return envelope(q, v.get("members"))
+            if q == "Q5":
+                return envelope(q, {"name": v.get("name"), "kind": v.get("kind"),
+                                    "method": v.get("method"),
+                                    "compressed_size": v.get("compressed_size"),
+                                    "uncompressed_size": v.get("uncompressed_size")})
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted([[str(m.get("entry")), m.get("field"),
+                                            m.get("text")] for m in ms]))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q9":
+                return envelope(q, v.get("crc32"))
+            if q == "Q10":
+                return envelope(q, v.get("method"))
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, v.get("data_span"))
+        if fmt == "hdf":
+            if q in ("Q1", "Q9", "Q10"):
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q3":
+                return envelope(q, a.get("text"))
+            if q == "Q4":
+                return envelope(q, v.get("objects"))
+            if q == "Q5":
+                return envelope(q, {"path": v.get("path"), "kind": v.get("kind"),
+                                    "type": v.get("type"), "shape": v.get("shape")})
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted([[str(m.get("entry")), m.get("field"),
+                                            m.get("text")] for m in ms]))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, v.get("data_span"))
+        if fmt == "cfbf":
+            if q == "Q1":
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q3":
+                return envelope(q, a.get("text"))
+            if q == "Q4":
+                return envelope(q, v.get("entries"))
+            if q == "Q5":
+                return envelope(q, {"type": v.get("type"), "path": v.get("path"),
+                                    "name": v.get("name"),
+                                    "stream_size": v.get("stream_size")})
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted([[str(m.get("entry")), m.get("field"),
+                                            m.get("text")] for m in ms]))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q9":
+                return envelope(q, v.get("streams"))
+            if q == "Q10":
+                return envelope(q, v.get("type"))
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, v.get("data_span"))
     except (KeyError, TypeError, ValueError) as e:
         return envelope(q, declined=True, code="extract-error", reason=str(e))
     return envelope(q, declined=True, code="unknown-question", reason=q)

@@ -1,0 +1,317 @@
+{
+  "campaign": "evidence/campaigns/2026-10-11-phase21-28-logstream-econ-372a86e0",
+  "comparators": [
+    "sqlite",
+    "conv"
+  ],
+  "declines": "an out-of-range record and an unsupported common pair decline typed (rc 6); a malformed --logstream-field reference is a usage error (rc 2); plain prose stays opaque, a single JSON value stays json, a JSON stream stays jsonl, and a colon-less BSD stream stays yaml (rc 6), never a panic",
+  "detection_boundary": "log-stream detection is byte-based and conservative (>= 2 non-blank lines, EVERY non-blank line matching a dialect) and runs after the structured/tabular/prose families and before the fixed-width heuristic; a single log-looking line inside prose never claims the file",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "0ec570c5e03c636967196357b34ed05e4bd9d9e7f672fef50981e8ce36dd05b8",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-11-phase21-28-logstream-econ-372a86e0",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+    "controls": "bsd_nocolon.log prose.txt single.json stream.jsonl",
+    "econ_module_sha256": "3a841d5acbfb839b53bd9029edfd50c2c641180d453c4f6d94e76a58e9c5d50e",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "blank.log": {
+        "len": 25,
+        "sha256": "8cf5f15271030334fe0f62aa9843251207a7c56170cb96dd6f73aa7705e0861a"
+      },
+      "crlf.log": {
+        "len": 26,
+        "sha256": "58f7a1e8fe184f4b4e10b4752004f125532941ded8972b26fe24fc4f8a36ff45"
+      },
+      "generic.log": {
+        "len": 99,
+        "sha256": "a5f005f043353abbdf73f8902381c7b09f64afd99ec7666aa71053203424b5c9"
+      },
+      "large.log": {
+        "len": 262153,
+        "sha256": "84ad85a5cc3f38d033d2f55edcc3d9ee69575e074722a47b19d2ea2aab530677"
+      },
+      "rfc3164.log": {
+        "len": 92,
+        "sha256": "ff5b82f183eaf1ab19a9b8f3976ae46b908f0751f8d6f881567f9bf24c3ec5fc"
+      },
+      "rfc5424.log": {
+        "len": 143,
+        "sha256": "18f557b6fde148acfaaff67ca6eae0eadfe1d133af90ad04984636f60114c29e"
+      }
+    },
+    "foreign_selector": "--pkgmeta-section 0 --kind metadata",
+    "format": "logstream",
+    "generator_sha256": "e0799e2e93ddf2d375bb1e75ecfc02e3d23c2110e885deac14d18150163359de",
+    "lane_fixtures": "generic.log rfc5424.log rfc3164.log crlf.log blank.log large.log",
+    "measured_commit": "372a86e02a475a451118c21c76eb3120d0799645",
+    "own_selector": "--logstream-line 0 --kind metadata",
+    "phase": "21.28 \u2014 log stream economic court",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 5784,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-11-phase21-27-mhtml-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-28-logstream-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-29-pkgmeta-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-30-apispec-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-31-bib-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-32-rtf-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-33-container-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-34-hdf-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-35-cfbf-econ-372a86e0/ ?? tools/fixtures/make-apispec.py ?? tools/fixtures/make-bib.py ?? tools/fixtures/make-cfbf.py ?? tools/fixtures/make-container.py ?? tools/fixtures/make-hdf.py ?? tools/fixtures/make-logstream.py ?? tools/fixtures/make-mhtml.py ?? tools/fixtures/make-pkgmeta.py ?? tools/fixtures/make-rtf.py ?? tools/phase21-27-mhtml-econ-court.sh ?? tools/phase21-28-logstream-econ-court.sh ?? tools/phase21-29-pkgmeta-econ-court.sh ?? tools/phase21-30-apispec-econ-court.sh ?? tools/phase21-31-bib-econ-court.sh ?? tools/phase21-32-rtf-econ-court.sh ?? tools/phase21-33-container-econ-court.sh ?? tools/phase21-34-hdf-econ-court.sh ?? tools/phase21-35-cfbf-econ-court.sh ",
+    "utc": "2026-10-11T12:23:19Z",
+    "vole_probe_sha256": "57ffbbba67116a5854d013e8c49efffbee2f409ba54b8d3301479595b01d27b6",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "capability-gap": 2,
+        "equal": 4
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 4
+      }
+    },
+    "Q10": {
+      "conv": {
+        "equal": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q11": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q12": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "capability-gap": 6
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "capability-gap": 6
+      }
+    },
+    "Q3": {
+      "conv": {
+        "equal": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q4": {
+      "conv": {
+        "equal": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q5": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "capability-gap": 6
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q7": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "capability-gap": 6
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "capability-gap": 6
+      }
+    },
+    "Q9": {
+      "conv": {
+        "equal": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 2130); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 10,
+  "exact_ok": 10,
+  "fixtures": [
+    "generic.log",
+    "rfc5424.log",
+    "rfc3164.log",
+    "crlf.log",
+    "blank.log",
+    "large.log"
+  ],
+  "format": "logstream",
+  "lane_c_absent": null,
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "measured_commit": "372a86e02a475a451118c21c76eb3120d0799645",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native selectors (exact + structure)"
+  ],
+  "phase": "21.28 \u2014 log stream economic court",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 1.0433593320825496,
+        "geomean_hi": 1.0599568558295067,
+        "geomean_lo": 1.027573047130835,
+        "losses": 0,
+        "median": 1.040060021126925,
+        "median_hi": 1.070059023691063,
+        "median_lo": 1.0205654007424694,
+        "n": 6,
+        "ratio_of_sums": 1.0412902498167258,
+        "ties": 6,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.8393139464906662,
+        "geomean_hi": 0.9303241119674468,
+        "geomean_lo": 0.7810653810945114,
+        "losses": 0,
+        "median": 0.8105516350828093,
+        "median_hi": 0.94494932085418,
+        "median_lo": 0.7790764948772477,
+        "n": 6,
+        "ratio_of_sums": 0.8490137477585177,
+        "ties": 1,
+        "wins": 5
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.03074521793807459,
+        "geomean_hi": 0.04396337696044395,
+        "geomean_lo": 0.024908336468467865,
+        "losses": 0,
+        "median": 0.025881326489654133,
+        "median_hi": 0.051238673389888655,
+        "median_lo": 0.02444276580546281,
+        "n": 6,
+        "ratio_of_sums": 0.03442776039892377,
+        "ties": 0,
+        "wins": 6
+      },
+      "sqlite": {
+        "geomean": 0.02929972588584337,
+        "geomean_hi": 0.041581165147150066,
+        "geomean_lo": 0.023768044447365723,
+        "losses": 0,
+        "median": 0.024657735375946885,
+        "median_hi": 0.04841063676476481,
+        "median_lo": 0.023340136271669566,
+        "n": 6,
+        "ratio_of_sums": 0.032802038165710146,
+        "ties": 0,
+        "wins": 6
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 10.035682561064245,
+        "geomean_hi": 17.237914593348304,
+        "geomean_lo": 3.9950671363705528,
+        "losses": 5,
+        "median": 14.432087925396633,
+        "median_hi": 18.85329411764706,
+        "median_lo": 7.101200304365557,
+        "n": 6,
+        "ratio_of_sums": 1.0973562769335112,
+        "ties": 1,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.6039525419349604,
+        "geomean_hi": 0.63744219062138,
+        "geomean_lo": 0.5817957604545038,
+        "losses": 0,
+        "median": 0.593148529233749,
+        "median_hi": 0.6458780206281649,
+        "median_lo": 0.576201428398499,
+        "n": 6,
+        "ratio_of_sums": 0.6819381164294508,
+        "ties": 0,
+        "wins": 6
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 0.6184848877047936,
+        "geomean_hi": 0.7257307860590476,
+        "geomean_lo": 0.5453769977523191,
+        "losses": 0,
+        "median": 0.5660413246306011,
+        "median_hi": 0.7885455858320982,
+        "median_lo": 0.5340211692519645,
+        "n": 6,
+        "ratio_of_sums": 0.5430936880837814,
+        "ties": 0,
+        "wins": 6
+      },
+      "sqlite": {
+        "geomean": 0.10655536362180128,
+        "geomean_hi": 0.18114332191455298,
+        "geomean_lo": 0.07936168252353187,
+        "losses": 0,
+        "median": 0.08190517608951156,
+        "median_hi": 0.2437911471209619,
+        "median_lo": 0.07814379254556,
+        "n": 6,
+        "ratio_of_sums": 0.30145326001571093,
+        "ties": 0,
+        "wins": 6
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 44 invalid-logstream-structure",
+  "service": "doc-baseline",
+  "surface": "a generic timestamp/level/message dialect, RFC 5424 (HEADER + structured-data), and RFC 3164 BSD; record order, exact line spans, per-field roles and spans, line terminators (lf/crlf), blank-line accounting and the recorded record dialect",
+  "tree_state": "M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-11-phase21-27-mhtml-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-28-logstream-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-29-pkgmeta-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-30-apispec-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-31-bib-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-32-rtf-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-33-container-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-34-hdf-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-35-cfbf-econ-372a86e0/ ?? tools/fixtures/make-apispec.py ?? tools/fixtures/make-bib.py ?? tools/fixtures/make-cfbf.py ?? tools/fixtures/make-container.py ?? tools/fixtures/make-hdf.py ?? tools/fixtures/make-logstream.py ?? tools/fixtures/make-mhtml.py ?? tools/fixtures/make-pkgmeta.py ?? tools/fixtures/make-rtf.py ?? tools/phase21-27-mhtml-econ-court.sh ?? tools/phase21-28-logstream-econ-court.sh ?? tools/phase21-29-pkgmeta-econ-court.sh ?? tools/phase21-30-apispec-econ-court.sh ?? tools/phase21-31-bib-econ-court.sh ?? tools/phase21-32-rtf-econ-court.sh ?? tools/phase21-33-container-econ-court.sh ?? tools/phase21-34-hdf-econ-court.sh ?? tools/phase21-35-cfbf-econ-court.sh",
+  "utc": "2026-10-11T12:23:19Z",
+  "verdict": "PASS"
+}

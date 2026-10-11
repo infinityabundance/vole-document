@@ -1,0 +1,5 @@
+fixture	expect_fmt	fmt	expect_rc	rc	common_rc	own_rc	foreign_rc	ok
+hdf5_badmagic.bin	opaque	opaque	6	6	6	6	6	true
+hdf5_junk.bin	opaque	opaque	6	6	6	6	6	true
+hdf5_truncated.h5	opaque	opaque	6	6	6	6	6	true
+prose.txt	opaque	opaque	6	6	6	6	6	true

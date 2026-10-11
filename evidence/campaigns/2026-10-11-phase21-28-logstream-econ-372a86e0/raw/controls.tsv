@@ -1,0 +1,5 @@
+fixture	expect_fmt	fmt	expect_rc	rc	common_rc	own_rc	foreign_rc	ok
+bsd_nocolon.log	yaml	yaml	6	6	0	6	6	true
+prose.txt	opaque	opaque	6	6	6	6	6	true
+single.json	json	json	6	6	0	6	6	true
+stream.jsonl	jsonl	jsonl	6	6	0	6	6	true

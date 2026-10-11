@@ -1,0 +1,319 @@
+{
+  "campaign": "evidence/campaigns/2026-10-11-phase21-34-hdf-econ-372a86e0",
+  "comparators": [
+    "sqlite",
+    "conv"
+  ],
+  "declines": "a filtered dataset and a v2 object header decline typed (rc 6); a malformed NetCDF header / bad tag and an out-of-range index decline typed (rc 50 / rc 6); an hdf selector on an Opaque control declines typed (rc 6); never a panic",
+  "detection_boundary": "content-only, never a file name: NetCDF = the 4-byte CDF magic at offset 0; HDF5 = the 8-byte signature at offset 0 OR 512 (user-block form), with a superblock version in 0..=3 that fits inside the source",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "0ec570c5e03c636967196357b34ed05e4bd9d9e7f672fef50981e8ce36dd05b8",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-11-phase21-34-hdf-econ-372a86e0",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+    "controls": "hdf5_badmagic.bin hdf5_junk.bin hdf5_truncated.h5 prose.txt",
+    "econ_module_sha256": "3a841d5acbfb839b53bd9029edfd50c2c641180d453c4f6d94e76a58e9c5d50e",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "hdf5_basic.h5": {
+        "len": 1209,
+        "sha256": "4cb167fbdce5c2bdd91ef3bb9b0114c7c2abd19b8a575867074a67e7aa7629b9"
+      },
+      "hdf5_userblock.h5": {
+        "len": 1721,
+        "sha256": "4862e945f87170387af7bb809fae4b76ccd1f2876dc090be362ae5553f3dc7ca"
+      },
+      "netcdf_cdf1.nc": {
+        "len": 372,
+        "sha256": "8d3bf2f175b4265f56d923febd518e50fcc030de44a46f9ef84270786c558851"
+      },
+      "netcdf_cdf2.nc": {
+        "len": 424,
+        "sha256": "f87af49d1d4b8b02312f5cfa756e286f4eec68aa4b6809c1bc7e598f212d9175"
+      }
+    },
+    "foreign_selector": "--cfbf-dialect --kind text",
+    "format": "hdf",
+    "generator_sha256": "5fb35f004b094adbbb2e7ad4f1a1eb9177fce339c340a47aa00b396a9221c9ce",
+    "lane_fixtures": "netcdf_cdf1.nc netcdf_cdf2.nc hdf5_basic.h5 hdf5_userblock.h5",
+    "measured_commit": "372a86e02a475a451118c21c76eb3120d0799645",
+    "own_selector": "--hdf-dialect --kind text",
+    "phase": "21.34 \u2014 scientific container (NetCDF/HDF5) economic court",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 7692,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-11-phase21-27-mhtml-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-28-logstream-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-29-pkgmeta-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-30-apispec-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-31-bib-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-32-rtf-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-33-container-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-34-hdf-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-35-cfbf-econ-372a86e0/ ?? tools/fixtures/make-apispec.py ?? tools/fixtures/make-bib.py ?? tools/fixtures/make-cfbf.py ?? tools/fixtures/make-container.py ?? tools/fixtures/make-hdf.py ?? tools/fixtures/make-logstream.py ?? tools/fixtures/make-mhtml.py ?? tools/fixtures/make-pkgmeta.py ?? tools/fixtures/make-rtf.py ?? tools/phase21-27-mhtml-econ-court.sh ?? tools/phase21-28-logstream-econ-court.sh ?? tools/phase21-29-pkgmeta-econ-court.sh ?? tools/phase21-30-apispec-econ-court.sh ?? tools/phase21-31-bib-econ-court.sh ?? tools/phase21-32-rtf-econ-court.sh ?? tools/phase21-33-container-econ-court.sh ?? tools/phase21-34-hdf-econ-court.sh ?? tools/phase21-35-cfbf-econ-court.sh ",
+    "utc": "2026-10-11T12:25:14Z",
+    "vole_probe_sha256": "57ffbbba67116a5854d013e8c49efffbee2f409ba54b8d3301479595b01d27b6",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "capability-gap": 2,
+        "equal": 2
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 2
+      }
+    },
+    "Q10": {
+      "conv": {
+        "capability-gap": 4
+      },
+      "sqlite": {
+        "capability-gap": 4
+      }
+    },
+    "Q11": {
+      "conv": {
+        "capability-gap": 4
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 2
+      }
+    },
+    "Q12": {
+      "conv": {
+        "capability-gap": 4
+      },
+      "sqlite": {
+        "capability-gap": 4
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 4
+      },
+      "sqlite": {
+        "capability-gap": 4
+      }
+    },
+    "Q3": {
+      "conv": {
+        "capability-gap": 2,
+        "equal": 2
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 2
+      }
+    },
+    "Q4": {
+      "conv": {
+        "capability-gap": 2,
+        "equal": 2
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 2
+      }
+    },
+    "Q5": {
+      "conv": {
+        "capability-gap": 2,
+        "equal": 2
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 2
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 4
+      },
+      "sqlite": {
+        "equal": 4
+      }
+    },
+    "Q7": {
+      "conv": {
+        "capability-gap": 4
+      },
+      "sqlite": {
+        "capability-gap": 4
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 4
+      },
+      "sqlite": {
+        "capability-gap": 4
+      }
+    },
+    "Q9": {
+      "conv": {
+        "both-decline": 2,
+        "equal": 2
+      },
+      "sqlite": {
+        "both-decline": 2,
+        "equal": 2
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 2136); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 8,
+  "exact_ok": 8,
+  "fixtures": [
+    "hdf5_basic.h5",
+    "hdf5_userblock.h5",
+    "netcdf_cdf1.nc",
+    "netcdf_cdf2.nc"
+  ],
+  "format": "hdf",
+  "lane_c_absent": [
+    "hdf5",
+    "HDF5 has no faithful Python-stdlib decoder (only the NetCDF-classic part is decoded by Lane C), so Lane C declines every HDF5-fixture question as comparator_absent"
+  ],
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "measured_commit": "372a86e02a475a451118c21c76eb3120d0799645",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native selectors (exact + structure)"
+  ],
+  "phase": "21.34 \u2014 scientific container (NetCDF/HDF5) economic court",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 0.9878720308411221,
+        "geomean_hi": 1.038934730729754,
+        "geomean_lo": 0.9525442857520677,
+        "losses": 0,
+        "median": 0.9741632497738588,
+        "median_hi": 1.0628116791655564,
+        "median_lo": 0.9442547624365806,
+        "n": 4,
+        "ratio_of_sums": 0.9860917107281499,
+        "ties": 4,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.7119353873676499,
+        "geomean_hi": 0.7760036270275176,
+        "geomean_lo": 0.6613984455669099,
+        "losses": 0,
+        "median": 0.7021572786848607,
+        "median_hi": 0.8108916642462969,
+        "median_lo": 0.6432204495065861,
+        "n": 4,
+        "ratio_of_sums": 0.7080882171954611,
+        "ties": 0,
+        "wins": 4
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.024184571733908686,
+        "geomean_hi": 0.02676428263217828,
+        "geomean_lo": 0.022686352297570055,
+        "losses": 0,
+        "median": 0.02315661978568703,
+        "median_hi": 0.028242500190313345,
+        "median_lo": 0.02259520757495314,
+        "n": 4,
+        "ratio_of_sums": 0.02428355772475696,
+        "ties": 0,
+        "wins": 4
+      },
+      "sqlite": {
+        "geomean": 0.022604093827997995,
+        "geomean_hi": 0.024623732114338253,
+        "geomean_lo": 0.0207605058363472,
+        "losses": 0,
+        "median": 0.022124051888774927,
+        "median_hi": 0.02598963216829944,
+        "median_lo": 0.020580728805681715,
+        "n": 4,
+        "ratio_of_sums": 0.02271378495039386,
+        "ties": 0,
+        "wins": 4
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 24.206468844944002,
+        "geomean_hi": 49.054274041685666,
+        "geomean_lo": 11.944996544914904,
+        "losses": 4,
+        "median": 29.25816993464052,
+        "median_hi": 51.796178343949045,
+        "median_lo": 11.832244008714596,
+        "n": 4,
+        "ratio_of_sums": 21.34039087947883,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.7819690601310935,
+        "geomean_hi": 0.9207677717982962,
+        "geomean_lo": 0.664093194539237,
+        "losses": 0,
+        "median": 0.7656334274864738,
+        "median_hi": 0.9848613297807921,
+        "median_lo": 0.6578246124031008,
+        "n": 4,
+        "ratio_of_sums": 0.7934960334282081,
+        "ties": 1,
+        "wins": 3
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 1.3492878605497678,
+        "geomean_hi": 1.4019613038313357,
+        "geomean_lo": 1.3097554734554362,
+        "losses": 4,
+        "median": 1.3361229777995658,
+        "median_hi": 1.43,
+        "median_lo": 1.2985074626865671,
+        "n": 4,
+        "ratio_of_sums": 1.3459915611814346,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.09639407167416582,
+        "geomean_hi": 0.10121619860736575,
+        "geomean_lo": 0.09133545961976999,
+        "losses": 0,
+        "median": 0.09689045576468192,
+        "median_hi": 0.1030267753201397,
+        "median_lo": 0.08927464352138871,
+        "n": 4,
+        "ratio_of_sums": 0.09666666666666666,
+        "ties": 0,
+        "wins": 4
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 50 invalid-hdf-structure",
+  "service": "doc-baseline",
+  "surface": "NetCDF classic (CDF-1/CDF-2) dimensions, global/variable attributes, and variables with their types, shapes and record flag; HDF5-subset superblock, groups and datasets with types, shapes and spans; the recorded dialect (netcdf/hdf5)",
+  "tree_state": "M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-11-phase21-27-mhtml-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-28-logstream-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-29-pkgmeta-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-30-apispec-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-31-bib-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-32-rtf-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-33-container-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-34-hdf-econ-372a86e0/ ?? evidence/campaigns/2026-10-11-phase21-35-cfbf-econ-372a86e0/ ?? tools/fixtures/make-apispec.py ?? tools/fixtures/make-bib.py ?? tools/fixtures/make-cfbf.py ?? tools/fixtures/make-container.py ?? tools/fixtures/make-hdf.py ?? tools/fixtures/make-logstream.py ?? tools/fixtures/make-mhtml.py ?? tools/fixtures/make-pkgmeta.py ?? tools/fixtures/make-rtf.py ?? tools/phase21-27-mhtml-econ-court.sh ?? tools/phase21-28-logstream-econ-court.sh ?? tools/phase21-29-pkgmeta-econ-court.sh ?? tools/phase21-30-apispec-econ-court.sh ?? tools/phase21-31-bib-econ-court.sh ?? tools/phase21-32-rtf-econ-court.sh ?? tools/phase21-33-container-econ-court.sh ?? tools/phase21-34-hdf-econ-court.sh ?? tools/phase21-35-cfbf-econ-court.sh",
+  "utc": "2026-10-11T12:25:14Z",
+  "verdict": "PASS"
+}

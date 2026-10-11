@@ -54,7 +54,39 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 FORMATS = ["config", "feed", "geojson", "gis", "notebook",
-           "tabular", "rst", "asciidoc", "mdx"]
+           "tabular", "rst", "asciidoc", "mdx",
+           "mhtml", "logstream", "pkgmeta", "apispec", "bib", "rtf",
+           "container", "hdf", "cfbf"]
+
+# Phase 21.27-21.35: the nine additional text/binary-document families. For these
+# the per-format configuration is declared in the `..._NINE` tables below and the
+# comparator/host-value logic lives in the `_new_*` section.
+NINE = ["mhtml", "logstream", "pkgmeta", "apispec", "bib", "rtf",
+        "container", "hdf", "cfbf"]
+
+# Lane C (the conventional decode-to-host-values load) has NO faithful Python-stdlib
+# decoder for these formats, so it declines every question with the recorded code
+# `comparator_absent`. `all` = the whole format; otherwise the fixture predicate is
+# evaluated per fixture by `_conv_absent`.
+C_ABSENT_NOTE = {
+    "cfbf": ("all", "CFBF/OLE2 has no faithful Python-stdlib decoder, so Lane C "
+                     "declines every question as comparator_absent"),
+    "hdf": ("hdf5", "HDF5 has no faithful Python-stdlib decoder (only the "
+                     "NetCDF-classic part is decoded by Lane C), so Lane C "
+                     "declines every HDF5-fixture question as comparator_absent"),
+}
+
+
+def _conv_absent(fmt, name):
+    spec = C_ABSENT_NOTE.get(fmt)
+    if spec is None:
+        return False
+    kind = spec[0]
+    if kind == "all":
+        return True
+    if kind == "hdf5":
+        return name.startswith("hdf5_")
+    return False
 
 
 def sha256_hex(b):
@@ -113,6 +145,20 @@ LANE_FIXTURES = {
                  "tables.adoc", "inline.adoc", "large.adoc"],
     "mdx": ["esm.mdx", "jsx.mdx", "expr.mdx", "mixed.mdx", "surface.mdx",
             "large.mdx"],
+    "mhtml": ["base.mhtml", "nostart.mhtml", "envelope.mhtml", "large.mhtml"],
+    "logstream": ["generic.log", "rfc5424.log", "rfc3164.log", "crlf.log",
+                  "blank.log", "large.log"],
+    "pkgmeta": ["package.json", "Cargo.toml", "pyproject.toml", "Cargo.lock",
+                "package-lock.json", "large.json"],
+    "apispec": ["schema.json", "openapi.json", "swagger.json", "asyncapi.json",
+                "large.json"],
+    "bib": ["refs.bib", "refs.ris", "refs.json", "large.json"],
+    "rtf": ["doc.rtf", "large.rtf"],
+    "container": ["zip_stored.zip", "zip_multi.zip", "zip_nonutf8.zip",
+                  "tar_ustar.tar", "tar_extended.tar"],
+    "hdf": ["netcdf_cdf1.nc", "netcdf_cdf2.nc", "hdf5_basic.h5",
+            "hdf5_userblock.h5"],
+    "cfbf": ["cfbf_v3.cfb", "cfbf_v4.cfb"],
 }
 
 # Controls -> the format class each MUST receive (checked at court time).
@@ -136,6 +182,26 @@ CONTROLS = {
     "mdx": {"prose.txt": "opaque", "markdown.md": "markdown",
             "markdown_code.md": "markdown", "inline_expr.md": "markdown",
             "html.html": "html", "braces.txt": "opaque"},
+    "mhtml": {"prose.txt": "opaque", "plain.html": "html",
+              "plain.eml": "eml"},
+    "logstream": {"prose.txt": "opaque", "single.json": "json",
+                  "stream.jsonl": "jsonl", "bsd_nocolon.log": "yaml"},
+    "pkgmeta": {"generic.json": "json", "generic.toml": "toml",
+                "prose.txt": "opaque"},
+    "apispec": {"generic.json": "json", "shape.json": "json",
+                "prose.txt": "opaque"},
+    "bib": {"array.json": "json", "prose.txt": "opaque"},
+    "rtf": {"junk.txt": "opaque", "prose.txt": "opaque",
+            "rtfx.rtf": "opaque", "broken.rtf": "opaque"},
+    "container": {"office.docx": "docx@20", "office.odt": "odt@20",
+                  "pk_junk.bin": "opaque", "prose.txt": "opaque",
+                  "bad_eocd.zip": "opaque", "bad_checksum.tar": "opaque",
+                  "truncated.zip": "opaque"},
+    "hdf": {"prose.txt": "opaque", "hdf5_badmagic.bin": "opaque",
+            "hdf5_truncated.h5": "opaque", "hdf5_junk.bin": "opaque"},
+    "cfbf": {"prose.txt": "opaque", "sig_only.bin": "opaque",
+             "cfbf_badsig.cfb": "opaque", "cfbf_badshift.cfb": "opaque",
+             "cfbf_bad_dir_sector.cfb": "opaque"},
 }
 
 # The per-format plan (FROZEN). Slots are named per format; see the qdescs.
@@ -265,6 +331,75 @@ PLANS = {
         "mixed.mdx": {"heading": 0, "block": 0, "find_pat": "before"},
         "surface.mdx": {"heading": 0, "block": 0, "find_pat": "emphasis"},
         "large.mdx": {"heading": 1, "block": 0, "find_pat": "numbered 7 "},
+    },
+    "mhtml": {
+        "base.mhtml": {"res": 0, "find": "stylesheet"},
+        "nostart.mhtml": {"res": 0, "find": "plain"},
+        "envelope.mhtml": {"res": None, "find": "env"},
+        "large.mhtml": {"res": 0, "find": "line 3999"},
+    },
+    "logstream": {
+        "generic.log": {"rec": 0, "role": "msg", "find": "starting"},
+        "rfc5424.log": {"rec": 0, "role": "msg", "find": "hello"},
+        "rfc3164.log": {"rec": 0, "role": "msg", "find": "su root"},
+        "crlf.log": {"rec": 0, "role": "msg", "find": "tail"},
+        "blank.log": {"rec": 0, "role": "msg", "find": "first"},
+        "large.log": {"rec": 0, "role": "msg", "find": "payload"},
+    },
+    "pkgmeta": {
+        "package.json": {"section": 2, "sname": "dependencies", "entry": 6,
+                         "find": "demo"},
+        "Cargo.toml": {"section": 1, "sname": "package", "entry": 2,
+                       "find": "serde"},
+        "pyproject.toml": {"section": 3, "sname": "project", "entry": 4,
+                           "find": "demo"},
+        "Cargo.lock": {"section": 1, "sname": "package", "entry": 2,
+                       "find": "demo"},
+        "package-lock.json": {"section": 1, "sname": "packages", "entry": 4,
+                              "find": "demo"},
+        "large.json": {"section": 1, "sname": "dependencies", "entry": 3,
+                       "find": "demo"},
+    },
+    "apispec": {
+        "schema.json": {"object": 0, "ref": 0, "find": "Id"},
+        "openapi.json": {"object": 0, "ref": 0, "find": "Demo"},
+        "swagger.json": {"object": 0, "ref": None, "find": "Demo"},
+        "asyncapi.json": {"object": 0, "ref": None, "find": "Demo"},
+        "large.json": {"object": 0, "ref": None, "find": "Demo"},
+    },
+    "bib": {
+        "refs.bib": {"entry": 0, "field": "title", "key": "smith2020",
+                     "find": "Study"},
+        "refs.ris": {"entry": 0, "field": "TI", "key": "",
+                     "find": "Study"},
+        "refs.json": {"entry": 0, "field": "title", "key": "doe2019",
+                      "find": "Study"},
+        "large.json": {"entry": 0, "field": "title", "key": "item000000",
+                       "find": "Study"},
+    },
+    "rtf": {
+        "doc.rtf": {"group": 1, "control": 0, "hex": 0, "unicode": 0,
+                    "dest": "fonttbl", "text": 0, "find": "bold"},
+        "large.rtf": {"group": 1, "control": 0, "hex": 0, "unicode": 0,
+                      "dest": "fonttbl", "text": 0, "find": "bold"},
+    },
+    "container": {
+        "zip_stored.zip": {"entry": 0, "find": "hello"},
+        "zip_multi.zip": {"entry": 0, "find": "alpha"},
+        "zip_nonutf8.zip": {"entry": 0, "find": "caf"},
+        "tar_ustar.tar": {"entry": 0, "find": "nested"},
+        "tar_extended.tar": {"entry": 0, "find": "overridden"},
+    },
+    "hdf": {
+        "netcdf_cdf1.nc": {"object": 2, "dim": 0, "attr": 0, "find": "temp"},
+        "netcdf_cdf2.nc": {"object": 2, "dim": 0, "attr": 0, "find": "temp"},
+        "hdf5_basic.h5": {"object": 1, "dim": None, "attr": 0, "find": "dset"},
+        "hdf5_userblock.h5": {"object": 1, "dim": None, "attr": 0,
+                              "find": "dset"},
+    },
+    "cfbf": {
+        "cfbf_v3.cfb": {"entry": 2, "stream": 2, "find": "Large"},
+        "cfbf_v4.cfb": {"entry": 2, "stream": 2, "find": "caf"},
     },
 }
 
@@ -486,6 +621,210 @@ QDESC = {
                 "format not recorded -> typed decline"),
         "Q12": ("the inline-span count", "no inline model -> typed decline",
                 "no inline model -> typed decline"),
+    },
+    "mhtml": {
+        "Q1": ("the decoded root-part HTML text", "line-based re-read of the root",
+               "decoded root body (email+quopri/base64)"),
+        "Q2": ("the root part's exact entity span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("the root part's media type", "extracted root media type",
+               "host root media type"),
+        "Q4": ("the MIME header-field count", "extracted header count",
+               "host header count"),
+        "Q5": ("the envelope locations (Snapshot-Content-Location + Content-Base)",
+               "extracted envelope headers", "host envelope headers"),
+        "Q7": ("`mhtml-find` over root text + headers (with part/span)",
+               "no source span -> typed decline", "no source span -> typed decline"),
+        "Q8": ("the root part's exact decoded byte hash",
+               "re-decoded -> typed decline", "host value -> typed decline"),
+        "Q9": ("a sub-resource's media type", "extracted sub-resource type",
+               "host sub-resource type"),
+        "Q10": ("a sub-resource's transfer-encoding spelling",
+                "no source spelling -> typed decline",
+                "no source spelling -> typed decline"),
+        "Q11": ("the recorded format (mhtml)", "stored format",
+                "format not recorded -> typed decline"),
+        "Q12": ("the root part's exact body span", "no source span -> typed decline",
+                "no source span -> typed decline"),
+    },
+    "logstream": {
+        "Q1": ("a record's decoded message text", "line-based re-read",
+               "line-based record load (generic dialect only)"),
+        "Q2": ("a record's exact source span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("a record's dialect (generic/rfc5424/rfc3164)", "stored dialect",
+               "detected dialect"),
+        "Q4": ("the record count", "stored record count", "non-blank line count"),
+        "Q5": ("a record's ordered field roles", "stored field roles",
+               "no field-role model -> typed decline"),
+        "Q7": ("`logstream-find` over record text (with spans)",
+               "no source span -> typed decline", "no source span -> typed decline"),
+        "Q8": ("a field's exact bytes", "no source token -> typed decline",
+               "no source token -> typed decline"),
+        "Q9": ("a record's line terminator (lf/crlf)", "stored terminator",
+               "line terminator"),
+        "Q10": ("a record's byte length", "stored line length", "line length"),
+        "Q11": ("the recorded format (logstream)", "stored format",
+                "format not recorded -> typed decline"),
+        "Q12": ("a record's exact raw bytes", "no source bytes -> typed decline",
+                "no source bytes -> typed decline"),
+    },
+    "pkgmeta": {
+        "Q1": ("a section's name", "extracted section name",
+               "host section name"),
+        "Q2": ("a section's exact source span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("a section's role", "extracted section role", "host section role"),
+        "Q4": ("a section's kind (root/table/array)", "extracted section kind",
+               "host section kind"),
+        "Q5": ("a section descriptor (name+role+kind)", "extracted descriptor",
+               "host descriptor"),
+        "Q7": ("`pkgmeta-find` over keys/values (with spans)",
+               "no source span -> typed decline", "no source span -> typed decline"),
+        "Q8": ("a section's entry count", "extracted entry count",
+               "host entry count"),
+        "Q9": ("the recorded dialect (npm/cargo/pyproject/lock)", "stored dialect",
+               "dialect not recorded -> typed decline"),
+        "Q10": ("a section's exact name span", "no source span -> typed decline",
+                "no source span -> typed decline"),
+        "Q11": ("the recorded format (pkgmeta)", "stored format",
+                "format not recorded -> typed decline"),
+        "Q12": ("a section entry's exact bytes", "no source bytes -> typed decline",
+                "no source bytes -> typed decline"),
+    },
+    "apispec": {
+        "Q1": ("the recorded version string", "extracted version", "host version"),
+        "Q2": ("an object's exact source span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("the recorded dialect (schema/openapi/swagger/asyncapi)",
+               "stored dialect", "dialect not recorded -> typed decline"),
+        "Q4": ("an object descriptor (role+member count)", "extracted descriptor",
+               "host descriptor"),
+        "Q5": ("a `$ref` target string", "extracted ref target", "host ref target"),
+        "Q7": ("`apispec-find` over pointers/values (with spans)",
+               "no source span -> typed decline", "no source span -> typed decline"),
+        "Q8": ("a `$ref` value's exact bytes", "no source token -> typed decline",
+               "no source token -> typed decline"),
+        "Q9": ("the `$ref` count", "extracted ref count", "counted `$ref` keys"),
+        "Q10": ("an object's role", "extracted role", "host role"),
+        "Q11": ("the recorded format (apispec)", "stored format",
+                "format not recorded -> typed decline"),
+        "Q12": ("the version string's exact bytes", "no source token -> typed decline",
+                "no source token -> typed decline"),
+    },
+    "bib": {
+        "Q1": ("a field's decoded value", "extracted field value",
+               "host field value"),
+        "Q2": ("an entry's exact source span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("the recorded dialect (bibtex/ris/csl_json)", "stored dialect",
+               "dialect not recorded -> typed decline"),
+        "Q4": ("an entry's duplicate-field count", "extracted duplicates",
+               "counted duplicate fields"),
+        "Q5": ("an entry descriptor (key/id + type)", "extracted descriptor",
+               "host descriptor"),
+        "Q7": ("`bib-find` over field values (with spans)",
+               "no source span -> typed decline", "no source span -> typed decline"),
+        "Q8": ("a field's exact value bytes", "no source token -> typed decline",
+               "no source token -> typed decline"),
+        "Q9": ("the record count", "extracted record count", "counted records"),
+        "Q10": ("the total field count", "extracted field count", "counted fields"),
+        "Q11": ("the recorded format (bib)", "stored format",
+                "format not recorded -> typed decline"),
+        "Q12": ("a field's exact source span", "no source span -> typed decline",
+                "no source span -> typed decline"),
+    },
+    "rtf": {
+        "Q1": ("the header control text", "extracted header text",
+               "host header text"),
+        "Q2": ("a group's exact source span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("the RTF version", "extracted version", "host version"),
+        "Q4": ("the fonttbl destination count", "extracted fonttbl count",
+               "counted fonttbl destinations"),
+        "Q5": ("the first control word's name", "extracted control name",
+               "host control name"),
+        "Q7": ("`rtf-find` over text runs (with spans)",
+               "no source span -> typed decline", "no source span -> typed decline"),
+        "Q8": ("a control word's exact bytes", "no source token -> typed decline",
+               "no source token -> typed decline"),
+        "Q9": ("the hex-escape (`\\'hh`) count", "extracted hex count",
+               "counted hex escapes"),
+        "Q10": ("the first unicode escape's code point", "extracted code",
+                "host code"),
+        "Q11": ("the recorded format (rtf)", "stored format",
+                "format not recorded -> typed decline"),
+        "Q12": ("a control word's exact span", "no source span -> typed decline",
+                "no source span -> typed decline"),
+    },
+    "container": {
+        "Q1": ("a member's raw name", "extracted member name",
+               "host member name"),
+        "Q2": ("a member's exact source span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("the recorded dialect (zip/tar)", "stored dialect",
+               "host dialect"),
+        "Q4": ("the member count", "extracted member count", "host member count"),
+        "Q5": ("a member descriptor (name+kind+method+sizes)",
+               "extracted descriptor", "host descriptor"),
+        "Q7": ("`container-find` over names (with spans)",
+               "no source span -> typed decline", "no source span -> typed decline"),
+        "Q8": ("a member's exact bytes", "no source bytes -> typed decline",
+               "no source bytes -> typed decline"),
+        "Q9": ("a member's CRC-32", "extracted CRC-32", "computed CRC-32"),
+        "Q10": ("a member's compression method", "extracted method",
+                "host method"),
+        "Q11": ("the recorded format (container)", "stored format",
+                "format not recorded -> typed decline"),
+        "Q12": ("a member's exact data span", "no source span -> typed decline",
+                "no source span -> typed decline"),
+    },
+    "hdf": {
+        "Q1": ("an object's path", "extracted object path",
+               "host object path (NetCDF only)"),
+        "Q2": ("an object's exact source span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("the recorded dialect (netcdf/hdf5)", "stored dialect",
+               "host dialect (NetCDF only)"),
+        "Q4": ("the object count", "extracted object count",
+               "host object count (NetCDF only)"),
+        "Q5": ("an object descriptor (path+kind+type+shape)",
+               "extracted descriptor", "host descriptor (NetCDF only)"),
+        "Q7": ("`hdf-find` over object/attribute names (with spans)",
+               "no source span -> typed decline", "no source span -> typed decline"),
+        "Q8": ("an object's data bytes", "no source bytes -> typed decline",
+               "no source bytes -> typed decline"),
+        "Q9": ("a dimension's name", "extracted dimension name",
+               "host dimension name (NetCDF only)"),
+        "Q10": ("an attribute's name", "no faithful attr order -> typed decline",
+                "no faithful attr order -> typed decline"),
+        "Q11": ("the recorded format (hdf)", "stored format",
+                "format not recorded -> typed decline"),
+        "Q12": ("an object's exact data span", "no source span -> typed decline",
+                "no source span -> typed decline"),
+    },
+    "cfbf": {
+        "Q1": ("an entry's path", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q2": ("an entry's exact source span", "no source span -> typed decline",
+               "comparator_absent"),
+        "Q3": ("the recorded dialect (cfb3/cfb4)",
+               "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q4": ("the entry count", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q5": ("an entry/stream descriptor",
+               "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q7": ("`cfbf-find` over entry/stream names (with spans)",
+               "no source span -> typed decline", "comparator_absent"),
+        "Q8": ("a stream's exact bytes", "no source bytes -> typed decline",
+               "comparator_absent"),
+        "Q9": ("the stream count", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q10": ("an entry's object type (root/storage/stream)",
+                "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q11": ("the recorded format (cfbf)", "stored format", "comparator_absent"),
+        "Q12": ("a stream's exact data span", "no source span -> typed decline",
+                "comparator_absent"),
     },
 }
 
@@ -961,6 +1300,8 @@ def _q_prose(lane, d, q, plan):
 
 def build(fmt, lane, source_path, out_dir):
     os.makedirs(out_dir, exist_ok=True)
+    if fmt in NINE:
+        return _build_new(fmt, lane, source_path, out_dir)
     if lane == "duckdb":
         if fmt != "tabular":
             raise SystemExit("the duckdb lane is defined only for the tabular format")
@@ -1803,6 +2144,8 @@ def run_query(fmt, lane, d, q, plan):
         env = _q_tabular(lane, d, q, plan)
     elif fmt in ("rst", "asciidoc", "mdx"):
         env = _q_prose(lane, d, q, plan)
+    elif fmt in NINE:
+        env = _q_new(fmt, lane, d, q, plan)
     else:
         env = _q_json(fmt, lane, d, q, plan)
     env["lane"] = lane
@@ -2162,6 +2505,12 @@ def aggregate(fmt, raw, campaign, env_path=None):
                      "dialect (Q11) and the recovered column layout/quoting spelling "
                      "(Q12) are typed declines, never silent answers. Where it wins or "
                      "loses an axis, the paired-ratio table above records it.")
+    if fmt in C_ABSENT_NOTE:
+        lines.append("- **Lane C has NO faithful stdlib decoder for %s**: %s. "
+                     "Every Lane-C answer for that scope is recorded as a typed "
+                     "`comparator_absent` decline, never a silent or fabricated "
+                     "answer; VOLE capability is shown as `capability-gap` against it."
+                     % (fmt.upper(), C_ABSENT_NOTE[fmt][1]))
     lines.append("- **Nothing here is run on the host**; every command ran in a pinned "
                  "container.")
     lines.append("")
@@ -2249,12 +2598,966 @@ def aggregate(fmt, raw, campaign, env_path=None):
         "equivalence": {q: equiv.get(q, {}) for q in QS},
         "comparators": comparators,
         "ratios": ratio_report,
+        "lane_c_absent": (list(C_ABSENT_NOTE[fmt]) if fmt in C_ABSENT_NOTE else None),
         "environment": env,
     }
     with open(os.path.join(campaign, "receipt.json"), "w") as f:
         json.dump(receipt, f, indent=2, sort_keys=True)
     print("\n".join(lines))
     return 0 if verdict == "PASS" else 1
+
+
+# ===========================================================================
+# Phase 21.27-21.35: the nine additional document families
+# ===========================================================================
+#
+# Each family has a **conventional** Python-stdlib extractor (the model) that a
+# real decoder would expose: `zipfile`/`tarfile` for container, `email` +
+# `quopri`/`base64` + `html.parser` for MHTML, `json`/`tomllib` for
+# pkgmeta/apispec/CSL-JSON, a line/tag reader for logstream/bib, a control-word
+# scanner for RTF, and a small pure-Python **NetCDF-classic** reader for the
+# NetCDF part of `hdf`. The source-retaining SQLite lane keeps the raw bytes too
+# (byte authority) and stores the same model; the conventional `conv` lane keeps
+# only the derived host-value view and records no dialect.
+#
+# Lane C has NO faithful stdlib decoder for **CFBF/OLE2** at all and for the
+# **HDF5** part of `hdf`, so those decline every question with the recorded code
+# `comparator_absent` (see `C_ABSENT_NOTE` / `_conv_absent`). Nothing is
+# fabricated to stand in for a decoder that does not exist.
+
+MHTML_DIALECT = "mhtml"
+
+
+def _type_info(fmt):
+    return None
+
+
+def _new_model(fmt, raw, name):
+    fn = {
+        "mhtml": _model_mhtml, "logstream": _model_logstream,
+        "pkgmeta": _model_pkgmeta, "apispec": _model_apispec,
+        "bib": _model_bib, "rtf": _model_rtf, "container": _model_container,
+        "hdf": _model_hdf, "cfbf": _model_cfbf,
+    }[fmt]
+    model = fn(raw, name)
+    model["_name"] = name
+    return model
+
+
+def _new_reduced(lane, model):
+    """The conventional decode-to-host-values view (a deep copy; the lane-specific
+    declines for the recorded dialect/format are enforced per query)."""
+    import copy
+    return copy.deepcopy(model)
+
+
+def _build_new(fmt, lane, source_path, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    name = os.path.basename(source_path)
+    with open(source_path, "rb") as f:
+        raw = f.read()
+    model = _new_model(fmt, raw, name)
+    if lane == "sqlite":
+        _write_sqlite(os.path.join(out_dir, "x.sqlite"), raw, model)
+    else:
+        with open(os.path.join(out_dir, "model.json"), "w") as f:
+            json.dump(_new_reduced(lane, model), f)
+    print(json.dumps({"ok": True, "lane": lane, "src_len": len(raw),
+                      "format": model.get("_format")}, sort_keys=True))
+    return 0
+
+
+def _read_new_model(lane, d):
+    if lane == "sqlite":
+        _, model = _read_sqlite(d)
+        return model
+    with open(os.path.join(d, "model.json")) as f:
+        return json.load(f)
+
+
+# --- MHTML ------------------------------------------------------------------
+
+def _model_mhtml(raw, name):
+    import email
+    msg = email.message_from_bytes(raw)
+    top = list(msg.items())
+    body = msg.get_payload() if msg.is_multipart() else []
+    if not isinstance(body, list):
+        body = []
+
+    def cte(p):
+        v = p.get("Content-Transfer-Encoding")
+        return v if v else "7bit"
+
+    def mtype(p):
+        return (p.get_content_type() or "").lower()
+
+    start = msg.get_param("start") if msg.get("Content-Type") else None
+    root = None
+    if start:
+        for p in body:
+            if (p.get("Content-ID") or "").strip() == start.strip():
+                root = p
+                break
+    if root is None:
+        for p in body:
+            if mtype(p) == "text/html":
+                root = p
+                break
+    if root is None and body:
+        root = body[0]
+    root_text = root_mt = root_cte = None
+    if root is not None:
+        data = root.get_payload(decode=True)
+        if data is None:
+            pl = root.get_payload()
+            data = pl.encode("utf-8", "replace") if isinstance(pl, str) else b""
+        root_text = data.decode("utf-8", "replace")
+        root_mt = mtype(root)
+        root_cte = cte(root)
+    headers = len(top) + sum(len(p.items()) for p in body)
+    resources = [{"media_type": mtype(p), "cte": cte(p)}
+                 for p in body if p is not root]
+    return {"_format": "mhtml", "dialect": "mhtml", "root_text": root_text,
+            "root_media_type": root_mt, "root_cte": root_cte, "headers": headers,
+            "locations": {"snapshot_content_location":
+                          msg.get("Snapshot-Content-Location"),
+                          "content_base": msg.get("Content-Base")},
+            "resources": resources}
+
+
+def _q_mhtml(lane, model, q, plan):
+    if q == "Q1":
+        return _laneless(q, {"kind": "string", "value": model.get("root_text")})
+    if q == "Q2":
+        return decl(q, "no-source-span", "a conventional MIME load keeps no entity span")
+    if q == "Q3":
+        return _laneless(q, model.get("root_media_type"))
+    if q == "Q4":
+        return _laneless(q, model.get("headers"))
+    if q == "Q5":
+        return _laneless(q, dict(model.get("locations", {})))
+    if q == "Q7":
+        return decl(q, "no-source-span", "a conventional MIME load keeps no part/span")
+    if q == "Q8":
+        return decl(q, "re-decoded",
+                    "a conventional load re-decodes a derived view; no exact bytes")
+    if q == "Q9":
+        res = plan.get("res")
+        resources = model.get("resources", [])
+        if res is None or res >= len(resources):
+            return decl(q, "missing", "no such sub-resource")
+        return _laneless(q, resources[res]["media_type"])
+    if q == "Q10":
+        return decl(q, "no-source-spelling",
+                    "a conventional load keeps no transfer-encoding spelling")
+    if q == "Q11":
+        if lane == "conv":
+            return decl(q, "format-not-recorded", "a conventional load records no format")
+        return _laneless(q, "mhtml")
+    if q == "Q12":
+        return decl(q, "no-source-span", "a conventional MIME load keeps no body span")
+    return decl(q, "unknown-question", q)
+
+
+# --- log-stream -------------------------------------------------------------
+
+def _ls_records(text):
+    records = []
+    blanks = 0
+    pos = 0
+    n = len(text)
+    while pos < n:
+        nl = text.find("\n", pos)
+        if nl == -1:
+            content, term = text[pos:], ""
+            pos = n
+        else:
+            seg = text[pos:nl]
+            if seg.endswith("\r"):
+                content, term = seg[:-1], "crlf"
+            else:
+                content, term = seg, "lf"
+            pos = nl + 1
+        if content.strip() == "":
+            blanks += 1
+        else:
+            records.append({"content": content, "term": term})
+    return records, blanks
+
+
+def _ls_dialect(content):
+    if re.match(r"^<\d{1,3}>\d+ ", content):
+        return "rfc5424"
+    if re.match(r"^<\d{1,3}>[A-Z][a-z]{2} ", content):
+        return "rfc3164"
+    return "generic"
+
+
+def _ls_generic_msg(content):
+    s = content
+    if s.startswith("["):
+        close = s.find("]")
+        if close == -1:
+            return None
+        rest = s[close + 1:].lstrip()
+    else:
+        m = re.match(r"^(\S+)\s+(.*)$", s)
+        if not m:
+            return None
+        tok, rest = m.group(1), m.group(2)
+        if re.search(r"[-:T]", tok) and re.search(r"\d", tok):
+            pass  # a timestamp token; rest begins with the level
+        else:
+            return (tok, rest)
+    m = re.match(r"^(\S+)\s+(.*)$", rest)
+    if not m:
+        return (rest, "")
+    return (m.group(1), m.group(2))
+
+
+def _model_logstream(raw, name):
+    text = raw.decode("utf-8", "replace")
+    records, blanks = _ls_records(text)
+    return {"_format": "logstream", "dialect": "logstream",
+            "records": records, "blank_lines": blanks}
+
+
+def _q_logstream(lane, model, q, plan):
+    records = model.get("records", [])
+    rec = plan.get("rec", 0)
+    if q == "Q1":
+        if rec >= len(records):
+            return decl(q, "missing", "no such record")
+        content = records[rec]["content"]
+        if _ls_dialect(content) != "generic":
+            return decl(q, "no-typed-message",
+                        "a conventional line reader does not split this dialect's message")
+        parsed = _ls_generic_msg(content)
+        if parsed is None:
+            return decl(q, "no-typed-message", "the line does not match the generic dialect")
+        return _laneless(q, {"kind": "string", "value": parsed[1]})
+    if q == "Q2":
+        return decl(q, "no-source-span", "a conventional line load keeps no span")
+    if q == "Q3":
+        if rec >= len(records):
+            return decl(q, "missing", "no such record")
+        return _laneless(q, _ls_dialect(records[rec]["content"]))
+    if q == "Q4":
+        return _laneless(q, len(records))
+    if q == "Q5":
+        return decl(q, "no-field-role-model",
+                    "a conventional line reader builds no field-role model")
+    if q == "Q7":
+        return decl(q, "no-source-span", "a conventional line load keeps no span")
+    if q == "Q8":
+        return decl(q, "no-source-token", "a conventional line load keeps no token bytes")
+    if q == "Q9":
+        if rec >= len(records):
+            return decl(q, "missing", "no such record")
+        return _laneless(q, records[rec]["term"])
+    if q == "Q10":
+        if rec >= len(records):
+            return decl(q, "missing", "no such record")
+        return _laneless(q, len(records[rec]["content"]))
+    if q == "Q11":
+        if lane == "conv":
+            return decl(q, "format-not-recorded", "a conventional load records no format")
+        return _laneless(q, "logstream")
+    if q == "Q12":
+        return decl(q, "no-source-bytes", "a conventional line load keeps no source bytes")
+    return decl(q, "unknown-question", q)
+
+
+# --- package metadata -------------------------------------------------------
+
+_PKG_ROLE = {
+    "npm_package": {"scripts": "scripts", "dependencies": "dependencies",
+                    "devDependencies": "dev-dependencies",
+                    "peerDependencies": "peer-dependencies",
+                    "optionalDependencies": "optional-dependencies"},
+    "cargo_manifest": {"package": "package", "dependencies": "dependencies",
+                       "dev-dependencies": "dev-dependencies",
+                       "build-dependencies": "build-dependencies"},
+    "pyproject_manifest": {"project": "project", "build-system": "build-system",
+                           "tool": "tool"},
+    "cargo_lock": {"package": "lock-package", "dependencies": "dependencies"},
+    "npm_lock": {},
+}
+
+
+def _pkgmeta_dialect(raw):
+    import tomllib
+    text = raw.decode("utf-8", "replace")
+    if text.lstrip().startswith("{"):
+        d = json.loads(text)
+        return "npm_lock" if "lockfileVersion" in d else "npm_package"
+    d = tomllib.loads(text)
+    if isinstance(d.get("package"), list):
+        return "cargo_lock"
+    if "build-system" in d or "project" in d or "tool" in d:
+        return "pyproject_manifest"
+    return "cargo_manifest"
+
+
+def _model_pkgmeta(raw, name):
+    import tomllib
+    text = raw.decode("utf-8", "replace")
+    dialect = _pkgmeta_dialect(raw)
+    parsed = json.loads(text) if dialect in ("npm_package", "npm_lock") \
+        else tomllib.loads(text)
+    return {"_format": "pkgmeta", "dialect": dialect, "parsed": parsed}
+
+
+def _pkgmeta_section(model, sname):
+    parsed = model.get("parsed", {})
+    node = parsed.get(sname) if isinstance(parsed, dict) else None
+    if isinstance(node, dict):
+        kind = "table"
+    elif isinstance(node, list):
+        kind = "array"
+    elif node is None:
+        kind = None
+    else:
+        kind = "scalar"
+    entries = len(node) if isinstance(node, dict) else 0
+    role = _PKG_ROLE.get(model.get("dialect"), {}).get(sname, "other")
+    return {"name": sname, "role": role, "kind": kind, "entries": entries}
+
+
+def _q_pkgmeta(lane, model, q, plan):
+    sec = _pkgmeta_section(model, plan.get("sname", ""))
+    if q == "Q1":
+        if sec["kind"] is None:
+            return decl(q, "missing", "no such section")
+        return _laneless(q, sec["name"])
+    if q == "Q2":
+        return decl(q, "no-source-span", "a conventional manifest load keeps no span")
+    if q == "Q3":
+        if sec["kind"] is None:
+            return decl(q, "missing", "no such section")
+        return _laneless(q, sec["role"])
+    if q == "Q4":
+        if sec["kind"] is None:
+            return decl(q, "missing", "no such section")
+        return _laneless(q, sec["kind"])
+    if q == "Q5":
+        if sec["kind"] is None:
+            return decl(q, "missing", "no such section")
+        return _laneless(q, {"name": sec["name"], "role": sec["role"],
+                             "kind": sec["kind"]})
+    if q == "Q7":
+        return decl(q, "no-source-span", "a conventional manifest load keeps no span")
+    if q == "Q8":
+        if sec["kind"] is None:
+            return decl(q, "missing", "no such section")
+        return _laneless(q, sec["entries"])
+    if q == "Q9":
+        if lane == "conv":
+            return decl(q, "dialect-not-recorded", "a conventional load records no dialect")
+        return _laneless(q, model.get("dialect"))
+    if q == "Q10":
+        return decl(q, "no-source-span", "a conventional manifest load keeps no span")
+    if q == "Q11":
+        if lane == "conv":
+            return decl(q, "format-not-recorded", "a conventional load records no format")
+        return _laneless(q, "pkgmeta")
+    if q == "Q12":
+        return decl(q, "no-source-bytes",
+                    "a conventional manifest load keeps no exact entry bytes")
+    return decl(q, "unknown-question", q)
+
+
+# --- API specification ------------------------------------------------------
+
+def _model_apispec(raw, name):
+    d = json.loads(raw.decode("utf-8", "replace"))
+    if "$schema" in d:
+        dialect, version = "json_schema", str(d["$schema"])
+    elif "openapi" in d:
+        dialect, version = "openapi", str(d["openapi"])
+    elif "swagger" in d:
+        dialect, version = "swagger", str(d["swagger"])
+    elif "asyncapi" in d:
+        dialect, version = "asyncapi", str(d["asyncapi"])
+    else:
+        dialect, version = None, None
+    refs = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if k == "$ref":
+                    refs.append(v)
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+
+    walk(d)
+    members = len(d) if isinstance(d, dict) else 0
+    return {"_format": "apispec", "dialect": dialect, "version": version,
+            "refs": refs, "root_members": members}
+
+
+def _q_apispec(lane, model, q, plan):
+    if q == "Q1":
+        if model.get("version") is None:
+            return decl(q, "missing", "no version")
+        return _laneless(q, {"kind": "string", "value": model.get("version")})
+    if q == "Q2":
+        return decl(q, "no-source-span", "a conventional JSON load keeps no span")
+    if q == "Q3":
+        if lane == "conv":
+            return decl(q, "dialect-not-recorded", "a conventional load records no dialect")
+        return _laneless(q, model.get("dialect"))
+    if q == "Q4":
+        return _laneless(q, {"role": "root", "members": model.get("root_members")})
+    if q == "Q5":
+        refs = model.get("refs", [])
+        ref = plan.get("ref")
+        if ref is None or ref >= len(refs):
+            return decl(q, "missing", "no such $ref")
+        return _laneless(q, {"kind": "string", "value": refs[ref]})
+    if q == "Q7":
+        return decl(q, "no-source-span", "a conventional JSON load keeps no span")
+    if q == "Q8":
+        return decl(q, "no-source-token", "a conventional JSON load keeps no token bytes")
+    if q == "Q9":
+        return _laneless(q, len(model.get("refs", [])))
+    if q == "Q10":
+        return _laneless(q, "root")
+    if q == "Q11":
+        if lane == "conv":
+            return decl(q, "format-not-recorded", "a conventional load records no format")
+        return _laneless(q, "apispec")
+    if q == "Q12":
+        return decl(q, "no-source-token", "a conventional JSON load keeps no token bytes")
+    return decl(q, "unknown-question", q)
+
+
+# --- bibliography -----------------------------------------------------------
+
+def _bibtex_entries(text):
+    out = []
+    for m in re.finditer(r"@(\w+)\s*\{\s*([^,\s]*)\s*,", text):
+        etype, key = m.group(1), m.group(2)
+        start = m.end()
+        depth = 1
+        i = start
+        while i < len(text) and depth:
+            c = text[i]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+            i += 1
+        body = text[start:i - 1]
+        fields = []
+        for fm in re.finditer(r"(\w[\w-]*)\s*=\s*", body):
+            fname = fm.group(1)
+            j = fm.end()
+            if j < len(body) and body[j] == "{":
+                d = 1
+                k = j + 1
+                while k < len(body) and d:
+                    if body[k] == "{":
+                        d += 1
+                    elif body[k] == "}":
+                        d -= 1
+                    k += 1
+                raw = body[j:k]
+            elif j < len(body) and body[j] == '"':
+                k = j + 1
+                while k < len(body) and body[k] != '"':
+                    k += 1
+                raw = body[j:k + 1]
+            else:
+                k = j
+                while k < len(body) and body[k] not in ",\n":
+                    k += 1
+                raw = body[j:k].strip()
+            fields.append((fname.lower(), raw))
+        out.append({"type": etype, "key": key, "fields": fields})
+    return out
+
+
+def _bibtex_value(raw):
+    r = raw.strip()
+    if len(r) >= 2 and r[0] == "{" and r[-1] == "}":
+        return r[1:-1]
+    if len(r) >= 2 and r[0] == '"' and r[-1] == '"':
+        return r[1:-1]
+    return r
+
+
+def _ris_entries(text):
+    entries = []
+    cur = None
+    for line in text.split("\n"):
+        if len(line) >= 6 and line[0:2].isupper() and line[2:4] == "  " \
+                and line[4:6] == "- ":
+            tag, val = line[0:2], line[6:]
+            if tag == "TY":
+                cur = {"type": val.strip(), "key": "", "fields": [(tag, val)]}
+                entries.append(cur)
+            elif tag == "ER":
+                if cur is not None:
+                    cur["fields"].append((tag, val))
+                cur = None
+            elif cur is not None:
+                cur["fields"].append((tag, val))
+        elif cur is not None and cur["fields"]:
+            # a continuation line extends the last field's raw value
+            tag, val = cur["fields"][-1]
+            cur["fields"][-1] = (tag, val + "\n" + line)
+    return entries
+
+
+def _model_bib(raw, name):
+    text = raw.decode("utf-8", "replace")
+    head = text.lstrip()
+    if head.startswith("[") or head.startswith("{"):
+        data = json.loads(text)
+        items = data if isinstance(data, list) else [data]
+        return {"_format": "bib", "dialect": "csl_json", "items": items,
+                "entries": [], "fields": 0, "records": len(items)}
+    if re.search(r"^TY  - ", text, re.M):
+        entries = _ris_entries(text)
+        nfields = sum(len(e["fields"]) for e in entries)
+        return {"_format": "bib", "dialect": "ris", "items": [],
+                "entries": entries, "fields": nfields, "records": len(entries)}
+    entries = _bibtex_entries(text)
+    nfields = sum(len(e["fields"]) for e in entries)
+    return {"_format": "bib", "dialect": "bibtex", "items": [],
+            "entries": entries, "fields": nfields, "records": len(entries)}
+
+
+def _bib_field(entry, fname):
+    for nm, raw in entry.get("fields", []):
+        if nm.lower() == fname.lower():
+            return raw
+    return None
+
+
+def _q_bib(lane, model, q, plan):
+    dialect = model.get("dialect")
+    entry = plan.get("entry", 0)
+    if q == "Q1":
+        if dialect == "csl_json":
+            items = model.get("items", [])
+            if entry >= len(items):
+                return decl(q, "missing", "no such item")
+            v = items[entry].get(plan.get("field"))
+            return decl(q, "missing", "no such field") if v is None \
+                else _laneless(q, {"kind": "string", "value": v})
+        entries = model.get("entries", [])
+        if entry >= len(entries):
+            return decl(q, "missing", "no such entry")
+        raw = _bib_field(entries[entry], plan.get("field"))
+        if raw is None:
+            return decl(q, "missing", "no such field")
+        if dialect == "ris":
+            return _laneless(q, {"kind": "string", "value": raw})
+        return _laneless(q, {"kind": "string", "value": _bibtex_value(raw)})
+    if q == "Q2":
+        return decl(q, "no-source-span", "a conventional bibliography load keeps no span")
+    if q == "Q3":
+        if lane == "conv":
+            return decl(q, "dialect-not-recorded", "a conventional load records no dialect")
+        return _laneless(q, dialect)
+    if q == "Q4":
+        if dialect == "csl_json":
+            return decl(q, "no-duplicate-model",
+                        "a CSL item view exposes no duplicate-field count")
+        entries = model.get("entries", [])
+        if entry >= len(entries):
+            return decl(q, "missing", "no such entry")
+        names = [nm.lower() for nm, _ in entries[entry].get("fields", [])]
+        return _laneless(q, len(names) - len(set(names)))
+    if q == "Q5":
+        if dialect == "csl_json":
+            items = model.get("items", [])
+            if entry >= len(items):
+                return decl(q, "missing", "no such item")
+            return _laneless(q, {"key": items[entry].get("id"),
+                                 "type": items[entry].get("type")})
+        entries = model.get("entries", [])
+        if entry >= len(entries):
+            return decl(q, "missing", "no such entry")
+        return _laneless(q, {"key": entries[entry].get("key"),
+                             "type": entries[entry].get("type")})
+    if q == "Q7":
+        return decl(q, "no-source-span", "a conventional bibliography load keeps no span")
+    if q == "Q8":
+        return decl(q, "no-source-token", "a conventional bibliography load keeps no token")
+    if q == "Q9":
+        return _laneless(q, model.get("records"))
+    if q == "Q10":
+        return _laneless(q, model.get("fields"))
+    if q == "Q11":
+        if lane == "conv":
+            return decl(q, "format-not-recorded", "a conventional load records no format")
+        return _laneless(q, "bib")
+    if q == "Q12":
+        return decl(q, "no-source-span", "a conventional bibliography load keeps no span")
+    return decl(q, "unknown-question", q)
+
+
+# --- RTF --------------------------------------------------------------------
+
+def _model_rtf(raw, name):
+    b = raw
+    if b.startswith(b"\xef\xbb\xbf"):
+        b = b[3:]
+    text = b.decode("latin-1")
+    n = len(text)
+    i = 0
+    depth = 0
+    version = None
+    fonttbl = 0
+    hexesc = 0
+    first_control = None
+    first_unicode = None
+    header = []
+    header_done = False
+    while i < n:
+        c = text[i]
+        if c == "{":
+            depth += 1
+            if depth > 1:
+                header_done = True
+            i += 1
+            continue
+        if c == "}":
+            depth -= 1
+            i += 1
+            continue
+        if c == "\\":
+            if i + 1 < n and text[i + 1] == "'":
+                hexesc += 1
+                i += 4
+                continue
+            j = i + 1
+            name_start = j
+            while j < n and text[j].isalpha():
+                j += 1
+            name = text[name_start:j]
+            neg = False
+            if j < n and text[j] == "-":
+                neg = True
+                j += 1
+            dstart = j
+            while j < n and text[j].isdigit():
+                j += 1
+            param = text[dstart:j]
+            if not name:
+                i = j if j > i + 1 else i + 2
+                continue
+            if first_control is None:
+                first_control = name
+            if name == "rtf" and param:
+                version = int(("-" if neg else "") + param)
+            if name == "fonttbl":
+                fonttbl += 1
+            if name == "u" and first_unicode is None and param:
+                first_unicode = int(param)
+            if not header_done and depth == 1:
+                header.append(name + param)
+            i = j
+            continue
+        i += 1
+    return {"_format": "rtf", "dialect": "rtf", "header": " ".join(header),
+            "version": version, "fonttbl": fonttbl, "first_control": first_control,
+            "hex_escapes": hexesc, "first_unicode": first_unicode}
+
+
+def _q_rtf(lane, model, q, plan):
+    if q == "Q1":
+        return _laneless(q, {"kind": "string", "value": model.get("header")})
+    if q == "Q2":
+        return decl(q, "no-source-span", "a conventional RTF load keeps no span")
+    if q == "Q3":
+        return _laneless(q, model.get("version"))
+    if q == "Q4":
+        return _laneless(q, model.get("fonttbl"))
+    if q == "Q5":
+        return _laneless(q, {"kind": "string", "value": model.get("first_control")})
+    if q == "Q7":
+        return decl(q, "no-source-span", "a conventional RTF load keeps no run span")
+    if q == "Q8":
+        return decl(q, "no-source-token", "a conventional RTF load keeps no token bytes")
+    if q == "Q9":
+        return _laneless(q, model.get("hex_escapes"))
+    if q == "Q10":
+        if model.get("first_unicode") is None:
+            return decl(q, "missing", "no unicode escape in the document")
+        return _laneless(q, model.get("first_unicode"))
+    if q == "Q11":
+        if lane == "conv":
+            return decl(q, "format-not-recorded", "a conventional load records no format")
+        return _laneless(q, "rtf")
+    if q == "Q12":
+        return decl(q, "no-source-span", "a conventional RTF load keeps no span")
+    return decl(q, "unknown-question", q)
+
+
+# --- archive container (ZIP/TAR) --------------------------------------------
+
+def _zip_members(raw):
+    import struct
+    eocd = raw.rfind(b"PK\x05\x06")
+    if eocd < 0:
+        raise ValueError("no EOCD")
+    count = struct.unpack_from("<H", raw, eocd + 10)[0]
+    off = struct.unpack_from("<I", raw, eocd + 16)[0]
+    members = []
+    p = off
+    for _ in range(count):
+        if raw[p:p + 4] != b"PK\x01\x02":
+            break
+        flags = struct.unpack_from("<H", raw, p + 8)[0]
+        method = struct.unpack_from("<H", raw, p + 10)[0]
+        crc = struct.unpack_from("<I", raw, p + 16)[0]
+        csize = struct.unpack_from("<I", raw, p + 20)[0]
+        usize = struct.unpack_from("<I", raw, p + 24)[0]
+        nlen = struct.unpack_from("<H", raw, p + 28)[0]
+        elen = struct.unpack_from("<H", raw, p + 30)[0]
+        clen = struct.unpack_from("<H", raw, p + 32)[0]
+        name_bytes = raw[p + 46:p + 46 + nlen]
+        name = name_bytes.decode("utf-8", "replace") if (flags & 0x800) \
+            else name_bytes.decode("cp437", "replace")
+        members.append({"name": name,
+                        "kind": "stored" if method == 0 else "deflate",
+                        "method": method, "crc32": crc,
+                        "compressed_size": csize, "uncompressed_size": usize})
+        p += 46 + nlen + elen + clen
+    return members
+
+
+def _tar_members(raw):
+    import tarfile
+    tf = tarfile.open(fileobj=io.BytesIO(raw))
+    members = []
+    for m in tf.getmembers():
+        if m.isfile():
+            kind = "file"
+        elif m.isdir():
+            kind = "directory"
+        else:
+            kind = "other"
+        size = m.size if m.isfile() else 0
+        members.append({"name": m.name, "kind": kind, "method": 0, "crc32": 0,
+                        "compressed_size": size, "uncompressed_size": size})
+    return members
+
+
+def _model_container(raw, name):
+    dialect = "zip" if raw[:2] == b"PK" else "tar"
+    members = _zip_members(raw) if dialect == "zip" else _tar_members(raw)
+    return {"_format": "container", "dialect": dialect, "members": members}
+
+
+def _q_container(lane, model, q, plan):
+    members = model.get("members", [])
+    idx = plan.get("entry", 0)
+    if q == "Q1":
+        if idx >= len(members):
+            return decl(q, "missing", "no such member")
+        return _laneless(q, {"kind": "string", "value": members[idx]["name"]})
+    if q == "Q2":
+        return decl(q, "no-source-span", "a conventional container load keeps no span")
+    if q == "Q3":
+        return _laneless(q, model.get("dialect"))
+    if q == "Q4":
+        return _laneless(q, len(members))
+    if q == "Q5":
+        if idx >= len(members):
+            return decl(q, "missing", "no such member")
+        m = members[idx]
+        return _laneless(q, {"name": m["name"], "kind": m["kind"],
+                             "method": m["method"],
+                             "compressed_size": m["compressed_size"],
+                             "uncompressed_size": m["uncompressed_size"]})
+    if q == "Q7":
+        return decl(q, "no-source-span", "a conventional container load keeps no span")
+    if q == "Q8":
+        return decl(q, "no-source-bytes", "a conventional container load keeps no member bytes")
+    if q == "Q9":
+        if idx >= len(members):
+            return decl(q, "missing", "no such member")
+        return _laneless(q, members[idx]["crc32"])
+    if q == "Q10":
+        if idx >= len(members):
+            return decl(q, "missing", "no such member")
+        return _laneless(q, members[idx]["method"])
+    if q == "Q11":
+        if lane == "conv":
+            return decl(q, "format-not-recorded", "a conventional load records no format")
+        return _laneless(q, "container")
+    if q == "Q12":
+        return decl(q, "no-source-span", "a conventional container load keeps no span")
+    return decl(q, "unknown-question", q)
+
+
+# --- scientific container (NetCDF classic; HDF5 deliberately absent) --------
+
+_NC_TYPES = {1: ("byte", 1), 2: ("char", 1), 3: ("int16", 2), 4: ("int32", 4),
+             5: ("float32", 4), 6: ("float64", 8)}
+
+
+def _model_netcdf(raw):
+    import struct
+    if raw[:4] not in (b"CDF\x01", b"CDF\x02"):
+        return None
+    b = raw
+    off = 8 if raw[:4] == b"CDF\x02" else 4
+    p = [4]
+
+    def u32():
+        v = struct.unpack_from(">I", b, p[0])[0]
+        p[0] += 4
+        return v
+
+    def nonneg():
+        if off == 8:
+            v = struct.unpack_from(">Q", b, p[0])[0]
+        else:
+            v = struct.unpack_from(">I", b, p[0])[0]
+        p[0] += off
+        return v
+
+    def name_str():
+        n = u32()
+        s = b[p[0]:p[0] + n]
+        p[0] += n
+        return s.rstrip(b"\x00").decode("utf-8", "replace")
+
+    def read_tagged():
+        # A list is `tag nelems` when present, or the single ZERO word when ABSENT.
+        tag = u32()
+        if tag in (0x0A, 0x0B, 0x0C):
+            return tag, u32()
+        return 0, 0
+
+    numrecs = nonneg()
+    dims = []
+    tag, n = read_tagged()
+    if tag == 0x0A:
+        for _ in range(n):
+            nm = name_str()
+            dims.append({"name": nm, "length": nonneg()})
+    tag, n = read_tagged()
+    if tag == 0x0C:
+        for _ in range(n):
+            name_str()
+            typ = u32()
+            nv = nonneg()
+            sz = _NC_TYPES.get(typ, ("?", 1))[1] * nv
+            p[0] += (sz + 3) // 4 * 4
+    variables = []
+    tag, n = read_tagged()
+    if tag == 0x0B:
+        for _ in range(n):
+            nm = name_str()
+            nd = u32()
+            dimids = [u32() for _ in range(nd)]
+            atag = u32()
+            if atag == 0x0C:
+                an = u32()
+                for _ in range(an):
+                    name_str()
+                    typ = u32()
+                    nv = nonneg()
+                    sz = _NC_TYPES.get(typ, ("?", 1))[1] * nv
+                    p[0] += (sz + 3) // 4 * 4
+            typ = u32()
+            nonneg()  # vsize
+            nonneg()  # begin
+            shape = [dims[d]["length"] for d in dimids if d < len(dims)]
+            variables.append({"name": nm, "type": _NC_TYPES.get(typ, ("?", 0))[0],
+                              "shape": shape})
+    return {"_format": "hdf", "dialect": "netcdf", "dims": dims,
+            "objects": [{"path": "/" + v["name"], "kind": "dataset",
+                         "type": v["type"], "shape": v["shape"]}
+                        for v in variables]}
+
+
+def _model_hdf(raw, name):
+    nc = _model_netcdf(raw)
+    if nc is not None:
+        return nc
+    dialect = "hdf5" if raw[:8] == b"\x89HDF\r\n\x1a\n" or raw[512:520] == b"\x89HDF\r\n\x1a\n" else None
+    return {"_format": "hdf", "dialect": dialect, "dims": [], "objects": []}
+
+
+def _q_hdf(lane, model, q, plan):
+    if model.get("dialect") != "netcdf":
+        return decl(q, "no-faithful-extraction",
+                    "no faithful conventional extraction exists for this fixture")
+    objects = model.get("objects", [])
+    idx = plan.get("object", 0)
+    if q == "Q1":
+        if idx >= len(objects):
+            return decl(q, "missing", "no such object")
+        return _laneless(q, {"kind": "string", "value": objects[idx]["path"]})
+    if q == "Q2":
+        return decl(q, "no-source-span", "a conventional NetCDF load keeps no span")
+    if q == "Q3":
+        return _laneless(q, "netcdf")
+    if q == "Q4":
+        return _laneless(q, len(objects))
+    if q == "Q5":
+        if idx >= len(objects):
+            return decl(q, "missing", "no such object")
+        o = objects[idx]
+        return _laneless(q, {"path": o["path"], "kind": o["kind"],
+                             "type": o["type"], "shape": o["shape"]})
+    if q == "Q7":
+        return decl(q, "no-source-span", "a conventional NetCDF load keeps no span")
+    if q == "Q8":
+        return decl(q, "no-source-bytes", "a conventional NetCDF load keeps no data bytes")
+    if q == "Q9":
+        dim = plan.get("dim")
+        dims = model.get("dims", [])
+        if dim is None or dim >= len(dims):
+            return decl(q, "missing", "no such dimension")
+        return _laneless(q, {"kind": "string", "value": dims[dim]["name"]})
+    if q == "Q10":
+        return decl(q, "no-faithful-attr-order",
+                    "a conventional NetCDF load does not reconstruct the adapter's attribute order")
+    if q == "Q11":
+        if lane == "conv":
+            return decl(q, "format-not-recorded", "a conventional load records no format")
+        return _laneless(q, "hdf")
+    if q == "Q12":
+        return decl(q, "no-source-span", "a conventional NetCDF load keeps no span")
+    return decl(q, "unknown-question", q)
+
+
+# --- CFBF/OLE2 (Lane C deliberately absent) ---------------------------------
+
+def _model_cfbf(raw, name):
+    return {"_format": "cfbf", "dialect": None}
+
+
+def _q_cfbf(lane, model, q, plan):
+    return decl(q, "no-faithful-extraction",
+                "no faithful conventional extraction exists for a CFBF compound file")
+
+
+_QNEW = {
+    "mhtml": _q_mhtml, "logstream": _q_logstream, "pkgmeta": _q_pkgmeta,
+    "apispec": _q_apispec, "bib": _q_bib, "rtf": _q_rtf,
+    "container": _q_container, "hdf": _q_hdf, "cfbf": _q_cfbf,
+}
+
+
+def _q_new(fmt, lane, d, q, plan):
+    model = _read_new_model(lane, d)
+    if lane == "conv" and _conv_absent(fmt, model.get("_name", "")):
+        return decl(q, "comparator_absent", C_ABSENT_NOTE[fmt][1])
+    return _QNEW[fmt](lane, model, q, plan)
 
 
 # ===========================================================================

@@ -61,6 +61,15 @@ case "$FORMAT" in
     rst)      PHASE=21.26.1; PHASETAG=21-26-1; FMTNAME=reStructuredText ;;
     asciidoc) PHASE=21.26.2; PHASETAG=21-26-2; FMTNAME=AsciiDoc ;;
     mdx)      PHASE=21.26.3; PHASETAG=21-26-3; FMTNAME=MDX ;;
+    mhtml)    PHASE=21.27; PHASETAG=21-27; FMTNAME=MHTML ;;
+    logstream) PHASE=21.28; PHASETAG=21-28; FMTNAME="log stream" ;;
+    pkgmeta)  PHASE=21.29; PHASETAG=21-29; FMTNAME="package metadata" ;;
+    apispec)  PHASE=21.30; PHASETAG=21-30; FMTNAME="API specification" ;;
+    bib)      PHASE=21.31; PHASETAG=21-31; FMTNAME=bibliography ;;
+    rtf)      PHASE=21.32; PHASETAG=21-32; FMTNAME=RTF ;;
+    container) PHASE=21.33; PHASETAG=21-33; FMTNAME="archive container (ZIP/TAR)" ;;
+    hdf)      PHASE=21.34; PHASETAG=21-34; FMTNAME="scientific container (NetCDF/HDF5)" ;;
+    cfbf)     PHASE=21.35; PHASETAG=21-35; FMTNAME="CFBF/OLE2 compound file" ;;
     *) echo "unknown format: $FORMAT" >&2; exit 2 ;;
 esac
 
@@ -97,11 +106,21 @@ case "$FORMAT" in
     rst)      OWN="--rst-heading 0 --kind structure";         FOREIGN="--adoc-heading 0 --kind structure" ;;
     asciidoc) OWN="--adoc-heading 0 --kind structure";        FOREIGN="--mdx-heading 0 --kind structure" ;;
     mdx)      OWN="--mdx-heading 0 --kind structure";         FOREIGN="--adoc-heading 0 --kind structure" ;;
+    mhtml)    OWN="--mhtml-root --kind metadata";             FOREIGN="--logstream-line 0 --kind metadata" ;;
+    logstream) OWN="--logstream-line 0 --kind metadata";      FOREIGN="--pkgmeta-section 0 --kind metadata" ;;
+    pkgmeta)  OWN="--pkgmeta-section 0 --kind metadata";       FOREIGN="--apispec-object 0 --kind metadata" ;;
+    apispec)  OWN="--apispec-object 0 --kind metadata";        FOREIGN="--bib-entry 0 --kind metadata" ;;
+    bib)      OWN="--bib-entry 0 --kind metadata";             FOREIGN="--rtf-header --kind text" ;;
+    rtf)      OWN="--rtf-header --kind metadata";              FOREIGN="--container-dialect --kind text" ;;
+    container) OWN="--container-dialect --kind text";           FOREIGN="--hdf-dialect --kind text" ;;
+    hdf)      OWN="--hdf-dialect --kind text";                 FOREIGN="--cfbf-dialect --kind text" ;;
+    cfbf)     OWN="--cfbf-dialect --kind text";                FOREIGN="--mhtml-root --kind metadata" ;;
 esac
 
 WRAPFILE="tools/phase${PHASETAG}-${FORMAT}-court.sh"
 case "$FORMAT" in
-    tabular|rst|asciidoc|mdx) WRAPFILE="tools/phase${PHASETAG}-${FORMAT}-econ-court.sh" ;;
+    tabular|rst|asciidoc|mdx|mhtml|logstream|pkgmeta|apispec|bib|rtf|container|hdf|cfbf)
+        WRAPFILE="tools/phase${PHASETAG}-${FORMAT}-econ-court.sh" ;;
 esac
 
 rm -rf "$CAMPAIGN" "$WORK"
@@ -294,7 +313,15 @@ for c in $CONTROLS; do
     # shellcheck disable=SC2086
     "$BIN" observe --store "$WORK/ctlstore" --field "$FIELD" --packed $FOREIGN > /dev/null 2>&1; foreign_rc=$?
 
-    if [ "$expect_fmt" = "opaque" ]; then
+    expect_spec=$(python3 -c "import json;print(json.load(open('$RAW/plan.json'))['controls']['$c'])")
+    # A control may declare its expected generic-observation return code as
+    # `FMT@RC` (e.g. an OPC office package needs an explicit extraction profile and
+    # declines the generic metadata observation with rc 20). Plain `FMT` keeps the
+    # historical rule (opaque -> 6, otherwise 0).
+    expect_fmt=${expect_spec%%@*}
+    if [ "$expect_spec" != "$expect_fmt" ]; then
+        expect_common=${expect_spec##*@}
+    elif [ "$expect_fmt" = "opaque" ]; then
         expect_common=6
     else
         expect_common=0
@@ -493,6 +520,60 @@ case "$FORMAT" in
         DECLINES='an out-of-range native ESM/JSX/expression and an unsupported common pair (the common table) decline typed (rc 6); a Markdown document stays markdown (including when inline code or an inline expression looks like MDX); plain HTML stays html; plain prose stays Opaque (rc 6), never a panic'
         DETECTION='MDX detection requires an ESM/JSX/expression signal on top of Markdown block structure; inline code spans and inline expressions alone do not promote a Markdown document to MDX, and a plain HTML document stays html'
         RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit'
+        ;;
+    mhtml)
+        SURFACE='the MIME multipart/related envelope (Snapshot-Content-Location, Content-Base), the ordered parts and their exact spans, the ordered sub-resources keyed by Content-Location/Content-ID, and the root HTML part (the start= Content-ID, else the first text/html part, else the first part); quoted-printable/base64 parts are decoded for observations while the encoded bytes stay in the source'
+        DECLINES='an out-of-range native resource declines typed (rc 6); an unsupported common pair (table) declines typed (rc 6); a malformed --mhtml-resource is a usage error (rc 2); plain prose stays opaque, a plain HTML document stays html, and a plain MIME message stays eml (rc 6), never a panic'
+        DETECTION='MHTML requires a multipart/related MIME root plus an MHTML-SPECIFIC signal (a Snapshot-Content-Location/Content-Base, or a From+Subject envelope with a text/html part); a plain multipart/related email, a plain MIME message, and a plain HTML document are never stolen'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 43 invalid-mhtml-structure'
+        ;;
+    logstream)
+        SURFACE='a generic timestamp/level/message dialect, RFC 5424 (HEADER + structured-data), and RFC 3164 BSD; record order, exact line spans, per-field roles and spans, line terminators (lf/crlf), blank-line accounting and the recorded record dialect'
+        DECLINES='an out-of-range record and an unsupported common pair decline typed (rc 6); a malformed --logstream-field reference is a usage error (rc 2); plain prose stays opaque, a single JSON value stays json, a JSON stream stays jsonl, and a colon-less BSD stream stays yaml (rc 6), never a panic'
+        DETECTION='log-stream detection is byte-based and conservative (>= 2 non-blank lines, EVERY non-blank line matching a dialect) and runs after the structured/tabular/prose families and before the fixed-width heuristic; a single log-looking line inside prose never claims the file'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 44 invalid-logstream-structure'
+        ;;
+    pkgmeta)
+        SURFACE='npm package.json, package-lock.json, Cargo.toml, Cargo.lock and PEP 621 pyproject.toml: the recorded dialect, ordered sections with their roles, kinds, names and exact spans, the ordered entries, and inline-table/array dependency specs preserved'
+        DECLINES='an out-of-range section/entry, an absent section/key, and an unsupported common pair decline typed (rc 6); a malformed --pkgmeta-key reference is a usage error (rc 2); a generic JSON/TOML document and plain prose decline typed (rc 6), never a panic'
+        DETECTION='package-metadata detection is content-only (never a file name) and runs before the generic JSON and TOML detectors; it requires a strong manifest shape (npm name+version+third key, an npm lockfile, a Cargo [package]/Cargo.lock, or a pyproject [build-system]/[project]/[tool.poetry])'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 45 invalid-pkgmeta-structure'
+        ;;
+    apispec)
+        SURFACE='a JSON Schema, OpenAPI 3.x, Swagger 2.0 and AsyncAPI document: the recorded dialect, the version string, ordered objects with their roles and member counts, exact object spans, and the ordered $ref targets'
+        DECLINES='an out-of-range object/$ref and an unsupported common pair decline typed (rc 6); a generic JSON object, a JSON-Schema-shaped object with no $schema, and plain prose decline typed (rc 6), never a panic'
+        DETECTION='API-spec detection is content-only (never a file name) and runs before the generic JSON detector; it requires a strong root-level string marker (a json-schema.org $schema URI, an openapi 3.x string, swagger "2.0", or a non-empty asyncapi string)'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 46 invalid-apispec-structure'
+        ;;
+    bib)
+        SURFACE='BibTeX (@type{key, fields in braced/quoted/number/macro form, duplicate fields), RIS (TY..ER with multi-line continuations) and CSL-JSON (an id+type item array): the recorded dialect, ordered entries, their keys/ids and types, ordered field names and kinds, and the exact field-value tokens'
+        DECLINES='an out-of-range entry, an absent field/key, and an unsupported common pair decline typed (rc 6); a plain JSON array of non-CSL objects and plain prose decline typed (rc 6), never a panic'
+        DETECTION='bibliography detection is content-only (never a file name): a line-anchored @type{ entry sequence (BibTeX), an RIS TY..ER sequence, or a bounded CSL-JSON test run before the generic JSON detector'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 47 invalid-bib-structure'
+        ;;
+    rtf)
+        SURFACE='the RTF header, the font/colour/stylesheet/info destination tables, control words with numeric parameters, group nesting, destination groups, unicode escapes and hex escapes (spelling preserved), escapes/symbols, and the exact document text'
+        DECLINES='an out-of-range group/control/hex/unicode/text index and an unsupported common pair decline typed (rc 6); an unknown destination name and a non-canonical ordinal are usage errors (rc 2); a leading-brace junk blob, an RTF header with no version digit, an unbalanced brace and prose stay opaque (rc 6), never a panic'
+        DETECTION='RTF detection is content-only and strong-magic based: the source must begin (after an optional UTF-8 BOM) with the header magic (brace, backslash, rtf, version digit) AND its group braces must balance under a bounded scan that respects control symbols, hex escapes, control words and raw-binary data, closing exactly at end of input'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 48 invalid-rtf-structure'
+        ;;
+    container)
+        SURFACE='the ordered member list with raw names (including non-UTF-8), the ZIP compression method (stored/deflate), both declared sizes and CRC-32, exact member spans; the TAR typeflag/mode/linkname with GNU long-name (L) and PAX (x) extensions folded in; the recorded dialect (zip/tar)'
+        DECLINES='an out-of-range member index declines typed (rc 6); a container selector on an office package or an Opaque control declines typed (rc 6); a truncated TAR detects as container and its model declines typed InvalidContainerStructure (rc 49); never a panic'
+        DETECTION='ZIP detection requires a PK local/EOCD signature; TAR detection requires a ustar/PAX/GNU header with a valid checksum; a docx/odt office package still detects as its office format and a container selector on it declines typed'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 49 invalid-container-structure'
+        ;;
+    hdf)
+        SURFACE='NetCDF classic (CDF-1/CDF-2) dimensions, global/variable attributes, and variables with their types, shapes and record flag; HDF5-subset superblock, groups and datasets with types, shapes and spans; the recorded dialect (netcdf/hdf5)'
+        DECLINES='a filtered dataset and a v2 object header decline typed (rc 6); a malformed NetCDF header / bad tag and an out-of-range index decline typed (rc 50 / rc 6); an hdf selector on an Opaque control declines typed (rc 6); never a panic'
+        DETECTION='content-only, never a file name: NetCDF = the 4-byte CDF magic at offset 0; HDF5 = the 8-byte signature at offset 0 OR 512 (user-block form), with a superblock version in 0..=3 that fits inside the source'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 50 invalid-hdf-structure'
+        ;;
+    cfbf)
+        SURFACE='the 512-byte header (signature, version, byte order, sector/mini-sector shifts, FAT/DIFAT/directory/MiniFAT counts and first sectors); the DIFAT and FAT; the 128-byte directory entries with verbatim UTF-16LE names (including non-ASCII), object type, colour and the reconstructed sibling/child tree; and each stream resolved to an exact byte span; the recorded dialect cfb3/cfb4'
+        DECLINES='a compound file with a plausible header but a malformed body (invalid directory object type, cyclic FAT chain, truncated stream chain) detects as cfbf and declines typed InvalidCfbfStructure (rc 51); a signature-only blob, a corrupted signature, a bad sector shift, an out-of-range directory sector and prose stay opaque (rc 6); never a panic'
+        DETECTION='CFBF detection is content-only and strong-magic based: the 8-byte D0CF11E0A1B11AE1 signature at offset 0, a v3/v4 major version, a valid byte order and a plausible sector/mini-sector shift'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 51 invalid-cfbf-structure'
         ;;
 esac
 
