@@ -4,6 +4,8 @@
 //! byte authority: a hypothesis is only admitted after it reproduces the exact
 //! source bytes and wins the complete-cost court.
 
+#[cfg(feature = "apispec")]
+pub mod apispec;
 #[cfg(feature = "arrow")]
 pub mod arrow;
 #[cfg(feature = "asciidoc")]

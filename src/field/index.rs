@@ -452,6 +452,16 @@ pub const SEL_LOGSTREAM_MODEL: u8 = 43;
 /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a manifest has no
 /// package layer. Derived, never exact.
 pub const SEL_PKGMETA_MODEL: u8 = 44;
+/// Selector kind: the canonical API/specification model (Phase 21.30).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as the reused JSON arena **plus** a bounded, span-preserving object / member
+/// / `$ref` projection and the recorded dialect (`json_schema` / `openapi` / `swagger`
+/// / `asyncapi`) and the exact spec-version token as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); an API spec has no
+/// package layer. Derived, never exact.
+pub const SEL_APISPEC_MODEL: u8 = 45;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

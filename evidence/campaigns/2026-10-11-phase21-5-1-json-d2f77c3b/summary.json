@@ -1,0 +1,7 @@
+{
+  "fixtures": 8,
+  "exact_ok": 8,
+  "exact_fail": 0,
+  "typed_declines_ok": 7,
+  "opaque_malformed_ok": 1
+}

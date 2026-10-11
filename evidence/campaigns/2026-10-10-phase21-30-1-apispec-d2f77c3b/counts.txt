@@ -1,0 +1,11 @@
+fixtures 7
+apispec_fixtures 4
+control_fixtures 3
+exact_ok 7
+exact_fail 0
+surface_fail 0
+boundary_ok 3
+opaque_control_ok 1
+json_control_ok 2
+typed_declines_ok 1
+binary c11c8edebf47b32a0ea17af08fe3f3d71d8b67e058430d59086fa6c778e1c9a0

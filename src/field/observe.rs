@@ -33,6 +33,15 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
+#[cfg(feature = "apispec")]
+use crate::adapter::apispec::{
+    ApispecModel, NONE as API_NONE, canonical_text as apispec_canonical_text,
+    decode_string as apispec_decode_string, dialect_name as apispec_dialect_name,
+    find as apispec_find_matches, object_bytes as apispec_object_bytes,
+    ref_target as apispec_ref_target, role_name as apispec_role_name,
+    token_bytes as apispec_token_bytes, version_text as apispec_version_text,
+    version_token as apispec_version_token,
+};
 #[cfg(feature = "arrow")]
 use crate::adapter::arrow::{
     ArrowModel, LeafColumn as ArrowLeaf, Value as ArrowValue, batch_detail as arrow_batch_detail,
@@ -271,6 +280,8 @@ use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, OutputCache, ReuseStats, SourceServer};
 use crate::field::document_format::DocumentFormat;
+#[cfg(feature = "apispec")]
+use crate::field::index::SEL_APISPEC_MODEL;
 #[cfg(feature = "arrow")]
 use crate::field::index::SEL_ARROW_MODEL;
 #[cfg(feature = "asciidoc")]
@@ -1745,6 +1756,49 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The **recorded dialect** of an API-specification document (Phase 21.30): one of
+    /// `json_schema` / `openapi` / `swagger` / `asyncapi`. `Text` returns the dialect
+    /// name; `Metadata`/`Structure` a descriptor with the dialect, the exact
+    /// spec-version string, the object/member/`$ref` counts, and the byte length. An
+    /// API spec has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "apispec")]
+    ApispecDialect,
+    /// The exact **spec-version string** of an API-specification document (Phase
+    /// 21.30): the `$schema` / `openapi` / `swagger` / `asyncapi` value, never
+    /// normalized. `ExactBytes` returns the exact token (with quotes); `Text` the
+    /// decoded string; `Metadata`/`Structure` a descriptor with the dialect, the
+    /// version, and its exact span.
+    #[cfg(feature = "apispec")]
+    ApispecVersion,
+    /// The `index`-th recorded API-spec **object** (0-based, pre-order; index `0` is the
+    /// root) (Phase 21.30): its role, its exact value span, its naming key's exact span
+    /// (when named), and its member range. `ExactBytes` returns the object's exact
+    /// source bytes; `Text` its decoded name; `Metadata`/`Structure` a descriptor. An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "apispec")]
+    ApispecObject {
+        /// The 0-based object index.
+        index: u32,
+    },
+    /// The `index`-th recorded `$ref` (0-based, in document order) (Phase 21.30): its
+    /// owning object, its exact key span, and the exact target-string span. The target
+    /// is preserved **verbatim** and is **never** resolved. `ExactBytes` returns the
+    /// target's exact token; `Text` its decoded target; `Metadata`/`Structure` a
+    /// descriptor. An out-of-range index declines typed.
+    #[cfg(feature = "apispec")]
+    ApispecRef {
+        /// The 0-based `$ref` index.
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over API-spec object keys and string
+    /// values (Phase 21.30), reusing the shared JSON match vocabulary. Each match
+    /// reports its canonical RFC 6901 pointer, role (key/value), and exact source span.
+    /// Never an embedding or a model call.
+    #[cfg(feature = "apispec")]
+    ApispecFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2322,6 +2376,16 @@ impl Selector {
             Selector::PkgmetaKey { spec } => format!("pkgmeta-key:{spec}"),
             #[cfg(feature = "pkgmeta")]
             Selector::PkgmetaFind { pattern } => format!("pkgmeta-find:{pattern}"),
+            #[cfg(feature = "apispec")]
+            Selector::ApispecDialect => "apispec-dialect".to_string(),
+            #[cfg(feature = "apispec")]
+            Selector::ApispecVersion => "apispec-version".to_string(),
+            #[cfg(feature = "apispec")]
+            Selector::ApispecObject { index } => format!("apispec-object:{index}"),
+            #[cfg(feature = "apispec")]
+            Selector::ApispecRef { index } => format!("apispec-ref:{index}"),
+            #[cfg(feature = "apispec")]
+            Selector::ApispecFind { pattern } => format!("apispec-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -4584,6 +4648,28 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "pkgmeta")]
             (Selector::PkgmetaFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.pkgmeta_find(req, pattern)
+            }
+            #[cfg(feature = "apispec")]
+            (Selector::ApispecDialect, R::Text | R::Metadata | R::Structure) => {
+                self.apispec_dialect(req)
+            }
+            #[cfg(feature = "apispec")]
+            (Selector::ApispecVersion, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.apispec_version(req)
+            }
+            #[cfg(feature = "apispec")]
+            (
+                Selector::ApispecObject { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.apispec_object(req, *index),
+            #[cfg(feature = "apispec")]
+            (
+                Selector::ApispecRef { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.apispec_ref(req, *index),
+            #[cfg(feature = "apispec")]
+            (Selector::ApispecFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.apispec_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -9887,6 +9973,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Apispec => {
+                #[cfg(feature = "apispec")]
+                {
+                    self.common_apispec(req)?
+                }
+                #[cfg(not(feature = "apispec"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "API-specification support is not compiled in (feature `apispec`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -12352,6 +12450,292 @@ fn parse_pkgmeta_key_ref(spec: &str) -> Result<(&str, &str)> {
         )));
     }
     Ok((section, key))
+}
+
+// ---------------------------------------------------------------------------
+// API-spec observations (Phase 21.30)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "apispec")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the API-spec model (derived, `Q_gen`).
+    fn apispec_model(&mut self) -> Result<(ApispecModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_APISPEC_MODEL, 0), "API-spec model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((ApispecModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn apispec_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn apispec_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The recorded dialect. `Text` returns the dialect name; `Metadata`/`Structure` a
+    /// descriptor with the dialect, the exact spec-version string, the counts, and the
+    /// byte length.
+    fn apispec_dialect(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let dialect = apispec_dialect_name(model.dialect).to_string();
+        let version = apispec_version_text(&model, &source)?;
+        let provenance = format!("apispec;dialect={dialect}");
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(dialect.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"apispec\",\"dialect\":\"{}\",\"version\":\"{}\",",
+                    "\"objects\":{},\"members\":{},\"refs\":{},\"bytes\":{}}}"
+                ),
+                json_escape(&dialect),
+                json_escape(&version),
+                model.objects.len(),
+                model.members.len(),
+                model.refs.len(),
+                model.doc_len(),
+            )),
+        };
+        Ok(self.apispec_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The exact spec-version string. `ExactBytes` returns the exact token (with
+    /// quotes); `Text` the decoded string; `Metadata`/`Structure` a descriptor.
+    fn apispec_version(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let node = model
+            .node(model.version_node)
+            .ok_or_else(|| Error::internal_invariant("API-spec version node is out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let dialect = apispec_dialect_name(model.dialect).to_string();
+        let version = apispec_version_text(&model, &source)?;
+        let token = apispec_version_token(&model, &source)?;
+        let provenance = format!("apispec;version={version};dialect={dialect}");
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(token.to_vec()),
+            Representation::Text => AnswerValue::Text(version.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dialect\":\"{}\",\"version\":\"{}\",",
+                    "\"span\":[{},{}],\"token\":\"{}\"}}"
+                ),
+                json_escape(&dialect),
+                json_escape(&version),
+                node.start,
+                node.end,
+                json_escape(&String::from_utf8_lossy(token)),
+            )),
+        };
+        Ok(self.apispec_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th recorded object. `ExactBytes` returns its exact source bytes;
+    /// `Text` its decoded name; `Metadata`/`Structure` a JSON descriptor.
+    fn apispec_object(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let o = model.object(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "API-spec has no object {index} (object count {})",
+                model.objects.len()
+            ))
+        })?;
+        let name = if o.name_node == API_NONE {
+            String::new()
+        } else {
+            let kn = model.node(o.name_node).ok_or_else(|| {
+                Error::internal_invariant("API-spec object name node is out of range")
+            })?;
+            apispec_decode_string(&source, kn)?
+        };
+        let provenance = format!(
+            "apispec;object={index};dialect={};role={};members={}",
+            apispec_dialect_name(model.dialect),
+            apispec_role_name(o.role),
+            o.member_count,
+        );
+        let span = Some((o.start, o.end));
+        let parent = if o.parent == API_NONE {
+            "null".to_string()
+        } else {
+            o.parent.to_string()
+        };
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(apispec_object_bytes(&model, &source, o)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(name.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dialect\":\"{}\",\"object\":{},\"role\":\"{}\",",
+                    "\"name\":\"{}\",\"name_span\":[{},{}],\"span\":[{},{}],",
+                    "\"parent\":{},\"members\":{},\"first_member\":{}}}"
+                ),
+                apispec_dialect_name(model.dialect),
+                index,
+                apispec_role_name(o.role),
+                json_escape(&name),
+                o.name_start,
+                o.name_end,
+                o.start,
+                o.end,
+                parent,
+                o.member_count,
+                o.first_member,
+            )),
+        };
+        Ok(self.apispec_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th recorded `$ref`. `ExactBytes` returns the target's exact token;
+    /// `Text` its decoded target; `Metadata`/`Structure` a descriptor. The target is
+    /// preserved verbatim and never resolved.
+    fn apispec_ref(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let r = model.ref_(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "API-spec has no $ref {index} ($ref count {})",
+                model.refs.len()
+            ))
+        })?;
+        let target = apispec_ref_target(&model, &source, r)?;
+        let provenance = format!("apispec;ref={index};owner={}", r.owner);
+        let span = Some((r.start, r.end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                let n = model.node(r.value_node).ok_or_else(|| {
+                    Error::internal_invariant("API-spec ref target node is out of range")
+                })?;
+                AnswerValue::Bytes(apispec_token_bytes(&source, n)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(target.clone()),
+            _ => AnswerValue::Json(format!(
+                "{{\"ref\":{index},\"owner\":{},\"target\":\"{}\",\"span\":[{},{}]}}",
+                r.owner,
+                json_escape(&target),
+                r.start,
+                r.end,
+            )),
+        };
+        Ok(self.apispec_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over API-spec object keys and string values, reusing the
+    /// shared JSON match vocabulary.
+    fn apispec_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let matches = apispec_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "API-spec find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                "{{\"pointer\":\"{}\",\"role\":\"{}\",\"kind\":\"string\",\"span\":[{},{}],\"text\":\"{}\"}}",
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("apispec;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.apispec_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_apispec(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.apispec_common_metadata(req),
+            Selector::Text => self.apispec_common_text(req),
+            Selector::SearchMatch(p) => self.apispec_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "API-spec does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn apispec_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let text = apispec_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.apispec_answer(
+            req,
+            AnswerValue::Text(text),
+            "apispec;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn apispec_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let dialect = apispec_dialect_name(model.dialect).to_string();
+        let version = apispec_version_text(&model, &source)?;
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"apispec\",\"dialect\":\"{}\",\"version\":\"{}\",",
+                "\"objects\":{},\"members\":{},\"refs\":{},\"bytes\":{}}}"
+            ),
+            json_escape(&dialect),
+            json_escape(&version),
+            model.objects.len(),
+            model.members.len(),
+            model.refs.len(),
+            model.doc_len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.apispec_answer(
+            req,
+            value,
+            "apispec;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
 }
 
 // ---------------------------------------------------------------------------

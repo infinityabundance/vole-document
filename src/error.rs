@@ -185,6 +185,12 @@ pub enum ErrorClass {
     /// manifest, or an input that exceeds a cap — so it stays `Json`/`Toml`/`Opaque`
     /// rather than being claimed.
     InvalidPkgmetaStructure,
+    /// An API-specification structure error (Phase 21.30): a JSON source that is not a
+    /// recognized API spec (a JSON Schema, an OpenAPI 3.x, a Swagger 2.0, or an
+    /// AsyncAPI document), a root object carrying no strong marker, a malformed source,
+    /// or an input that exceeds a cap — so it stays `Json`/`Opaque` rather than being
+    /// claimed.
+    InvalidApispecStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -237,6 +243,7 @@ impl ErrorClass {
             ErrorClass::InvalidMhtmlStructure => 43,
             ErrorClass::InvalidLogstreamStructure => 44,
             ErrorClass::InvalidPkgmetaStructure => 45,
+            ErrorClass::InvalidApispecStructure => 46,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -288,6 +295,7 @@ impl ErrorClass {
             ErrorClass::InvalidMhtmlStructure => "InvalidMhtmlStructure",
             ErrorClass::InvalidLogstreamStructure => "InvalidLogstreamStructure",
             ErrorClass::InvalidPkgmetaStructure => "InvalidPkgmetaStructure",
+            ErrorClass::InvalidApispecStructure => "InvalidApispecStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -393,6 +401,7 @@ impl Error {
     ctor!(invalid_mhtml_structure, InvalidMhtmlStructure);
     ctor!(invalid_logstream_structure, InvalidLogstreamStructure);
     ctor!(invalid_pkgmeta_structure, InvalidPkgmetaStructure);
+    ctor!(invalid_apispec_structure, InvalidApispecStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

@@ -531,6 +531,28 @@ logstream = []
 # untouched. **It implies `json` and `toml`** because it reuses both parsers; it pulls
 # no external crate. Never in `default`.
 pkgmeta = ["json", "toml"]
+# Phase 21.30: the API/specification adapter — the **API/spec** Wave-2 format. An API
+# spec (a JSON Schema, an OpenAPI 3.x, a Swagger 2.0, or an AsyncAPI document) is
+# written in JSON, so this adapter **reuses the shared representation-preserving JSON
+# parser** (Phase 21.5.1's `json` feature) — never a second JSON parser — and layers a
+# bounded semantic projection on it. It preserves representation: the reused arena
+# keeps member order, duplicate keys, numeric/string-escape spelling, key quoting, and
+# every exact token span, and it records the **dialect** (`json_schema` / `openapi` /
+# `swagger` / `asyncapi`), the exact spec-version token, every **object** (a role plus
+# exact value/naming spans and a member range), every key/value **member** (exact
+# key/value spans, in document order, duplicates preserved), and every **`$ref`**
+# member (target preserved **verbatim**, never resolved). Detection is a bounded,
+# **content-only** semantic sub-test (never a file name) requiring a strong, root-level
+# string marker (`$schema`/`openapi`/`swagger`/`asyncapi`), and it runs **before** the
+# generic JSON detector; a JSON-Schema-shaped object with no `$schema` is an honest,
+# recorded ambiguity and stays `Json`. Like the other Wave-2 formats it is not a package
+# (no OPC/ZIP layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It adds **no** decoder behavior: the spec model is never on the
+# exactness path, so enabling it never changes `.voldoc` bytes and exactness is
+# untouched. **Dependency-free (`apispec` pulls no external crate)** and never in
+# `default`; it reuses the JSON adapter, so it implies `json`.
+apispec = ["json"]
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived

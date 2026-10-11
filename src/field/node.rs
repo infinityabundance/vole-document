@@ -445,6 +445,19 @@ pub enum NodeKind {
     /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a manifest has no
     /// package layer. Derived, never exact.
     PkgmetaModel = 0x40,
+    /// The canonical, representation-preserving API/specification model
+    /// (Phase 21.30): the whole source parsed by the **shared JSON parser** into a
+    /// bounded, representation-preserving JSON arena (exact token spans, member order,
+    /// duplicate keys, numeric/escape spelling) plus the API-spec semantic projection:
+    /// the **recorded dialect** (`json_schema` / `openapi` / `swagger` / `asyncapi`),
+    /// the exact spec-version token, every recorded **object** (with its role, exact
+    /// value span, naming span, and member range), every **member** (exact key/value
+    /// spans), and every **`$ref`** member (target preserved verbatim, never resolved).
+    /// Nothing is normalized, resolved, or re-serialized. It is computed on demand from
+    /// the exact source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); an API spec has no package layer. Derived, never
+    /// exact.
+    ApispecModel = 0x41,
 }
 
 impl NodeKind {
@@ -515,6 +528,7 @@ impl NodeKind {
             0x3E => NodeKind::MhtmlModel,
             0x3F => NodeKind::LogstreamModel,
             0x40 => NodeKind::PkgmetaModel,
+            0x41 => NodeKind::ApispecModel,
             _ => return None,
         })
     }
@@ -586,6 +600,7 @@ impl NodeKind {
             NodeKind::MhtmlModel => "MhtmlModel",
             NodeKind::LogstreamModel => "LogstreamModel",
             NodeKind::PkgmetaModel => "PkgmetaModel",
+            NodeKind::ApispecModel => "ApispecModel",
         }
     }
 

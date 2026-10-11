@@ -358,6 +358,21 @@ pub enum DocumentFormat {
     /// every reused-arena token span plus every recorded section/entry name/value span
     /// is a `Q_gen` projection (Phase 21.29).
     Pkgmeta,
+    /// An API/specification document (a JSON Schema, an OpenAPI 3.x, a Swagger 2.0, or
+    /// an AsyncAPI document). An API spec's physical bytes are JSON, so its bytes are
+    /// shared with [`DocumentFormat::Json`]; the **recorded dialect** (`json_schema` /
+    /// `openapi` / `swagger` / `asyncapi`) lives in the model, exactly as CSV/config/
+    /// feed/pkgmeta record their dialects. Detection is a **bounded semantic test** run
+    /// before the generic JSON detector on a **strong, root-level string marker**: a
+    /// JSON-Schema `$schema` URI, an `openapi` `3.`-prefixed string, a `swagger` equal
+    /// to `"2.0"`, or a non-empty `asyncapi` string. A plain JSON object that merely
+    /// contains a `properties`/`paths`/`components` key but lacks the marker stays
+    /// [`DocumentFormat::Json`], and a JSON-Schema-shaped object with no `$schema` is
+    /// an honest recorded ambiguity that also stays `Json`. Not a package: the exact
+    /// leaf is the whole source, and every JSON token span plus every recorded
+    /// object/member/`$ref` span is a `Q_gen` projection — `$ref` targets are preserved
+    /// verbatim and never resolved (Phase 21.30).
+    Apispec,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -400,6 +415,7 @@ impl DocumentFormat {
             DocumentFormat::Mhtml => "mhtml",
             DocumentFormat::Logstream => "logstream",
             DocumentFormat::Pkgmeta => "pkgmeta",
+            DocumentFormat::Apispec => "apispec",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -441,6 +457,7 @@ impl DocumentFormat {
             DocumentFormat::Mhtml => "mhtml",
             DocumentFormat::Logstream => "logstream",
             DocumentFormat::Pkgmeta => "pkgmeta",
+            DocumentFormat::Apispec => "apispec",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -482,6 +499,7 @@ impl DocumentFormat {
             DocumentFormat::Mhtml => cfg!(feature = "mhtml"),
             DocumentFormat::Logstream => cfg!(feature = "logstream"),
             DocumentFormat::Pkgmeta => cfg!(feature = "pkgmeta"),
+            DocumentFormat::Apispec => cfg!(feature = "apispec"),
         }
     }
 
@@ -533,6 +551,7 @@ impl DocumentFormat {
             "mhtml" => Some(DocumentFormat::Mhtml),
             "logstream" => Some(DocumentFormat::Logstream),
             "pkgmeta" => Some(DocumentFormat::Pkgmeta),
+            "apispec" => Some(DocumentFormat::Apispec),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -629,6 +648,21 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "pkgmeta")]
     if crate::adapter::pkgmeta::detect(source, limits) {
         return DocumentFormat::Pkgmeta;
+    }
+    // An API-specification document (Phase 21.30) — a JSON Schema, an OpenAPI 3.x, a
+    // Swagger 2.0, or an AsyncAPI document — is the **API/spec** Wave-2 format, whose
+    // physical bytes are JSON. It is a **bounded semantic sub-detection** run **before**
+    // the generic JSON detector below: the root must be a JSON object carrying a
+    // **strong, root-level string marker** — a JSON-Schema `$schema` URI, an `openapi`
+    // `3.`-prefixed string, a `swagger` equal to `"2.0"`, or a non-empty `asyncapi`
+    // string. A more specific claim than a bare JSON value, so it is tried first; a
+    // plain JSON object that merely has a `properties`/`paths` key, a JSON-Schema-shaped
+    // object with **no** `$schema`, an unrelated `openapi`/`swagger` value, and prose
+    // decline here and are then claimed by the JSON detector (staying `Json`) or the
+    // opaque floor. Detection is content-only and never consults a file name.
+    #[cfg(feature = "apispec")]
+    if crate::adapter::apispec::detect(source, limits) {
+        return DocumentFormat::Apispec;
     }
     #[cfg(feature = "json")]
     if crate::adapter::json::detect(source, limits) {
@@ -1174,6 +1208,7 @@ mod tests {
             DocumentFormat::Mhtml,
             DocumentFormat::Logstream,
             DocumentFormat::Pkgmeta,
+            DocumentFormat::Apispec,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

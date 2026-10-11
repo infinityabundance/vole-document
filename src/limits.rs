@@ -838,6 +838,29 @@ pub struct Limits {
     /// parsing. Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.29).
     pub max_pkgmeta_document_bytes: u64,
+    // The API-specification caps below bound the derived, span-preserving model
+    // (Phase 21.30). An API spec's physical bytes are JSON, so the shared JSON parser's
+    // caps also apply; these add the semantic bounds on top. An API spec is not a
+    // package: the whole source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum embedded JSON node count accepted for one API-spec document, in
+    /// addition to the JSON caps the shared parser already enforces (Phase 21.30).
+    pub max_apispec_nodes: u32,
+    /// Maximum recorded object count accepted across one API-spec document. An
+    /// over-large document declines typed rather than allocating (Phase 21.30).
+    pub max_apispec_objects: u32,
+    /// Maximum recorded key/value member count accepted across one API-spec document.
+    /// An over-large document declines typed rather than allocating (Phase 21.30).
+    pub max_apispec_members: u32,
+    /// Maximum recorded `$ref` count accepted across one API-spec document. An
+    /// over-large document declines typed rather than allocating (Phase 21.30).
+    pub max_apispec_refs: u32,
+    /// Maximum structural recursion depth accepted (root = 1). A deeper document
+    /// declines typed (Phase 21.30).
+    pub max_apispec_depth: u32,
+    /// Maximum source length admitted for byte-based API-spec detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.30).
+    pub max_apispec_document_bytes: u64,
 }
 
 impl Limits {
@@ -1080,6 +1103,12 @@ impl Limits {
         max_pkgmeta_entries: 1 << 22,
         max_pkgmeta_depth: 32,
         max_pkgmeta_document_bytes: 1 << 34,
+        max_apispec_nodes: 1 << 24,
+        max_apispec_objects: 1 << 22,
+        max_apispec_members: 1 << 24,
+        max_apispec_refs: 1 << 22,
+        max_apispec_depth: 256,
+        max_apispec_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1321,6 +1350,12 @@ impl Limits {
         max_pkgmeta_entries: 1 << 14,
         max_pkgmeta_depth: 8,
         max_pkgmeta_document_bytes: 1 << 26,
+        max_apispec_nodes: 1 << 16,
+        max_apispec_objects: 1 << 14,
+        max_apispec_members: 1 << 16,
+        max_apispec_refs: 1 << 14,
+        max_apispec_depth: 64,
+        max_apispec_document_bytes: 1 << 26,
     };
 }
 

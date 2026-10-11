@@ -151,6 +151,8 @@ const USAGE_FIELD: &str = "\
         --logstream-line N | --logstream-field N:ROLE | --logstream-find PATTERN |
         --pkgmeta-section N | --pkgmeta-entry N | --pkgmeta-key SECTION:KEY |
         --pkgmeta-find PATTERN |
+        --apispec-dialect | --apispec-version | --apispec-object N |
+        --apispec-ref N | --apispec-find PATTERN |
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
@@ -2019,6 +2021,26 @@ struct FieldArgs {
     /// key, and entry value (Phase 21.29).
     #[cfg(feature = "pkgmeta")]
     pkgmeta_find: Option<String>,
+    /// `--apispec-dialect`: the API-spec document's recorded dialect
+    /// (`json_schema`/`openapi`/`swagger`/`asyncapi`) (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    apispec_dialect: bool,
+    /// `--apispec-version`: the API-spec document's exact spec-version string
+    /// (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    apispec_version: bool,
+    /// `--apispec-object N`: the N-th (0-based) recorded API-spec object in pre-order
+    /// (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    apispec_object: Option<u32>,
+    /// `--apispec-ref N`: the N-th (0-based) recorded `$ref` in document order
+    /// (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    apispec_ref: Option<u32>,
+    /// `--apispec-find PATTERN`: a lexical, case-sensitive search over API-spec keys
+    /// and string values (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    apispec_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -3004,6 +3026,30 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "pkgmeta")]
             "--pkgmeta-find" => {
                 out.pkgmeta_find = Some(field_arg_value(args, &mut i, "--pkgmeta-find", inline)?);
+            }
+            #[cfg(feature = "apispec")]
+            "--apispec-dialect" => {
+                out.apispec_dialect = true;
+                i += 1;
+            }
+            #[cfg(feature = "apispec")]
+            "--apispec-version" => {
+                out.apispec_version = true;
+                i += 1;
+            }
+            #[cfg(feature = "apispec")]
+            "--apispec-object" => {
+                let v = field_arg_value(args, &mut i, "--apispec-object", inline)?;
+                out.apispec_object = Some(parse_field_u32(&v, "--apispec-object")?);
+            }
+            #[cfg(feature = "apispec")]
+            "--apispec-ref" => {
+                let v = field_arg_value(args, &mut i, "--apispec-ref", inline)?;
+                out.apispec_ref = Some(parse_field_u32(&v, "--apispec-ref")?);
+            }
+            #[cfg(feature = "apispec")]
+            "--apispec-find" => {
+                out.apispec_find = Some(field_arg_value(args, &mut i, "--apispec-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -4004,6 +4050,30 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.pkgmeta_find {
             chosen.push(Selector::PkgmetaFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // API-spec: `--apispec-dialect` the recorded dialect; `--apispec-version` the exact
+    // spec-version string; `--apispec-object N`/`--apispec-ref N` address an object/`$ref`
+    // by 0-based index; `--apispec-find` is a lexical search. Each stands alone
+    // (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    {
+        if out.apispec_dialect {
+            chosen.push(Selector::ApispecDialect);
+        }
+        if out.apispec_version {
+            chosen.push(Selector::ApispecVersion);
+        }
+        if let Some(index) = out.apispec_object {
+            chosen.push(Selector::ApispecObject { index });
+        }
+        if let Some(index) = out.apispec_ref {
+            chosen.push(Selector::ApispecRef { index });
+        }
+        if let Some(pattern) = &out.apispec_find {
+            chosen.push(Selector::ApispecFind {
                 pattern: pattern.clone(),
             });
         }
