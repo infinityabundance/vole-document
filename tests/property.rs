@@ -617,6 +617,11 @@ fn limits_never_change_reconstructed_bytes() {
         max_logstream_line_bytes: 1 << 50,
         max_logstream_depth: 1 << 12,
         max_logstream_document_bytes: 1 << 50,
+        max_pkgmeta_nodes: 1 << 30,
+        max_pkgmeta_sections: 1 << 30,
+        max_pkgmeta_entries: 1 << 30,
+        max_pkgmeta_depth: 1 << 12,
+        max_pkgmeta_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

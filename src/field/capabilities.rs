@@ -308,6 +308,13 @@ const MHTML_NATIVE: &[&str] = &[
 
 const LOGSTREAM_NATIVE: &[&str] = &["logstream-line", "logstream-field", "logstream-find"];
 
+const PKGMETA_NATIVE: &[&str] = &[
+    "pkgmeta-section",
+    "pkgmeta-entry",
+    "pkgmeta-key",
+    "pkgmeta-find",
+];
+
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
 const COMMON_TEXT_META: &[&str] = &["text", "metadata"];
@@ -678,6 +685,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 LOGSTREAM_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Pkgmeta => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                PKGMETA_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

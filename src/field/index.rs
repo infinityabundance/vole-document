@@ -442,6 +442,16 @@ pub const SEL_MHTML_MODEL: u8 = 42;
 /// `sha256(source)` per ADR-0060); a log stream has no package layer. Derived, never
 /// exact.
 pub const SEL_LOGSTREAM_MODEL: u8 = 43;
+/// Selector kind: the canonical package-metadata model (Phase 21.29).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as the reused JSON/TOML arena **plus** a bounded, span-preserving section /
+/// entry projection and the recorded dialect (`npm_package` / `cargo_manifest` /
+/// `pyproject_manifest` / `cargo_lock` / `npm_lock`) as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a manifest has no
+/// package layer. Derived, never exact.
+pub const SEL_PKGMETA_MODEL: u8 = 44;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

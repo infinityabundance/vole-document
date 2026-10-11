@@ -1,0 +1,23 @@
+{
+  "campaign": "evidence/campaigns/2026-10-11-phase21-5-1-json-867eb792",
+  "phase": "21.5.1 — JSON structured-tree surface + exact closure + model",
+  "utc": "2026-10-11T04:29:37Z",
+  "measured_commit": "867eb79257301935f58384e358e5a88717ac4cb3",
+  "tree_state": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-29-1-pkgmeta-867eb792/ ?? evidence/campaigns/2026-10-11-phase21-11-1-toml-867eb792/ ?? evidence/campaigns/2026-10-11-phase21-5-1-json-867eb792/ ?? src/adapter/pkgmeta.rs ?? tests/pkgmeta_adapter.rs ?? tools/phase21-29-1-pkgmeta-court.sh ",
+  "service": "doc-baseline",
+  "profile": "debug",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "cb8e73ba77081c3fab6d7e8acd6877e7d383919a5ce7d28f254bb7125f5acb83",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "fixtures": "basic.json unicode.json numbers.json dup.json deep.json scalar.json large.json malformed.json",
+  "fixture_tool": "tools/fixtures/make-json.py (stdlib only)",
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "observations": ["metadata", "text", "search-match", "native json-pointer", "native json-node", "native json-find"],
+  "declines": "unsupported common pairs decline typed (rc 6); a malformed document is Opaque (rc 6), never a panic",
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "adr_0060": "the JsonModel node depends on the DocumentExact root (sha256(source)); no source-reading node aliases another field's source",
+  "verdict": "PASS"
+}

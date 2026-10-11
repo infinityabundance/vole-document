@@ -179,6 +179,12 @@ pub enum ErrorClass {
     /// application log line), or an input that exceeds a cap — so it stays `Opaque`
     /// rather than being claimed.
     InvalidLogstreamStructure,
+    /// A package-metadata structure error (Phase 21.29): a JSON/TOML source that is not
+    /// a recognized package-manifest shape (an npm `package.json`/`package-lock.json`, a
+    /// Cargo `Cargo.toml`/`Cargo.lock`, or a Python `pyproject.toml`), a malformed
+    /// manifest, or an input that exceeds a cap — so it stays `Json`/`Toml`/`Opaque`
+    /// rather than being claimed.
+    InvalidPkgmetaStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -230,6 +236,7 @@ impl ErrorClass {
             ErrorClass::InvalidMdxStructure => 42,
             ErrorClass::InvalidMhtmlStructure => 43,
             ErrorClass::InvalidLogstreamStructure => 44,
+            ErrorClass::InvalidPkgmetaStructure => 45,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -280,6 +287,7 @@ impl ErrorClass {
             ErrorClass::InvalidMdxStructure => "InvalidMdxStructure",
             ErrorClass::InvalidMhtmlStructure => "InvalidMhtmlStructure",
             ErrorClass::InvalidLogstreamStructure => "InvalidLogstreamStructure",
+            ErrorClass::InvalidPkgmetaStructure => "InvalidPkgmetaStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -384,6 +392,7 @@ impl Error {
     ctor!(invalid_mdx_structure, InvalidMdxStructure);
     ctor!(invalid_mhtml_structure, InvalidMhtmlStructure);
     ctor!(invalid_logstream_structure, InvalidLogstreamStructure);
+    ctor!(invalid_pkgmeta_structure, InvalidPkgmetaStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

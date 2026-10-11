@@ -378,6 +378,14 @@ fn ingest_pdf_stage_b(
         return ingest_logstream_stage_b(store, source, manifest, limits);
     }
 
+    // A package-metadata manifest is the manifest Wave-2 format, also with no package
+    // layer: it is inverted by a dedicated (non-PDF) tail that adds the derived
+    // `PkgmetaModel` node over the exact root (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    if fmt == crate::field::document_format::DocumentFormat::Pkgmeta {
+        return ingest_pkgmeta_stage_b(store, source, manifest, limits);
+    }
+
     // XML is the structured-tree Wave-2 format for a bare XML source, also with no
     // package layer: it is inverted by a dedicated (non-PDF) tail that adds the
     // derived `XmlModel` node over the exact root (Phase 21.9).
@@ -1395,6 +1403,86 @@ fn ingest_logstream_stage_b(
 
     Ok(IngestReport {
         format: crate::field::document_format::DocumentFormat::Logstream,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The package-metadata (manifest Wave-2) ingest tail (Phase 21.29).
+///
+/// A manifest has no package layer, so there is nothing to scan: the exact authority
+/// is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::PkgmetaModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias another
+/// field's source. The model is never on the exactness path.
+#[cfg(feature = "pkgmeta")]
+fn ingest_pkgmeta_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_PKGMETA_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::PkgmetaModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "pkgmeta:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_PKGMETA_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-pkgmeta;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Pkgmeta.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Pkgmeta,
         field,
         root_node: manifest.root_node,
         index_root: Some(index_root),

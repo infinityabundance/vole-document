@@ -816,6 +816,28 @@ pub struct Limits {
     /// parsing. Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.28).
     pub max_logstream_document_bytes: u64,
+    // The package-metadata caps below bound the derived, span-preserving model
+    // (Phase 21.29). A manifest is not a package: the whole source is the exact leaf,
+    // and everything derived is `Q_gen` only. The model embeds the reused JSON/TOML
+    // arena and a flat section/entry projection, so it is bounded by node, section,
+    // entry, and structural-recursion counts plus the source length.
+    /// Maximum reused-arena node count accepted for a package manifest (in addition
+    /// to the JSON/TOML caps the shared parsers enforce). A larger document declines
+    /// typed (Phase 21.29).
+    pub max_pkgmeta_nodes: u32,
+    /// Maximum section count accepted for a package manifest. An over-large document
+    /// declines typed rather than allocating (Phase 21.29).
+    pub max_pkgmeta_sections: u32,
+    /// Maximum key/value entry count accepted for a package manifest. An over-large
+    /// document declines typed rather than allocating (Phase 21.29).
+    pub max_pkgmeta_entries: u32,
+    /// Maximum structural recursion depth accepted (root = 1). A deeper document
+    /// declines typed (Phase 21.29).
+    pub max_pkgmeta_depth: u32,
+    /// Maximum source length admitted for byte-based package-metadata detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.29).
+    pub max_pkgmeta_document_bytes: u64,
 }
 
 impl Limits {
@@ -1053,6 +1075,11 @@ impl Limits {
         max_logstream_line_bytes: 1 << 20,
         max_logstream_depth: 8,
         max_logstream_document_bytes: 1 << 34,
+        max_pkgmeta_nodes: 1 << 24,
+        max_pkgmeta_sections: 1 << 20,
+        max_pkgmeta_entries: 1 << 22,
+        max_pkgmeta_depth: 32,
+        max_pkgmeta_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1289,6 +1316,11 @@ impl Limits {
         max_logstream_line_bytes: 1 << 16,
         max_logstream_depth: 4,
         max_logstream_document_bytes: 1 << 26,
+        max_pkgmeta_nodes: 1 << 16,
+        max_pkgmeta_sections: 1 << 12,
+        max_pkgmeta_entries: 1 << 14,
+        max_pkgmeta_depth: 8,
+        max_pkgmeta_document_bytes: 1 << 26,
     };
 }
 

@@ -342,6 +342,22 @@ pub enum DocumentFormat {
     /// the preserved message, NILVALUE, and timestamp/level spelling) are `Q_gen`
     /// projections (Phase 21.28).
     Logstream,
+    /// A package-metadata manifest (an npm `package.json` / `package-lock.json`, a
+    /// Cargo `Cargo.toml` / `Cargo.lock`, or a Python `pyproject.toml`). A manifest's
+    /// physical bytes are JSON or TOML, so its bytes are shared with
+    /// [`DocumentFormat::Json`]/[`DocumentFormat::Toml`]; the **recorded dialect**
+    /// (`npm_package` / `cargo_manifest` / `pyproject_manifest` / `cargo_lock` /
+    /// `npm_lock`) lives in the model, exactly as a feed or CSV records its dialect.
+    /// Detection is a **bounded semantic test** run before the generic JSON and TOML
+    /// detectors: a strong manifest shape (a JSON object with string `name`+`version`
+    /// and a third package-specific key, a JSON `lockfileVersion`+`packages`, a TOML
+    /// `[package]` table with a string `name`, a TOML `[build-system]`/`[project]`/
+    /// `[tool.poetry]`, or a TOML `[[package]]` lockfile shape). A generic JSON
+    /// `name`+`version`, a generic TOML `name`/`version`, and plain prose stay
+    /// `Json`/`Toml`/`Opaque`. Not a package: the exact leaf is the whole source, and
+    /// every reused-arena token span plus every recorded section/entry name/value span
+    /// is a `Q_gen` projection (Phase 21.29).
+    Pkgmeta,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -383,6 +399,7 @@ impl DocumentFormat {
             DocumentFormat::Mdx => "mdx",
             DocumentFormat::Mhtml => "mhtml",
             DocumentFormat::Logstream => "logstream",
+            DocumentFormat::Pkgmeta => "pkgmeta",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -423,6 +440,7 @@ impl DocumentFormat {
             DocumentFormat::Mdx => "mdx",
             DocumentFormat::Mhtml => "mhtml",
             DocumentFormat::Logstream => "logstream",
+            DocumentFormat::Pkgmeta => "pkgmeta",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -463,6 +481,7 @@ impl DocumentFormat {
             DocumentFormat::Mdx => cfg!(feature = "mdx"),
             DocumentFormat::Mhtml => cfg!(feature = "mhtml"),
             DocumentFormat::Logstream => cfg!(feature = "logstream"),
+            DocumentFormat::Pkgmeta => cfg!(feature = "pkgmeta"),
         }
     }
 
@@ -513,6 +532,7 @@ impl DocumentFormat {
             "mdx" => Some(DocumentFormat::Mdx),
             "mhtml" => Some(DocumentFormat::Mhtml),
             "logstream" => Some(DocumentFormat::Logstream),
+            "pkgmeta" => Some(DocumentFormat::Pkgmeta),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -591,6 +611,24 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "notebook")]
     if crate::adapter::notebook::detect(source, limits) {
         return DocumentFormat::Notebook;
+    }
+    // A package-metadata manifest (Phase 21.29) — an npm `package.json` /
+    // `package-lock.json`, a Cargo `Cargo.toml` / `Cargo.lock`, or a Python
+    // `pyproject.toml` — is the **manifest** Wave-2 format, whose physical bytes are
+    // JSON or TOML. It is a **bounded semantic sub-detection** run **before** the
+    // generic JSON and TOML detectors below: the source must carry a strong manifest
+    // shape (a JSON object with string `name`+`version` and a third package-specific
+    // key, a JSON `lockfileVersion`+`packages`/`dependencies`, a TOML `[package]` table
+    // with a string `name`, a TOML `[build-system]`/`[project]`/`[tool.poetry]`, or a
+    // TOML `[[package]]` lockfile shape). A more specific claim than a bare JSON/TOML
+    // value, so it is tried first; a generic JSON `{"name":…,"version":…}`, a generic
+    // TOML `name = …` / `version = …`, and plain prose decline here and are then
+    // claimed by the JSON detector (staying `Json`), the TOML detector (staying
+    // `Toml`), or the opaque floor. Detection is content-only and never consults a
+    // file name.
+    #[cfg(feature = "pkgmeta")]
+    if crate::adapter::pkgmeta::detect(source, limits) {
+        return DocumentFormat::Pkgmeta;
     }
     #[cfg(feature = "json")]
     if crate::adapter::json::detect(source, limits) {
@@ -1135,6 +1173,7 @@ mod tests {
             DocumentFormat::Mdx,
             DocumentFormat::Mhtml,
             DocumentFormat::Logstream,
+            DocumentFormat::Pkgmeta,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

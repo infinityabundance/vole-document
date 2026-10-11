@@ -1,0 +1,18 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-29-1-pkgmeta-867eb792",
+  "phase": "21.29.1 — package-metadata surface + exact closure + model",
+  "utc": "2026-10-11T04:30:51Z",
+  "git_commit": "867eb79257301935f58384e358e5a88717ac4cb3",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-29-1-pkgmeta-867eb792/ ?? evidence/campaigns/2026-10-11-phase21-11-1-toml-867eb792/ ?? evidence/campaigns/2026-10-11-phase21-5-1-json-867eb792/ ?? src/adapter/pkgmeta.rs ?? tests/pkgmeta_adapter.rs ?? tools/phase21-29-1-pkgmeta-court.sh ",
+  "arch": "x86_64",
+  "service": "dev",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "c0ea1fed83c89746deb75f377ed93b5c946a73bef23fe4d8689e85e3050d9ee7",
+  "profile": "debug",
+  "fixtures_tool": "POSIX shell + GNU /usr/bin/printf (no python3, no jq); generated in-court, never committed",
+  "env_affecting_semantics": {"LC_ALL": "C", "CARGO_PROFILE_DEV_DEBUG": "0"}
+}

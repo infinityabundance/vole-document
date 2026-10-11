@@ -60,6 +60,8 @@ pub mod package;
 #[cfg(feature = "parquet")]
 pub mod parquet;
 pub mod pdf;
+#[cfg(feature = "pkgmeta")]
+pub mod pkgmeta;
 #[cfg(feature = "pptx")]
 pub mod pptx;
 #[cfg(feature = "rst")]

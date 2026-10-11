@@ -1,0 +1,16 @@
+docker compose run --rm --no-TTY dev sh tools/phase21-29-1-pkgmeta-court.sh
+# inside the court:
+#   cargo build --locked --all-features
+#   target/debug/vole-document field-build FIXTURE --store STORE --voldoc F.voldoc
+#   target/debug/vole-document observe --store STORE --field HEX (--metadata|--doc-text|--text PAT|--pkgmeta-section N|--pkgmeta-entry N|--pkgmeta-key SECTION:KEY|--pkgmeta-find PAT|--table N) --kind metadata|text|exact
+#   rm source F.voldoc
+#   target/debug/vole-document materialize --store STORE --field HEX --exact --output OUT ; cmp OUT source
+# Regression controls (pkgmeta must not break the reused JSON/TOML courts):
+#   docker compose run --rm --no-TTY dev sh tools/phase21-5-1-json-court.sh
+#   docker compose run --rm --no-TTY dev sh tools/phase21-11-1-toml-court.sh
+# Full gate (dev service):
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features
+#   cargo test --locked
+#   MSRV: docker compose run --rm --no-TTY msrv cargo build --locked --all-features

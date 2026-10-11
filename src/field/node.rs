@@ -432,6 +432,19 @@ pub enum NodeKind {
     /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
     /// ADR-0060); a log stream has no package layer. Derived, never exact.
     LogstreamModel = 0x3F,
+    /// The canonical, representation-preserving package-metadata model (Phase 21.29):
+    /// the reused JSON/TOML arena (member order, duplicate keys, numeric and
+    /// string-escape spelling, and exact token spans all preserved) **plus** a bounded
+    /// semantic projection — every recorded **section** (a named table /
+    /// array-of-tables / array element in TOML, or an object / array member in JSON)
+    /// with its exact name and value spans, and every recorded key/value **entry** with
+    /// its exact key and value spans, grouped by section in document order, and the
+    /// **recorded dialect** (`npm_package` / `cargo_manifest` / `pyproject_manifest` /
+    /// `cargo_lock` / `npm_lock`). Nothing is normalized or re-serialized. It is
+    /// computed on demand from the exact source (its single dependency is the
+    /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a manifest has no
+    /// package layer. Derived, never exact.
+    PkgmetaModel = 0x40,
 }
 
 impl NodeKind {
@@ -501,6 +514,7 @@ impl NodeKind {
             0x3D => NodeKind::MdxModel,
             0x3E => NodeKind::MhtmlModel,
             0x3F => NodeKind::LogstreamModel,
+            0x40 => NodeKind::PkgmetaModel,
             _ => return None,
         })
     }
@@ -571,6 +585,7 @@ impl NodeKind {
             NodeKind::MdxModel => "MdxModel",
             NodeKind::MhtmlModel => "MhtmlModel",
             NodeKind::LogstreamModel => "LogstreamModel",
+            NodeKind::PkgmetaModel => "PkgmetaModel",
         }
     }
 

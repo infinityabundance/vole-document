@@ -215,6 +215,17 @@ use crate::adapter::parquet::{
     physical_type_name as parquet_physical_name, repetition_name as parquet_repetition_name,
     stats_value_text as parquet_stats_text, value_text as parquet_value_text,
 };
+#[cfg(feature = "pkgmeta")]
+use crate::adapter::pkgmeta::{
+    NONE as PKG_NONE, PkgmetaModel, canonical_text as pkgmeta_canonical_text,
+    dialect_name as pkgmeta_dialect_name, entry_key_text as pkgmeta_entry_key_text,
+    entry_value_bytes as pkgmeta_entry_value_bytes,
+    entry_value_kind_name as pkgmeta_entry_value_kind_name,
+    entry_value_text as pkgmeta_entry_value_text, find as pkgmeta_find_matches,
+    role_for_name as pkgmeta_role_for_name, role_name as pkgmeta_role_name,
+    section_bytes as pkgmeta_section_bytes, section_kind_name as pkgmeta_section_kind_name,
+    section_name as pkgmeta_section_name,
+};
 #[cfg(feature = "pptx")]
 use crate::adapter::pptx::{
     NotesModel as PptxNotesModel, PptxExtractProfile, PptxModel, PptxShape, PptxTable,
@@ -314,6 +325,8 @@ use crate::field::index::SEL_ODT_MODEL;
 use crate::field::index::SEL_OPC_MODEL;
 #[cfg(feature = "parquet")]
 use crate::field::index::SEL_PARQUET_MODEL;
+#[cfg(feature = "pkgmeta")]
+use crate::field::index::SEL_PKGMETA_MODEL;
 #[cfg(feature = "pptx")]
 use crate::field::index::SEL_PPTX_MODEL;
 #[cfg(feature = "rst")]
@@ -1694,6 +1707,44 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The `index`-th recorded package-metadata **section** (0-based, in document
+    /// order; index `0` is the root) (Phase 21.29): its recorded dialect and role, its
+    /// exact name span (when named) and exact value span, and its entry range.
+    /// `ExactBytes` returns the section's exact source bytes; `Text` its decoded name.
+    /// A manifest has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "pkgmeta")]
+    PkgmetaSection {
+        /// The 0-based section index.
+        index: u32,
+    },
+    /// The `index`-th recorded package-metadata **entry** (0-based, in document order
+    /// grouped by section) (Phase 21.29): its owning section, its exact key span, and
+    /// its exact value span. `ExactBytes` returns the entry's exact value bytes;
+    /// `Text` its decoded value text; `Metadata`/`Structure` a descriptor.
+    #[cfg(feature = "pkgmeta")]
+    PkgmetaEntry {
+        /// The 0-based entry index.
+        index: u32,
+    },
+    /// A package-manifest entry addressed as `SECTION:KEY` (Phase 21.29). `SECTION` is
+    /// a section name or role name (e.g. `dependencies`, `package`, `scripts`); `KEY`
+    /// is the decoded entry key. The **first** matching section and its first matching
+    /// entry are used, and the duplicate-key count is reported. `ExactBytes` returns
+    /// the value's exact source bytes; `Text` its decoded value; `Metadata`/`Structure`
+    /// a descriptor. A malformed reference is a usage error; an absent section or key
+    /// declines typed.
+    #[cfg(feature = "pkgmeta")]
+    PkgmetaKey {
+        /// The `SECTION:KEY` reference.
+        spec: String,
+    },
+    /// A bounded, case-sensitive search across every section name, entry key, and entry
+    /// value text (Phase 21.29). Never an embedding or a model call.
+    #[cfg(feature = "pkgmeta")]
+    PkgmetaFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2263,6 +2314,14 @@ impl Selector {
             Selector::LogstreamField { spec } => format!("logstream-field:{spec}"),
             #[cfg(feature = "logstream")]
             Selector::LogstreamFind { pattern } => format!("logstream-find:{pattern}"),
+            #[cfg(feature = "pkgmeta")]
+            Selector::PkgmetaSection { index } => format!("pkgmeta-section:{index}"),
+            #[cfg(feature = "pkgmeta")]
+            Selector::PkgmetaEntry { index } => format!("pkgmeta-entry:{index}"),
+            #[cfg(feature = "pkgmeta")]
+            Selector::PkgmetaKey { spec } => format!("pkgmeta-key:{spec}"),
+            #[cfg(feature = "pkgmeta")]
+            Selector::PkgmetaFind { pattern } => format!("pkgmeta-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -4506,6 +4565,25 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "logstream")]
             (Selector::LogstreamFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.logstream_find(req, pattern)
+            }
+            #[cfg(feature = "pkgmeta")]
+            (
+                Selector::PkgmetaSection { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.pkgmeta_section(req, *index),
+            #[cfg(feature = "pkgmeta")]
+            (
+                Selector::PkgmetaEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.pkgmeta_entry(req, *index),
+            #[cfg(feature = "pkgmeta")]
+            (
+                Selector::PkgmetaKey { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.pkgmeta_key(req, spec),
+            #[cfg(feature = "pkgmeta")]
+            (Selector::PkgmetaFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.pkgmeta_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -9797,6 +9875,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Pkgmeta => {
+                #[cfg(feature = "pkgmeta")]
+                {
+                    self.common_pkgmeta(req)?
+                }
+                #[cfg(not(feature = "pkgmeta"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "package-metadata support is not compiled in (feature `pkgmeta`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -11905,6 +11995,363 @@ fn parse_logstream_field_ref(spec: &str) -> Result<(u32, u8)> {
         ))
     })?;
     Ok((index, role))
+}
+
+// ---------------------------------------------------------------------------
+// Package-metadata observations (Phase 21.29)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "pkgmeta")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the package-metadata model (derived, `Q_gen`).
+    fn pkgmeta_model(&mut self) -> Result<(PkgmetaModel, NodeId)> {
+        let entry = self.require_entry(
+            SelectorKey::new(SEL_PKGMETA_MODEL, 0),
+            "package-metadata model",
+        )?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((PkgmetaModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn pkgmeta_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn pkgmeta_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th recorded section. `ExactBytes` returns its exact source bytes;
+    /// `Text` its decoded name; `Metadata`/`Structure` a JSON descriptor.
+    fn pkgmeta_section(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let s = model.section(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "package-metadata section {index} is out of range (section count {})",
+                model.sections.len()
+            ))
+        })?;
+        let name = pkgmeta_section_name(&model, &source, s)?;
+        let provenance = format!(
+            "pkgmeta;section={index};dialect={};role={};kind={};entries={}",
+            pkgmeta_dialect_name(model.dialect),
+            pkgmeta_role_name(s.role),
+            pkgmeta_section_kind_name(s.kind),
+            s.entry_count
+        );
+        let span = Some((s.start, s.end));
+        let parent = if s.parent == PKG_NONE {
+            "null".to_string()
+        } else {
+            s.parent.to_string()
+        };
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(pkgmeta_section_bytes(&model, &source, s)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(name.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dialect\":\"{}\",\"section\":{},\"role\":\"{}\",\"kind\":\"{}\",",
+                    "\"name\":\"{}\",\"name_span\":[{},{}],\"span\":[{},{}],",
+                    "\"parent\":{},\"entries\":{},\"first_entry\":{}}}"
+                ),
+                pkgmeta_dialect_name(model.dialect),
+                index,
+                pkgmeta_role_name(s.role),
+                pkgmeta_section_kind_name(s.kind),
+                json_escape(&name),
+                s.name_start,
+                s.name_end,
+                s.start,
+                s.end,
+                parent,
+                s.entry_count,
+                s.first_entry,
+            )),
+        };
+        Ok(self.pkgmeta_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th recorded entry. `ExactBytes` returns its exact value bytes;
+    /// `Text` its decoded value text; `Metadata`/`Structure` a JSON descriptor.
+    fn pkgmeta_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let e = model.entry(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "package-metadata entry {index} is out of range (entry count {})",
+                model.entries.len()
+            ))
+        })?;
+        let key = pkgmeta_entry_key_text(&model, &source, e)?;
+        let role = model.sections[e.section as usize].role;
+        let provenance = format!(
+            "pkgmeta;entry={index};section={};dialect={};role={};kind={}",
+            e.section,
+            pkgmeta_dialect_name(model.dialect),
+            pkgmeta_role_name(role),
+            pkgmeta_entry_value_kind_name(&model, e),
+        );
+        let span = Some((e.value_start, e.value_end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(pkgmeta_entry_value_bytes(&model, &source, e)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(pkgmeta_entry_value_text(&model, &source, e)?)
+            }
+            _ => {
+                let vtext = pkgmeta_entry_value_text(&model, &source, e)?;
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"dialect\":\"{}\",\"entry\":{},\"section\":{},\"role\":\"{}\",",
+                        "\"key\":\"{}\",\"key_span\":[{},{}],\"value_kind\":\"{}\",",
+                        "\"value_span\":[{},{}],\"value\":\"{}\"}}"
+                    ),
+                    pkgmeta_dialect_name(model.dialect),
+                    index,
+                    e.section,
+                    pkgmeta_role_name(role),
+                    json_escape(&key),
+                    e.key_start,
+                    e.key_end,
+                    pkgmeta_entry_value_kind_name(&model, e),
+                    e.value_start,
+                    e.value_end,
+                    json_escape(&vtext),
+                ))
+            }
+        };
+        Ok(self.pkgmeta_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A `SECTION:KEY` reference. `ExactBytes` returns the first matching entry's exact
+    /// value bytes; `Text` its decoded value; `Metadata`/`Structure` a descriptor that
+    /// reports the duplicate-key count.
+    fn pkgmeta_key(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let (section_ref, key) = parse_pkgmeta_key_ref(spec)?;
+        let want_role = pkgmeta_role_for_name(section_ref);
+        let mut found: Option<u32> = None;
+        for (si, s) in model.sections.iter().enumerate() {
+            let name = pkgmeta_section_name(&model, &source, s)?;
+            if name == section_ref || want_role == Some(s.role) {
+                found = Some(si as u32);
+                break;
+            }
+        }
+        let si = found.ok_or_else(|| {
+            Error::unsupported_feature(format!("package-metadata has no section {section_ref:?}"))
+        })?;
+        let s = &model.sections[si as usize];
+        let first = s.first_entry as usize;
+        let end = first + s.entry_count as usize;
+        let mut matches = 0u32;
+        let mut first_entry: Option<u32> = None;
+        for ei in first..end {
+            let e = &model.entries[ei];
+            if pkgmeta_entry_key_text(&model, &source, e)? == key {
+                matches += 1;
+                if first_entry.is_none() {
+                    first_entry = Some(ei as u32);
+                }
+            }
+        }
+        let ei = first_entry.ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "package-metadata section {section_ref:?} has no entry {key:?}"
+            ))
+        })?;
+        let e = &model.entries[ei as usize];
+        let role = s.role;
+        let provenance = format!(
+            "pkgmeta;key={spec};dialect={};section={};role={};matches={}",
+            pkgmeta_dialect_name(model.dialect),
+            si,
+            pkgmeta_role_name(role),
+            matches,
+        );
+        let span = Some((e.value_start, e.value_end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(pkgmeta_entry_value_bytes(&model, &source, e)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(pkgmeta_entry_value_text(&model, &source, e)?)
+            }
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dialect\":\"{}\",\"section\":{},\"role\":\"{}\",",
+                    "\"key\":\"{}\",\"entry\":{},\"value_kind\":\"{}\",",
+                    "\"value_span\":[{},{}],\"matches\":{}}}"
+                ),
+                pkgmeta_dialect_name(model.dialect),
+                si,
+                pkgmeta_role_name(role),
+                json_escape(key),
+                ei,
+                pkgmeta_entry_value_kind_name(&model, e),
+                e.value_start,
+                e.value_end,
+                matches,
+            )),
+        };
+        Ok(self.pkgmeta_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search across section names, entry keys, and entry values.
+    fn pkgmeta_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let matches = pkgmeta_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "package-metadata find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            let entry = if m.entry == PKG_NONE {
+                "null".to_string()
+            } else {
+                m.entry.to_string()
+            };
+            out.push(format!(
+                concat!(
+                    "{{\"section\":{},\"entry\":{},\"role\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.section,
+                entry,
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("pkgmeta;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.pkgmeta_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_pkgmeta(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.pkgmeta_common_metadata(req),
+            Selector::Text => self.pkgmeta_common_text(req),
+            Selector::SearchMatch(p) => self.pkgmeta_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "package-metadata does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn pkgmeta_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let text = pkgmeta_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.pkgmeta_answer(
+            req,
+            AnswerValue::Text(text),
+            "pkgmeta;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn pkgmeta_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let mut tables = 0u64;
+        let mut arrays = 0u64;
+        let mut elements = 0u64;
+        for s in &model.sections {
+            match s.kind {
+                crate::adapter::pkgmeta::S_TABLE => tables += 1,
+                crate::adapter::pkgmeta::S_ARRAY => arrays += 1,
+                crate::adapter::pkgmeta::S_ELEMENT => elements += 1,
+                _ => {}
+            }
+        }
+        let root_entries = model.sections.first().map(|s| s.entry_count).unwrap_or(0);
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"pkgmeta\",\"dialect\":\"{}\",\"bytes\":{},",
+                "\"sections\":{},\"tables\":{},\"arrays\":{},\"elements\":{},",
+                "\"entries\":{},\"root_entries\":{},\"arena_nodes\":{}}}"
+            ),
+            pkgmeta_dialect_name(model.dialect),
+            model.doc_len,
+            model.sections.len(),
+            tables,
+            arrays,
+            elements,
+            model.entries.len(),
+            root_entries,
+            model.arena_len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.pkgmeta_answer(
+            req,
+            value,
+            "pkgmeta;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// Parse a `SECTION:KEY` package-metadata reference. An empty section or key is a
+/// usage error.
+#[cfg(feature = "pkgmeta")]
+fn parse_pkgmeta_key_ref(spec: &str) -> Result<(&str, &str)> {
+    let (section, key) = spec.split_once(':').ok_or_else(|| {
+        Error::usage(format!(
+            "package-metadata key reference {spec:?} must be SECTION:KEY"
+        ))
+    })?;
+    if section.is_empty() || key.is_empty() {
+        return Err(Error::usage(format!(
+            "package-metadata key reference {spec:?} must have a non-empty section and key"
+        )));
+    }
+    Ok((section, key))
 }
 
 // ---------------------------------------------------------------------------

@@ -511,6 +511,26 @@ jsonl = ["json"]
 # vocabulary is a few lines implemented directly, and there is no external crate.
 # Never in `default`.
 logstream = []
+# Phase 21.29: the package-metadata adapter — the **manifest** Wave-2 format. A
+# manifest's physical bytes belong to another format (`package.json` /
+# `package-lock.json` are JSON; `Cargo.toml` / `pyproject.toml` / `Cargo.lock` are
+# TOML), so this adapter **reuses** the shared JSON and TOML parsers (never a second
+# parser) and adds only a bounded semantic section/entry projection on top. It
+# preserves representation: the reused arena keeps member order, duplicate keys,
+# numeric and string-escape spelling, key quoting, and every exact token span, and
+# every recorded **section** (a named table / array-of-tables / array element in TOML,
+# or an object / array member in JSON) and every key/value **entry** keeps its exact
+# name/key/value spans, grouped by section in document order. The **recorded dialect**
+# (`npm_package` / `cargo_manifest` / `pyproject_manifest` / `cargo_lock` /
+# `npm_lock`) lives in the model. Detection is a bounded, **content-only** semantic
+# sub-test (never a file name) requiring a strong manifest shape, and it runs
+# **before** the generic JSON and TOML detectors; a generic `{"name":…,"version":…}`
+# JSON or a bare `name`/`version` TOML is an honest, recorded ambiguity and stays
+# `Json`/`Toml`. It adds **no** decoder behavior: the manifest model is never on the
+# exactness path, so enabling it never changes `.voldoc` bytes and exactness is
+# untouched. **It implies `json` and `toml`** because it reuses both parsers; it pulls
+# no external crate. Never in `default`.
+pkgmeta = ["json", "toml"]
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived

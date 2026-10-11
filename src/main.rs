@@ -149,6 +149,8 @@ const USAGE_FIELD: &str = "\
         --html-scripts | --html-find PATTERN |
         --jsonl-line N | --jsonl-pointer N:POINTER | --jsonl-find PATTERN |
         --logstream-line N | --logstream-field N:ROLE | --logstream-find PATTERN |
+        --pkgmeta-section N | --pkgmeta-entry N | --pkgmeta-key SECTION:KEY |
+        --pkgmeta-find PATTERN |
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
@@ -2000,6 +2002,23 @@ struct FieldArgs {
     /// record's fields (Phase 21.28).
     #[cfg(feature = "logstream")]
     logstream_find: Option<String>,
+    /// `--pkgmeta-section N`: the N-th package-metadata section (0-based; index 0 is the
+    /// root), returning its dialect, role, exact name/value spans, and entry range
+    /// (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    pkgmeta_section: Option<u32>,
+    /// `--pkgmeta-entry N`: the N-th package-metadata entry (0-based), returning its
+    /// owning section, exact key/value spans, and value (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    pkgmeta_entry: Option<u32>,
+    /// `--pkgmeta-key SECTION:KEY`: a manifest entry by section name/role and decoded
+    /// key, reporting the duplicate-key count (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    pkgmeta_key: Option<String>,
+    /// `--pkgmeta-find`: a lexical, case-sensitive search over every section name, entry
+    /// key, and entry value (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    pkgmeta_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2967,6 +2986,24 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--logstream-find" => {
                 out.logstream_find =
                     Some(field_arg_value(args, &mut i, "--logstream-find", inline)?);
+            }
+            #[cfg(feature = "pkgmeta")]
+            "--pkgmeta-section" => {
+                let v = field_arg_value(args, &mut i, "--pkgmeta-section", inline)?;
+                out.pkgmeta_section = Some(parse_field_u32(&v, "--pkgmeta-section")?);
+            }
+            #[cfg(feature = "pkgmeta")]
+            "--pkgmeta-entry" => {
+                let v = field_arg_value(args, &mut i, "--pkgmeta-entry", inline)?;
+                out.pkgmeta_entry = Some(parse_field_u32(&v, "--pkgmeta-entry")?);
+            }
+            #[cfg(feature = "pkgmeta")]
+            "--pkgmeta-key" => {
+                out.pkgmeta_key = Some(field_arg_value(args, &mut i, "--pkgmeta-key", inline)?);
+            }
+            #[cfg(feature = "pkgmeta")]
+            "--pkgmeta-find" => {
+                out.pkgmeta_find = Some(field_arg_value(args, &mut i, "--pkgmeta-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -3947,6 +3984,26 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.logstream_find {
             chosen.push(Selector::LogstreamFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Package-metadata: `--pkgmeta-section`/`--pkgmeta-entry` address a section/entry
+    // by 0-based index; `--pkgmeta-key` addresses an entry as `SECTION:KEY`;
+    // `--pkgmeta-find` is a lexical search. Each stands alone (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    {
+        if let Some(index) = out.pkgmeta_section {
+            chosen.push(Selector::PkgmetaSection { index });
+        }
+        if let Some(index) = out.pkgmeta_entry {
+            chosen.push(Selector::PkgmetaEntry { index });
+        }
+        if let Some(spec) = &out.pkgmeta_key {
+            chosen.push(Selector::PkgmetaKey { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.pkgmeta_find {
+            chosen.push(Selector::PkgmetaFind {
                 pattern: pattern.clone(),
             });
         }
