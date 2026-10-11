@@ -2,6 +2,133 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.37] — Phase 21 Wave 2: the final families (MHTML, log streams, package metadata, API/spec, bibliography, RTF, ZIP/TAR containers, HDF5/NetCDF, CFBF/OLE) — *unreleased*
+
+- **21.27 — MHTML (MIME HTML) adapter + economic court.** Non-default `mhtml =
+  ["eml", "html"]`; reuses the EML MIME layer and the HTML scanner (never a
+  second parser). Exposes the MIME envelope, the ordered parts, the ordered
+  sub-resources keyed by `Content-Location`/`Content-ID`, and the root HTML part;
+  quoted-printable/base64 parts are decoded **only for a derived observation**
+  (the exact encoded body span is retained). Native
+  `--mhtml-root`/`--mhtml-resource`/`--mhtml-location`/`--mhtml-find`. Detection
+  is a bounded semantic sub-detection **before** the generic EML detector (a
+  `multipart/related` root plus a `Snapshot-Content-Location`/`Content-Base`, or a
+  `From`+`Subject` envelope with a `text/html` part). Adapter exactness **9/9**;
+  economic court exact **7/7** — build **0.690/0.673** SQLite · **0.821/0.806**
+  conv, storage **0.709/0.736** · **12.298/8.214**, cold **0.026/0.036** ·
+  **0.028/0.038**, warm **0.128/0.245** · **1.608/1.969**. `2026-10-10-phase21-27-1-mhtml-eccb438c`,
+  `2026-10-11-phase21-27-mhtml-econ-372a86e0`.
+- **21.28 — syslog / log-stream adapter + economic court.** Non-default,
+  dependency-free `logstream = []` (a log line is not JSON, so it uses no JSON
+  parser). Records three dialects (RFC 5424, RFC 3164/BSD, generic), each
+  record's exact line span/terminator, line number, decoded priority, deepest
+  structured-data nesting, and every field's exact span. Native
+  `--logstream-line`/`--logstream-field`/`--logstream-find`. Detection is
+  byte-based and conservative (≥ 2 non-blank lines, every line matches a
+  dialect), tried **after** the structured/prose family and **before**
+  fixed-width. Adapter exactness **9/9**; economic court exact **10/10** — build
+  **0.811/0.839** · **1.040/1.043**, storage **0.593/0.604** · **14.432/10.036**,
+  cold **0.025/0.029** · **0.026/0.031**, warm **0.082/0.107** · **0.566/0.618**.
+  `2026-10-10-phase21-28-1-logstream-bd187003`, `2026-10-11-phase21-28-logstream-econ-372a86e0`.
+- **21.29 — package-metadata adapter + economic court.** Non-default `pkgmeta =
+  ["json", "toml"]`; reuses the JSON and TOML parsers. Covers five recorded
+  dialects (`npm_package` / `cargo_manifest` / `pyproject_manifest` / `cargo_lock`
+  / `npm_lock`) with a span-preserving section/entry model. Native
+  `--pkgmeta-section`/`--pkgmeta-entry`/`--pkgmeta-key`/`--pkgmeta-find`.
+  Content-only detection **before** the generic JSON/TOML detectors. Adapter
+  exactness **8/8**; economic court exact **9/9** — build **0.723/0.745** ·
+  **0.915/0.911**, storage **0.606/0.650** · **15.841/11.515**, cold
+  **0.024/0.029** · **0.025/0.031**, warm **0.109/0.148** · **1.292/1.236**.
+  `2026-10-10-phase21-29-1-pkgmeta-867eb792`, `2026-10-11-phase21-29-pkgmeta-econ-372a86e0`.
+- **21.30 — API/specification adapter + economic court.** Non-default `apispec =
+  ["json"]`; reuses the JSON parser. Four dialects (`json_schema` / `openapi` /
+  `swagger` / `asyncapi`); records the exact spec-version token, every object
+  (role + spans + member range), every member, and every `$ref` **verbatim (never
+  resolved)**. Native `--apispec-dialect`/`--apispec-version`/`--apispec-object`/
+  `--apispec-ref`/`--apispec-find`. Content-only detection on a strong root-level
+  marker (`$schema`/`openapi`/`swagger`/`asyncapi`) **before** the generic JSON
+  detector. Adapter exactness **7/7**; economic court exact **8/8** — build
+  **0.798/0.791** · **1.031/1.040**, storage **0.620/0.784** · **27.245/64.667**,
+  cold **0.023/0.030** · **0.024/0.031**, warm **0.113/0.250** · **1.491/3.833**.
+  `2026-10-10-phase21-30-1-apispec-d2f77c3b`, `2026-10-11-phase21-30-apispec-econ-372a86e0`.
+- **21.31 — bibliography (BibTeX / RIS / CSL-JSON) adapter + economic court.**
+  Non-default `bib = ["json"]`; reuses the JSON parser for CSL-JSON. Records the
+  dialect (`bibtex`/`ris`/`csl_json`); BibTeX keeps the key/type/field names *as
+  written*, the brace/quoted/number/macro value forms, `#` concatenation, and
+  duplicate fields; RIS keeps the two-space separator and a multi-line
+  continuation; CSL-JSON keeps member order/duplicates/spelling. Native
+  `--bib-dialect`/`--bib-entry`/`--bib-field`/`--bib-key`/`--bib-find`.
+  Content-only detection **before** the generic JSON detector. Adapter exactness
+  **5/5**; economic court exact **6/6** — build **0.776/0.817** · **0.984/1.002**,
+  storage **0.600/0.670** · **14.463/8.921**, cold **0.022/0.030** ·
+  **0.024/0.033**, warm **0.087/0.142** · **1.090/1.089**.
+  `2026-10-10-phase21-31-1-bib-51bd19a3`, `2026-10-11-phase21-31-bib-econ-372a86e0`.
+- **21.32 — RTF adapter + economic court.** Non-default, dependency-free `rtf =
+  []`. Preserves the header, every group's exact brace span/depth, control
+  words/symbols, `\'hh` hex escapes, `\uN` with its `\ucN` fallback,
+  destinations verbatim, and byte-exact text runs (never whitespace-normalized).
+  Native `--rtf-header`/`--rtf-group`/`--rtf-control`/`--rtf-hex`/
+  `--rtf-unicode`/`--rtf-text`/`--rtf-dest`/`--rtf-find`. Detection is the strong
+  `{\rtf<digit>` magic plus a bounded brace-balance scan (not a full grammar),
+  before the JSON family. Adapter exactness **5/5**; economic court exact **6/6**
+  — build **0.664/0.663** · **0.950/0.947**, storage **1.292/1.109** ·
+  **1077.372/215.200**, cold **0.047/0.040** · **0.051/0.044**, warm
+  **1.522/0.588** · **38.762/10.792**. `2026-10-10-phase21-32-1-rtf-714e1009`,
+  `2026-10-11-phase21-32-rtf-econ-372a86e0`.
+- **21.33 — generic archive-container (ZIP / TAR) adapter + economic court.**
+  Non-default `container = ["package"]`; reuses the byte-authoritative ZIP
+  physical layer and adds a bounded TAR parser (GNU `L`/`K` and PAX `x`/`g`
+  extensions folded in). Records raw member names (incl. non-UTF-8), method, both
+  declared sizes, CRC-32, exact spans, and the recorded dialect (`zip`/`tar`).
+  Native `--container-dialect`/`--container-entry`/`--container-find`.
+  Detection is strong-magic + validation, inserted **after the office ZIP
+  family** and **before** the weak heuristics. Adapter exactness **6/6**;
+  economic court exact **12/12** — build **0.706/0.656** · **0.887/0.826**,
+  storage **0.980/1.050** · **24.449/24.342**, cold **0.025/0.025** ·
+  **0.025/0.026**, warm **0.098/0.098** · **1.246/1.296**.
+  `2026-10-11-phase21-33-1-container-7362e74b`, `2026-10-11-phase21-33-container-econ-372a86e0`.
+- **21.34 — scientific-container (NetCDF classic / HDF5 subset) adapter +
+  economic court.** Non-default, dependency-free `hdf = []`. **NetCDF classic
+  (CDF-1/CDF-2) is supported in full**; **HDF5 is a documented bounded subset**
+  (superblock v0/v1, symbol-table groups, contiguous datasets, v1 object headers,
+  fixed-point/float/string, simple dataspace, v1 attributes). Out-of-subset HDF5
+  (superblock v2/v3, v2/v3 object headers, compact/chunked/virtual layouts,
+  filtered datasets, external data, other datatype classes) declines **typed**
+  (rc 6; malformed headers rc 50). Records the dialect (`netcdf`/`hdf5`). Native
+  `--hdf-dialect`/`--hdf-object`/`--hdf-dimension`/`--hdf-attribute`/`--hdf-find`.
+  Adapter exactness **4/4**; economic court exact **8/8** — build
+  **0.702/0.712** · **0.974/0.988**, storage **0.766/0.782** · **29.258/24.206**,
+  cold **0.022/0.023** · **0.023/0.024**, warm **0.097/0.096** · **1.336/1.349**.
+  `2026-10-10-phase21-34-1-hdf-ea347edb`, `2026-10-11-phase21-34-hdf-econ-372a86e0`.
+- **21.35 — CFBF / OLE2 compound-file physical layer + economic court.**
+  Non-default, dependency-free `cfbf = []`. Parses the 512-byte header,
+  DIFAT/FAT/MiniFAT, the 128-byte directory entries (verbatim UTF-16LE names,
+  reconstructed sibling/child tree), and each stream resolved to an exact byte
+  span (regular + mini); recorded dialect `cfb3`/`cfb4`. Native
+  `--cfbf-dialect`/`--cfbf-entry`/`--cfbf-stream`/`--cfbf-find`. Detection is the
+  8-byte signature plus an internally consistent header. Adapter exactness
+  **2/2**; economic court exact **7/7** — build **0.643/0.627** · **0.815/0.796**,
+  storage **1.481/1.467** · **333.156/290.461**, cold **0.023/0.023** ·
+  **0.027/0.027**, warm **0.113/0.111** · **1.880/1.848**.
+  `2026-10-11-phase21-35-1-cfbf-42791bce`, `2026-10-11-phase21-35-cfbf-econ-372a86e0`.
+- **Recorded boundaries / honest negatives.** MHTML **over-approximates** (a
+  plain `multipart/related` with a `From`+`Subject` envelope and a `text/html`
+  part is admitted) and warm-vs-SQLite is a loss; logstream **claims all-INFO
+  prose** and a **BSD-without-colon stream stays `yaml`**; pkgmeta leaves a
+  generic `name`/`version` as `Json`/`Toml`; apispec leaves a schema-shaped
+  object with **no `$schema`** as `Json`; bib records the **RIS continuation
+  ambiguity** and a non-bibliographic `id`+`type` CSL-JSON over-claim; RTF is a
+  **magic + brace-balance** test, **not a full grammar**; the plain ZIP runs
+  **after** the office family; **HDF5 is a bounded subset** and, with **CFBF**, is
+  the **physical layer only** (the DOC/XLS/PPT/MSG semantics are later work) and
+  a non-contiguous CFBF stream passes only a **bounding hull** and declines
+  `ExactBytes`; **HDF5 and CFBF have no faithful Python-stdlib comparator
+  (`comparator_absent`)**; storage-vs-`conv` is a recorded loss for every format
+  and storage-vs-SQLite is a loss for RTF and CFBF; and the **cold ratios are
+  Python-startup-dominated**. Only exact closure (Q6) is a byte-authority claim.
+  **With 21.35 shipped the Wave-2 order is complete**; the only remaining format
+  work is the legacy DOC/XLS/PPT/MSG *semantic* models on top of CFBF.
+
 ## [0.1.0-alpha.36] — Phase 21 Wave 2: PSV + fixed-width, reStructuredText, AsciiDoc, MDX — *unreleased*
 
 - **21.25 — PSV (pipe dialect) + fixed-width (column-position) tabular extra.**

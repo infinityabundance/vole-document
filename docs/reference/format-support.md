@@ -89,6 +89,15 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | reStructuredText adapter / economic court | exact 8/8 · 9/9 | `evidence/campaigns/2026-10-10-phase21-26-1-rst-91b02068/`, `…/2026-10-10-phase21-26-1-rst-econ-f0a3a5cf/` |
 | AsciiDoc adapter / economic court | exact 11/11 · 11/11 | `evidence/campaigns/2026-10-10-phase21-26-2-asciidoc-91b02068/`, `…/2026-10-10-phase21-26-2-asciidoc-econ-f0a3a5cf/` |
 | MDX adapter / economic court | exact 11/11 · 12/12 | `evidence/campaigns/2026-10-10-phase21-26-3-mdx-91b02068/`, `…/2026-10-10-phase21-26-3-mdx-econ-f0a3a5cf/` |
+| MHTML adapter / economic court | exact 9/9 · 7/7 | `evidence/campaigns/2026-10-10-phase21-27-1-mhtml-eccb438c/`, `…/2026-10-11-phase21-27-mhtml-econ-372a86e0/` |
+| log-stream (syslog) adapter / economic court | exact 9/9 · 10/10 | `evidence/campaigns/2026-10-10-phase21-28-1-logstream-bd187003/`, `…/2026-10-11-phase21-28-logstream-econ-372a86e0/` |
+| package-metadata adapter / economic court | exact 8/8 · 9/9 | `evidence/campaigns/2026-10-10-phase21-29-1-pkgmeta-867eb792/`, `…/2026-10-11-phase21-29-pkgmeta-econ-372a86e0/` |
+| API/spec adapter / economic court | exact 7/7 · 8/8 | `evidence/campaigns/2026-10-10-phase21-30-1-apispec-d2f77c3b/`, `…/2026-10-11-phase21-30-apispec-econ-372a86e0/` |
+| bibliography adapter / economic court | exact 5/5 · 6/6 | `evidence/campaigns/2026-10-10-phase21-31-1-bib-51bd19a3/`, `…/2026-10-11-phase21-31-bib-econ-372a86e0/` |
+| RTF adapter / economic court | exact 5/5 · 6/6 | `evidence/campaigns/2026-10-10-phase21-32-1-rtf-714e1009/`, `…/2026-10-11-phase21-32-rtf-econ-372a86e0/` |
+| archive-container (ZIP/TAR) adapter / economic court | exact 6/6 · 12/12 | `evidence/campaigns/2026-10-11-phase21-33-1-container-7362e74b/`, `…/2026-10-11-phase21-33-container-econ-372a86e0/` |
+| scientific-container (NetCDF/HDF5) adapter / economic court | exact 4/4 · 8/8 | `evidence/campaigns/2026-10-10-phase21-34-1-hdf-ea347edb/`, `…/2026-10-11-phase21-34-hdf-econ-372a86e0/` |
+| CFBF/OLE2 adapter / economic court | exact 2/2 · 7/7 | `evidence/campaigns/2026-10-11-phase21-35-1-cfbf-42791bce/`, `…/2026-10-11-phase21-35-cfbf-econ-372a86e0/` |
 | Cross-field identity court (ADR-0060) | 12/12 | `evidence/campaigns/2026-10-09-identity-3400385/`, re-sealed `…/2026-10-10-identity-7f007e2e/` |
 | Real-format smoke (independently sourced) | 12/12 exact | `evidence/campaigns/2026-10-09-realformats-smoke-3400385/` |
 | Stratified real-world multi-format court (52 real + 8 hostile) | 60/60 byte-exact | `evidence/campaigns/2026-10-10-realformats-stratified-3529688e/` (prior `…/2026-10-10-realformats-stratified-92edce73/`) |
@@ -653,6 +662,186 @@ restricted; a number literal is never reparsed. See
 > equal/7 both-decline; **0 mismatches**), leaving exact closure + economics.
 > `[SUPERSEDED: evidence/campaigns/2026-10-09-phase21-6-yaml-econ-ceab8ec]`.
 
+## MHTML (MIME HTML)
+
+MHTML (RFC 2557) is the Wave-2 **web-archive** format (`mhtml = ["eml", "html"]`,
+**non-default**, dependency-free; reuses the EML MIME layer and the HTML scanner).
+
+| Property | MHTML |
+|---|---|
+| Byte-based detection | a `multipart/related` root **plus** an MHTML-specific signal — a top-level `Snapshot-Content-Location`/`Content-Base`, or a `From`+`Subject` envelope with a `text/html` part (before the generic EML detector) |
+| Physical authority | the whole source (RAW authority); the MIME envelope + ordered parts + sub-resources keyed by `Content-Location`/`Content-ID` |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `resource`, `search-match` |
+| Native observations | `mhtml-root`, `mhtml-resource`, `mhtml-location`, `mhtml-find` |
+| Representation preserved | ordered parts + sub-resources, the root HTML part via the reused HTML scanner; decoded (quoted-printable/base64) bytes kept distinct from the retained encoded body span |
+
+**Honest negative (over-approximation):** a plain `multipart/related` message with a
+`From`+`Subject` envelope and a `text/html` part **is admitted as MHTML** (a
+documented over-approximation); `Content-Base` URL resolution is never performed.
+A plain `multipart/related` email stays `Eml`, a plain HTML document stays `Html`.
+See [Formats/MHTML](../formats/mhtml.md).
+
+## log streams (syslog)
+
+RFC 5424 / RFC 3164 (BSD) syslog and generic application logs are the Wave-2
+**line/event-stream** format (`logstream = []`, **non-default**, dependency-free).
+
+| Property | log stream |
+|---|---|
+| Byte-based detection | **no magic bytes**: at least two non-blank lines and **every** non-blank line matches a dialect (RFC 5424 header, RFC 3164 line, or a generic timestamp/level-led line); tried after the structured/prose family and before fixed-width |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `logstream-line`, `logstream-field`, `logstream-find` |
+| Representation preserved | recorded dialect; each record's exact line span + terminator (LF/CRLF/none), line number, decoded priority, deepest structured-data nesting, and every field's exact span; message/NILVALUE/timestamp/level spelling verbatim |
+
+**Honest negative:** a prose file whose **every** line begins with a level word is
+indistinguishable from a log and **is claimed**; a single log-looking line inside
+prose is not; a pure BSD stream whose every message lacks a `: ` **stays `yaml`**.
+See [Formats/logstream](../formats/logstream.md).
+
+## package metadata
+
+The manifests npm `package.json`/`package-lock.json`, Cargo `Cargo.toml`/`Cargo.lock`,
+and Python `pyproject.toml` are the Wave-2 **manifest** format (`pkgmeta = ["json",
+"toml"]`, **non-default**, dependency-free; reuses the JSON and TOML parsers).
+
+| Property | package metadata |
+|---|---|
+| Byte-based detection | content-only, **no file name**: a JSON object with string `name`+`version` **and** a third package-specific key, a JSON `lockfileVersion`+`packages`/`dependencies`, a TOML `[package]` with a string `name`, a TOML `[build-system]`/`[project]`/`[tool.poetry]`, or a TOML `[[package]]` lockfile (before the generic JSON/TOML detectors) |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `pkgmeta-section`, `pkgmeta-entry`, `pkgmeta-key`, `pkgmeta-find` |
+| Representation preserved | recorded dialect (`npm_package`/`cargo_manifest`/`pyproject_manifest`/`cargo_lock`/`npm_lock`); member order, duplicate keys, numeric/string spelling, key quoting, exact section/entry spans; nothing re-serialized |
+
+**Honest negative:** a generic JSON `name`+`version` with fewer than two
+package-specific keys **stays `json`**; a generic TOML `name`/`version` with no
+`[package]` table (or a workspace-only manifest) **stays `toml`**. See
+[Formats/package metadata](../formats/pkgmeta.md).
+
+## API / specification
+
+A JSON Schema / OpenAPI 3.x / Swagger 2.0 / AsyncAPI document is the Wave-2
+**API/spec** format (`apispec = ["json"]`, **non-default**, dependency-free;
+reuses the JSON parser).
+
+| Property | API / spec |
+|---|---|
+| Byte-based detection | content-only, **no file name**: a root-level string marker — a JSON-Schema `$schema` URI, an `openapi` `3.`-prefixed string, a `swagger` equal to `"2.0"`, or a non-empty `asyncapi` string (before the generic JSON detector) |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `apispec-dialect`, `apispec-version`, `apispec-object`, `apispec-ref`, `apispec-find` |
+| Representation preserved | recorded dialect (`json_schema`/`openapi`/`swagger`/`asyncapi`), exact spec-version token, every object (role + spans + member range), every member (key/value spans, duplicates), every `$ref` target **verbatim** |
+
+**Honest negative:** a JSON-Schema-**shaped** object with **no** `$schema` is
+indistinguishable from a plain JSON tree and **stays `json`**; `$ref` targets are
+never resolved or fetched. See [Formats/api-spec](../formats/apispec.md).
+
+## bibliography (BibTeX / RIS / CSL-JSON)
+
+BibTeX, RIS, and CSL-JSON are the Wave-2 **bibliography** format (`bib = ["json"]`,
+**non-default**, dependency-free; reuses the JSON parser for CSL-JSON).
+
+| Property | bibliography |
+|---|---|
+| Byte-based detection | content-only, **no file name**: a line-anchored `@type{` sequence, an RIS `TY  - ` sequence whose every entry is `ER  - `-terminated, or a JSON array/object whose every element carries a string `id` **and** a string `type` (before the generic JSON detector) |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `bib-dialect`, `bib-entry`, `bib-field`, `bib-key`, `bib-find` |
+| Representation preserved | recorded dialect (`bibtex`/`ris`/`csl_json`); BibTeX key/type/field names *as written*, brace/quoted/number/macro value forms, `#` concatenation, duplicate fields; RIS two-space `XX  - ` separator + continuation span; CSL-JSON member order/duplicates/spelling |
+
+**Honest negatives:** a non-bibliographic JSON array whose elements each carry a
+string `id` and `type` **is claimed as `csl_json`**; a **RIS continuation line**
+beginning with two uppercase alphanumerics and the `  - ` separator is read as a
+new tagged line (the inherent RIS ambiguity); a BibTeX macro is never resolved
+against `@string`. See [Formats/bibliography](../formats/bib.md).
+
+## RTF (Rich Text Format)
+
+RTF is the Wave-2 **word-processor markup** format (`rtf = []`, **non-default**,
+dependency-free).
+
+| Property | RTF |
+|---|---|
+| Byte-based detection | a strong magic test, **not a full grammar**: `{\rtf` followed by a digit (after an optional UTF-8 BOM) **and** a bounded brace-balance scan (before the JSON family) |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `rtf-header`, `rtf-group`, `rtf-control`, `rtf-hex`, `rtf-unicode`, `rtf-text`, `rtf-dest`, `rtf-find` |
+| Representation preserved | header (`\rtf` version, charset, `\deff`), every group's exact brace span + depth, control words/symbols, `\'hh` hex escapes, `\uN` with its `\ucN` fallback, destinations verbatim, plain text runs byte-exactly |
+
+**Honest negative:** detection is a **magic + brace-balance test, not a full-grammar
+test** — a `{\rtf<digit>`-prefixed blob with balanced braces **is admitted as RTF
+even if its control words are meaningless**; the adapter does not render and does
+not map `\mac`/`\pc`/`\pca` code pages beyond the raw decoded byte. See
+[Formats/RTF](../formats/rtf.md).
+
+## ZIP / TAR containers
+
+A standalone ZIP or TAR archive is the Wave-2 **generic archive-container** format
+(`container = ["package"]`, **non-default**; reuses the byte-authoritative ZIP
+physical layer, adds a bounded TAR parser).
+
+| Property | container |
+|---|---|
+| Byte-based detection | **strong magic + validation**: ZIP = `PK\x03\x04` at offset 0, or the empty-archive `PK\x05\x06` with a valid EOCD and coherent central directory; TAR = a valid `ustar`/old-GNU header at 257, or a plausible v7 header at 0 whose checksum matches (after the office ZIP family) |
+| Physical authority | the whole source (RAW authority); ZIP reuses the `PackageRoot` |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `container-dialect`, `container-entry`, `container-find` |
+| Representation preserved | recorded dialect (`zip`/`tar`); raw member names (incl. non-UTF-8), method, both declared sizes, CRC-32, exact spans; TAR typeflag/mode/linkname with GNU `L`/`K` and PAX `x`/`g` folded in |
+
+**Honest negative:** the **plain ZIP runs after the office ZIP family** (an office
+package is never reclassified); a `PK`-prefixed blob without a valid EOCD and a
+bad-checksum TAR stay `Opaque`, while a structurally truncated TAR detects as
+`container` and declines typed (`InvalidContainerStructure`, exit 49). See
+[Formats/containers](../formats/container.md).
+
+## NetCDF classic / HDF5
+
+NetCDF classic (CDF-1/CDF-2) and a documented bounded HDF5 subset are the Wave-2
+**scientific-container** format (`hdf = []`, **non-default**, dependency-free).
+
+| Property | scientific container |
+|---|---|
+| Byte-based detection | **strong magic**: NetCDF = `CDF\x01`/`CDF\x02` at offset 0; HDF5 = the 8-byte signature at offset 0 **or** 512 with a superblock version in `0..=3`, offset/length size in `{2,4,8}`, fitting inside the source |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `hdf-dialect`, `hdf-object`, `hdf-dimension`, `hdf-attribute`, `hdf-find` |
+| Representation preserved | recorded dialect (`netcdf`/`hdf5`); NetCDF dimensions (incl. unlimited)/global attrs/variables with exact spans; HDF5 group/dataset tree, datatype/simple-dataspace/contiguous layout, v1 attributes |
+
+**Honest negative:** **NetCDF classic is fully supported**, but **HDF5 is a bounded
+subset** — superblock v2/v3, v2/v3 object headers, compact/chunked/virtual layouts,
+filtered datasets, external data files, and every datatype class other than
+fixed-point/float/string **decline typed** (exit 6; malformed headers exit 50).
+Dataset values are never decoded. See [Formats/scientific](../formats/hdf.md).
+
+## CFBF / OLE2
+
+A CFBF/OLE2 compound file is the Wave-2 **compound-document physical layer**
+(`cfbf = []`, **non-default**, dependency-free).
+
+| Property | CFBF / OLE2 |
+|---|---|
+| Byte-based detection | the 8-byte signature `D0 CF 11 E0 A1 B1 1A E1` at offset 0 **and** an internally consistent header (byte order `FFFE`, version 3/4, sector shift 9/12 matching, mini-sector shift 6, ≥ 1 FAT sector, first directory sector inside the file) |
+| Physical authority | the whole source (RAW authority) |
+| `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
+| Common observations | `metadata`, `text`, `search-match` |
+| Native observations | `cfbf-dialect`, `cfbf-entry`, `cfbf-stream`, `cfbf-find` |
+| Representation preserved | recorded dialect (`cfb3`/`cfb4`); header/DIFAT/FAT/MiniFAT; 128-byte directory entries with verbatim UTF-16LE names and the reconstructed sibling/child tree; each stream's exact span (regular + mini) |
+
+**Honest negatives:** this is the **physical layer only** — the legacy DOC/XLS/PPT/MSG
+*semantic* models are later work; a plausible header with a malformed body is
+admitted and declines typed (`InvalidCfbfStructure`, exit 51); a **non-contiguous
+stream chain records a bounding hull and its `ExactBytes` declines typed** rather
+than returning interleaved foreign bytes; a signature-only blob and prose stay
+`Opaque`. See [Formats/CFBF](../formats/cfbf.md).
+
 ## Detection order (Phase 21, frozen)
 
 Format is detected from bytes, never a file name, in this fixed order (a source
@@ -661,15 +850,23 @@ declined by every branch stays `Opaque` and round-trips exactly through RAW):
 ```text
 PDF
   → ZIP family (OPC/OCF): DOCX, XLSX, PPTX, EPUB, ODT, ODS, ODP
+  → Container (standalone ZIP/TAR; after the office family)
+  → Hdf       (scientific container; NetCDF/HDF5 magic)
+  → Cfbf      (OLE2 compound-file magic + validated header)
   → Parquet (PAR1 magic)
   → Arrow IPC (ARROW1 magic)
   → GeoJSON   (JSON bytes; bounded semantic sub-detection)
   → Notebook  (JSON bytes; bounded semantic sub-detection)
+  → Pkgmeta   (JSON/TOML bytes; bounded semantic sub-detection)
+  → Apispec   (JSON bytes; bounded semantic sub-detection)
+  → Bib       (CSL-JSON bytes; bounded sub-detection; BibTeX/RIS text)
+  → RTF       (strong magic `{\rtf<digit>` + brace balance)
   → JSON      (generic)
   → JSON5/JSONC
   → JSONL/NDJSON
   → CBOR      (binary; before MessagePack by construction)
   → MessagePack
+  → MHTML     (MIME bytes; before the generic EML detector)
   → EML/MIME
   → YAML
   → TOML      (before CSV/Markdown/XML/HTML)
@@ -679,6 +876,7 @@ PDF
   → Markdown
   → reST      (prose; immediately after Markdown)
   → AsciiDoc  (prose; immediately after reST)
+  → Logstream (line/event stream; after the prose family, before fixed-width)
   → Fixed-width (column-position; after the delimited/Markdown detectors)
   → Feed      (XML bytes; before the generic XML detector)
   → GIS       (XML bytes; before the generic XML detector)
@@ -688,15 +886,23 @@ PDF
   → Opaque
 ```
 
-The load-bearing placements: the strong magic-byte binaries run before the weak
-no-magic-byte heuristics; the JSON-based sub-formats (GeoJSON, notebook) run
-before the generic JSON detector but a strict-JSON document stays `Json`; CBOR
-runs before MessagePack (its self-described tag is the strongest binary signal);
-TOML wins over INI/config and CSV; **MDX runs before generic Markdown** (so a
-Markdown document is never stolen), the prose detectors run in the fixed order
-**MDX → Markdown → reST → AsciiDoc**, and **fixed-width runs after** every
-delimited and Markdown detector; and the XML-based sub-formats (feed, GIS) run
-before the generic XML detector. See the adapter pages for each boundary.
+The load-bearing placements: the strong magic-byte binaries (PDF, the office ZIP
+family, the standalone **container**, the scientific **hdf**, **cfbf**, Parquet,
+Arrow IPC, and the magic-bearing **RTF**) run before the weak no-magic-byte
+heuristics; the standalone container and the scientific/compound containers run
+**after the office ZIP family** (so an office package is never reclassified as a
+plain archive, an `.h5`, or a `.cfb`); the JSON-based sub-formats (GeoJSON,
+notebook, pkgmeta, apispec, bib) run before the generic JSON detector but a
+strict-JSON document stays `Json` (and a generic `name`/`version` stays
+`Json`/`Toml`); **MHTML runs before the generic EML detector** (a plain
+`multipart/related` email stays `Eml`); CBOR runs before MessagePack (its
+self-described tag is the strongest binary signal); TOML wins over INI/config and
+CSV; **MDX runs before generic Markdown** (so a Markdown document is never
+stolen), the prose detectors run in the fixed order **MDX → Markdown → reST →
+AsciiDoc**, **logstream runs after the prose family**, and **fixed-width runs
+after** every delimited and Markdown detector; and the XML-based sub-formats
+(feed, GIS) run before the generic XML detector. See the adapter pages for each
+boundary.
 
 ## Detection repair (Phase 21.15)
 
@@ -726,7 +932,12 @@ plus the XML-reusing `feed` and `gis` features (each `= ["xml"]`) — all
 **non-default**. The tabular extra adds the dependency-free `fixedwidth =
 ["csv"]` feature (PSV needs none — it lives inside `csv`); the prose extra adds
 the dependency-free `rst` and `asciidoc` features and the Markdown-reusing `mdx =
-["markdown"]` feature — all **non-default**.
+["markdown"]` feature — all **non-default**. The final Wave-2 families add the
+remaining adapters, all **non-default**: the dependency-free `logstream`, `rtf`,
+`hdf` and `cfbf` features; the EML+HTML-reusing `mhtml = ["eml", "html"]`; the
+JSON+TOML-reusing `pkgmeta = ["json", "toml"]`; the JSON-reusing `apispec =
+["json"]` and `bib = ["json"]`; and the package-reusing `container =
+["package"]` (the TAR half is dependency-free).
 `deflate-replay` is opt-in (pulls LGPL
 `cabac`). A descriptor that needs a capability the build lacks sets a mandatory
 feature bit and fails closed with `unsupported-feature` (exit 6).
@@ -749,11 +960,14 @@ ADR-0053); `--promote` is refuted on the tested corpus and default-off (ADR-0046
 
 ## Not supported
 
-Beyond the six office formats (PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP), the
-Phase-21 Wave 2 formats implemented so far are JSON, YAML, CSV/TSV/PSV,
-fixed-width, Markdown, reStructuredText, AsciiDoc, MDX, XML, HTML, TOML, JSONL,
-EML/MIME, Parquet, Arrow IPC, JSON5/JSONC, CBOR, MessagePack, config
-(INI/`.env`/properties), RSS/Atom, GeoJSON, KML/GPX and the Jupyter notebook; the
-remaining Wave-2 families (see [Roadmap](../project/roadmap.md)) are `PROPOSED`.
-Any source that is not a recognized format still round-trips exactly through the
-opaque `RAW` lane.
+Beyond the office formats (PDF, DOCX, EPUB, ODT, XLSX, PPTX, ODS, ODP), the
+Phase-21 Wave 2 formats are JSON, YAML, CSV/TSV/PSV, fixed-width, Markdown,
+reStructuredText, AsciiDoc, MDX, XML, HTML, TOML, JSONL, EML/MIME, Parquet, Arrow
+IPC, JSON5/JSONC, CBOR, MessagePack, config (INI/`.env`/properties), RSS/Atom,
+GeoJSON, KML/GPX, the Jupyter notebook, MHTML, syslog/log streams, package
+metadata, API/spec (JSON Schema/OpenAPI/Swagger/AsyncAPI), bibliography
+(BibTeX/RIS/CSL-JSON), RTF, standalone ZIP/TAR containers, scientific containers
+(NetCDF classic / HDF5 subset) and CFBF/OLE2. **The Wave-2 order is complete.**
+The legacy DOC/XLS/PPT/MSG *semantic* models on top of the CFBF physical layer
+remain future work. Any source that is not a recognized format still round-trips
+exactly through the opaque `RAW` lane.
