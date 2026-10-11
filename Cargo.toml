@@ -386,6 +386,26 @@ rst = []
 # path, so enabling it never changes `.voldoc` bytes and exactness is untouched.
 # Dependency-free (`asciidoc = []`) and never in `default`.
 asciidoc = []
+# Phase 21.26.3: the MDX adapter — Markdown + JSX + ESM. MDX is a **superset** of
+# Markdown, so this adapter **reuses the Markdown parser and model** (Phase 21.8.1's
+# `markdown` feature) — never a second prose parser — and layers the MDX-specific
+# constructs on top, each with an exact source span: top-level ESM `import`/`export`
+# statements, JSX elements/fragments with their attributes and nested children
+# (recorded as extents, never executed and never parsed as JavaScript), and MDX `{ … }`
+# expressions inline and block (brace-balanced with string literals, escapes, and
+# comments respected). Like the other Wave-2 formats it is not a package (no OPC/ZIP
+# layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like authority)
+# and every derived observation is a bounded, span-preserving (`Q_gen`) projection of
+# it. Detection is conservative (no magic bytes) and **MDX-specific**, and it is tried
+# **before** generic Markdown and before HTML: a plain Markdown document stays
+# `Markdown`, a plain HTML document stays `Html`, and plain prose stays `Opaque`; the
+# scanner skips fenced/indented code, front matter, and inline code spans so a JSX/ESM
+# construct inside code never makes a Markdown document MDX. It adds **no** decoder
+# behavior: the MDX model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. Dependency-free (`mdx` pulls no external
+# crate) and never in `default`; it reuses the Markdown adapter, so it implies
+# `markdown`.
+mdx = ["markdown"]
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores; Phase 21.9 also gates the standalone **XML adapter**
 # (the structured-tree format for a bare `.xml` source) on this same feature. The

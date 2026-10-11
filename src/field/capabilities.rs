@@ -290,6 +290,14 @@ const ASCIIDOC_NATIVE: &[&str] = &[
     "adoc-inline",
     "adoc-find",
 ];
+const MDX_NATIVE: &[&str] = &[
+    "mdx-heading",
+    "mdx-block",
+    "mdx-esm",
+    "mdx-jsx",
+    "mdx-expression",
+    "mdx-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -631,6 +639,17 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 ASCIIDOC_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Mdx => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("heading", COMMON_TEXT_META),
+                    caps("block", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                MDX_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

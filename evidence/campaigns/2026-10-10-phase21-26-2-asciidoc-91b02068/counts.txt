@@ -1,0 +1,11 @@
+fixtures 11
+asciidoc_fixtures 7
+control_fixtures 4
+exact_ok 11
+exact_fail 0
+surface_fail 0
+typed_declines_ok 7
+boundary_ok 4
+opaque_controls_ok 1
+usage_ok 1
+binary 17cfc5919092f8a88c49339de3fb64b38b38280ab91ca66e289288b57e947f0b

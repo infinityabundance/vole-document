@@ -737,6 +737,31 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.26.2).
     pub max_asciidoc_document_bytes: u64,
+    // The MDX caps below bound the derived, span-preserving MDX (Markdown + JSX/ESM)
+    // model. MDX is a superset of Markdown that **reuses the Markdown parser/model**
+    // (Phase 21.26.3) and layers ESM statements, JSX elements/fragments, and MDX
+    // expressions on top, each with an exact source span. MDX is not a package: the
+    // whole source is the exact leaf, and everything derived is `Q_gen` only.
+    /// Maximum ESM statements accepted in one MDX document (Phase 21.26.3).
+    pub max_mdx_esm_statements: u32,
+    /// Maximum JSX elements/fragments accepted in one MDX document (Phase 21.26.3).
+    pub max_mdx_jsx_blocks: u32,
+    /// Maximum MDX expressions accepted in one MDX document (Phase 21.26.3).
+    pub max_mdx_expressions: u32,
+    /// Maximum nodes (ESM statements plus JSX elements plus expressions) accepted in
+    /// one MDX document. An over-large document declines typed rather than allocating
+    /// (Phase 21.26.3).
+    pub max_mdx_nodes: u32,
+    /// Maximum JSX nesting depth accepted (Phase 21.26.3). A deeper document is a
+    /// typed resource-limit decline.
+    pub max_mdx_depth: u32,
+    /// Maximum byte length of one physical line (content, terminator excluded) in an
+    /// MDX document. A longer line declines typed (Phase 21.26.3).
+    pub max_mdx_line_bytes: u64,
+    /// Maximum source length admitted for byte-based MDX detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.26.3).
+    pub max_mdx_document_bytes: u64,
 }
 
 impl Limits {
@@ -954,6 +979,13 @@ impl Limits {
         max_asciidoc_depth: 256,
         max_asciidoc_line_bytes: 1 << 26,
         max_asciidoc_document_bytes: 1 << 34,
+        max_mdx_esm_statements: 1 << 22,
+        max_mdx_jsx_blocks: 1 << 22,
+        max_mdx_expressions: 1 << 24,
+        max_mdx_nodes: 1 << 24,
+        max_mdx_depth: 256,
+        max_mdx_line_bytes: 1 << 26,
+        max_mdx_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1170,6 +1202,13 @@ impl Limits {
         max_asciidoc_depth: 64,
         max_asciidoc_line_bytes: 1 << 20,
         max_asciidoc_document_bytes: 1 << 26,
+        max_mdx_esm_statements: 1 << 14,
+        max_mdx_jsx_blocks: 1 << 14,
+        max_mdx_expressions: 1 << 16,
+        max_mdx_nodes: 1 << 16,
+        max_mdx_depth: 64,
+        max_mdx_line_bytes: 1 << 20,
+        max_mdx_document_bytes: 1 << 26,
     };
 }
 

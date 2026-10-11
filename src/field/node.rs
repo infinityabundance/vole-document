@@ -394,6 +394,18 @@ pub enum NodeKind {
     /// root, keyed by `sha256(source)` per ADR-0060); an AsciiDoc document has no
     /// package layer. Derived, never exact.
     AsciidocModel = 0x3C,
+    /// The canonical, representation-preserving MDX (Markdown + JSX/ESM) model
+    /// (Phase 21.26.3): the reused Markdown prose model of the whole source **plus** the
+    /// MDX-specific arenas — top-level ESM `import`/`export` statements, JSX elements
+    /// and fragments with their attributes and nested children (recorded as extents,
+    /// never executed and never parsed as JavaScript), and MDX `{ … }` expressions
+    /// inline and block (brace-balanced with string literals, escapes, and comments
+    /// respected) — and the bit-set of MDX signals observed. Every span is exact and
+    /// the source is never re-flowed or normalized. It is computed on demand from the
+    /// exact source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); an MDX document has no package layer. Derived,
+    /// never exact.
+    MdxModel = 0x3D,
 }
 
 impl NodeKind {
@@ -460,6 +472,7 @@ impl NodeKind {
             0x3A => NodeKind::FixedWidthModel,
             0x3B => NodeKind::RstModel,
             0x3C => NodeKind::AsciidocModel,
+            0x3D => NodeKind::MdxModel,
             _ => return None,
         })
     }
@@ -527,6 +540,7 @@ impl NodeKind {
             NodeKind::FixedWidthModel => "FixedWidthModel",
             NodeKind::RstModel => "RstModel",
             NodeKind::AsciidocModel => "AsciidocModel",
+            NodeKind::MdxModel => "MdxModel",
         }
     }
 

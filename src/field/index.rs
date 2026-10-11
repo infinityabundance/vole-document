@@ -405,6 +405,16 @@ pub const SEL_RST_MODEL: u8 = 39;
 /// exact source (its single dependency is the `DocumentExact` root, keyed by
 /// `sha256(source)` per ADR-0060); AsciiDoc has no package layer. Derived, never exact.
 pub const SEL_ASCIIDOC_MODEL: u8 = 40;
+/// Selector kind: the canonical MDX (Markdown + JSX/ESM) model (Phase 21.26.3).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as the reused Markdown prose model **plus** the MDX-specific arenas —
+/// top-level ESM statements, JSX elements/fragments with their attributes and nested
+/// children, and MDX expressions inline and block — as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); MDX has no package
+/// layer. Derived, never exact.
+pub const SEL_MDX_MODEL: u8 = 41;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

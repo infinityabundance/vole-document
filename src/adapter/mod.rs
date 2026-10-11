@@ -38,6 +38,8 @@ pub mod json5;
 pub mod jsonl;
 #[cfg(feature = "markdown")]
 pub mod markdown;
+#[cfg(feature = "mdx")]
+pub mod mdx;
 #[cfg(feature = "msgpack")]
 pub mod msgpack;
 #[cfg(feature = "notebook")]

@@ -527,6 +527,19 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["AsciidocModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-nodes", "whole-document"]),
         }),
+        #[cfg(feature = "mdx")]
+        (Selector::MdxHeading { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdxBlock { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdxEsm { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdxJsx { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdxExpression { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdxFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["MdxModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-nodes", "whole-document"]),
+        }),
         _ => Err(Error::unsupported_feature(format!(
             "unsupported observation: selector {} with representation {}",
             req.selector.canonical(),
@@ -662,6 +675,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::FixedWidth => &["FixedWidthModel", "DocumentExact"],
         DocumentFormat::Rst => &["RstModel", "DocumentExact"],
         DocumentFormat::Asciidoc => &["AsciidocModel", "DocumentExact"],
+        DocumentFormat::Mdx => &["MdxModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

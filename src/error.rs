@@ -160,6 +160,12 @@ pub enum ErrorClass {
     /// a block), a malformed attribute/list/macro marker, or an input that exceeds a cap
     /// — so it stays `Opaque` rather than being claimed.
     InvalidAsciidocStructure,
+    /// An MDX structure error (Phase 21.26.3+): a source that carries no MDX-specific
+    /// signal (a top-level ESM statement, a JSX component/fragment/attribute, or a
+    /// whole-line block expression), an unbalanced/ambiguous brace in a non-code
+    /// position, a malformed JSX/ESM construct, or an input that exceeds a cap — so it
+    /// stays `Opaque` rather than being claimed.
+    InvalidMdxStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -208,6 +214,7 @@ impl ErrorClass {
             ErrorClass::InvalidFixedWidthStructure => 39,
             ErrorClass::InvalidRstStructure => 40,
             ErrorClass::InvalidAsciidocStructure => 41,
+            ErrorClass::InvalidMdxStructure => 42,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -255,6 +262,7 @@ impl ErrorClass {
             ErrorClass::InvalidFixedWidthStructure => "InvalidFixedWidthStructure",
             ErrorClass::InvalidRstStructure => "InvalidRstStructure",
             ErrorClass::InvalidAsciidocStructure => "InvalidAsciidocStructure",
+            ErrorClass::InvalidMdxStructure => "InvalidMdxStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -356,6 +364,7 @@ impl Error {
     ctor!(invalid_fixedwidth_structure, InvalidFixedWidthStructure);
     ctor!(invalid_rst_structure, InvalidRstStructure);
     ctor!(invalid_asciidoc_structure, InvalidAsciidocStructure);
+    ctor!(invalid_mdx_structure, InvalidMdxStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

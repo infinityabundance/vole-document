@@ -308,6 +308,13 @@ pub enum DocumentFormat {
     /// document are never stolen). Not a package: the exact leaf is the whole source
     /// (Phase 21.26.2).
     Asciidoc,
+    /// An MDX document (Markdown + JSX/ESM). The whole source carries an MDX-specific
+    /// signal — a top-level ESM `import`/`export` statement, a JSX element with a
+    /// capitalized/namespaced component name (or a JSX-specific attribute), a JSX
+    /// fragment, or a whole-line MDX block expression `{…}` — so plain Markdown stays
+    /// `Markdown`, plain HTML stays `Html`, and plain prose stays `Opaque`. Not a
+    /// package: the exact leaf is the whole source (Phase 21.26.3).
+    Mdx,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -346,6 +353,7 @@ impl DocumentFormat {
             DocumentFormat::FixedWidth => "fixedwidth",
             DocumentFormat::Rst => "rst",
             DocumentFormat::Asciidoc => "asciidoc",
+            DocumentFormat::Mdx => "mdx",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -383,6 +391,7 @@ impl DocumentFormat {
             DocumentFormat::FixedWidth => "fixedwidth",
             DocumentFormat::Rst => "rst",
             DocumentFormat::Asciidoc => "asciidoc",
+            DocumentFormat::Mdx => "mdx",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -420,6 +429,7 @@ impl DocumentFormat {
             DocumentFormat::FixedWidth => cfg!(feature = "fixedwidth"),
             DocumentFormat::Rst => cfg!(feature = "rst"),
             DocumentFormat::Asciidoc => cfg!(feature = "asciidoc"),
+            DocumentFormat::Mdx => cfg!(feature = "mdx"),
         }
     }
 
@@ -467,6 +477,7 @@ impl DocumentFormat {
             "fixedwidth" => Some(DocumentFormat::FixedWidth),
             "rst" => Some(DocumentFormat::Rst),
             "asciidoc" => Some(DocumentFormat::Asciidoc),
+            "mdx" => Some(DocumentFormat::Mdx),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -685,6 +696,21 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "csv")]
     if crate::adapter::csv::detect(source, limits) {
         return DocumentFormat::Csv;
+    }
+    // MDX (Phase 21.26.3) is Markdown + JSX/ESM, so it is tried **immediately before
+    // Markdown** (and therefore before HTML/XML and the other prose/tabular
+    // heuristics): an MDX document's bytes are Markdown-plus-JSX, so generic Markdown
+    // must never claim it first. Detection is conservative and **MDX-specific** — the
+    // source must parse under the Markdown model **and** carry a top-level ESM
+    // `import`/`export` statement, a JSX component (a capitalized/namespaced element
+    // name) or fragment, a JSX-specific attribute (a brace value or spread), or a
+    // whole-line MDX block expression `{…}` — and it declines anything already
+    // claimed by JSON/YAML/CSV/HTML/XML/RST/AsciiDoc, so a plain Markdown document
+    // stays `Markdown`, a plain HTML document stays `Html`, and plain prose stays
+    // `Opaque`.
+    #[cfg(feature = "mdx")]
+    if crate::adapter::mdx::detect(source, limits) {
+        return DocumentFormat::Mdx;
     }
     // Markdown is the first **prose** Wave-2 format (Phase 21.8.1). It has no
     // magic bytes either, and a plain prose paragraph is itself valid Markdown, so
@@ -1038,6 +1064,7 @@ mod tests {
             DocumentFormat::FixedWidth,
             DocumentFormat::Rst,
             DocumentFormat::Asciidoc,
+            DocumentFormat::Mdx,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

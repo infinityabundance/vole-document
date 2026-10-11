@@ -155,6 +155,13 @@ use crate::adapter::markdown::{
     inline_kind_name as md_inline_kind_name, inline_text_bytes as md_inline_text_bytes,
     is_code_block as md_is_code_block,
 };
+#[cfg(feature = "mdx")]
+use crate::adapter::mdx::{
+    F_COMPONENT, F_HAS_ATTRS, F_HAS_SPREAD, F_JSX_ATTR, F_NAMESPACED, F_SELF_CLOSING, MdxModel,
+    S_BLOCK_EXPR, S_COMPONENT, S_ESM, S_FRAGMENT, S_JSX_ATTR, X_BLOCK, X_COMMENT,
+    esm_kind_name as mdx_esm_kind_name, find as mdx_find_matches,
+    jsx_kind_name as mdx_jsx_kind_name,
+};
 #[cfg(feature = "msgpack")]
 use crate::adapter::msgpack::{
     MsgpackModel, canonical_text as msgpack_canonical_text, decode_text as msgpack_decode_text,
@@ -271,6 +278,8 @@ use crate::field::index::SEL_JSON5_MODEL;
 use crate::field::index::SEL_JSONL_MODEL;
 #[cfg(feature = "markdown")]
 use crate::field::index::SEL_MARKDOWN_MODEL;
+#[cfg(feature = "mdx")]
+use crate::field::index::SEL_MDX_MODEL;
 #[cfg(feature = "msgpack")]
 use crate::field::index::SEL_MSGPACK_MODEL;
 #[cfg(feature = "notebook")]
@@ -1432,6 +1441,58 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The `index`-th ATX heading in document order (Phase 21.26.3), reusing the
+    /// Markdown heading arena. `Text` returns the heading's exact content text;
+    /// `ExactBytes` its exact content bytes; `Metadata`/`Structure` a descriptor with
+    /// its level and exact spans.
+    #[cfg(feature = "mdx")]
+    MdxHeading {
+        /// The 0-based heading ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th block in document order (Phase 21.26.3), reusing the Markdown
+    /// block arena. `ExactBytes` returns the block's exact source span bytes; `Text`
+    /// its exact source text; `Metadata`/`Structure` a descriptor with its kind, exact
+    /// spans, and inline count. MDX has no package layer, so the source *is* the whole
+    /// document.
+    #[cfg(feature = "mdx")]
+    MdxBlock {
+        /// The 0-based block ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th ESM `import`/`export` statement in document order (Phase
+    /// 21.26.3), preserved verbatim and never executed. `Text`/`ExactBytes` return its
+    /// exact source bytes; `Metadata`/`Structure` a descriptor with its kind and exact
+    /// span.
+    #[cfg(feature = "mdx")]
+    MdxEsm {
+        /// The 0-based ESM-statement ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th JSX element or fragment in document order (Phase 21.26.3),
+    /// recorded as an extent (never executed, never parsed as JavaScript). `Text`/
+    /// `ExactBytes` return its exact source bytes; `Metadata`/`Structure` a descriptor
+    /// with its kind, name, attribute count, child count, depth, and exact span.
+    #[cfg(feature = "mdx")]
+    MdxJsx {
+        /// The 0-based JSX-element ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th MDX expression `{ … }` in document order (Phase 21.26.3),
+    /// preserved verbatim. `Text`/`ExactBytes` return its exact source bytes;
+    /// `Metadata`/`Structure` a descriptor with its flags, depth, and exact span.
+    #[cfg(feature = "mdx")]
+    MdxExpression {
+        /// The 0-based expression ordinal in document order.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over MDX (Markdown) block content (Phase
+    /// 21.26.3). Never an embedding or a model call.
+    #[cfg(feature = "mdx")]
+    MdxFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// A standalone-XML element addressed by a simple element path
     /// (`/a/b[2]/c`; `""` is the root element) (Phase 21.9). The answer reports
     /// the element's qualified name, exact source span, and (for `ExactBytes`) its
@@ -2065,6 +2126,18 @@ impl Selector {
             Selector::AdocInline { index } => format!("adoc-inline:{index}"),
             #[cfg(feature = "asciidoc")]
             Selector::AdocFind { pattern } => format!("adoc-find:{pattern}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxHeading { index } => format!("mdx-heading:{index}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxBlock { index } => format!("mdx-block:{index}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxEsm { index } => format!("mdx-esm:{index}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxJsx { index } => format!("mdx-jsx:{index}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxExpression { index } => format!("mdx-expression:{index}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxFind { pattern } => format!("mdx-find:{pattern}"),
             #[cfg(feature = "xml")]
             Selector::XmlPath { path } => format!("xml-path:{path}"),
             #[cfg(feature = "xml")]
@@ -4214,6 +4287,33 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "asciidoc")]
             (Selector::AdocFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.adoc_find(req, pattern)
+            }
+            #[cfg(feature = "mdx")]
+            (
+                Selector::MdxHeading { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.mdx_heading(req, *index),
+            #[cfg(feature = "mdx")]
+            (
+                Selector::MdxBlock { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.mdx_block(req, *index),
+            #[cfg(feature = "mdx")]
+            (Selector::MdxEsm { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.mdx_esm(req, *index)
+            }
+            #[cfg(feature = "mdx")]
+            (Selector::MdxJsx { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.mdx_jsx(req, *index)
+            }
+            #[cfg(feature = "mdx")]
+            (
+                Selector::MdxExpression { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.mdx_expression(req, *index),
+            #[cfg(feature = "mdx")]
+            (Selector::MdxFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.mdx_find(req, pattern)
             }
             #[cfg(feature = "xml")]
             (Selector::XmlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -9522,6 +9622,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Markdown => self.common_markdown(req)?,
             DocumentFormat::Rst => self.common_rst(req)?,
             DocumentFormat::Asciidoc => self.common_asciidoc(req)?,
+            DocumentFormat::Mdx => self.common_mdx(req)?,
             DocumentFormat::Xml => self.common_xml(req)?,
             DocumentFormat::Html => {
                 #[cfg(feature = "html")]
@@ -10050,6 +10151,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_asciidoc(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "AsciiDoc observations require a build with the asciidoc feature",
+        ))
+    }
+
+    #[cfg(not(feature = "mdx"))]
+    fn common_mdx(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "MDX observations require a build with the mdx feature",
         ))
     }
 
@@ -18007,6 +18115,366 @@ impl<S: SeedStore> Ctx<'_, S> {
             vec![model_id, root],
         ))
     }
+}
+
+// -- MDX (Phase 21.26.3) -----------------------------------------------------
+
+#[cfg(feature = "mdx")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the MDX (Markdown + JSX/ESM) model (derived, `Q_gen`).
+    fn mdx_model(&mut self) -> Result<(MdxModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_MDX_MODEL, 0), "MDX model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((MdxModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn mdx_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn mdx_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th ATX heading in document order (reusing the Markdown arena).
+    fn mdx_heading(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let heads = model.md.blocks_of_kind(B_HEADING);
+        let bi = *heads.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("MDX document has no heading {index}"))
+        })?;
+        let b = model
+            .md
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("mdx heading index out of range"))?;
+        let content = md_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.content_start, b.content_end));
+        let provenance = format!("mdx;heading={index};level={};block={bi}", b.level);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(content.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"mdx\",\"heading\":{},\"block\":{},",
+                    "\"level\":{},\"span\":[{},{}],\"content_span\":[{},{}],",
+                    "\"text_len\":{}}}"
+                ),
+                index,
+                bi,
+                b.level,
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                text.len(),
+            )),
+        };
+        Ok(self.mdx_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th block in document order (reusing the Markdown arena).
+    fn mdx_block(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let b = model.md.block(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("MDX document has no block {index}"))
+        })?;
+        let span_bytes = md_block_bytes(&source, b)?;
+        let content = md_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!("mdx;block={index};kind={}", md_block_kind_name(b.kind));
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"content_span\":[{},{}],\"level\":{},\"inlines\":{}}}"
+                ),
+                index,
+                md_block_kind_name(b.kind),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                b.level,
+                b.inlines.len(),
+            )),
+        };
+        Ok(self.mdx_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th ESM statement in document order.
+    fn mdx_esm(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let e = model.esm(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("MDX document has no ESM statement {index}"))
+        })?;
+        let bytes = slice_span(&source, e.start, e.end, "ESM span is outside the source")?;
+        let text = String::from_utf8_lossy(bytes).into_owned();
+        let span = Some((e.start, e.end));
+        let provenance = format!("mdx;esm={index};kind={}", mdx_esm_kind_name(e.kind));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::ExactBytes => AnswerValue::Bytes(bytes.to_vec()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"esm\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"bytes\":{}}}"
+                ),
+                index,
+                mdx_esm_kind_name(e.kind),
+                e.start,
+                e.end,
+                bytes.len(),
+            )),
+        };
+        Ok(self.mdx_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th JSX element or fragment in document order.
+    fn mdx_jsx(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let j = model.jsx(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("MDX document has no JSX element {index}"))
+        })?;
+        let bytes = slice_span(&source, j.start, j.end, "JSX span is outside the source")?;
+        let text = String::from_utf8_lossy(bytes).into_owned();
+        let span = Some((j.start, j.end));
+        let provenance = format!(
+            "mdx;jsx={index};kind={};name={}",
+            mdx_jsx_kind_name(j.kind),
+            j.name.as_deref().unwrap_or("fragment"),
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::ExactBytes => AnswerValue::Bytes(bytes.to_vec()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"jsx\":{},\"kind\":\"{}\",\"name\":{},",
+                    "\"self_closing\":{},\"component\":{},\"namespaced\":{},",
+                    "\"has_attrs\":{},\"jsx_attr\":{},\"spread\":{},",
+                    "\"attrs\":{},\"children\":{},\"depth\":{},",
+                    "\"span\":[{},{}],\"bytes\":{}}}"
+                ),
+                index,
+                mdx_jsx_kind_name(j.kind),
+                md_opt_json(j.name.as_deref()),
+                j.flags & F_SELF_CLOSING != 0,
+                j.flags & F_COMPONENT != 0,
+                j.flags & F_NAMESPACED != 0,
+                j.flags & F_HAS_ATTRS != 0,
+                j.flags & F_JSX_ATTR != 0,
+                j.flags & F_HAS_SPREAD != 0,
+                j.attrs,
+                j.children,
+                j.depth,
+                j.start,
+                j.end,
+                bytes.len(),
+            )),
+        };
+        Ok(self.mdx_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th MDX expression in document order.
+    fn mdx_expression(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let x = model.expr(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("MDX document has no expression {index}"))
+        })?;
+        let bytes = slice_span(
+            &source,
+            x.start,
+            x.end,
+            "expression span is outside the source",
+        )?;
+        let text = String::from_utf8_lossy(bytes).into_owned();
+        let span = Some((x.start, x.end));
+        let provenance = format!("mdx;expression={index};block={}", x.flags & X_BLOCK != 0);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::ExactBytes => AnswerValue::Bytes(bytes.to_vec()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"expression\":{},\"block\":{},\"comment\":{},",
+                    "\"depth\":{},\"span\":[{},{}],\"bytes\":{}}}"
+                ),
+                index,
+                x.flags & X_BLOCK != 0,
+                x.flags & X_COMMENT != 0,
+                x.depth,
+                x.start,
+                x.end,
+                bytes.len(),
+            )),
+        };
+        Ok(self.mdx_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over MDX (Markdown) block content.
+    fn mdx_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let matches = mdx_find_matches(&source, &model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"text\":\"{}\"}}"
+                ),
+                m.block,
+                md_block_kind_name(m.kind),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("mdx;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.mdx_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_mdx(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.mdx_common_metadata(req),
+            Selector::Text => self.mdx_common_text(req),
+            Selector::Heading(i) => self.mdx_heading(req, *i),
+            Selector::Block(i) => self.mdx_block(req, *i),
+            Selector::SearchMatch(p) => self.mdx_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "MDX does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the exact source (lossily decoded), never re-flowed.
+    fn mdx_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.mdx_source()?;
+        let text = md_canonical_text(&source, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.mdx_answer(
+            req,
+            AnswerValue::Text(text),
+            "mdx;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn mdx_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let md = &model.md;
+        let count = |k: u8| md.blocks_of_kind(k).len();
+        let code_blocks = md
+            .blocks
+            .iter()
+            .filter(|b| md_is_code_block(b.kind))
+            .count();
+        let links = md
+            .inlines
+            .iter()
+            .filter(|x| matches!(x.kind, I_LINK | I_REF_LINK))
+            .count();
+        let images = md.inlines_of_kind(I_IMAGE).len();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"mdx\",\"bytes\":{},\"signals\":{},",
+                "\"has_esm\":{},\"has_component\":{},\"has_fragment\":{},",
+                "\"has_jsx_attribute\":{},\"has_block_expression\":{},",
+                "\"esm\":{},\"jsx\":{},\"expressions\":{},\"jsx_depth\":{},",
+                "\"blocks\":{},\"headings\":{},\"max_heading_level\":{},",
+                "\"paragraphs\":{},\"list_items\":{},\"code_blocks\":{},",
+                "\"blockquotes\":{},\"tables\":{},\"ref_defs\":{},\"footnotes\":{},",
+                "\"thematic_breaks\":{},\"front_matter\":{},",
+                "\"links\":{},\"images\":{},\"inline_spans\":{}}}"
+            ),
+            model.doc_len,
+            model.signals,
+            model.signals & S_ESM != 0,
+            model.signals & S_COMPONENT != 0,
+            model.signals & S_FRAGMENT != 0,
+            model.signals & S_JSX_ATTR != 0,
+            model.signals & S_BLOCK_EXPR != 0,
+            model.esm.len(),
+            model.jsx.len(),
+            model.exprs.len(),
+            model.max_jsx_depth(),
+            md.blocks.len(),
+            count(B_HEADING),
+            md.max_heading_level(),
+            count(B_PARAGRAPH),
+            count(B_LIST_ITEM),
+            code_blocks,
+            count(B_BLOCKQUOTE),
+            count(B_TABLE),
+            count(B_REF_DEF),
+            count(B_FOOTNOTE_DEF),
+            count(B_THEMATIC_BREAK),
+            count(B_FRONT_MATTER) > 0,
+            links,
+            images,
+            md.inlines.len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.mdx_answer(
+            req,
+            value,
+            "mdx;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// A bounded source slice for an MDX span.
+#[cfg(feature = "mdx")]
+fn slice_span<'a>(source: &'a [u8], start: u64, end: u64, msg: &str) -> Result<&'a [u8]> {
+    let s = usize::try_from(start).map_err(|_| Error::internal_invariant("span overflow"))?;
+    let e = usize::try_from(end).map_err(|_| Error::internal_invariant("span overflow"))?;
+    source
+        .get(s..e)
+        .ok_or_else(|| Error::internal_invariant(msg))
 }
 
 // -- reStructuredText (Phase 21.26.1) ----------------------------------------

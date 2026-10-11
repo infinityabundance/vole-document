@@ -139,6 +139,8 @@ const USAGE_FIELD: &str = "\
         --rst-find PATTERN |
         --adoc-heading N | --adoc-block N | --adoc-attribute N | --adoc-inline N |
         --adoc-find PATTERN |
+        --mdx-heading N | --mdx-block N | --mdx-esm N | --mdx-jsx N |
+        --mdx-expression N | --mdx-find PATTERN |
         --xml-path P | --xml-element P | --xml-attr PATH@NAME |
         --xml-namespaces | --xml-find PATTERN |
         --html-path P | --html-element P | --html-attr PATH@NAME |
@@ -1880,6 +1882,27 @@ struct FieldArgs {
     /// (Phase 21.26.2).
     #[cfg(feature = "asciidoc")]
     adoc_find: Option<String>,
+    /// `--mdx-heading N`: the N-th ATX heading in document order (Phase 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_heading: Option<u32>,
+    /// `--mdx-block N`: the N-th block in document order (Phase 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_block: Option<u32>,
+    /// `--mdx-esm N`: the N-th ESM `import`/`export` statement in document order
+    /// (Phase 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_esm: Option<u32>,
+    /// `--mdx-jsx N`: the N-th JSX element or fragment in document order (Phase
+    /// 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_jsx: Option<u32>,
+    /// `--mdx-expression N`: the N-th MDX expression in document order (Phase 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_expression: Option<u32>,
+    /// `--mdx-find`: a lexical, case-sensitive search over MDX block content (Phase
+    /// 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_find: Option<String>,
     /// `--xml-path P`: resolve a simple element path (`/a/b[2]/c`; `""` is the root
     /// element), returning the element's name, exact source span, and exact bytes
     /// (Phase 21.9).
@@ -2769,6 +2792,45 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "asciidoc")]
             "--adoc-find" => {
                 out.adoc_find = Some(field_arg_value(args, &mut i, "--adoc-find", inline)?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-heading" => {
+                out.mdx_heading = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mdx-heading", inline)?,
+                    "--mdx-heading",
+                )?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-block" => {
+                out.mdx_block = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mdx-block", inline)?,
+                    "--mdx-block",
+                )?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-esm" => {
+                out.mdx_esm = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mdx-esm", inline)?,
+                    "--mdx-esm",
+                )?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-jsx" => {
+                out.mdx_jsx = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mdx-jsx", inline)?,
+                    "--mdx-jsx",
+                )?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-expression" => {
+                out.mdx_expression = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mdx-expression", inline)?,
+                    "--mdx-expression",
+                )?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-find" => {
+                out.mdx_find = Some(field_arg_value(args, &mut i, "--mdx-find", inline)?);
             }
             #[cfg(feature = "xml")]
             "--xml-path" => {
@@ -3672,6 +3734,33 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.adoc_find {
             chosen.push(Selector::AdocFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // MDX: `--mdx-heading`/`--mdx-block` address the reused Markdown arena;
+    // `--mdx-esm`/`--mdx-jsx`/`--mdx-expression` address ESM statements, JSX
+    // elements, and expressions; `--mdx-find` is a lexical search. Each stands alone
+    // (Phase 21.26.3).
+    #[cfg(feature = "mdx")]
+    {
+        if let Some(index) = out.mdx_heading {
+            chosen.push(Selector::MdxHeading { index });
+        }
+        if let Some(index) = out.mdx_block {
+            chosen.push(Selector::MdxBlock { index });
+        }
+        if let Some(index) = out.mdx_esm {
+            chosen.push(Selector::MdxEsm { index });
+        }
+        if let Some(index) = out.mdx_jsx {
+            chosen.push(Selector::MdxJsx { index });
+        }
+        if let Some(index) = out.mdx_expression {
+            chosen.push(Selector::MdxExpression { index });
+        }
+        if let Some(pattern) = &out.mdx_find {
+            chosen.push(Selector::MdxFind {
                 pattern: pattern.clone(),
             });
         }
