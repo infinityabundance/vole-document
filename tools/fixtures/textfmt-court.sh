@@ -10,12 +10,14 @@
 #       Opaque controls), VOLE `materialize --exact == source` (length + SHA-256 +
 #       `cmp`) after the source file AND the standalone descriptor are deleted, in a
 #       fresh process. The court FAILS unless this is 100 %.
-#   H2 (contract questions) — the three lanes (VOLE; a **source-retaining** store that
+#   H2 (contract questions) — the lanes (VOLE; a **source-retaining** store that
 #       keeps the raw bytes AND a conventional extraction; a **conventional
 #       decode-to-host-values load**: configparser-style for config,
-#       `xml.etree.ElementTree` for feed/gis, `json` for geojson/notebook) answer the
-#       SAME twelve questions Q1–Q12 where they can, and every question a lane cannot
-#       answer is a TYPED decline, never a silent empty answer.
+#       `xml.etree.ElementTree` for feed/gis, `json` for geojson/notebook; and, for
+#       the tabular format only, the mandatory **DuckDB/Parquet** analytical
+#       comparator of ADR-0059) answer the
+#       SAME twelve questions Q1–Q12 where they can, and every question a lane
+#       cannot answer is a TYPED decline, never a silent empty answer.
 #   H3 (cross-lane agreement) — where VOLE and a comparator both answer, comparable
 #       values agree (a canonical value, a kind, a duplicate count, a match set, a
 #       materialized length+SHA). VOLE answers the representation questions (source
@@ -28,15 +30,17 @@
 #
 # Honest scope: a self-authored deterministic corpus; only Q6 is a byte-authority
 # claim. The conventional load is deliberately the weaker comparator. Runs in the
-# pinned, hard-capped `doc-baseline` service (dev toolchain + python3 + sqlite3);
-# never the host:
+# pinned, hard-capped `doc-baseline` service (dev toolchain + python3 + sqlite3) —
+# or `analytical` (same base + hash-pinned DuckDB) for the tabular format, which
+# additionally carries the mandatory DuckDB/Parquet comparator; never the host:
 #
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-20-config-court.sh
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-21-feed-court.sh
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-22-geojson-court.sh
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-23-gis-court.sh
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-24-notebook-court.sh
-#   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-25-tabular-econ-court.sh
+#   docker compose run --rm --no-TTY analytical  bash tools/phase21-25-tabular-econ-court.sh
+#     (the tabular format also carries the mandatory DuckDB/Parquet comparator, ADR-0059)
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-26-1-rst-econ-court.sh
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-26-2-asciidoc-econ-court.sh
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-26-3-mdx-econ-court.sh
@@ -75,6 +79,12 @@ case "$PROFILE" in
     release) BUILD_ARGS="--release --locked --all-features"; BIN=${BIN:-target/release/vole-document} ;;
     *)       BUILD_ARGS="--locked --all-features";           BIN=${BIN:-${VOLE_BIN:-target/debug/vole-document}} ;;
 esac
+
+# The tabular court carries the DuckDB/Parquet comparator (ADR-0059), so it runs
+# in the `analytical` service (same pinned base + Python + hash-pinned DuckDB);
+# every other format runs in `doc-baseline` and keeps its two-lane set.
+COURT_SERVICE=doc-baseline
+[ "$FORMAT" = "tabular" ] && COURT_SERVICE=analytical
 
 # --- per-format native selectors (own/foreign), frozen -----------------------
 case "$FORMAT" in
@@ -140,15 +150,33 @@ build_lane() { # fixture lane dir
                     --profile runtime --packed > "$dir/build.json" 2> "$dir/build.err" ;;
         sqlite) python3 "$BASE" build --format "$FORMAT" --lane sqlite --source "$WORK/corpus/$f" --out "$dir" > "$dir/build.json" 2> "$dir/build.err" ;;
         conv)   python3 "$BASE" build --format "$FORMAT" --lane conv --source "$WORK/corpus/$f" --out "$dir" > "$dir/build.json" 2> "$dir/build.err" ;;
+        duckdb) python3 "$BASE" build --format "$FORMAT" --lane duckdb --source "$WORK/corpus/$f" --out "$dir" > "$dir/build.json" 2> "$dir/build.err" ;;
     esac
 }
 
+# The tabular format carries the mandatory DuckDB/Parquet comparator as a third
+# comparator lane (ADR-0059); every other format keeps its two-lane set.
+if [ "$FORMAT" = "tabular" ]; then
+    LANES="vole sqlite conv duckdb"
+else
+    LANES="vole sqlite conv"
+fi
+
 lane_order() { # rep
-    case $(( ($1 - 1) % 3 )) in
-        0) echo "vole sqlite conv" ;;
-        1) echo "conv vole sqlite" ;;
-        *) echo "sqlite conv vole" ;;
-    esac
+    if [ "$FORMAT" = "tabular" ]; then
+        case $(( ($1 - 1) % 4 )) in
+            0) echo "vole sqlite conv duckdb" ;;
+            1) echo "duckdb vole sqlite conv" ;;
+            2) echo "conv duckdb vole sqlite" ;;
+            *) echo "sqlite conv duckdb vole" ;;
+        esac
+    else
+        case $(( ($1 - 1) % 3 )) in
+            0) echo "vole sqlite conv" ;;
+            1) echo "conv vole sqlite" ;;
+            *) echo "sqlite conv vole" ;;
+        esac
+    fi
 }
 
 QS="Q1 Q2 Q3 Q4 Q5 Q6 Q7 Q8 Q9 Q10 Q11 Q12"
@@ -159,11 +187,12 @@ for f in $LANE_FIXTURES; do
     VDIR="$WORK/lanes/$f.vole"
     SDIR="$WORK/lanes/$f.sqlite"
     CDIR="$WORK/lanes/$f.conv"
+    DDDIR="$WORK/lanes/$f.duckdb"
 
     # ---- build (best-of-N, rotating lane order per rep) ---------------------
     for rep in $(seq 1 "$REPS"); do
         for lane in $(lane_order "$rep"); do
-            case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; conv) dir="$CDIR" ;; esac
+            case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; conv) dir="$CDIR" ;; duckdb) dir="$DDDIR" ;; esac
             t0=$(now_ns)
             build_lane "$f" "$lane" "$dir"; rc=$?
             t1=$(now_ns)
@@ -174,8 +203,8 @@ for f in $LANE_FIXTURES; do
     done
 
     # ---- storage (sum of regular-file sizes; never du -sb) ------------------
-    for lane in vole sqlite conv; do
-        case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; conv) dir="$CDIR" ;; esac
+    for lane in $LANES; do
+        case "$lane" in vole) dir="$VDIR" ;; sqlite) dir="$SDIR" ;; conv) dir="$CDIR" ;; duckdb) dir="$DDDIR" ;; esac
         bytes=$(find "$dir" -type f -printf '%s\n' | awk '{s+=$1} END{print s+0}')
         files=$(find "$dir" -type f | wc -l | tr -d ' ')
         printf '%s\t%s\t%s\t%s\n' "$f" "$lane" "$bytes" "$files" >> "$RAW/storage.tsv"
@@ -202,7 +231,7 @@ for f in $LANE_FIXTURES; do
                     fi
                 done
             else
-                case "$lane" in sqlite) dir="$SDIR" ;; conv) dir="$CDIR" ;; esac
+                case "$lane" in sqlite) dir="$SDIR" ;; conv) dir="$CDIR" ;; duckdb) dir="$DDDIR" ;; esac
                 for q in $QS; do
                     t0=$(now_ns)
                     python3 "$BASE" query --format "$FORMAT" --lane "$lane" --dir "$dir" --q "$q" --plan "$PLAN" \
@@ -361,8 +390,24 @@ cat > "$CAMPAIGN/environment.json" <<EOF
 }
 EOF
 
+# The tabular court runs in the `analytical` service (DuckDB 1.5.6 + Python
+# stdlib), so record that service and the pinned DuckDB version honestly. Every
+# other format keeps the hand-written environment.json above unchanged.
+if [ "$FORMAT" = "tabular" ]; then
+python3 - "$CAMPAIGN/environment.json" <<'PYEOF'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+import duckdb
+d["service"] = "analytical"
+d["derives_from"] = "doc-baseline (same pinned base digest)"
+d["duckdb_version"] = duckdb.__version__
+json.dump(d, open(p, "w"), indent=2, sort_keys=True)
+PYEOF
+fi
+
 cat > "$CAMPAIGN/commands.txt" <<EOF
-docker compose run --rm --no-TTY doc-baseline bash $WRAPFILE
+docker compose run --rm --no-TTY $COURT_SERVICE bash $WRAPFILE
 # PROFILE defaults to release (target/release/vole-document).
 # Inside the court:
 #   cargo build $BUILD_ARGS
@@ -383,6 +428,14 @@ docker compose run --rm --no-TTY doc-baseline bash $WRAPFILE
 #   cargo clippy --all-targets --all-features -- -D warnings
 #   cargo test --locked --all-features
 EOF
+
+if [ "$FORMAT" = "tabular" ]; then
+cat >> "$CAMPAIGN/commands.txt" <<EOF
+#   duckdb: python3 $BASE build --format $FORMAT --lane duckdb --source F --out D
+#           python3 $BASE query --format $FORMAT --lane duckdb --dir D --q Qn --plan ... --out OUT
+#           python3 $BASE session --format $FORMAT --lane duckdb --dir D --queries Q1,...,Q12 --plan ... --out OUT
+EOF
+fi
 
 # --- receipt facts (per format) ---------------------------------------------
 # Single-quoted so backticks and backslashes are literal (no command substitution).
@@ -476,7 +529,7 @@ extra = {
     "utc": sh(["date", "-u", "+%Y-%m-%dT%H:%M:%SZ"]),
     "measured_commit": sh(["git", "rev-parse", "HEAD"]) or "unknown",
     "tree_state": sh(["git", "status", "--porcelain"]).replace("\n", " "),
-    "service": "doc-baseline",
+    "service": rc.get("environment", {}).get("service", "doc-baseline"),
     "surface": rd(".surface"),
     "declines": rd(".declines"),
     "detection_boundary": rd(".detection"),

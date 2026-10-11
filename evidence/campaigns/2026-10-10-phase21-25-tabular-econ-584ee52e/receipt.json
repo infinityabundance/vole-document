@@ -1,0 +1,411 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-25-tabular-econ-584ee52e",
+  "comparators": [
+    "sqlite",
+    "conv",
+    "duckdb"
+  ],
+  "declines": "an out-of-range fixed-width record and an out-of-range cell decline typed (rc 6); a comma/tab table stays csv; a GFM pipe table stays markdown; variable-length prose and a single-space aligned blob stay Opaque (rc 6), never a panic",
+  "detection_boundary": "the pipe delimiter is tried after comma and tab and declined on a Markdown delimiter row; fixed-width requires >= 3 sampled records of identical byte width, >= 2 non-empty columns, and interior whitespace gaps >= 2 columns wide, and is declined on any source that also parses as a delimited or Markdown table",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "2dfe442532dbc8a38c2ab34274ca126483320c648a54c1700ac38569adbf9f63",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-10-phase21-25-tabular-econ-584ee52e",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+    "controls": "comma.csv markdown.md prose.txt spaced.txt",
+    "derives_from": "doc-baseline (same pinned base digest)",
+    "duckdb_version": "1.5.6",
+    "econ_module_sha256": "f39a9048671db9412209585aff38e2095adf350489d9d0dc7a5fd0552aa6614a",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "fw-basic.fw": {
+        "len": 33,
+        "sha256": "313571e12c3d91d9366314b5f83c2567f6abcce697c1e02aa0cf11af1fa72cfa"
+      },
+      "fw-crlf.fw": {
+        "len": 36,
+        "sha256": "9ac0f4c573dbb665e91016e6e41c7fe5e16569d68d954f52d459f1acbc7c0324"
+      },
+      "fw-three.fw": {
+        "len": 42,
+        "sha256": "1bcdc6cc69f869478c666df05f95223a1f22b989f60de9d846a2383f1a34ab3a"
+      },
+      "large.fw": {
+        "len": 262164,
+        "sha256": "88c0ae695cf0bb04aa706e8ad219155425211e7dc49d49dd8ad7e6724ef281ef"
+      },
+      "large.psv": {
+        "len": 262148,
+        "sha256": "22278c4bc4cf33edd32c844f82176a6859b6451ba205f45ffb9ea754dd7b1723"
+      },
+      "psv-basic.psv": {
+        "len": 25,
+        "sha256": "c58306a03a9b5de0bf9a9cc6683e93e59ba839f7f9ca40b62dde46d8a67d1f14"
+      },
+      "psv-quotes.psv": {
+        "len": 30,
+        "sha256": "0172cf92e06e971bbd8aad33718c1fcec6e626b85a3d4cc62bf05a3052e93455"
+      }
+    },
+    "foreign_selector": "--rst-heading 0 --kind structure",
+    "format": "tabular",
+    "generator_sha256": "91c794bd0e55ebd992ff070c039324d1ed3c64394d00b05be8af4503fe8753c5",
+    "lane_fixtures": "psv-basic.psv psv-quotes.psv fw-basic.fw fw-three.fw fw-crlf.fw large.psv large.fw",
+    "measured_commit": "584ee52eee5d0f0d3daf8125dce10810ee404e16",
+    "own_selector": "--fixedwidth-row 0 --kind structure",
+    "phase": "21.25 \u2014 PSV + fixed-width economic court",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 6367,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "analytical",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt_econ.py  M tools/phase21-25-tabular-econ-court.sh ?? evidence/campaigns/2026-10-10-phase21-25-tabular-econ-584ee52e/ ",
+    "utc": "2026-10-11T03:06:33Z",
+    "vole_probe_sha256": "b7bbc014ffcff62eaf8cb37082f705848fdfa5baae06fae1870ab8246201a0e3",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "equal": 7
+      },
+      "duckdb": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q10": {
+      "conv": {
+        "equal": 7
+      },
+      "duckdb": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q11": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "duckdb": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q12": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "duckdb": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "duckdb": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    },
+    "Q3": {
+      "conv": {
+        "equal": 7
+      },
+      "duckdb": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q4": {
+      "conv": {
+        "equal": 7
+      },
+      "duckdb": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q5": {
+      "conv": {
+        "equal": 7
+      },
+      "duckdb": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "duckdb": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q7": {
+      "conv": {
+        "equal": 7
+      },
+      "duckdb": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "duckdb": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    },
+    "Q9": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "duckdb": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 2125); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 11,
+  "exact_ok": 11,
+  "fixtures": [
+    "psv-basic.psv",
+    "psv-quotes.psv",
+    "fw-basic.fw",
+    "fw-three.fw",
+    "fw-crlf.fw",
+    "large.psv",
+    "large.fw"
+  ],
+  "format": "tabular",
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv",
+    "duckdb"
+  ],
+  "measured_commit": "584ee52eee5d0f0d3daf8125dce10810ee404e16",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native selectors (exact + structure)"
+  ],
+  "phase": "21.25 \u2014 PSV + fixed-width economic court",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 0.9936253350808196,
+        "geomean_hi": 1.1872054674426245,
+        "geomean_lo": 0.8363902732262579,
+        "losses": 2,
+        "median": 0.9282787546378448,
+        "median_hi": 1.2477887235380423,
+        "median_lo": 0.8690921455287317,
+        "n": 7,
+        "ratio_of_sums": 0.997843596647667,
+        "ties": 2,
+        "wins": 3
+      },
+      "duckdb": {
+        "geomean": 0.38068344923427727,
+        "geomean_hi": 0.4747799849927684,
+        "geomean_lo": 0.3162493968134767,
+        "losses": 0,
+        "median": 0.3328821167840987,
+        "median_hi": 0.5222587013206372,
+        "median_lo": 0.30911583276216587,
+        "n": 7,
+        "ratio_of_sums": 0.39421732316340297,
+        "ties": 0,
+        "wins": 7
+      },
+      "sqlite": {
+        "geomean": 0.8570009114286457,
+        "geomean_hi": 1.0189650667240395,
+        "geomean_lo": 0.7487217929475611,
+        "losses": 1,
+        "median": 0.7603259342511941,
+        "median_hi": 0.955057915057915,
+        "median_lo": 0.7248633260272592,
+        "n": 7,
+        "ratio_of_sums": 0.8798602189218356,
+        "ties": 1,
+        "wins": 5
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.03446882103670145,
+        "geomean_hi": 0.04834840833869,
+        "geomean_lo": 0.025771492305024873,
+        "losses": 0,
+        "median": 0.02794551862082103,
+        "median_hi": 0.061144748629262315,
+        "median_lo": 0.025649330092973648,
+        "n": 7,
+        "ratio_of_sums": 0.03836753271316999,
+        "ties": 0,
+        "wins": 7
+      },
+      "duckdb": {
+        "geomean": 0.012548893463606724,
+        "geomean_hi": 0.0178367666536688,
+        "geomean_lo": 0.0093307031164208,
+        "losses": 0,
+        "median": 0.00987617196791871,
+        "median_hi": 0.022293104286975073,
+        "median_lo": 0.008998693701368774,
+        "n": 7,
+        "ratio_of_sums": 0.014031063244406818,
+        "ties": 0,
+        "wins": 7
+      },
+      "sqlite": {
+        "geomean": 0.03289188248118198,
+        "geomean_hi": 0.04579149685588769,
+        "geomean_lo": 0.024944139661518483,
+        "losses": 0,
+        "median": 0.02705202951689292,
+        "median_hi": 0.05395707654010899,
+        "median_lo": 0.02452774108322325,
+        "n": 7,
+        "ratio_of_sums": 0.036735228840104654,
+        "ties": 0,
+        "wins": 7
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 8.651972408744179,
+        "geomean_hi": 21.820688986176787,
+        "geomean_lo": 3.2338851491514435,
+        "losses": 5,
+        "median": 21.800904977375566,
+        "median_hi": 21.83710407239819,
+        "median_lo": 1.0035240586230376,
+        "n": 7,
+        "ratio_of_sums": 0.9013881311248735,
+        "ties": 1,
+        "wins": 1
+      },
+      "duckdb": {
+        "geomean": 7.483250376046045,
+        "geomean_hi": 9.250273231835346,
+        "geomean_lo": 6.215413171063597,
+        "losses": 7,
+        "median": 6.556927297668039,
+        "median_hi": 10.622178941450485,
+        "median_lo": 6.432576769025367,
+        "n": 7,
+        "ratio_of_sums": 11.233292503166068,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.5901581186540164,
+        "geomean_hi": 0.6161032252116508,
+        "geomean_lo": 0.5736272887092398,
+        "losses": 0,
+        "median": 0.5831517792302106,
+        "median_hi": 0.5853304284676834,
+        "median_lo": 0.5777616279069767,
+        "n": 7,
+        "ratio_of_sums": 0.6085828819263231,
+        "ties": 0,
+        "wins": 7
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 0.5905701612750749,
+        "geomean_hi": 0.881428905834923,
+        "geomean_lo": 0.35273502082065733,
+        "losses": 0,
+        "median": 0.7762237762237763,
+        "median_hi": 0.972972972972973,
+        "median_lo": 0.3472458141227857,
+        "n": 7,
+        "ratio_of_sums": 0.276277411688452,
+        "ties": 2,
+        "wins": 5
+      },
+      "duckdb": {
+        "geomean": 0.002515013497871577,
+        "geomean_hi": 0.009249967084508676,
+        "geomean_lo": 0.0008906610381232565,
+        "losses": 0,
+        "median": 0.0010797311000112669,
+        "median_hi": 0.01735859287626665,
+        "median_lo": 0.000818637650509943,
+        "n": 7,
+        "ratio_of_sums": 0.012289764536280634,
+        "ties": 0,
+        "wins": 7
+      },
+      "sqlite": {
+        "geomean": 0.08805519054172664,
+        "geomean_hi": 0.14272135256154975,
+        "geomean_lo": 0.05949810228583399,
+        "losses": 0,
+        "median": 0.07351940095302927,
+        "median_hi": 0.13306661124389482,
+        "median_lo": 0.06689895470383275,
+        "n": 7,
+        "ratio_of_sums": 0.19749797289470636,
+        "ties": 0,
+        "wins": 7
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "service": "analytical",
+  "surface": "PSV is the CSV adapter third recorded delimiter (pipe), preserving exact record/field spans, original quoting, and ragged rows; the fixed-width adapter exposes the inferred per-column start/end positions and widths, the uniform record width, every record exact content span, and every field exact padded bytes",
+  "tree_state": "M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt_econ.py  M tools/phase21-25-tabular-econ-court.sh ?? evidence/campaigns/2026-10-10-phase21-25-tabular-econ-584ee52e/",
+  "utc": "2026-10-11T03:06:33Z",
+  "verdict": "PASS"
+}

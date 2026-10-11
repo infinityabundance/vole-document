@@ -3,9 +3,10 @@
 # courts (CONFIG / FEED / GEOJSON / GIS / NOTEBOOK / TABULAR / RST / ASCIIDOC /
 # MDX). One module, parameterised by `--format`, so the courts cannot drift
 # apart. Runs on Python stdlib only (the pinned `doc-baseline` service; no
-# third-party module, no network).
+# third-party module, no network) — except the `tabular` format's DuckDB lane,
+# which runs in the `analytical` service (same base + hash-pinned DuckDB).
 #
-# Two conventional comparators per format:
+# Two conventional comparators per format (plus a third for `tabular` only):
 #
 #   * `sqlite` — a **source-retaining** baseline: it keeps the original bytes
 #     verbatim (a `raw` BLOB, so it can answer `materialize` / byte authority, Q6)
@@ -21,9 +22,15 @@
 #     derived host-value view: it drops the source bytes, every source offset, exact
 #     spelling, duplicate keys, member/attribute order, adornments/markers, and the
 #     recorded dialect/format, so it must decline typed on all of those.
+#   * `duckdb` — the **DuckDB/Parquet analytical baseline** mandated by ADR-0059
+#     for the tabular/analytical formats. Defined for the `tabular` format only:
+#     it loads PSV with DuckDB's own CSV reader and fixed-width via DuckDB SQL,
+#     persists a Parquet projection (ZSTD) and answers the columnar/tabular
+#     questions with SQL. It keeps no exact source bytes/span, dialect or layout,
+#     so those questions are typed declines, never silent answers.
 #
 #   plan      --format F
-#   build     --format F --lane sqlite|conv --source FILE --out DIR
+#   build     --format F --lane sqlite|conv|duckdb --source FILE --out DIR
 #   query     --format F --lane ... --dir DIR --q Qn --plan JSON --out FILE
 #   session   --format F --lane ... --dir DIR --queries Q1,... --plan JSON --out FILE
 #   materialize --format F --lane sqlite --dir DIR --out FILE
@@ -378,25 +385,32 @@ QDESC = {
                 "host nbformat_minor"),
     },
     "tabular": {
-        "Q1": ("a decoded cell's text", "extracted cell text", "host cell text"),
+        "Q1": ("a decoded cell's text", "extracted cell text", "host cell text",
+               "projected cell text (SQL)"),
         "Q2": ("a cell's exact source span", "no source span -> typed decline",
-               "no source span -> typed decline"),
-        "Q3": ("a record's column count", "extracted column count", "host column count"),
-        "Q4": ("the table's record count", "extracted row count", "host row count"),
+               "no source span -> typed decline", "no source span -> typed decline"),
+        "Q3": ("a record's column count", "extracted column count", "host column count",
+               "projected column count"),
+        "Q4": ("the table's record count", "extracted row count", "host row count",
+               "projected row count"),
         "Q5": ("a record descriptor (ordered cell texts)", "extracted record",
-               "host record"),
+               "host record", "projected record (SQL projection)"),
         "Q7": ("`tabular-find` over cell text (with spans)",
-               "scan over extracted cells (no spans)", "scan over host cells (no spans)"),
+               "scan over extracted cells (no spans)", "scan over host cells (no spans)",
+               "scan over projected cells (no spans)"),
         "Q8": ("a cell's exact padded/raw bytes", "re-decoded -> typed decline",
-               "host value -> typed decline"),
+               "host value -> typed decline", "no source bytes -> typed decline"),
         "Q9": ("a record's exact content bytes", "no source bytes -> typed decline",
-               "host value -> typed decline"),
+               "host value -> typed decline", "no source bytes -> typed decline"),
         "Q10": ("the header row's cell names (ordered)", "extracted header names",
-                "host header names"),
+                "host header names", "projected header names"),
         "Q11": ("the recorded dialect (pipe vs fixedwidth)", "stored dialect",
+                "dialect not recorded -> typed decline",
                 "dialect not recorded -> typed decline"),
         "Q12": ("the recovered column layout / per-cell quoting spelling",
-                "no layout/spelling -> typed decline", "no layout/spelling -> typed decline"),
+                "no layout/spelling -> typed decline",
+                "no layout/spelling -> typed decline",
+                "no layout/spelling -> typed decline"),
     },
     "rst": {
         "Q1": ("the whole canonical document text", "line-based re-read",
@@ -847,6 +861,8 @@ def _read_cmodel(lane, d):
 
 
 def _q_tabular(lane, d, q, plan):
+    if lane == "duckdb":
+        return _q_tabular_duckdb(d, q, plan)
     model = _read_cmodel(lane, d)
     recs = model.get("records") or []
     row = plan.get("row", 1)
@@ -945,6 +961,11 @@ def _q_prose(lane, d, q, plan):
 
 def build(fmt, lane, source_path, out_dir):
     os.makedirs(out_dir, exist_ok=True)
+    if lane == "duckdb":
+        if fmt != "tabular":
+            raise SystemExit("the duckdb lane is defined only for the tabular format")
+        print(json.dumps(build_duckdb_tabular(source_path, out_dir), sort_keys=True))
+        return 0
     with open(source_path, "rb") as f:
         raw = f.read()
     text = raw.decode("utf-8", "replace")
@@ -1027,6 +1048,135 @@ def _read_sqlite(d):
     try:
         row = con.execute("SELECT raw, model FROM doc WHERE id=1").fetchone()
         return bytes(row[0]), json.loads(row[1])
+    finally:
+        con.close()
+
+
+# ===========================================================================
+# DuckDB/Parquet comparator (the tabular format only; ADR-0059)
+# ===========================================================================
+#
+# ADR-0059 mandates a DuckDB/Parquet baseline alongside SQLite for the
+# tabular/analytical formats: those engines already embody columnar projection,
+# predicate pushdown, compressed pages and metadata indexes, so winning only
+# against SQLite there could just mean the wrong competitor was chosen. DuckDB
+# is compared as a columnar/tabular comparator only: the projection keeps no
+# exact source bytes, span, dialect or layout, so those questions are typed
+# declines, never silent answers.
+#
+# The whole load runs inside DuckDB. A delimited source (PSV — the CSV adapter's
+# pipe dialect) uses DuckDB's own CSV reader (the real "conventional columnar
+# load"). Fixed-width has no native DuckDB reader, so the raw lines are read by
+# DuckDB's CSV reader and split on 2+-space gaps with DuckDB SQL — the same
+# conventional fixed-width decode the `conv` lane uses, kept inside DuckDB. The
+# logical table is persisted as a Parquet projection (ZSTD) and every answer is
+# a SQL projection over it. `row 0` is the source header record, so the row/cell
+# indices match the other lanes' record model.
+
+def build_duckdb_tabular(source_path, out_dir):
+    import duckdb
+    os.makedirs(out_dir, exist_ok=True)
+    name = os.path.basename(source_path)
+    kind = "fixedwidth" if source_path.lower().endswith(".fw") else "csv"
+    con = duckdb.connect()
+    if kind == "csv":
+        delim = _tab_dialect(name)[1]
+        con.execute(
+            "CREATE TABLE t AS SELECT row_number() OVER () - 1 AS __rn, * "
+            "FROM read_csv(?, delim=?, header=false, null_padding=true, "
+            "all_varchar=true, parallel=false, sample_size=-1)",
+            (source_path, delim))
+        cols = [r[0] for r in con.execute("DESCRIBE t").fetchall() if r[0] != "__rn"]
+        loader = "duckdb native CSV reader"
+    else:
+        con.execute(
+            "CREATE TABLE raw AS SELECT row_number() OVER () - 1 AS __rn, "
+            "column0 AS line FROM read_csv(?, delim=?, header=false, quote='', "
+            "escape='', all_varchar=true, sample_size=-1)",
+            (source_path, "\t"))
+        con.execute(
+            "CREATE TABLE cells AS SELECT __rn, "
+            "string_split_regex(rtrim(line, ' \t\r\n'), '  +') AS cells FROM raw")
+        n = con.execute("SELECT max(len(cells)) FROM cells").fetchone()[0] or 0
+        sel = ", ".join("list_extract(cells, %d) AS c%d" % (i + 1, i) for i in range(n))
+        con.execute("CREATE TABLE t AS SELECT __rn, %s FROM cells" % sel)
+        cols = ["c%d" % i for i in range(n)]
+        loader = "duckdb reader + SQL 2+-space split (no native fixed-width reader)"
+    nrows = int(con.execute("SELECT COUNT(*) FROM t").fetchone()[0])
+    hdr = con.execute(
+        "SELECT %s FROM t WHERE __rn = 0" % ", ".join('"%s"' % c for c in cols)).fetchone()
+    header = ["" if v is None else str(v) for v in (hdr or [])]
+    con.execute("COPY t TO '%s' (FORMAT PARQUET, COMPRESSION ZSTD)"
+                % os.path.join(out_dir, "t.parquet"))
+    con.close()
+    with open(os.path.join(out_dir, "meta.json"), "w") as f:
+        json.dump({"columns": cols, "header": header, "ncols": len(cols),
+                   "nrows": nrows, "kind": kind, "loader": loader},
+                  f, sort_keys=True)
+    return {"ok": True, "lane": "duckdb", "src_len": os.path.getsize(source_path),
+            "format": kind, "ncols": len(cols), "nrows": nrows}
+
+
+def _dd_connect(d):
+    import duckdb
+    con = duckdb.connect()
+    con.execute("CREATE TABLE t AS SELECT * FROM read_parquet(?)",
+                [os.path.join(d, "t.parquet")])
+    with open(os.path.join(d, "meta.json")) as f:
+        meta = json.load(f)
+    return con, meta
+
+
+def _q_tabular_duckdb(d, q, plan):
+    con, meta = _dd_connect(d)
+    try:
+        cols = meta["columns"]
+        row = plan.get("row", 1)
+        col = plan.get("col", 1)
+        if q == "Q1":
+            if col < 0 or col >= len(cols):
+                return decl(q, "no-such-column", "column out of range")
+            r = con.execute('SELECT CAST("%s" AS VARCHAR) FROM t WHERE __rn = ?'
+                            % cols[col], (row,)).fetchone()
+            if r is None:
+                return decl(q, "no-such-row", "row out of range")
+            return _laneless(q, r[0])
+        if q == "Q2":
+            return decl(q, "no-source-span",
+                        "a columnar projection keeps no exact source span")
+        if q == "Q3":
+            return _laneless(q, len(cols))
+        if q == "Q4":
+            return _laneless(q, meta["nrows"])
+        if q == "Q5":
+            r = con.execute("SELECT %s FROM t WHERE __rn = ?"
+                            % ", ".join('CAST("%s" AS VARCHAR)' % c for c in cols),
+                            (row,)).fetchone()
+            if r is None:
+                return decl(q, "no-such-row", "row out of range")
+            return _laneless(q, list(r))
+        if q == "Q7":
+            pat = plan["find_pat"]
+            out = []
+            for k, c in enumerate(cols):
+                rs = con.execute('SELECT __rn, CAST("%s" AS VARCHAR) FROM t '
+                                 'WHERE contains(CAST("%s" AS VARCHAR), ?) '
+                                 'ORDER BY __rn' % (c, c), (pat,)).fetchall()
+                for rn, val in rs:
+                    out.append([str(rn), str(k), val])
+            return _laneless(q, out)
+        if q in ("Q8", "Q9"):
+            return decl(q, "no-source-bytes",
+                        "a Parquet projection keeps no exact raw cell/record bytes")
+        if q == "Q10":
+            return _laneless(q, list(meta["header"]))
+        if q == "Q11":
+            return decl(q, "dialect-not-recorded",
+                        "a Parquet projection records no source dialect")
+        if q == "Q12":
+            return decl(q, "no-layout-spelling",
+                        "a columnar projection keeps no column layout or quoting spelling")
+        return decl(q, "unknown-question", q)
     finally:
         con.close()
 
@@ -1636,6 +1786,9 @@ def _nb_conv(q, plan, root):
 
 
 def run_query(fmt, lane, d, q, plan):
+    if lane == "duckdb" and fmt != "tabular":
+        return decl(q, "lane-not-supported",
+                    "the duckdb lane is defined only for the tabular format")
     if q == "Q6":
         if lane == "sqlite":
             raw, _ = _read_sqlite(d)
@@ -1764,6 +1917,11 @@ def aggregate(fmt, raw, campaign, env_path=None):
     fixtures = [r["fixture"] for r in docs]
     lanes = ["vole", "sqlite", "conv"]
     comparators = ["sqlite", "conv"]
+    if fmt == "tabular":
+        # ADR-0059: the tabular format carries the mandatory DuckDB/Parquet
+        # comparator as a third lane alongside the two conventional ones.
+        lanes = ["vole", "sqlite", "conv", "duckdb"]
+        comparators = ["sqlite", "conv", "duckdb"]
 
     build_rows = read_tsv(os.path.join(raw, "build.tsv"))
     storage_rows = read_tsv(os.path.join(raw, "storage.tsv"))
@@ -1845,14 +2003,25 @@ def aggregate(fmt, raw, campaign, env_path=None):
     lines = []
     lines.append("# Phase %s — %s economic court" % (env.get("phase", fmt), fmt))
     lines.append("")
-    lines.append("**Question.** Against two conventional comparators — a "
-                 "source-retaining store that keeps the raw bytes plus a conventional "
-                 "extraction, and a conventional decode-to-host-values load — on "
-                 "contract-equivalent terms, can VOLE answer the same question family "
-                 "(Q1–Q12) it can answer, while closing the original %s byte-exactly, "
-                 "and does it add value by **preserving representation** (source spans, "
-                 "exact spelling, attribute/quote/continuation markers, duplicate keys, "
-                 "member order)?" % fmt)
+    if fmt == "tabular":
+        lines.append("**Question.** Against three conventional comparators — a "
+                     "source-retaining store that keeps the raw bytes plus a conventional "
+                     "extraction, a conventional decode-to-host-values load, and the "
+                     "mandatory **DuckDB/Parquet** analytical baseline (ADR-0059) — on "
+                     "contract-equivalent terms, can VOLE answer the same question family "
+                     "(Q1–Q12) it can answer, while closing the original %s byte-exactly, "
+                     "and does it add value by **preserving representation** (source spans, "
+                     "exact spelling, quoting markers, the recorded dialect and the "
+                     "recovered column layout)?" % fmt)
+    else:
+        lines.append("**Question.** Against two conventional comparators — a "
+                     "source-retaining store that keeps the raw bytes plus a conventional "
+                     "extraction, and a conventional decode-to-host-values load — on "
+                     "contract-equivalent terms, can VOLE answer the same question family "
+                     "(Q1–Q12) it can answer, while closing the original %s byte-exactly, "
+                     "and does it add value by **preserving representation** (source spans, "
+                     "exact spelling, attribute/quote/continuation markers, duplicate keys, "
+                     "member order)?" % fmt)
     lines.append("")
     lines.append("Corpus: **%d fixtures**; lanes **%s**; questions **Q1–Q12**; "
                  "bootstrap **%d resamples, seed %d**, cluster-resampled by fixture; "
@@ -1951,15 +2120,27 @@ def aggregate(fmt, raw, campaign, env_path=None):
     lines.append("")
     lines.append("## What each lane derives and what it declines")
     lines.append("")
-    lines.append("| Q | VOLE | source-retaining baseline | conventional load |")
-    lines.append("|---|---|---|---|")
+    if fmt == "tabular":
+        lines.append("| Q | VOLE | source-retaining baseline | conventional load | DuckDB/Parquet |")
+        lines.append("|---|---|---|---|---|")
+    else:
+        lines.append("| Q | VOLE | source-retaining baseline | conventional load |")
+        lines.append("|---|---|---|---|")
     for q in QS:
         if q == "Q6":
-            lines.append("| Q6 | `materialize --exact` (byte authority) | retained raw "
-                         "BLOB (byte authority) | no source bytes -> typed decline |")
+            if fmt == "tabular":
+                lines.append("| Q6 | `materialize --exact` (byte authority) | retained raw "
+                             "BLOB (byte authority) | no source bytes -> typed decline | "
+                             "not-native (no original bytes) -> typed decline |")
+            else:
+                lines.append("| Q6 | `materialize --exact` (byte authority) | retained raw "
+                             "BLOB (byte authority) | no source bytes -> typed decline |")
             continue
         d = qdesc.get(q, ("", "", ""))
-        lines.append("| {} | {} | {} | {} |".format(q, *d))
+        if fmt == "tabular" and len(d) >= 4:
+            lines.append("| {} | {} | {} | {} | {} |".format(q, d[0], d[1], d[2], d[3]))
+        else:
+            lines.append("| {} | {} | {} | {} |".format(q, d[0], d[1], d[2]))
     lines.append("")
     lines.append("## Scope (honest)")
     lines.append("")
@@ -1973,6 +2154,14 @@ def aggregate(fmt, raw, campaign, env_path=None):
                  "claim is made against one.")
     lines.append("- **VOLE capability gaps are recorded, never papered over** — any "
                  "question VOLE declines is shown as a `capability-gap`.")
+    if fmt == "tabular":
+        lines.append("- **The DuckDB/Parquet lane is the mandatory ADR-0059 analytical "
+                     "comparator**, carried alongside SQLite. It answers the "
+                     "columnar/tabular questions (Q1/Q3/Q4/Q5/Q7/Q10) from a Parquet "
+                     "projection; exact source bytes/spans (Q2/Q8/Q9), the recorded "
+                     "dialect (Q11) and the recovered column layout/quoting spelling "
+                     "(Q12) are typed declines, never silent answers. Where it wins or "
+                     "loses an axis, the paired-ratio table above records it.")
     lines.append("- **Nothing here is run on the host**; every command ran in a pinned "
                  "container.")
     lines.append("")
@@ -1982,8 +2171,13 @@ def aggregate(fmt, raw, campaign, env_path=None):
     matrix.append("")
     matrix.append("`g` = answered (derived), `D` = typed decline, `-` = not applicable.")
     matrix.append("")
-    matrix.append("| fixture | Q | VOLE | source-ret | conv | VOLE<->source | VOLE<->conv |")
-    matrix.append("|---|---|---|---|---|---|---|")
+    if fmt == "tabular":
+        matrix.append("| fixture | Q | VOLE | source-ret | conv | DuckDB | "
+                      "VOLE<->source | VOLE<->conv | VOLE<->duck |")
+        matrix.append("|---|---|---|---|---|---|---|---|---|")
+    else:
+        matrix.append("| fixture | Q | VOLE | source-ret | conv | VOLE<->source | VOLE<->conv |")
+        matrix.append("|---|---|---|---|---|---|---|")
     for fx in fixtures:
         for q in QS:
             row = qanswers.get((fx, q), {})
@@ -1996,8 +2190,14 @@ def aggregate(fmt, raw, campaign, env_path=None):
 
             rs = compare(q, row.get("vole"), row.get("sqlite"))
             rc_ = compare(q, row.get("vole"), row.get("conv"))
-            matrix.append("| %s | %s | %s | %s | %s | %s | %s |" % (
-                fx, q, mark("vole"), mark("sqlite"), mark("conv"), rs, rc_))
+            if fmt == "tabular":
+                rd = compare(q, row.get("vole"), row.get("duckdb"))
+                matrix.append("| %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
+                    fx, q, mark("vole"), mark("sqlite"), mark("conv"), mark("duckdb"),
+                    rs, rc_, rd))
+            else:
+                matrix.append("| %s | %s | %s | %s | %s | %s | %s |" % (
+                    fx, q, mark("vole"), mark("sqlite"), mark("conv"), rs, rc_))
     matrix.append("")
     matrix.append("### Aggregate equivalence per Q")
     matrix.append("")
@@ -2071,13 +2271,13 @@ def main(argv=None):
 
     b = sub.add_parser("build")
     b.add_argument("--format", required=True, choices=FORMATS)
-    b.add_argument("--lane", required=True, choices=["sqlite", "conv"])
+    b.add_argument("--lane", required=True, choices=["sqlite", "conv", "duckdb"])
     b.add_argument("--source", required=True)
     b.add_argument("--out", required=True)
 
     q = sub.add_parser("query")
     q.add_argument("--format", required=True, choices=FORMATS)
-    q.add_argument("--lane", required=True, choices=["sqlite", "conv"])
+    q.add_argument("--lane", required=True, choices=["sqlite", "conv", "duckdb"])
     q.add_argument("--dir", required=True)
     q.add_argument("--q", required=True)
     q.add_argument("--plan", default="{}")
@@ -2085,7 +2285,7 @@ def main(argv=None):
 
     s = sub.add_parser("session")
     s.add_argument("--format", required=True, choices=FORMATS)
-    s.add_argument("--lane", required=True, choices=["sqlite", "conv"])
+    s.add_argument("--lane", required=True, choices=["sqlite", "conv", "duckdb"])
     s.add_argument("--dir", required=True)
     s.add_argument("--queries", required=True)
     s.add_argument("--plan", default="{}")
