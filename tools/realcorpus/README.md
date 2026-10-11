@@ -32,6 +32,33 @@ The stratified smoke court for those samples is `tools/realformats-smoke-court.s
 (runs in `doc-baseline`); it reports **pooled costs alongside medians**, stratified
 by format and size class.
 
+### Phase 26.5 — stratified population v2 (larger scale)
+
+| File | Role |
+|---|---|
+| `formats-manifest-v2.tsv` | A **larger** pinned population: **284 real samples across 41 formats** (OOXML + legacy binary office `.doc`/`.xls`/`.ppt`/`.msg`, ODF, structured text, prose, tabular/analytical, messaging, geospatial, scientific/container, and the Wave-2 families), from stable permissively-licensed public sources pinned by tag/commit + SHA-256. Supersedes the 52-sample v1 manifest (kept as the historical control). |
+| `hostile-strata-v2.tsv` | An extended **malformed/hostile** stratum (24 deterministic truncations / wrong-magic / dropped-tail derivations of pinned v2 bytes), each pinned by SHA-256. |
+| `sources/formats-v2-candidates.tsv` | The curated (id, format, url, source, license, redistributable, notes, complexity) selection the manifest is built from. |
+| `discover-formats-v2.py` | Read-only discovery helper (GitHub git-trees API) that enumerated the candidate files. |
+| `build-formats-v2.py` | The workhorse: `select` (from a discovery snapshot) → `merge` (with the v1 control rows) → `build` (download + SHA-256) → `hostile` (derive + pin the hostile stratum). |
+| `findings-v2-reconciliation.tsv` | The per-(format, detected) resolution of every detection finding, rendered into the court receipt. |
+| `fetch-formats.sh` | Unchanged; run it with `MANIFEST=tools/realcorpus/formats-manifest-v2.tsv` to acquire/verify the v2 population. |
+
+The v2 court is `tools/realformats-stratified-v2-court.sh` (runs in `analytical`,
+RELEASE VOLE). It asserts byte-exact closure for every sample, records the
+detector's choice, reports pooled-and-median costs per declared format/stratum,
+and lists every detection **finding** with its reconciliation. It bounds its
+receipt (per-sample store blobs are not committed).
+
+```sh
+docker compose run --rm --no-TTY realcorpus sh -c 'MANIFEST=tools/realcorpus/formats-manifest-v2.tsv sh tools/realcorpus/fetch-formats.sh'
+docker compose run --rm --no-TTY analytical sh tools/realformats-stratified-v2-court.sh
+```
+
+The stratified smoke court for those samples is `tools/realformats-smoke-court.sh`
+(runs in `doc-baseline`); it reports **pooled costs alongside medians**, stratified
+by format and size class.
+
 The full **stratified real-world court** is `tools/realformats-stratified-court.sh`
 (runs in `analytical`, RELEASE VOLE); it ingests all 52 real samples plus the 8
 hostile derivations, asserts byte-exact closure from a deleted scratch copy in a

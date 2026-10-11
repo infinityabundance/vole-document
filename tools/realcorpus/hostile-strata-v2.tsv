@@ -1,0 +1,25 @@
+id	base_id	transform	bytes	sha256	notes
+hostile2-trunc-xls	poi-spreadsheet-48325.xls	truncate:1500	1500	4294ec774c9a7a2c43e94a5f76e5574ff168be3206f622447e9e0e77d5822fa6	truncated BIFF8 .xls (CFBF sectors cut) -> Opaque/CFBF floor
+hostile2-magic-doc	poi-document-Bug46817.doc	replace4:D0CF	17920	67d7b64a2a78b68e3f6116ba4491e1618469cdf29ef51b4bfe378d5e6937ca99	wrong-magic .doc (CFBF signature clobbered) -> Opaque
+hostile2-trunc-ppt	poi-slideshow-basic_test_ppt_file.ppt	truncate:8000	8000	5a0a6dba850f50c4454f9cceb6b5676ad20679d523992036d1b50df2fe25309a	truncated .ppt (CFBF sectors cut)
+hostile2-trunc-msg	poi-hsmf-simple_test_msg.msg	truncate:1500	1500	b3fb341404db4196c4f3527fb24c34dfa86dbb45fbf6bdbbb70a730e6ff3e70a	truncated .msg (property streams cut)
+hostile2-magic-docx	poi-document-58618.docx	replace4:XXXX	10045	495a7155423c8242eb0f8e5af21cde8c97f2fbe00735ebc08b126b8764ed3a8c	wrong-magic OPC/DOCX (zip signature clobbered) -> Opaque
+hostile2-trunc-docx	poi-document-Bug60341.docx	truncate:4000	2297	56147fba379742c9b73e98787ff171c7ed37b038e623ed26749dab6b90a009ab	truncated OPC/DOCX (zip) -> Opaque
+hostile2-trunc-odt	odfpy-examples-simpletable.odt	truncate:3000	3000	65044c902f60b7a0913336ad9185e93616b16e4f7a70fa55c899bc972a5a8868	truncated ODF/ODT (zip) -> Opaque
+hostile2-trunc-parquet	parquet-alltypes-plain.parquet	truncate:800	800	fa0b987541b6b4b5a2a36e2c9c9632777298f16a5558693d39c9ef397202c06f	truncated Parquet (footer gone) -> Opaque
+hostile2-trunc-cbor	cbor-rfc8949-good.cbor	truncate:40	40	a2439d1035f373995e874f83a683e54950365853e7f6f1c1df109c36eaa55b02	truncated CBOR stream -> Opaque
+hostile2-trunc-hdf	netcdf-ncdump-ref_no_ncproperty.nc	truncate:600	600	c46450ce2fb79293783e1ea0046cda05ff95da81f86b9e3aa069eadcd5cae260	truncated NetCDF classic -> Opaque
+hostile2-magic-arrow	arrow-file-cpp-21.0.0-generated_null_trivial.arrow_file	replace4:XXXX	514	6e3f77806a921da50133d222b847057f8da7260c18db808a13ac68aa76e20ed7	wrong-magic Arrow (ARROW1 clobbered) -> Opaque
+hostile2-trunc-gis	togeojson-data-point_extra_coordinates.kml	truncate:200	200	d6e09fe67e7c85ac9bf8e9bb283c0ac1728603b2fb59fd3cbdc630c0e3546baf	truncated KML (unclosed root) -> Opaque
+hostile2-trunc-notebook	jupyter-notebooks-simple.ipynb	truncate:400	355	61cce2a968e9b12a143020ea69a6fada558ce2f1553b61aaf82cd4b40fb826a6	truncated nbformat JSON -> Opaque
+hostile2-trunc-mhtml	tika-test-documents-testMHTMLFirefox.mhtml	truncate:1000	1000	707920ca671d66f8b15ed9fb2df0772675cc728d1b1e2af6dddc2de06ff862cd	truncated MHTML -> Opaque
+hostile2-trunc-container	ne-zip-zip-ne_50m_graticules_15.zip	truncate:5000	5000	62fa9d3be13ba44cec69105ac606c23dbfd1b3cebdb6df128ded3c3558dd7583	truncated plain ZIP (EOCD gone) -> Opaque
+hostile2-trunc-rtf	poi-quick-contents-message.rtf	truncate:1000	1000	9723f8782a18b4a03cd0773f764ef47381c147b1e2cfa9ac394f2b9559f2d777	truncated RTF (unbalanced braces) -> Opaque
+hostile2-trunc-bib	bibtex-strings.bib	truncate:800	800	cb942a0d5886a33db0947ae9c6ab1f8919c8f988e9371ae6cac9eb3ca4ae6dd8	truncated BibTeX entry stream -> Opaque/other
+hostile2-magic-epub	tika-test-documents-testEPUB.epub	replace4:XXXX	30552	135cfbfb1fff8fe22545d50677485fb644649f84a048702d821e95898f1c828d	wrong-magic OCF/EPUB -> Opaque
+hostile2-trunc-xlsx	poi-49609.xlsx	truncate:15000	15000	7aee0b7c21a48528392baf0034e83be1fce3bdade7263cee7fc74505ee5b60c0	truncated OPC/XLSX (zip) -> Opaque
+hostile2-trunc-pptx	poi-Divino.pptx	truncate:120000	120000	2961f6db46f65eeb165a57ac698f34e13e68317aa28c443dab351353df19a62e	truncated OPC/PPTX (zip) -> Opaque
+hostile2-magic-json	vega-data-burtin.json	replace4:XXXX	2743	dbfe409c5f95d7f871485261f0be14a5678a89dec30154ec59622c2c986d35b7	wrong-magic JSON -> Opaque
+hostile2-trunc-yaml	prometheus-ci.yml	truncate:4000	4000	286c7194d385bf1ef029e7c1d649dbc68f68e02582083c503941c9ccb8ed9db1	truncated YAML stream -> Opaque/other
+hostile2-magic-toml	toml-valid-implicit-and-explicit-before.toml	replace4:XXXX	37	79aace846bc45b8b17301ab475b12d392f7f0a9bcaaaab16c779b56dc15e73d9	wrong-magic TOML -> Opaque/other
+hostile2-trunc-geojson	natural-earth-places.geojson	truncate:2000	2000	22634f0294318f231d59fda9f70e93ca9e847d6c26db3e4d230b040190c994e8	truncated GeoJSON mid-structure -> Opaque

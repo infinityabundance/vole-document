@@ -46,8 +46,11 @@
 //! [`Limits::max_rtf_hex_escapes`]; the accumulated plain-text bytes by
 //! [`Limits::max_rtf_text_bytes`]; and the source length by
 //! [`Limits::max_rtf_document_bytes`]. An over-long control word name, an over-long
-//! numeric parameter, a trailing backslash, an unbalanced brace, and trailing bytes
-//! after the root group are all typed declines. There is no `unwrap`, `expect`,
+//! numeric parameter, a trailing backslash, an unbalanced brace, and any
+//! non-padding bytes after the root group are all typed declines. (Trailing NUL
+//! and ASCII-whitespace *padding* after the balanced root group is tolerated,
+//! because real writers routinely append a final CRLF and Word emits a trailing
+//! NUL; see `is_rtf_trailing_pad`.) There is no `unwrap`, `expect`,
 //! `panic!`, or indexing that is not span-checked.
 //!
 //! ## Detection
@@ -667,6 +670,14 @@ fn magic_at(source: &[u8], at: usize) -> bool {
     &source[at..at + 5] == b"{\\rtf" && source[at + 5].is_ascii_digit()
 }
 
+/// Inter-document padding tolerated after the balanced root group: NUL and ASCII
+/// whitespace only (`\0`, tab, LF, form feed, CR, space). Real writers append a
+/// final CRLF, and Word emits a trailing NUL; nothing else may follow the root
+/// group, so this remains a strong boundary and never admits loose prose.
+fn is_rtf_trailing_pad(b: u8) -> bool {
+    matches!(b, 0x00 | b'\t' | b'\n' | 0x0c | b'\r' | b' ')
+}
+
 /// An optional UTF-8 BOM length (RTF producers occasionally emit one).
 fn bom_len(source: &[u8]) -> usize {
     if source.starts_with(&[0xEF, 0xBB, 0xBF]) {
@@ -699,8 +710,15 @@ fn scan_balanced(source: &[u8], bom: usize, limits: Limits) -> bool {
                 }
                 depth -= 1;
                 i += 1;
-                if depth == 0 && i != len {
-                    return false;
+                if depth == 0 {
+                    // Tolerate the trailing NUL/ASCII-whitespace padding that real
+                    // writers append after the root group; anything else declines.
+                    while i < len && is_rtf_trailing_pad(source[i]) {
+                        i += 1;
+                    }
+                    if i != len {
+                        return false;
+                    }
                 }
             }
             b'\\' => {
@@ -1069,8 +1087,15 @@ impl<'a> Parser<'a> {
         let g = &mut self.groups[frame.group as usize];
         g.end = self.at as u64 + 1;
         self.at += 1;
-        if self.stack.is_empty() && self.at != self.len() {
-            return Err(invalid_rtf("trailing bytes after the RTF root group"));
+        if self.stack.is_empty() {
+            // Tolerate the trailing NUL/ASCII-whitespace padding that real writers
+            // append after the root group; consume it so the run loop stops here.
+            while self.at < self.len() && is_rtf_trailing_pad(self.b[self.at]) {
+                self.at += 1;
+            }
+            if self.at != self.len() {
+                return Err(invalid_rtf("trailing bytes after the RTF root group"));
+            }
         }
         Ok(())
     }
@@ -1490,8 +1515,29 @@ mod tests {
         // Balanced-brace requirement: the outermost group must close at EOF.
         assert!(!detect(b"{\\rtf1 x} trailing", Limits::DEFAULT));
         assert!(!detect(b"{\\rtf1 { unbalanced", Limits::DEFAULT));
+        // Trailing NUL / ASCII-whitespace padding after the root group is tolerated
+        // (real writers append a final CRLF; Word appends a trailing NUL), but only
+        // padding: any other trailing byte still declines.
+        assert!(detect(b"{\\rtf1\\ansi Hello}\r\n", Limits::DEFAULT));
+        assert!(detect(b"{\\rtf1\\ansi Hello}\n", Limits::DEFAULT));
+        assert!(detect(b"{\\rtf1\\ansi Hello}\0", Limits::DEFAULT));
+        assert!(!detect(b"{\\rtf1 x}\r\nmore", Limits::DEFAULT));
+        assert!(!detect(b"{\\rtf1 x}\0{not a group}", Limits::DEFAULT));
         // Escaped braces do not count toward balance.
         assert!(detect(b"{\\rtf1 \\{ \\} ok}", Limits::DEFAULT));
+    }
+
+    #[test]
+    fn trailing_padding_parses_and_keeps_the_root_group_span() {
+        // A real-world RTF with a trailing CRLF and a trailing NUL still parses, and
+        // the root group span ends at its closing brace (the padding is not part of
+        // any group).
+        let src = b"{\\rtf1\\ansi Hi}\r\n\0";
+        let m = model(src);
+        assert_eq!(m.groups.len(), 1);
+        assert_eq!(m.groups[0].start, 0);
+        assert_eq!(m.groups[0].end as usize, src.len() - 3);
+        assert_eq!(m.doc_len as usize, src.len());
     }
 
     #[test]
