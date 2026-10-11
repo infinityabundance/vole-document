@@ -1,0 +1,21 @@
+{
+  "campaign": "evidence/campaigns/2026-10-11-phase21-16-arrow-econ-74965426",
+  "phase": "26.6 — Arrow IPC analytical economic court (VOLE vs SQLite vs DuckDB vs pyarrow)",
+  "utc": "2026-10-11T22:35:31Z",
+  "measured_commit": "74965426d2b6bf33fff49242bb6a104f317376fb",
+  "tree_state": " M Dockerfile  M compose.yaml  M src/adapter/arrow.rs  M tools/fixtures/arrow/badlen.arrow  M tools/fixtures/arrow/bomb.arrow  M tools/fixtures/arrow/fsb.arrow  M tools/fixtures/arrow/large.arrow  M tools/fixtures/arrow/multi_batch.arrow  M tools/fixtures/arrow/nullable.arrow  M tools/fixtures/arrow/primitives.arrow  M tools/fixtures/arrow/stream.arrow  M tools/fixtures/arrow/strings.arrow  M tools/fixtures/arrow/temporal.arrow  M tools/fixtures/arrow/truncated.arrow  M tools/fixtures/arrow/unsupported_compressed.arrow  M tools/fixtures/arrow/unsupported_decimal.arrow  M tools/fixtures/arrow/unsupported_dictionary.arrow  M tools/fixtures/arrow/unsupported_nested.arrow  M tools/fixtures/make-arrow.py  M tools/fixtures/phase21-16-arrow-baseline.py  M tools/phase21-16-arrow-court.sh ?? evidence/campaigns/2026-10-10-phase21-16-1-arrow-4fdc7ad0/CORRECTION.md ?? evidence/campaigns/2026-10-10-phase21-16-arrow-econ-4fdc7ad0/CORRECTION.md ?? evidence/campaigns/2026-10-11-phase21-16-arrow-econ-74965426/ ?? tools/fixtures/phase21-16-arrow-pyarrow.py ",
+  "service": "analytical",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "31c92e58c39c8c5f9fa396a1d70a5926da26f6d08ea4298e9dc1bc7940cdeaaa",
+  "duckdb_version": "1.5.6",
+  "pyarrow_version": "25.0.1",
+  "lanes": ["vole", "sqlite", "duckdb", "pyarrow"],
+  "questions": {"Q1": "column values", "Q2": "predicate count", "Q3": "buffer span + min/max", "Q4": "record-batch count", "Q5": "lexical find count", "Q6": "exact closure"},
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "exact_ok": 3,
+  "exact_n": 3,
+  "verdict_rule": "FAIL only if VOLE exactness is not 100% (or a cross-lane mismatch is recorded)",
+  "honest_scope": "self-authored corpus; only Q6 is a byte-authority claim; DuckDB reads a Parquet projection (its wheel has no Arrow IPC reader) while the pyarrow lane opens the Arrow IPC file directly; both decline Q3 (no source span/statistics) and Q6 (not a source-retaining store)",
+  "verdict": "PASS"
+}

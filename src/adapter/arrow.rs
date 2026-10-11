@@ -75,6 +75,12 @@ pub const MAX_MODEL_BATCHES: u32 = 1 << 22;
 /// Deepest Flatbuffers schema nesting accepted.
 pub const MAX_FB_DEPTH: u32 = 64;
 
+/// The byte size of the footer `Block` struct (Schema.fbs):
+/// `{ offset: long; metaDataLength: int; bodyLength: long }`, 8-byte aligned
+/// (offset at +0, metaDataLength at +8 with four bytes of tail padding,
+/// bodyLength at +16).
+pub const BLOCK_STRUCT_SIZE: usize = 24;
+
 // --- Arrow `Type` union tags (Schema.fbs) -----------------------------------
 /// Type: `NONE` (declined).
 pub const T_NONE: i32 = 0;
@@ -1416,7 +1422,12 @@ fn finish_model(
 
     match source_kind {
         FileBatchSource::Footer(root) => {
-            let blocks = fb.field_vector(root, 3)?;
+            // `recordBatches` (field 3) is a vector of `Block` **structs**
+            // (Schema.fbs): `{ offset: long; metaDataLength: int; bodyLength: long }`,
+            // 8-byte aligned at a 24-byte stride. Its `offset` is the message start
+            // (the continuation token) in the source. (A table-encoded Block is not
+            // the Arrow wire format; the reference reader rejects it.)
+            let blocks = fb.field_struct_vector(root, 3)?;
             if let Some((count, data)) = blocks {
                 if count as u64 > u64::from(limits.max_arrow_batches) {
                     return Err(Error::resource_limit(
@@ -1424,11 +1435,13 @@ fn finish_model(
                     ));
                 }
                 for i in 0..count as usize {
-                    let pos = data
-                        .checked_add(4 * i)
+                    let stride = BLOCK_STRUCT_SIZE
+                        .checked_mul(i)
                         .ok_or_else(|| corrupt("block vector overflows"))?;
-                    let block = fb.indirect(pos)? as u32;
-                    let offset = fb.field_i64(block, 0)?.unwrap_or(0);
+                    let pos = data
+                        .checked_add(stride)
+                        .ok_or_else(|| corrupt("block vector overflows"))?;
+                    let offset = fb.i64(pos)?;
                     if offset < 0 {
                         return Err(corrupt("record-batch block offset is negative"));
                     }

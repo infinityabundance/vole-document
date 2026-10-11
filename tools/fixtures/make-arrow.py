@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 # Phase 21.16 — deterministic, stdlib-only Apache Arrow IPC fixture generator.
 #
-# The `analytical` container has DuckDB but **not** pyarrow, and DuckDB's wheel
-# exposes only the Arrow **C data interface** scanners (`arrow_scan*`), not an IPC
-# file reader. So this generator constructs valid Apache Arrow IPC files/streams by
-# hand: a small, purpose-built Flatbuffers builder for the metadata
+# This constructs genuine Apache Arrow IPC file-format fixtures by hand: a small,
+# purpose-built Flatbuffers builder for the metadata
 # (Schema/Message/RecordBatch/Footer) plus little-endian columnar buffer encoders
-# for the common types. The `analytical` court therefore uses a Parquet/DuckDB
-# *projection* of the same logical table as the columnar comparator (documented),
-# and VOLE's own reader is cross-checked against the values this generator writes.
-#
-# The Flatbuffers metadata is built correctly (tables with vtables, forward
-# uoffsets, 8-byte padding after the metadata, 8-aligned buffers) so the files are
-# genuine Arrow IPC: the court/tests decode the very same bytes.
+# for the common types. The metadata follows the Arrow Flatbuffers schema exactly:
+# union `Field.type` values are present (an empty table for tag-only types) and the
+# footer's `recordBatches` is a vector of `Block` *structs*. The reference reader
+# (`pyarrow`) accepts the file-format output, which the Phase-26.6 pyarrow lane uses
+# to measure Arrow on its own terms. (The *stream*-format fixture additionally keeps
+# a leading 8-byte `ARROW1`+padding prefix, matching VOLE's stream detection; that
+# prefix is a VOLE convenience, not part of the Arrow streaming spec.)
 #
 #   python3 tools/fixtures/make-arrow.py                # write tools/fixtures/arrow/
 #   python3 tools/fixtures/make-arrow.py --corpus DIR   # write DIR/, print TSV
@@ -233,8 +231,13 @@ def build_type(b, ts):
     if k in ("list", "large_list"):
         b.StartObject(2)  # List has no fields of its own
         return b.EndObject()
-    # tag-only types (bool/utf8/binary/large_*/struct/map/union family)
-    return 0
+    # Tag-only types (bool/utf8/binary/large_*/struct/map/union family) still carry
+    # an (empty) `Type` table. Arrow's `Field.type` is a Flatbuffers *union*, and a
+    # union value must be present whenever the discriminator is set: a bare tag with
+    # no value is invalid metadata that the reference reader (pyarrow) rejects with
+    # "Unexpected null field Field.type".
+    b.StartObject(0)
+    return b.EndObject()
 
 
 def type_tag(ts):
@@ -334,20 +337,24 @@ def build_record_batch(b, length, nodes, buffers, compression=None):
     return b.EndObject()
 
 
-def build_block(b, offset, meta_len, body_len):
-    b.StartObject(3)  # offset(0), metaDataLength(1), bodyLength(2)
-    b.SlotScalar(2, "q", body_len)
-    b.SlotScalar(1, "i", meta_len)
-    b.SlotScalar(0, "q", offset)
-    return b.EndObject()
+def build_block_vector(b, blocks):
+    # `recordBatches` is a vector of `Block` **structs** (Schema.fbs):
+    #   struct Block { offset: long; metaDataLength: int; bodyLength: long; }
+    # 8-byte aligned (struct size 24): offset at +0, metaDataLength at +8 with four
+    # bytes of tail padding, bodyLength at +16. Encoded as an inline struct vector,
+    # NOT as a vector of table offsets (a table-encoded Block is rejected by the
+    # reference reader as "Invalid Block in IPC file footer").
+    b.StartVector(24, len(blocks), 8)
+    for (o, m, l) in reversed(blocks):
+        b.Place(l, "<q")   # bodyLength (highest)
+        b.Pad(4)           # padding after the 32-bit metaDataLength
+        b.Place(m, "<i")   # metaDataLength
+        b.Place(o, "<q")   # offset (lowest)
+    return b.EndVector(len(blocks))
 
 
 def build_footer(b, schema_off, blocks):
-    blk_offs = [build_block(b, o, m, l) for (o, m, l) in blocks]
-    if blk_offs:
-        rbb = b.VectorOffset(blk_offs)
-    else:
-        rbb = 0
+    rbb = build_block_vector(b, blocks) if blocks else 0
     b.StartObject(5)  # version(0), schema(1), dictionaries(2), recordBatches(3)
     if rbb:
         b.SlotOffset(3, rbb)
@@ -450,6 +457,14 @@ def encapsulate(core, body):
     return struct.pack("<I", CONT) + struct.pack("<i", len(meta)) + meta + body
 
 
+def message_meta_len(msg):
+    """The encapsulated metadata length recorded in a footer `Block`: the 8-byte
+    continuation + length prefix PLUS the (8-padded) message flatbuffer. Arrow's
+    `Block.metaDataLength` counts the prefix; storing only the flatbuffer size
+    makes the reference reader report "Message metadata too long by N bytes"."""
+    return 8 + struct.unpack_from("<i", msg, 4)[0]
+
+
 def schema_message(fields):
     core = flatbuf(lambda b: build_message(b, H_SCHEMA, build_schema(b, fields), 0))
     return encapsulate(core, b"")
@@ -482,10 +497,8 @@ def write_file(path, fields, batches, stream=False):
     for (columns, rows) in batches:
         start = len(out)
         msg, body_len = record_batch_message(columns, rows)
-        # meta_len (padded) is stored in the prefix
-        meta_len = struct.unpack_from("<i", msg, 4)[0]
         out += msg
-        blocks.append((start, meta_len, body_len))
+        blocks.append((start, message_meta_len(msg), body_len))
     if stream:
         out += struct.pack("<I", CONT) + struct.pack("<i", 0)  # EOS
     else:
@@ -684,10 +697,9 @@ def write_nested(path, fields, bufs, rows):
     core = flatbuf(lambda b: build_message(
         b, H_RECORD_BATCH, build_record_batch(b, rows, nodes, buffers), len(body)))
     msg = encapsulate(core, bytes(body))
-    meta_len = struct.unpack_from("<i", msg, 4)[0]
     start = len(out)
     out += msg
-    blocks.append((start, meta_len, len(body)))
+    blocks.append((start, message_meta_len(msg), len(body)))
     out += struct.pack("<I", CONT) + struct.pack("<i", 0)
     footer = flatbuf(lambda b: build_footer(b, build_schema(b, fields), blocks))
     out += footer
@@ -769,8 +781,7 @@ def emit_corpus(out_dir):
     msg = encapsulate(core, bytes(body))
     start = len(out)
     out += msg
-    meta_len = struct.unpack_from("<i", msg, 4)[0]
-    blocks = [(start, meta_len, len(body))]
+    blocks = [(start, message_meta_len(msg), len(body))]
     out += struct.pack("<I", CONT) + struct.pack("<i", 0)
     footer = flatbuf(lambda b: build_footer(b, build_schema(b, fields), blocks))
     out += footer + struct.pack("<i", len(footer)) + MAGIC
@@ -793,8 +804,7 @@ def emit_corpus(out_dir):
     msg = encapsulate(core, bytes(body))
     start = len(out)
     out += msg
-    meta_len = struct.unpack_from("<i", msg, 4)[0]
-    blocks = [(start, meta_len, len(body))]
+    blocks = [(start, message_meta_len(msg), len(body))]
     out += struct.pack("<I", CONT) + struct.pack("<i", 0)
     footer = flatbuf(lambda b: build_footer(b, build_schema(b, fields), blocks))
     out += footer + struct.pack("<i", len(footer)) + MAGIC
@@ -857,7 +867,8 @@ def emit_econ(out_dir):
         with open(p, "rb") as f:
             data = f.read()
         manifest.append((name, len(data), hashlib.sha256(data).hexdigest()))
-        # A Parquet projection of the same logical table (for the DuckDB comparator).
+        # A Parquet projection of the same logical table (an independent columnar
+        # comparator; the pyarrow lane reads the `.arrow` file directly).
         pq = os.path.join(out_dir, name[: -len(".arrow")] + ".parquet")
         _write_parquet_projection(mp, pq, fields, batches)
     for name, length, sha in manifest:

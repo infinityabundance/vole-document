@@ -186,10 +186,12 @@ services:
   # and python3 as `doc-baseline`, plus a hash-verified DuckDB wheel — the
   # mandatory non-SQLite comparator for the tabular formats. Phase 21.5.3 (FIX 1)
   # also adds a hash-pinned `pysqlite3-binary` wheel (bundles SQLite 3.51.1, so
-  # the JSON lane's `jsonb`/`json_tree` claims are honest). Opt-in; never part
-  # of a fast gate. Capped exactly like `doc-baseline` (mem_limit ==
-  # memswap_limit, pids_limit, cpus) and shares the dev cargo volumes so the
-  # built VOLE binary is visible to the same court.
+  # the JSON lane's `jsonb`/`json_tree` claims are honest). Phase 26.6 adds a
+  # hash-pinned `pyarrow` wheel so the Arrow economic court's third comparator lane
+  # can read the Arrow IPC file directly (the pinned DuckDB wheel exposes only the
+  # Arrow C data interface). Opt-in; never part of a fast gate. Capped exactly like
+  # `doc-baseline` (mem_limit == memswap_limit, pids_limit, cpus) and shares the dev
+  # cargo volumes so the built VOLE binary is visible to the same court.
   analytical:
     build:
       context: .
@@ -208,7 +210,7 @@ services:
       - .:/work
       - cargo-registry:/usr/local/cargo/registry
       - cargo-target:/work/target
-    command: ["sh", "-c", "python3 -c 'import duckdb; print(\"duckdb\", duckdb.__version__)'; python3 -c 'import pysqlite3; print(\"pysqlite3 sqlite\", pysqlite3.sqlite_version)'"]
+    command: ["sh", "-c", "python3 -c 'import duckdb; print(\"duckdb\", duckdb.__version__)'; python3 -c 'import pysqlite3; print(\"pysqlite3 sqlite\", pysqlite3.sqlite_version)'; python3 -c 'import pyarrow; print(\"pyarrow\", pyarrow.__version__)'"]
 
   # real100-v1 corpus-acquisition harness. Minimal network-capable stage on the
   # pinned `debian:bookworm-slim` digest (same as `tools`): curl + python3 only.
