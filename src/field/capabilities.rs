@@ -352,6 +352,8 @@ const HDF_NATIVE: &[&str] = &[
     "hdf-find",
 ];
 
+const CFBF_NATIVE: &[&str] = &["cfbf-dialect", "cfbf-entry", "cfbf-stream", "cfbf-find"];
+
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
 const COMMON_TEXT_META: &[&str] = &["text", "metadata"];
@@ -776,6 +778,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 HDF_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Cfbf => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                CFBF_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

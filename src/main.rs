@@ -2131,6 +2131,23 @@ struct FieldArgs {
     /// dimension, and attribute name (Phase 21.34).
     #[cfg(feature = "hdf")]
     hdf_find: Option<String>,
+    /// `--cfbf-dialect`: the CFBF/OLE2 compound file's recorded dialect (`cfb3`/`cfb4`)
+    /// with the sector size, FAT/directory counts, and the exact header span (Phase
+    /// 21.35).
+    #[cfg(feature = "cfbf")]
+    cfbf_dialect: bool,
+    /// `--cfbf-entry N`: the N-th (0-based) directory entry with its verbatim name,
+    /// object type, sibling/child tree links, and exact spans (Phase 21.35).
+    #[cfg(feature = "cfbf")]
+    cfbf_entry: Option<u32>,
+    /// `--cfbf-stream N`: the stream at directory index N, returning its exact content
+    /// bytes (Phase 21.35). A storage declines typed.
+    #[cfg(feature = "cfbf")]
+    cfbf_stream: Option<u32>,
+    /// `--cfbf-find PATTERN`: a lexical, case-sensitive search over every directory
+    /// entry name (Phase 21.35).
+    #[cfg(feature = "cfbf")]
+    cfbf_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -3239,6 +3256,25 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "hdf")]
             "--hdf-find" => {
                 out.hdf_find = Some(field_arg_value(args, &mut i, "--hdf-find", inline)?);
+            }
+            #[cfg(feature = "cfbf")]
+            "--cfbf-dialect" => {
+                out.cfbf_dialect = true;
+                i += 1;
+            }
+            #[cfg(feature = "cfbf")]
+            "--cfbf-entry" => {
+                let v = field_arg_value(args, &mut i, "--cfbf-entry", inline)?;
+                out.cfbf_entry = Some(parse_field_u32(&v, "--cfbf-entry")?);
+            }
+            #[cfg(feature = "cfbf")]
+            "--cfbf-stream" => {
+                let v = field_arg_value(args, &mut i, "--cfbf-stream", inline)?;
+                out.cfbf_stream = Some(parse_field_u32(&v, "--cfbf-stream")?);
+            }
+            #[cfg(feature = "cfbf")]
+            "--cfbf-find" => {
+                out.cfbf_find = Some(field_arg_value(args, &mut i, "--cfbf-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -4361,6 +4397,26 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.hdf_find {
             chosen.push(Selector::HdfFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // CFBF / OLE2 compound file: `--cfbf-dialect` the recorded dialect; `--cfbf-entry N`
+    // a directory entry by 0-based index; `--cfbf-stream N` a stream's exact content;
+    // `--cfbf-find` a lexical search. Each stands alone (Phase 21.35).
+    #[cfg(feature = "cfbf")]
+    {
+        if out.cfbf_dialect {
+            chosen.push(Selector::CfbfDialect);
+        }
+        if let Some(index) = out.cfbf_entry {
+            chosen.push(Selector::CfbfEntry { index });
+        }
+        if let Some(index) = out.cfbf_stream {
+            chosen.push(Selector::CfbfStream { index });
+        }
+        if let Some(pattern) = &out.cfbf_find {
+            chosen.push(Selector::CfbfFind {
                 pattern: pattern.clone(),
             });
         }

@@ -76,6 +76,14 @@ use crate::adapter::cbor::{
     resolve_pointer as cbor_resolve_pointer, subtree_text as cbor_subtree_text,
     token_bytes as cbor_token_bytes,
 };
+#[cfg(feature = "cfbf")]
+use crate::adapter::cfbf::{
+    CfbfModel, OBJ_ROOT as CFBF_OBJ_ROOT, OBJ_STREAM as CFBF_OBJ_STREAM,
+    canonical_text as cfbf_canonical_text, dialect_name as cfbf_dialect_name,
+    entry_bytes as cfbf_entry_bytes, entry_name_text as cfbf_name_text,
+    entry_path as cfbf_entry_path, field_name as cfbf_field_name, find as cfbf_find_matches,
+    obj_type_name as cfbf_obj_type_name, stream_bytes as cfbf_stream_bytes,
+};
 #[cfg(feature = "config")]
 use crate::adapter::config::{
     CfgLine, ConfigModel, F_CONTINUED, F_DOUBLE_QUOTED, F_EXPORT, F_INLINE_COMMENT,
@@ -330,6 +338,8 @@ use crate::field::index::SEL_ASCIIDOC_MODEL;
 use crate::field::index::SEL_BIB_MODEL;
 #[cfg(feature = "cbor")]
 use crate::field::index::SEL_CBOR_MODEL;
+#[cfg(feature = "cfbf")]
+use crate::field::index::SEL_CFBF_MODEL;
 #[cfg(feature = "config")]
 use crate::field::index::SEL_CONFIG_MODEL;
 #[cfg(feature = "container")]
@@ -2023,6 +2033,36 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The recorded CFBF/OLE2 dialect (`cfb3` or `cfb4`), from the model (Phase 21.35).
+    /// `Text` returns the dialect name; `Metadata`/`Structure` a descriptor with the
+    /// sector size, the FAT/directory counts, and the exact header span.
+    #[cfg(feature = "cfbf")]
+    CfbfDialect,
+    /// The `index`-th directory entry (0-based, directory order) (Phase 21.35): its
+    /// verbatim UTF-16LE name (lossy UTF-8 for `Text`), object type, color, sibling/child
+    /// tree links, start sector, stream size, and exact spans. `ExactBytes` returns the
+    /// exact 128-byte directory entry; an out-of-range index declines typed.
+    #[cfg(feature = "cfbf")]
+    CfbfEntry {
+        /// The 0-based directory-entry index.
+        index: u32,
+    },
+    /// The stream at directory index `index` (0-based) (Phase 21.35): `ExactBytes`
+    /// returns its exact content bytes (a storage declines typed, as does a
+    /// non-contiguous chain); `Text` its name/path; `Metadata`/`Structure` a descriptor
+    /// with the object kind, exact content span, size, and sector count.
+    #[cfg(feature = "cfbf")]
+    CfbfStream {
+        /// The 0-based directory-entry index (which must address a stream).
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over every directory entry name
+    /// (Phase 21.35). Never an embedding or a model call.
+    #[cfg(feature = "cfbf")]
+    CfbfFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2652,6 +2692,14 @@ impl Selector {
             Selector::HdfAttribute { index } => format!("hdf-attribute:{index}"),
             #[cfg(feature = "hdf")]
             Selector::HdfFind { pattern } => format!("hdf-find:{pattern}"),
+            #[cfg(feature = "cfbf")]
+            Selector::CfbfDialect => "cfbf-dialect".to_string(),
+            #[cfg(feature = "cfbf")]
+            Selector::CfbfEntry { index } => format!("cfbf-entry:{index}"),
+            #[cfg(feature = "cfbf")]
+            Selector::CfbfStream { index } => format!("cfbf-stream:{index}"),
+            #[cfg(feature = "cfbf")]
+            Selector::CfbfFind { pattern } => format!("cfbf-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -5022,6 +5070,22 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "hdf")]
             (Selector::HdfFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.hdf_find(req, pattern)
+            }
+            #[cfg(feature = "cfbf")]
+            (Selector::CfbfDialect, R::Text | R::Metadata | R::Structure) => self.cfbf_dialect(req),
+            #[cfg(feature = "cfbf")]
+            (
+                Selector::CfbfEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.cfbf_entry(req, *index),
+            #[cfg(feature = "cfbf")]
+            (
+                Selector::CfbfStream { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.cfbf_stream(req, *index),
+            #[cfg(feature = "cfbf")]
+            (Selector::CfbfFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.cfbf_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -10385,6 +10449,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Cfbf => {
+                #[cfg(feature = "cfbf")]
+                {
+                    self.common_cfbf(req)?
+                }
+                #[cfg(not(feature = "cfbf"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "compound-file support is not compiled in (feature `cfbf`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -14501,6 +14577,263 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "hdf;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CFBF / OLE2 compound-file observations (Phase 21.35)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "cfbf")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the compound-file model (derived, `Q_gen`).
+    fn cfbf_model(&mut self) -> Result<(CfbfModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_CFBF_MODEL, 0), "cfbf model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((CfbfModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the read
+    /// is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn cfbf_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn cfbf_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn cfbf_dialect_json(model: &CfbfModel) -> String {
+        format!(
+            concat!(
+                "{{\"format\":\"cfbf\",\"dialect\":\"{}\",\"bytes\":{},",
+                "\"major\":{},\"minor\":{},\"sector_size\":{},\"mini_sector_size\":{},",
+                "\"mini_cutoff\":{},\"entries\":{},\"streams\":{},",
+                "\"fat_sectors\":{},\"minifat_sectors\":{},\"difat_sectors\":{},",
+                "\"first_dir_sector\":{},\"header_span\":[{},{}]}}"
+            ),
+            cfbf_dialect_name(model.dialect),
+            model.doc_len,
+            model.major,
+            model.minor,
+            model.sector_size,
+            model.mini_sector_size,
+            model.mini_cutoff,
+            model.entries.len(),
+            model.stream_count(),
+            model.num_fat_sectors,
+            model.num_minifat_sectors,
+            model.num_difat_sectors,
+            model.first_dir_sector,
+            model.header_span.0,
+            model.header_span.1,
+        )
+    }
+
+    /// The recorded CFBF dialect (`cfb3`/`cfb4`), from the model.
+    fn cfbf_dialect(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (source, root) = self.cfbf_source()?;
+        let d = cfbf_dialect_name(model.dialect);
+        let provenance = format!(
+            "cfbf;dialect={d};entries={};streams={}",
+            model.entries.len(),
+            model.stream_count()
+        );
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(d.to_string()),
+            _ => AnswerValue::Json(Self::cfbf_dialect_json(&model)),
+        };
+        Ok(self.cfbf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th directory entry (0-based, directory order).
+    fn cfbf_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (source, root) = self.cfbf_source()?;
+        let e = model
+            .entry(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("cfbf has no entry {index}")))?;
+        let path = cfbf_entry_path(&model, index);
+        let span = Some(e.entry_span);
+        let provenance = format!(
+            "cfbf;entry={index};type={};bytes={}",
+            cfbf_obj_type_name(e.obj_type),
+            e.stream_size
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(cfbf_entry_bytes(&source, e)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(cfbf_name_text(e)),
+            _ => self.cfbf_entry_json(&model, index, e, &path),
+        };
+        Ok(self.cfbf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The stream at directory index `index`.
+    fn cfbf_stream(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (source, root) = self.cfbf_source()?;
+        let e = model
+            .entry(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("cfbf has no entry {index}")))?;
+        if e.obj_type != CFBF_OBJ_STREAM && e.obj_type != CFBF_OBJ_ROOT {
+            return Err(Error::unsupported_feature(format!(
+                "cfbf entry {index} is a storage, not a stream"
+            )));
+        }
+        let path = cfbf_entry_path(&model, index);
+        let span = Some(e.data_span);
+        let provenance = format!(
+            "cfbf;stream={index};bytes={};sectors={}",
+            e.stream_size, e.num_sectors
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(cfbf_stream_bytes(&source, e)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(path),
+            _ => self.cfbf_entry_json(&model, index, e, &path),
+        };
+        Ok(self.cfbf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn cfbf_entry_json(
+        &self,
+        model: &CfbfModel,
+        index: u32,
+        e: &crate::adapter::cfbf::CfbfEntry,
+        path: &str,
+    ) -> AnswerValue {
+        let name = cfbf_name_text(e);
+        let parent = if e.parent == crate::adapter::cfbf::NO_PARENT {
+            "null".to_string()
+        } else {
+            e.parent.to_string()
+        };
+        AnswerValue::Json(format!(
+            concat!(
+                "{{\"index\":{},\"dialect\":\"{}\",\"type\":\"{}\",",
+                "\"path\":\"{}\",\"name\":\"{}\",\"color\":{},",
+                "\"left\":{},\"right\":{},\"child\":{},\"start_sector\":{},",
+                "\"stream_size\":{},\"mini\":{},\"contiguous\":{},",
+                "\"num_sectors\":{},\"parent\":{},\"depth\":{},",
+                "\"entry_span\":[{},{}],\"name_span\":[{},{}],\"data_span\":[{},{}]}}"
+            ),
+            index,
+            cfbf_dialect_name(model.dialect),
+            cfbf_obj_type_name(e.obj_type),
+            json_escape(path),
+            json_escape(&name),
+            e.color,
+            e.left,
+            e.right,
+            e.child,
+            e.start_sector,
+            e.stream_size,
+            e.stream_size > 0 && e.stream_size < model.mini_cutoff as u64,
+            e.contiguous,
+            e.num_sectors,
+            parent,
+            e.depth,
+            e.entry_span.0,
+            e.entry_span.1,
+            e.name_span.0,
+            e.name_span.1,
+            e.data_span.0,
+            e.data_span.1,
+        ))
+    }
+
+    /// A bounded lexical search over every directory entry name.
+    fn cfbf_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (_, root) = self.cfbf_source()?;
+        let matches = cfbf_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"entry\":{},\"field\":\"{}\",\"span\":[{},{}],\"text\":\"{}\"}}"),
+                m.entry,
+                cfbf_field_name(m.field),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("cfbf;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.cfbf_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_cfbf(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.cfbf_common_metadata(req),
+            Selector::Text => self.cfbf_common_text(req),
+            Selector::SearchMatch(p) => self.cfbf_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "cfbf does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn cfbf_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (source, root) = self.cfbf_source()?;
+        let text = cfbf_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.cfbf_answer(
+            req,
+            AnswerValue::Text(text),
+            "cfbf;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn cfbf_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (source, root) = self.cfbf_source()?;
+        let value = AnswerValue::Json(Self::cfbf_dialect_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.cfbf_answer(
+            req,
+            value,
+            "cfbf;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

@@ -509,6 +509,19 @@ pub const SEL_CONTAINER_MODEL: u8 = 48;
 /// the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); neither dialect
 /// has a separate package layer in this adapter. Derived, never exact.
 pub const SEL_HDF_MODEL: u8 = 49;
+/// Selector kind: the canonical CFBF / OLE2 compound-file model (Phase 21.35).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving projection with the **recorded dialect**
+/// (`cfb3`/`cfb4`): the 512-byte header, the DIFAT/FAT, the directory entries (verbatim
+/// UTF-16LE names, object type, color, the left/right/child sibling tree, start sector,
+/// stream size) with the reconstructed tree `parent`/`depth`, and every stream's exact
+/// byte span (regular streams through the FAT, small streams through the MiniFAT inside
+/// the root entry's mini stream). It is computed on demand from the exact source (its
+/// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+/// ADR-0060); a compound file has no separate package layer in this adapter. Derived,
+/// never exact.
+pub const SEL_CFBF_MODEL: u8 = 50;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

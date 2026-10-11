@@ -217,6 +217,13 @@ pub enum ErrorClass {
     /// it stays `Opaque` rather than being claimed as a derived model. Detection and
     /// the whole-source exact leaf are unaffected.
     InvalidHdfStructure,
+    /// A CFBF/OLE2 structure error (Phase 21.35): a compound-file source that is
+    /// structurally malformed — an inconsistent header, a bad sector shift, an
+    /// out-of-range sector ID, a cyclic/overlapping FAT or MiniFAT chain, an invalid
+    /// directory object type, a truncated stream, or a header/sector-size mismatch —
+    /// so it stays `Opaque` rather than being claimed as a derived model. Detection
+    /// and the whole-source exact leaf are unaffected.
+    InvalidCfbfStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -274,6 +281,7 @@ impl ErrorClass {
             ErrorClass::InvalidRtfStructure => 48,
             ErrorClass::InvalidContainerStructure => 49,
             ErrorClass::InvalidHdfStructure => 50,
+            ErrorClass::InvalidCfbfStructure => 51,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -330,6 +338,7 @@ impl ErrorClass {
             ErrorClass::InvalidRtfStructure => "InvalidRtfStructure",
             ErrorClass::InvalidContainerStructure => "InvalidContainerStructure",
             ErrorClass::InvalidHdfStructure => "InvalidHdfStructure",
+            ErrorClass::InvalidCfbfStructure => "InvalidCfbfStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -440,6 +449,7 @@ impl Error {
     ctor!(invalid_rtf_structure, InvalidRtfStructure);
     ctor!(invalid_container_structure, InvalidContainerStructure);
     ctor!(invalid_hdf_structure, InvalidHdfStructure);
+    ctor!(invalid_cfbf_structure, InvalidCfbfStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

@@ -14,6 +14,8 @@ pub mod asciidoc;
 pub mod bib;
 #[cfg(feature = "cbor")]
 pub mod cbor;
+#[cfg(feature = "cfbf")]
+pub mod cfbf;
 #[cfg(feature = "config")]
 pub mod config;
 #[cfg(feature = "container")]

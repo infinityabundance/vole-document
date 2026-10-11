@@ -427,6 +427,22 @@ pub enum DocumentFormat {
     /// bounded subset (symbol-table groups + contiguous datasets + v1 object headers),
     /// and everything outside it declines **typed**.
     Hdf,
+    /// A CFBF / OLE2 compound file (Phase 21.35): the physical-layer container behind
+    /// legacy Word (`.doc`), Excel (`.xls`), PowerPoint (`.ppt`), and Outlook (`.msg`)
+    /// files. Detection is a **strong magic + header validation** test — the 8-byte
+    /// signature `D0 CF 11 E0 A1 B1 1A E1` at offset 0 **and** an internally
+    /// consistent header (byte order `FFFE`, a major version of 3 or 4, a sector shift
+    /// of 9 or 12 consistent with the version, a mini-sector shift of 6, at least one
+    /// FAT sector, and a first directory sector inside the file). A random
+    /// signature-only blob and prose stay `Opaque`. The recorded dialect
+    /// (`cfb3`/`cfb4`) lives in the model. Not a package: the exact leaf is the whole
+    /// source (a `DocumentExact`, RAW-like authority) and every derived observation —
+    /// the header, the DIFAT/FAT, the directory entries with their verbatim UTF-16LE
+    /// names and reconstructed sibling/child tree, and each stream's exact byte span —
+    /// is a bounded, span-preserving (`Q_gen`) projection of it. This is the shared
+    /// physical layer that unlocks the legacy DOC/XLS/PPT/MSG semantic models (later
+    /// subphases).
+    Cfbf,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -474,6 +490,7 @@ impl DocumentFormat {
             DocumentFormat::Rtf => "rtf",
             DocumentFormat::Container => "container",
             DocumentFormat::Hdf => "hdf",
+            DocumentFormat::Cfbf => "cfbf",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -520,6 +537,7 @@ impl DocumentFormat {
             DocumentFormat::Rtf => "rtf",
             DocumentFormat::Container => "container",
             DocumentFormat::Hdf => "hdf",
+            DocumentFormat::Cfbf => "cfbf",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -566,6 +584,7 @@ impl DocumentFormat {
             DocumentFormat::Rtf => cfg!(feature = "rtf"),
             DocumentFormat::Container => cfg!(feature = "container"),
             DocumentFormat::Hdf => cfg!(feature = "hdf"),
+            DocumentFormat::Cfbf => cfg!(feature = "cfbf"),
         }
     }
 
@@ -622,6 +641,7 @@ impl DocumentFormat {
             "rtf" => Some(DocumentFormat::Rtf),
             "container" => Some(DocumentFormat::Container),
             "hdf" => Some(DocumentFormat::Hdf),
+            "cfbf" => Some(DocumentFormat::Cfbf),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -669,6 +689,20 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "hdf")]
     if crate::adapter::hdf::detect(source, limits) {
         return DocumentFormat::Hdf;
+    }
+    // The CFBF / OLE2 compound file (Phase 21.35) is a **standalone** physical-layer
+    // format with a strong 8-byte signature (`D0 CF 11 E0 A1 B1 1A E1`) plus a
+    // validated header. It is inserted with the other strong-magic binaries (after the
+    // office ZIP family, the archive container, and the scientific container, and
+    // **before** Parquet) and **before** every weak, no-magic-byte heuristic
+    // (JSON/YAML/CSV/Markdown/XML/HTML), which a binary compound file must never be
+    // guessed to be. It is deliberately conservative: a signature-only blob (its
+    // header fields are zero) and prose stay `Opaque`; a blob with a plausible header
+    // but a malformed body is admitted and its derived model then declines typed (the
+    // whole-source exact leaf is always unaffected).
+    #[cfg(feature = "cfbf")]
+    if crate::adapter::cfbf::detect(source, limits) {
+        return DocumentFormat::Cfbf;
     }
     // Parquet is the **analytical** Wave-2 format (Phase 21.14), with no package
     // layer. Its detection is a strong magic-byte contract — `PAR1` at both ends

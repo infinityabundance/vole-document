@@ -1624,6 +1624,39 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::CfbfModel => {
+            // The canonical CFBF/OLE2 compound-file model is derived on demand from the
+            // exact source. A compound file has no package layer, so its single
+            // dependency is the exact `DocumentExact` root (keyed by `sha256(source)`
+            // per ADR-0060): the model node *reads the source bytes*, so it must carry a
+            // source-identity input, never alias another field's source. Parsing and
+            // all bounds live in `adapter::cfbf`.
+            #[cfg(feature = "cfbf")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("CfbfModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::cfbf::build_cfbf_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "cfbf"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "compound-file support is not compiled in (feature `cfbf`)",
+                ));
+            }
+        }
         NodeKind::YamlModel => {
             // The canonical YAML structured-tree model is derived on demand from the
             // exact source. YAML has no package layer, so its single dependency is

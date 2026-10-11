@@ -1,0 +1,19 @@
+{
+  "campaign": "evidence/campaigns/2026-10-11-phase21-35-1-cfbf-42791bce",
+  "phase": "21.35.1 — CFBF/OLE2 compound-file physical-layer surface + exact closure",
+  "utc": "2026-10-11T11:51:47Z",
+  "git_commit": "42791bceceecb1c8715f2f5f9d7a7a4fbc9656c3",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-11-phase21-35-1-cfbf-42791bce/ ?? examples/cfbf_fixtures.rs ?? src/adapter/cfbf.rs ?? tests/cfbf_adapter.rs ?? tools/phase21-35-1-cfbf-court.sh ",
+  "arch": "x86_64",
+  "service": "dev",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "627a4f675159afd2e3992e578303c4f18b7c14218ddf6f1e220dbc6f4ec62d54",
+  "profile": "debug",
+  "fixtures_tool": "examples/cfbf_fixtures.rs (dependency-free CFBF/OLE2 writer; no python3, no external OLE tooling)",
+  "external_oracles": "none (the compound-file model is validated internally; no external OLE parser is invoked)",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

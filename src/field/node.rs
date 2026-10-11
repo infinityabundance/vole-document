@@ -515,6 +515,20 @@ pub enum NodeKind {
     /// neither dialect has a separate package layer in this adapter. Derived, never
     /// exact.
     HdfModel = 0x45,
+    /// The canonical, representation-preserving CFBF / OLE2 compound-file model (Phase
+    /// 21.35): the physical layer behind legacy Word/Excel/PowerPoint/Outlook files,
+    /// with the **recorded dialect** (`cfb3`/`cfb4`). It records the 512-byte header
+    /// (signature, version, byte order, sector/mini-sector shifts, counts, first
+    /// sectors), the directory entries (verbatim UTF-16LE names, object type, color,
+    /// the left/right/child sibling tree, start sector, stream size) with the
+    /// red-black sibling/child tree reconstructed into a `parent`/`depth`, and every
+    /// stream resolved to an exact byte span (regular streams through the FAT, small
+    /// streams through the MiniFAT inside the root entry's mini stream). Nothing is
+    /// un-OLE'd or re-OLE'd. It is computed on demand from the exact source (its single
+    /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+    /// a compound file has no separate package layer in this adapter. Derived, never
+    /// exact.
+    CfbfModel = 0x46,
 }
 
 impl NodeKind {
@@ -590,6 +604,7 @@ impl NodeKind {
             0x43 => NodeKind::RtfModel,
             0x44 => NodeKind::ContainerModel,
             0x45 => NodeKind::HdfModel,
+            0x46 => NodeKind::CfbfModel,
             _ => return None,
         })
     }
@@ -666,6 +681,7 @@ impl NodeKind {
             NodeKind::RtfModel => "RtfModel",
             NodeKind::ContainerModel => "ContainerModel",
             NodeKind::HdfModel => "HdfModel",
+            NodeKind::CfbfModel => "CfbfModel",
         }
     }
 

@@ -963,6 +963,31 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.34).
     pub max_hdf_document_bytes: u64,
+    // The compound-file (CFBF/OLE2) caps below bound the derived, span-preserving model
+    // (Phase 21.35). A CFBF source has no package layer: the whole source is the exact
+    // leaf, and everything derived is `Q_gen`.
+    /// Maximum directory-entry count accepted for one compound file. An over-large
+    /// source declines typed (Phase 21.35).
+    pub max_cfbf_entries: u64,
+    /// Maximum stream count accepted for one compound file. An over-large source
+    /// declines typed (Phase 21.35).
+    pub max_cfbf_streams: u64,
+    /// Maximum reconstructed directory-tree depth accepted (the root is depth 0). A
+    /// deeper tree declines typed (Phase 21.35).
+    pub max_cfbf_depth: u32,
+    /// Maximum **aggregate** name byte count accepted across one compound file. This is
+    /// a whole-source budget; an over-large source declines typed (Phase 21.35).
+    pub max_cfbf_name_bytes: u64,
+    /// Maximum byte length of one entry name (a CFBF name is at most 62 bytes). A
+    /// longer name declines typed (Phase 21.35).
+    pub max_cfbf_entry_name_bytes: u64,
+    /// Maximum FAT/MiniFAT entry count accepted (bounds the allocation and every chain
+    /// traversal). An over-large source declines typed (Phase 21.35).
+    pub max_cfbf_chain_sectors: u64,
+    /// Maximum source length admitted for compound-file detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.35).
+    pub max_cfbf_document_bytes: u64,
 }
 
 impl Limits {
@@ -1237,6 +1262,13 @@ impl Limits {
         max_hdf_entry_name_bytes: 1 << 16,
         max_hdf_attr_value_bytes: 1 << 24,
         max_hdf_document_bytes: 1 << 34,
+        max_cfbf_entries: 1 << 20,
+        max_cfbf_streams: 1 << 20,
+        max_cfbf_depth: 256,
+        max_cfbf_name_bytes: 1 << 26,
+        max_cfbf_entry_name_bytes: 1 << 16,
+        max_cfbf_chain_sectors: 1 << 24,
+        max_cfbf_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1510,6 +1542,13 @@ impl Limits {
         max_hdf_entry_name_bytes: 1 << 14,
         max_hdf_attr_value_bytes: 1 << 16,
         max_hdf_document_bytes: 1 << 26,
+        max_cfbf_entries: 1 << 12,
+        max_cfbf_streams: 1 << 12,
+        max_cfbf_depth: 64,
+        max_cfbf_name_bytes: 1 << 18,
+        max_cfbf_entry_name_bytes: 1 << 14,
+        max_cfbf_chain_sectors: 1 << 16,
+        max_cfbf_document_bytes: 1 << 26,
     };
 }
 

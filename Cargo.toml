@@ -65,6 +65,16 @@ name = "hdf_fixtures"
 path = "examples/hdf_fixtures.rs"
 required-features = ["hdf"]
 
+# The Phase-21.35 CFBF/OLE2 court fixture generator. Feature-gated to the adapter it
+# exercises so the default build never compiles it. It writes small, deterministic
+# compound files (with a root storage, a sub-storage, a FAT-chained large stream and
+# a MiniFAT-chained small stream, a 4096-sector variant, non-ASCII names, and
+# malformed controls) byte-for-byte, so the court needs no OLE tooling.
+[[example]]
+name = "cfbf_fixtures"
+path = "examples/cfbf_fixtures.rs"
+required-features = ["cfbf"]
+
 [dependencies]
 # Archival source identity. Pinned exactly for the first sealed universe.
 sha2 = "=0.10.9"
@@ -655,6 +665,25 @@ container = ["package"]
 # bytes and exactness is untouched. **Dependency-free (`hdf = []` pulls no external
 # crate)** and never in `default`.
 hdf = []
+# Phase 21.35: the CFBF / OLE2 physical-layer adapter — the **compound-document**
+# container behind legacy Word (`.doc`), Excel (`.xls`), PowerPoint (`.ppt`), and
+# Outlook (`.msg`) files. Like the other Wave-2 formats it is not a package at the
+# exactness layer: the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It parses the 512-byte header (signature, version, byte order,
+# sector/mini-sector shifts, the FAT/DIFAT/directory/MiniFAT counts and first
+# sectors), the DIFAT and FAT, the 128-byte directory entries (UTF-16LE names
+# preserved verbatim, object type, color, the left/right/child sibling tree, start
+# sector, stream size), reconstructs the red-black sibling/child tree, and resolves
+# every stream to an **exact byte span** in the original file — regular streams
+# through the FAT, small streams through the MiniFAT inside the root entry's mini
+# stream. Nothing is un-OLE'd or re-OLE'd. Untrusted input declines **typed** (bad
+# sector shift, out-of-range sector, cyclic/overlapping FAT chain, invalid directory
+# type, truncated stream, header/sector-size mismatch). It adds **no** decoder
+# behavior: the model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. **Dependency-free (`cfbf = []` pulls no
+# external crate)** and never in `default`.
+cfbf = []
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived
