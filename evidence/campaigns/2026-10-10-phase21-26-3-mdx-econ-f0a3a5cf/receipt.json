@@ -1,0 +1,314 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-26-3-mdx-econ-f0a3a5cf",
+  "comparators": [
+    "sqlite",
+    "conv"
+  ],
+  "declines": "an out-of-range native ESM/JSX/expression and an unsupported common pair (the common table) decline typed (rc 6); a Markdown document stays markdown (including when inline code or an inline expression looks like MDX); plain HTML stays html; plain prose stays Opaque (rc 6), never a panic",
+  "detection_boundary": "MDX detection requires an ESM/JSX/expression signal on top of Markdown block structure; inline code spans and inline expressions alone do not promote a Markdown document to MDX, and a plain HTML document stays html",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "2dfe442532dbc8a38c2ab34274ca126483320c648a54c1700ac38569adbf9f63",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-10-phase21-26-3-mdx-econ-f0a3a5cf",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+    "controls": "braces.txt html.html inline_expr.md markdown.md markdown_code.md prose.txt",
+    "econ_module_sha256": "aa7edee95f4fce2dfcfbcd73d0cb11912b9cf0828d007ffa8ddcb93775da37e6",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "esm.mdx": {
+        "len": 142,
+        "sha256": "3eb7ee32f850efba60dac6481e8f623d438bddde69531265086ad119be6b5007"
+      },
+      "expr.mdx": {
+        "len": 107,
+        "sha256": "0019a6d67baf4aa2d4bb6c9e1891f52aa2cea7e06d193e5c16022d49d7f581ff"
+      },
+      "jsx.mdx": {
+        "len": 107,
+        "sha256": "ad5997bbecddf858d468227cc9aa5e4a3e39c3f750cd12b3491e390c3eb8710b"
+      },
+      "large.mdx": {
+        "len": 262192,
+        "sha256": "fa720854c9baa8161a64ae313cce377b062d518e0c324ea1120343f3e7512068"
+      },
+      "mixed.mdx": {
+        "len": 96,
+        "sha256": "c6dbbaa68f5abedf9de8df49cfe611b878c45140e87116a39f62a8ae7beac06c"
+      },
+      "surface.mdx": {
+        "len": 212,
+        "sha256": "efdeb01387b507f8fcbfa3664e929f7fb09a45cf4ee4f99c8d61446e129b5909"
+      }
+    },
+    "foreign_selector": "--adoc-heading 0 --kind structure",
+    "format": "mdx",
+    "generator_sha256": "3e42dc6707a96bfa4a874cd263ddf6831d405e5243cd73fbc52e3298a38859e2",
+    "lane_fixtures": "esm.mdx jsx.mdx expr.mdx mixed.mdx surface.mdx large.mdx",
+    "measured_commit": "f0a3a5cf98e82ef80152ec199e665838ea8287f2",
+    "own_selector": "--mdx-heading 0 --kind structure",
+    "phase": "21.26.3 \u2014 MDX economic court",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 4607,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-10-phase21-25-tabular-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-1-rst-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-2-asciidoc-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-3-mdx-econ-f0a3a5cf/ ?? tools/fixtures/make-asciidoc.py ?? tools/fixtures/make-mdx.py ?? tools/fixtures/make-rst.py ?? tools/fixtures/make-tabular.py ?? tools/phase21-25-tabular-econ-court.sh ?? tools/phase21-26-1-rst-econ-court.sh ?? tools/phase21-26-2-asciidoc-econ-court.sh ?? tools/phase21-26-3-mdx-econ-court.sh ",
+    "utc": "2026-10-11T02:48:35Z",
+    "vole_probe_sha256": "b7bbc014ffcff62eaf8cb37082f705848fdfa5baae06fae1870ab8246201a0e3",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "equal": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q10": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q11": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q12": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "capability-gap": 6
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "capability-gap": 6
+      }
+    },
+    "Q3": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q4": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "capability-gap": 6
+      }
+    },
+    "Q5": {
+      "conv": {
+        "equal": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q7": {
+      "conv": {
+        "equal": 6
+      },
+      "sqlite": {
+        "equal": 6
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "capability-gap": 6
+      }
+    },
+    "Q9": {
+      "conv": {
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "capability-gap": 6
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 2128); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 12,
+  "exact_ok": 12,
+  "fixtures": [
+    "esm.mdx",
+    "jsx.mdx",
+    "expr.mdx",
+    "mixed.mdx",
+    "surface.mdx",
+    "large.mdx"
+  ],
+  "format": "mdx",
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "measured_commit": "f0a3a5cf98e82ef80152ec199e665838ea8287f2",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native selectors (exact + structure)"
+  ],
+  "phase": "21.26.3 \u2014 MDX economic court",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 1.1953170032177642,
+        "geomean_hi": 1.2097352858651507,
+        "geomean_lo": 1.17596749696426,
+        "losses": 6,
+        "median": 1.2020210955297574,
+        "median_hi": 1.213467223880155,
+        "median_lo": 1.1710811808949395,
+        "n": 6,
+        "ratio_of_sums": 1.1962655017855108,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.9105978050085707,
+        "geomean_hi": 0.9387901931299256,
+        "geomean_lo": 0.8888722777313979,
+        "losses": 0,
+        "median": 0.9038318671374983,
+        "median_hi": 0.9476014326606399,
+        "median_lo": 0.8821552540779947,
+        "n": 6,
+        "ratio_of_sums": 0.913252962748899,
+        "ties": 3,
+        "wins": 3
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.033657054061557036,
+        "geomean_hi": 0.0451099659912278,
+        "geomean_lo": 0.028560017827102692,
+        "losses": 0,
+        "median": 0.029165637963235333,
+        "median_hi": 0.0500897143203705,
+        "median_lo": 0.02826713433432876,
+        "n": 6,
+        "ratio_of_sums": 0.03579913859511787,
+        "ties": 0,
+        "wins": 6
+      },
+      "sqlite": {
+        "geomean": 0.03172011203541738,
+        "geomean_hi": 0.04109703606556604,
+        "geomean_lo": 0.027326491202729928,
+        "losses": 0,
+        "median": 0.028734311746432088,
+        "median_hi": 0.04443045746155587,
+        "median_lo": 0.026649509792150593,
+        "n": 6,
+        "ratio_of_sums": 0.033709409420168555,
+        "ties": 0,
+        "wins": 6
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 6.197193194932061,
+        "geomean_hi": 10.27108713639938,
+        "geomean_lo": 2.7111376510638263,
+        "losses": 5,
+        "median": 9.93218691921789,
+        "median_hi": 10.469053776457208,
+        "median_lo": 3.4947944748068647,
+        "n": 6,
+        "ratio_of_sums": 0.88993315550985,
+        "ties": 0,
+        "wins": 1
+      },
+      "sqlite": {
+        "geomean": 0.5989963180830487,
+        "geomean_hi": 0.6076480626004397,
+        "geomean_lo": 0.5929447429880024,
+        "losses": 0,
+        "median": 0.5944185527376908,
+        "median_hi": 0.6105862403100775,
+        "median_lo": 0.5922111672394932,
+        "n": 6,
+        "ratio_of_sums": 0.5954139960308672,
+        "ties": 0,
+        "wins": 6
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 0.8359969021451441,
+        "geomean_hi": 1.048875853119752,
+        "geomean_lo": 0.5544891268246996,
+        "losses": 0,
+        "median": 1.0265486725663717,
+        "median_hi": 1.0604074074074075,
+        "median_lo": 0.6288245230143191,
+        "n": 6,
+        "ratio_of_sums": 0.3462992976769314,
+        "ties": 5,
+        "wins": 1
+      },
+      "sqlite": {
+        "geomean": 0.09308872879125538,
+        "geomean_hi": 0.12911322503814995,
+        "geomean_lo": 0.07656061361827655,
+        "losses": 0,
+        "median": 0.08081546885967855,
+        "median_hi": 0.14606282623962005,
+        "median_lo": 0.07566724000899494,
+        "n": 6,
+        "ratio_of_sums": 0.1605630980411803,
+        "ties": 0,
+        "wins": 6
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "service": "doc-baseline",
+  "surface": "ESM import/export statement spans; JSX elements and fragments with attributes and nested children (recorded as extents, never executed); MDX expressions inline/block/comment (brace-balanced); and the full Markdown surface",
+  "tree_state": "M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-10-phase21-25-tabular-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-1-rst-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-2-asciidoc-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-3-mdx-econ-f0a3a5cf/ ?? tools/fixtures/make-asciidoc.py ?? tools/fixtures/make-mdx.py ?? tools/fixtures/make-rst.py ?? tools/fixtures/make-tabular.py ?? tools/phase21-25-tabular-econ-court.sh ?? tools/phase21-26-1-rst-econ-court.sh ?? tools/phase21-26-2-asciidoc-econ-court.sh ?? tools/phase21-26-3-mdx-econ-court.sh",
+  "utc": "2026-10-11T02:48:36Z",
+  "verdict": "PASS"
+}

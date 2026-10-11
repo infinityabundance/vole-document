@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {}, "lane": "conv", "native": true, "q": "Q1", "value": "import config from \"./c\"\n\n# Expr\n\n{frontmatter.title}\n\n{/* a comment */}\n\nText with {inline.value} inside.\n"}

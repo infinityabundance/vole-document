@@ -1,0 +1,319 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-25-tabular-econ-f0a3a5cf",
+  "comparators": [
+    "sqlite",
+    "conv"
+  ],
+  "declines": "an out-of-range fixed-width record and an out-of-range cell decline typed (rc 6); a comma/tab table stays csv; a GFM pipe table stays markdown; variable-length prose and a single-space aligned blob stay Opaque (rc 6), never a panic",
+  "detection_boundary": "the pipe delimiter is tried after comma and tab and declined on a Markdown delimiter row; fixed-width requires >= 3 sampled records of identical byte width, >= 2 non-empty columns, and interior whitespace gaps >= 2 columns wide, and is declined on any source that also parses as a delimited or Markdown table",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "2dfe442532dbc8a38c2ab34274ca126483320c648a54c1700ac38569adbf9f63",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-10-phase21-25-tabular-econ-f0a3a5cf",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+    "controls": "comma.csv markdown.md prose.txt spaced.txt",
+    "econ_module_sha256": "aa7edee95f4fce2dfcfbcd73d0cb11912b9cf0828d007ffa8ddcb93775da37e6",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "fw-basic.fw": {
+        "len": 33,
+        "sha256": "313571e12c3d91d9366314b5f83c2567f6abcce697c1e02aa0cf11af1fa72cfa"
+      },
+      "fw-crlf.fw": {
+        "len": 36,
+        "sha256": "9ac0f4c573dbb665e91016e6e41c7fe5e16569d68d954f52d459f1acbc7c0324"
+      },
+      "fw-three.fw": {
+        "len": 42,
+        "sha256": "1bcdc6cc69f869478c666df05f95223a1f22b989f60de9d846a2383f1a34ab3a"
+      },
+      "large.fw": {
+        "len": 262164,
+        "sha256": "88c0ae695cf0bb04aa706e8ad219155425211e7dc49d49dd8ad7e6724ef281ef"
+      },
+      "large.psv": {
+        "len": 262148,
+        "sha256": "22278c4bc4cf33edd32c844f82176a6859b6451ba205f45ffb9ea754dd7b1723"
+      },
+      "psv-basic.psv": {
+        "len": 25,
+        "sha256": "c58306a03a9b5de0bf9a9cc6683e93e59ba839f7f9ca40b62dde46d8a67d1f14"
+      },
+      "psv-quotes.psv": {
+        "len": 30,
+        "sha256": "0172cf92e06e971bbd8aad33718c1fcec6e626b85a3d4cc62bf05a3052e93455"
+      }
+    },
+    "foreign_selector": "--rst-heading 0 --kind structure",
+    "format": "tabular",
+    "generator_sha256": "91c794bd0e55ebd992ff070c039324d1ed3c64394d00b05be8af4503fe8753c5",
+    "lane_fixtures": "psv-basic.psv psv-quotes.psv fw-basic.fw fw-three.fw fw-crlf.fw large.psv large.fw",
+    "measured_commit": "f0a3a5cf98e82ef80152ec199e665838ea8287f2",
+    "own_selector": "--fixedwidth-row 0 --kind structure",
+    "phase": "21.25 \u2014 PSV + fixed-width economic court",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 4288,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-10-phase21-25-tabular-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-1-rst-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-2-asciidoc-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-3-mdx-econ-f0a3a5cf/ ?? tools/fixtures/make-asciidoc.py ?? tools/fixtures/make-mdx.py ?? tools/fixtures/make-rst.py ?? tools/fixtures/make-tabular.py ?? tools/phase21-25-tabular-econ-court.sh ?? tools/phase21-26-1-rst-econ-court.sh ?? tools/phase21-26-2-asciidoc-econ-court.sh ?? tools/phase21-26-3-mdx-econ-court.sh ",
+    "utc": "2026-10-11T02:47:24Z",
+    "vole_probe_sha256": "b7bbc014ffcff62eaf8cb37082f705848fdfa5baae06fae1870ab8246201a0e3",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q10": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q11": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q12": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    },
+    "Q3": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q4": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q5": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q7": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    },
+    "Q9": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 2125); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 11,
+  "exact_ok": 11,
+  "fixtures": [
+    "psv-basic.psv",
+    "psv-quotes.psv",
+    "fw-basic.fw",
+    "fw-three.fw",
+    "fw-crlf.fw",
+    "large.psv",
+    "large.fw"
+  ],
+  "format": "tabular",
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "measured_commit": "f0a3a5cf98e82ef80152ec199e665838ea8287f2",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native selectors (exact + structure)"
+  ],
+  "phase": "21.25 \u2014 PSV + fixed-width economic court",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 1.1396654802564559,
+        "geomean_hi": 1.2215493905926482,
+        "geomean_lo": 1.0500758408776096,
+        "losses": 5,
+        "median": 1.1572982586756009,
+        "median_hi": 1.2427790341510891,
+        "median_lo": 1.0335492743657486,
+        "n": 7,
+        "ratio_of_sums": 1.1345656076483113,
+        "ties": 2,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.9385913012935332,
+        "geomean_hi": 1.016756171538099,
+        "geomean_lo": 0.8832315470895447,
+        "losses": 1,
+        "median": 0.9086209664472628,
+        "median_hi": 0.9705305893882122,
+        "median_lo": 0.8626217782710569,
+        "n": 7,
+        "ratio_of_sums": 0.9475762515363627,
+        "ties": 3,
+        "wins": 3
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.03648040493924964,
+        "geomean_hi": 0.05122647969207751,
+        "geomean_lo": 0.027542181667901247,
+        "losses": 0,
+        "median": 0.02798534574407061,
+        "median_hi": 0.06566119252417736,
+        "median_lo": 0.02757486368105837,
+        "n": 7,
+        "ratio_of_sums": 0.04118699082089481,
+        "ties": 0,
+        "wins": 7
+      },
+      "sqlite": {
+        "geomean": 0.034458081954612474,
+        "geomean_hi": 0.04824603813930891,
+        "geomean_lo": 0.026111093547239637,
+        "losses": 0,
+        "median": 0.026904633053726586,
+        "median_hi": 0.06077783753641886,
+        "median_lo": 0.025875287288832222,
+        "n": 7,
+        "ratio_of_sums": 0.038889099707804985,
+        "ties": 0,
+        "wins": 7
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 8.651972408744179,
+        "geomean_hi": 21.820688986176787,
+        "geomean_lo": 3.2338851491514435,
+        "losses": 5,
+        "median": 21.800904977375566,
+        "median_hi": 21.83710407239819,
+        "median_lo": 1.0035240586230376,
+        "n": 7,
+        "ratio_of_sums": 0.9013881311248735,
+        "ties": 1,
+        "wins": 1
+      },
+      "sqlite": {
+        "geomean": 0.5901581186540164,
+        "geomean_hi": 0.6161032252116508,
+        "geomean_lo": 0.5736272887092398,
+        "losses": 0,
+        "median": 0.5831517792302106,
+        "median_hi": 0.5853304284676834,
+        "median_lo": 0.5777616279069767,
+        "n": 7,
+        "ratio_of_sums": 0.6085828819263231,
+        "ties": 0,
+        "wins": 7
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 0.5553393186593816,
+        "geomean_hi": 0.7563127402251145,
+        "geomean_lo": 0.3643988652241787,
+        "losses": 0,
+        "median": 0.7368421052631579,
+        "median_hi": 0.7619047619047619,
+        "median_lo": 0.3864889188885139,
+        "n": 7,
+        "ratio_of_sums": 0.2988110803661021,
+        "ties": 0,
+        "wins": 7
+      },
+      "sqlite": {
+        "geomean": 0.08104122536513719,
+        "geomean_hi": 0.13280641271350047,
+        "geomean_lo": 0.05565390780509771,
+        "losses": 0,
+        "median": 0.0572463768115942,
+        "median_hi": 0.13225286998078023,
+        "median_lo": 0.05414438502673797,
+        "n": 7,
+        "ratio_of_sums": 0.20171189293484953,
+        "ties": 0,
+        "wins": 7
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "service": "doc-baseline",
+  "surface": "PSV is the CSV adapter third recorded delimiter (pipe), preserving exact record/field spans, original quoting, and ragged rows; the fixed-width adapter exposes the inferred per-column start/end positions and widths, the uniform record width, every record exact content span, and every field exact padded bytes",
+  "tree_state": "M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-10-phase21-25-tabular-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-1-rst-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-2-asciidoc-econ-f0a3a5cf/ ?? evidence/campaigns/2026-10-10-phase21-26-3-mdx-econ-f0a3a5cf/ ?? tools/fixtures/make-asciidoc.py ?? tools/fixtures/make-mdx.py ?? tools/fixtures/make-rst.py ?? tools/fixtures/make-tabular.py ?? tools/phase21-25-tabular-econ-court.sh ?? tools/phase21-26-1-rst-econ-court.sh ?? tools/phase21-26-2-asciidoc-econ-court.sh ?? tools/phase21-26-3-mdx-econ-court.sh",
+  "utc": "2026-10-11T02:47:24Z",
+  "verdict": "PASS"
+}

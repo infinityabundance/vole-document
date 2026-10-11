@@ -153,6 +153,46 @@ def probes_for(fmt, q, plan):
             return [(["--metadata"], "metadata")]
         if q == "Q12":
             return [(["--metadata"], "metadata")]
+    if fmt == "tabular":
+        kind = plan["kind"]
+        row = str(plan["row"])
+        col = str(plan["col"])
+        cell = "--csv-cell" if kind == "csv" else "--fixedwidth-cell"
+        rowsel = "--csv-row" if kind == "csv" else "--fixedwidth-row"
+        find = "--csv-find" if kind == "csv" else "--fixedwidth-find"
+        header = "--csv-header" if kind == "csv" else "--fixedwidth-header"
+        if q in ("Q1", "Q2"):
+            return [([cell, row + ":" + col], "text")]
+        if q in ("Q3", "Q5"):
+            return [([rowsel, row], "structure")]
+        if q in ("Q4", "Q11"):
+            return [(["--metadata"], "metadata")]
+        if q == "Q7":
+            return [([find, plan["find_pat"]], "text")]
+        if q == "Q8":
+            return [([cell, row + ":0"], "exact")]
+        if q == "Q9":
+            return [([rowsel, row], "exact")]
+        if q == "Q10":
+            return [([header], "metadata")]
+        if q == "Q12":
+            if kind == "fixedwidth":
+                return [(["--fixedwidth-columns"], "text")]
+            return [([rowsel, row], "structure")]
+    if fmt in ("rst", "asciidoc", "mdx"):
+        pfx = {"rst": "rst", "asciidoc": "adoc", "mdx": "mdx"}[fmt]
+        if q == "Q1":
+            return [(["--doc-text"], "text")]
+        if q in ("Q2", "Q9"):
+            return [(["--%s-heading" % pfx, str(plan["heading"])], "metadata")]
+        if q in ("Q3", "Q4", "Q10", "Q11", "Q12"):
+            return [(["--metadata"], "metadata")]
+        if q == "Q5":
+            return [(["--%s-block" % pfx, str(plan["block"])], "text")]
+        if q == "Q7":
+            return [(["--%s-find" % pfx, plan["find_pat"]], "text")]
+        if q == "Q8":
+            return [(["--%s-block" % pfx, str(plan["block"])], "exact")]
     return []
 
 
@@ -328,6 +368,70 @@ def answer(fmt, q, plan, answers, rcs):
                 return envelope(q, v.get("nbformat"))
             if q == "Q12":
                 return envelope(q, v.get("nbformat_minor"))
+        if fmt == "tabular":
+            if q == "Q1":
+                return envelope(q, a.get("text"))
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q3":
+                return envelope(q, v.get("columns"))
+            if q == "Q4":
+                return envelope(q, v.get("rows"))
+            if q == "Q5":
+                return envelope(q, [f.get("text") for f in (v.get("fields") or [])])
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, [[str(m.get("record")), str(m.get("column")),
+                                     m.get("text")] for m in ms])
+            if q in ("Q8", "Q9"):
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q10":
+                return envelope(q, v.get("names"))
+            if q == "Q11":
+                if plan["kind"] == "csv":
+                    return envelope(q, v.get("delimiter"))
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                if plan["kind"] == "fixedwidth":
+                    return envelope(q, a.get("text"))
+                return envelope(q, [[f.get("column"), f.get("quoted")]
+                                    for f in (v.get("fields") or [])])
+        if fmt in ("rst", "asciidoc", "mdx"):
+            if q == "Q1":
+                return envelope(q, a.get("text"))
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q3":
+                key = {"rst": "titles", "asciidoc": "sections",
+                       "mdx": "headings"}[fmt]
+                return envelope(q, v.get(key))
+            if q == "Q4":
+                return envelope(q, v.get("list_items"))
+            if q == "Q5":
+                return envelope(q, a.get("text"))
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, [m.get("text") for m in ms])
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q9":
+                if fmt == "rst":
+                    return envelope(q, {"adornment": v.get("adornment"),
+                                        "level": v.get("level")})
+                if fmt == "asciidoc":
+                    return envelope(q, {"marker": v.get("marker"),
+                                        "document_title": v.get("document_title")})
+                return envelope(q, v.get("level"))
+            if q == "Q10":
+                key = {"rst": "directives", "asciidoc": "attributes",
+                       "mdx": "esm"}[fmt]
+                return envelope(q, v.get(key))
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, v.get("inline_spans"))
     except (KeyError, TypeError, ValueError) as e:
         return envelope(q, declined=True, code="extract-error", reason=str(e))
     return envelope(q, declined=True, code="unknown-question", reason=q)

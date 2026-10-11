@@ -1,0 +1,77 @@
+# Phase 21.26.2 — AsciiDoc economic court — asciidoc economic court
+
+**Question.** Against two conventional comparators — a source-retaining store that keeps the raw bytes plus a conventional extraction, and a conventional decode-to-host-values load — on contract-equivalent terms, can VOLE answer the same question family (Q1–Q12) it can answer, while closing the original asciidoc byte-exactly, and does it add value by **preserving representation** (source spans, exact spelling, attribute/quote/continuation markers, duplicate keys, member order)?
+
+Corpus: **7 fixtures**; lanes **vole, sqlite, conv**; questions **Q1–Q12**; bootstrap **10000 resamples, seed 2127**, cluster-resampled by fixture; tie band **+/-10%**.
+
+VOLE lane: **release** profile (`target/release/vole-document`); substrate: **--profile runtime --packed**.
+
+## Verdict
+
+- **VOLE exactness (Q6): 11/11 byte-exact** (length + SHA-256 + `cmp`, after source + descriptor deletion in a fresh process).
+- **COURT VERDICT: PASS**.
+
+## Build + storage (per lane, per fixture)
+
+Time columns are **microseconds (`us`)**.
+
+| fixture | src B | vole build us | sqlite build us | conv build us | vole B | sqlite B | conv B |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| basic.adoc | 188 | 27953 | 30647 | 22287 | 5083 | 8261 | 680 |
+| attributes.adoc | 83 | 27383 | 27795 | 21375 | 4871 | 8260 | 377 |
+| delimited.adoc | 273 | 27348 | 29037 | 21599 | 5253 | 8261 | 1008 |
+| lists.adoc | 135 | 27843 | 31440 | 24027 | 4977 | 8261 | 581 |
+| tables.adoc | 91 | 28485 | 31130 | 23695 | 4887 | 8260 | 405 |
+| inline.adoc | 251 | 28073 | 31824 | 24013 | 5209 | 8261 | 712 |
+| large.adoc | 262165 | 42377 | 38436 | 30650 | 529046 | 888904 | 619493 |
+
+`build us` is the best-of-N (min) of the retained repetitions.
+
+## Paired ratios VOLE/comparator (median + geometric mean, 95% CI by fixture)
+
+| metric | comparator | n | median | geomean | median 95% CI | geomean 95% CI | wins | ties | losses | ratio of sums |
+|---|---|---:|---:|---:|---|---|---:|---:|---:|---:|
+| build | sqlite | 7 | 0.915 | 0.944 | 0.886..0.985 | 0.901..1.001 | 2 | 4 | 1 | 0.951 |
+| build | conv | 7 | 1.254 | 1.243 | 1.169..1.281 | 1.195..1.299 | 0 | 0 | 7 | 1.249 |
+| storage | sqlite | 7 | 0.602 | 0.608 | 0.592..0.631 | 0.596..0.622 | 7 | 0 | 0 | 0.596 |
+| storage | conv | 7 | 7.475 | 6.129 | 5.211..12.067 | 3.050..10.157 | 1 | 0 | 6 | 0.897 |
+| cold | sqlite | 7 | 0.028 | 0.030 | 0.025..0.029 | 0.026..0.038 | 7 | 0 | 0 | 0.032 |
+| cold | conv | 7 | 0.030 | 0.032 | 0.027..0.030 | 0.028..0.041 | 7 | 0 | 0 | 0.034 |
+| warm | sqlite | 7 | 0.086 | 0.097 | 0.079..0.091 | 0.080..0.130 | 7 | 0 | 0 | 0.168 |
+| warm | conv | 7 | 1.069 | 0.907 | 1.035..1.097 | 0.629..1.113 | 1 | 5 | 1 | 0.364 |
+
+A ratio < 1 favours VOLE. The estimator is the **paired per-fixture ratio**, summarised by the median and geometric mean with a fixed-seed cluster bootstrap over fixtures; `ratio of sums` is reported separately and named as such. Each per-fixture lane cost is the **minimum over the retained repetitions** (best-of-N); storage is measured once after the last build. Every raw sample is kept in `raw/build.tsv`, `raw/storage.tsv`, `raw/cold.tsv`, `raw/warm.tsv`.
+
+## Per-lane totals (sum over fixtures; times in microseconds `us`)
+
+| lane | build us | storage B | cold us | warm us |
+|---|---:|---:|---:|---:|
+| vole | 209462 | 559326 | 63730 | 3562 |
+| sqlite | 220309 | 938468 | 1989043 | 21201 |
+| conv | 167646 | 623256 | 1861216 | 9787 |
+
+## What each lane derives and what it declines
+
+| Q | VOLE | source-retaining baseline | conventional load |
+|---|---|---|---|
+| Q1 | the whole canonical document text | line-based re-read | line-based prose load |
+| Q2 | a section heading's exact source span | no source span -> typed decline | no source span -> typed decline |
+| Q3 | the section count | stored section count | no typed structure -> typed decline |
+| Q4 | the list-item count | no typed list model -> typed decline | no typed list model -> typed decline |
+| Q5 | the first block's content text | extracted first block | line-based first block |
+| Q6 | `materialize --exact` (byte authority) | retained raw BLOB (byte authority) | no source bytes -> typed decline |
+| Q7 | `adoc-find` over block content (with spans) | scan over extracted blocks (no spans) | scan over prose blocks (no spans) |
+| Q8 | a block's exact source bytes | no source bytes -> typed decline | no source bytes -> typed decline |
+| Q9 | a heading's exact `=` marker (document-title flag) | marker stripped -> typed decline | marker stripped -> typed decline |
+| Q10 | the document-attribute count | stored attribute count | no typed structure -> typed decline |
+| Q11 | the recorded format (asciidoc) | stored format | format not recorded -> typed decline |
+| Q12 | the inline-span count | no inline model -> typed decline | no inline model -> typed decline |
+
+## Scope (honest)
+
+- **Self-authored deterministic corpus, NOT a real-world population.** The fixtures are generated by `tools/fixtures/make-asciidoc.py` (Python stdlib only). Every claim is scoped to these files.
+- **Only Q6 is a byte-authority claim.**
+- **The conventional load is deliberately the weaker comparator.** It drops spans, exact spelling, duplicate keys, and member/attribute order; a span-preserving loader could in principle match VOLE on those, and no claim is made against one.
+- **VOLE capability gaps are recorded, never papered over** — any question VOLE declines is shown as a `capability-gap`.
+- **Nothing here is run on the host**; every command ran in a pinned container.
+

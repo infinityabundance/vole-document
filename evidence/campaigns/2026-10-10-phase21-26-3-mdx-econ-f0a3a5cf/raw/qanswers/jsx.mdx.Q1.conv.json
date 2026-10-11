@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {}, "lane": "conv", "native": true, "q": "Q1", "value": "# JSX\n\n<Widget name=\"w\" count={3}>\n  <Item.Child />\n  {value}\n</Widget>\n\n<>\nfrag\n</>\n\nA closing paragraph.\n"}

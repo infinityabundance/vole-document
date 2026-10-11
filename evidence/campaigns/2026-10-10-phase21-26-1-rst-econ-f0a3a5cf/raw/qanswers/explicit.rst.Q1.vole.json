@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {}, "lane": "vole", "native": true, "q": "Q1", "value": "Explicit\n========\n\n.. a comment line\n\n.. _tgt: https://example.org\n\n.. note:: directive body\n\n.. [1] footnote body\n\n.. |sub| replace:: replacement\n\nbody text.\n"}

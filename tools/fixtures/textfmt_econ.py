@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-# Phase 21.20-21.24 (economic courts) — SHARED engine for the five text-family
-# courts (CONFIG / FEED / GEOJSON / GIS / NOTEBOOK). One module, parameterised by
-# `--format`, so the five courts cannot drift apart. Runs on Python stdlib only
-# (the pinned `doc-baseline` service; no third-party module, no network).
+# Phase 21.20-21.26 (economic courts) — SHARED engine for the nine text-family
+# courts (CONFIG / FEED / GEOJSON / GIS / NOTEBOOK / TABULAR / RST / ASCIIDOC /
+# MDX). One module, parameterised by `--format`, so the courts cannot drift
+# apart. Runs on Python stdlib only (the pinned `doc-baseline` service; no
+# third-party module, no network).
 #
 # Two conventional comparators per format:
 #
@@ -12,11 +13,14 @@
 #     It preserves whatever the extraction preserves (duplicate keys where the
 #     source text is retained, dialect, counts, values, kinds); it exposes **no**
 #     exact source span, token spelling, attribute span, or native representation.
-#   * `conv`   — a **conventional decode-to-host-values** load: `configparser`-style
-#     for config, `xml.etree.ElementTree` for feed/gis, `json` for geojson/notebook.
-#     It keeps only a derived host-value view: it drops the source bytes, every
-#     source offset, exact spelling, duplicate keys, member/attribute order, and the
-#     recorded dialect, so it must decline typed on all of those.
+#   * `conv`   — a **conventional decode-to-host-values** load:
+#     `configparser`-style for config, `xml.etree.ElementTree` for feed/gis,
+#     `json` for geojson/notebook, a `csv`-module load (right delimiter) or a
+#     manual fixed-width split for tabular, and a **line-based prose load**
+#     (blank-line blocks, no typed structure) for rst/asciidoc/mdx. It keeps only a
+#     derived host-value view: it drops the source bytes, every source offset, exact
+#     spelling, duplicate keys, member/attribute order, adornments/markers, and the
+#     recorded dialect/format, so it must decline typed on all of those.
 #
 #   plan      --format F
 #   build     --format F --lane sqlite|conv --source FILE --out DIR
@@ -27,7 +31,9 @@
 #   aggregate --format F --raw DIR --campaign DIR --env ENV_JSON
 
 import argparse
+import csv
 import hashlib
+import io
 import json
 import math
 import os
@@ -40,7 +46,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-FORMATS = ["config", "feed", "geojson", "gis", "notebook"]
+FORMATS = ["config", "feed", "geojson", "gis", "notebook",
+           "tabular", "rst", "asciidoc", "mdx"]
 
 
 def sha256_hex(b):
@@ -91,6 +98,14 @@ LANE_FIXTURES = {
             "routes.gpx", "large.kml"],
     "notebook": ["basic.ipynb", "string-src.ipynb", "lines-src.ipynb",
                  "outputs.ipynb", "raw.ipynb", "dupkeys.ipynb", "large.ipynb"],
+    "tabular": ["psv-basic.psv", "psv-quotes.psv", "fw-basic.fw", "fw-three.fw",
+                "fw-crlf.fw", "large.psv", "large.fw"],
+    "rst": ["basic.rst", "explicit.rst", "lists.rst", "tables.rst",
+            "inline.rst", "literal.rst", "large.rst"],
+    "asciidoc": ["basic.adoc", "attributes.adoc", "delimited.adoc", "lists.adoc",
+                 "tables.adoc", "inline.adoc", "large.adoc"],
+    "mdx": ["esm.mdx", "jsx.mdx", "expr.mdx", "mixed.mdx", "surface.mdx",
+            "large.mdx"],
 }
 
 # Controls -> the format class each MUST receive (checked at court time).
@@ -106,6 +121,14 @@ CONTROLS = {
             "malformed.kml": "opaque"},
     "notebook": {"notnotebook.json": "json", "missing-nbformat.json": "json",
                  "malformed.ipynb": "opaque", "prose.txt": "opaque"},
+    "tabular": {"comma.csv": "csv", "markdown.md": "markdown",
+                "prose.txt": "opaque", "spaced.txt": "opaque"},
+    "rst": {"prose.txt": "opaque", "markdown.md": "markdown"},
+    "asciidoc": {"prose.txt": "opaque", "markdown.md": "markdown",
+                 "rest.rst": "rst", "spaced.adoc": "rst"},
+    "mdx": {"prose.txt": "opaque", "markdown.md": "markdown",
+            "markdown_code.md": "markdown", "inline_expr.md": "markdown",
+            "html.html": "html", "braces.txt": "opaque"},
 }
 
 # The per-format plan (FROZEN). Slots are named per format; see the qdescs.
@@ -198,6 +221,43 @@ PLANS = {
         "raw.ipynb": {"cell": 0, "out_cell": 0, "out_idx": 0, "find_pat": "raw"},
         "dupkeys.ipynb": {"cell": 0, "out_cell": 0, "out_idx": 0, "find_pat": "dup"},
         "large.ipynb": {"cell": 5, "out_cell": 0, "out_idx": 0, "find_pat": "v5"},
+    },
+    "tabular": {
+        "psv-basic.psv": {"kind": "csv", "row": 1, "col": 1, "find_pat": "a"},
+        "psv-quotes.psv": {"kind": "csv", "row": 1, "col": 0, "find_pat": "x"},
+        "fw-basic.fw": {"kind": "fixedwidth", "row": 1, "col": 1, "find_pat": "A"},
+        "fw-three.fw": {"kind": "fixedwidth", "row": 1, "col": 2, "find_pat": "B"},
+        "fw-crlf.fw": {"kind": "fixedwidth", "row": 1, "col": 0,
+                       "find_pat": "Alice"},
+        "large.psv": {"kind": "csv", "row": 1, "col": 1, "find_pat": "name1"},
+        "large.fw": {"kind": "fixedwidth", "row": 1, "col": 1,
+                     "find_pat": "b1"},
+    },
+    "rst": {
+        "basic.rst": {"heading": 1, "block": 0, "find_pat": "body"},
+        "explicit.rst": {"heading": 0, "block": 0, "find_pat": "text."},
+        "lists.rst": {"heading": 0, "block": 0, "find_pat": "closing"},
+        "tables.rst": {"heading": 0, "block": 0, "find_pat": "closing"},
+        "inline.rst": {"heading": 0, "block": 0, "find_pat": "strong"},
+        "literal.rst": {"heading": 0, "block": 0, "find_pat": "paragraph"},
+        "large.rst": {"heading": 1, "block": 0, "find_pat": "number 7 carries"},
+    },
+    "asciidoc": {
+        "basic.adoc": {"heading": 1, "block": 0, "find_pat": "body"},
+        "attributes.adoc": {"heading": 0, "block": 0, "find_pat": "literal"},
+        "delimited.adoc": {"heading": 0, "block": 0, "find_pat": "closing"},
+        "lists.adoc": {"heading": 0, "block": 0, "find_pat": "closing"},
+        "tables.adoc": {"heading": 0, "block": 0, "find_pat": "closing"},
+        "inline.adoc": {"heading": 0, "block": 0, "find_pat": "strong"},
+        "large.adoc": {"heading": 1, "block": 0, "find_pat": "numbered 7 "},
+    },
+    "mdx": {
+        "esm.mdx": {"heading": 0, "block": 0, "find_pat": "paragraph"},
+        "jsx.mdx": {"heading": 0, "block": 0, "find_pat": "closing"},
+        "expr.mdx": {"heading": 0, "block": 0, "find_pat": "inline"},
+        "mixed.mdx": {"heading": 0, "block": 0, "find_pat": "before"},
+        "surface.mdx": {"heading": 0, "block": 0, "find_pat": "emphasis"},
+        "large.mdx": {"heading": 1, "block": 0, "find_pat": "numbered 7 "},
     },
 }
 
@@ -316,6 +376,102 @@ QDESC = {
         "Q11": ("the `nbformat` major", "`json_extract` nbformat", "host nbformat"),
         "Q12": ("the `nbformat_minor`", "`json_extract` nbformat_minor",
                 "host nbformat_minor"),
+    },
+    "tabular": {
+        "Q1": ("a decoded cell's text", "extracted cell text", "host cell text"),
+        "Q2": ("a cell's exact source span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("a record's column count", "extracted column count", "host column count"),
+        "Q4": ("the table's record count", "extracted row count", "host row count"),
+        "Q5": ("a record descriptor (ordered cell texts)", "extracted record",
+               "host record"),
+        "Q7": ("`tabular-find` over cell text (with spans)",
+               "scan over extracted cells (no spans)", "scan over host cells (no spans)"),
+        "Q8": ("a cell's exact padded/raw bytes", "re-decoded -> typed decline",
+               "host value -> typed decline"),
+        "Q9": ("a record's exact content bytes", "no source bytes -> typed decline",
+               "host value -> typed decline"),
+        "Q10": ("the header row's cell names (ordered)", "extracted header names",
+                "host header names"),
+        "Q11": ("the recorded dialect (pipe vs fixedwidth)", "stored dialect",
+                "dialect not recorded -> typed decline"),
+        "Q12": ("the recovered column layout / per-cell quoting spelling",
+                "no layout/spelling -> typed decline", "no layout/spelling -> typed decline"),
+    },
+    "rst": {
+        "Q1": ("the whole canonical document text", "line-based re-read",
+               "line-based prose load"),
+        "Q2": ("a section title's exact source span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("the section-title count (titles)", "stored title count",
+               "no typed structure -> typed decline"),
+        "Q4": ("the list-item count", "no typed list model -> typed decline",
+               "no typed list model -> typed decline"),
+        "Q5": ("the first block's content text", "extracted first block",
+               "line-based first block"),
+        "Q7": ("`rst-find` over block content (with spans)",
+               "scan over extracted blocks (no spans)",
+               "scan over prose blocks (no spans)"),
+        "Q8": ("a block's exact source bytes", "no source bytes -> typed decline",
+               "no source bytes -> typed decline"),
+        "Q9": ("a title's exact adornment", "adornment stripped -> typed decline",
+               "adornment stripped -> typed decline"),
+        "Q10": ("the directive count", "stored directive count",
+                "no typed structure -> typed decline"),
+        "Q11": ("the recorded format (rst)", "stored format",
+                "format not recorded -> typed decline"),
+        "Q12": ("the inline-span count", "no inline model -> typed decline",
+                "no inline model -> typed decline"),
+    },
+    "asciidoc": {
+        "Q1": ("the whole canonical document text", "line-based re-read",
+               "line-based prose load"),
+        "Q2": ("a section heading's exact source span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("the section count", "stored section count",
+               "no typed structure -> typed decline"),
+        "Q4": ("the list-item count", "no typed list model -> typed decline",
+               "no typed list model -> typed decline"),
+        "Q5": ("the first block's content text", "extracted first block",
+               "line-based first block"),
+        "Q7": ("`adoc-find` over block content (with spans)",
+               "scan over extracted blocks (no spans)",
+               "scan over prose blocks (no spans)"),
+        "Q8": ("a block's exact source bytes", "no source bytes -> typed decline",
+               "no source bytes -> typed decline"),
+        "Q9": ("a heading's exact `=` marker (document-title flag)",
+               "marker stripped -> typed decline", "marker stripped -> typed decline"),
+        "Q10": ("the document-attribute count", "stored attribute count",
+                "no typed structure -> typed decline"),
+        "Q11": ("the recorded format (asciidoc)", "stored format",
+                "format not recorded -> typed decline"),
+        "Q12": ("the inline-span count", "no inline model -> typed decline",
+                "no inline model -> typed decline"),
+    },
+    "mdx": {
+        "Q1": ("the whole canonical document text", "line-based re-read",
+               "line-based prose load"),
+        "Q2": ("a heading's exact source span", "no source span -> typed decline",
+               "no source span -> typed decline"),
+        "Q3": ("the ATX heading count", "stored heading count",
+               "no typed structure -> typed decline"),
+        "Q4": ("the list-item count", "no typed list model -> typed decline",
+               "no typed list model -> typed decline"),
+        "Q5": ("the first block's content text", "extracted first block",
+               "line-based first block"),
+        "Q7": ("`mdx-find` over block content (with spans)",
+               "scan over extracted blocks (no spans)",
+               "scan over prose blocks (no spans)"),
+        "Q8": ("a block's exact source bytes", "no source bytes -> typed decline",
+               "no source bytes -> typed decline"),
+        "Q9": ("a heading's ATX level", "level not derived -> typed decline",
+               "level not derived -> typed decline"),
+        "Q10": ("the ESM statement count", "stored ESM count",
+                "no typed structure -> typed decline"),
+        "Q11": ("the recorded format (mdx)", "stored format",
+                "format not recorded -> typed decline"),
+        "Q12": ("the inline-span count", "no inline model -> typed decline",
+                "no inline model -> typed decline"),
     },
 }
 
@@ -577,6 +733,213 @@ def _gis_model(text, lname):
 
 
 # ===========================================================================
+# Phase 21.25-21.26 conventional extraction (tabular + prose families)
+# ===========================================================================
+
+TAB_DIALECTS = {".psv": ("pipe", "|"), ".tsv": ("tab", "\t"),
+                ".csv": ("comma", ",")}
+
+
+def _tab_dialect(name):
+    low = name.lower()
+    for ext, pair in TAB_DIALECTS.items():
+        if low.endswith(ext):
+            return pair
+    return TAB_DIALECTS[".csv"]
+
+
+def _fw_split(line):
+    """Split a fixed-width record into trimmed cells on 2+-space gaps.
+
+    The record is right-padded to the uniform width, so trailing padding must be
+    stripped before splitting (otherwise it yields a spurious empty cell).
+    """
+    return [c.strip() for c in re.split(r"  +", line.rstrip())]
+
+
+def _tab_model(raw, kind, name):
+    text = raw.decode("utf-8", "replace")
+    canon = text.replace("\r\n", "\n").replace("\r", "\n")
+    lines = canon.split("\n")
+    if lines and lines[-1] == "":
+        lines = lines[:-1]
+    if kind == "csv":
+        dname, dchar = _tab_dialect(name)
+        records = list(csv.reader(io.StringIO(canon), delimiter=dchar))
+        fmt = dname
+    else:
+        records = [_fw_split(ln) for ln in lines]
+        fmt = "fixedwidth"
+    return {"kind": kind, "format": fmt, "text": canon, "records": records,
+            "rows": len(records), "header": records[0] if records else []}
+
+
+def _prose_block(group, fmt):
+    first = group[0]
+    if fmt == "rst":
+        if len(group) >= 2:
+            a = group[1].strip()
+            if len(a) >= 3 and set(a) == {a[0]} and a[0] in "=~`:'\"^-_*+#<>":
+                return {"kind": "title", "text": first.strip()}
+    elif fmt == "asciidoc":
+        m = re.match(r"^(=+)\s+(.*)$", first)
+        if m:
+            kind = "doc-title" if len(m.group(1)) == 1 else "section"
+            return {"kind": kind, "text": m.group(2).strip()}
+    elif fmt == "mdx":
+        m = re.match(r"^(#{1,6})\s+(.*)$", first)
+        if m:
+            return {"kind": "heading", "text": m.group(2).strip()}
+    if re.match(r"^\s*([-*+]|\d+[.)])\s+", first):
+        return {"kind": "list-item",
+                "text": re.sub(r"^\s*([-*+]|\d+[.)])\s+", "", first).strip()}
+    return {"kind": "paragraph", "text": "\n".join(group)}
+
+
+def _prose_blocks(canon, fmt):
+    lines = canon.split("\n")
+    if lines and lines[-1] == "":
+        lines = lines[:-1]
+    groups = []
+    cur = []
+    for ln in lines:
+        if ln.strip() == "":
+            if cur:
+                groups.append(cur)
+                cur = []
+        else:
+            cur.append(ln)
+    if cur:
+        groups.append(cur)
+    return [_prose_block(g, fmt) for g in groups]
+
+
+def _prose_model(raw, fmt):
+    text = raw.decode("utf-8", "replace")
+    canon = text.replace("\r\n", "\n").replace("\r", "\n")
+    blocks = _prose_blocks(canon, fmt)
+    if fmt == "rst":
+        heads = [b["text"] for b in blocks if b["kind"] == "title"]
+        directives = sum(1 for ln in canon.split("\n")
+                         if re.match(r"^\.\.\s+\S+::", ln))
+        count = len(heads)
+    elif fmt == "asciidoc":
+        allh = [b["text"] for b in blocks if b["kind"] in ("doc-title", "section")]
+        heads = [b["text"] for b in blocks if b["kind"] == "section"]
+        directives = sum(1 for ln in canon.split("\n")
+                         if re.match(r"^:[^:\s][^:]*:", ln))
+        count = len(heads)
+    else:  # mdx
+        heads = [b["text"] for b in blocks if b["kind"] == "heading"]
+        directives = sum(1 for ln in canon.split("\n")
+                         if re.match(r"^(import|export)\b", ln))
+        count = len(heads)
+    return {"format": fmt, "text": canon, "blocks": blocks, "headings": heads,
+            "counts": {"headings": count, "directives": directives}}
+
+
+def _read_cmodel(lane, d):
+    if lane == "sqlite":
+        _, model = _read_sqlite(d)
+        return model
+    with open(os.path.join(d, "model.json")) as f:
+        return json.load(f)
+
+
+def _q_tabular(lane, d, q, plan):
+    model = _read_cmodel(lane, d)
+    recs = model.get("records") or []
+    row = plan.get("row", 1)
+    col = plan.get("col", 1)
+    if q == "Q1":
+        if row < len(recs) and col < len(recs[row]):
+            return _laneless(q, recs[row][col])
+        return decl(q, "missing", "no such cell")
+    if q == "Q2":
+        return decl(q, "no-source-span", "a conventional table load keeps no source span")
+    if q == "Q3":
+        if row < len(recs):
+            return _laneless(q, len(recs[row]))
+        return decl(q, "missing", "no such record")
+    if q == "Q4":
+        return _laneless(q, len(recs))
+    if q == "Q5":
+        if row < len(recs):
+            return _laneless(q, list(recs[row]))
+        return decl(q, "missing", "no such record")
+    if q == "Q7":
+        pat = plan["find_pat"]
+        out = []
+        for ri, r in enumerate(recs):
+            for ci, c in enumerate(r):
+                if pat in c:
+                    out.append([_s(ri), _s(ci), c])
+        return _laneless(q, out)
+    if q == "Q8":
+        return decl(q, "no-source-bytes", "a conventional table load keeps no source bytes")
+    if q == "Q9":
+        return decl(q, "no-source-bytes", "a conventional table load keeps no source bytes")
+    if q == "Q10":
+        return _laneless(q, list(model.get("header") or []))
+    if q == "Q11":
+        fmt = model.get("format")
+        if lane == "conv" or fmt is None:
+            return decl(q, "dialect-not-recorded",
+                        "a conventional table load records no dialect")
+        return _laneless(q, fmt)
+    if q == "Q12":
+        return decl(q, "no-layout-spelling",
+                    "a conventional table load keeps no column layout or quoting spelling")
+    return decl(q, "unknown-question", q)
+
+
+def _q_prose(lane, d, q, plan):
+    model = _read_cmodel(lane, d)
+    blocks = model.get("blocks") or []
+    if q == "Q1":
+        return _laneless(q, model.get("text"))
+    if q == "Q2":
+        return decl(q, "no-source-span",
+                    "a prose load re-flows and keeps no exact source span")
+    if q == "Q3":
+        c = model.get("counts")
+        if not c:
+            return decl(q, "no-typed-structure",
+                        "a line-based prose load derives no typed heading count")
+        return _laneless(q, c.get("headings"))
+    if q == "Q4":
+        return decl(q, "no-typed-list-model",
+                    "a line-based prose load builds no list model")
+    if q == "Q5":
+        if blocks:
+            return _laneless(q, blocks[0]["text"])
+        return decl(q, "missing", "no blocks")
+    if q == "Q7":
+        pat = plan["find_pat"]
+        return _laneless(q, [b["text"] for b in blocks if pat in b["text"]])
+    if q == "Q8":
+        return decl(q, "no-source-bytes", "a prose load keeps no exact source bytes")
+    if q == "Q9":
+        return decl(q, "no-adornment",
+                    "a line-based prose load strips and forgets adornment/delimiters")
+    if q == "Q10":
+        c = model.get("counts")
+        if not c:
+            return decl(q, "no-typed-structure",
+                        "a line-based prose load derives no typed structure count")
+        return _laneless(q, c.get("directives"))
+    if q == "Q11":
+        fmt = model.get("format")
+        if fmt is None:
+            return decl(q, "format-not-recorded", "a prose load records no format")
+        return _laneless(q, fmt)
+    if q == "Q12":
+        return decl(q, "no-inline-model",
+                    "a line-based prose load builds no inline model")
+    return decl(q, "unknown-question", q)
+
+
+# ===========================================================================
 # Build
 # ===========================================================================
 
@@ -607,6 +970,29 @@ def build(fmt, lane, source_path, out_dir):
                 json.dump({"value": parsed}, f)
         print(json.dumps({"ok": True, "lane": lane, "src_len": len(raw)},
                          sort_keys=True))
+        return 0
+
+    if fmt in ("tabular", "rst", "asciidoc", "mdx"):
+        if fmt == "tabular":
+            kind = "fixedwidth" if source_path.lower().endswith(".fw") else "csv"
+            full = _tab_model(raw, kind, os.path.basename(source_path))
+        else:
+            full = _prose_model(raw, fmt)
+        if lane == "sqlite":
+            _write_sqlite(os.path.join(out_dir, "x.sqlite"), raw, full)
+        else:
+            # A conventional decode-to-host load keeps no source bytes.
+            if fmt == "tabular":
+                reduced = {"format": None, "text": full.get("text"),
+                           "records": full.get("records"),
+                           "header": full.get("header")}
+            else:
+                reduced = {"format": None, "text": full.get("text"),
+                           "blocks": full.get("blocks")}
+            with open(os.path.join(out_dir, "model.json"), "w") as f:
+                json.dump(reduced, f)
+        print(json.dumps({"ok": True, "lane": lane, "src_len": len(raw),
+                          "format": full.get("format")}, sort_keys=True))
         return 0
 
     # config/feed/gis
@@ -1260,6 +1646,10 @@ def run_query(fmt, lane, d, q, plan):
         env = _q_config(lane, d, q, plan)
     elif fmt in ("feed", "gis"):
         env = _q_xml(fmt, lane, d, q, plan)
+    elif fmt == "tabular":
+        env = _q_tabular(lane, d, q, plan)
+    elif fmt in ("rst", "asciidoc", "mdx"):
+        env = _q_prose(lane, d, q, plan)
     else:
         env = _q_json(fmt, lane, d, q, plan)
     env["lane"] = lane

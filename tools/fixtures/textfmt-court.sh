@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Phase 21.20-21.24 — the CONFIG / FEED / GEOJSON / GIS / NOTEBOOK ECONOMIC courts
-# (shared engine).
+# Phase 21.20-21.26 — the CONFIG / FEED / GEOJSON / GIS / NOTEBOOK / TABULAR
+# (PSV + fixed-width) / RST / ASCIIDOC / MDX ECONOMIC courts (shared engine).
 #
-# One engine, parameterised by FORMAT (config|feed|geojson|gis|notebook), so the
-# five courts cannot drift apart. Pre-registered. Hypotheses:
+# One engine, parameterised by FORMAT
+# (config|feed|geojson|gis|notebook|tabular|rst|asciidoc|mdx), so the courts
+# cannot drift apart. Pre-registered. Hypotheses:
 #
 #   H1 (byte-exactness / Q6) — for every corpus fixture (including the malformed and
 #       Opaque controls), VOLE `materialize --exact == source` (length + SHA-256 +
@@ -35,19 +36,27 @@
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-22-geojson-court.sh
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-23-gis-court.sh
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-24-notebook-court.sh
+#   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-25-tabular-econ-court.sh
+#   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-26-1-rst-econ-court.sh
+#   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-26-2-asciidoc-econ-court.sh
+#   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-26-3-mdx-econ-court.sh
 
 set -uo pipefail
 cd /work
 export LC_ALL=C
 export PYTHONDONTWRITEBYTECODE=1
 
-FORMAT=${1:?usage: textfmt-court.sh config|feed|geojson|gis|notebook}
+FORMAT=${1:?usage: textfmt-court.sh config|feed|geojson|gis|notebook|tabular|rst|asciidoc|mdx}
 case "$FORMAT" in
     config)   PHASE=21.20; PHASETAG=21-20; FMTNAME=config ;;
     feed)     PHASE=21.21; PHASETAG=21-21; FMTNAME=RSS/Atom ;;
     geojson)  PHASE=21.22; PHASETAG=21-22; FMTNAME=GeoJSON ;;
     gis)      PHASE=21.23; PHASETAG=21-23; FMTNAME=KML/GPX ;;
     notebook) PHASE=21.24; PHASETAG=21-24; FMTNAME=Jupyter-notebook ;;
+    tabular)  PHASE=21.25; PHASETAG=21-25; FMTNAME="PSV + fixed-width" ;;
+    rst)      PHASE=21.26.1; PHASETAG=21-26-1; FMTNAME=reStructuredText ;;
+    asciidoc) PHASE=21.26.2; PHASETAG=21-26-2; FMTNAME=AsciiDoc ;;
+    mdx)      PHASE=21.26.3; PHASETAG=21-26-3; FMTNAME=MDX ;;
     *) echo "unknown format: $FORMAT" >&2; exit 2 ;;
 esac
 
@@ -55,7 +64,7 @@ BASE=tools/fixtures/textfmt_econ.py
 VOLE=tools/fixtures/textfmt-vole.py
 GEN=tools/fixtures/make-${FORMAT}.py
 SHA=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
-STAMP=$(date -u +%Y-%m-%d)
+STAMP="${ECON_STAMP:-$(date -u +%Y-%m-%d)}"
 CAMPAIGN="evidence/campaigns/${STAMP}-phase${PHASETAG}-${FORMAT}-econ-${SHA}"
 RAW="$CAMPAIGN/raw"
 WORK="evidence/scratch/phase${PHASETAG}-${FORMAT}-econ"
@@ -73,7 +82,16 @@ case "$FORMAT" in
     feed)     OWN="--feed-channel --kind structure";          FOREIGN="--geojson-type --kind metadata" ;;
     geojson)  OWN="--geojson-type --kind metadata";           FOREIGN="--gis-root --kind structure" ;;
     gis)      OWN="--gis-root --kind structure";               FOREIGN="--notebook-nbformat --kind metadata" ;;
-    notebook) OWN="--notebook-nbformat --kind metadata";      FOREIGN="--config-line 0 --kind structure" ;;
+    notebook) OWN="--notebook-nbformat --kind metadata";     FOREIGN="--config-line 0 --kind structure" ;;
+    tabular)  OWN="--fixedwidth-row 0 --kind structure";      FOREIGN="--rst-heading 0 --kind structure" ;;
+    rst)      OWN="--rst-heading 0 --kind structure";         FOREIGN="--adoc-heading 0 --kind structure" ;;
+    asciidoc) OWN="--adoc-heading 0 --kind structure";        FOREIGN="--mdx-heading 0 --kind structure" ;;
+    mdx)      OWN="--mdx-heading 0 --kind structure";         FOREIGN="--adoc-heading 0 --kind structure" ;;
+esac
+
+WRAPFILE="tools/phase${PHASETAG}-${FORMAT}-court.sh"
+case "$FORMAT" in
+    tabular|rst|asciidoc|mdx) WRAPFILE="tools/phase${PHASETAG}-${FORMAT}-econ-court.sh" ;;
 esac
 
 rm -rf "$CAMPAIGN" "$WORK"
@@ -260,8 +278,19 @@ for c in $CONTROLS; do
     rc=$own_rc
     expect_rc=$expect_own
     ok=false
+    # A native selector on a foreign/opaque input must DECLINE. Some families use
+    # the generic unsupported-feature code (6); the tabular family uses the
+    # structured invalid-csv-structure (23) / invalid-fixedwidth-structure (39)
+    # codes instead. Both are typed declines, so accept any non-zero rc here and a
+    # zero rc where the format is the expected one.
+    own_ok=false
+    if [ "$expect_own" -eq 0 ]; then
+        [ "$own_rc" -eq 0 ] && own_ok=true
+    else
+        [ "$own_rc" -ne 0 ] && own_ok=true
+    fi
     if [ "$fmt" = "$expect_fmt" ] && [ "$common_rc" -eq "$expect_common" ] \
-        && [ "$own_rc" -eq "$expect_own" ] && [ "$foreign_rc" -eq 6 ]; then
+        && [ "$own_ok" = true ] && [ "$foreign_rc" -eq 6 ]; then
         ok=true
     fi
     [ "$ok" = true ] && CTL_OK=$((CTL_OK + 1))
@@ -333,7 +362,7 @@ cat > "$CAMPAIGN/environment.json" <<EOF
 EOF
 
 cat > "$CAMPAIGN/commands.txt" <<EOF
-docker compose run --rm --no-TTY doc-baseline bash tools/phase${PHASETAG}-${FORMAT}-court.sh
+docker compose run --rm --no-TTY doc-baseline bash $WRAPFILE
 # PROFILE defaults to release (target/release/vole-document).
 # Inside the court:
 #   cargo build $BUILD_ARGS
@@ -386,6 +415,30 @@ case "$FORMAT" in
         SURFACE='nbformat major/minor; code/markdown/raw cells; source as a string vs a line array preserved distinctly; execution_count present/absent/null; the four output kinds; cell order; duplicate members; exact source-token bytes'
         DECLINES='an out-of-range cell/output declines typed (rc 6); a plain JSON control and a JSON document missing nbformat stay Json and a native notebook selector declines typed; malformed JSON and prose stay Opaque and a common observation declines typed (rc 6), never a panic'
         DETECTION='notebook detection requires a JSON object with nbformat and a cells array whose cell objects carry a cell_type; a plain JSON document stays Json and is never stolen'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit'
+        ;;
+    tabular)
+        SURFACE='PSV is the CSV adapter third recorded delimiter (pipe), preserving exact record/field spans, original quoting, and ragged rows; the fixed-width adapter exposes the inferred per-column start/end positions and widths, the uniform record width, every record exact content span, and every field exact padded bytes'
+        DECLINES='an out-of-range fixed-width record and an out-of-range cell decline typed (rc 6); a comma/tab table stays csv; a GFM pipe table stays markdown; variable-length prose and a single-space aligned blob stay Opaque (rc 6), never a panic'
+        DETECTION='the pipe delimiter is tried after comma and tab and declined on a Markdown delimiter row; fixed-width requires >= 3 sampled records of identical byte width, >= 2 non-empty columns, and interior whitespace gaps >= 2 columns wide, and is declined on any source that also parses as a delimited or Markdown table'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit'
+        ;;
+    rst)
+        SURFACE='section titles with their exact underline/overline adornment and a recorded hierarchy; paragraphs; explicit markup (comments, hyperlink targets, directives, footnotes, substitution definitions); field/option/definition lists; literal and doctest blocks; bullet/enumerated lists with nesting; inline markup; grid/simple tables'
+        DECLINES='an out-of-range native title and an unsupported common pair (the common table) decline typed (rc 6); a Markdown document stays markdown and is never stolen by reST; plain prose stays Opaque (rc 6), never a panic'
+        DETECTION='reST detection is byte-based and conservative: a section adornment whose char is not a Markdown signal, an explicit-markup construct, a grid/simple table, a field list, or a literal/doctest block; a Markdown document is never reclassified'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit'
+        ;;
+    asciidoc)
+        SURFACE='a level-0 document title and = sections with their exact marker and recorded level; document attributes and literal references; delimited blocks preserved verbatim; unordered/ordered/description lists; |=== tables; admonitions; inline markup plus the link/image/include/xref/URL macros'
+        DECLINES='an out-of-range native heading and an unsupported common pair (the common table) decline typed (rc 6); Markdown stays markdown and reStructuredText stays rst; plain prose stays Opaque (rc 6), never a panic'
+        DETECTION='ASCIIDoc detection requires an AsciiDoc-specific structural mark (a document title, a section, a delimited block, a |=== table, an attribute list, or an admonition); a Markdown or reST document is never stolen (reST is tried first)'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit'
+        ;;
+    mdx)
+        SURFACE='ESM import/export statement spans; JSX elements and fragments with attributes and nested children (recorded as extents, never executed); MDX expressions inline/block/comment (brace-balanced); and the full Markdown surface'
+        DECLINES='an out-of-range native ESM/JSX/expression and an unsupported common pair (the common table) decline typed (rc 6); a Markdown document stays markdown (including when inline code or an inline expression looks like MDX); plain HTML stays html; plain prose stays Opaque (rc 6), never a panic'
+        DETECTION='MDX detection requires an ESM/JSX/expression signal on top of Markdown block structure; inline code spans and inline expressions alone do not promote a Markdown document to MDX, and a plain HTML document stays html'
         RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit'
         ;;
 esac

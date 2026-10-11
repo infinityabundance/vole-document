@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {}, "lane": "conv", "native": true, "q": "Q1", "value": "# Mixed\n\nA paragraph before.\n\n<Card title={x}>\n  **bold** child text\n</Card>\n\n{summary}\n\nAfter.\n"}
