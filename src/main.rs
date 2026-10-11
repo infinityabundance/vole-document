@@ -2148,6 +2148,25 @@ struct FieldArgs {
     /// entry name (Phase 21.35).
     #[cfg(feature = "cfbf")]
     cfbf_find: Option<String>,
+    /// `--doc-fib`: the legacy Word 97–2003 (`.doc`) FIB — the `nFib` with its Word
+    /// version, the `fWhichTblStm` table selection, `fcMin`/`fcMac`, the `ccp*` section
+    /// counts, and `fcClx`/`lcbClx` (Phase 26.1).
+    #[cfg(feature = "doc")]
+    doc_fib: bool,
+    /// `--doc-piece N`: the N-th (0-based) piece of the piece table, with its CP range,
+    /// resolved `fc`, compressed flag, and exact `WordDocument`-stream byte span; as
+    /// `--kind exact` it returns the piece's exact bytes (Phase 26.1).
+    #[cfg(feature = "doc")]
+    doc_piece: Option<u32>,
+    /// `--doc-body`: the native document-text selector (canonical `doc-text`), the
+    /// concatenation of the piece texts over `[0, ccpText)` (Phase 26.1). The
+    /// format-neutral common text is `--doc-text`.
+    #[cfg(feature = "doc")]
+    doc_body: bool,
+    /// `--doc-find PATTERN`: a lexical, case-sensitive search over each piece's decoded
+    /// text (Phase 26.1).
+    #[cfg(feature = "doc")]
+    doc_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -3275,6 +3294,25 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "cfbf")]
             "--cfbf-find" => {
                 out.cfbf_find = Some(field_arg_value(args, &mut i, "--cfbf-find", inline)?);
+            }
+            #[cfg(feature = "doc")]
+            "--doc-fib" => {
+                out.doc_fib = true;
+                i += 1;
+            }
+            #[cfg(feature = "doc")]
+            "--doc-piece" => {
+                let v = field_arg_value(args, &mut i, "--doc-piece", inline)?;
+                out.doc_piece = Some(parse_field_u32(&v, "--doc-piece")?);
+            }
+            #[cfg(feature = "doc")]
+            "--doc-body" => {
+                out.doc_body = true;
+                i += 1;
+            }
+            #[cfg(feature = "doc")]
+            "--doc-find" => {
+                out.doc_find = Some(field_arg_value(args, &mut i, "--doc-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -4417,6 +4455,26 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.cfbf_find {
             chosen.push(Selector::CfbfFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Legacy Word 97–2003 (`.doc`, MS-DOC): `--doc-fib` the FIB; `--doc-piece N` a piece
+    // by 0-based index; `--doc-body` the native document text (canonical `doc-text`);
+    // `--doc-find` a lexical search. Each stands alone (Phase 26.1).
+    #[cfg(feature = "doc")]
+    {
+        if out.doc_fib {
+            chosen.push(Selector::DocFib);
+        }
+        if let Some(index) = out.doc_piece {
+            chosen.push(Selector::DocPiece { index });
+        }
+        if out.doc_body {
+            chosen.push(Selector::DocText);
+        }
+        if let Some(pattern) = &out.doc_find {
+            chosen.push(Selector::DocFind {
                 pattern: pattern.clone(),
             });
         }

@@ -109,6 +109,12 @@ use crate::adapter::csv::{
     record_at as csv_record_at, record_bytes as csv_record_bytes,
     sniff_dialect as csv_sniff_dialect,
 };
+#[cfg(feature = "doc")]
+use crate::adapter::doc::{
+    DocModel, DocPiece, canonical_text as doc_canonical_text, field_name as doc_field_name,
+    find as doc_find_matches, piece_bytes as doc_piece_bytes, piece_text as doc_piece_text,
+    version_name as doc_version_name,
+};
 #[cfg(feature = "docx")]
 use crate::adapter::docx::wml::StoryModel;
 #[cfg(feature = "docx")]
@@ -346,6 +352,8 @@ use crate::field::index::SEL_CONFIG_MODEL;
 use crate::field::index::SEL_CONTAINER_MODEL;
 #[cfg(feature = "csv")]
 use crate::field::index::SEL_CSV_MODEL;
+#[cfg(feature = "doc")]
+use crate::field::index::SEL_DOC_MODEL;
 #[cfg(feature = "docx")]
 use crate::field::index::SEL_DOCX_MODEL;
 #[cfg(feature = "eml")]
@@ -2063,6 +2071,36 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The legacy Word 97–2003 (`.doc`, MS-DOC) FIB (Phase 26.1): the `wIdent`, the
+    /// `nFib` with its recorded Word version, the `fWhichTblStm` flag (selecting
+    /// `0Table`/`1Table`), the `fcMin`/`fcMac` bounds, the `ccp*` section counts, and
+    /// the `fcClx`/`lcbClx` piece-table location, with the exact stream spans. `Text`
+    /// returns the Word version name; `Metadata`/`Structure` the descriptor JSON.
+    #[cfg(feature = "doc")]
+    DocFib,
+    /// The `index`-th piece of the legacy Word 97–2003 (`.doc`) piece table (0-based,
+    /// piece order) (Phase 26.1): its CP range, resolved `fc`, compressed flag, and its
+    /// exact byte span in the `WordDocument` stream. `ExactBytes` returns the piece's
+    /// exact bytes; `Text` its decoded text; `Metadata`/`Structure` a descriptor. An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "doc")]
+    DocPiece {
+        /// The 0-based piece index (piece order).
+        index: u32,
+    },
+    /// The document text of a legacy Word 97–2003 (`.doc`) source (Phase 26.1): the
+    /// concatenation of the piece texts over the main-text range `[0, ccpText)`.
+    /// `Text` returns it.
+    #[cfg(feature = "doc")]
+    DocText,
+    /// A bounded, case-sensitive lexical search over each piece's decoded text
+    /// (Phase 26.1). A match is reported only within one piece. Never an embedding or a
+    /// model call.
+    #[cfg(feature = "doc")]
+    DocFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2700,6 +2738,14 @@ impl Selector {
             Selector::CfbfStream { index } => format!("cfbf-stream:{index}"),
             #[cfg(feature = "cfbf")]
             Selector::CfbfFind { pattern } => format!("cfbf-find:{pattern}"),
+            #[cfg(feature = "doc")]
+            Selector::DocFib => "doc-fib".to_string(),
+            #[cfg(feature = "doc")]
+            Selector::DocPiece { index } => format!("doc-piece:{index}"),
+            #[cfg(feature = "doc")]
+            Selector::DocText => "doc-text".to_string(),
+            #[cfg(feature = "doc")]
+            Selector::DocFind { pattern } => format!("doc-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -5086,6 +5132,19 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "cfbf")]
             (Selector::CfbfFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.cfbf_find(req, pattern)
+            }
+            #[cfg(feature = "doc")]
+            (Selector::DocFib, R::Text | R::Metadata | R::Structure) => self.doc_fib(req),
+            #[cfg(feature = "doc")]
+            (
+                Selector::DocPiece { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.doc_piece(req, *index),
+            #[cfg(feature = "doc")]
+            (Selector::DocText, R::Text | R::Metadata | R::Structure) => self.doc_text(req),
+            #[cfg(feature = "doc")]
+            (Selector::DocFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.doc_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -10461,6 +10520,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Doc => {
+                #[cfg(feature = "doc")]
+                {
+                    self.common_doc(req)?
+                }
+                #[cfg(not(feature = "doc"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "legacy Word support is not compiled in (feature `doc`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -14834,6 +14905,215 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "cfbf;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy Word 97–2003 (`.doc`, MS-DOC) observations (Phase 26.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "doc")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the legacy-DOC model (derived, `Q_gen`).
+    fn doc_model(&mut self) -> Result<(DocModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_DOC_MODEL, 0), "doc model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((DocModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the read
+    /// is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn doc_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn doc_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn doc_text_units(model: &DocModel) -> u64 {
+        model.pieces.iter().map(|p| p.text.len() as u64).sum()
+    }
+
+    fn doc_fib_json(model: &DocModel) -> String {
+        let f = &model.fib;
+        format!(
+            concat!(
+                "{{\"format\":\"doc\",\"version\":\"{}\",\"nFib\":{},\"table\":\"{}\",",
+                "\"pieces\":{},\"text_units\":{},\"ccp_text\":{},\"ccp_ftn\":{},",
+                "\"ccp_hdd\":{},\"fc_min\":{},\"fc_mac\":{},\"fc_clx\":{},\"lcb_clx\":{},",
+                "\"wd_span\":[{},{}],\"tbl_span\":[{},{}],\"clx_span\":[{},{}]}}"
+            ),
+            doc_version_name(f.n_fib),
+            f.n_fib,
+            f.table_stream(),
+            model.pieces.len(),
+            Self::doc_text_units(model),
+            f.ccp_text,
+            f.ccp_ftn,
+            f.ccp_hdd,
+            f.fc_min,
+            f.fc_mac,
+            f.fc_clx,
+            f.lcb_clx,
+            model.wd_span.0,
+            model.wd_span.1,
+            model.tbl_span.0,
+            model.tbl_span.1,
+            model.clx_span.0,
+            model.clx_span.1,
+        )
+    }
+
+    fn doc_piece_json(model: &DocModel, index: u32, p: &DocPiece) -> String {
+        let doc_span = model.piece_source_span(p);
+        format!(
+            concat!(
+                "{{\"index\":{},\"cp_start\":{},\"cp_end\":{},\"fc\":{},",
+                "\"compressed\":{},\"units\":{},\"span\":[{},{}],\"doc_span\":[{},{}]}}"
+            ),
+            index,
+            p.cp_start,
+            p.cp_end,
+            p.fc,
+            p.compressed,
+            p.text.len(),
+            p.span.0,
+            p.span.1,
+            doc_span.0,
+            doc_span.1,
+        )
+    }
+
+    /// The legacy-DOC FIB and version, from the model.
+    fn doc_fib(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (_, root) = self.doc_source()?;
+        let v = doc_version_name(model.fib.n_fib);
+        let provenance = format!(
+            "doc;version={v};nFib={};pieces={}",
+            model.fib.n_fib,
+            model.pieces.len()
+        );
+        let span = Some(model.wd_span);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(v.to_string()),
+            _ => AnswerValue::Json(Self::doc_fib_json(&model)),
+        };
+        Ok(self.doc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th piece of the piece table (0-based, piece order).
+    fn doc_piece(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (source, root) = self.doc_source()?;
+        let p = model
+            .piece(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("doc has no piece {index}")))?;
+        let span = Some(model.piece_source_span(p));
+        let provenance = format!(
+            "doc;piece={index};cp={}:{};compressed={}",
+            p.cp_start, p.cp_end, p.compressed
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(doc_piece_bytes(&source, &model, p)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(doc_piece_text(p)),
+            _ => AnswerValue::Json(Self::doc_piece_json(&model, index, p)),
+        };
+        Ok(self.doc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The document text (the concatenation of the piece texts over `[0, ccpText)`).
+    fn doc_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (source, root) = self.doc_source()?;
+        let text = doc_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some(model.wd_span);
+        Ok(self.doc_answer(
+            req,
+            AnswerValue::Text(text),
+            "doc;text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over each piece's decoded text.
+    fn doc_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (_, root) = self.doc_source()?;
+        let matches = doc_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let base = model.wd_span.0;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"piece\":{},\"field\":\"{}\",\"span\":[{},{}],\"text\":\"{}\"}}"),
+                m.piece,
+                doc_field_name(m.field),
+                base.saturating_add(m.start),
+                base.saturating_add(m.end),
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("doc;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.doc_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_doc(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.doc_common_metadata(req),
+            Selector::Text => self.doc_text(req),
+            Selector::SearchMatch(p) => self.doc_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "doc does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn doc_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (source, root) = self.doc_source()?;
+        let value = AnswerValue::Json(Self::doc_fib_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.doc_answer(
+            req,
+            value,
+            "doc;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

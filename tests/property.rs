@@ -661,6 +661,11 @@ fn limits_never_change_reconstructed_bytes() {
         max_cfbf_entry_name_bytes: 1 << 50,
         max_cfbf_chain_sectors: 1 << 30,
         max_cfbf_document_bytes: 1 << 50,
+        max_doc_pieces: 1 << 30,
+        max_doc_text_bytes: 1 << 50,
+        max_doc_fib_fields: 1 << 30,
+        max_doc_stream_bytes: 1 << 50,
+        max_doc_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

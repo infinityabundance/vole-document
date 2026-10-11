@@ -22,6 +22,8 @@ pub mod config;
 pub mod container;
 #[cfg(feature = "csv")]
 pub mod csv;
+#[cfg(feature = "doc")]
+pub mod doc;
 #[cfg(feature = "docx")]
 pub mod docx;
 #[cfg(feature = "eml")]

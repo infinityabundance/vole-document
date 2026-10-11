@@ -443,6 +443,22 @@ pub enum DocumentFormat {
     /// physical layer that unlocks the legacy DOC/XLS/PPT/MSG semantic models (later
     /// subphases).
     Cfbf,
+    /// A legacy Word 97–2003 document (`.doc`, MS-DOC) (Phase 26.1): a CFBF/OLE2
+    /// compound file whose `WordDocument` stream opens with the Word FIB (magic
+    /// `0xA5EC`) and whose table stream (`0Table`/`1Table` per the FIB `fWhichTblStm`
+    /// flag) carries the piece table. Detection is built **on top of** the CFBF
+    /// detector — the source must be a compound file the CFBF layer accepts, its
+    /// `WordDocument` stream must begin with the FIB magic and a plausible Word
+    /// 97–2003 `nFib`, and its table stream must exist — so a generic compound file
+    /// without a Word FIB stays [`Cfbf`](DocumentFormat::Cfbf) and a non-CFBF source is
+    /// unaffected. The recorded model carries the FIB (`nFib`/version, the
+    /// `fWhichTblStm` flag, `fcMin`/`fcMac`, the `ccp*` section counts, `fcClx`/
+    /// `lcbClx`) and the piece table (each piece's CP range, resolved `fc`, compressed
+    /// flag, exact `WordDocument`-stream byte span, and decoded text). Not a package:
+    /// the exact leaf is the whole source (a `DocumentExact`, RAW-like authority) and
+    /// every derived observation is a bounded, span-preserving (`Q_gen`) projection of
+    /// it. Everything outside the documented subset declines **typed**.
+    Doc,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -491,6 +507,7 @@ impl DocumentFormat {
             DocumentFormat::Container => "container",
             DocumentFormat::Hdf => "hdf",
             DocumentFormat::Cfbf => "cfbf",
+            DocumentFormat::Doc => "doc",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -538,6 +555,7 @@ impl DocumentFormat {
             DocumentFormat::Container => "container",
             DocumentFormat::Hdf => "hdf",
             DocumentFormat::Cfbf => "cfbf",
+            DocumentFormat::Doc => "doc",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -585,6 +603,7 @@ impl DocumentFormat {
             DocumentFormat::Container => cfg!(feature = "container"),
             DocumentFormat::Hdf => cfg!(feature = "hdf"),
             DocumentFormat::Cfbf => cfg!(feature = "cfbf"),
+            DocumentFormat::Doc => cfg!(feature = "doc"),
         }
     }
 
@@ -642,6 +661,7 @@ impl DocumentFormat {
             "container" => Some(DocumentFormat::Container),
             "hdf" => Some(DocumentFormat::Hdf),
             "cfbf" => Some(DocumentFormat::Cfbf),
+            "doc" => Some(DocumentFormat::Doc),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -702,6 +722,15 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     // whole-source exact leaf is always unaffected).
     #[cfg(feature = "cfbf")]
     if crate::adapter::cfbf::detect(source, limits) {
+        // A legacy Word 97–2003 (`.doc`, MS-DOC) source is a CFBF compound file whose
+        // `WordDocument` stream opens with the Word FIB. The legacy-DOC detector is
+        // built **on top of** the CFBF detector and runs here, before the generic
+        // `Cfbf` claim, so a `.doc` becomes `Doc` while a generic compound file
+        // without a Word FIB stays `Cfbf`. A non-CFBF source is never reached.
+        #[cfg(feature = "doc")]
+        if crate::adapter::doc::detect(source, limits) {
+            return DocumentFormat::Doc;
+        }
         return DocumentFormat::Cfbf;
     }
     // Parquet is the **analytical** Wave-2 format (Phase 21.14), with no package

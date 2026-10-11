@@ -75,6 +75,17 @@ name = "cfbf_fixtures"
 path = "examples/cfbf_fixtures.rs"
 required-features = ["cfbf"]
 
+# The Phase-26.1 legacy Word 97–2003 (`.doc`) court fixture generator. Feature-gated
+# to the adapter it exercises so the default build never compiles it. It writes small,
+# deterministic `.doc` compound files (a `WordDocument` stream with a valid FIB, a
+# piece table with a mix of compressed and uncompressed pieces, a `0Table` and a
+# `1Table` variant, plus malformed controls) byte-for-byte, so the court needs no
+# Word, LibreOffice, `wvWare`, or OLE tooling.
+[[example]]
+name = "doc_fixtures"
+path = "examples/doc_fixtures.rs"
+required-features = ["doc"]
+
 [dependencies]
 # Archival source identity. Pinned exactly for the first sealed universe.
 sha2 = "=0.10.9"
@@ -684,6 +695,27 @@ hdf = []
 # `.voldoc` bytes and exactness is untouched. **Dependency-free (`cfbf = []` pulls no
 # external crate)** and never in `default`.
 cfbf = []
+# Phase 26.1: the legacy Word 97–2003 (`.doc`, MS-DOC) **semantic** adapter, built on
+# the CFBF/OLE2 physical layer (21.35). Like every Wave-2 format it is not a package
+# at the exactness layer: the exact leaf is the whole source (a `DocumentExact`,
+# RAW-like authority) and every derived observation is a bounded, span-preserving
+# (`Q_gen`) projection of it. It **reuses the CFBF resolver** (never a second OLE
+# parser) to obtain the `WordDocument` stream and the table stream (`0Table`/`1Table`
+# per the FIB `fWhichTblStm` flag), then parses a documented bounded subset of the
+# Word FIB (`wIdent` `0xA5EC`, `nFib`, the `fWhichTblStm` flag, `fcMin`/`fcMac`, the
+# `ccp*` section counts, `fcClx`/`lcbClx`) and the **piece table (CLX)**: the
+# zero-or-more `Prc` (0x01) records, the `Pcdt` (0x02) record, and its `PlcPcd`
+# (`n+1` CP values plus `n` 8-byte PCDs). Each piece keeps its exact byte span in the
+# `WordDocument` stream and its **compressed** flag (a compressed piece is CP1252
+# single-byte text, an uncompressed piece UTF-16LE); the document text is the
+# concatenation of the piece texts over `[0, ccpText)`. Nothing is re-encoded or
+# re-flowed. Everything outside the subset declines **typed** (a bad `wIdent`, an
+# implausible `nFib`, an out-of-range `fcClx`, a CLX past the table stream, a
+# non-monotonic CP array, a PCD `fc` outside the stream). It adds **no** decoder
+# behavior: the model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. It implies `cfbf` (the reused physical
+# layer) and is never in `default`.
+doc = ["cfbf"]
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived

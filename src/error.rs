@@ -224,6 +224,16 @@ pub enum ErrorClass {
     /// so it stays `Opaque` rather than being claimed as a derived model. Detection
     /// and the whole-source exact leaf are unaffected.
     InvalidCfbfStructure,
+    /// A legacy Word 97–2003 (`.doc`, MS-DOC) structure error (Phase 26.1): a
+    /// compound file whose `WordDocument` stream begins with the Word FIB magic but
+    /// whose semantic body is malformed or outside the documented subset — a bad
+    /// `wIdent`, an implausible `nFib`, an out-of-range `fcClx`/`lcbClx`, a CLX past
+    /// the table stream, a `Pcdt` with no piece table, a CP array that is not
+    /// monotonic (or does not start at 0), a PCD `fc` outside the `WordDocument`
+    /// stream, or a declared section total that disagrees with the piece table — so
+    /// it declines typed rather than being claimed as a derived model. Detection and
+    /// the whole-source exact leaf are unaffected.
+    InvalidDocStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -282,6 +292,7 @@ impl ErrorClass {
             ErrorClass::InvalidContainerStructure => 49,
             ErrorClass::InvalidHdfStructure => 50,
             ErrorClass::InvalidCfbfStructure => 51,
+            ErrorClass::InvalidDocStructure => 52,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -339,6 +350,7 @@ impl ErrorClass {
             ErrorClass::InvalidContainerStructure => "InvalidContainerStructure",
             ErrorClass::InvalidHdfStructure => "InvalidHdfStructure",
             ErrorClass::InvalidCfbfStructure => "InvalidCfbfStructure",
+            ErrorClass::InvalidDocStructure => "InvalidDocStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -450,6 +462,7 @@ impl Error {
     ctor!(invalid_container_structure, InvalidContainerStructure);
     ctor!(invalid_hdf_structure, InvalidHdfStructure);
     ctor!(invalid_cfbf_structure, InvalidCfbfStructure);
+    ctor!(invalid_doc_structure, InvalidDocStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

@@ -529,6 +529,22 @@ pub enum NodeKind {
     /// a compound file has no separate package layer in this adapter. Derived, never
     /// exact.
     CfbfModel = 0x46,
+    /// The canonical, representation-preserving legacy Word 97–2003 (`.doc`, MS-DOC)
+    /// **semantic** model (Phase 26.1), built on the CFBF/OLE2 physical layer (21.35).
+    /// It **reuses the CFBF resolver** (never a second OLE parser) to obtain the
+    /// `WordDocument` stream and the table stream (`0Table`/`1Table` per the FIB
+    /// `fWhichTblStm` flag), records the Word FIB — `wIdent` `0xA5EC`, the `nFib` with
+    /// its recorded Word version, the `fWhichTblStm` flag, `fcMin`/`fcMac`, the
+    /// `ccpText`/`ccpFtn`/`ccpHdd`/… section counts, and `fcClx`/`lcbClx` — and parses
+    /// the **piece table (CLX)**: the zero-or-more `Prc` (0x01) records, the `Pcdt`
+    /// (0x02) record, and its `PlcPcd` (`n+1` CP values plus `n` 8-byte PCDs). Every
+    /// piece keeps its resolved `fc`, its **compressed** flag (a compressed piece is
+    /// CP1252 single-byte text, an uncompressed piece UTF-16LE), its **exact byte span
+    /// in the `WordDocument` stream**, and its decoded text. Nothing is re-encoded or
+    /// re-flowed. It is computed on demand from the exact source (its single dependency
+    /// is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a `.doc`
+    /// has no separate package layer in this adapter. Derived, never exact.
+    DocModel = 0x47,
 }
 
 impl NodeKind {
@@ -605,6 +621,7 @@ impl NodeKind {
             0x44 => NodeKind::ContainerModel,
             0x45 => NodeKind::HdfModel,
             0x46 => NodeKind::CfbfModel,
+            0x47 => NodeKind::DocModel,
             _ => return None,
         })
     }
@@ -682,6 +699,7 @@ impl NodeKind {
             NodeKind::ContainerModel => "ContainerModel",
             NodeKind::HdfModel => "HdfModel",
             NodeKind::CfbfModel => "CfbfModel",
+            NodeKind::DocModel => "DocModel",
         }
     }
 

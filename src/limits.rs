@@ -988,6 +988,28 @@ pub struct Limits {
     /// inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.35).
     pub max_cfbf_document_bytes: u64,
+    // The legacy Word 97–2003 (`.doc`, MS-DOC) caps below bound the derived,
+    // span-preserving semantic model (Phase 26.1). A `.doc` reuses the CFBF physical
+    // layer; the whole source is the exact leaf and everything derived is `Q_gen`.
+    /// Maximum piece-table piece count accepted for one document. An over-large
+    /// piece table declines typed (Phase 26.1).
+    pub max_doc_pieces: u64,
+    /// Maximum aggregate raw text byte length accepted across one document's pieces
+    /// (the sum of each piece's `WordDocument`-stream byte span; a compressed piece is
+    /// one byte per character, an uncompressed piece two). This whole-document budget
+    /// bounds the decoded text; an over-large document declines typed (Phase 26.1).
+    pub max_doc_text_bytes: u64,
+    /// Maximum `fibRgFcLcb` pair count (`cbRgFcLcb`) accepted. It bounds the FIB walk
+    /// (the piece-table location lives at pair index 33). An over-large FIB declines
+    /// typed (Phase 26.1).
+    pub max_doc_fib_fields: u64,
+    /// Maximum byte length of the `WordDocument` or table stream accepted. A larger
+    /// stream declines typed (Phase 26.1).
+    pub max_doc_stream_bytes: u64,
+    /// Maximum source length admitted for legacy-DOC detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 26.1).
+    pub max_doc_document_bytes: u64,
 }
 
 impl Limits {
@@ -1269,6 +1291,11 @@ impl Limits {
         max_cfbf_entry_name_bytes: 1 << 16,
         max_cfbf_chain_sectors: 1 << 24,
         max_cfbf_document_bytes: 1 << 34,
+        max_doc_pieces: 1 << 20,
+        max_doc_text_bytes: 1 << 31,
+        max_doc_fib_fields: 1 << 12,
+        max_doc_stream_bytes: 1 << 34,
+        max_doc_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1549,6 +1576,11 @@ impl Limits {
         max_cfbf_entry_name_bytes: 1 << 14,
         max_cfbf_chain_sectors: 1 << 16,
         max_cfbf_document_bytes: 1 << 26,
+        max_doc_pieces: 1 << 12,
+        max_doc_text_bytes: 1 << 20,
+        max_doc_fib_fields: 1 << 10,
+        max_doc_stream_bytes: 1 << 26,
+        max_doc_document_bytes: 1 << 26,
     };
 }
 

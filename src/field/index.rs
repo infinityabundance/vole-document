@@ -522,6 +522,21 @@ pub const SEL_HDF_MODEL: u8 = 49;
 /// ADR-0060); a compound file has no separate package layer in this adapter. Derived,
 /// never exact.
 pub const SEL_CFBF_MODEL: u8 = 50;
+/// Selector kind: the canonical legacy Word 97–2003 (`.doc`, MS-DOC) semantic model
+/// (Phase 26.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving semantic projection built on the CFBF/OLE2
+/// physical layer (21.35): the Word FIB (the `wIdent` `0xA5EC`, the `nFib` with the
+/// recorded Word version, the `fWhichTblStm` flag selecting `0Table`/`1Table`, the
+/// `fcMin`/`fcMac` bounds, the `ccpText`/`ccpFtn`/`ccpHdd`/… section counts, and
+/// `fcClx`/`lcbClx`) plus the **piece table (CLX)** — the resolved piece list, each
+/// with its CP range, its resolved `fc`, its **compressed** flag, and its **exact byte
+/// span in the `WordDocument` stream**, and its decoded text. It is computed on demand
+/// from the exact source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); a `.doc` has no separate package layer in this
+/// adapter. Derived, never exact.
+pub const SEL_DOC_MODEL: u8 = 51;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;
