@@ -66,29 +66,42 @@ detection-boundary rows, 1 usage row.
 ## Economic court
 
 Measured by `tools/phase21-25-tabular-econ-court.sh` (a thin wrapper over the
-shared `textfmt-court.sh` engine) against two comparators — a **source-retaining
-SQLite store** with conventional extraction, and a conventional **decode-to-host-
-values load** (`conv`). Corpus 7 fixtures (`psv-basic.psv`, `psv-quotes.psv`,
-`fw-basic.fw`, `fw-three.fw`, `fw-crlf.fw`, `large.psv`, `large.fw`), questions
-Q1–Q12, exactness **11/11**. Estimator = paired per-fixture ratio
-VOLE/comparator, median + geometric mean with a fixed-seed (2125), fixture-
-clustered 10000-resample 95 % CI, tie band ±10 %; ratio-of-sums reported
-separately. A ratio < 1 favours VOLE.
+shared `textfmt-court.sh` engine) against **three** comparators — a
+**source-retaining SQLite store** with conventional extraction, a conventional
+**decode-to-host-values load** (`conv`), and the **mandatory DuckDB/Parquet
+analytical baseline** (ADR-0059; DuckDB 1.5.6, the pinned `analytical` service).
+Corpus 7 fixtures (`psv-basic.psv`, `psv-quotes.psv`, `fw-basic.fw`,
+`fw-three.fw`, `fw-crlf.fw`, `large.psv`, `large.fw`), questions Q1–Q12, exactness
+**11/11**. Estimator = paired per-fixture ratio VOLE/comparator, median +
+geometric mean with a fixed-seed (2125), fixture-clustered 10000-resample 95 % CI,
+tie band ±10 %; ratio-of-sums reported separately. A ratio < 1 favours VOLE.
 
 | metric | comparator | median | geomean | median 95% CI | geomean 95% CI | W/T/L | ratio-of-sums |
 |---|---|---:|---:|---|---|---:|---:|
-| build | sqlite | 0.909 | 0.939 | 0.863..0.971 | 0.883..1.017 | 3/3/1 | 0.948 |
-| build | conv | 1.157 | 1.140 | 1.034..1.243 | 1.050..1.222 | 0/2/5 | 1.135 |
+| build | sqlite | 0.760 | 0.857 | 0.725..0.955 | 0.749..1.019 | 5/1/1 | 0.880 |
+| build | conv | 0.928 | 0.994 | 0.869..1.248 | 0.836..1.187 | 3/2/2 | 0.998 |
+| build | duckdb | 0.333 | 0.381 | 0.309..0.522 | 0.316..0.475 | 7/0/0 | 0.394 |
 | storage | sqlite | 0.583 | 0.590 | 0.578..0.585 | 0.574..0.616 | 7/0/0 | 0.609 |
 | storage | conv | 21.801 | 8.652 | 1.004..21.837 | 3.234..21.821 | 1/1/5 | 0.901 |
-| cold | sqlite | 0.027 | 0.034 | 0.026..0.061 | 0.026..0.048 | 7/0/0 | 0.039 |
-| cold | conv | 0.028 | 0.036 | 0.028..0.066 | 0.028..0.051 | 7/0/0 | 0.041 |
-| warm | sqlite | 0.057 | 0.081 | 0.054..0.132 | 0.056..0.133 | 7/0/0 | 0.202 |
-| warm | conv | 0.737 | 0.555 | 0.386..0.762 | 0.364..0.756 | 7/0/0 | 0.299 |
+| storage | duckdb | 6.557 | 7.483 | 6.433..10.622 | 6.215..9.250 | 0/0/7 | 11.233 |
+| cold | sqlite | 0.027 | 0.033 | 0.025..0.054 | 0.025..0.046 | 7/0/0 | 0.037 |
+| cold | conv | 0.028 | 0.034 | 0.026..0.061 | 0.026..0.048 | 7/0/0 | 0.038 |
+| cold | duckdb | 0.010 | 0.013 | 0.009..0.022 | 0.009..0.018 | 7/0/0 | 0.014 |
+| warm | sqlite | 0.074 | 0.088 | 0.067..0.133 | 0.059..0.143 | 7/0/0 | 0.197 |
+| warm | conv | 0.776 | 0.591 | 0.347..0.973 | 0.353..0.881 | 5/2/0 | 0.276 |
+| warm | duckdb | 0.001 | 0.003 | 0.001..0.017 | 0.001..0.009 | 7/0/0 | 0.012 |
 
-Build is ~parity/slightly faster than SQLite (median 0.91) but loses to the
-conventional in-memory load (median 1.16); storage is ~0.58–0.59× SQLite; cold
-and warm are large wins on this small-file corpus.
+Build is faster than all three comparators (**median 0.33× DuckDB**, 0.76×
+SQLite, 0.93× conv); storage is ~0.58–0.59× SQLite and **loses to DuckDB**
+(median **6.6×**, geometric mean **7.5×**, ratio-of-sums **11.2×** larger); cold
+and warm are large wins on this small-file corpus (cold **~0.01× DuckDB**, warm
+**~0.001×**).
+
+**DuckDB wins the storage axis — recorded, not hidden.** On `large.psv` DuckDB's
+Parquet projection is **49,804 B** against VOLE's **529,027 B** (and on
+`large.fw` 42,712 B vs 529,091 B), so the columnar baseline is ~10× smaller on
+the large fixtures; VOLE keeps the build/cold/warm axes. This is exactly the
+tabular-format loss ADR-0059 requires the court to state.
 
 ## Honest negatives
 
@@ -105,16 +118,19 @@ and warm are large wins on this small-file corpus.
   conventional store keeps a few hundred bytes against VOLE's ~4.8 KB
   descriptor+DAG+index); the **ratio-of-sums is 0.901**, so on the large fixtures
   VOLE is smaller. Both are reported, neither is hidden.
-* The **cold ratios** (≈0.03) are dominated by the comparators' fresh-process
-  **Python start-up**, not by VOLE query speed (see `python_startup_us` in the
+* The **cold ratios** (≈0.01–0.03) are dominated by the comparators' fresh-process
+  **Python/CLI start-up**, not by VOLE query speed (see `python_startup_us` in the
   receipt environment); they are not a VOLE strength.
 * The economic court is measured on a **self-authored deterministic corpus**;
   only exact closure (Q6) is a byte-authority claim. The **conventional load is
   deliberately the weaker comparator** (it drops spans, exact spelling, and order).
-* The shared engine's comparators here are **SQLite + a conventional load**; the
-  mandatory **DuckDB/Parquet** comparator for tabular formats (ADR-0059) is
-  carried by the 21.7 CSV/TSV court, not by this tabular-extra run — recorded as a
-  scope caveat rather than papered over.
+* **DuckDB wins the storage axis** (paired median ~6.6×, geometric mean ~7.5×,
+  ratio-of-sums ~11.2× smaller; e.g. `large.psv` 49,804 B vs VOLE 529,027 B),
+  while VOLE keeps build (~0.33×), cold (~0.01×) and warm (~0.001×). DuckDB
+  **equivalence** over Q1–Q12: **6 equal** (Q1/Q3/Q4/Q5/Q7/Q10 — the columnar /
+  tabular questions) and **6 capability-gap** (Q2/Q6/Q8/Q9/Q11/Q12 — the exact
+  source-span/bytes, recorded-dialect and column-layout/quoting questions), with
+  **0 mismatches**; its ADR-0059 lane is carried **alongside** SQLite.
 
 ## Relevant ADRs
 
@@ -128,6 +144,10 @@ and warm are large wins on this small-file corpus.
 
 - Phase 21.25.1 tabular-extra adapter court (exactness 10/10):
   [2026-10-10-phase21-25-1-tabular-e3c77a86](../../evidence/campaigns/2026-10-10-phase21-25-1-tabular-e3c77a86/).
-- Phase 21.25 tabular economic court (exactness 11/11):
-  [2026-10-10-phase21-25-tabular-econ-f0a3a5cf](../../evidence/campaigns/2026-10-10-phase21-25-tabular-econ-f0a3a5cf/).
+- Phase 21.25 tabular economic court (PSV + fixed-width; exactness 11/11) — the
+  **3-lane** court (SQLite + conv + the mandatory DuckDB/Parquet lane, ADR-0059):
+  [2026-10-10-phase21-25-tabular-econ-584ee52e](../../evidence/campaigns/2026-10-10-phase21-25-tabular-econ-584ee52e/).
+  The earlier **2-lane** court
+  [`…-f0a3a5cf`](../../evidence/campaigns/2026-10-10-phase21-25-tabular-econ-f0a3a5cf/)
+  (SQLite + conv only) is **superseded but retained**, not rewritten.
 - Results: [phase-21-plan.md](../phases/phase-21-plan.md).

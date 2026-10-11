@@ -85,7 +85,7 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | GeoJSON adapter / economic court (found+fixed JSON-validity defect) | exact 8/8 · 11/11 | `evidence/campaigns/2026-10-10-phase21-22-1-geojson-670675f9/`, `…/2026-10-10-phase21-22-geojson-econ-735d9b69/` |
 | KML/GPX adapter / economic court | exact 8/8 · 10/10 | `evidence/campaigns/2026-10-10-phase21-23-1-gis-aed361cf/`, `…/2026-10-10-phase21-23-gis-econ-735d9b69/` |
 | Jupyter notebook adapter / economic court | exact 7/7 · 11/11 | `evidence/campaigns/2026-10-10-phase21-24-1-notebook-b6860e87/`, `…/2026-10-10-phase21-24-notebook-econ-735d9b69/` |
-| PSV (pipe dialect) + fixed-width adapter / economic court | exact 10/10 · 11/11 | `evidence/campaigns/2026-10-10-phase21-25-1-tabular-e3c77a86/`, `…/2026-10-10-phase21-25-tabular-econ-f0a3a5cf/` |
+| PSV (pipe dialect) + fixed-width adapter / economic court | exact 10/10 · 11/11 | `evidence/campaigns/2026-10-10-phase21-25-1-tabular-e3c77a86/`, `…/2026-10-10-phase21-25-tabular-econ-584ee52e/` (3-lane; supersedes `…-f0a3a5cf`) |
 | reStructuredText adapter / economic court | exact 8/8 · 9/9 | `evidence/campaigns/2026-10-10-phase21-26-1-rst-91b02068/`, `…/2026-10-10-phase21-26-1-rst-econ-f0a3a5cf/` |
 | AsciiDoc adapter / economic court | exact 11/11 · 11/11 | `evidence/campaigns/2026-10-10-phase21-26-2-asciidoc-91b02068/`, `…/2026-10-10-phase21-26-2-asciidoc-econ-f0a3a5cf/` |
 | MDX adapter / economic court | exact 11/11 · 12/12 | `evidence/campaigns/2026-10-10-phase21-26-3-mdx-91b02068/`, `…/2026-10-10-phase21-26-3-mdx-econ-f0a3a5cf/` |
@@ -286,8 +286,12 @@ subphase 21.25.1).
 **Honest negative:** a trimmed variable-width file and a single-space two-column
 layout are not claimed; an **ambiguous aligned-text blob** (equal-length lines,
 ≥ 2-wide gaps, ≥ 3 lines) **is** claimed (it is not distinguishable from a
-fixed-width table), and positions are **byte** positions. See
-[Formats/Fixed-width](../formats/fixedwidth.md).
+fixed-width table), and positions are **byte** positions. **DuckDB wins storage**
+here (ADR-0059): the 3-lane court's paired median is ~**6.6×** / geometric mean
+~**7.5×** / ratio-of-sums ~**11.2×** smaller for the Parquet projection (e.g.
+`large.psv` 49,804 B vs VOLE 529,027 B), while VOLE keeps build/cold/warm and
+DuckDB answers the columnar questions 6/12 equal · 6/12 typed capability-gap ·
+0 mismatches. See [Formats/Fixed-width](../formats/fixedwidth.md).
 
 ## reStructuredText (prose)
 

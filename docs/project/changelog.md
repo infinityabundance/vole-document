@@ -21,14 +21,19 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   delimited or Markdown table**; `parse` re-validates every line
   (`invalid-fixedwidth-structure`, exit 39). Adapter exactness **10/10**
   (4 fixed-width + 3 delimited + 1 Markdown + 2 opaque controls). Economic court
-  vs a **source-retaining SQLite store** and a **conventional decode-to-host
-  load**: exact 11/11; build **0.909/0.939** · **1.157/1.140**, storage
-  **0.583/0.590** · **21.801/8.652** (ratio-of-sums **0.901**), cold
-  **0.027/0.034** · **0.028/0.036**, warm **0.057/0.081** · **0.737/0.555**
-  (median/geomean). An ambiguous aligned-text blob **is** claimed (recorded);
-  positions are **byte** positions; cold ratios are Python-startup-dominated.
+  **(3-lane; ADR-0059)** vs a **source-retaining SQLite store**, a **conventional
+  decode-to-host load** and the mandatory **DuckDB/Parquet** lane: exact 11/11;
+  build **0.760/0.857** SQLite · **0.928/0.994** conv · **0.333/0.381** DuckDB,
+  storage **0.583/0.590** SQLite · **21.801/8.652** conv · **6.557/7.483** DuckDB
+  (ratio-of-sums **11.233** — **DuckDB wins storage**, e.g. `large.psv`
+  49,804 B vs VOLE 529,027 B), cold **0.027/0.033** · **0.028/0.034** ·
+  **0.010/0.013**, warm **0.074/0.088** · **0.776/0.591** · **0.001/0.003**
+  (median/geomean). DuckDB equivalence 6 equal · 6 capability-gap · 0 mismatch.
+  An ambiguous aligned-text blob **is** claimed (recorded); positions are **byte**
+  positions; cold ratios are Python-startup-dominated.
   `2026-10-10-phase21-25-1-tabular-e3c77a86`,
-  `…-phase21-25-tabular-econ-f0a3a5cf`.
+  `…-phase21-25-tabular-econ-584ee52e` (3-lane; supersedes the retained 2-lane
+  `…-f0a3a5cf`).
 - **21.26.1 — reStructuredText (Docutils) adapter + economic court.** Non-default,
   dependency-free `rst = []`. A bounded, line-based Docutils-subset parser keeping
   exact block/inline byte spans: section titles with their exact underline/

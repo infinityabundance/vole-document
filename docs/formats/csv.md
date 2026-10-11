@@ -47,6 +47,19 @@ preserved exactly as comma/tab. PSV needs no new feature gate (it is within
 `csv = []`) and shares every native selector (`csv-row`/`csv-cell`/`csv-header`/
 `csv-range`/`csv-find`) and common observation.
 
+**Economic court.** PSV and fixed-width are measured together by the shared
+engine against **three** comparators — a source-retaining SQLite store, a
+conventional decode-to-host load, and the mandatory **DuckDB/Parquet** analytical
+baseline (ADR-0059; DuckDB 1.5.6). On this 7-fixture corpus VOLE is byte-exact
+**11/11** and keeps the build/cold/warm axes, while **DuckDB wins storage**
+(paired median ~**6.6×**, geometric mean ~**7.5×**, ratio-of-sums ~**11.2×**
+smaller; `large.psv` 49,804 B vs VOLE 529,027 B) — the mandatory tabular loss,
+recorded not hidden. DuckDB matches VOLE on the columnar/tabular questions
+(Q1/Q3/Q4/Q5/Q7/Q10) and is a **typed capability-gap** on the source-span/bytes,
+recorded-dialect and column-layout/quoting questions (Q2/Q6/Q8/Q9/Q11/Q12) — 6/12
+equal, 6/12 capability-gap, **0 mismatches**. See
+[Formats/Fixed-width](fixedwidth.md) for the full paired-ratio table.
+
 ## Unsupported / honest cost
 
 `Page(n)` is a typed decline (a table has no pagination). **VOLE has no CSV
@@ -95,6 +108,9 @@ here; that loss is recorded, not hidden.
 - Phase 21.25.1 PSV (pipe dialect) court (exactness 10/10, incl. the
   Markdown-boundary control):
   [2026-10-10-phase21-25-1-tabular-e3c77a86](../../evidence/campaigns/2026-10-10-phase21-25-1-tabular-e3c77a86/).
-- Phase 21.25 tabular economic court (PSV + fixed-width; exactness 11/11):
-  [2026-10-10-phase21-25-tabular-econ-f0a3a5cf](../../evidence/campaigns/2026-10-10-phase21-25-tabular-econ-f0a3a5cf/).
+- Phase 21.25 tabular economic court (PSV + fixed-width; exactness 11/11) — the
+  **3-lane** court (SQLite + conv + the mandatory DuckDB/Parquet lane, ADR-0059):
+  [2026-10-10-phase21-25-tabular-econ-584ee52e](../../evidence/campaigns/2026-10-10-phase21-25-tabular-econ-584ee52e/).
+  The earlier 2-lane court `…-phase21-25-tabular-econ-f0a3a5cf` (SQLite + conv
+  only) is **superseded but retained**.
 - Results: [phase-21-plan.md](../phases/phase-21-plan.md).
