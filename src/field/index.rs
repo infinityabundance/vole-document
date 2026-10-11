@@ -265,6 +265,263 @@ pub const SEL_PARQUET_MODEL: u8 = 28;
 /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); Arrow has no
 /// package layer. Derived, never exact.
 pub const SEL_ARROW_MODEL: u8 = 29;
+/// Selector kind: the canonical JSON5 / JSONC structured-tree model (Phase 21.17.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as exactly one JSON5 value into a bounded,
+/// representation-preserving arena (token spans, member order, duplicate keys,
+/// numeric/escape/quoting spelling, comment spans, and a recorded dialect) as
+/// `Q_gen` derived state. It is computed on demand from the exact source (its single
+/// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+/// JSON5 has no package layer. Derived, never exact.
+pub const SEL_JSON5_MODEL: u8 = 30;
+/// Selector kind: the canonical CBOR (RFC 8949) structured-tree model (Phase 21.18).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as exactly one CBOR item into a bounded,
+/// representation-preserving arena (each item's kind, exact byte span, encoding
+/// width, tag number, float width, definite/indefinite form, and ordered children —
+/// map member order and duplicate keys kept verbatim) as `Q_gen` derived state. It
+/// is computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); CBOR has no
+/// package layer. Derived, never exact.
+pub const SEL_CBOR_MODEL: u8 = 31;
+/// Selector kind: the canonical MessagePack structured-tree model (Phase 21.19).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as exactly one MessagePack item into a bounded,
+/// representation-preserving arena (each item's kind, exact byte span, exact format
+/// byte — encoding width and signedness — `str` vs `bin`, float width, extension
+/// type/length, and ordered children — map member order and duplicate keys kept
+/// verbatim) as `Q_gen` derived state. It is computed on demand from the exact
+/// source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); MessagePack has no package layer. Derived, never
+/// exact.
+pub const SEL_MSGPACK_MODEL: u8 = 32;
+/// Selector kind: the canonical config-family model (Phase 21.20).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as INI / `.env` / Java `.properties` into a bounded,
+/// representation-preserving arena (exact line spans and terminators, exact
+/// key/separator/value spans per entry, the recorded dialect, the `export`
+/// marker, quoting and inline-comment facts, `properties` trailing-`\`
+/// continuations, and `\uXXXX` escapes preserved as spelling) as `Q_gen` derived
+/// state. It is computed on demand from the exact source (its single dependency is
+/// the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); the config
+/// family has no package layer. Derived, never exact.
+pub const SEL_CONFIG_MODEL: u8 = 33;
+/// Selector kind: the canonical RSS/Atom feed model (Phase 21.21).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed (via the shared bounded XML parser) as an RSS 2.0 or
+/// Atom 1.0 feed into a bounded, representation-preserving model — the recorded
+/// dialect (`rss`/`atom`), the channel/feed container node, the ordered
+/// `<item>`/`<entry>` records, and the embedded span-preserving XML tree (every
+/// element/attribute span, element order, attribute spelling, and the Atom
+/// namespace declaration) — as `Q_gen` derived state. It is computed on demand
+/// from the exact source (its single dependency is the `DocumentExact` root,
+/// keyed by `sha256(source)` per ADR-0060); a feed has no package layer. Derived,
+/// never exact.
+pub const SEL_FEED_MODEL: u8 = 34;
+/// Selector kind: the canonical GeoJSON (RFC 7946) model (Phase 21.22).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed by the **shared JSON parser** into a bounded,
+/// representation-preserving JSON arena (exact token spans, member order,
+/// duplicate keys, numeric/escape spelling) plus the GeoJSON semantic anchors —
+/// the recorded root class (one of the nine RFC 7946 type names), the exact
+/// `"type"` token, and the geometry and feature object nodes in document order.
+/// `coordinates` nesting, `properties`/`id`/`bbox`/`geometry`/`features` order,
+/// and every foreign member are preserved as `Q_gen` derived state. It is computed
+/// on demand from the exact source (its single dependency is the `DocumentExact`
+/// root, keyed by `sha256(source)` per ADR-0060); GeoJSON has no package layer.
+/// Derived, never exact.
+pub const SEL_GEOJSON_MODEL: u8 = 35;
+/// Selector kind: the canonical KML/GPX geospatial model (Phase 21.23).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed (via the shared bounded XML parser) as a KML 2.2 or GPX 1.1
+/// document into a bounded, representation-preserving model — the recorded dialect
+/// (`kml`/`gpx`), the ordered record nodes (KML `<Placemark>` features, or GPX
+/// top-level `<wpt>`/`<rte>`/`<trk>` records), the ordered point nodes (KML
+/// `Point`/`LineString`/`Polygon` geometry, or GPX `<wpt>`/`<rtept>`/`<trkpt>` point
+/// elements), and the embedded span-preserving XML tree (every element/attribute
+/// span, element order, attribute spelling, and the namespace declaration) — as
+/// `Q_gen` derived state. It is computed on demand from the exact source (its single
+/// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+/// a GIS document has no package layer. Derived, never exact.
+pub const SEL_GIS_MODEL: u8 = 36;
+/// Selector kind: the canonical Jupyter notebook (`.ipynb`, nbformat) model
+/// (Phase 21.24).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed by the **shared JSON parser** into a bounded,
+/// representation-preserving JSON arena (exact token spans, member order,
+/// duplicate keys, numeric/escape spelling) plus the notebook semantic anchors —
+/// the exact `nbformat`/`nbformat_minor` tokens, the root `metadata` object node,
+/// and the ordered cell anchors (each cell's exact `cell_type` string, its `source`
+/// in its exact representation, `execution_count`, `metadata`, `attachments`, and
+/// its ordered `outputs` with each output's exact `output_type` string and fields).
+/// It is computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a notebook has no
+/// package layer. Derived, never exact.
+pub const SEL_NOTEBOOK_MODEL: u8 = 37;
+/// Selector kind: the canonical fixed-width (column-position) model (Phase 21.25).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed into a bounded, representation-preserving fixed-width table
+/// — the recorded inferred layout (per-column start/end positions and widths, the
+/// uniform record width, the line terminator, a BOM, and mixed-terminator fact), the
+/// optional header row (record 0), and every record's exact content span and
+/// per-column field spans (padding preserved) — as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a fixed-width
+/// document has no package layer. Derived, never exact.
+pub const SEL_FIXEDWIDTH_MODEL: u8 = 38;
+/// Selector kind: the canonical reStructuredText (Docutils) prose model (Phase
+/// 21.26.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as a bounded, representation-preserving prose model (section
+/// titles with their exact adornment and recorded hierarchy, paragraphs, explicit
+/// markup (`.. ` comments, `.. directive::` directives preserved verbatim,
+/// substitution definitions, footnotes/citations, hyperlink targets),
+/// field/option/definition lists, literal (`::`) and doctest (`>>> `) blocks,
+/// bullet/enumerated lists with nesting, inline spans, and grid/simple tables) as
+/// `Q_gen` derived state. It is computed on demand from the exact source (its single
+/// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+/// reStructuredText has no package layer. Derived, never exact.
+pub const SEL_RST_MODEL: u8 = 39;
+/// Selector kind: the canonical AsciiDoc prose model (Phase 21.26.2).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source parsed as a bounded, representation-preserving prose model (a level-0
+/// document title and `==`+ sections with their exact marker and recorded level,
+/// paragraphs, document attributes and literal attribute references, block attribute
+/// lines attached to the following block, delimited blocks with their exact delimiter
+/// and verbatim content, unordered/ordered/description lists with nesting, tables,
+/// admonitions, and inline spans including the `link:`/`image:`/`include::`/`xref:`
+/// and bare-URL macros) as `Q_gen` derived state. It is computed on demand from the
+/// exact source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); AsciiDoc has no package layer. Derived, never exact.
+pub const SEL_ASCIIDOC_MODEL: u8 = 40;
+/// Selector kind: the canonical MDX (Markdown + JSX/ESM) model (Phase 21.26.3).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as the reused Markdown prose model **plus** the MDX-specific arenas —
+/// top-level ESM statements, JSX elements/fragments with their attributes and nested
+/// children, and MDX expressions inline and block — as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); MDX has no package
+/// layer. Derived, never exact.
+pub const SEL_MDX_MODEL: u8 = 41;
+/// Selector kind: the canonical MHTML (MIME HTML, RFC 2557) web-archive model
+/// (Phase 21.27).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as the reused, span-preserving MIME envelope and ordered parts **plus** the
+/// MHTML-specific anchors — the top-level `Snapshot-Content-Location`/`Content-Base`,
+/// the ordered sub-resources keyed by `Content-Location`/`Content-ID`, and the root
+/// HTML part (the `start=` `Content-ID`, else the first `text/html` part, else the
+/// first part) with its **decoded** body parsed by the reused bounded HTML scanner —
+/// as `Q_gen` derived state. It is computed on demand from the exact source (its
+/// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+/// ADR-0060); MHTML has no package layer. Derived, never exact.
+pub const SEL_MHTML_MODEL: u8 = 42;
+/// Selector kind: the canonical syslog / log-stream model (Phase 21.28).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source split into physical lines, each non-blank line classified by a
+/// recorded dialect (RFC 5424 syslog, RFC 3164 (BSD) syslog, or a generic
+/// application log line) into a bounded record — the exact line span and terminator,
+/// the physical line number, the decoded priority, the deepest structured-data
+/// nesting, and every field's exact span (PRI/version/timestamp/hostname/app-name/
+/// procid/msgid/structured-data element/id/parameter-name/parameter-value/tag/pid/
+/// level/msg) — as `Q_gen` derived state. It is computed on demand from the exact
+/// source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); a log stream has no package layer. Derived, never
+/// exact.
+pub const SEL_LOGSTREAM_MODEL: u8 = 43;
+/// Selector kind: the canonical package-metadata model (Phase 21.29).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as the reused JSON/TOML arena **plus** a bounded, span-preserving section /
+/// entry projection and the recorded dialect (`npm_package` / `cargo_manifest` /
+/// `pyproject_manifest` / `cargo_lock` / `npm_lock`) as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a manifest has no
+/// package layer. Derived, never exact.
+pub const SEL_PKGMETA_MODEL: u8 = 44;
+/// Selector kind: the canonical API/specification model (Phase 21.30).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as the reused JSON arena **plus** a bounded, span-preserving object / member
+/// / `$ref` projection and the recorded dialect (`json_schema` / `openapi` / `swagger`
+/// / `asyncapi`) and the exact spec-version token as `Q_gen` derived state. It is
+/// computed on demand from the exact source (its single dependency is the
+/// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); an API spec has no
+/// package layer. Derived, never exact.
+pub const SEL_APISPEC_MODEL: u8 = 45;
+/// Selector kind: the canonical bibliography model (Phase 21.31).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as the **recorded dialect** (`bibtex` / `ris` / `csl_json`) plus a bounded,
+/// span-preserving projection — the text entry/field arena (BibTeX/RIS) or the reused
+/// JSON arena and item projection (CSL-JSON) — as `Q_gen` derived state. It is computed
+/// on demand from the exact source (its single dependency is the `DocumentExact` root,
+/// keyed by `sha256(source)` per ADR-0060); a bibliography has no package layer.
+/// Derived, never exact.
+pub const SEL_BIB_MODEL: u8 = 46;
+/// Selector kind: the canonical RTF (Rich Text Format) model (Phase 21.32).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving group-brace projection — the header
+/// (`\rtfN`/charset/`\deffN`), every group with its exact brace span and nesting depth,
+/// every control word/symbol, every `\'hh` hex escape and `\uN` Unicode escape (with
+/// the active `\ucN` fallback count), every destination verbatim, and every plain text
+/// run byte-exactly — as `Q_gen` derived state. It is computed on demand from the exact
+/// source (its single dependency is the `DocumentExact` root, keyed by `sha256(source)`
+/// per ADR-0060); RTF has no package layer. Derived, never exact.
+pub const SEL_RTF_MODEL: u8 = 47;
+/// Selector kind: the canonical generic archive-container model (Phase 21.33).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving archive projection — for ZIP the ordered
+/// central-directory member list (raw name bytes, method, both declared sizes, CRC-32,
+/// exact local-header/payload spans, data descriptor) plus the EOCD; for TAR the
+/// standard 512-byte member headers (with the GNU/PAX extensions folded in) plus the
+/// end-of-archive trailer — with the **recorded dialect** (`zip`/`tar`) as `Q_gen`
+/// derived state. It is computed on demand from the exact source (its single
+/// dependency is the `DocumentExact` or `PackageRoot` node, keyed by `sha256(source)`
+/// per ADR-0060); an archive has no separate package layer in this adapter. Derived,
+/// never exact.
+pub const SEL_CONTAINER_MODEL: u8 = 48;
+/// Selector kind: the canonical scientific-container model (Phase 21.34).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving projection with the **recorded dialect**
+/// (`netcdf`/`hdf5`): for NetCDF classic the dimension table, the global attribute
+/// list, and the variable list (name, dimensions, attributes, type, `vsize`, `begin`)
+/// with the record/array data layout; for the HDF5 subset the superblock, the group /
+/// dataset tree reached through the symbol-table link traversal, the datatype /
+/// dataspace / contiguous layout of each dataset, and the v1 object-header attribute
+/// messages. It is computed on demand from the exact source (its single dependency is
+/// the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); neither dialect
+/// has a separate package layer in this adapter. Derived, never exact.
+pub const SEL_HDF_MODEL: u8 = 49;
+/// Selector kind: the canonical CFBF / OLE2 compound-file model (Phase 21.35).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as a bounded, span-preserving projection with the **recorded dialect**
+/// (`cfb3`/`cfb4`): the 512-byte header, the DIFAT/FAT, the directory entries (verbatim
+/// UTF-16LE names, object type, color, the left/right/child sibling tree, start sector,
+/// stream size) with the reconstructed tree `parent`/`depth`, and every stream's exact
+/// byte span (regular streams through the FAT, small streams through the MiniFAT inside
+/// the root entry's mini stream). It is computed on demand from the exact source (its
+/// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+/// ADR-0060); a compound file has no separate package layer in this adapter. Derived,
+/// never exact.
+pub const SEL_CFBF_MODEL: u8 = 50;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

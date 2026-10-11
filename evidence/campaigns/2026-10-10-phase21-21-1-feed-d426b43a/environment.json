@@ -1,0 +1,18 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-21-1-feed-d426b43a",
+  "phase": "21.21.1 — RSS 2.0 / Atom 1.0 feed surface + exact closure",
+  "utc": "2026-10-10T20:50:47Z",
+  "git_commit": "d426b43ae92b8c4a212f28c0a81ed0cdeed2966a",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-21-1-feed-d426b43a/ ?? src/adapter/feed.rs ?? tests/feed_adapter.rs ?? tools/phase21-21-1-feed-court.sh ",
+  "arch": "x86_64",
+  "service": "dev",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "dab94091ba30a4f0b6f4e2cfc793f64cd54a9f0266ba5ab44d27911ea959c3d1",
+  "profile": "debug",
+  "fixtures_tool": "POSIX shell + GNU /usr/bin/printf (no python3, no jq); generated in-court, never committed",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

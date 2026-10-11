@@ -36,8 +36,12 @@ Per-format authority boundaries, native inverse representation, and exactness.
 - [ODP](formats/odp.md)
 - [JSON](formats/json.md)
 - [YAML](formats/yaml.md)
-- [CSV/TSV](formats/csv.md)
+- [CSV/TSV/PSV](formats/csv.md)
+- [Fixed-width](formats/fixedwidth.md)
 - [Markdown](formats/markdown.md)
+- [reStructuredText](formats/rst.md)
+- [AsciiDoc](formats/asciidoc.md)
+- [MDX](formats/mdx.md)
 - [XML](formats/xml.md)
 - [HTML](formats/html.md)
 - [TOML](formats/toml.md)
@@ -45,6 +49,23 @@ Per-format authority boundaries, native inverse representation, and exactness.
 - [EML/MIME](formats/eml.md)
 - [Parquet](formats/parquet.md)
 - [Arrow IPC](formats/arrow.md)
+- [JSON5 / JSONC](formats/json5.md)
+- [CBOR](formats/cbor.md)
+- [MessagePack](formats/msgpack.md)
+- [INI / .env / properties](formats/config.md)
+- [RSS / Atom](formats/feed.md)
+- [GeoJSON](formats/geojson.md)
+- [KML / GPX](formats/gis.md)
+- [Jupyter notebook](formats/notebook.md)
+- [MHTML](formats/mhtml.md)
+- [syslog / log streams](formats/logstream.md)
+- [package metadata](formats/pkgmeta.md)
+- [API / specification](formats/apispec.md)
+- [bibliography (BibTeX/RIS/CSL-JSON)](formats/bib.md)
+- [RTF](formats/rtf.md)
+- [ZIP / TAR containers](formats/container.md)
+- [NetCDF classic / HDF5](formats/hdf.md)
+- [CFBF / OLE2](formats/cfbf.md)
 
 ## Reference
 
@@ -77,12 +98,17 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   [Phase 25](phases/phase-25-results.md) (durability corrections: directory
   ancestry + unpublished-segment recovery); **in progress**:
   [Phase 21](phases/phase-21-plan.md) (format programme — **Wave 1 complete**: XLSX,
-  PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2 listed
-  formats complete**: JSON, YAML, CSV/TSV, Markdown, XML, HTML, TOML, JSONL,
-  EML/MIME, Parquet and Arrow IPC adapters + economic courts; also a permanent
-  cross-field identity court, a stratified real-world court, and the JSON/YAML
-  span-preserving comparator corrections); the Phase 22
-  programme is pre-registered in
+  PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2
+  complete**: JSON, YAML, CSV/TSV, Markdown, XML, HTML, TOML, JSONL, EML/MIME,
+  Parquet and Arrow IPC adapters + economic courts, plus the subphases 21.17–21.24
+  (JSON5/JSONC, CBOR, MessagePack, config, RSS/Atom, GeoJSON, KML/GPX, Jupyter
+  notebook), 21.25/21.26 (PSV + fixed-width; reStructuredText + AsciiDoc + MDX) and
+  the final families 21.27–21.35 (MHTML, log streams, package metadata, API/spec,
+  bibliography, RTF, ZIP/TAR containers, NetCDF classic/HDF5 subset, CFBF/OLE2
+  physical layer) adapters + economic courts; also a permanent cross-field
+  identity court, a stratified real-world court, and the JSON/YAML span-preserving
+  comparator corrections; the legacy DOC/XLS/PPT/MSG *semantic* models on top of
+  CFBF remain future work); the Phase 22 programme is pre-registered in
   [phase-22-plan.md](phases/phase-22-plan.md).
 - [Independent reviews](reviews/) — adversarial skeptic findings.
 - [Evidence index](evidence/README.md) — campaigns and measurement reports.

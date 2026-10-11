@@ -184,6 +184,12 @@ const ODP_NATIVE: &[&str] = &[
     "member",
 ];
 const JSON_NATIVE: &[&str] = &["json-pointer", "json-node", "json-find"];
+const JSON5_NATIVE: &[&str] = &[
+    "json5-pointer",
+    "json5-node",
+    "json5-find",
+    "json5-comments",
+];
 const YAML_NATIVE: &[&str] = &[
     "yaml-path",
     "yaml-node",
@@ -223,6 +229,130 @@ const PARQUET_NATIVE: &[&str] = &[
     "parquet-cell",
 ];
 const ARROW_NATIVE: &[&str] = &["arrow-schema", "arrow-column", "arrow-batch", "arrow-cell"];
+const CBOR_NATIVE: &[&str] = &["cbor-pointer", "cbor-node", "cbor-find"];
+const MSGPACK_NATIVE: &[&str] = &["msgpack-pointer", "msgpack-node", "msgpack-find"];
+const CONFIG_NATIVE: &[&str] = &[
+    "config-line",
+    "config-entry",
+    "config-section",
+    "config-find",
+];
+const FEED_NATIVE: &[&str] = &[
+    "feed-channel",
+    "feed-field",
+    "feed-entry",
+    "feed-entry-field",
+    "feed-find",
+];
+const GEOJSON_NATIVE: &[&str] = &[
+    "geojson-type",
+    "geojson-feature",
+    "geojson-geometry",
+    "geojson-coordinates",
+    "geojson-property",
+    "geojson-find",
+];
+const GIS_NATIVE: &[&str] = &[
+    "gis-root",
+    "gis-field",
+    "gis-record",
+    "gis-record-field",
+    "gis-point",
+    "gis-find",
+];
+const NOTEBOOK_NATIVE: &[&str] = &[
+    "notebook-nbformat",
+    "notebook-cell",
+    "notebook-cell-type",
+    "notebook-cell-source",
+    "notebook-cell-output",
+    "notebook-find",
+];
+const FIXEDWIDTH_NATIVE: &[&str] = &[
+    "fixedwidth-row",
+    "fixedwidth-cell",
+    "fixedwidth-header",
+    "fixedwidth-columns",
+    "fixedwidth-range",
+    "fixedwidth-find",
+];
+const RST_NATIVE: &[&str] = &[
+    "rst-heading",
+    "rst-block",
+    "rst-directive",
+    "rst-inline",
+    "rst-find",
+];
+const ASCIIDOC_NATIVE: &[&str] = &[
+    "adoc-heading",
+    "adoc-block",
+    "adoc-attribute",
+    "adoc-inline",
+    "adoc-find",
+];
+const MDX_NATIVE: &[&str] = &[
+    "mdx-heading",
+    "mdx-block",
+    "mdx-esm",
+    "mdx-jsx",
+    "mdx-expression",
+    "mdx-find",
+];
+
+const MHTML_NATIVE: &[&str] = &[
+    "mhtml-root",
+    "mhtml-resource",
+    "mhtml-location",
+    "mhtml-find",
+];
+
+const LOGSTREAM_NATIVE: &[&str] = &["logstream-line", "logstream-field", "logstream-find"];
+
+const PKGMETA_NATIVE: &[&str] = &[
+    "pkgmeta-section",
+    "pkgmeta-entry",
+    "pkgmeta-key",
+    "pkgmeta-find",
+];
+
+const APISPEC_NATIVE: &[&str] = &[
+    "apispec-dialect",
+    "apispec-version",
+    "apispec-object",
+    "apispec-ref",
+    "apispec-find",
+];
+
+const BIB_NATIVE: &[&str] = &[
+    "bib-dialect",
+    "bib-entry",
+    "bib-field",
+    "bib-key",
+    "bib-find",
+];
+
+const RTF_NATIVE: &[&str] = &[
+    "rtf-header",
+    "rtf-group",
+    "rtf-control",
+    "rtf-hex",
+    "rtf-unicode",
+    "rtf-text",
+    "rtf-dest",
+    "rtf-find",
+];
+
+const CONTAINER_NATIVE: &[&str] = &["container-dialect", "container-entry", "container-find"];
+
+const HDF_NATIVE: &[&str] = &[
+    "hdf-dialect",
+    "hdf-object",
+    "hdf-dimension",
+    "hdf-attribute",
+    "hdf-find",
+];
+
+const CFBF_NATIVE: &[&str] = &["cfbf-dialect", "cfbf-entry", "cfbf-stream", "cfbf-find"];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -359,6 +489,15 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 Vec::new(),
                 JSON_NATIVE.to_vec(),
             ),
+            DocumentFormat::Json5 => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                JSON5_NATIVE.to_vec(),
+            ),
             DocumentFormat::Yaml => (
                 vec![
                     caps("metadata", COMMON_METADATA),
@@ -459,6 +598,195 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 ARROW_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Cbor => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                CBOR_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Msgpack => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                MSGPACK_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Config => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                CONFIG_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Feed => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                FEED_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Geojson => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                GEOJSON_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Gis => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                GIS_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Notebook => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                NOTEBOOK_NATIVE.to_vec(),
+            ),
+            DocumentFormat::FixedWidth => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("table", COMMON_TEXT_META),
+                    caps("cell", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                FIXEDWIDTH_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Rst => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("heading", COMMON_TEXT_META),
+                    caps("block", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                RST_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Asciidoc => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("heading", COMMON_TEXT_META),
+                    caps("block", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                ASCIIDOC_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Mdx => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("heading", COMMON_TEXT_META),
+                    caps("block", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                MDX_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Mhtml => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("resource", COMMON_RESOURCE_BYTES),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                MHTML_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Logstream => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                LOGSTREAM_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Pkgmeta => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                PKGMETA_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Apispec => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                APISPEC_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Bib => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                BIB_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Rtf => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                RTF_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Container => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                CONTAINER_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Hdf => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                HDF_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Cfbf => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                CFBF_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

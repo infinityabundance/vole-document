@@ -1,0 +1,12 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+points.geojson	true	true	true	true	true	3473	23761
+feature.geojson	true	true	true	true	true	3240	21084
+coords.geojson	true	true	true	true	true	3325	22341
+foreign.geojson	true	true	true	true	true	3361	21908
+geomcoll.geojson	true	true	true	true	true	3319	22459
+dupkeys.geojson	true	true	true	true	true	3526	24121
+large.geojson	true	true	true	true	true	4537	25619
+malformed.geojson	true	-	true	true	true	3197	-
+notgeojson.json	true	-	true	true	true	3251	-
+prose.txt	true	-	true	true	true	4098	-
+wrongtype.json	true	-	true	true	true	3466	-

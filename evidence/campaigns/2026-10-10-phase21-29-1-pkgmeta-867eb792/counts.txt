@@ -1,0 +1,13 @@
+fixtures 8
+pkgmeta_fixtures 5
+control_fixtures 3
+exact_ok 8
+exact_fail 0
+surface_fail 0
+boundary_ok 3
+opaque_control_ok 1
+json_control_ok 1
+toml_control_ok 1
+typed_declines_ok 1
+usage_ok 1
+binary c0ea1fed83c89746deb75f377ed93b5c946a73bef23fe4d8689e85e3050d9ee7

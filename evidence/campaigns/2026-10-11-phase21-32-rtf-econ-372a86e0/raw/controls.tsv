@@ -1,0 +1,5 @@
+fixture	expect_fmt	fmt	expect_rc	rc	common_rc	own_rc	foreign_rc	ok
+broken.rtf	opaque	opaque	6	6	6	6	6	true
+junk.txt	opaque	opaque	6	6	6	6	6	true
+prose.txt	opaque	opaque	6	6	6	6	6	true
+rtfx.rtf	opaque	opaque	6	6	6	6	6	true

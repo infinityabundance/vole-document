@@ -1,0 +1,1 @@
+{"decline": {"code": "no-strict-json-representation", "detail": "JSON5 source cannot be normalized to strict JSON: NaN has no strict-JSON representation"}, "declined": true, "detail": {}, "lane": "sqlite", "native": true, "q": "Q1", "value": null}

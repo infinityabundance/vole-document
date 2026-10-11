@@ -963,6 +963,700 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::Json5Model => {
+            // The canonical JSON5/JSONC structured-tree model is derived on demand
+            // from the exact source. JSON5 has no package layer, so its single
+            // dependency is the exact `DocumentExact` root (keyed by `sha256(source)`
+            // per ADR-0060): the model node *reads the source bytes*, so it must
+            // carry a source-identity input, never alias another field's source.
+            // Parsing and all bounds live in `adapter::json5`.
+            #[cfg(feature = "json5")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("Json5Model has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::json5::build_json5_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "json5"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "JSON5 support is not compiled in (feature `json5`)",
+                ));
+            }
+        }
+        NodeKind::CborModel => {
+            // The canonical CBOR structured-tree model is derived on demand from the
+            // exact source. CBOR has no package layer, so its single dependency is the
+            // exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the
+            // model node *reads the source bytes*, so it must carry a source-identity
+            // input, never alias another field's source. Parsing and all bounds live
+            // in `adapter::cbor`.
+            #[cfg(feature = "cbor")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("CborModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::cbor::build_cbor_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "cbor"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "CBOR support is not compiled in (feature `cbor`)",
+                ));
+            }
+        }
+        NodeKind::MsgpackModel => {
+            // The canonical MessagePack structured-tree model is derived on demand from
+            // the exact source. MessagePack has no package layer, so its single
+            // dependency is the exact `DocumentExact` root (keyed by `sha256(source)`
+            // per ADR-0060): the model node *reads the source bytes*, so it must carry
+            // a source-identity input, never alias another field's source. Parsing and
+            // all bounds live in `adapter::msgpack`.
+            #[cfg(feature = "msgpack")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("MsgpackModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::msgpack::build_msgpack_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "msgpack"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "MessagePack support is not compiled in (feature `msgpack`)",
+                ));
+            }
+        }
+        NodeKind::ConfigModel => {
+            // The canonical config-family model is derived on demand from the exact
+            // source. The config family has no package layer, so its single dependency
+            // is the exact `DocumentExact` root (keyed by `sha256(source)` per
+            // ADR-0060): the model node *reads the source bytes*, so it must carry a
+            // source-identity input, never alias another field's source. Parsing and
+            // all bounds live in `adapter::config`.
+            #[cfg(feature = "config")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("ConfigModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::config::build_config_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "config"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "config support is not compiled in (feature `config`)",
+                ));
+            }
+        }
+        NodeKind::FeedModel => {
+            // The canonical RSS/Atom feed model is derived on demand from the exact
+            // source, via the shared bounded XML parser. A feed has no package layer,
+            // so its single dependency is the exact `DocumentExact` root (keyed by
+            // `sha256(source)` per ADR-0060): the model node *reads the source bytes*,
+            // so it must carry a source-identity input, never alias another field's
+            // source. Parsing and all bounds live in `adapter::feed`.
+            #[cfg(feature = "feed")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("FeedModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::feed::build_feed_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "feed"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "feed support is not compiled in (feature `feed`)",
+                ));
+            }
+        }
+        NodeKind::GeojsonModel => {
+            // The canonical GeoJSON model is derived on demand from the exact source,
+            // via the shared bounded JSON parser. GeoJSON has no package layer, so its
+            // single dependency is the exact `DocumentExact` root (keyed by
+            // `sha256(source)` per ADR-0060): the model node *reads the source bytes*,
+            // so it must carry a source-identity input, never alias another field's
+            // source. Parsing and all bounds live in `adapter::geojson`.
+            #[cfg(feature = "geojson")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("GeojsonModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::geojson::build_geojson_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "geojson"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "GeoJSON support is not compiled in (feature `geojson`)",
+                ));
+            }
+        }
+        NodeKind::GisModel => {
+            // The canonical KML/GPX geospatial model is derived on demand from the
+            // exact source, via the shared bounded XML parser. A GIS document has no
+            // package layer, so its single dependency is the exact `DocumentExact`
+            // root (keyed by `sha256(source)` per ADR-0060): the model node *reads the
+            // source bytes*, so it must carry a source-identity input, never alias
+            // another field's source. Parsing and all bounds live in `adapter::gis`.
+            #[cfg(feature = "gis")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("GisModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::gis::build_gis_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "gis"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "GIS support is not compiled in (feature `gis`)",
+                ));
+            }
+        }
+        NodeKind::NotebookModel => {
+            // The canonical Jupyter notebook model is derived on demand from the exact
+            // source, via the shared bounded JSON parser. A notebook has no package
+            // layer, so its single dependency is the exact `DocumentExact` root (keyed by
+            // `sha256(source)` per ADR-0060): the model node *reads the source bytes*,
+            // so it must carry a source-identity input, never alias another field's
+            // source. Parsing and all bounds live in `adapter::notebook`.
+            #[cfg(feature = "notebook")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("NotebookModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::notebook::build_notebook_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "notebook"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "notebook support is not compiled in (feature `notebook`)",
+                ));
+            }
+        }
+        NodeKind::FixedWidthModel => {
+            // The canonical fixed-width model is derived on demand from the exact
+            // source. Fixed-width has no package layer, so its single dependency is the
+            // exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the
+            // model node *reads the source bytes*, so it must carry a source-identity
+            // input, never alias another field's source. Parsing and all bounds live in
+            // `adapter::fixedwidth`.
+            #[cfg(feature = "fixedwidth")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("FixedWidthModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::fixedwidth::build_fixedwidth_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "fixedwidth"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "fixed-width support is not compiled in (feature `fixedwidth`)",
+                ));
+            }
+        }
+        NodeKind::RstModel => {
+            // The canonical reStructuredText prose model is derived on demand from the
+            // exact source. reStructuredText has no package layer, so its single
+            // dependency is the exact `DocumentExact` root (keyed by `sha256(source)`
+            // per ADR-0060): the model node *reads the source bytes*, so it must carry a
+            // source-identity input, never alias another field's source. Parsing and all
+            // bounds live in `adapter::rst`.
+            #[cfg(feature = "rst")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("RstModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::rst::build_rst_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "rst"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "reStructuredText support is not compiled in (feature `rst`)",
+                ));
+            }
+        }
+        NodeKind::AsciidocModel => {
+            // The canonical AsciiDoc prose model is derived on demand from the exact
+            // source. AsciiDoc has no package layer, so its single dependency is the
+            // exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the
+            // model node *reads the source bytes*, so it must carry a source-identity
+            // input, never alias another field's source. Parsing and all bounds live in
+            // `adapter::asciidoc`.
+            #[cfg(feature = "asciidoc")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("AsciidocModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::asciidoc::build_asciidoc_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "asciidoc"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "AsciiDoc support is not compiled in (feature `asciidoc`)",
+                ));
+            }
+        }
+        NodeKind::MdxModel => {
+            // The canonical MDX (Markdown + JSX/ESM) model is derived on demand from
+            // the exact source. MDX has no package layer, so its single dependency is
+            // the exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060):
+            // the model node *reads the source bytes*, so it must carry a
+            // source-identity input, never alias another field's source. Parsing and
+            // all bounds live in `adapter::mdx`.
+            #[cfg(feature = "mdx")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("MdxModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::mdx::build_mdx_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "mdx"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "MDX support is not compiled in (feature `mdx`)",
+                ));
+            }
+        }
+        NodeKind::MhtmlModel => {
+            // The canonical MHTML (MIME HTML) model is derived on demand from the exact
+            // source. MHTML has no package layer, so its single dependency is the exact
+            // `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the model
+            // node *reads the source bytes*, so it must carry a source-identity input,
+            // never alias another field's source. Parsing and all bounds live in
+            // `adapter::mhtml` (which reuses `adapter::eml` and `adapter::html`).
+            #[cfg(feature = "mhtml")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("MhtmlModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::mhtml::build_mhtml_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "mhtml"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "MHTML support is not compiled in (feature `mhtml`)",
+                ));
+            }
+        }
+        NodeKind::LogstreamModel => {
+            // The canonical syslog / log-stream model is derived on demand from the
+            // exact source. A log stream has no package layer, so its single dependency
+            // is the exact `DocumentExact` root (keyed by `sha256(source)` per
+            // ADR-0060): the model node *reads the source bytes*, so it must carry a
+            // source-identity input, never alias another field's source. Parsing and
+            // all bounds live in `adapter::logstream`.
+            #[cfg(feature = "logstream")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("LogstreamModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::logstream::build_logstream_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "logstream"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "log-stream support is not compiled in (feature `logstream`)",
+                ));
+            }
+        }
+        NodeKind::PkgmetaModel => {
+            // The canonical package-metadata model is derived on demand from the exact
+            // source. A manifest has no package layer, so its single dependency is the
+            // exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the
+            // model node *reads the source bytes*, so it must carry a source-identity
+            // input, never alias another field's source. Parsing (which reuses the JSON
+            // and TOML parsers) and all bounds live in `adapter::pkgmeta`.
+            #[cfg(feature = "pkgmeta")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("PkgmetaModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::pkgmeta::build_pkgmeta_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "pkgmeta"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "package-metadata support is not compiled in (feature `pkgmeta`)",
+                ));
+            }
+        }
+        NodeKind::ApispecModel => {
+            // The canonical API/specification model is derived on demand from the exact
+            // source, via the shared bounded JSON parser. An API spec has no package
+            // layer, so its single dependency is the exact `DocumentExact` root (keyed
+            // by `sha256(source)` per ADR-0060): the model node *reads the source
+            // bytes*, so it must carry a source-identity input, never alias another
+            // field's source. Parsing and all bounds live in `adapter::apispec`.
+            #[cfg(feature = "apispec")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("ApispecModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::apispec::build_apispec_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "apispec"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "API-specification support is not compiled in (feature `apispec`)",
+                ));
+            }
+        }
+        NodeKind::BibModel => {
+            // The canonical bibliography model is derived on demand from the exact
+            // source. A bibliography has no package layer, so its single dependency is
+            // the exact `DocumentExact` root (keyed by `sha256(source)` per ADR-0060):
+            // the model node *reads the source bytes*, so it must carry a source-identity
+            // input, never alias another field's source. Parsing and all bounds live in
+            // `adapter::bib`.
+            #[cfg(feature = "bib")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("BibModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::bib::build_bib_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "bib"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "bibliography support is not compiled in (feature `bib`)",
+                ));
+            }
+        }
+        NodeKind::RtfModel => {
+            // The canonical RTF model is derived on demand from the exact source. RTF
+            // has no package layer, so its single dependency is the exact
+            // `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the model
+            // node *reads the source bytes*, so it must carry a source-identity input,
+            // never alias another field's source. Parsing and all bounds live in
+            // `adapter::rtf`.
+            #[cfg(feature = "rtf")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("RtfModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::rtf::build_rtf_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "rtf"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "RTF support is not compiled in (feature `rtf`)",
+                ));
+            }
+        }
+        NodeKind::ContainerModel => {
+            // The canonical archive-container model is derived on demand from the exact
+            // source. A container has no separate package layer in this adapter, so its
+            // single dependency is the exact source root (a `DocumentExact` for a TAR
+            // tail, or the `PackageRoot` of the reused ZIP physical layer), keyed by
+            // `sha256(source)` per ADR-0060: the model node *reads the source bytes*, so
+            // it must carry a source-identity input, never alias another field's source.
+            // Parsing and all bounds live in `adapter::container`.
+            #[cfg(feature = "container")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("ContainerModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::container::build_container_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "container"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "container support is not compiled in (feature `container`)",
+                ));
+            }
+        }
+        NodeKind::HdfModel => {
+            // The canonical scientific-container model is derived on demand from the
+            // exact source. Neither NetCDF classic nor the HDF5 subset has a package
+            // layer, so its single dependency is the exact `DocumentExact` root (keyed
+            // by `sha256(source)` per ADR-0060): the model node *reads the source
+            // bytes*, so it must carry a source-identity input, never alias another
+            // field's source. Parsing and all bounds live in `adapter::hdf`.
+            #[cfg(feature = "hdf")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("HdfModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::hdf::build_hdf_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "hdf"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "scientific-container support is not compiled in (feature `hdf`)",
+                ));
+            }
+        }
+        NodeKind::CfbfModel => {
+            // The canonical CFBF/OLE2 compound-file model is derived on demand from the
+            // exact source. A compound file has no package layer, so its single
+            // dependency is the exact `DocumentExact` root (keyed by `sha256(source)`
+            // per ADR-0060): the model node *reads the source bytes*, so it must carry a
+            // source-identity input, never alias another field's source. Parsing and
+            // all bounds live in `adapter::cfbf`.
+            #[cfg(feature = "cfbf")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("CfbfModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::cfbf::build_cfbf_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "cfbf"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "compound-file support is not compiled in (feature `cfbf`)",
+                ));
+            }
+        }
         NodeKind::YamlModel => {
             // The canonical YAML structured-tree model is derived on demand from the
             // exact source. YAML has no package layer, so its single dependency is

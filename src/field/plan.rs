@@ -447,6 +447,135 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["JsonlModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-records", "whole-document"]),
         }),
+        #[cfg(feature = "logstream")]
+        (Selector::LogstreamLine { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::LogstreamField { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::LogstreamFind { .. }, R::Text | R::Metadata | R::Structure) => {
+            Ok(ObservePlan {
+                shape: PlanShape::DeepenThenObserve,
+                index_reads: 1,
+                required_nodes: 2,
+                will_materialize: kinds(&["LogstreamModel", "DocumentExact"]),
+                will_not_materialize: kinds(&["other-records", "whole-document"]),
+            })
+        }
+        #[cfg(feature = "pkgmeta")]
+        (Selector::PkgmetaSection { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::PkgmetaEntry { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::PkgmetaKey { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::PkgmetaFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["PkgmetaModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-sections", "whole-document"]),
+        }),
+        #[cfg(feature = "apispec")]
+        (Selector::ApispecDialect, R::Metadata | R::Structure | R::Text)
+        | (Selector::ApispecVersion, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::ApispecObject { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::ApispecRef { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::ApispecFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["ApispecModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-objects", "whole-document"]),
+        }),
+        #[cfg(feature = "bib")]
+        (Selector::BibDialect, R::Metadata | R::Structure | R::Text)
+        | (Selector::BibEntry { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::BibField { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::BibKey { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::BibFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["BibModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-entries", "whole-document"]),
+        }),
+        #[cfg(feature = "rtf")]
+        (Selector::RtfHeader, R::Metadata | R::Structure | R::Text)
+        | (Selector::RtfGroup { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfControl { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfHex { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfUnicode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfText { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfDestination { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RtfFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["RtfModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-groups", "whole-document"]),
+        }),
+        #[cfg(feature = "container")]
+        (Selector::ContainerDialect, R::Metadata | R::Structure | R::Text)
+        | (Selector::ContainerEntry { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::ContainerFind { .. }, R::Text | R::Metadata | R::Structure) => {
+            Ok(ObservePlan {
+                shape: PlanShape::DeepenThenObserve,
+                index_reads: 1,
+                required_nodes: 2,
+                will_materialize: kinds(&["ContainerModel", "DocumentExact"]),
+                will_not_materialize: kinds(&["other-members", "whole-document"]),
+            })
+        }
+        #[cfg(feature = "hdf")]
+        (Selector::HdfDialect, R::Metadata | R::Structure | R::Text)
+        | (Selector::HdfObject { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::HdfDimension { .. }, R::Metadata | R::Structure | R::Text)
+        | (Selector::HdfAttribute { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::HdfFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["HdfModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-objects", "whole-document"]),
+        }),
+        #[cfg(feature = "cfbf")]
+        (Selector::CfbfDialect, R::Metadata | R::Structure | R::Text)
+        | (Selector::CfbfEntry { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::CfbfStream { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::CfbfFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["CfbfModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-entries", "whole-document"]),
+        }),
+        #[cfg(feature = "json5")]
+        (Selector::Json5Pointer { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::Json5Node { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::Json5Comments, R::Metadata | R::Structure | R::Text)
+        | (Selector::Json5Find { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["Json5Model", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-nodes", "whole-document"]),
+        }),
+        #[cfg(feature = "cbor")]
+        (Selector::CborPointer { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::CborNode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::CborFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["CborModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-nodes", "whole-document"]),
+        }),
+        #[cfg(feature = "config")]
+        (Selector::ConfigLine { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::ConfigEntry { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::ConfigSection { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::ConfigFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["ConfigModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-lines", "whole-document"]),
+        }),
         #[cfg(feature = "yaml")]
         (Selector::YamlPath { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
         | (Selector::YamlNode { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
@@ -469,6 +598,43 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             index_reads: 1,
             required_nodes: 2,
             will_materialize: kinds(&["MarkdownModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-nodes", "whole-document"]),
+        }),
+        #[cfg(feature = "rst")]
+        (Selector::RstHeading { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RstBlock { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RstDirective { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RstInline { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RstFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["RstModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-nodes", "whole-document"]),
+        }),
+        #[cfg(feature = "asciidoc")]
+        (Selector::AdocHeading { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::AdocBlock { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::AdocAttribute { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::AdocInline { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::AdocFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["AsciidocModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-nodes", "whole-document"]),
+        }),
+        #[cfg(feature = "mdx")]
+        (Selector::MdxHeading { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdxBlock { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdxEsm { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdxJsx { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdxExpression { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::MdxFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["MdxModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-nodes", "whole-document"]),
         }),
         _ => Err(Error::unsupported_feature(format!(
@@ -585,6 +751,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
             "PackageMemberRaw",
         ],
         DocumentFormat::Json => &["JsonModel", "DocumentExact"],
+        DocumentFormat::Json5 => &["Json5Model", "DocumentExact"],
         DocumentFormat::Yaml => &["YamlModel", "DocumentExact"],
         DocumentFormat::Csv => &["CsvModel", "DocumentExact"],
         DocumentFormat::Markdown => &["MarkdownModel", "DocumentExact"],
@@ -595,6 +762,26 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Eml => &["EmlModel", "DocumentExact"],
         DocumentFormat::Parquet => &["ParquetModel", "DocumentExact"],
         DocumentFormat::ArrowIpc => &["ArrowModel", "DocumentExact"],
+        DocumentFormat::Cbor => &["CborModel", "DocumentExact"],
+        DocumentFormat::Msgpack => &["MsgpackModel", "DocumentExact"],
+        DocumentFormat::Config => &["ConfigModel", "DocumentExact"],
+        DocumentFormat::Feed => &["FeedModel", "DocumentExact"],
+        DocumentFormat::Geojson => &["GeojsonModel", "DocumentExact"],
+        DocumentFormat::Gis => &["GisModel", "DocumentExact"],
+        DocumentFormat::Notebook => &["NotebookModel", "DocumentExact"],
+        DocumentFormat::FixedWidth => &["FixedWidthModel", "DocumentExact"],
+        DocumentFormat::Rst => &["RstModel", "DocumentExact"],
+        DocumentFormat::Asciidoc => &["AsciidocModel", "DocumentExact"],
+        DocumentFormat::Mdx => &["MdxModel", "DocumentExact"],
+        DocumentFormat::Mhtml => &["MhtmlModel", "DocumentExact"],
+        DocumentFormat::Logstream => &["LogstreamModel", "DocumentExact"],
+        DocumentFormat::Pkgmeta => &["PkgmetaModel", "DocumentExact"],
+        DocumentFormat::Apispec => &["ApispecModel", "DocumentExact"],
+        DocumentFormat::Bib => &["BibModel", "DocumentExact"],
+        DocumentFormat::Rtf => &["RtfModel", "DocumentExact"],
+        DocumentFormat::Container => &["ContainerModel", "DocumentExact"],
+        DocumentFormat::Hdf => &["HdfModel", "DocumentExact"],
+        DocumentFormat::Cfbf => &["CfbfModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

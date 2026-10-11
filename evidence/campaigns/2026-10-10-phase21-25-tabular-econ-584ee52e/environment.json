@@ -1,0 +1,68 @@
+{
+  "arch": "x86_64",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "2dfe442532dbc8a38c2ab34274ca126483320c648a54c1700ac38569adbf9f63",
+  "build_args": "--release --locked --all-features",
+  "campaign": "evidence/campaigns/2026-10-10-phase21-25-tabular-econ-584ee52e",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+  "controls": "comma.csv markdown.md prose.txt spaced.txt",
+  "derives_from": "doc-baseline (same pinned base digest)",
+  "duckdb_version": "1.5.6",
+  "econ_module_sha256": "f39a9048671db9412209585aff38e2095adf350489d9d0dc7a5fd0552aa6614a",
+  "env_affecting_semantics": {
+    "LC_ALL": "C"
+  },
+  "fixtures_len_sha256": {
+    "fw-basic.fw": {
+      "len": 33,
+      "sha256": "313571e12c3d91d9366314b5f83c2567f6abcce697c1e02aa0cf11af1fa72cfa"
+    },
+    "fw-crlf.fw": {
+      "len": 36,
+      "sha256": "9ac0f4c573dbb665e91016e6e41c7fe5e16569d68d954f52d459f1acbc7c0324"
+    },
+    "fw-three.fw": {
+      "len": 42,
+      "sha256": "1bcdc6cc69f869478c666df05f95223a1f22b989f60de9d846a2383f1a34ab3a"
+    },
+    "large.fw": {
+      "len": 262164,
+      "sha256": "88c0ae695cf0bb04aa706e8ad219155425211e7dc49d49dd8ad7e6724ef281ef"
+    },
+    "large.psv": {
+      "len": 262148,
+      "sha256": "22278c4bc4cf33edd32c844f82176a6859b6451ba205f45ffb9ea754dd7b1723"
+    },
+    "psv-basic.psv": {
+      "len": 25,
+      "sha256": "c58306a03a9b5de0bf9a9cc6683e93e59ba839f7f9ca40b62dde46d8a67d1f14"
+    },
+    "psv-quotes.psv": {
+      "len": 30,
+      "sha256": "0172cf92e06e971bbd8aad33718c1fcec6e626b85a3d4cc62bf05a3052e93455"
+    }
+  },
+  "foreign_selector": "--rst-heading 0 --kind structure",
+  "format": "tabular",
+  "generator_sha256": "91c794bd0e55ebd992ff070c039324d1ed3c64394d00b05be8af4503fe8753c5",
+  "lane_fixtures": "psv-basic.psv psv-quotes.psv fw-basic.fw fw-three.fw fw-crlf.fw large.psv large.fw",
+  "measured_commit": "584ee52eee5d0f0d3daf8125dce10810ee404e16",
+  "own_selector": "--fixedwidth-row 0 --kind structure",
+  "phase": "21.25 \u2014 PSV + fixed-width economic court",
+  "profile": "release",
+  "python": "Python 3.11.2",
+  "python_startup_us": 6367,
+  "reps": 3,
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "service": "analytical",
+  "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+  "sqlite_module": "sqlite3",
+  "sqlite_version": "3.40.1",
+  "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+  "tree_state": " M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt_econ.py  M tools/phase21-25-tabular-econ-court.sh ?? evidence/campaigns/2026-10-10-phase21-25-tabular-econ-584ee52e/ ",
+  "utc": "2026-10-11T03:06:33Z",
+  "vole_probe_sha256": "b7bbc014ffcff62eaf8cb37082f705848fdfa5baae06fae1870ab8246201a0e3",
+  "vole_substrate": "--profile runtime --packed"
+}

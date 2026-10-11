@@ -1,0 +1,19 @@
+docker compose run --rm --no-TTY doc-baseline bash tools/phase21.18-cbor-court.sh
+# PROFILE defaults to release (target/release/vole-document).
+# Inside the court:
+#   cargo build --release --locked --all-features
+#   python3 tools/fixtures/make-cbor.py --corpus $WORK/corpus
+#   VOLE:   $BIN field-build F --store STORE --voldoc F.voldoc --profile runtime --packed
+#           python3 tools/fixtures/binfmt-vole.py run --format cbor --bin $BIN --store STORE --field HEX --plan ... --outdir ... --source SRC --packed
+#           rm source + descriptor ; $BIN materialize --store STORE --field HEX --exact --packed --output OUT ; cmp OUT source
+#   sqlite: python3 tools/fixtures/binfmt-baseline.py build --format cbor --lane sqlite --source F --out D
+#           python3 tools/fixtures/binfmt-baseline.py query --format cbor --lane sqlite --dir D --q Qn --plan ... --out OUT
+#           python3 tools/fixtures/binfmt-baseline.py session --format cbor --lane sqlite --dir D --queries Q1,...,Q12 --plan ... --out OUT
+#           python3 tools/fixtures/binfmt-baseline.py materialize --format cbor --lane sqlite --dir D --out OUT
+#   conv:   python3 tools/fixtures/binfmt-baseline.py build --format cbor --lane conv --source F --out D
+#           python3 tools/fixtures/binfmt-baseline.py query --format cbor --lane conv --dir D --q Qn --plan ... --out OUT
+#   aggregate: python3 tools/fixtures/binfmt-baseline.py aggregate --format cbor --raw RAW --campaign CAMPAIGN --env ENV
+# Full dev gate:
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features

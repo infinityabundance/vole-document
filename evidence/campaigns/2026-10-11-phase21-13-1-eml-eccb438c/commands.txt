@@ -1,0 +1,15 @@
+docker compose run --rm --no-TTY doc-baseline sh tools/phase21-13-1-eml-court.sh
+# inside the court:
+#   cargo build --locked --all-features -j 1
+#   python3 tools/fixtures/make-eml.py
+#   target/debug/vole-document field-build tools/fixtures/eml/F --store STORE --voldoc F.voldoc
+#   target/debug/vole-document observe --store STORE --field HEX (--metadata|--doc-text|--eml-header NAME|--eml-part N|--eml-attachments|--eml-body|--eml-find P|--resource N) --kind metadata|text|exact
+#   rm source F.voldoc
+#   target/debug/vole-document materialize --store STORE --field HEX --exact --output OUT ; cmp OUT source
+# Full gate (dev service):
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features
+#   cargo test --locked
+#   cargo test --locked --no-default-features
+#   MSRV: docker compose run --rm --no-TTY msrv cargo build --locked --all-features

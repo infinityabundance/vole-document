@@ -1,0 +1,1 @@
+{"decline": {"code": "dialect-not-recorded", "detail": "a Parquet projection records no source dialect"}, "declined": true, "detail": {}, "lane": "duckdb", "native": true, "q": "Q11", "value": null}

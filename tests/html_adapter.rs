@@ -201,13 +201,16 @@ fn detection_is_byte_based_and_conservative() {
         ),
         DocumentFormat::Html
     );
-    // A bare XML tree whose root is not `html` stays Xml.
+    // A bare XML tree whose root is not `html` stays Xml (only when the XML adapter
+    // is compiled in; otherwise it stays Opaque).
+    #[cfg(feature = "xml")]
     assert_eq!(
         detect_document_format(b"<catalog><item>x</item></catalog>", Limits::DEFAULT),
         DocumentFormat::Xml
     );
     // An XML tree that only *mentions* `<html>` as a non-root descendant is Xml: the
     // marker rule requires the root element (or a doctype), never a nested tag.
+    #[cfg(feature = "xml")]
     assert_eq!(
         detect_document_format(
             b"<xsl:stylesheet xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"><xsl:template><html/></xsl:template></xsl:stylesheet>",

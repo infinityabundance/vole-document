@@ -110,17 +110,56 @@ const USAGE_FIELD: &str = "\
         --odp-slide N | --odp-shape I | --odp-notes N | --odp-masters |
         --odp-media N | --odp-tables | --odp-find PATTERN |
         --json-pointer PATH | --json-node PATH | --json-find PATTERN |
+        --json5-pointer PATH | --json5-node PATH | --json5-find PATTERN |
+        --json5-comments |
+        --cbor-pointer PATH | --cbor-node PATH | --cbor-find PATTERN |
+        --msgpack-pointer PATH | --msgpack-node PATH | --msgpack-find PATTERN |
+        --config-line N | --config-entry N | --config-section NAME |
+        --config-find PATTERN |
+        --feed-channel | --feed-field NAME | --feed-entry N |
+        --feed-entry-field N:NAME | --feed-find PATTERN |
+        --geojson-type | --geojson-feature N | --geojson-geometry N |
+        --geojson-coordinates N | --geojson-property N:NAME |
+        --geojson-find PATTERN |
+        --gis-root | --gis-field NAME | --gis-record N |
+        --gis-record-field N:NAME | --gis-point N | --gis-find PATTERN |
+        --notebook-nbformat | --notebook-cell N | --notebook-cell-type N |
+        --notebook-cell-source N | --notebook-cell-output N:M |
+        --notebook-find PATTERN |
+        --fixedwidth-row N | --fixedwidth-cell R:C | --fixedwidth-header |
+        --fixedwidth-columns | --fixedwidth-range R1:C1:R2:C2 |
+        --fixedwidth-find PATTERN |
         --yaml-path PATH | --yaml-node PATH | --yaml-documents | --yaml-anchor NAME |
         --yaml-find PATTERN |
         --csv-row N | --csv-cell R:C | --csv-header | --csv-range R1:C1:R2:C2 |
         --csv-find PATTERN |
         --md-heading N | --md-block N | --md-code N | --md-link N |
         --md-find PATTERN |
+        --rst-heading N | --rst-block N | --rst-directive N | --rst-inline N |
+        --rst-find PATTERN |
+        --adoc-heading N | --adoc-block N | --adoc-attribute N | --adoc-inline N |
+        --adoc-find PATTERN |
+        --mdx-heading N | --mdx-block N | --mdx-esm N | --mdx-jsx N |
+        --mdx-expression N | --mdx-find PATTERN |
+        --mhtml-root | --mhtml-resource N | --mhtml-location |
+        --mhtml-find PATTERN |
         --xml-path P | --xml-element P | --xml-attr PATH@NAME |
         --xml-namespaces | --xml-find PATTERN |
         --html-path P | --html-element P | --html-attr PATH@NAME |
         --html-scripts | --html-find PATTERN |
         --jsonl-line N | --jsonl-pointer N:POINTER | --jsonl-find PATTERN |
+        --logstream-line N | --logstream-field N:ROLE | --logstream-find PATTERN |
+        --pkgmeta-section N | --pkgmeta-entry N | --pkgmeta-key SECTION:KEY |
+        --pkgmeta-find PATTERN |
+        --apispec-dialect | --apispec-version | --apispec-object N |
+        --apispec-ref N | --apispec-find PATTERN |
+        --bib-dialect | --bib-entry N | --bib-field N:FIELD | --bib-key KEY |
+        --bib-find PATTERN |
+        --rtf-header | --rtf-group N | --rtf-control N | --rtf-hex N |
+        --rtf-unicode N | --rtf-text N | --rtf-dest NAME[:N] | --rtf-find PATTERN |
+        --container-dialect | --container-entry N | --container-find PATTERN |
+        --hdf-dialect | --hdf-object N | --hdf-dimension N | --hdf-attribute N |
+        --hdf-find PATTERN |
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
@@ -1603,6 +1642,172 @@ struct FieldArgs {
     /// (Phase 21.5.1).
     #[cfg(feature = "json")]
     json_find: Option<String>,
+    /// `--json5-pointer POINTER`: resolve an RFC 6901 pointer against the JSON5
+    /// superset, returning the node's kind, exact source span, dialect, and exact
+    /// token bytes (Phase 21.17.1).
+    #[cfg(feature = "json5")]
+    json5_pointer: Option<String>,
+    /// `--json5-node POINTER`: the structural view of a JSON5 node (kind, span,
+    /// parent/child spans, member key/value spans) (Phase 21.17.1).
+    #[cfg(feature = "json5")]
+    json5_node: Option<String>,
+    /// `--json5-find`: a lexical, case-sensitive search over JSON5 keys/strings
+    /// (Phase 21.17.1).
+    #[cfg(feature = "json5")]
+    json5_find: Option<String>,
+    /// `--json5-comments`: every `//`/`/* … */` comment in source order, with its
+    /// kind and exact span (Phase 21.17.1).
+    #[cfg(feature = "json5")]
+    json5_comments: bool,
+    /// `--cbor-pointer POINTER`: resolve an RFC 6901 pointer against the CBOR item
+    /// tree, returning the item's kind, exact source span, encoding width, and exact
+    /// token bytes (Phase 21.18).
+    #[cfg(feature = "cbor")]
+    cbor_pointer: Option<String>,
+    /// `--cbor-node POINTER`: the structural view of a CBOR item (kind, span,
+    /// encoding width, parent/child spans, map key/value kinds and spans) (Phase
+    /// 21.18).
+    #[cfg(feature = "cbor")]
+    cbor_node: Option<String>,
+    /// `--cbor-find`: a lexical, case-sensitive search over CBOR text keys/values
+    /// (Phase 21.18).
+    #[cfg(feature = "cbor")]
+    cbor_find: Option<String>,
+    /// `--msgpack-pointer POINTER`: resolve an RFC 6901 pointer against the
+    /// MessagePack item tree, returning the item's kind, exact source span, exact
+    /// format byte, and exact token bytes (Phase 21.19).
+    #[cfg(feature = "msgpack")]
+    msgpack_pointer: Option<String>,
+    /// `--msgpack-node POINTER`: the structural view of a MessagePack item (kind,
+    /// span, exact format byte, parent/child spans, map key/value kinds and spans)
+    /// (Phase 21.19).
+    #[cfg(feature = "msgpack")]
+    msgpack_node: Option<String>,
+    /// `--msgpack-find`: a lexical, case-sensitive search over MessagePack text
+    /// keys/values (Phase 21.19).
+    #[cfg(feature = "msgpack")]
+    msgpack_find: Option<String>,
+    /// `--config-line N`: the N-th (0-based) logical config line (Phase 21.20).
+    #[cfg(feature = "config")]
+    config_line: Option<u32>,
+    /// `--config-entry N`: the N-th (0-based) config entry in source order
+    /// (Phase 21.20).
+    #[cfg(feature = "config")]
+    config_entry: Option<u32>,
+    /// `--config-section NAME`: a config `[section]` header by name (Phase 21.20).
+    #[cfg(feature = "config")]
+    config_section: Option<String>,
+    /// `--config-find PATTERN`: a lexical, case-sensitive search over config keys
+    /// and values (Phase 21.20).
+    #[cfg(feature = "config")]
+    config_find: Option<String>,
+    /// `--feed-channel`: the feed's channel (RSS) / feed container (Atom) element
+    /// (Phase 21.21).
+    #[cfg(feature = "feed")]
+    feed_channel: bool,
+    /// `--feed-field NAME`: a feed channel/feed-level field by local name
+    /// (Phase 21.21).
+    #[cfg(feature = "feed")]
+    feed_field: Option<String>,
+    /// `--feed-entry N`: the N-th (0-based) feed record in document order
+    /// (Phase 21.21).
+    #[cfg(feature = "feed")]
+    feed_entry: Option<u32>,
+    /// `--feed-entry-field N:NAME`: one field of one feed record (Phase 21.21).
+    #[cfg(feature = "feed")]
+    feed_entry_field: Option<String>,
+    /// `--feed-find PATTERN`: a lexical, case-sensitive search over feed field
+    /// values (Phase 21.21).
+    #[cfg(feature = "feed")]
+    feed_find: Option<String>,
+    /// `--geojson-type`: the GeoJSON document's root `"type"` (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_type: bool,
+    /// `--geojson-feature N`: the N-th (0-based) GeoJSON feature in document order
+    /// (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_feature: Option<u32>,
+    /// `--geojson-geometry N`: the N-th (0-based) GeoJSON geometry in document order
+    /// (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_geometry: Option<u32>,
+    /// `--geojson-coordinates N`: the coordinates of the N-th GeoJSON geometry
+    /// (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_coordinates: Option<u32>,
+    /// `--geojson-property N:NAME`: one property of one GeoJSON feature (Phase
+    /// 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_property: Option<String>,
+    /// `--geojson-find PATTERN`: a lexical, case-sensitive search over GeoJSON keys
+    /// and string values (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    geojson_find: Option<String>,
+    /// `--gis-root`: the KML/GPX root `<kml>`/`<gpx>` container (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_root: bool,
+    /// `--gis-field NAME`: a KML/GPX root-level field by local name (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_field: Option<String>,
+    /// `--gis-record N`: the N-th (0-based) KML/GPX record in document order
+    /// (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_record: Option<u32>,
+    /// `--gis-record-field N:NAME`: one field of one KML/GPX record (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_record_field: Option<String>,
+    /// `--gis-point N`: the N-th (0-based) KML/GPX point in document order
+    /// (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_point: Option<u32>,
+    /// `--gis-find PATTERN`: a lexical, case-sensitive search over KML/GPX field
+    /// values (Phase 21.23).
+    #[cfg(feature = "gis")]
+    gis_find: Option<String>,
+    /// `--notebook-nbformat`: the Jupyter notebook's `nbformat` (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_nbformat: bool,
+    /// `--notebook-cell N`: the N-th (0-based) notebook cell in document order
+    /// (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_cell: Option<u32>,
+    /// `--notebook-cell-type N`: the N-th cell's exact `cell_type` string
+    /// (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_cell_type: Option<u32>,
+    /// `--notebook-cell-source N`: the N-th cell's `source`, representation preserved
+    /// (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_cell_source: Option<u32>,
+    /// `--notebook-cell-output N:M`: the M-th output of the N-th cell (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_cell_output: Option<String>,
+    /// `--notebook-find PATTERN`: a lexical, case-sensitive search over notebook keys
+    /// and string values (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    notebook_find: Option<String>,
+    /// `--fixedwidth-row N`: a fixed-width record by 0-based physical index (the
+    /// header row is index 0) (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_row: Option<u32>,
+    /// `--fixedwidth-cell R:C` or `--fixedwidth-cell R:COLNAME`: a fixed-width cell
+    /// (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_cell: Option<String>,
+    /// `--fixedwidth-header`: the fixed-width header row (record 0) (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_header: bool,
+    /// `--fixedwidth-columns`: the recovered fixed-width column layout (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_columns: bool,
+    /// `--fixedwidth-range R1:C1:R2:C2`: a fixed-width rectangular range of cells
+    /// (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_range: Option<String>,
+    /// `--fixedwidth-find PATTERN`: a lexical, case-sensitive search over fixed-width
+    /// field text (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    fixedwidth_find: Option<String>,
     /// `--yaml-path PATH`: resolve a dotted YAML path (optional leading `docN`),
     /// returning the node's kind/style, exact source span, and exact token bytes
     /// (Phase 21.6.1).
@@ -1657,6 +1862,78 @@ struct FieldArgs {
     /// (Phase 21.8.1).
     #[cfg(feature = "markdown")]
     md_find: Option<String>,
+    /// `--rst-heading N`: the N-th section title in document order (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    rst_heading: Option<u32>,
+    /// `--rst-block N`: the N-th block in document order (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    rst_block: Option<u32>,
+    /// `--rst-directive N`: the N-th directive in document order (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    rst_directive: Option<u32>,
+    /// `--rst-inline N`: the N-th inline span in document order (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    rst_inline: Option<u32>,
+    /// `--rst-find`: a lexical, case-sensitive search over reStructuredText block
+    /// content (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    rst_find: Option<String>,
+    /// `--adoc-heading N`: the N-th heading in document order (document title first,
+    /// then sections) (Phase 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    adoc_heading: Option<u32>,
+    /// `--adoc-block N`: the N-th block in document order (Phase 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    adoc_block: Option<u32>,
+    /// `--adoc-attribute N`: the N-th document attribute in document order (Phase
+    /// 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    adoc_attribute: Option<u32>,
+    /// `--adoc-inline N`: the N-th inline span in document order (Phase 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    adoc_inline: Option<u32>,
+    /// `--adoc-find`: a lexical, case-sensitive search over AsciiDoc block content
+    /// (Phase 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    adoc_find: Option<String>,
+    /// `--mdx-heading N`: the N-th ATX heading in document order (Phase 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_heading: Option<u32>,
+    /// `--mdx-block N`: the N-th block in document order (Phase 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_block: Option<u32>,
+    /// `--mdx-esm N`: the N-th ESM `import`/`export` statement in document order
+    /// (Phase 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_esm: Option<u32>,
+    /// `--mdx-jsx N`: the N-th JSX element or fragment in document order (Phase
+    /// 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_jsx: Option<u32>,
+    /// `--mdx-expression N`: the N-th MDX expression in document order (Phase 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_expression: Option<u32>,
+    /// `--mdx-find`: a lexical, case-sensitive search over MDX block content (Phase
+    /// 21.26.3).
+    #[cfg(feature = "mdx")]
+    mdx_find: Option<String>,
+    /// `--mhtml-root`: the root HTML part of an MHTML web archive (the `start=`
+    /// `Content-ID`, else the first `text/html` part, else the first part) (Phase
+    /// 21.27).
+    #[cfg(feature = "mhtml")]
+    mhtml_root: bool,
+    /// `--mhtml-resource N`: the N-th MHTML sub-resource (a part keyed by
+    /// `Content-Location`/`Content-ID`) in document order (Phase 21.27).
+    #[cfg(feature = "mhtml")]
+    mhtml_resource: Option<u32>,
+    /// `--mhtml-location`: the MHTML envelope's top-level `Snapshot-Content-Location`
+    /// and `Content-Base` (Phase 21.27).
+    #[cfg(feature = "mhtml")]
+    mhtml_location: bool,
+    /// `--mhtml-find`: a lexical, case-sensitive search over the whole MHTML document
+    /// (reusing the MIME finder) (Phase 21.27).
+    #[cfg(feature = "mhtml")]
+    mhtml_find: Option<String>,
     /// `--xml-path P`: resolve a simple element path (`/a/b[2]/c`; `""` is the root
     /// element), returning the element's name, exact source span, and exact bytes
     /// (Phase 21.9).
@@ -1721,6 +1998,156 @@ struct FieldArgs {
     /// keys and string values (Phase 21.12).
     #[cfg(feature = "jsonl")]
     jsonl_find: Option<String>,
+    /// `--logstream-line N`: the N-th log-stream record (0-based; blank lines do not
+    /// count), returning its dialect, exact line span, terminator, priority, and
+    /// exact-span fields (Phase 21.28).
+    #[cfg(feature = "logstream")]
+    logstream_line: Option<u32>,
+    /// `--logstream-field N:ROLE`: a record's field by role name (`timestamp`,
+    /// `level`, `hostname`, `pri`, `sd-element`, `msg`, ...) (Phase 21.28).
+    #[cfg(feature = "logstream")]
+    logstream_field: Option<String>,
+    /// `--logstream-find`: a lexical, case-sensitive search over every log-stream
+    /// record's fields (Phase 21.28).
+    #[cfg(feature = "logstream")]
+    logstream_find: Option<String>,
+    /// `--pkgmeta-section N`: the N-th package-metadata section (0-based; index 0 is the
+    /// root), returning its dialect, role, exact name/value spans, and entry range
+    /// (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    pkgmeta_section: Option<u32>,
+    /// `--pkgmeta-entry N`: the N-th package-metadata entry (0-based), returning its
+    /// owning section, exact key/value spans, and value (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    pkgmeta_entry: Option<u32>,
+    /// `--pkgmeta-key SECTION:KEY`: a manifest entry by section name/role and decoded
+    /// key, reporting the duplicate-key count (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    pkgmeta_key: Option<String>,
+    /// `--pkgmeta-find`: a lexical, case-sensitive search over every section name, entry
+    /// key, and entry value (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    pkgmeta_find: Option<String>,
+    /// `--apispec-dialect`: the API-spec document's recorded dialect
+    /// (`json_schema`/`openapi`/`swagger`/`asyncapi`) (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    apispec_dialect: bool,
+    /// `--apispec-version`: the API-spec document's exact spec-version string
+    /// (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    apispec_version: bool,
+    /// `--apispec-object N`: the N-th (0-based) recorded API-spec object in pre-order
+    /// (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    apispec_object: Option<u32>,
+    /// `--apispec-ref N`: the N-th (0-based) recorded `$ref` in document order
+    /// (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    apispec_ref: Option<u32>,
+    /// `--apispec-find PATTERN`: a lexical, case-sensitive search over API-spec keys
+    /// and string values (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    apispec_find: Option<String>,
+    /// `--bib-dialect`: the bibliography document's recorded dialect
+    /// (`bibtex`/`ris`/`csl_json`) (Phase 21.31).
+    #[cfg(feature = "bib")]
+    bib_dialect: bool,
+    /// `--bib-entry N`: the N-th (0-based) bibliography entry (BibTeX/RIS) or item
+    /// (CSL-JSON) (Phase 21.31).
+    #[cfg(feature = "bib")]
+    bib_entry: Option<u32>,
+    /// `--bib-field N:FIELD`: an entry/item field by 0-based index and field name/tag
+    /// (Phase 21.31).
+    #[cfg(feature = "bib")]
+    bib_field: Option<String>,
+    /// `--bib-key KEY`: a bibliography entry by citation key (BibTeX), `ID` (RIS), or
+    /// item `id` (CSL-JSON) (Phase 21.31).
+    #[cfg(feature = "bib")]
+    bib_key: Option<String>,
+    /// `--bib-find PATTERN`: a lexical, case-sensitive search over entry types/keys,
+    /// field names, and field values (Phase 21.31).
+    #[cfg(feature = "bib")]
+    bib_find: Option<String>,
+    /// `--rtf-header`: the RTF header (`{\rtf1\ansi\deffN …}`) with the exact `\rtf`
+    /// version, the charset control word, and `\deffN` (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_header: bool,
+    /// `--rtf-group N`: the N-th (0-based) group `{ … }` with its exact brace span,
+    /// parent, nesting depth, and destination kind (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_group: Option<u32>,
+    /// `--rtf-control N`: the N-th (0-based) control word or control symbol (Phase
+    /// 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_control: Option<u32>,
+    /// `--rtf-hex N`: the N-th (0-based) `\'hh` hex escape (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_hex: Option<u32>,
+    /// `--rtf-unicode N`: the N-th (0-based) `\uN` Unicode escape with its active
+    /// `\ucN` fallback count (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_unicode: Option<u32>,
+    /// `--rtf-text N`: the N-th (0-based) plain text run, byte-exactly (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_text: Option<u32>,
+    /// `--rtf-dest SPEC`: a destination named by `NAME` or `NAME:N` (fonttbl/
+    /// colortbl/stylesheet/info/pict/object/ignore) (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_dest: Option<String>,
+    /// `--rtf-find PATTERN`: a lexical, case-sensitive search over every plain text
+    /// run (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    rtf_find: Option<String>,
+    /// `--container-dialect`: the archive container's recorded dialect (`zip`/`tar`)
+    /// with the member count and the exact archive trailer span (Phase 21.33).
+    #[cfg(feature = "container")]
+    container_dialect: bool,
+    /// `--container-entry N`: the N-th (0-based) archive member with its raw name,
+    /// method/typeflag, declared sizes, and exact spans (Phase 21.33).
+    #[cfg(feature = "container")]
+    container_entry: Option<u32>,
+    /// `--container-find PATTERN`: a lexical, case-sensitive search over every member
+    /// name and linkname (Phase 21.33).
+    #[cfg(feature = "container")]
+    container_find: Option<String>,
+    /// `--hdf-dialect`: the scientific container's recorded dialect (`netcdf`/`hdf5`)
+    /// with the object/dimension/attribute counts and the exact header span (Phase
+    /// 21.34).
+    #[cfg(feature = "hdf")]
+    hdf_dialect: bool,
+    /// `--hdf-object N`: the N-th (0-based) object (a group, an HDF5 dataset, or a
+    /// NetCDF variable) with its kind, path, type, shape, parent/depth, and exact spans
+    /// (Phase 21.34).
+    #[cfg(feature = "hdf")]
+    hdf_object: Option<u32>,
+    /// `--hdf-dimension N`: the N-th (0-based) NetCDF dimension (Phase 21.34). HDF5
+    /// declines typed (its dims are per dataset).
+    #[cfg(feature = "hdf")]
+    hdf_dimension: Option<u32>,
+    /// `--hdf-attribute N`: the N-th (0-based) global/root attribute (Phase 21.34).
+    #[cfg(feature = "hdf")]
+    hdf_attribute: Option<u32>,
+    /// `--hdf-find PATTERN`: a lexical, case-sensitive search over every object,
+    /// dimension, and attribute name (Phase 21.34).
+    #[cfg(feature = "hdf")]
+    hdf_find: Option<String>,
+    /// `--cfbf-dialect`: the CFBF/OLE2 compound file's recorded dialect (`cfb3`/`cfb4`)
+    /// with the sector size, FAT/directory counts, and the exact header span (Phase
+    /// 21.35).
+    #[cfg(feature = "cfbf")]
+    cfbf_dialect: bool,
+    /// `--cfbf-entry N`: the N-th (0-based) directory entry with its verbatim name,
+    /// object type, sibling/child tree links, and exact spans (Phase 21.35).
+    #[cfg(feature = "cfbf")]
+    cfbf_entry: Option<u32>,
+    /// `--cfbf-stream N`: the stream at directory index N, returning its exact content
+    /// bytes (Phase 21.35). A storage declines typed.
+    #[cfg(feature = "cfbf")]
+    cfbf_stream: Option<u32>,
+    /// `--cfbf-find PATTERN`: a lexical, case-sensitive search over every directory
+    /// entry name (Phase 21.35).
+    #[cfg(feature = "cfbf")]
+    cfbf_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2176,6 +2603,234 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--json-find" => {
                 out.json_find = Some(field_arg_value(args, &mut i, "--json-find", inline)?);
             }
+            #[cfg(feature = "json5")]
+            "--json5-pointer" => {
+                out.json5_pointer = Some(field_arg_value(args, &mut i, "--json5-pointer", inline)?);
+            }
+            #[cfg(feature = "json5")]
+            "--json5-node" => {
+                out.json5_node = Some(field_arg_value(args, &mut i, "--json5-node", inline)?);
+            }
+            #[cfg(feature = "json5")]
+            "--json5-find" => {
+                out.json5_find = Some(field_arg_value(args, &mut i, "--json5-find", inline)?);
+            }
+            #[cfg(feature = "json5")]
+            "--json5-comments" => {
+                out.json5_comments = true;
+                i += 1;
+            }
+            #[cfg(feature = "cbor")]
+            "--cbor-pointer" => {
+                out.cbor_pointer = Some(field_arg_value(args, &mut i, "--cbor-pointer", inline)?);
+            }
+            #[cfg(feature = "cbor")]
+            "--cbor-node" => {
+                out.cbor_node = Some(field_arg_value(args, &mut i, "--cbor-node", inline)?);
+            }
+            #[cfg(feature = "cbor")]
+            "--cbor-find" => {
+                out.cbor_find = Some(field_arg_value(args, &mut i, "--cbor-find", inline)?);
+            }
+            #[cfg(feature = "msgpack")]
+            "--msgpack-pointer" => {
+                out.msgpack_pointer =
+                    Some(field_arg_value(args, &mut i, "--msgpack-pointer", inline)?);
+            }
+            #[cfg(feature = "msgpack")]
+            "--msgpack-node" => {
+                out.msgpack_node = Some(field_arg_value(args, &mut i, "--msgpack-node", inline)?);
+            }
+            #[cfg(feature = "msgpack")]
+            "--msgpack-find" => {
+                out.msgpack_find = Some(field_arg_value(args, &mut i, "--msgpack-find", inline)?);
+            }
+            #[cfg(feature = "config")]
+            "--config-line" => {
+                out.config_line = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--config-line", inline)?,
+                    "--config-line",
+                )?);
+            }
+            #[cfg(feature = "config")]
+            "--config-entry" => {
+                out.config_entry = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--config-entry", inline)?,
+                    "--config-entry",
+                )?);
+            }
+            #[cfg(feature = "config")]
+            "--config-section" => {
+                out.config_section =
+                    Some(field_arg_value(args, &mut i, "--config-section", inline)?);
+            }
+            #[cfg(feature = "config")]
+            "--config-find" => {
+                out.config_find = Some(field_arg_value(args, &mut i, "--config-find", inline)?);
+            }
+            #[cfg(feature = "feed")]
+            "--feed-channel" => {
+                out.feed_channel = true;
+                i += 1;
+            }
+            #[cfg(feature = "feed")]
+            "--feed-field" => {
+                out.feed_field = Some(field_arg_value(args, &mut i, "--feed-field", inline)?);
+            }
+            #[cfg(feature = "feed")]
+            "--feed-entry" => {
+                out.feed_entry = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--feed-entry", inline)?,
+                    "--feed-entry",
+                )?);
+            }
+            #[cfg(feature = "feed")]
+            "--feed-entry-field" => {
+                out.feed_entry_field =
+                    Some(field_arg_value(args, &mut i, "--feed-entry-field", inline)?);
+            }
+            #[cfg(feature = "feed")]
+            "--feed-find" => {
+                out.feed_find = Some(field_arg_value(args, &mut i, "--feed-find", inline)?);
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-type" => {
+                out.geojson_type = true;
+                i += 1;
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-feature" => {
+                out.geojson_feature = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--geojson-feature", inline)?,
+                    "--geojson-feature",
+                )?);
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-geometry" => {
+                out.geojson_geometry = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--geojson-geometry", inline)?,
+                    "--geojson-geometry",
+                )?);
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-coordinates" => {
+                out.geojson_coordinates = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--geojson-coordinates", inline)?,
+                    "--geojson-coordinates",
+                )?);
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-property" => {
+                out.geojson_property =
+                    Some(field_arg_value(args, &mut i, "--geojson-property", inline)?);
+            }
+            #[cfg(feature = "geojson")]
+            "--geojson-find" => {
+                out.geojson_find = Some(field_arg_value(args, &mut i, "--geojson-find", inline)?);
+            }
+            #[cfg(feature = "gis")]
+            "--gis-root" => {
+                out.gis_root = true;
+                i += 1;
+            }
+            #[cfg(feature = "gis")]
+            "--gis-field" => {
+                out.gis_field = Some(field_arg_value(args, &mut i, "--gis-field", inline)?);
+            }
+            #[cfg(feature = "gis")]
+            "--gis-record" => {
+                out.gis_record = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--gis-record", inline)?,
+                    "--gis-record",
+                )?);
+            }
+            #[cfg(feature = "gis")]
+            "--gis-record-field" => {
+                out.gis_record_field =
+                    Some(field_arg_value(args, &mut i, "--gis-record-field", inline)?);
+            }
+            #[cfg(feature = "gis")]
+            "--gis-point" => {
+                out.gis_point = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--gis-point", inline)?,
+                    "--gis-point",
+                )?);
+            }
+            #[cfg(feature = "gis")]
+            "--gis-find" => {
+                out.gis_find = Some(field_arg_value(args, &mut i, "--gis-find", inline)?);
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-nbformat" => {
+                out.notebook_nbformat = true;
+                i += 1;
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-cell" => {
+                out.notebook_cell = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--notebook-cell", inline)?,
+                    "--notebook-cell",
+                )?);
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-cell-type" => {
+                out.notebook_cell_type = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--notebook-cell-type", inline)?,
+                    "--notebook-cell-type",
+                )?);
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-cell-source" => {
+                out.notebook_cell_source = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--notebook-cell-source", inline)?,
+                    "--notebook-cell-source",
+                )?);
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-cell-output" => {
+                out.notebook_cell_output = Some(field_arg_value(
+                    args,
+                    &mut i,
+                    "--notebook-cell-output",
+                    inline,
+                )?);
+            }
+            #[cfg(feature = "notebook")]
+            "--notebook-find" => {
+                out.notebook_find = Some(field_arg_value(args, &mut i, "--notebook-find", inline)?);
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-row" => {
+                out.fixedwidth_row = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--fixedwidth-row", inline)?,
+                    "--fixedwidth-row",
+                )?);
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-cell" => {
+                out.fixedwidth_cell =
+                    Some(field_arg_value(args, &mut i, "--fixedwidth-cell", inline)?);
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-header" => {
+                out.fixedwidth_header = true;
+                i += 1;
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-columns" => {
+                out.fixedwidth_columns = true;
+                i += 1;
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-range" => {
+                out.fixedwidth_range =
+                    Some(field_arg_value(args, &mut i, "--fixedwidth-range", inline)?);
+            }
+            #[cfg(feature = "fixedwidth")]
+            "--fixedwidth-find" => {
+                out.fixedwidth_find =
+                    Some(field_arg_value(args, &mut i, "--fixedwidth-find", inline)?);
+            }
             #[cfg(feature = "yaml")]
             "--yaml-path" => {
                 out.yaml_path = Some(field_arg_value(args, &mut i, "--yaml-path", inline)?);
@@ -2255,6 +2910,130 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             "--md-find" => {
                 out.md_find = Some(field_arg_value(args, &mut i, "--md-find", inline)?);
             }
+            #[cfg(feature = "rst")]
+            "--rst-heading" => {
+                out.rst_heading = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--rst-heading", inline)?,
+                    "--rst-heading",
+                )?);
+            }
+            #[cfg(feature = "rst")]
+            "--rst-block" => {
+                out.rst_block = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--rst-block", inline)?,
+                    "--rst-block",
+                )?);
+            }
+            #[cfg(feature = "rst")]
+            "--rst-directive" => {
+                out.rst_directive = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--rst-directive", inline)?,
+                    "--rst-directive",
+                )?);
+            }
+            #[cfg(feature = "rst")]
+            "--rst-inline" => {
+                out.rst_inline = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--rst-inline", inline)?,
+                    "--rst-inline",
+                )?);
+            }
+            #[cfg(feature = "rst")]
+            "--rst-find" => {
+                out.rst_find = Some(field_arg_value(args, &mut i, "--rst-find", inline)?);
+            }
+            #[cfg(feature = "asciidoc")]
+            "--adoc-heading" => {
+                out.adoc_heading = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--adoc-heading", inline)?,
+                    "--adoc-heading",
+                )?);
+            }
+            #[cfg(feature = "asciidoc")]
+            "--adoc-block" => {
+                out.adoc_block = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--adoc-block", inline)?,
+                    "--adoc-block",
+                )?);
+            }
+            #[cfg(feature = "asciidoc")]
+            "--adoc-attribute" => {
+                out.adoc_attribute = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--adoc-attribute", inline)?,
+                    "--adoc-attribute",
+                )?);
+            }
+            #[cfg(feature = "asciidoc")]
+            "--adoc-inline" => {
+                out.adoc_inline = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--adoc-inline", inline)?,
+                    "--adoc-inline",
+                )?);
+            }
+            #[cfg(feature = "asciidoc")]
+            "--adoc-find" => {
+                out.adoc_find = Some(field_arg_value(args, &mut i, "--adoc-find", inline)?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-heading" => {
+                out.mdx_heading = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mdx-heading", inline)?,
+                    "--mdx-heading",
+                )?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-block" => {
+                out.mdx_block = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mdx-block", inline)?,
+                    "--mdx-block",
+                )?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-esm" => {
+                out.mdx_esm = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mdx-esm", inline)?,
+                    "--mdx-esm",
+                )?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-jsx" => {
+                out.mdx_jsx = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mdx-jsx", inline)?,
+                    "--mdx-jsx",
+                )?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-expression" => {
+                out.mdx_expression = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mdx-expression", inline)?,
+                    "--mdx-expression",
+                )?);
+            }
+            #[cfg(feature = "mdx")]
+            "--mdx-find" => {
+                out.mdx_find = Some(field_arg_value(args, &mut i, "--mdx-find", inline)?);
+            }
+            #[cfg(feature = "mhtml")]
+            "--mhtml-root" => {
+                out.mhtml_root = true;
+                i += 1;
+            }
+            #[cfg(feature = "mhtml")]
+            "--mhtml-resource" => {
+                out.mhtml_resource = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mhtml-resource", inline)?,
+                    "--mhtml-resource",
+                )?);
+            }
+            #[cfg(feature = "mhtml")]
+            "--mhtml-location" => {
+                out.mhtml_location = true;
+                i += 1;
+            }
+            #[cfg(feature = "mhtml")]
+            "--mhtml-find" => {
+                out.mhtml_find = Some(field_arg_value(args, &mut i, "--mhtml-find", inline)?);
+            }
             #[cfg(feature = "xml")]
             "--xml-path" => {
                 out.xml_path = Some(field_arg_value(args, &mut i, "--xml-path", inline)?);
@@ -2321,6 +3100,181 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "jsonl")]
             "--jsonl-find" => {
                 out.jsonl_find = Some(field_arg_value(args, &mut i, "--jsonl-find", inline)?);
+            }
+            #[cfg(feature = "logstream")]
+            "--logstream-line" => {
+                let v = field_arg_value(args, &mut i, "--logstream-line", inline)?;
+                out.logstream_line = Some(parse_field_u32(&v, "--logstream-line")?);
+            }
+            #[cfg(feature = "logstream")]
+            "--logstream-field" => {
+                out.logstream_field =
+                    Some(field_arg_value(args, &mut i, "--logstream-field", inline)?);
+            }
+            #[cfg(feature = "logstream")]
+            "--logstream-find" => {
+                out.logstream_find =
+                    Some(field_arg_value(args, &mut i, "--logstream-find", inline)?);
+            }
+            #[cfg(feature = "pkgmeta")]
+            "--pkgmeta-section" => {
+                let v = field_arg_value(args, &mut i, "--pkgmeta-section", inline)?;
+                out.pkgmeta_section = Some(parse_field_u32(&v, "--pkgmeta-section")?);
+            }
+            #[cfg(feature = "pkgmeta")]
+            "--pkgmeta-entry" => {
+                let v = field_arg_value(args, &mut i, "--pkgmeta-entry", inline)?;
+                out.pkgmeta_entry = Some(parse_field_u32(&v, "--pkgmeta-entry")?);
+            }
+            #[cfg(feature = "pkgmeta")]
+            "--pkgmeta-key" => {
+                out.pkgmeta_key = Some(field_arg_value(args, &mut i, "--pkgmeta-key", inline)?);
+            }
+            #[cfg(feature = "pkgmeta")]
+            "--pkgmeta-find" => {
+                out.pkgmeta_find = Some(field_arg_value(args, &mut i, "--pkgmeta-find", inline)?);
+            }
+            #[cfg(feature = "apispec")]
+            "--apispec-dialect" => {
+                out.apispec_dialect = true;
+                i += 1;
+            }
+            #[cfg(feature = "apispec")]
+            "--apispec-version" => {
+                out.apispec_version = true;
+                i += 1;
+            }
+            #[cfg(feature = "apispec")]
+            "--apispec-object" => {
+                let v = field_arg_value(args, &mut i, "--apispec-object", inline)?;
+                out.apispec_object = Some(parse_field_u32(&v, "--apispec-object")?);
+            }
+            #[cfg(feature = "apispec")]
+            "--apispec-ref" => {
+                let v = field_arg_value(args, &mut i, "--apispec-ref", inline)?;
+                out.apispec_ref = Some(parse_field_u32(&v, "--apispec-ref")?);
+            }
+            #[cfg(feature = "apispec")]
+            "--apispec-find" => {
+                out.apispec_find = Some(field_arg_value(args, &mut i, "--apispec-find", inline)?);
+            }
+            #[cfg(feature = "bib")]
+            "--bib-dialect" => {
+                out.bib_dialect = true;
+                i += 1;
+            }
+            #[cfg(feature = "bib")]
+            "--bib-entry" => {
+                let v = field_arg_value(args, &mut i, "--bib-entry", inline)?;
+                out.bib_entry = Some(parse_field_u32(&v, "--bib-entry")?);
+            }
+            #[cfg(feature = "bib")]
+            "--bib-field" => {
+                out.bib_field = Some(field_arg_value(args, &mut i, "--bib-field", inline)?);
+            }
+            #[cfg(feature = "bib")]
+            "--bib-key" => {
+                out.bib_key = Some(field_arg_value(args, &mut i, "--bib-key", inline)?);
+            }
+            #[cfg(feature = "bib")]
+            "--bib-find" => {
+                out.bib_find = Some(field_arg_value(args, &mut i, "--bib-find", inline)?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-header" => {
+                out.rtf_header = true;
+                i += 1;
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-group" => {
+                let v = field_arg_value(args, &mut i, "--rtf-group", inline)?;
+                out.rtf_group = Some(parse_field_u32(&v, "--rtf-group")?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-control" => {
+                let v = field_arg_value(args, &mut i, "--rtf-control", inline)?;
+                out.rtf_control = Some(parse_field_u32(&v, "--rtf-control")?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-hex" => {
+                let v = field_arg_value(args, &mut i, "--rtf-hex", inline)?;
+                out.rtf_hex = Some(parse_field_u32(&v, "--rtf-hex")?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-unicode" => {
+                let v = field_arg_value(args, &mut i, "--rtf-unicode", inline)?;
+                out.rtf_unicode = Some(parse_field_u32(&v, "--rtf-unicode")?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-text" => {
+                let v = field_arg_value(args, &mut i, "--rtf-text", inline)?;
+                out.rtf_text = Some(parse_field_u32(&v, "--rtf-text")?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-dest" => {
+                out.rtf_dest = Some(field_arg_value(args, &mut i, "--rtf-dest", inline)?);
+            }
+            #[cfg(feature = "rtf")]
+            "--rtf-find" => {
+                out.rtf_find = Some(field_arg_value(args, &mut i, "--rtf-find", inline)?);
+            }
+            #[cfg(feature = "container")]
+            "--container-dialect" => {
+                out.container_dialect = true;
+                i += 1;
+            }
+            #[cfg(feature = "container")]
+            "--container-entry" => {
+                let v = field_arg_value(args, &mut i, "--container-entry", inline)?;
+                out.container_entry = Some(parse_field_u32(&v, "--container-entry")?);
+            }
+            #[cfg(feature = "container")]
+            "--container-find" => {
+                out.container_find =
+                    Some(field_arg_value(args, &mut i, "--container-find", inline)?);
+            }
+            #[cfg(feature = "hdf")]
+            "--hdf-dialect" => {
+                out.hdf_dialect = true;
+                i += 1;
+            }
+            #[cfg(feature = "hdf")]
+            "--hdf-object" => {
+                let v = field_arg_value(args, &mut i, "--hdf-object", inline)?;
+                out.hdf_object = Some(parse_field_u32(&v, "--hdf-object")?);
+            }
+            #[cfg(feature = "hdf")]
+            "--hdf-dimension" => {
+                let v = field_arg_value(args, &mut i, "--hdf-dimension", inline)?;
+                out.hdf_dimension = Some(parse_field_u32(&v, "--hdf-dimension")?);
+            }
+            #[cfg(feature = "hdf")]
+            "--hdf-attribute" => {
+                let v = field_arg_value(args, &mut i, "--hdf-attribute", inline)?;
+                out.hdf_attribute = Some(parse_field_u32(&v, "--hdf-attribute")?);
+            }
+            #[cfg(feature = "hdf")]
+            "--hdf-find" => {
+                out.hdf_find = Some(field_arg_value(args, &mut i, "--hdf-find", inline)?);
+            }
+            #[cfg(feature = "cfbf")]
+            "--cfbf-dialect" => {
+                out.cfbf_dialect = true;
+                i += 1;
+            }
+            #[cfg(feature = "cfbf")]
+            "--cfbf-entry" => {
+                let v = field_arg_value(args, &mut i, "--cfbf-entry", inline)?;
+                out.cfbf_entry = Some(parse_field_u32(&v, "--cfbf-entry")?);
+            }
+            #[cfg(feature = "cfbf")]
+            "--cfbf-stream" => {
+                let v = field_arg_value(args, &mut i, "--cfbf-stream", inline)?;
+                out.cfbf_stream = Some(parse_field_u32(&v, "--cfbf-stream")?);
+            }
+            #[cfg(feature = "cfbf")]
+            "--cfbf-find" => {
+                out.cfbf_find = Some(field_arg_value(args, &mut i, "--cfbf-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -2774,6 +3728,278 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
             });
         }
     }
+    // JSON5/JSONC: `--json5-pointer`/`--json5-node` address a node by RFC 6901
+    // pointer against the JSON5 superset; `--json5-find` is a lexical search;
+    // `--json5-comments` lists every comment. Each stands alone (Phase 21.17.1).
+    #[cfg(feature = "json5")]
+    {
+        if let Some(pointer) = &out.json5_pointer {
+            chosen.push(Selector::Json5Pointer {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pointer) = &out.json5_node {
+            chosen.push(Selector::Json5Node {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pattern) = &out.json5_find {
+            chosen.push(Selector::Json5Find {
+                pattern: pattern.clone(),
+            });
+        }
+        if out.json5_comments {
+            chosen.push(Selector::Json5Comments);
+        }
+    }
+    // CBOR: `--cbor-pointer`/`--cbor-node` address an item by RFC 6901 pointer;
+    // `--cbor-find` is a lexical search over text keys/values. Each stands alone
+    // (Phase 21.18).
+    #[cfg(feature = "cbor")]
+    {
+        if let Some(pointer) = &out.cbor_pointer {
+            chosen.push(Selector::CborPointer {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pointer) = &out.cbor_node {
+            chosen.push(Selector::CborNode {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pattern) = &out.cbor_find {
+            chosen.push(Selector::CborFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // MessagePack: `--msgpack-pointer`/`--msgpack-node` address an item by RFC 6901
+    // pointer; `--msgpack-find` is a lexical search over text keys/values. Each
+    // stands alone (Phase 21.19).
+    #[cfg(feature = "msgpack")]
+    {
+        if let Some(pointer) = &out.msgpack_pointer {
+            chosen.push(Selector::MsgpackPointer {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pointer) = &out.msgpack_node {
+            chosen.push(Selector::MsgpackNode {
+                pointer: pointer.clone(),
+            });
+        }
+        if let Some(pattern) = &out.msgpack_find {
+            chosen.push(Selector::MsgpackFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Config family: `--config-line`/`--config-entry`/`--config-section` address a
+    // line, an entry, or a section by name; `--config-find` is a lexical search.
+    // Each stands alone (Phase 21.20).
+    #[cfg(feature = "config")]
+    {
+        if let Some(index) = out.config_line {
+            chosen.push(Selector::ConfigLine { index });
+        }
+        if let Some(index) = out.config_entry {
+            chosen.push(Selector::ConfigEntry { index });
+        }
+        if let Some(name) = &out.config_section {
+            chosen.push(Selector::ConfigSection { name: name.clone() });
+        }
+        if let Some(pattern) = &out.config_find {
+            chosen.push(Selector::ConfigFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // RSS/Atom feed: `--feed-channel` addresses the channel/feed container;
+    // `--feed-field NAME` a channel/feed-level field; `--feed-entry N` a record;
+    // `--feed-entry-field N:NAME` one field of one record; `--feed-find` a lexical
+    // search. Each stands alone (Phase 21.21).
+    #[cfg(feature = "feed")]
+    {
+        if out.feed_channel {
+            chosen.push(Selector::FeedChannel);
+        }
+        if let Some(name) = &out.feed_field {
+            chosen.push(Selector::FeedField { name: name.clone() });
+        }
+        if let Some(index) = out.feed_entry {
+            chosen.push(Selector::FeedEntry { index });
+        }
+        if let Some(spec) = &out.feed_entry_field {
+            let (entry, name) = spec.split_once(':').ok_or_else(|| {
+                Error::usage(format!(
+                    "--feed-entry-field {spec:?} must be N:NAME (a record ordinal and a field name)"
+                ))
+            })?;
+            let entry: u32 = entry.parse().map_err(|_| {
+                Error::usage(format!(
+                    "--feed-entry-field {spec:?} has a bad record ordinal {entry:?}"
+                ))
+            })?;
+            chosen.push(Selector::FeedEntryField {
+                entry,
+                name: name.to_string(),
+            });
+        }
+        if let Some(pattern) = &out.feed_find {
+            chosen.push(Selector::FeedFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // GeoJSON: `--geojson-type` addresses the root `"type"`; `--geojson-feature N` a
+    // feature; `--geojson-geometry N` a geometry; `--geojson-coordinates N` a
+    // geometry's coordinates; `--geojson-property N:NAME` one property of one
+    // feature; `--geojson-find` a lexical search. Each stands alone (Phase 21.22).
+    #[cfg(feature = "geojson")]
+    {
+        if out.geojson_type {
+            chosen.push(Selector::GeojsonType);
+        }
+        if let Some(index) = out.geojson_feature {
+            chosen.push(Selector::GeojsonFeature { index });
+        }
+        if let Some(index) = out.geojson_geometry {
+            chosen.push(Selector::GeojsonGeometry { index });
+        }
+        if let Some(index) = out.geojson_coordinates {
+            chosen.push(Selector::GeojsonCoordinates { index });
+        }
+        if let Some(spec) = &out.geojson_property {
+            let (feature, name) = spec.split_once(':').ok_or_else(|| {
+                Error::usage(format!(
+                    "--geojson-property {spec:?} must be N:NAME (a feature ordinal and a property name)"
+                ))
+            })?;
+            let feature: u32 = feature.parse().map_err(|_| {
+                Error::usage(format!(
+                    "--geojson-property {spec:?} has a bad feature ordinal {feature:?}"
+                ))
+            })?;
+            chosen.push(Selector::GeojsonProperty {
+                feature,
+                name: name.to_string(),
+            });
+        }
+        if let Some(pattern) = &out.geojson_find {
+            chosen.push(Selector::GeojsonFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // KML/GPX: `--gis-root` addresses the root `<kml>`/`<gpx>` container;
+    // `--gis-field NAME` a root-level field; `--gis-record N` a record;
+    // `--gis-record-field N:NAME` one field of one record; `--gis-point N` a point;
+    // `--gis-find` a lexical search. Each stands alone (Phase 21.23).
+    #[cfg(feature = "gis")]
+    {
+        if out.gis_root {
+            chosen.push(Selector::GisRoot);
+        }
+        if let Some(name) = &out.gis_field {
+            chosen.push(Selector::GisField { name: name.clone() });
+        }
+        if let Some(index) = out.gis_record {
+            chosen.push(Selector::GisRecord { index });
+        }
+        if let Some(spec) = &out.gis_record_field {
+            let (record, name) = spec.split_once(':').ok_or_else(|| {
+                Error::usage(format!(
+                    "--gis-record-field {spec:?} must be N:NAME (a record ordinal and a field name)"
+                ))
+            })?;
+            let record = record.parse::<u32>().map_err(|_| {
+                Error::usage(format!(
+                    "--gis-record-field {spec:?} has a bad record ordinal {record:?}"
+                ))
+            })?;
+            chosen.push(Selector::GisRecordField {
+                record,
+                name: name.to_string(),
+            });
+        }
+        if let Some(index) = out.gis_point {
+            chosen.push(Selector::GisPoint { index });
+        }
+        if let Some(pattern) = &out.gis_find {
+            chosen.push(Selector::GisFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Notebook: `--notebook-nbformat` addresses the `nbformat`; `--notebook-cell N` a
+    // cell; `--notebook-cell-type N` a cell's `cell_type`; `--notebook-cell-source N` a
+    // cell's source; `--notebook-cell-output N:M` one output of one cell;
+    // `--notebook-find` a lexical search. Each stands alone (Phase 21.24).
+    #[cfg(feature = "notebook")]
+    {
+        if out.notebook_nbformat {
+            chosen.push(Selector::NotebookNbformat);
+        }
+        if let Some(index) = out.notebook_cell {
+            chosen.push(Selector::NotebookCell { index });
+        }
+        if let Some(index) = out.notebook_cell_type {
+            chosen.push(Selector::NotebookCellType { index });
+        }
+        if let Some(index) = out.notebook_cell_source {
+            chosen.push(Selector::NotebookCellSource { index });
+        }
+        if let Some(spec) = &out.notebook_cell_output {
+            let (cell, index) = spec.split_once(':').ok_or_else(|| {
+                Error::usage(format!(
+                    "--notebook-cell-output {spec:?} must be CELL:OUTPUT (a cell ordinal and an output ordinal)"
+                ))
+            })?;
+            let cell: u32 = cell.parse().map_err(|_| {
+                Error::usage(format!(
+                    "--notebook-cell-output {spec:?} has a bad cell ordinal {cell:?}"
+                ))
+            })?;
+            let index: u32 = index.parse().map_err(|_| {
+                Error::usage(format!(
+                    "--notebook-cell-output {spec:?} has a bad output ordinal {index:?}"
+                ))
+            })?;
+            chosen.push(Selector::NotebookCellOutput { cell, index });
+        }
+        if let Some(pattern) = &out.notebook_find {
+            chosen.push(Selector::NotebookFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Fixed-width: `--fixedwidth-row`/`--fixedwidth-cell`/`--fixedwidth-range` address
+    // records, cells, and rectangles; `--fixedwidth-header` is the header row;
+    // `--fixedwidth-columns` the recovered layout; `--fixedwidth-find` a lexical
+    // search. Each stands alone (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    {
+        if let Some(index) = out.fixedwidth_row {
+            chosen.push(Selector::FixedWidthRow { index });
+        }
+        if let Some(spec) = &out.fixedwidth_cell {
+            chosen.push(Selector::FixedWidthCell { spec: spec.clone() });
+        }
+        if out.fixedwidth_header {
+            chosen.push(Selector::FixedWidthHeader);
+        }
+        if out.fixedwidth_columns {
+            chosen.push(Selector::FixedWidthColumns);
+        }
+        if let Some(spec) = &out.fixedwidth_range {
+            chosen.push(Selector::FixedWidthRange { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.fixedwidth_find {
+            chosen.push(Selector::FixedWidthFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
     // YAML: `--yaml-path`/`--yaml-node` address a node by dotted path;
     // `--yaml-documents` lists documents; `--yaml-anchor` resolves an anchor and its
     // aliases; `--yaml-find` is a lexical search. Each stands alone (Phase 21.6.1).
@@ -2839,6 +4065,99 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.md_find {
             chosen.push(Selector::MdFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // reStructuredText: `--rst-heading`/`--rst-block`/`--rst-directive`/`--rst-inline`
+    // address titles, blocks, directives, and inline spans; `--rst-find` is a lexical
+    // search. Each stands alone (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    {
+        if let Some(index) = out.rst_heading {
+            chosen.push(Selector::RstHeading { index });
+        }
+        if let Some(index) = out.rst_block {
+            chosen.push(Selector::RstBlock { index });
+        }
+        if let Some(index) = out.rst_directive {
+            chosen.push(Selector::RstDirective { index });
+        }
+        if let Some(index) = out.rst_inline {
+            chosen.push(Selector::RstInline { index });
+        }
+        if let Some(pattern) = &out.rst_find {
+            chosen.push(Selector::RstFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // AsciiDoc: `--adoc-heading`/`--adoc-block`/`--adoc-attribute`/`--adoc-inline`
+    // address headings, blocks, document attributes, and inline spans; `--adoc-find` is
+    // a lexical search. Each stands alone (Phase 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    {
+        if let Some(index) = out.adoc_heading {
+            chosen.push(Selector::AdocHeading { index });
+        }
+        if let Some(index) = out.adoc_block {
+            chosen.push(Selector::AdocBlock { index });
+        }
+        if let Some(index) = out.adoc_attribute {
+            chosen.push(Selector::AdocAttribute { index });
+        }
+        if let Some(index) = out.adoc_inline {
+            chosen.push(Selector::AdocInline { index });
+        }
+        if let Some(pattern) = &out.adoc_find {
+            chosen.push(Selector::AdocFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // MDX: `--mdx-heading`/`--mdx-block` address the reused Markdown arena;
+    // `--mdx-esm`/`--mdx-jsx`/`--mdx-expression` address ESM statements, JSX
+    // elements, and expressions; `--mdx-find` is a lexical search. Each stands alone
+    // (Phase 21.26.3).
+    #[cfg(feature = "mdx")]
+    {
+        if let Some(index) = out.mdx_heading {
+            chosen.push(Selector::MdxHeading { index });
+        }
+        if let Some(index) = out.mdx_block {
+            chosen.push(Selector::MdxBlock { index });
+        }
+        if let Some(index) = out.mdx_esm {
+            chosen.push(Selector::MdxEsm { index });
+        }
+        if let Some(index) = out.mdx_jsx {
+            chosen.push(Selector::MdxJsx { index });
+        }
+        if let Some(index) = out.mdx_expression {
+            chosen.push(Selector::MdxExpression { index });
+        }
+        if let Some(pattern) = &out.mdx_find {
+            chosen.push(Selector::MdxFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // MHTML: `--mhtml-root` addresses the root HTML part; `--mhtml-resource` a
+    // sub-resource by 0-based ordinal; `--mhtml-location` the envelope's top-level
+    // locations; `--mhtml-find` is a lexical search. Each stands alone (Phase 21.27).
+    #[cfg(feature = "mhtml")]
+    {
+        if out.mhtml_root {
+            chosen.push(Selector::MhtmlRoot);
+        }
+        if let Some(ordinal) = out.mhtml_resource {
+            chosen.push(Selector::MhtmlResource { ordinal });
+        }
+        if out.mhtml_location {
+            chosen.push(Selector::MhtmlLocation);
+        }
+        if let Some(pattern) = &out.mhtml_find {
+            chosen.push(Selector::MhtmlFind {
                 pattern: pattern.clone(),
             });
         }
@@ -2919,6 +4238,185 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.jsonl_find {
             chosen.push(Selector::JsonlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Log-stream: `--logstream-line` addresses a record by 0-based index;
+    // `--logstream-field` addresses a field as `N:ROLE`; `--logstream-find` is a
+    // lexical search. Each stands alone (Phase 21.28).
+    #[cfg(feature = "logstream")]
+    {
+        if let Some(index) = out.logstream_line {
+            chosen.push(Selector::LogstreamLine { index });
+        }
+        if let Some(spec) = &out.logstream_field {
+            chosen.push(Selector::LogstreamField { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.logstream_find {
+            chosen.push(Selector::LogstreamFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Package-metadata: `--pkgmeta-section`/`--pkgmeta-entry` address a section/entry
+    // by 0-based index; `--pkgmeta-key` addresses an entry as `SECTION:KEY`;
+    // `--pkgmeta-find` is a lexical search. Each stands alone (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    {
+        if let Some(index) = out.pkgmeta_section {
+            chosen.push(Selector::PkgmetaSection { index });
+        }
+        if let Some(index) = out.pkgmeta_entry {
+            chosen.push(Selector::PkgmetaEntry { index });
+        }
+        if let Some(spec) = &out.pkgmeta_key {
+            chosen.push(Selector::PkgmetaKey { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.pkgmeta_find {
+            chosen.push(Selector::PkgmetaFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // API-spec: `--apispec-dialect` the recorded dialect; `--apispec-version` the exact
+    // spec-version string; `--apispec-object N`/`--apispec-ref N` address an object/`$ref`
+    // by 0-based index; `--apispec-find` is a lexical search. Each stands alone
+    // (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    {
+        if out.apispec_dialect {
+            chosen.push(Selector::ApispecDialect);
+        }
+        if out.apispec_version {
+            chosen.push(Selector::ApispecVersion);
+        }
+        if let Some(index) = out.apispec_object {
+            chosen.push(Selector::ApispecObject { index });
+        }
+        if let Some(index) = out.apispec_ref {
+            chosen.push(Selector::ApispecRef { index });
+        }
+        if let Some(pattern) = &out.apispec_find {
+            chosen.push(Selector::ApispecFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Bibliography: `--bib-dialect` the recorded dialect; `--bib-entry N` addresses an
+    // entry/item by 0-based index; `--bib-field N:FIELD` a field by index and name;
+    // `--bib-key KEY` an entry by citation key/id; `--bib-find` is a lexical search.
+    // Each stands alone (Phase 21.31).
+    #[cfg(feature = "bib")]
+    {
+        if out.bib_dialect {
+            chosen.push(Selector::BibDialect);
+        }
+        if let Some(index) = out.bib_entry {
+            chosen.push(Selector::BibEntry { index });
+        }
+        if let Some(spec) = &out.bib_field {
+            chosen.push(Selector::BibField { spec: spec.clone() });
+        }
+        if let Some(spec) = &out.bib_key {
+            chosen.push(Selector::BibKey { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.bib_find {
+            chosen.push(Selector::BibFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // RTF: `--rtf-header` the header; `--rtf-group N`/`--rtf-control N`/`--rtf-hex N`/
+    // `--rtf-unicode N`/`--rtf-text N` address a group/control/hex/unicode/text-run by
+    // 0-based index; `--rtf-dest NAME[:N]` a destination; `--rtf-find` is a lexical
+    // search. Each stands alone (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    {
+        if out.rtf_header {
+            chosen.push(Selector::RtfHeader);
+        }
+        if let Some(index) = out.rtf_group {
+            chosen.push(Selector::RtfGroup { index });
+        }
+        if let Some(index) = out.rtf_control {
+            chosen.push(Selector::RtfControl { index });
+        }
+        if let Some(index) = out.rtf_hex {
+            chosen.push(Selector::RtfHex { index });
+        }
+        if let Some(index) = out.rtf_unicode {
+            chosen.push(Selector::RtfUnicode { index });
+        }
+        if let Some(index) = out.rtf_text {
+            chosen.push(Selector::RtfText { index });
+        }
+        if let Some(spec) = &out.rtf_dest {
+            chosen.push(Selector::RtfDestination { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.rtf_find {
+            chosen.push(Selector::RtfFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Generic archive container (ZIP/TAR): `--container-dialect` the recorded dialect;
+    // `--container-entry N` a member by 0-based index; `--container-find` a lexical
+    // search. Each stands alone (Phase 21.33).
+    #[cfg(feature = "container")]
+    {
+        if out.container_dialect {
+            chosen.push(Selector::ContainerDialect);
+        }
+        if let Some(index) = out.container_entry {
+            chosen.push(Selector::ContainerEntry { index });
+        }
+        if let Some(pattern) = &out.container_find {
+            chosen.push(Selector::ContainerFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Scientific container (NetCDF classic / HDF5-subset): `--hdf-dialect` the recorded
+    // dialect; `--hdf-object N` an object by 0-based index; `--hdf-dimension N` a NetCDF
+    // dimension; `--hdf-attribute N` a global/root attribute; `--hdf-find` a lexical
+    // search. Each stands alone (Phase 21.34).
+    #[cfg(feature = "hdf")]
+    {
+        if out.hdf_dialect {
+            chosen.push(Selector::HdfDialect);
+        }
+        if let Some(index) = out.hdf_object {
+            chosen.push(Selector::HdfObject { index });
+        }
+        if let Some(index) = out.hdf_dimension {
+            chosen.push(Selector::HdfDimension { index });
+        }
+        if let Some(index) = out.hdf_attribute {
+            chosen.push(Selector::HdfAttribute { index });
+        }
+        if let Some(pattern) = &out.hdf_find {
+            chosen.push(Selector::HdfFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // CFBF / OLE2 compound file: `--cfbf-dialect` the recorded dialect; `--cfbf-entry N`
+    // a directory entry by 0-based index; `--cfbf-stream N` a stream's exact content;
+    // `--cfbf-find` a lexical search. Each stands alone (Phase 21.35).
+    #[cfg(feature = "cfbf")]
+    {
+        if out.cfbf_dialect {
+            chosen.push(Selector::CfbfDialect);
+        }
+        if let Some(index) = out.cfbf_entry {
+            chosen.push(Selector::CfbfEntry { index });
+        }
+        if let Some(index) = out.cfbf_stream {
+            chosen.push(Selector::CfbfStream { index });
+        }
+        if let Some(pattern) = &out.cfbf_find {
+            chosen.push(Selector::CfbfFind {
                 pattern: pattern.clone(),
             });
         }

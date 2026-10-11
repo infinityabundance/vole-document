@@ -1,0 +1,1 @@
+{"decline": {"code": "comparator_absent", "detail": "HDF5 has no faithful Python-stdlib decoder (only the NetCDF-classic part is decoded by Lane C), so Lane C declines every HDF5-fixture question as comparator_absent"}, "declined": true, "detail": {}, "lane": "conv", "native": true, "q": "Q12", "value": null}

@@ -1,0 +1,11 @@
+fixtures 9
+mhtml_fixtures 4
+control_fixtures 5
+exact_ok 9
+exact_fail 0
+surface_fail 0
+boundary_ok 5
+opaque_controls_ok 1
+typed_declines_ok 1
+usage_ok 1
+binary a12902b153125c9e984b2d2de63f56d241ca42ddab792a89ee37b8eb209ca126

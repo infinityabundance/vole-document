@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {"json_type": "text", "normalized": true}, "lane": "sqlite", "native": true, "q": "Q1", "value": {"kind": "string", "value": "a\tb"}}

@@ -1,0 +1,23 @@
+{
+  "campaign": "evidence/campaigns/2026-10-11-phase21-5-1-json-d2f77c3b",
+  "phase": "21.5.1 — JSON structured-tree surface + exact closure + model",
+  "utc": "2026-10-11T04:53:56Z",
+  "measured_commit": "d2f77c3b8b9638f78193a8768b856a25f69e0ea6",
+  "tree_state": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-30-1-apispec-d2f77c3b/ ?? evidence/campaigns/2026-10-11-phase21-5-1-json-d2f77c3b/ ?? src/adapter/apispec.rs ?? tests/apispec_adapter.rs ?? tools/phase21-30-1-apispec-court.sh ",
+  "service": "doc-baseline",
+  "profile": "debug",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "13beffa7d871a2df4ed13557b64ebe98f5624c8625a7c653c77e91550d8b33f8",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "fixtures": "basic.json unicode.json numbers.json dup.json deep.json scalar.json large.json malformed.json",
+  "fixture_tool": "tools/fixtures/make-json.py (stdlib only)",
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "observations": ["metadata", "text", "search-match", "native json-pointer", "native json-node", "native json-find"],
+  "declines": "unsupported common pairs decline typed (rc 6); a malformed document is Opaque (rc 6), never a panic",
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "adr_0060": "the JsonModel node depends on the DocumentExact root (sha256(source)); no source-reading node aliases another field's source",
+  "verdict": "PASS"
+}

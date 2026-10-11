@@ -1,0 +1,1 @@
+{"decline": {"code": "no-key-span", "detail": "SQLite exposes no key byte span or key kind"}, "declined": true, "detail": {}, "lane": "sqlite", "native": true, "q": "Q10", "value": null}

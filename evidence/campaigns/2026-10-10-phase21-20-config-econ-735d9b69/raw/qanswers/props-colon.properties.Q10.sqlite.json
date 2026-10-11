@@ -1,0 +1,1 @@
+{"decline": {"code": "no-source-span", "detail": "conventional extraction keeps no spans"}, "declined": true, "detail": {}, "lane": "sqlite", "native": true, "q": "Q10", "value": null}

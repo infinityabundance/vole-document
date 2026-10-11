@@ -1,0 +1,10 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+basic.rst	true	true	true	true	true	3267	23670
+explicit.rst	true	true	true	true	true	3362	24458
+lists.rst	true	true	true	true	true	3332	24337
+tables.rst	true	true	true	true	true	3394	24934
+inline.rst	true	true	true	true	true	3246	22113
+literal.rst	true	true	true	true	true	3292	22288
+large.rst	true	true	true	true	true	4230	23459
+markdown.md	true	-	true	true	true	2779	-
+prose.txt	true	-	true	true	true	3091	-

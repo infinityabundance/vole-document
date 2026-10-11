@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {}, "lane": "vole", "native": true, "q": "Q1", "value": "= AsciiDoc Primer\n\nA paragraph with *strong*, _emphasis_, and `mono` text.\n\n== First Section\n\nA body paragraph with +pass+ and ^sup^ and ~sub~ and #mark#.\n\n=== Subsection\n\nMore body text.\n"}

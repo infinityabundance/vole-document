@@ -1,0 +1,319 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-21-feed-econ-735d9b69",
+  "comparators": [
+    "sqlite",
+    "conv"
+  ],
+  "declines": "an out-of-range entry and an unknown field decline typed (rc 6); a non-feed XML control stays Xml and a native feed selector on it declines typed; the strict-JSON control stays Json; malformed XML and prose stay Opaque and a common observation declines typed (rc 6), never a panic",
+  "detection_boundary": "feed detection requires an RSS rss/channel or Atom feed root; other XML stays Xml and is never stolen",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "03a6358b2ffaa328fd6d08fae6db762c4b7adaab173cc5626ccefb594210771d",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-10-phase21-21-feed-econ-735d9b69",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+    "controls": "malformed.xml notfeed.xml prose.txt strict.json",
+    "econ_module_sha256": "73119c91de194e0f6cf9ecb89830a71f0d8678db1d07c9a31b93e20024f776cf",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "atom-basic.xml": {
+        "len": 316,
+        "sha256": "bc1117f9c9e0372de74c31b768781f09d36147bfe4836c73d801d63b4fb41671"
+      },
+      "atom-multilink.xml": {
+        "len": 334,
+        "sha256": "99485d30576faa77614d24d74c80e51f192b0635319f2e11d4fb4355a34aff4d"
+      },
+      "dup-fields.xml": {
+        "len": 301,
+        "sha256": "36cfda6c7a8504e92b60d84f9a64814398803b1705c3b797d3b145c721b89751"
+      },
+      "large.xml": {
+        "len": 262339,
+        "sha256": "5aa6b851af2c8eac1b2acf7e3ab92514915ae607e04ab59e4fe993916fc83069"
+      },
+      "rss-attrs.xml": {
+        "len": 353,
+        "sha256": "e97fde2ded5de1b7daa83a027f53f72f20efff77f2b9d5746bcb50263607b1c8"
+      },
+      "rss-basic.xml": {
+        "len": 408,
+        "sha256": "c74235aed5f35efa80493b3a7d479287ddf85935448409be8ae7cc76951cd14b"
+      },
+      "rss-cdata.xml": {
+        "len": 372,
+        "sha256": "c090c3736ec6270fe56aaead98ec63e2bd00f8c16fc2486c17dd5d3551064509"
+      }
+    },
+    "foreign_selector": "--geojson-type --kind metadata",
+    "format": "feed",
+    "generator_sha256": "3d61253aa2fced93731729f139a0792bfd264b68987c1129862beb6165721a57",
+    "lane_fixtures": "rss-basic.xml rss-attrs.xml rss-cdata.xml atom-basic.xml atom-multilink.xml dup-fields.xml large.xml",
+    "measured_commit": "735d9b69178e3e67cf65deea95c4ebf74c1aae8c",
+    "own_selector": "--feed-channel --kind structure",
+    "phase": "21.21 \u2014 RSS/Atom economic court",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 6981,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M src/field/observe.rs ?? evidence/campaigns/2026-10-10-phase21-20-config-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-21-feed-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-22-geojson-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-23-gis-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-24-notebook-econ-735d9b69/ ?? tools/fixtures/make-config.py ?? tools/fixtures/make-feed.py ?? tools/fixtures/make-geojson.py ?? tools/fixtures/make-gis.py ?? tools/fixtures/make-notebook.py ?? tools/fixtures/textfmt-court.sh ?? tools/fixtures/textfmt-vole.py ?? tools/fixtures/textfmt_econ.py ?? tools/phase21-20-config-court.sh ?? tools/phase21-21-feed-court.sh ?? tools/phase21-22-geojson-court.sh ?? tools/phase21-23-gis-court.sh ?? tools/phase21-24-notebook-court.sh ",
+    "utc": "2026-10-10T22:54:49Z",
+    "vole_probe_sha256": "cadbadd8a5143c4a956091ae2a5edf1f8a50530318871caaab9448c9eddda3ca",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q10": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q11": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q12": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    },
+    "Q3": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q4": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q5": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q7": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    },
+    "Q9": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 2121); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 11,
+  "exact_ok": 11,
+  "fixtures": [
+    "rss-basic.xml",
+    "rss-attrs.xml",
+    "rss-cdata.xml",
+    "atom-basic.xml",
+    "atom-multilink.xml",
+    "dup-fields.xml",
+    "large.xml"
+  ],
+  "format": "feed",
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "measured_commit": "735d9b69178e3e67cf65deea95c4ebf74c1aae8c",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native selectors (exact + structure)"
+  ],
+  "phase": "21.21 \u2014 RSS/Atom economic court",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 0.9445638332413455,
+        "geomean_hi": 0.9858951820416375,
+        "geomean_lo": 0.8905769438848349,
+        "losses": 0,
+        "median": 0.9599700965067283,
+        "median_hi": 0.9951281062703726,
+        "median_lo": 0.9202248945806654,
+        "n": 7,
+        "ratio_of_sums": 0.9367575074562302,
+        "ties": 6,
+        "wins": 1
+      },
+      "sqlite": {
+        "geomean": 0.9683255164771081,
+        "geomean_hi": 0.9920046905050911,
+        "geomean_lo": 0.9469265669148279,
+        "losses": 0,
+        "median": 0.9658944221754195,
+        "median_hi": 0.9950888013248815,
+        "median_lo": 0.9492160074888837,
+        "n": 7,
+        "ratio_of_sums": 0.9683729906564051,
+        "ties": 7,
+        "wins": 0
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.036495588064600265,
+        "geomean_hi": 0.05258623584223025,
+        "geomean_lo": 0.029723358174036787,
+        "losses": 0,
+        "median": 0.030890607055626546,
+        "median_hi": 0.03320583608377803,
+        "median_lo": 0.02944961629701874,
+        "n": 7,
+        "ratio_of_sums": 0.042001475949971334,
+        "ties": 0,
+        "wins": 7
+      },
+      "sqlite": {
+        "geomean": 0.03608441920833487,
+        "geomean_hi": 0.05080191236929645,
+        "geomean_lo": 0.0297603135287409,
+        "losses": 0,
+        "median": 0.030089835708708306,
+        "median_hi": 0.03425098831521091,
+        "median_lo": 0.0297964294211949,
+        "n": 7,
+        "ratio_of_sums": 0.04149620517068194,
+        "ties": 0,
+        "wins": 7
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 0.617752100793724,
+        "geomean_hi": 0.6331111410282071,
+        "geomean_lo": 0.5944018140993036,
+        "losses": 0,
+        "median": 0.6258883840149132,
+        "median_hi": 0.6370760233918129,
+        "median_lo": 0.6197429906542056,
+        "n": 7,
+        "ratio_of_sums": 0.5563375748554882,
+        "ties": 0,
+        "wins": 7
+      },
+      "sqlite": {
+        "geomean": 0.6799658096452039,
+        "geomean_hi": 0.7374323725072008,
+        "geomean_lo": 0.6489116514436262,
+        "losses": 0,
+        "median": 0.6550805377255662,
+        "median_hi": 0.6684025675184692,
+        "median_lo": 0.6461612981351417,
+        "n": 7,
+        "ratio_of_sums": 0.8460359150135841,
+        "ties": 0,
+        "wins": 7
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 0.1510759788019039,
+        "geomean_hi": 0.25097758844476764,
+        "geomean_lo": 0.11556771433718183,
+        "losses": 0,
+        "median": 0.11954187544738726,
+        "median_hi": 0.122007722007722,
+        "median_lo": 0.11399317406143344,
+        "n": 7,
+        "ratio_of_sums": 0.4783225806451613,
+        "ties": 0,
+        "wins": 7
+      },
+      "sqlite": {
+        "geomean": 0.14404447984398522,
+        "geomean_hi": 0.22833516195736198,
+        "geomean_lo": 0.11116077475572224,
+        "losses": 0,
+        "median": 0.11960635881907646,
+        "median_hi": 0.12379540400296515,
+        "median_lo": 0.10778443113772455,
+        "n": 7,
+        "ratio_of_sums": 0.4146532438478747,
+        "ties": 0,
+        "wins": 7
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "service": "doc-baseline",
+  "surface": "RSS 2.0 channel/item and Atom feed/entry; channel/feed-level fields; entry order; exact element spans; element attributes in source order with exact spelling; CDATA and entities; duplicate entry elements; the recorded dialect (rss/atom)",
+  "tree_state": "M src/field/observe.rs ?? evidence/campaigns/2026-10-10-phase21-20-config-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-21-feed-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-22-geojson-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-23-gis-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-24-notebook-econ-735d9b69/ ?? tools/fixtures/make-config.py ?? tools/fixtures/make-feed.py ?? tools/fixtures/make-geojson.py ?? tools/fixtures/make-gis.py ?? tools/fixtures/make-notebook.py ?? tools/fixtures/textfmt-court.sh ?? tools/fixtures/textfmt-vole.py ?? tools/fixtures/textfmt_econ.py ?? tools/phase21-20-config-court.sh ?? tools/phase21-21-feed-court.sh ?? tools/phase21-22-geojson-court.sh ?? tools/phase21-23-gis-court.sh ?? tools/phase21-24-notebook-court.sh",
+  "utc": "2026-10-10T22:54:50Z",
+  "verdict": "PASS"
+}

@@ -1,0 +1,10 @@
+fixture	vole_ok	sqlite_ok	conv_ok	len_ok	sha_ok	cmp_ok	v_us	s_us	c_us
+basic.json5	true	true	false	true	true	true	3313	19946	0
+jsonc.jsonc	true	true	false	true	true	true	3364	20659	0
+numbers.json5	true	true	false	true	true	true	3315	19672	0
+strings.json5	true	true	false	true	true	true	3318	19621	0
+unicode.json5	true	true	false	true	true	true	3264	20007	0
+comments.json5	true	true	false	true	true	true	4464	19783	0
+large.json5	true	true	false	true	true	true	7315	21436	0
+dup.json5	true	true	false	true	true	true	3315	20055	0
+deep.json5	true	true	false	true	true	true	3447	20226	0

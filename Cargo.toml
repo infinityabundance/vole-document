@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.34"
+version = "0.1.0-alpha.35"
 edition = "2024"
 rust-version = "1.89"
 description = "Persistent procedural document runtime: byte-exact reconstruction plus a content-addressed procedural seed DAG, queryable observations with provenance, and selective late materialization."
@@ -45,6 +45,35 @@ required-features = ["docx", "epub"]
 name = "deflate_ablation"
 path = "examples/deflate_ablation.rs"
 required-features = ["deflate-ablation"]
+
+# The Phase-21.33 archive-container court fixture generator. Feature-gated to the
+# adapter it exercises (which implies `package` for the reused ZIP physical layer)
+# so the default build never compiles it. It writes small, deterministic ZIP/TAR
+# fixtures (and office/malformed controls) so the court needs no python3 or `zip`.
+[[example]]
+name = "container_fixtures"
+path = "examples/container_fixtures.rs"
+required-features = ["container"]
+
+# The Phase-21.34 scientific-container court fixture generator. Feature-gated to the
+# adapter it exercises so the default build never compiles it. It writes small,
+# deterministic NetCDF classic (CDF-1/CDF-2) and HDF5-subset fixtures (plus malformed
+# and out-of-subset controls) byte-for-byte, so the court needs no python3, h5py,
+# netCDF, or `h5dump`.
+[[example]]
+name = "hdf_fixtures"
+path = "examples/hdf_fixtures.rs"
+required-features = ["hdf"]
+
+# The Phase-21.35 CFBF/OLE2 court fixture generator. Feature-gated to the adapter it
+# exercises so the default build never compiles it. It writes small, deterministic
+# compound files (with a root storage, a sub-storage, a FAT-chained large stream and
+# a MiniFAT-chained small stream, a 4096-sector variant, non-ASCII names, and
+# malformed controls) byte-for-byte, so the court needs no OLE tooling.
+[[example]]
+name = "cfbf_fixtures"
+path = "examples/cfbf_fixtures.rs"
+required-features = ["cfbf"]
 
 [dependencies]
 # Archival source identity. Pinned exactly for the first sealed universe.
@@ -260,6 +289,25 @@ pptx = ["opc"]
 # bytes and exactness is untouched. Dependency-free (`json = []`) and never in
 # `default`.
 json = []
+# Phase 21.17.1: the JSON5 / JSONC adapter — the **structured-extra** Wave-2 format.
+# JSON5 is an ECMAScript 5.1 superset of JSON, and JSONC is its tsconfig-style
+# "JSON with Comments" subset. Like the other Wave-2 formats it is not a package
+# (no OPC/ZIP layer): the exact leaf is the whole source (a `DocumentExact`,
+# RAW-like authority) and every derived observation is a bounded, span-preserving
+# (`Q_gen`) projection of it. Rather than a second node arena it **reuses the JSON
+# adapter's** `JNode` arena (exact token spans, member order, duplicate keys,
+# numeric/escape spelling), adding the JSON5 superset — `//`/`/* … */` comments
+# (their exact spans recorded, never dropped), unquoted IdentifierName keys,
+# single-quoted strings, trailing commas, hex / leading-dot / `Infinity` / `NaN`
+# numbers, line-continuation strings, additional escapes, and the extended Unicode
+# whitespace set — plus a recorded dialect (`jsonc` when the only extensions are
+# comments/trailing commas, else `json5`). A strict JSON source is never
+# reclassified (detection requires at least one JSON5/JSONC-only construct), so it
+# stays `json`. It adds **no** decoder behavior: the JSON5 model is never on the
+# exactness path, so enabling it never changes `.voldoc` bytes and exactness is
+# untouched. Dependency-free (`json5` pulls no external crate) and never in
+# `default`; it reuses the JSON adapter, so it implies `json`.
+json5 = ["json"]
 # Phase 21.6.1: the YAML adapter — the second **Wave-2 structured-tree** format.
 # Like JSON, YAML is not a package (no OPC/ZIP layer): the exact leaf is the whole
 # source (a `DocumentExact`, RAW-like authority) and every derived observation is a
@@ -273,19 +321,43 @@ json = []
 # `.voldoc` bytes and exactness is untouched. Dependency-free (`yaml = []`) and
 # never in `default`.
 yaml = []
-# Phase 21.7.1: the CSV/TSV adapter — the first **tabular** Wave-2 format (the
-# same feature covers both comma- and tab-separated files). Like JSON/YAML it is
-# not a package (no OPC/ZIP layer): the exact leaf is the whole source (a
-# `DocumentExact`, RAW-like authority) and every derived observation is a bounded,
-# span-preserving (`Q_gen`) projection of it. It adds a bounded, streaming RFC 4180
-# CSV + TSV parser that preserves representation — exact record/field byte spans,
-# the recorded dialect (delimiter/quote/line terminator/BOM), original quoting
-# (quotes and `""` escapes kept), embedded delimiters/newlines, ragged rows, blank
-# lines, and the header row — and detects a table conservatively (no magic bytes;
-# a plain-text blob stays Opaque). It adds **no** decoder behavior: the CSV model is
-# never on the exactness path, so enabling it never changes `.voldoc` bytes and
-# exactness is untouched. Dependency-free (`csv = []`) and never in `default`.
+# Phase 21.7.1: the CSV/TSV adapter — the first **tabular** Wave-2 format. Phase
+# 21.25 extends the *same* adapter's dialect set with a **pipe** delimiter (PSV),
+# exactly as comma and tab are handled today (one parser, three recorded
+# dialects), rather than adding a second parser. The feature therefore covers
+# comma-, tab-, and pipe-separated files. Like JSON/YAML it is not a package (no
+# OPC/ZIP layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It adds a bounded, streaming RFC 4180 CSV + TSV + PSV parser
+# that preserves representation — exact record/field byte spans, the recorded
+# dialect (delimiter/quote/line terminator/BOM), original quoting (quotes and `""`
+# escapes kept), embedded delimiters/newlines, ragged rows, blank lines, and the
+# header row — and detects a table conservatively (no magic bytes; a plain-text
+# blob stays Opaque; a Markdown table is never stolen, because a pipe-delimited
+# table carrying a GFM delimiter row declines and falls through to Markdown). It
+# adds **no** decoder behavior: the CSV model is never on the exactness path, so
+# enabling it never changes `.voldoc` bytes and exactness is untouched.
+# Dependency-free (`csv = []`) and never in `default`.
 csv = []
+# Phase 21.25: the fixed-width (column-position) tabular adapter — a *distinct*
+# tabular model whose columns are defined by **character positions**, not a
+# delimiter, so it is a new adapter (and format) rather than a CSV dialect. Like
+# the other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf
+# is the whole source (a `DocumentExact`, RAW-like authority) and every derived
+# observation is a bounded, span-preserving (`Q_gen`) projection of it. It adds a
+# bounded, line-based parser that records the inferred column layout (per-column
+# start/end positions and widths), every record's exact content span and per-column
+# field spans, padding, the line terminator, a BOM, and the header row. Detection is
+# **maximally conservative** (fixed-width is inherently ambiguous — any aligned text
+# can look tabular): it requires at least three sampled records of *identical byte
+# width* whose interior whitespace gaps are at least two columns wide, with at least
+# two non-empty columns, and it declines outright anything that also parses as a
+# delimited table (CSV/TSV/PSV) or a Markdown table. It adds **no** decoder behavior:
+# the fixed-width model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. It implies `csv` because the honest way
+# to enforce "reject anything that also parses as a delimited table" is to reuse the
+# CSV/PSV detector. Never in `default`.
+fixedwidth = ["csv"]
 # Phase 21.8.1: the Markdown adapter — the first **prose** Wave-2 format. Like
 # JSON/YAML/CSV it is not a package (no OPC/ZIP layer): the exact leaf is the whole
 # source (a `DocumentExact`, RAW-like authority) and every derived observation is a
@@ -301,6 +373,92 @@ csv = []
 # `.voldoc` bytes and exactness is untouched. Dependency-free (`markdown = []`) and
 # never in `default`.
 markdown = []
+# Phase 21.26.1: the reStructuredText adapter — the next **prose** Wave-2 format
+# (the Docutils input language). Like Markdown it is not a package (no OPC/ZIP
+# layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It adds a bounded, line-based Docutils-subset parser that
+# preserves representation — exact block and inline source spans, section titles
+# with their exact underline/overline adornment (char and length) and a recorded
+# hierarchy, paragraphs, explicit markup (`.. ` comments, `.. directive::`
+# directives preserved verbatim, substitution definitions, footnotes/citations,
+# hyperlink targets), field/option/definition lists, literal (`::`) and doctest
+# (`>>> `) blocks, bullet/enumerated lists with nesting, inline markup
+# (strong/emphasis/literal/interpreted/substitution/footnote/hyperlink/anonymous
+# references), and grid/simple tables — and never re-flows or normalizes the
+# source. Detection is conservative (no magic bytes) and **reST-specific** (an
+# explicit markup start, a grid/simple table, a field list, or an adornment whose
+# char is not a Markdown construct), so plain prose stays Opaque and a valid
+# Markdown document is never stolen. It adds **no** decoder behavior: the model is
+# never on the exactness path, so enabling it never changes `.voldoc` bytes and
+# exactness is untouched. Dependency-free (`rst = []`) and never in `default`.
+rst = []
+# Phase 21.26.2: the AsciiDoc adapter — the third **prose** Wave-2 format (the
+# Asciidoctor input language). Like Markdown and reStructuredText it is not a package
+# (no OPC/ZIP layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It adds a bounded, line-based AsciiDoc-subset parser that preserves
+# representation — exact block and inline source spans, a level-0 document title and
+# `==`+ sections with their exact `=` marker and recorded level, paragraphs, document
+# attributes (`:name: value` / `:name!:`) with attribute references (`{name}`)
+# surfaced literally (never expanded), block attribute lines attached to the following
+# block, delimited blocks (listing/literal/example/sidebar/quote/open/passthrough) with
+# their exact delimiter and verbatim content, unordered/ordered/description lists with
+# nesting, tables (`|===`), admonitions (`NOTE:` / `[NOTE]`), and inline spans
+# (strong/emphasis/mono/passthrough/superscript/subscript/mark plus the `link:`,
+# `image:`, `include::`, `xref:` and bare-URL macros, preserved verbatim) — and never
+# re-flows or normalizes the source. Detection is conservative (no magic bytes) and
+# **AsciiDoc-specific** (a document title followed by a block, a `==`+ section, a
+# `|===` table, a complete delimited block, or a block attribute line followed by a
+# block), so plain prose stays Opaque and a valid Markdown or reStructuredText document
+# is never stolen. It adds **no** decoder behavior: the model is never on the exactness
+# path, so enabling it never changes `.voldoc` bytes and exactness is untouched.
+# Dependency-free (`asciidoc = []`) and never in `default`.
+asciidoc = []
+# Phase 21.26.3: the MDX adapter — Markdown + JSX + ESM. MDX is a **superset** of
+# Markdown, so this adapter **reuses the Markdown parser and model** (Phase 21.8.1's
+# `markdown` feature) — never a second prose parser — and layers the MDX-specific
+# constructs on top, each with an exact source span: top-level ESM `import`/`export`
+# statements, JSX elements/fragments with their attributes and nested children
+# (recorded as extents, never executed and never parsed as JavaScript), and MDX `{ … }`
+# expressions inline and block (brace-balanced with string literals, escapes, and
+# comments respected). Like the other Wave-2 formats it is not a package (no OPC/ZIP
+# layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like authority)
+# and every derived observation is a bounded, span-preserving (`Q_gen`) projection of
+# it. Detection is conservative (no magic bytes) and **MDX-specific**, and it is tried
+# **before** generic Markdown and before HTML: a plain Markdown document stays
+# `Markdown`, a plain HTML document stays `Html`, and plain prose stays `Opaque`; the
+# scanner skips fenced/indented code, front matter, and inline code spans so a JSX/ESM
+# construct inside code never makes a Markdown document MDX. It adds **no** decoder
+# behavior: the MDX model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. Dependency-free (`mdx` pulls no external
+# crate) and never in `default`; it reuses the Markdown adapter, so it implies
+# `markdown`.
+mdx = ["markdown"]
+# Phase 21.27: the MHTML (MIME HTML) adapter — a browser-saved web archive. MHTML is
+# a MIME `multipart/related` document whose root part is an HTML page and whose
+# remaining parts are the page's sub-resources (images/CSS/...). It is **not** a new
+# container: this adapter **reuses the EML adapter's bounded MIME layer** (Phase
+# 21.13's `eml` feature) for the envelope, the ordered parts, their headers, and
+# their exact spans, and **reuses the HTML adapter's bounded, error-recovering
+# scanner** (Phase 21.10's `html` feature) for the root part — never a second MIME or
+# HTML parser. Like the other Wave-2 formats it is not a package (no OPC/ZIP layer):
+# the exact leaf is the whole source (a `DocumentExact`, RAW-like authority) and every
+# derived observation is a bounded, span-preserving (`Q_gen`) projection of it. The
+# model records the MIME envelope (incl. `Snapshot-Content-Location`/`Content-Base`),
+# the ordered sub-resources keyed by `Content-Location`/`Content-ID`, and the root
+# HTML part (the `start=` `Content-ID`, else the first `text/html` part, else the
+# first part), each with exact spans; a `Content-Transfer-Encoding` value is decoded
+# only for a derived observation, never re-encoded into the exact leaf. Detection is
+# conservative and **MHTML-specific** (a `multipart/related` root plus a top-level
+# `Snapshot-Content-Location`/`Content-Base`, or a `From`+`Subject` envelope with a
+# `text/html` part), so a plain `multipart/related` email stays `Eml`, a plain HTML
+# document stays `Html`, and a plain MIME message stays `Eml`. It adds **no** decoder
+# behavior: the MHTML model is never on the exactness path, so enabling it never
+# changes `.voldoc` bytes and exactness is untouched. Dependency-free (`mhtml` pulls no
+# external crate) and never in `default`; it reuses the EML and HTML adapters, so it
+# implies `eml` and `html`.
+mhtml = ["eml", "html"]
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores; Phase 21.9 also gates the standalone **XML adapter**
 # (the structured-tree format for a bare `.xml` source) on this same feature. The
@@ -360,6 +518,172 @@ toml = []
 # Dependency-free (`jsonl` pulls no external crate) and never in `default`; it
 # reuses the JSON adapter per line, so it implies `json`.
 jsonl = ["json"]
+# Phase 21.28: the syslog / log-stream adapter — the **line/event stream** Wave-2
+# format. Like the other Wave-2 formats it is not a package (no OPC/ZIP layer): the
+# exact leaf is the whole source (a `DocumentExact`, RAW-like authority) and every
+# derived observation is a bounded, span-preserving (`Q_gen`) projection of it. It
+# adds a bounded, dependency-free parser that **preserves representation**: each
+# physical line is classified by a recorded dialect — RFC 5424 syslog
+# (`<PRI>VERSION … STRUCTURED-DATA [SP MSG]`), RFC 3164 (BSD) syslog
+# (`<PRI>Mmm dd hh:mm:ss HOSTNAME TAG[pid]: MSG`), or a generic application log line
+# (an optional leading timestamp and/or level token followed by the message) — and
+# every record keeps its exact line span and terminator (LF/CRLF/none), its physical
+# line number, its decoded priority, the deepest structured-data nesting, and every
+# field's exact span. Structured-data elements, NILVALUE (`-`), and timestamp/level
+# spelling are preserved verbatim; a message is **never** normalized. Detection is
+# byte-based and conservative (at least two non-blank lines, **every** non-blank line
+# must match a dialect) and must not steal a higher-priority format; plain prose and
+# code stay `Opaque`. It adds **no** decoder behavior: the log-stream model is never
+# on the exactness path, so enabling it never changes `.voldoc` bytes and exactness is
+# untouched. **Dependency-free (`logstream = []`)** — a log line is *not* JSON, so
+# reusing the JSON parser would add no representation value; the physical-line split
+# vocabulary is a few lines implemented directly, and there is no external crate.
+# Never in `default`.
+logstream = []
+# Phase 21.29: the package-metadata adapter — the **manifest** Wave-2 format. A
+# manifest's physical bytes belong to another format (`package.json` /
+# `package-lock.json` are JSON; `Cargo.toml` / `pyproject.toml` / `Cargo.lock` are
+# TOML), so this adapter **reuses** the shared JSON and TOML parsers (never a second
+# parser) and adds only a bounded semantic section/entry projection on top. It
+# preserves representation: the reused arena keeps member order, duplicate keys,
+# numeric and string-escape spelling, key quoting, and every exact token span, and
+# every recorded **section** (a named table / array-of-tables / array element in TOML,
+# or an object / array member in JSON) and every key/value **entry** keeps its exact
+# name/key/value spans, grouped by section in document order. The **recorded dialect**
+# (`npm_package` / `cargo_manifest` / `pyproject_manifest` / `cargo_lock` /
+# `npm_lock`) lives in the model. Detection is a bounded, **content-only** semantic
+# sub-test (never a file name) requiring a strong manifest shape, and it runs
+# **before** the generic JSON and TOML detectors; a generic `{"name":…,"version":…}`
+# JSON or a bare `name`/`version` TOML is an honest, recorded ambiguity and stays
+# `Json`/`Toml`. It adds **no** decoder behavior: the manifest model is never on the
+# exactness path, so enabling it never changes `.voldoc` bytes and exactness is
+# untouched. **It implies `json` and `toml`** because it reuses both parsers; it pulls
+# no external crate. Never in `default`.
+pkgmeta = ["json", "toml"]
+# Phase 21.30: the API/specification adapter — the **API/spec** Wave-2 format. An API
+# spec (a JSON Schema, an OpenAPI 3.x, a Swagger 2.0, or an AsyncAPI document) is
+# written in JSON, so this adapter **reuses the shared representation-preserving JSON
+# parser** (Phase 21.5.1's `json` feature) — never a second JSON parser — and layers a
+# bounded semantic projection on it. It preserves representation: the reused arena
+# keeps member order, duplicate keys, numeric/string-escape spelling, key quoting, and
+# every exact token span, and it records the **dialect** (`json_schema` / `openapi` /
+# `swagger` / `asyncapi`), the exact spec-version token, every **object** (a role plus
+# exact value/naming spans and a member range), every key/value **member** (exact
+# key/value spans, in document order, duplicates preserved), and every **`$ref`**
+# member (target preserved **verbatim**, never resolved). Detection is a bounded,
+# **content-only** semantic sub-test (never a file name) requiring a strong, root-level
+# string marker (`$schema`/`openapi`/`swagger`/`asyncapi`), and it runs **before** the
+# generic JSON detector; a JSON-Schema-shaped object with no `$schema` is an honest,
+# recorded ambiguity and stays `Json`. Like the other Wave-2 formats it is not a package
+# (no OPC/ZIP layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It adds **no** decoder behavior: the spec model is never on the
+# exactness path, so enabling it never changes `.voldoc` bytes and exactness is
+# untouched. **Dependency-free (`apispec` pulls no external crate)** and never in
+# `default`; it reuses the JSON adapter, so it implies `json`.
+apispec = ["json"]
+# Phase 21.31: the bibliography adapter — the **bibliography** Wave-2 format. One
+# bounded adapter covers three dialects: **BibTeX** (`.bib`), **RIS**, and **CSL-JSON**,
+# recording the dialect in the model (as CSV/config/feed/pkgmeta/apispec do). BibTeX and
+# RIS are line-anchored text (no magic bytes); CSL-JSON is written in JSON, so this
+# adapter **reuses the shared representation-preserving JSON parser** (Phase 21.5.1's
+# `json` feature) — never a second JSON parser. It preserves representation: BibTeX
+# keeps the entry key, the entry type and field names *as written*, the field order,
+# every value's exact spelling and delimiters (brace/quoted/number/macro kept distinct,
+# `#` concatenation recorded, duplicate fields preserved and reported), and the
+# whitespace/`@comment`/`%` bytes between entries; RIS keeps the two-space `XX  - `
+# tag separator, the multi-line continuation span, and the entry order; CSL-JSON keeps
+# member order, duplicate keys, numeric/string-escape spelling, key quoting, and every
+# exact token span. Detection is a bounded, **content-only** test (never a file name):
+# a line-anchored `@type{` entry sequence, an RIS `TY  - ` sequence whose every entry is
+# `ER  - `-terminated, or a JSON array (or single object) whose every element carries a
+# string `id` **and** a string `type`. It runs **before** the generic JSON detector (a
+# CSL-JSON array is otherwise claimed by JSON) and before the weak text heuristics; a
+# plain JSON array, a JSON array of non-CSL objects, and prose stay `Json`/`Opaque`. Like
+# the other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is the
+# whole source (a `DocumentExact`, RAW-like authority) and every derived observation is a
+# bounded, span-preserving (`Q_gen`) projection of it. It adds **no** decoder behavior:
+# the model is never on the exactness path, so enabling it never changes `.voldoc` bytes
+# and exactness is untouched. **Dependency-free (`bib` pulls no external crate)** and
+# never in `default`; it reuses the JSON adapter, so it implies `json`.
+bib = ["json"]
+# Phase 21.32: the RTF (Rich Text Format) adapter — the **word-processor markup**
+# Wave-2 format. RTF is a text, group-brace grammar with control words (like a
+# bounded tree), but it is *not* a package (no OPC/ZIP layer): the exact leaf is the
+# whole source (a `DocumentExact`, RAW-like authority) and every derived observation
+# is a bounded, span-preserving (`Q_gen`) projection of it. This adapter preserves
+# representation: the header (`{\rtf1\ansi\deffN …}` with the exact `\rtf` version
+# and charset/`\deff` control words), every group `{ … }` with its **exact brace
+# span** and nesting depth, every control word (`\word` with its optional numeric
+# parameter, `\fs24`) and control symbol (`\\`, `\{`, `\}`, `\~`, `\-`, `\_`,
+# `\*`), every hex escape (`\'hh`, spelling preserved with the decoded byte under the
+# declared charset) and Unicode escape (`\uN` with its `\ucN` fallback count — the
+# literal form and the fallback bytes are preserved, never dropped), every
+# destination (`\*` ignore-destination, `\fonttbl`, `\colortbl`, `\stylesheet`,
+# `\info`, and `\pict`/`\object` binary groups) verbatim with exact spans, and every
+# plain text run between control words **byte-exactly** (never whitespace-normalized
+# — RTF uses a space to terminate a control word). It adds **no** decoder behavior:
+# the model is never on the exactness path, so enabling it never changes `.voldoc`
+# bytes and exactness is untouched. Detection is a strong magic test — the source must
+# begin (after an optional UTF-8 BOM) with `{\rtf` followed by a digit, and its group
+# braces must be balanced under a bounded scan — so a plain text/`{`-junk source stays
+# `Opaque`. **Dependency-free (`rtf = []` pulls no external crate)** and never in
+# `default`.
+rtf = []
+# Phase 21.33: the generic archive-container adapter — ZIP and TAR as **standalone**
+# formats (not the office packages built on ZIP). Like the other Wave-2 formats it
+# is not a package at the exactness layer: the exact leaf is the whole source (a
+# `DocumentExact`, RAW-like authority) and every derived observation is a bounded,
+# span-preserving (`Q_gen`) projection of it. It **reuses the byte-authoritative ZIP
+# physical layer** ([`crate::adapter::package::zip`], Phase 12.1) for ZIP — never a
+# second ZIP scanner — and adds a bounded TAR parser (standard 512-byte headers,
+# the old-GNU/v7 variant, the GNU long-name `L`/long-link `K` extensions, and the
+# PAX `x`/`g` extension records). It preserves representation: every member's raw
+# name bytes (incl. non-UTF-8 / ZIP UTF-8 flag bit 11), method, both declared sizes,
+# CRC-32, spans, and **exact raw byte span** are recorded; nothing is unzipped,
+# re-zipped, decompressed, or re-serialized. It adds **no** decoder behavior: the
+# model is never on the exactness path, so enabling it never changes `.voldoc`
+# bytes and exactness is untouched. Because it needs the ZIP cover it implies
+# `package`; the TAR half is dependency-free. Never in `default`.
+container = ["package"]
+# Phase 21.34: the scientific-container adapter — **NetCDF classic** (CDF-1 / CDF-2)
+# and a **documented bounded subset of HDF5**. Like the other Wave-2 formats it is
+# not a package at the exactness layer: the exact leaf is the whole source (a
+# `DocumentExact`, RAW-like authority) and every derived observation is a bounded,
+# span-preserving (`Q_gen`) projection of it. NetCDF classic is fully parsed — the
+# magic, `numrecs` (incl. the `STREAMING` sentinel), the dimension list (incl. the
+# unlimited/record dimension), the global attribute list, and the variable list
+# (name, dimensions, per-variable attributes, type, `vsize`, `begin`) with exact
+# spans. HDF5 is a documented bounded subset — superblock v0/v1, the symbol-table
+# root-group link traversal to contiguous datasets and nested groups, v1 object
+# headers with their message list, the fixed-point/float/string datatype classes, the
+# simple/scalar dataspace, the contiguous data layout, and v1 attributes. Everything
+# outside the subset (superblock v2/v3, v2/v3 object headers, compact/chunked/virtual
+# layouts, filtered datasets, external data files, and every other datatype class)
+# declines **typed** — never a guess, never a panic. It adds **no** decoder behavior:
+# the model is never on the exactness path, so enabling it never changes `.voldoc`
+# bytes and exactness is untouched. **Dependency-free (`hdf = []` pulls no external
+# crate)** and never in `default`.
+hdf = []
+# Phase 21.35: the CFBF / OLE2 physical-layer adapter — the **compound-document**
+# container behind legacy Word (`.doc`), Excel (`.xls`), PowerPoint (`.ppt`), and
+# Outlook (`.msg`) files. Like the other Wave-2 formats it is not a package at the
+# exactness layer: the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It parses the 512-byte header (signature, version, byte order,
+# sector/mini-sector shifts, the FAT/DIFAT/directory/MiniFAT counts and first
+# sectors), the DIFAT and FAT, the 128-byte directory entries (UTF-16LE names
+# preserved verbatim, object type, color, the left/right/child sibling tree, start
+# sector, stream size), reconstructs the red-black sibling/child tree, and resolves
+# every stream to an **exact byte span** in the original file — regular streams
+# through the FAT, small streams through the MiniFAT inside the root entry's mini
+# stream. Nothing is un-OLE'd or re-OLE'd. Untrusted input declines **typed** (bad
+# sector shift, out-of-range sector, cyclic/overlapping FAT chain, invalid directory
+# type, truncated stream, header/sector-size mismatch). It adds **no** decoder
+# behavior: the model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. **Dependency-free (`cfbf = []` pulls no
+# external crate)** and never in `default`.
+cfbf = []
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived
@@ -414,6 +738,147 @@ parquet = []
 # bytes and exactness is untouched. Dependency-free (`arrow = []`) and never in
 # `default`.
 arrow = []
+# Phase 21.18: the CBOR (RFC 8949) adapter — the **binary** structured-tree Wave-2
+# format. Like the other Wave-2 formats it is not a package (no OPC/ZIP layer):
+# the exact leaf is the whole source (a `DocumentExact`, RAW-like authority) and
+# every derived observation is a bounded, span-preserving (`Q_gen`) projection of
+# it. It adds a bounded, dependency-free CBOR reader that preserves representation
+# — exact byte spans for every token, the major type of every item, the encoding
+# width actually used (the head byte's additional-information nibble, so `0x1817`
+# is distinct from `0x17`), byte string vs text string as distinct kinds, tag
+# numbers preserved verbatim (never resolved/expanded), map key order and
+# duplicate keys, float width (half/single/double) with the IEEE-754 bits, simple
+# values, and definite vs indefinite-length items (the break-stop `0xff`).
+# Well-formedness is enforced (a trailing byte, an unterminated indefinite item, a
+# map key with no value, a reserved additional-information nibble, a non-minimal
+# simple value, or a non-UTF-8 text string is a typed decline, never a panic).
+# CBOR has **no magic bytes**, so detection is deliberately conservative: the
+# self-described-CBOR tag `55799` (`0xd9 0xd9 0xf7`), or a full-input well-formed
+# parse whose root is a container/tag and which is structurally non-trivial; every
+# other input stays `Opaque`. It adds **no** decoder behavior: the CBOR model is
+# never on the exactness path, so enabling it never changes `.voldoc` bytes and
+# exactness is untouched. Dependency-free (`cbor` pulls no external crate) and
+# never in `default`; it reuses the JSON adapter's shared structured-tree match
+# vocabulary ([`crate::adapter::json::MatchRole`], pointer escaping), so it
+# implies `json`.
+cbor = ["json"]
+# Phase 21.19: the MessagePack adapter — the **binary** structured-tree Wave-2 format,
+# the sibling of CBOR (RFC 8949). Like the other Wave-2 formats it is not a package
+# (no OPC/ZIP layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It adds a bounded, dependency-free MessagePack reader that
+# preserves representation — exact byte spans for every token, the exact format byte
+# of every item (so the encoding width **and signedness** actually used are
+# preserved: `0x17` `positive fixint` 23 vs `0xcc 0x17` `uint8` 23 vs `0xd0 0x17`
+# `int8` 23), `str` vs `bin` as distinct kinds, map key order and duplicate keys,
+# float width (`float32`/`float64`) with the IEEE-754 bits, and extension type
+# numbers + payload lengths (preserved verbatim, never interpreted).
+# Well-formedness is enforced (a trailing byte, a truncated item, the never-used
+# `0xc1` head byte, a map key with no value, an over-long declared length, or a
+# non-UTF-8 `str` is a typed decline, never a panic). MessagePack has **no magic
+# bytes**, so detection is deliberately conservative: a full-input well-formed parse
+# whose root is a container reaching a node/byte threshold, or an unambiguous
+# MessagePack-only head byte (`0xdc..=0xdf`, which CBOR's grammar rejects); every
+# other input stays `Opaque`. It adds **no** decoder behavior: the MessagePack model
+# is never on the exactness path, so enabling it never changes `.voldoc` bytes and
+# exactness is untouched. Dependency-free (`msgpack` pulls no external crate) and
+# never in `default`; it reuses the JSON adapter's shared structured-tree match
+# vocabulary ([`crate::adapter::json::MatchRole`], pointer escaping), so it implies
+# `json`.
+msgpack = ["json"]
+# Phase 21.20: the config-family adapter — one bounded, representation-preserving
+# adapter covering INI, `.env`, and Java `.properties`, recording the dialect in
+# the model exactly as CSV records its delimiter/terminator dialect. Like the
+# other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
+# the whole source (a `DocumentExact`, RAW-like authority) and every derived
+# observation is a bounded, span-preserving (`Q_gen`) projection of it. It adds a
+# bounded, line-based parser that preserves representation — exact spans for
+# sections, keys, separators, values, and comments; line order; the `export`
+# marker, quoting style, inline comments, and `properties` trailing-`\`
+# continuations; and Java `\uXXXX` escapes **as spelling** (never expanded).
+# Duplicate keys are preserved and reported (the representation-preserving
+# policy), never collapsed. Detection is deliberately conservative (no magic
+# bytes) and requires a dialect-distinguishing signal, so the pure `KEY=VALUE`
+# overlap between `env` and `properties`, plain prose, and a `#!`-shebang script
+# all stay `Opaque` rather than being guessed. It adds **no** decoder behavior:
+# the config model is never on the exactness path, so enabling it never changes
+# `.voldoc` bytes and exactness is untouched. Dependency-free (`config = []`) and
+# never in `default`.
+config = []
+# Phase 21.21: the RSS 2.0 / Atom 1.0 feed adapter — the **syndication** Wave-2
+# format. A feed is XML, so this adapter **reuses the shared bounded XML parser and
+# policy** (Phase 21.9's `xml` feature) to obtain a span-preserving element/attribute
+# tree and layers a representation-preserving feed projection on it, recording the
+# dialect (rss/atom) in the model exactly as CSV/config record their dialects. Like
+# the other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
+# the whole source (a `DocumentExact`, RAW-like authority) and every derived
+# observation is a bounded, span-preserving (`Q_gen`) projection of it. It adds
+# **no** decoder behavior: the feed model is never on the exactness path, so enabling
+# it never changes `.voldoc` bytes and exactness is untouched. Never in `default`; it
+# implies `xml`.
+feed = ["xml"]
+# Phase 21.22: the GeoJSON (RFC 7946) adapter — the **spatial** Wave-2 format. A
+# GeoJSON document's physical bytes are JSON, so this adapter **reuses the shared
+# representation-preserving JSON parser** (Phase 21.5.1's `json` feature) — never a
+# second JSON parser — and layers a bounded semantic projection on it: the recorded
+# root class (one of the nine RFC 7946 type names: Point/MultiPoint/LineString/
+# MultiLineString/Polygon/MultiPolygon/GeometryCollection/Feature/FeatureCollection),
+# the exact `"type"` token, and the geometry/feature object nodes in document order.
+# `coordinates` nesting (position = [lon, lat, (alt)]), `properties` order/duplicates,
+# `id`/`bbox`/`geometry`/`features` order, numeric/escape spelling, and every foreign
+# member are preserved. Like the other Wave-2 formats it is not a package (no OPC/ZIP
+# layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like authority)
+# and every derived observation is a bounded, span-preserving (`Q_gen`) projection of
+# it. It adds **no** decoder behavior: the GeoJSON model is never on the exactness
+# path, so enabling it never changes `.voldoc` bytes and exactness is untouched.
+# Dependency-free (`geojson` pulls no external crate) and never in `default`; it
+# reuses the JSON adapter, so it implies `json`.
+geojson = ["json"]
+# Phase 21.23: the KML / GPX geospatial adapter — one bounded adapter covering the
+# OGC KML 2.2 and GPX 1.1 dialects, recording the dialect (kml/gpx) in the model
+# exactly as CSV/config/feed record theirs. KML and GPX are XML, so this adapter
+# **reuses the shared bounded XML parser and policy** (Phase 21.9's `xml` feature)
+# to obtain a span-preserving element/attribute tree and layers a
+# representation-preserving geospatial projection on it: for KML the
+# `<Document>`/`<Folder>`/`<Placemark>` features, `name`/`description`, the
+# `Point`/`LineString`/`Polygon` geometry with its `coordinates`, and
+# `Style`/`styleUrl`, in document order; for GPX `metadata`, `<wpt>` waypoints, the
+# `<rte>`/`<rtept>` routes, and the `<trk>`/`<trkseg>`/`<trkpt>` tracks (whose
+# `lat`/`lon` are attributes and whose `<ele>`/`<time>` are child elements), in
+# document order. Namespace declarations are kept as ordinary attributes with their
+# exact spans. Detection is a bounded semantic sub-detection run before the generic
+# XML detector: a `<kml>` root in the KML namespace with a
+# `Document`/`Folder`/`Placemark` child, or a `<gpx>` root in the GPX namespace with
+# a `metadata`/`wpt`/`rte`/`trk` child. A plain XML document stays `Xml`; a
+# shaped-but-invalid KML/GPX (no namespace or no structural child) and an older KML
+# (2.0/2.1) or GPX 1.0 namespace decline and stay `Xml`/`Opaque`. Like the other
+# Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is the whole
+# source (a `DocumentExact`, RAW-like authority) and every derived observation is a
+# bounded, span-preserving (`Q_gen`) projection of it. It adds **no** decoder
+# behavior: the GIS model is never on the exactness path, so enabling it never
+# changes `.voldoc` bytes and exactness is untouched. Never in `default`; it implies
+# `xml`.
+gis = ["xml"]
+# Phase 21.24: the Jupyter notebook (`.ipynb`, nbformat) adapter — a document-shaped
+# Wave-2 format. A notebook's physical bytes are JSON (the nbformat serialization), so
+# this adapter **reuses the shared representation-preserving JSON parser** (Phase
+# 21.5.1's `json` feature) — never a second JSON parser — and layers a bounded semantic
+# projection on it: the exact `nbformat`/`nbformat_minor` tokens, the root `metadata`
+# object, and the ordered `cells` array. Every cell preserves its exact `cell_type`
+# string (`code`/`markdown`/`raw`, or any other), its `source` **exactly as written**
+# (a single string or an array of line strings, never re-joined or normalized), its
+# `execution_count`/`metadata`/`attachments` when present, and — for code cells — the
+# ordered `outputs` array with each output's exact `output_type` string
+# (`stream`/`execute_result`/`display_data`/`error`) and every field token, including a
+# `stream` `text` and an `execute_result`/`display_data` `data` representation. Like the
+# other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is the
+# whole source (a `DocumentExact`, RAW-like authority) and every derived observation is
+# a bounded, span-preserving (`Q_gen`) projection of it. It adds **no** decoder
+# behavior: the notebook model is never on the exactness path, so enabling it never
+# changes `.voldoc` bytes and exactness is untouched. Dependency-free (`notebook` pulls
+# no external crate) and never in `default`; it reuses the JSON adapter, so it implies
+# `json`.
+notebook = ["json"]
 # Phase 12.5: the EPUB (OCF) package adapter — `META-INF/container.xml` rootfile
 # discovery (semantically, never a hardcoded `OEBPS/content.opf`), the Package
 # Document metadata/manifest/spine, the navigation document, the resource graph,

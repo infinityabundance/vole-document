@@ -1,0 +1,1 @@
+{"decline": {"code": "no-source-token", "detail": "a conventional JSON load keeps no token bytes"}, "declined": true, "detail": {}, "lane": "sqlite", "native": true, "q": "Q8", "value": null}

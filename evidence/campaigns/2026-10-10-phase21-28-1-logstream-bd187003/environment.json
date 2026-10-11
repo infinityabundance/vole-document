@@ -1,0 +1,18 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-28-1-logstream-bd187003",
+  "phase": "21.28.1 — syslog / log-stream surface + exact closure + model",
+  "utc": "2026-10-11T04:08:40Z",
+  "git_commit": "bd1870034508af838d94cef6e432f9b67011d06a",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-28-1-logstream-bd187003/ ?? src/adapter/logstream.rs ?? tests/logstream_adapter.rs ?? tools/phase21-28-1-logstream-court.sh ",
+  "arch": "x86_64",
+  "service": "dev",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "0cd3d729a9401c007927b6dcc639f4356cb345dd7b6b892b524b046afe5b7a54",
+  "profile": "debug",
+  "fixtures_tool": "POSIX shell + GNU /usr/bin/printf (no python3, no jq); generated in-court, never committed",
+  "env_affecting_semantics": {"LC_ALL": "C", "CARGO_PROFILE_DEV_DEBUG": "0"}
+}

@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {}, "lane": "sqlite", "native": true, "q": "Q1", "value": "= Lists\n\n* item one\n* item two\n\n. first\n. second\n\nterm:: a definition body\n\n[source,rust]\n----\nfn main() {}\n----\n\nA closing paragraph.\n"}

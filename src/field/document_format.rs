@@ -126,6 +126,14 @@ pub enum DocumentFormat {
     /// A structured JSON document (the whole source parses as exactly one JSON
     /// value). Not a package: the exact leaf is the whole source (Phase 21.5.1).
     Json,
+    /// A structured JSON5 / JSONC document (the whole source parses as exactly one
+    /// JSON5 value and uses at least one JSON5/JSONC-only construct — a comment, a
+    /// trailing comma, an unquoted key, a single-quoted string, a hex/leading-dot/
+    /// `Infinity`/`NaN` number, a string continuation, or the extended whitespace
+    /// set). A source that is **strict JSON** stays [`DocumentFormat::Json`]; the
+    /// recorded dialect distinguishes `jsonc` (comments/trailing commas only) from
+    /// `json5`. Not a package: the exact leaf is the whole source (Phase 21.17.1).
+    Json5,
     /// A structured YAML document (the whole source parses as a bounded YAML
     /// stream whose every document root is a mapping or a sequence). Not a package:
     /// the exact leaf is the whole source (Phase 21.6.1).
@@ -186,6 +194,255 @@ pub enum DocumentFormat {
     /// record-batch inventory (with each batch's exact source span) and any decoded
     /// columnar values are `Q_gen` projections (Phase 21.16).
     ArrowIpc,
+    /// A CBOR (RFC 8949) structured-tree document. CBOR has **no magic bytes**, so
+    /// detection is deliberately conservative: either the self-described-CBOR tag
+    /// `55799` (`0xd9 0xd9 0xf7`) at the start of a source that then parses, in full,
+    /// as exactly one well-formed CBOR item; or a full-input well-formed parse whose
+    /// root is a container (array/map) or a tag and which reaches at least three
+    /// nodes (so a single scalar, an empty container, and any structurally trivial
+    /// input stay `Opaque`). A container head byte is always `>= 0x80`, so a
+    /// pure-ASCII text document is never claimed; and the whole-number/short-
+    /// container prefix overlaps MessagePack's fixint/fixarray encodings, so an
+    /// ambiguous or trivial input stays `Opaque` rather than being guessed
+    /// (recorded honestly; a Phase-21.19 MessagePack adapter must share the seam).
+    /// Not a package: the exact leaf is the whole source, and every item's kind,
+    /// exact span, encoding width, tag number, float width, and definite/indefinite
+    /// form are `Q_gen` projections (Phase 21.18).
+    Cbor,
+    /// A MessagePack structured-tree document. MessagePack has **no magic bytes**, so
+    /// detection is deliberately conservative: a full-input well-formed parse of
+    /// exactly one item whose root is a container (array/map) reaching a node/byte
+    /// threshold, or the same with an unambiguous MessagePack-only head byte
+    /// (`0xdc..=0xdf`, which CBOR's grammar rejects). A lone scalar, an empty
+    /// container, and any structurally trivial or ambiguous input stay `Opaque`. A
+    /// container head byte is always `>= 0x80`, so a pure-ASCII text document is never
+    /// claimed; and the whole-number/short-container prefix overlaps CBOR's
+    /// `fixint`/short containers, so CBOR (tried first) owns any input well-formed
+    /// under both. Not a package: the exact leaf is the whole source, and every item's
+    /// kind, exact span, exact format byte (encoding width and signedness), `str` vs
+    /// `bin`, float width, and extension type/length are `Q_gen` projections
+    /// (Phase 21.19).
+    Msgpack,
+    /// A config-family document (INI, `.env`, or Java `.properties`). The whole
+    /// source is a bounded, line-based key/value document; detection is
+    /// deliberately conservative and requires a **dialect-distinguishing signal**,
+    /// so the pure `KEY=VALUE` overlap between `env` and `properties` (and plain
+    /// prose, and a `#!` script) stays `Opaque` rather than being guessed. Not a
+    /// package: the exact leaf is the whole source, the recorded dialect lives in
+    /// the model, and every line's content span, key/separator/value span, quoting,
+    /// inline-comment, `export`, continuation, and `\uXXXX`-spelling fact is a
+    /// `Q_gen` projection (Phase 21.20).
+    Config,
+    /// An RSS 2.0 / Atom 1.0 syndication feed. A feed is XML, so its physical
+    /// bytes are shared with [`DocumentFormat::Xml`]; the recorded dialect
+    /// (`rss`/`atom`) lives in the model, exactly as CSV/config record their
+    /// dialects. Detection is a **bounded semantic test** run before the generic
+    /// XML detector: an RSS root `<rss>` with a `<channel>` child, or an Atom root
+    /// `<feed>` in the Atom namespace (`http://www.w3.org/2005/Atom`) with at least
+    /// one `<entry>` child. Not a package: the exact leaf is the whole source, and
+    /// every element/attribute span, element order, attribute spelling, and the
+    /// namespace declaration is a `Q_gen` projection (Phase 21.21).
+    Feed,
+    /// A GeoJSON (RFC 7946) document. GeoJSON is JSON, so its physical bytes are
+    /// shared with [`DocumentFormat::Json`]; the recorded root class (one of the nine
+    /// RFC 7946 type names) lives in the model, exactly as a feed records its
+    /// dialect. Detection is a **bounded semantic test** run before the generic JSON
+    /// detector: the source parses as exactly one JSON value whose root is an object
+    /// with a `"type"` string equal to one of the nine type names and whose shape is
+    /// consistent (a geometry has an array `coordinates`/`geometries`, a `Feature` has
+    /// `geometry`/`properties`, a `FeatureCollection` has an array `features`). A plain
+    /// JSON document, and a JSON document whose `"type"` is an unrelated string, stay
+    /// [`DocumentFormat::Json`]. Not a package: the exact leaf is the whole source, and
+    /// every JSON token span, `coordinates` nesting, `properties` order/duplicates, and
+    /// foreign member is a `Q_gen` projection (Phase 21.22).
+    Geojson,
+    /// A KML 2.2 / GPX 1.1 geospatial document. KML and GPX are XML, so their
+    /// physical bytes are shared with [`DocumentFormat::Xml`]; the recorded dialect
+    /// (`kml`/`gpx`) lives in the model, exactly as a feed records its dialect.
+    /// Detection is a **bounded semantic test** run before the generic XML detector:
+    /// a `<kml>` root in the KML namespace (`http://www.opengis.net/kml/2.2`) with a
+    /// `Document`/`Folder`/`Placemark` child, or a `<gpx>` root in the GPX namespace
+    /// (`http://www.topografix.com/GPX/1/1`) with a `metadata`/`wpt`/`rte`/`trk`
+    /// child. A plain XML document, and a shaped-but-invalid KML/GPX, stay
+    /// [`DocumentFormat::Xml`]. Not a package: the exact leaf is the whole source,
+    /// and every element/attribute span, element order, attribute spelling (KML
+    /// geometry `coordinates`, GPX `lat`/`lon`), and the namespace declaration is a
+    /// `Q_gen` projection (Phase 21.23).
+    Gis,
+    /// A Jupyter notebook (`.ipynb`, nbformat) document. A notebook's physical bytes
+    /// are JSON, so its bytes are shared with [`DocumentFormat::Json`]; the recorded
+    /// `nbformat`/`nbformat_minor` and the cell anchors live in the model, exactly as a
+    /// feed records its dialect. Detection is a **bounded semantic test** run before the
+    /// generic JSON detector: the source parses as exactly one JSON value whose root is
+    /// an object with a plain non-negative integer-literal `nbformat` (≥ 1) and an array
+    /// `cells`, every cell an object with a string `cell_type`, and every present
+    /// recognized field nbformat-shaped. A plain JSON document, and a JSON document that
+    /// merely has a `cells` key but is not nbformat-shaped, stay
+    /// [`DocumentFormat::Json`]. Not a package: the exact leaf is the whole source, and
+    /// every JSON token span, the exact `cell_type`/`output_type` strings, the exact
+    /// `source` representation, and the cell/output order are `Q_gen` projections
+    /// (Phase 21.24).
+    Notebook,
+    /// A fixed-width (column-position) text table. Unlike CSV/TSV/PSV, its columns
+    /// are defined by **character positions**, not a delimiter, so it is a distinct
+    /// format rather than a CSV dialect. Detection is **maximally conservative**
+    /// (fixed-width is inherently ambiguous): at least three sampled records of
+    /// identical byte width, an inferred column layout whose interior whitespace gaps
+    /// are at least two columns wide, at least two non-empty columns, and an outright
+    /// decline of anything that also parses as a delimited (CSV/TSV/PSV) or Markdown
+    /// table. Not a package: the exact leaf is the whole source, and the recorded
+    /// inferred layout, per-record spans, per-column spans, padding, terminator, BOM,
+    /// and header row are `Q_gen` projections (Phase 21.25).
+    FixedWidth,
+    /// A reStructuredText (Docutils) prose document (the whole source carries a
+    /// reST-specific structural mark — an explicit markup start (`.. ` comment,
+    /// directive, target, footnote/citation, or substitution definition), a grid or
+    /// simple table, a field list, or a section adornment whose char is not a
+    /// Markdown construct — so plain prose and a Markdown document are never stolen).
+    /// Not a package: the exact leaf is the whole source (Phase 21.26.1).
+    Rst,
+    /// An AsciiDoc prose document (the whole source carries an AsciiDoc-specific
+    /// structural mark — a level-0 document title followed by a further block, a
+    /// `==`+ section, a `|===` table, a complete delimited block, or a block attribute
+    /// line followed by a block — so plain prose and a Markdown or reStructuredText
+    /// document are never stolen). Not a package: the exact leaf is the whole source
+    /// (Phase 21.26.2).
+    Asciidoc,
+    /// An MDX document (Markdown + JSX/ESM). The whole source carries an MDX-specific
+    /// signal — a top-level ESM `import`/`export` statement, a JSX element with a
+    /// capitalized/namespaced component name (or a JSX-specific attribute), a JSX
+    /// fragment, or a whole-line MDX block expression `{…}` — so plain Markdown stays
+    /// `Markdown`, plain HTML stays `Html`, and plain prose stays `Opaque`. Not a
+    /// package: the exact leaf is the whole source (Phase 21.26.3).
+    Mdx,
+    /// An MHTML (MIME HTML, RFC 2557) web archive. MHTML is a MIME
+    /// `multipart/related` document, so its physical bytes are shared with
+    /// [`DocumentFormat::Eml`]; the adapter **reuses the EML adapter's bounded MIME
+    /// layer** for the envelope, parts, headers, and spans, and the **HTML adapter's
+    /// bounded, error-recovering scanner** for the root part, recording the ordered
+    /// sub-resources (keyed by `Content-Location`/`Content-ID`) and the root HTML part
+    /// (the `start=` `Content-ID`, else the first `text/html` part, else the first
+    /// part). Detection is a **bounded semantic sub-detection** run before the generic
+    /// EML detector: a `multipart/related` root plus an MHTML-specific signal — a
+    /// top-level `Snapshot-Content-Location`/`Content-Base`, or a `From`+`Subject`
+    /// envelope with a `text/html` part. A plain `multipart/related` email, a plain
+    /// HTML document, and a plain MIME message stay `Eml`/`Html`/`Eml`. Not a package:
+    /// the exact leaf is the whole source, and every envelope/part/resource/HTML span
+    /// is a `Q_gen` projection (Phase 21.27).
+    Mhtml,
+    /// A syslog / log-stream document (the source carries at least two non-blank
+    /// lines and **every** non-blank line matches one of three dialects — RFC 5424
+    /// syslog, RFC 3164 (BSD) syslog, or a generic application log line with a
+    /// leading timestamp and/or level token). The recorded dialect lives per record.
+    /// Detection is byte-based and conservative and must not steal a higher-priority
+    /// format (JSON/JSON5/JSONL/CBOR/Msgpack/YAML/TOML/config/CSV or the prose
+    /// family), all of which the whole-source dispatcher tries first; plain prose and
+    /// code stay `Opaque`. Not a package: the exact leaf is the whole source, and
+    /// every record's exact line span/terminator plus every field's exact span (and
+    /// the preserved message, NILVALUE, and timestamp/level spelling) are `Q_gen`
+    /// projections (Phase 21.28).
+    Logstream,
+    /// A package-metadata manifest (an npm `package.json` / `package-lock.json`, a
+    /// Cargo `Cargo.toml` / `Cargo.lock`, or a Python `pyproject.toml`). A manifest's
+    /// physical bytes are JSON or TOML, so its bytes are shared with
+    /// [`DocumentFormat::Json`]/[`DocumentFormat::Toml`]; the **recorded dialect**
+    /// (`npm_package` / `cargo_manifest` / `pyproject_manifest` / `cargo_lock` /
+    /// `npm_lock`) lives in the model, exactly as a feed or CSV records its dialect.
+    /// Detection is a **bounded semantic test** run before the generic JSON and TOML
+    /// detectors: a strong manifest shape (a JSON object with string `name`+`version`
+    /// and a third package-specific key, a JSON `lockfileVersion`+`packages`, a TOML
+    /// `[package]` table with a string `name`, a TOML `[build-system]`/`[project]`/
+    /// `[tool.poetry]`, or a TOML `[[package]]` lockfile shape). A generic JSON
+    /// `name`+`version`, a generic TOML `name`/`version`, and plain prose stay
+    /// `Json`/`Toml`/`Opaque`. Not a package: the exact leaf is the whole source, and
+    /// every reused-arena token span plus every recorded section/entry name/value span
+    /// is a `Q_gen` projection (Phase 21.29).
+    Pkgmeta,
+    /// An API/specification document (a JSON Schema, an OpenAPI 3.x, a Swagger 2.0, or
+    /// an AsyncAPI document). An API spec's physical bytes are JSON, so its bytes are
+    /// shared with [`DocumentFormat::Json`]; the **recorded dialect** (`json_schema` /
+    /// `openapi` / `swagger` / `asyncapi`) lives in the model, exactly as CSV/config/
+    /// feed/pkgmeta record their dialects. Detection is a **bounded semantic test** run
+    /// before the generic JSON detector on a **strong, root-level string marker**: a
+    /// JSON-Schema `$schema` URI, an `openapi` `3.`-prefixed string, a `swagger` equal
+    /// to `"2.0"`, or a non-empty `asyncapi` string. A plain JSON object that merely
+    /// contains a `properties`/`paths`/`components` key but lacks the marker stays
+    /// [`DocumentFormat::Json`], and a JSON-Schema-shaped object with no `$schema` is
+    /// an honest recorded ambiguity that also stays `Json`. Not a package: the exact
+    /// leaf is the whole source, and every JSON token span plus every recorded
+    /// object/member/`$ref` span is a `Q_gen` projection — `$ref` targets are preserved
+    /// verbatim and never resolved (Phase 21.30).
+    Apispec,
+    /// A bibliography document — **BibTeX** (`.bib`), **RIS**, or **CSL-JSON**. One
+    /// adapter covers the three dialects and records the dialect in the model, exactly
+    /// as CSV/config/feed/pkgmeta/apispec record theirs. BibTeX and RIS are text (no
+    /// magic bytes); CSL-JSON's physical bytes are JSON, so its **bounded semantic
+    /// sub-detection runs before the generic JSON detector**: the root must be an
+    /// **array** of objects (or a single object) each carrying a string `id` **and** a
+    /// string `type`. A plain JSON array, a JSON array of non-CSL objects, a generic
+    /// JSON object, and prose stay [`DocumentFormat::Json`]/[`DocumentFormat::Opaque`].
+    /// Not a package: the exact leaf is the whole source, and every entry/field/item
+    /// token span (and each value's exact spelling and delimiters) is a `Q_gen`
+    /// projection (Phase 21.31).
+    Bib,
+    /// An RTF (Rich Text Format) document. RTF is a text, group-brace grammar with
+    /// control words — closer to a bounded tree (like XML) than to a flat line format —
+    /// but it is *not* a package: there is no OPC/ZIP layer, so the exact leaf is the
+    /// whole source (a `DocumentExact`, RAW-like authority) and every derived
+    /// observation is a bounded, span-preserving (`Q_gen`) projection of it. Detection
+    /// is a **strong magic + brace-balance** test: the source must begin (after an
+    /// optional UTF-8 BOM) with `{\rtf` followed by a digit, and its group braces must
+    /// balance under a bounded scan (respecting `\\`/`\{`/`\}`, `\'hh`, control words,
+    /// and `\binN`), with the outermost group closing exactly at end of input. A plain
+    /// text source, a leading-`{` blob, and every other format are therefore never
+    /// stolen; they stay `Opaque`. The adapter preserves the header, every group with
+    /// its exact brace span and nesting, every control word/symbol, every `\'hh` hex
+    /// escape and `\uN` Unicode escape (with its `\ucN` fallback), every destination
+    /// (`\fonttbl`/`\colortbl`/`\stylesheet`/`\info`/`\pict`/`\object`/`\*`) verbatim,
+    /// and every plain text run byte-exactly (never whitespace-normalized) — Phase
+    /// 21.32.
+    Rtf,
+    /// A generic archive container (Phase 21.33): a standalone **ZIP** archive (a
+    /// valid EOCD and a coherent central directory) or a standalone **TAR** archive
+    /// (a valid `ustar`/old-GNU or v7 header whose checksum matches). The recorded
+    /// dialect (`zip`/`tar`) lives in the model, exactly as CSV/config/feed record
+    /// theirs. This is deliberately a **plain archive**, never an office package: the
+    /// ZIP-family office formats (DOCX/EPUB/ODT/ODS/ODP/XLSX/PPTX) are detected
+    /// **before** this adapter, so a `.docx`/`.xlsx`/`.odt` source still detects as
+    /// its office format and is never reclassified. Not a package: the exact leaf is
+    /// the whole source (a `DocumentExact`, RAW-like authority) and every derived
+    /// observation is a bounded, span-preserving (`Q_gen`) projection of it.
+    Container,
+    /// A scientific container (Phase 21.34): a NetCDF classic (CDF-1/CDF-2) file or an
+    /// HDF5 file (a documented bounded subset). The recorded dialect
+    /// (`netcdf`/`hdf5`) lives in the model, exactly as the archive container records
+    /// `zip`/`tar`. This is deliberately a **scan-only scientific format**: it is not
+    /// an office package. Detection is a **strong magic-byte** test — NetCDF requires
+    /// `CDF\x01`/`CDF\x02` at offset 0; HDF5 requires the 8-byte signature
+    /// `\x89HDF\r\n\x1a\n` at offset 0 or 512 with a superblock version in `0..=3`, an
+    /// offset/length size in `{2,4,8}`, and a superblock that fits inside the source.
+    /// Not a package: the exact leaf is the whole source (a `DocumentExact`, RAW-like
+    /// authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+    /// projection of it. NetCDF classic is supported in full; HDF5 is a documented
+    /// bounded subset (symbol-table groups + contiguous datasets + v1 object headers),
+    /// and everything outside it declines **typed**.
+    Hdf,
+    /// A CFBF / OLE2 compound file (Phase 21.35): the physical-layer container behind
+    /// legacy Word (`.doc`), Excel (`.xls`), PowerPoint (`.ppt`), and Outlook (`.msg`)
+    /// files. Detection is a **strong magic + header validation** test — the 8-byte
+    /// signature `D0 CF 11 E0 A1 B1 1A E1` at offset 0 **and** an internally
+    /// consistent header (byte order `FFFE`, a major version of 3 or 4, a sector shift
+    /// of 9 or 12 consistent with the version, a mini-sector shift of 6, at least one
+    /// FAT sector, and a first directory sector inside the file). A random
+    /// signature-only blob and prose stay `Opaque`. The recorded dialect
+    /// (`cfb3`/`cfb4`) lives in the model. Not a package: the exact leaf is the whole
+    /// source (a `DocumentExact`, RAW-like authority) and every derived observation —
+    /// the header, the DIFAT/FAT, the directory entries with their verbatim UTF-16LE
+    /// names and reconstructed sibling/child tree, and each stream's exact byte span —
+    /// is a bounded, span-preserving (`Q_gen`) projection of it. This is the shared
+    /// physical layer that unlocks the legacy DOC/XLS/PPT/MSG semantic models (later
+    /// subphases).
+    Cfbf,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -203,6 +460,7 @@ impl DocumentFormat {
             DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Pptx => "pptx",
             DocumentFormat::Json => "json",
+            DocumentFormat::Json5 => "json5",
             DocumentFormat::Yaml => "yaml",
             DocumentFormat::Csv => "csv",
             DocumentFormat::Markdown => "markdown",
@@ -213,6 +471,26 @@ impl DocumentFormat {
             DocumentFormat::Eml => "eml",
             DocumentFormat::Parquet => "parquet",
             DocumentFormat::ArrowIpc => "arrow",
+            DocumentFormat::Cbor => "cbor",
+            DocumentFormat::Msgpack => "msgpack",
+            DocumentFormat::Config => "config",
+            DocumentFormat::Feed => "feed",
+            DocumentFormat::Geojson => "geojson",
+            DocumentFormat::Gis => "gis",
+            DocumentFormat::Notebook => "notebook",
+            DocumentFormat::FixedWidth => "fixedwidth",
+            DocumentFormat::Rst => "rst",
+            DocumentFormat::Asciidoc => "asciidoc",
+            DocumentFormat::Mdx => "mdx",
+            DocumentFormat::Mhtml => "mhtml",
+            DocumentFormat::Logstream => "logstream",
+            DocumentFormat::Pkgmeta => "pkgmeta",
+            DocumentFormat::Apispec => "apispec",
+            DocumentFormat::Bib => "bib",
+            DocumentFormat::Rtf => "rtf",
+            DocumentFormat::Container => "container",
+            DocumentFormat::Hdf => "hdf",
+            DocumentFormat::Cfbf => "cfbf",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -229,6 +507,7 @@ impl DocumentFormat {
             DocumentFormat::Xlsx => "xlsx",
             DocumentFormat::Pptx => "pptx",
             DocumentFormat::Json => "json",
+            DocumentFormat::Json5 => "json5",
             DocumentFormat::Yaml => "yaml",
             DocumentFormat::Csv => "csv",
             DocumentFormat::Markdown => "markdown",
@@ -239,6 +518,26 @@ impl DocumentFormat {
             DocumentFormat::Eml => "eml",
             DocumentFormat::Parquet => "parquet",
             DocumentFormat::ArrowIpc => "arrow",
+            DocumentFormat::Cbor => "cbor",
+            DocumentFormat::Msgpack => "msgpack",
+            DocumentFormat::Config => "config",
+            DocumentFormat::Feed => "feed",
+            DocumentFormat::Geojson => "geojson",
+            DocumentFormat::Gis => "gis",
+            DocumentFormat::Notebook => "notebook",
+            DocumentFormat::FixedWidth => "fixedwidth",
+            DocumentFormat::Rst => "rst",
+            DocumentFormat::Asciidoc => "asciidoc",
+            DocumentFormat::Mdx => "mdx",
+            DocumentFormat::Mhtml => "mhtml",
+            DocumentFormat::Logstream => "logstream",
+            DocumentFormat::Pkgmeta => "pkgmeta",
+            DocumentFormat::Apispec => "apispec",
+            DocumentFormat::Bib => "bib",
+            DocumentFormat::Rtf => "rtf",
+            DocumentFormat::Container => "container",
+            DocumentFormat::Hdf => "hdf",
+            DocumentFormat::Cfbf => "cfbf",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -255,6 +554,7 @@ impl DocumentFormat {
             DocumentFormat::Xlsx => cfg!(feature = "xlsx"),
             DocumentFormat::Pptx => cfg!(feature = "pptx"),
             DocumentFormat::Json => cfg!(feature = "json"),
+            DocumentFormat::Json5 => cfg!(feature = "json5"),
             DocumentFormat::Yaml => cfg!(feature = "yaml"),
             DocumentFormat::Csv => cfg!(feature = "csv"),
             DocumentFormat::Markdown => cfg!(feature = "markdown"),
@@ -265,6 +565,26 @@ impl DocumentFormat {
             DocumentFormat::Eml => cfg!(feature = "eml"),
             DocumentFormat::Parquet => cfg!(feature = "parquet"),
             DocumentFormat::ArrowIpc => cfg!(feature = "arrow"),
+            DocumentFormat::Cbor => cfg!(feature = "cbor"),
+            DocumentFormat::Msgpack => cfg!(feature = "msgpack"),
+            DocumentFormat::Config => cfg!(feature = "config"),
+            DocumentFormat::Feed => cfg!(feature = "feed"),
+            DocumentFormat::Geojson => cfg!(feature = "geojson"),
+            DocumentFormat::Gis => cfg!(feature = "gis"),
+            DocumentFormat::Notebook => cfg!(feature = "notebook"),
+            DocumentFormat::FixedWidth => cfg!(feature = "fixedwidth"),
+            DocumentFormat::Rst => cfg!(feature = "rst"),
+            DocumentFormat::Asciidoc => cfg!(feature = "asciidoc"),
+            DocumentFormat::Mdx => cfg!(feature = "mdx"),
+            DocumentFormat::Mhtml => cfg!(feature = "mhtml"),
+            DocumentFormat::Logstream => cfg!(feature = "logstream"),
+            DocumentFormat::Pkgmeta => cfg!(feature = "pkgmeta"),
+            DocumentFormat::Apispec => cfg!(feature = "apispec"),
+            DocumentFormat::Bib => cfg!(feature = "bib"),
+            DocumentFormat::Rtf => cfg!(feature = "rtf"),
+            DocumentFormat::Container => cfg!(feature = "container"),
+            DocumentFormat::Hdf => cfg!(feature = "hdf"),
+            DocumentFormat::Cfbf => cfg!(feature = "cfbf"),
         }
     }
 
@@ -291,6 +611,7 @@ impl DocumentFormat {
             "xlsx" => Some(DocumentFormat::Xlsx),
             "pptx" => Some(DocumentFormat::Pptx),
             "json" => Some(DocumentFormat::Json),
+            "json5" => Some(DocumentFormat::Json5),
             "yaml" => Some(DocumentFormat::Yaml),
             "csv" => Some(DocumentFormat::Csv),
             "markdown" => Some(DocumentFormat::Markdown),
@@ -301,6 +622,26 @@ impl DocumentFormat {
             "eml" => Some(DocumentFormat::Eml),
             "parquet" => Some(DocumentFormat::Parquet),
             "arrow" => Some(DocumentFormat::ArrowIpc),
+            "cbor" => Some(DocumentFormat::Cbor),
+            "msgpack" => Some(DocumentFormat::Msgpack),
+            "config" => Some(DocumentFormat::Config),
+            "feed" => Some(DocumentFormat::Feed),
+            "geojson" => Some(DocumentFormat::Geojson),
+            "gis" => Some(DocumentFormat::Gis),
+            "notebook" => Some(DocumentFormat::Notebook),
+            "fixedwidth" => Some(DocumentFormat::FixedWidth),
+            "rst" => Some(DocumentFormat::Rst),
+            "asciidoc" => Some(DocumentFormat::Asciidoc),
+            "mdx" => Some(DocumentFormat::Mdx),
+            "mhtml" => Some(DocumentFormat::Mhtml),
+            "logstream" => Some(DocumentFormat::Logstream),
+            "pkgmeta" => Some(DocumentFormat::Pkgmeta),
+            "apispec" => Some(DocumentFormat::Apispec),
+            "bib" => Some(DocumentFormat::Bib),
+            "rtf" => Some(DocumentFormat::Rtf),
+            "container" => Some(DocumentFormat::Container),
+            "hdf" => Some(DocumentFormat::Hdf),
+            "cfbf" => Some(DocumentFormat::Cfbf),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -320,6 +661,48 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
         if let Some(format) = detect_zip_family(source, limits) {
             return format;
         }
+    }
+    // The generic archive container (Phase 21.33) is a **standalone** format, never
+    // an office package: a plain ZIP (a valid EOCD + coherent central directory) or a
+    // plain TAR (a strong 512-byte header whose checksum matches). It is inserted
+    // **after** the entire office ZIP family above — so an office package is never
+    // reclassified as a plain archive — and **before** every weak, no-magic-byte
+    // heuristic (JSON/YAML/CSV/Markdown/XML/HTML), which a binary archive must never
+    // be guessed to be. It is deliberately conservative: a `PK`-prefixed blob without
+    // a valid EOCD, a 512-byte-junk blob whose checksum fails, and prose all stay
+    // `Opaque`.
+    #[cfg(feature = "container")]
+    if crate::adapter::container::detect(source, limits) {
+        return DocumentFormat::Container;
+    }
+    // The scientific container (Phase 21.34) is a **standalone** format with strong
+    // magics: NetCDF classic (`CDF\x01`/`CDF\x02` at offset 0) and HDF5 (the 8-byte
+    // signature at offset 0 or 512 plus a validated superblock). It is inserted with
+    // the other strong-magic binaries (after the office ZIP family and the archive
+    // container, before Parquet) and **before** every weak, no-magic-byte heuristic
+    // (JSON/YAML/CSV/Markdown/XML/HTML), which a binary scientific file must never be
+    // guessed to be. It is deliberately conservative on HDF5: a random
+    // `\x89HDF`-prefixed blob with a bad superblock, and prose, stay `Opaque`.
+    // NetCDF's magic is the 4-byte `CDF\x01`/`CDF\x02`; a `CDF`-prefixed blob is
+    // admitted here and its derived model then declines typed if the header is
+    // malformed (the whole-source exact leaf is always unaffected).
+    #[cfg(feature = "hdf")]
+    if crate::adapter::hdf::detect(source, limits) {
+        return DocumentFormat::Hdf;
+    }
+    // The CFBF / OLE2 compound file (Phase 21.35) is a **standalone** physical-layer
+    // format with a strong 8-byte signature (`D0 CF 11 E0 A1 B1 1A E1`) plus a
+    // validated header. It is inserted with the other strong-magic binaries (after the
+    // office ZIP family, the archive container, and the scientific container, and
+    // **before** Parquet) and **before** every weak, no-magic-byte heuristic
+    // (JSON/YAML/CSV/Markdown/XML/HTML), which a binary compound file must never be
+    // guessed to be. It is deliberately conservative: a signature-only blob (its
+    // header fields are zero) and prose stay `Opaque`; a blob with a plausible header
+    // but a malformed body is admitted and its derived model then declines typed (the
+    // whole-source exact leaf is always unaffected).
+    #[cfg(feature = "cfbf")]
+    if crate::adapter::cfbf::detect(source, limits) {
+        return DocumentFormat::Cfbf;
     }
     // Parquet is the **analytical** Wave-2 format (Phase 21.14), with no package
     // layer. Its detection is a strong magic-byte contract — `PAR1` at both ends
@@ -349,9 +732,116 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     // detected directly from the whole source (never through `detect_zip_family`).
     // Conservative: the entire source must parse as exactly one JSON value within
     // the JSON caps, else the input stays Opaque (Phase 21.5.1).
+    //
+    // GeoJSON is the **spatial** Wave-2 format (Phase 21.22), whose physical bytes
+    // are JSON, so it is a **bounded semantic sub-detection** run **before** the
+    // generic JSON detector below: the source must parse as exactly one JSON value
+    // whose root is an object with a `"type"` string equal to one of the nine RFC 7946
+    // type names **and** whose shape is consistent (a geometry has an array
+    // `coordinates`/`geometries`, a `Feature` has `geometry`/`properties`, a
+    // `FeatureCollection` has an array `features`). A more specific claim than a bare
+    // JSON value, so it is tried first; a plain JSON document, and a JSON document
+    // whose `"type"` is an unrelated string, decline here and are then claimed by the
+    // JSON detector (staying `Json`). Prose and malformed input stay `Opaque`.
+    #[cfg(feature = "geojson")]
+    if crate::adapter::geojson::detect(source, limits) {
+        return DocumentFormat::Geojson;
+    }
+    // A Jupyter notebook (`.ipynb`, nbformat) is the **document-shaped** Wave-2 format
+    // (Phase 21.24), whose physical bytes are JSON, so it is a **bounded semantic
+    // sub-detection** run **before** the generic JSON detector below: the source must
+    // parse as exactly one JSON value that is an nbformat-shaped object — a plain
+    // non-negative integer-literal `nbformat` (≥ 1), an array `cells`, every cell an
+    // object with a string `cell_type`, and every present recognized field
+    // nbformat-shaped (a string-or-array-of-strings `source`, a number-or-null
+    // `execution_count`, object `metadata`/`attachments`, an array `outputs` of objects
+    // with a string `output_type`). A more specific claim than a bare JSON value, so it
+    // is tried first; a plain JSON document, and a JSON document that merely has a
+    // `cells` key but is not nbformat-shaped, decline here and are then claimed by the
+    // JSON detector (staying `Json`). Prose and malformed input stay `Opaque`.
+    #[cfg(feature = "notebook")]
+    if crate::adapter::notebook::detect(source, limits) {
+        return DocumentFormat::Notebook;
+    }
+    // A package-metadata manifest (Phase 21.29) — an npm `package.json` /
+    // `package-lock.json`, a Cargo `Cargo.toml` / `Cargo.lock`, or a Python
+    // `pyproject.toml` — is the **manifest** Wave-2 format, whose physical bytes are
+    // JSON or TOML. It is a **bounded semantic sub-detection** run **before** the
+    // generic JSON and TOML detectors below: the source must carry a strong manifest
+    // shape (a JSON object with string `name`+`version` and a third package-specific
+    // key, a JSON `lockfileVersion`+`packages`/`dependencies`, a TOML `[package]` table
+    // with a string `name`, a TOML `[build-system]`/`[project]`/`[tool.poetry]`, or a
+    // TOML `[[package]]` lockfile shape). A more specific claim than a bare JSON/TOML
+    // value, so it is tried first; a generic JSON `{"name":…,"version":…}`, a generic
+    // TOML `name = …` / `version = …`, and plain prose decline here and are then
+    // claimed by the JSON detector (staying `Json`), the TOML detector (staying
+    // `Toml`), or the opaque floor. Detection is content-only and never consults a
+    // file name.
+    #[cfg(feature = "pkgmeta")]
+    if crate::adapter::pkgmeta::detect(source, limits) {
+        return DocumentFormat::Pkgmeta;
+    }
+    // An API-specification document (Phase 21.30) — a JSON Schema, an OpenAPI 3.x, a
+    // Swagger 2.0, or an AsyncAPI document — is the **API/spec** Wave-2 format, whose
+    // physical bytes are JSON. It is a **bounded semantic sub-detection** run **before**
+    // the generic JSON detector below: the root must be a JSON object carrying a
+    // **strong, root-level string marker** — a JSON-Schema `$schema` URI, an `openapi`
+    // `3.`-prefixed string, a `swagger` equal to `"2.0"`, or a non-empty `asyncapi`
+    // string. A more specific claim than a bare JSON value, so it is tried first; a
+    // plain JSON object that merely has a `properties`/`paths` key, a JSON-Schema-shaped
+    // object with **no** `$schema`, an unrelated `openapi`/`swagger` value, and prose
+    // decline here and are then claimed by the JSON detector (staying `Json`) or the
+    // opaque floor. Detection is content-only and never consults a file name.
+    #[cfg(feature = "apispec")]
+    if crate::adapter::apispec::detect(source, limits) {
+        return DocumentFormat::Apispec;
+    }
+    // A bibliography (Phase 21.31) — BibTeX, RIS, or CSL-JSON — is the
+    // **bibliography** Wave-2 format. BibTeX/RIS are line-anchored text and CSL-JSON's
+    // physical bytes are JSON, so this is a **bounded content-only test** run **before**
+    // the generic JSON detector below (a CSL-JSON array is otherwise claimed by the JSON
+    // detector, which is the weaker claim) and **before** the weak text heuristics
+    // (YAML/TOML/config/CSV/Markdown/RST/AsciiDoc/logstream/fixedwidth), which a BibTeX
+    // `@type{…}` file or an RIS `TY  - ` stream must never be guessed to be. It claims
+    // only on a strong signal: a line-anchored `@type{` entry sequence, an RIS `TY  - `
+    // entry sequence whose every entry is `ER  - `-terminated, or a JSON array (or
+    // single object) whose every element carries a string `id` **and** a string `type`.
+    // A plain JSON array, a JSON array of non-CSL objects, a generic JSON object, and
+    // prose decline here and are then claimed by the JSON detector (staying `Json`) or
+    // the opaque floor. Detection is content-only and never consults a file name.
+    #[cfg(feature = "bib")]
+    if crate::adapter::bib::detect(source, limits) {
+        return DocumentFormat::Bib;
+    }
+    // RTF (Rich Text Format, Phase 21.32) is a text group-brace grammar with a strong
+    // header magic (`{\rtf<digit>`), so it is tried here with the **strong-magic**
+    // detectors (right after the binary magics PDF/ZIP/Parquet/Arrow and before the
+    // JSON family). Its detection is magic + a bounded brace-balance scan, so no other
+    // format's bytes can steal it and it can steal no other format: an RTF source
+    // begins with `{`, which is not a valid JSON document (JSON would need a valid
+    // value), not a config `KEY=VALUE` line, and not a Markdown/RST structural mark;
+    // and the binary detectors above reject it. A plain text or leading-`{` blob stays
+    // `Opaque`.
+    #[cfg(feature = "rtf")]
+    if crate::adapter::rtf::detect(source, limits) {
+        return DocumentFormat::Rtf;
+    }
     #[cfg(feature = "json")]
     if crate::adapter::json::detect(source, limits) {
         return DocumentFormat::Json;
+    }
+    // JSON5/JSONC is the **structured-extra** Wave-2 format (Phase 21.17.1), also
+    // with no package layer. It is tried **immediately after JSON** and before
+    // JSONL/YAML/TOML/CSV/Markdown/XML/HTML: JSON5 is a superset of JSON, so a
+    // strict JSON source is already claimed by the JSON detector above, and this
+    // detector requires at least one JSON5/JSONC-only construct (a comment, a
+    // trailing comma, an unquoted key, a single quote, a hex/leading-dot/
+    // `Infinity`/`NaN` number, a string continuation, or the extended whitespace
+    // set). A strict JSON document is therefore never reclassified, and a plain
+    // non-JSON blob stays Opaque.
+    #[cfg(feature = "json5")]
+    if crate::adapter::json5::detect(source, limits) {
+        return DocumentFormat::Json5;
     }
     // JSONL/NDJSON is the **line/event-stream** Wave-2 format (Phase 21.12), also
     // with no package layer. It is tried **immediately after JSON** because it is the
@@ -366,6 +856,58 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "jsonl")]
     if crate::adapter::jsonl::detect(source, limits) {
         return DocumentFormat::Jsonl;
+    }
+    // CBOR is the **binary** structured-tree Wave-2 format (Phase 21.18), also with
+    // no package layer. It is tried **immediately after the JSON family** (JSON,
+    // JSON5, JSONL) and **before** the remaining textual heuristics
+    // (EML/YAML/TOML/CSV/Markdown/XML/HTML): the strong magic-byte binaries
+    // (PDF/ZIP/Parquet/Arrow) run above and are never reconsidered. CBOR has **no
+    // magic bytes**, so its detector is deliberately conservative — the
+    // self-described-CBOR tag `55799` (`0xd9 0xd9 0xf7`), or a full-input,
+    // well-formed parse whose root is a container/tag and which reaches at least
+    // three nodes. A container head byte is always `>= 0x80`, so no pure-ASCII
+    // document (JSON/YAML/TOML/XML/HTML/prose) can be claimed; a lone scalar, an
+    // empty container, a truncated item, and a structurally trivial input all stay
+    // `Opaque` rather than being guessed. The small-integer/short-array encodings
+    // overlap MessagePack's fixint/fixarray (recorded honestly; a Phase-21.19
+    // MessagePack adapter must share this seam).
+    #[cfg(feature = "cbor")]
+    if crate::adapter::cbor::detect(source, limits) {
+        return DocumentFormat::Cbor;
+    }
+    // MessagePack is the **binary** structured-tree Wave-2 sibling of CBOR (Phase
+    // 21.19), also with no package layer. It is tried **immediately after CBOR** and
+    // **before** the remaining textual heuristics (EML/YAML/TOML/CSV/Markdown/XML/
+    // HTML): the strong magic-byte binaries (PDF/ZIP/Parquet/Arrow) and the JSON
+    // family run above and are never reconsidered. **Placement is load-bearing: the
+    // two binary detectors share the whole-number/short-container prefix, so putting
+    // CBOR first guarantees its stronger self-described-tag signal (and every input
+    // well-formed under both grammars) is never stolen from it.** MessagePack has
+    // **no magic bytes**, so its detector is deliberately conservative — a
+    // full-input, well-formed parse whose root is a container (array/map) reaching at
+    // least three items and eight bytes, or the same with an unambiguous
+    // MessagePack-only head byte (`0xdc..=0xdf`, which CBOR's grammar rejects). A
+    // container head byte is always `>= 0x80`, so no pure-ASCII document can be
+    // claimed; a lone scalar, an empty container, the ambiguous
+    // `fixarray(3)`/`fixmap(2)` overlap fixtures, and a structurally trivial input
+    // all stay `Opaque` rather than being guessed.
+    #[cfg(feature = "msgpack")]
+    if crate::adapter::msgpack::detect(source, limits) {
+        return DocumentFormat::Msgpack;
+    }
+    // MHTML (MIME HTML, RFC 2557) is the **web-archive** Wave-2 format (Phase
+    // 21.27), whose physical bytes are a MIME `multipart/related` message. It is a
+    // **bounded semantic sub-detection** run **before** the generic EML detector
+    // below (a `multipart/related` message is otherwise claimed by EML, which is a
+    // weaker claim): the root must be `multipart/related` **and** carry an
+    // MHTML-specific signal — a top-level `Snapshot-Content-Location`/`Content-Base`,
+    // or a `From`+`Subject` envelope with a `text/html` part. A plain
+    // `multipart/related` email without those markers, a plain HTML document (no MIME
+    // envelope), and a plain MIME message (not `multipart/related`) all decline here
+    // and are then claimed by their own detectors (`Eml`/`Html`/`Eml`).
+    #[cfg(feature = "mhtml")]
+    if crate::adapter::mhtml::detect(source, limits) {
+        return DocumentFormat::Mhtml;
     }
     // EML/MIME is the **messaging** Wave-2 format (Phase 21.13), also with no package
     // layer. It is tried **immediately after JSONL** and **before YAML/TOML/CSV/
@@ -405,15 +947,53 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     if crate::adapter::toml::detect(source, limits) {
         return DocumentFormat::Toml;
     }
+    // The config family (INI / `.env` / Java `.properties`) is the key/value line
+    // Wave-2 format (Phase 21.20). Precedence (explicit): it is tried **after** the
+    // strong, fully-parsed tree formats (JSON/JSON5/JSONL/YAML/TOML) — a TOML
+    // document is very often a syntactically valid INI file, so a source that is
+    // valid TOML must stay `Toml` (never reclassified) — and **before** CSV/Markdown/
+    // XML/HTML. It precedes CSV deliberately: a config file whose values contain
+    // commas (e.g. `A=x,y`) has a consistent field count and would otherwise be
+    // stolen by the CSV detector, whereas the config `KEY=VALUE` shape is the more
+    // specific signal. Config has **no magic bytes**, so detection is deliberately
+    // conservative and requires a **dialect-distinguishing signal**: an INI
+    // `[section]` header; a properties `:`/whitespace separator, `!` comment,
+    // `\uXXXX` escape, continuation, or non-identifier key (plus a strong `=`/`:`
+    // separator somewhere); or an `env` `export ` prefix. The pure `KEY=VALUE`
+    // overlap between `env` and `properties`, plain prose, a two-column `a b`
+    // blob, and a `#!` script all stay `Opaque` rather than being guessed; a plain
+    // `.txt`/Markdown/code source is never claimed.
+    #[cfg(feature = "config")]
+    if crate::adapter::config::detect(source, limits) {
+        return DocumentFormat::Config;
+    }
     // CSV/TSV is the first **tabular** Wave-2 format (Phase 21.7.1). It has no
     // magic bytes, so it is detected last and conservatively: only after the
     // PDF/ZIP/JSON/YAML families are declined does a source qualify, and then only
-    // if it parses under a specific delimiter (`,` or tab) as a table with a
+    // if it parses under a specific delimiter (`,`, tab, or `|`) as a table with a
     // consistent field count across a sampled majority of records and at least two
-    // columns. When in doubt the input stays Opaque.
+    // columns. Phase 21.25 adds the pipe delimiter to this dialect set; the pipe
+    // dialect is tried after comma/tab and is declined when the source carries a
+    // GFM/Markdown delimiter row (so a Markdown table is never stolen). When in
+    // doubt the input stays Opaque.
     #[cfg(feature = "csv")]
     if crate::adapter::csv::detect(source, limits) {
         return DocumentFormat::Csv;
+    }
+    // MDX (Phase 21.26.3) is Markdown + JSX/ESM, so it is tried **immediately before
+    // Markdown** (and therefore before HTML/XML and the other prose/tabular
+    // heuristics): an MDX document's bytes are Markdown-plus-JSX, so generic Markdown
+    // must never claim it first. Detection is conservative and **MDX-specific** — the
+    // source must parse under the Markdown model **and** carry a top-level ESM
+    // `import`/`export` statement, a JSX component (a capitalized/namespaced element
+    // name) or fragment, a JSX-specific attribute (a brace value or spread), or a
+    // whole-line MDX block expression `{…}` — and it declines anything already
+    // claimed by JSON/YAML/CSV/HTML/XML/RST/AsciiDoc, so a plain Markdown document
+    // stays `Markdown`, a plain HTML document stays `Html`, and plain prose stays
+    // `Opaque`.
+    #[cfg(feature = "mdx")]
+    if crate::adapter::mdx::detect(source, limits) {
+        return DocumentFormat::Mdx;
     }
     // Markdown is the first **prose** Wave-2 format (Phase 21.8.1). It has no
     // magic bytes either, and a plain prose paragraph is itself valid Markdown, so
@@ -425,6 +1005,100 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "markdown")]
     if crate::adapter::markdown::detect(source, limits) {
         return DocumentFormat::Markdown;
+    }
+    // reStructuredText (Phase 21.26.1) is the **next prose** Wave-2 format, also with
+    // no package layer. It is tried **immediately after Markdown** and **before
+    // fixed-width**: Markdown must be tried first so a Markdown document is never
+    // stolen (reST detection requires a reST-**specific** signal — an explicit markup
+    // start, a grid/simple table, a field list, or an adornment whose char is not a
+    // Markdown construct), and a reST document must be claimed before the maximally
+    // ambiguous fixed-width heuristic (which could otherwise read an aligned reST body
+    // as a column-position table). Plain prose stays Opaque.
+    #[cfg(feature = "rst")]
+    if crate::adapter::rst::detect(source, limits) {
+        return DocumentFormat::Rst;
+    }
+    // AsciiDoc (Phase 21.26.2) is the **third prose** Wave-2 format, also with no
+    // package layer. It is tried **immediately after reStructuredText** and **before
+    // fixed-width**: Markdown and reST must be tried first so neither is stolen (a
+    // valid Markdown or reST document always keeps its own format), and AsciiDoc must
+    // be claimed before the maximally ambiguous fixed-width heuristic (which could
+    // otherwise read an aligned AsciiDoc body as a column-position table). The
+    // dispatcher already tries PDF/ZIP/JSON/YAML/config/CSV ahead of it, so a
+    // `:name: value`-shaped config source and a `#`/fence-bearing Markdown source are
+    // claimed earlier. Detection is conservative and AsciiDoc-specific (a document
+    // title followed by a block, a `==`+ section, a `|===` table, a complete
+    // delimited block, or a block attribute line followed by a block); a lone `= text`
+    // line and plain prose stay Opaque.
+    #[cfg(feature = "asciidoc")]
+    if crate::adapter::asciidoc::detect(source, limits) {
+        return DocumentFormat::Asciidoc;
+    }
+    // A syslog / log stream is the **line/event-stream** Wave-2 format (Phase 21.28),
+    // also with no package layer. Precedence (explicit): it is tried **after** every
+    // structured and prose format above — the JSON family (JSON/JSON5/JSONL/CBOR/
+    // Msgpack), MHTML/EML, YAML/TOML, the config family, CSV, and the prose family
+    // (MDX/Markdown/RST/AsciiDoc) — so a JSON/YAML/CSV/prose document is never stolen;
+    // and **before** the maximally ambiguous fixed-width heuristic, which could
+    // otherwise read a column-aligned log stream as a column-position table. It is
+    // tried before the XML/HTML family too, but a log line never begins with a valid
+    // XML/HTML root (a syslog `<PRI>` is not well-formed XML). Detection is byte-based
+    // and conservative: at least two non-blank lines, and **every** non-blank line must
+    // match a dialect — an RFC 5424 syslog header, an RFC 3164 (BSD) syslog line, or a
+    // generic application log line with a leading timestamp and/or level token. Plain
+    // prose and code stay `Opaque` (a prose line that does not begin with a timestamp/
+    // level declines the whole file; a file whose every line begins with a level word
+    // IS claimed — recorded honestly in the adapter docs).
+    #[cfg(feature = "logstream")]
+    if crate::adapter::logstream::detect(source, limits) {
+        return DocumentFormat::Logstream;
+    }
+    // Fixed-width (column-position) text is the second **tabular** Wave-2 format
+    // (Phase 21.25), but its columns are defined by character positions, not a
+    // delimiter, so it is a distinct format (and adapter), never a CSV dialect. It is
+    // tried **last among the tabular/prose heuristics** — after CSV/TSV/PSV, after
+    // Markdown, and after reStructuredText — so a delimited table, a Markdown table, or
+    // a reST document always keeps its own format (the fixed-width detector also
+    // declines a delimited or Markdown table explicitly, defence in depth).
+    // Fixed-width is **genuinely ambiguous** (nearly any aligned text can look
+    // tabular), so detection is maximally conservative: at least three sampled records
+    // of identical byte width, an inferred column layout whose interior whitespace gaps
+    // are at least two columns wide, and at least two non-empty columns; a
+    // variable-length or single-space-separated blob stays Opaque.
+    #[cfg(feature = "fixedwidth")]
+    if crate::adapter::fixedwidth::detect(source, limits) {
+        return DocumentFormat::FixedWidth;
+    }
+    // RSS/Atom is the **syndication** Wave-2 format (Phase 21.21). A feed's physical
+    // bytes are XML, so this is a **bounded semantic sub-detection** run **before**
+    // the generic standalone-XML detector below: an RSS root `<rss>` with a
+    // `<channel>` child, or an Atom root `<feed>` in the Atom namespace
+    // (`http://www.w3.org/2005/Atom`) with at least one `<entry>` child. A feed is a
+    // more specific claim than a bare XML tree, so it is tried first; a plain XML
+    // document (a root that is neither `<rss>` nor an Atom `<feed>`, or an
+    // `<rss>`-shaped-but-invalid / non-Atom / record-less `<feed>`) declines here and
+    // falls through to the XML detector (staying `Xml`) or to `Opaque`. An HTML
+    // document (`<!doctype html>` / an `<html>` root) simply declines here and is
+    // then claimed by the HTML document-level marker immediately below.
+    #[cfg(feature = "feed")]
+    if crate::adapter::feed::detect(source, limits) {
+        return DocumentFormat::Feed;
+    }
+    // KML/GPX is the **geospatial** Wave-2 format (Phase 21.23). Its physical bytes
+    // are XML, so this is a **bounded semantic sub-detection** run **before** the
+    // generic standalone-XML detector below: a `<kml>` root in the KML namespace
+    // (`http://www.opengis.net/kml/2.2`) with a `Document`/`Folder`/`Placemark` child,
+    // or a `<gpx>` root in the GPX namespace (`http://www.topografix.com/GPX/1/1`)
+    // with a `metadata`/`wpt`/`rte`/`trk` child. A geospatial document is a more
+    // specific claim than a bare XML tree, so it is tried first; a plain XML document
+    // (a root that is neither `<kml>` nor `<gpx>`, or a shaped-but-invalid / non-GIS
+    // namespace / child-less root) declines here and falls through to the XML detector
+    // (staying `Xml`) or to `Opaque`. An older KML (2.0/2.1) or GPX 1.0 namespace is
+    // not the claimed URI, so it also stays `Xml`. An HTML document simply declines
+    // here and is then claimed by the HTML document-level marker immediately below.
+    #[cfg(feature = "gis")]
+    if crate::adapter::gis::detect(source, limits) {
+        return DocumentFormat::Gis;
     }
     // HTML document-level marker (Phase 21.10 / 21.15 fix): a `<!doctype html>` or
     // an `<html>` root element is a more specific signal than the generic XML
@@ -671,6 +1345,7 @@ mod tests {
             DocumentFormat::Xlsx,
             DocumentFormat::Pptx,
             DocumentFormat::Json,
+            DocumentFormat::Json5,
             DocumentFormat::Yaml,
             DocumentFormat::Csv,
             DocumentFormat::Markdown,
@@ -680,6 +1355,24 @@ mod tests {
             DocumentFormat::Jsonl,
             DocumentFormat::Eml,
             DocumentFormat::Parquet,
+            DocumentFormat::ArrowIpc,
+            DocumentFormat::Cbor,
+            DocumentFormat::Msgpack,
+            DocumentFormat::Config,
+            DocumentFormat::Feed,
+            DocumentFormat::Geojson,
+            DocumentFormat::Gis,
+            DocumentFormat::Notebook,
+            DocumentFormat::FixedWidth,
+            DocumentFormat::Rst,
+            DocumentFormat::Asciidoc,
+            DocumentFormat::Mdx,
+            DocumentFormat::Mhtml,
+            DocumentFormat::Logstream,
+            DocumentFormat::Pkgmeta,
+            DocumentFormat::Apispec,
+            DocumentFormat::Bib,
+            DocumentFormat::Rtf,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

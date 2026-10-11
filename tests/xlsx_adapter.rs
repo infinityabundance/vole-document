@@ -301,11 +301,11 @@ fn detection_and_capabilities_are_byte_based() {
         detect_document_format(&fixture_bytes("multi.xlsx"), Limits::DEFAULT),
         DocumentFormat::Xlsx
     );
-    // A plain ZIP is opaque, not XLSX.
+    // A plain ZIP is a generic archive container, not XLSX (Phase 21.33).
     let plain = build_zip(&[Entry::stored("hello.txt", b"hi")]);
     assert_eq!(
         detect_document_format(&plain, Limits::DEFAULT),
-        DocumentFormat::Opaque
+        DocumentFormat::Container
     );
 
     let caps = capabilities_for_format(DocumentFormat::Xlsx);

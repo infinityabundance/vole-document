@@ -280,6 +280,30 @@ pub struct Limits {
     /// fall back to [`crate::field::document_format::DocumentFormat::Opaque`]
     /// (Phase 21.5.1).
     pub max_json_document_bytes: u64,
+    // The JSON5/JSONC caps below bound the derived, span-preserving structured
+    // model (Phase 21.17.1). Like JSON, JSON5 is not a package: the whole source
+    // parses as exactly one JSON5 value beneath these caps, and everything derived
+    // is `Q_gen` only.
+    /// Maximum JSON5 container nesting depth accepted (objects/arrays). A deeper
+    /// document is not detected as JSON5 (and any direct parse declines typed)
+    /// rather than risking unbounded recursion (Phase 21.17.1).
+    pub max_json5_depth: u32,
+    /// Maximum JSON5 nodes (values plus object member keys) accepted in one
+    /// document. An over-large document declines typed rather than allocating
+    /// (Phase 21.17.1).
+    pub max_json5_nodes: u32,
+    /// Maximum total raw string-token bytes accepted across one JSON5 document
+    /// (the bytes between the quotes, escapes included). A conservative upper bound
+    /// on the decoded text (Phase 21.17.1).
+    pub max_json5_string_bytes: u64,
+    /// Maximum comments (`//` and `/* … */`) accepted in one JSON5 document. An
+    /// over-commented document declines typed rather than allocating (Phase
+    /// 21.17.1).
+    pub max_json5_comments: u32,
+    /// Maximum source length admitted for byte-based JSON5/JSONC detection. Larger
+    /// inputs fall back to [`crate::field::document_format::DocumentFormat::Opaque`]
+    /// (Phase 21.17.1).
+    pub max_json5_document_bytes: u64,
     // The YAML caps below bound the derived, span-preserving structured-tree model
     // (Phase 21.6.1). Like JSON, YAML is not a package: the whole source parses as a
     // bounded stream of documents beneath these caps, and everything derived is
@@ -490,6 +514,480 @@ pub struct Limits {
     /// Maximum accepted Flatbuffers metadata (footer or message) byte length (Phase
     /// 21.16). A larger metadata declares typed before it is parsed.
     pub max_arrow_metadata_bytes: u64,
+    // The CBOR caps below bound the derived, span-preserving structured-tree model
+    // (Phase 21.18). CBOR is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen` only.
+    /// Maximum CBOR nesting depth accepted (arrays/maps/tags). A deeper document is
+    /// not detected as CBOR (and any direct parse declines typed) rather than risking
+    /// unbounded recursion (Phase 21.18).
+    pub max_cbor_depth: u32,
+    /// Maximum CBOR items accepted in one document. An over-large document declines
+    /// typed rather than allocating (Phase 21.18).
+    pub max_cbor_nodes: u32,
+    /// Maximum total raw byte-/text-string payload bytes accepted across one CBOR
+    /// document. An over-large document declines typed (Phase 21.18).
+    pub max_cbor_string_bytes: u64,
+    /// Maximum source length admitted for byte-based CBOR detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.18).
+    pub max_cbor_document_bytes: u64,
+    // The MessagePack caps below bound the derived, span-preserving structured-tree
+    // model (Phase 21.19). MessagePack is not a package: the whole source is the
+    // exact leaf, and everything derived is `Q_gen` only.
+    /// Maximum MessagePack nesting depth accepted (arrays/maps). A deeper document
+    /// is not detected as MessagePack (and any direct parse declines typed) rather
+    /// than risking unbounded recursion (Phase 21.19).
+    pub max_msgpack_depth: u32,
+    /// Maximum MessagePack items accepted in one document. An over-large document
+    /// declines typed rather than allocating (Phase 21.19).
+    pub max_msgpack_nodes: u32,
+    /// Maximum total raw `str` payload bytes accepted across one MessagePack
+    /// document. An over-large document declines typed (Phase 21.19).
+    pub max_msgpack_str_bytes: u64,
+    /// Maximum total raw `bin` payload bytes accepted across one MessagePack
+    /// document. An over-large document declines typed (Phase 21.19).
+    pub max_msgpack_bin_bytes: u64,
+    /// Maximum total raw extension payload bytes accepted across one MessagePack
+    /// document. An over-large document declines typed (Phase 21.19).
+    pub max_msgpack_ext_bytes: u64,
+    /// Maximum source length admitted for byte-based MessagePack detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.19).
+    pub max_msgpack_document_bytes: u64,
+    // The config-family caps below bound the derived, span-preserving key/value
+    // model (Phase 21.20). The config family (INI / `.env` / `.properties`) is not
+    // a package: the whole source is the exact leaf, and everything derived is
+    // `Q_gen` only.
+    /// Maximum physical lines accepted across one config document. An over-large
+    /// document declines typed rather than allocating (Phase 21.20).
+    pub max_config_lines: u32,
+    /// Maximum total model nodes (lines) accepted across one config document
+    /// (Phase 21.20).
+    pub max_config_nodes: u32,
+    /// Maximum entries accepted across one config document (Phase 21.20).
+    pub max_config_entries: u32,
+    /// Maximum `properties` logical-line continuation depth accepted (the number
+    /// of physical lines merged by trailing `\` continuations). A deeper logical
+    /// line is not detected as config (and any direct parse declines typed) rather
+    /// than risking an unbounded scan (Phase 21.20).
+    pub max_config_depth: u32,
+    /// Maximum length of one (logical) config line in bytes (Phase 21.20).
+    pub max_config_line_bytes: u64,
+    /// Maximum length of one config key token in bytes (Phase 21.20).
+    pub max_config_key_bytes: u64,
+    /// Maximum length of one config value token in bytes (Phase 21.20).
+    pub max_config_value_bytes: u64,
+    /// Maximum source length admitted for byte-based config detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.20).
+    pub max_config_document_bytes: u64,
+    // The RSS/Atom feed caps below bound the derived, span-preserving feed model
+    // (Phase 21.21). A feed is not a package: the whole source is the exact leaf,
+    // and everything derived (the embedded span-preserving XML tree and the
+    // recognized channel/entry field arena) is `Q_gen` only.
+    /// Maximum record (`<item>`/`<entry>`) count accepted across one feed. An
+    /// over-large feed declines typed rather than allocating (Phase 21.21).
+    pub max_feed_entries: u32,
+    /// Maximum recognized field count (channel/feed fields plus every entry's
+    /// fields) accepted across one feed (Phase 21.21).
+    pub max_feed_fields: u32,
+    /// Maximum length of one recognized field element's whole span in bytes
+    /// (Phase 21.21).
+    pub max_feed_field_bytes: u64,
+    /// Maximum length of the canonical feed text projection in bytes (Phase 21.21).
+    pub max_feed_text_bytes: u64,
+    /// Maximum source length admitted for byte-based feed detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.21).
+    pub max_feed_document_bytes: u64,
+    // The GeoJSON caps below bound the derived, span-preserving GeoJSON model
+    // (Phase 21.22). GeoJSON's physical bytes are JSON, so the shared JSON parser's
+    // caps also apply; these add the semantic bounds on top. GeoJSON is not a
+    // package: the whole source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum `Feature` count accepted across one GeoJSON document (the root
+    /// `Feature`, or every element of a `FeatureCollection`'s `features` array). An
+    /// over-large document declines typed rather than allocating (Phase 21.22).
+    pub max_geojson_features: u32,
+    /// Maximum geometry object count accepted across one GeoJSON document (in
+    /// pre-order; a `GeometryCollection`'s members are included) (Phase 21.22).
+    pub max_geojson_geometries: u32,
+    /// Maximum total coordinate-number count accepted across one GeoJSON
+    /// document's `coordinates` subtrees (Phase 21.22).
+    pub max_geojson_coordinates: u64,
+    /// Maximum GeoJSON structural recursion depth (geometry/`GeometryCollection`
+    /// nesting and `coordinates` nesting) (Phase 21.22).
+    pub max_geojson_depth: u32,
+    /// Maximum embedded JSON node count accepted for one GeoJSON document, in
+    /// addition to the JSON caps the shared parser already enforces (Phase 21.22).
+    pub max_geojson_nodes: u32,
+    /// Maximum source length admitted for byte-based GeoJSON detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.22).
+    pub max_geojson_document_bytes: u64,
+    // The KML/GPX geospatial caps below bound the derived, span-preserving GIS model
+    // (Phase 21.23). KML and GPX are XML, so the shared XML parser's caps also apply;
+    // these add the semantic bounds on top. GIS is not a package: the whole source is
+    // the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum record count accepted across one GIS document (KML `<Placemark>`
+    /// features, or GPX top-level `<wpt>`/`<rte>`/`<trk>` records). An over-large
+    /// document declines typed rather than allocating (Phase 21.23).
+    pub max_gis_placemarks: u32,
+    /// Maximum GPX `<trk>` track count accepted across one GIS document
+    /// (Phase 21.23).
+    pub max_gis_tracks: u32,
+    /// Maximum point count accepted across one GIS document (KML geometry elements,
+    /// or GPX `<wpt>`/`<rtept>`/`<trkpt>` point elements) (Phase 21.23).
+    pub max_gis_points: u32,
+    /// Maximum GIS element nesting depth accepted (Phase 21.23).
+    pub max_gis_depth: u32,
+    /// Maximum embedded XML node count accepted for one GIS document, in addition
+    /// to the XML caps the shared parser already enforces (Phase 21.23).
+    pub max_gis_nodes: u32,
+    /// Maximum aggregate recognized-field bytes (and canonical text projection)
+    /// accepted across one GIS document (Phase 21.23).
+    pub max_gis_text_bytes: u64,
+    /// Maximum source length admitted for byte-based GIS detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.23).
+    pub max_gis_document_bytes: u64,
+    // The Jupyter notebook caps below bound the derived, span-preserving notebook model
+    // (Phase 21.24). A notebook's physical bytes are JSON, so the shared JSON parser's
+    // caps also apply; these add the semantic bounds on top. A notebook is not a
+    // package: the whole source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum cell count accepted across one notebook. An over-large document
+    /// declines typed rather than allocating (Phase 21.24).
+    pub max_notebook_cells: u32,
+    /// Maximum total output count accepted across one notebook (every code cell's
+    /// `outputs` array) (Phase 21.24).
+    pub max_notebook_outputs: u32,
+    /// Maximum embedded JSON node count accepted for one notebook, in addition to the
+    /// JSON caps the shared parser already enforces (Phase 21.24).
+    pub max_notebook_nodes: u32,
+    /// Maximum notebook structural nesting depth accepted (Phase 21.24).
+    pub max_notebook_depth: u32,
+    /// Maximum aggregate cell `source` token bytes accepted across one notebook
+    /// (Phase 21.24).
+    pub max_notebook_source_bytes: u64,
+    /// Maximum source length admitted for byte-based notebook detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.24).
+    pub max_notebook_document_bytes: u64,
+    // The fixed-width (column-position) caps below bound the derived, span-preserving
+    // fixed-width table model and its selective reads (Phase 21.25). Fixed-width is not
+    // a package: the whole source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum records (lines, including the header) accepted in one fixed-width table.
+    /// A larger table declines typed rather than allocating (Phase 21.25).
+    pub max_fixedwidth_rows: u32,
+    /// Maximum columns accepted in a fixed-width table. A table above this bound is a
+    /// typed resource-limit decline, never an allocation (Phase 21.25).
+    pub max_fixedwidth_cols: u32,
+    /// Maximum byte length of a single fixed-width record (content, terminator
+    /// excluded); a longer record declines typed (Phase 21.25).
+    pub max_fixedwidth_record_bytes: u32,
+    /// Maximum byte length of a single fixed-width field (padding included); a longer
+    /// field declines typed (Phase 21.25).
+    pub max_fixedwidth_field_bytes: u32,
+    /// Maximum source length admitted for byte-based fixed-width detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.25).
+    pub max_fixedwidth_document_bytes: u64,
+    /// Maximum records sampled when deciding whether a source is a fixed-width table.
+    /// Detection is a bounded sample, so a huge source is classified in bounded
+    /// memory (Phase 21.25).
+    pub max_fixedwidth_sampled_lines_for_detection: u32,
+    // The reStructuredText caps below bound the derived, span-preserving reST prose
+    // model and its inline extraction (Phase 21.26.1). reST is not a package: the
+    // whole source is the exact leaf, and everything derived is `Q_gen` only.
+    /// Maximum blocks accepted in one reStructuredText document (Phase 21.26.1).
+    pub max_rst_blocks: u32,
+    /// Maximum inline spans accepted in one reStructuredText document (Phase
+    /// 21.26.1).
+    pub max_rst_inline_spans: u32,
+    /// Maximum nodes (blocks plus inline spans) accepted in one reStructuredText
+    /// document. An over-large document declines typed rather than allocating
+    /// (Phase 21.26.1).
+    pub max_rst_nodes: u32,
+    /// Maximum section-title/list nesting depth accepted (Phase 21.26.1). A deeper
+    /// document is a typed resource-limit decline.
+    pub max_rst_depth: u32,
+    /// Maximum byte length of one physical line (content, terminator excluded) in a
+    /// reStructuredText document. A longer line declines typed (Phase 21.26.1).
+    pub max_rst_line_bytes: u64,
+    /// Maximum source length admitted for byte-based reStructuredText detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.26.1).
+    pub max_rst_document_bytes: u64,
+    // The AsciiDoc caps below bound the derived, span-preserving AsciiDoc prose model
+    // and its inline extraction (Phase 21.26.2). AsciiDoc is not a package: the whole
+    // source is the exact leaf, and everything derived is `Q_gen` only.
+    /// Maximum blocks accepted in one AsciiDoc document (Phase 21.26.2).
+    pub max_asciidoc_blocks: u32,
+    /// Maximum inline spans accepted in one AsciiDoc document (Phase 21.26.2).
+    pub max_asciidoc_inline_spans: u32,
+    /// Maximum nodes (blocks plus inline spans) accepted in one AsciiDoc document. An
+    /// over-large document declines typed rather than allocating (Phase 21.26.2).
+    pub max_asciidoc_nodes: u32,
+    /// Maximum section/list nesting depth accepted (Phase 21.26.2). A deeper document
+    /// is a typed resource-limit decline.
+    pub max_asciidoc_depth: u32,
+    /// Maximum byte length of one physical line (content, terminator excluded) in an
+    /// AsciiDoc document. A longer line declines typed (Phase 21.26.2).
+    pub max_asciidoc_line_bytes: u64,
+    /// Maximum source length admitted for byte-based AsciiDoc detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.26.2).
+    pub max_asciidoc_document_bytes: u64,
+    // The MDX caps below bound the derived, span-preserving MDX (Markdown + JSX/ESM)
+    // model. MDX is a superset of Markdown that **reuses the Markdown parser/model**
+    // (Phase 21.26.3) and layers ESM statements, JSX elements/fragments, and MDX
+    // expressions on top, each with an exact source span. MDX is not a package: the
+    // whole source is the exact leaf, and everything derived is `Q_gen` only.
+    /// Maximum ESM statements accepted in one MDX document (Phase 21.26.3).
+    pub max_mdx_esm_statements: u32,
+    /// Maximum JSX elements/fragments accepted in one MDX document (Phase 21.26.3).
+    pub max_mdx_jsx_blocks: u32,
+    /// Maximum MDX expressions accepted in one MDX document (Phase 21.26.3).
+    pub max_mdx_expressions: u32,
+    /// Maximum nodes (ESM statements plus JSX elements plus expressions) accepted in
+    /// one MDX document. An over-large document declines typed rather than allocating
+    /// (Phase 21.26.3).
+    pub max_mdx_nodes: u32,
+    /// Maximum JSX nesting depth accepted (Phase 21.26.3). A deeper document is a
+    /// typed resource-limit decline.
+    pub max_mdx_depth: u32,
+    /// Maximum byte length of one physical line (content, terminator excluded) in an
+    /// MDX document. A longer line declines typed (Phase 21.26.3).
+    pub max_mdx_line_bytes: u64,
+    /// Maximum source length admitted for byte-based MDX detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.26.3).
+    pub max_mdx_document_bytes: u64,
+    // The MHTML (MIME HTML) caps below bound the derived, span-preserving model
+    // (Phase 21.27). MHTML reuses the EML MIME layer and the HTML scanner, so their
+    // caps also apply; these add the MHTML-specific bounds on top. MHTML is not a
+    // package: the whole source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum MIME part count accepted across one MHTML document (the root counts).
+    /// An over-large document declines typed rather than allocating (Phase 21.27).
+    pub max_mhtml_parts: u32,
+    /// Maximum header count accepted across one MHTML document (all parts). A
+    /// document with more declines typed (Phase 21.27).
+    pub max_mhtml_headers: u32,
+    /// Maximum MIME nesting depth accepted (root = 0). A deeper document declines
+    /// typed (Phase 21.27).
+    pub max_mhtml_depth: u32,
+    /// Maximum sub-resource count accepted across one MHTML document (parts carrying
+    /// a `Content-Location`/`Content-ID`). An over-large document declines typed
+    /// rather than allocating (Phase 21.27).
+    pub max_mhtml_resources: u32,
+    /// Maximum total decoded bytes accepted across one MHTML document (the root
+    /// part's decoded body plus every sub-resource). A larger decode declines typed
+    /// (Phase 21.27).
+    pub max_mhtml_decoded_bytes: u64,
+    /// Maximum embedded HTML node count accepted for the root part (Phase 21.27).
+    pub max_mhtml_nodes: u32,
+    /// Maximum source length admitted for byte-based MHTML detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.27).
+    pub max_mhtml_document_bytes: u64,
+    // The syslog / log-stream caps below bound the derived, span-preserving model
+    // (Phase 21.28). A log stream is not a package: the whole source is the exact
+    // leaf, and everything derived is `Q_gen` only. The model is a flat arena of
+    // records with exact-span fields, so it is bounded by record, field, and
+    // structured-data-element counts, one line's length, the deepest
+    // structured-data nesting, and the source length.
+    /// Maximum non-blank record lines accepted in one log stream. A larger document
+    /// declines typed rather than allocating (Phase 21.28).
+    pub max_logstream_records: u32,
+    /// Maximum total field spans accepted across **all** records of one log stream.
+    /// This is a whole-document budget; an over-large document declines typed rather
+    /// than allocating (Phase 21.28).
+    pub max_logstream_fields: u64,
+    /// Maximum total RFC 5424 structured-data elements accepted across one log
+    /// stream. An over-large document declines typed rather than allocating
+    /// (Phase 21.28).
+    pub max_logstream_sd_elements: u64,
+    /// Maximum byte length of one record line's content (the terminator excluded). A
+    /// longer line declines typed (Phase 21.28).
+    pub max_logstream_line_bytes: u64,
+    /// Maximum structured-data nesting depth accepted (record = 1, an element = 2, a
+    /// parameter = 3). A deeper record declines typed (Phase 21.28).
+    pub max_logstream_depth: u32,
+    /// Maximum source length admitted for byte-based log-stream detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.28).
+    pub max_logstream_document_bytes: u64,
+    // The package-metadata caps below bound the derived, span-preserving model
+    // (Phase 21.29). A manifest is not a package: the whole source is the exact leaf,
+    // and everything derived is `Q_gen` only. The model embeds the reused JSON/TOML
+    // arena and a flat section/entry projection, so it is bounded by node, section,
+    // entry, and structural-recursion counts plus the source length.
+    /// Maximum reused-arena node count accepted for a package manifest (in addition
+    /// to the JSON/TOML caps the shared parsers enforce). A larger document declines
+    /// typed (Phase 21.29).
+    pub max_pkgmeta_nodes: u32,
+    /// Maximum section count accepted for a package manifest. An over-large document
+    /// declines typed rather than allocating (Phase 21.29).
+    pub max_pkgmeta_sections: u32,
+    /// Maximum key/value entry count accepted for a package manifest. An over-large
+    /// document declines typed rather than allocating (Phase 21.29).
+    pub max_pkgmeta_entries: u32,
+    /// Maximum structural recursion depth accepted (root = 1). A deeper document
+    /// declines typed (Phase 21.29).
+    pub max_pkgmeta_depth: u32,
+    /// Maximum source length admitted for byte-based package-metadata detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.29).
+    pub max_pkgmeta_document_bytes: u64,
+    // The API-specification caps below bound the derived, span-preserving model
+    // (Phase 21.30). An API spec's physical bytes are JSON, so the shared JSON parser's
+    // caps also apply; these add the semantic bounds on top. An API spec is not a
+    // package: the whole source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum embedded JSON node count accepted for one API-spec document, in
+    /// addition to the JSON caps the shared parser already enforces (Phase 21.30).
+    pub max_apispec_nodes: u32,
+    /// Maximum recorded object count accepted across one API-spec document. An
+    /// over-large document declines typed rather than allocating (Phase 21.30).
+    pub max_apispec_objects: u32,
+    /// Maximum recorded key/value member count accepted across one API-spec document.
+    /// An over-large document declines typed rather than allocating (Phase 21.30).
+    pub max_apispec_members: u32,
+    /// Maximum recorded `$ref` count accepted across one API-spec document. An
+    /// over-large document declines typed rather than allocating (Phase 21.30).
+    pub max_apispec_refs: u32,
+    /// Maximum structural recursion depth accepted (root = 1). A deeper document
+    /// declines typed (Phase 21.30).
+    pub max_apispec_depth: u32,
+    /// Maximum source length admitted for byte-based API-spec detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.30).
+    pub max_apispec_document_bytes: u64,
+    // The bibliography caps below bound the derived, span-preserving model
+    // (Phase 21.31). One adapter covers three dialects (BibTeX, RIS, CSL-JSON); the
+    // text dialects are bounded directly, and the CSL-JSON dialect reuses the shared
+    // JSON parser (whose caps also apply), so these add the semantic bounds on top. A
+    // bibliography is not a package: the whole source is the exact leaf, and
+    // everything derived is `Q_gen`.
+    /// Maximum entry (BibTeX/RIS) or item (CSL-JSON) count accepted for one
+    /// bibliography. An over-large document declines typed rather than allocating
+    /// (Phase 21.31).
+    pub max_bib_entries: u32,
+    /// Maximum total field (BibTeX/RIS) or member (CSL-JSON) count accepted across one
+    /// bibliography. This is a whole-document budget; an over-large document declines
+    /// typed rather than allocating (Phase 21.31).
+    pub max_bib_fields: u64,
+    /// Maximum byte length of one BibTeX/RIS value (delimiters included) or one
+    /// recorded CSL-JSON string value. A longer value declines typed (Phase 21.31).
+    pub max_bib_value_bytes: u64,
+    /// Maximum embedded JSON node count accepted for one CSL-JSON document, in
+    /// addition to the JSON caps the shared parser already enforces (Phase 21.31).
+    pub max_bib_nodes: u32,
+    /// Maximum structural recursion depth accepted (BibTeX/RIS brace nesting, or
+    /// CSL-JSON container nesting; root = 1). A deeper document declines typed
+    /// (Phase 21.31).
+    pub max_bib_depth: u32,
+    /// Maximum source length admitted for byte-based bibliography detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.31).
+    pub max_bib_document_bytes: u64,
+    // The RTF caps below bound the derived, span-preserving model (Phase 21.32). RTF
+    // is a text group-brace grammar with control words; it is not a package: the whole
+    // source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum group (`{ … }`) count accepted for one RTF document. An over-large
+    /// document declines typed rather than allocating (Phase 21.32).
+    pub max_rtf_groups: u32,
+    /// Maximum group nesting depth accepted (the outermost group is depth 1). A deeper
+    /// document declines typed (Phase 21.32).
+    pub max_rtf_depth: u32,
+    /// Maximum control word / control symbol / hex escape / Unicode escape count
+    /// accepted across one RTF document. An over-large document declines typed rather
+    /// than allocating (Phase 21.32).
+    pub max_rtf_control_words: u64,
+    /// Maximum total plain-text byte count accepted across one RTF document. An
+    /// over-large document declines typed rather than allocating (Phase 21.32).
+    pub max_rtf_text_bytes: u64,
+    /// Maximum `\'hh` hex-escape count accepted across one RTF document. An over-large
+    /// document declines typed rather than allocating (Phase 21.32).
+    pub max_rtf_hex_escapes: u64,
+    /// Maximum source length admitted for byte-based RTF detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.32).
+    pub max_rtf_document_bytes: u64,
+    // The container caps below bound the derived, span-preserving model (Phase 21.33).
+    // A generic ZIP/TAR archive has no package layer: the whole source is the exact
+    // leaf, and everything derived is `Q_gen`.
+    /// Maximum member count accepted for one archive container. An over-large
+    /// archive declines typed rather than allocating (Phase 21.33).
+    pub max_container_members: u64,
+    /// Maximum **aggregate** name byte count accepted across one container's members.
+    /// This is a whole-archive budget; an over-large archive declines typed (Phase
+    /// 21.33).
+    pub max_container_name_bytes: u64,
+    /// Maximum byte length of one member name. A longer name declines typed (Phase
+    /// 21.33).
+    pub max_container_entry_name_bytes: u64,
+    /// Maximum TAR extension-record (GNU `L`/`K`, PAX `x`/`g`) count accepted across
+    /// one archive. An over-large archive declines typed (Phase 21.33).
+    pub max_container_extensions: u64,
+    /// Maximum member path depth (number of `/`-separated components; a flat name is
+    /// depth 1) accepted. A deeper path declines typed (Phase 21.33).
+    pub max_container_path_depth: u64,
+    /// Maximum source length admitted for byte-based container detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.33).
+    pub max_container_document_bytes: u64,
+    // The scientific-container caps below bound the derived, span-preserving model
+    // (Phase 21.34). A NetCDF classic or HDF5 source has no package layer: the whole
+    // source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum object (group / dataset / variable) count accepted for one scientific
+    /// container. An over-large source declines typed (Phase 21.34).
+    pub max_hdf_objects: u64,
+    /// Maximum dimension count accepted (NetCDF dimension table, or an HDF5 dataspace
+    /// rank). An over-large source declines typed (Phase 21.34).
+    pub max_hdf_dimensions: u64,
+    /// Maximum **aggregate** attribute count accepted across one source (global /
+    /// root-group + every object's attributes). An over-large source declines typed
+    /// (Phase 21.34).
+    pub max_hdf_attributes: u64,
+    /// Maximum group nesting depth accepted (root = 0). A deeper source declines
+    /// typed (Phase 21.34).
+    pub max_hdf_depth: u32,
+    /// Maximum **aggregate** name byte count accepted across one source. This is a
+    /// whole-source budget; an over-large source declines typed (Phase 21.34).
+    pub max_hdf_name_bytes: u64,
+    /// Maximum byte length of one name. A longer name declines typed (Phase 21.34).
+    pub max_hdf_entry_name_bytes: u64,
+    /// Maximum byte length of one attribute value. A larger value declines typed
+    /// (Phase 21.34).
+    pub max_hdf_attr_value_bytes: u64,
+    /// Maximum source length admitted for scientific-container detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.34).
+    pub max_hdf_document_bytes: u64,
+    // The compound-file (CFBF/OLE2) caps below bound the derived, span-preserving model
+    // (Phase 21.35). A CFBF source has no package layer: the whole source is the exact
+    // leaf, and everything derived is `Q_gen`.
+    /// Maximum directory-entry count accepted for one compound file. An over-large
+    /// source declines typed (Phase 21.35).
+    pub max_cfbf_entries: u64,
+    /// Maximum stream count accepted for one compound file. An over-large source
+    /// declines typed (Phase 21.35).
+    pub max_cfbf_streams: u64,
+    /// Maximum reconstructed directory-tree depth accepted (the root is depth 0). A
+    /// deeper tree declines typed (Phase 21.35).
+    pub max_cfbf_depth: u32,
+    /// Maximum **aggregate** name byte count accepted across one compound file. This is
+    /// a whole-source budget; an over-large source declines typed (Phase 21.35).
+    pub max_cfbf_name_bytes: u64,
+    /// Maximum byte length of one entry name (a CFBF name is at most 62 bytes). A
+    /// longer name declines typed (Phase 21.35).
+    pub max_cfbf_entry_name_bytes: u64,
+    /// Maximum FAT/MiniFAT entry count accepted (bounds the allocation and every chain
+    /// traversal). An over-large source declines typed (Phase 21.35).
+    pub max_cfbf_chain_sectors: u64,
+    /// Maximum source length admitted for compound-file detection and parsing. Larger
+    /// inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.35).
+    pub max_cfbf_document_bytes: u64,
 }
 
 impl Limits {
@@ -586,6 +1084,11 @@ impl Limits {
         max_json_nodes: 1 << 24,
         max_json_string_bytes: 1 << 28,
         max_json_document_bytes: 1 << 34,
+        max_json5_depth: 256,
+        max_json5_nodes: 1 << 24,
+        max_json5_string_bytes: 1 << 28,
+        max_json5_comments: 1 << 22,
+        max_json5_document_bytes: 1 << 34,
         max_yaml_depth: 256,
         max_yaml_nodes: 1 << 24,
         max_yaml_scalars: 1 << 24,
@@ -642,6 +1145,130 @@ impl Limits {
         max_arrow_decompressed_bytes: 1 << 30,
         max_arrow_document_bytes: 1 << 34,
         max_arrow_metadata_bytes: 1 << 26,
+        max_cbor_depth: 256,
+        max_cbor_nodes: 1 << 24,
+        max_cbor_string_bytes: 1 << 28,
+        max_cbor_document_bytes: 1 << 34,
+        max_msgpack_depth: 256,
+        max_msgpack_nodes: 1 << 24,
+        max_msgpack_str_bytes: 1 << 28,
+        max_msgpack_bin_bytes: 1 << 28,
+        max_msgpack_ext_bytes: 1 << 28,
+        max_msgpack_document_bytes: 1 << 34,
+        max_config_lines: 1 << 24,
+        max_config_nodes: 1 << 24,
+        max_config_entries: 1 << 24,
+        max_config_depth: 4096,
+        max_config_line_bytes: 1 << 26,
+        max_config_key_bytes: 1 << 20,
+        max_config_value_bytes: 1 << 28,
+        max_config_document_bytes: 1 << 34,
+        max_feed_entries: 1 << 20,
+        max_feed_fields: 1 << 22,
+        max_feed_field_bytes: 1 << 26,
+        max_feed_text_bytes: 1 << 28,
+        max_feed_document_bytes: 1 << 34,
+        max_geojson_features: 1 << 20,
+        max_geojson_geometries: 1 << 20,
+        max_geojson_coordinates: 1 << 28,
+        max_geojson_depth: 1024,
+        max_geojson_nodes: 1 << 24,
+        max_geojson_document_bytes: 1 << 34,
+        max_gis_placemarks: 1 << 20,
+        max_gis_tracks: 1 << 20,
+        max_gis_points: 1 << 22,
+        max_gis_depth: 256,
+        max_gis_nodes: 1 << 24,
+        max_gis_text_bytes: 1 << 28,
+        max_gis_document_bytes: 1 << 34,
+        max_notebook_cells: 1 << 20,
+        max_notebook_outputs: 1 << 22,
+        max_notebook_nodes: 1 << 24,
+        max_notebook_depth: 256,
+        max_notebook_source_bytes: 1 << 28,
+        max_notebook_document_bytes: 1 << 34,
+        max_fixedwidth_rows: 1 << 24,
+        max_fixedwidth_cols: 1 << 16,
+        max_fixedwidth_record_bytes: 1 << 26,
+        max_fixedwidth_field_bytes: 1 << 24,
+        max_fixedwidth_document_bytes: 1 << 34,
+        max_fixedwidth_sampled_lines_for_detection: 1024,
+        max_rst_blocks: 1 << 22,
+        max_rst_inline_spans: 1 << 24,
+        max_rst_nodes: 1 << 24,
+        max_rst_depth: 256,
+        max_rst_line_bytes: 1 << 26,
+        max_rst_document_bytes: 1 << 34,
+        max_asciidoc_blocks: 1 << 22,
+        max_asciidoc_inline_spans: 1 << 24,
+        max_asciidoc_nodes: 1 << 24,
+        max_asciidoc_depth: 256,
+        max_asciidoc_line_bytes: 1 << 26,
+        max_asciidoc_document_bytes: 1 << 34,
+        max_mdx_esm_statements: 1 << 22,
+        max_mdx_jsx_blocks: 1 << 22,
+        max_mdx_expressions: 1 << 24,
+        max_mdx_nodes: 1 << 24,
+        max_mdx_depth: 256,
+        max_mdx_line_bytes: 1 << 26,
+        max_mdx_document_bytes: 1 << 34,
+        max_mhtml_parts: 1 << 20,
+        max_mhtml_headers: 1 << 20,
+        max_mhtml_depth: 64,
+        max_mhtml_resources: 1 << 20,
+        max_mhtml_decoded_bytes: 1 << 28,
+        max_mhtml_nodes: 1 << 24,
+        max_mhtml_document_bytes: 1 << 34,
+        max_logstream_records: 1 << 22,
+        max_logstream_fields: 1 << 24,
+        max_logstream_sd_elements: 1 << 20,
+        max_logstream_line_bytes: 1 << 20,
+        max_logstream_depth: 8,
+        max_logstream_document_bytes: 1 << 34,
+        max_pkgmeta_nodes: 1 << 24,
+        max_pkgmeta_sections: 1 << 20,
+        max_pkgmeta_entries: 1 << 22,
+        max_pkgmeta_depth: 32,
+        max_pkgmeta_document_bytes: 1 << 34,
+        max_apispec_nodes: 1 << 24,
+        max_apispec_objects: 1 << 22,
+        max_apispec_members: 1 << 24,
+        max_apispec_refs: 1 << 22,
+        max_apispec_depth: 256,
+        max_apispec_document_bytes: 1 << 34,
+        max_bib_entries: 1 << 22,
+        max_bib_fields: 1 << 24,
+        max_bib_value_bytes: 1 << 26,
+        max_bib_nodes: 1 << 24,
+        max_bib_depth: 256,
+        max_bib_document_bytes: 1 << 34,
+        max_rtf_groups: 1 << 22,
+        max_rtf_depth: 256,
+        max_rtf_control_words: 1 << 24,
+        max_rtf_text_bytes: 1 << 30,
+        max_rtf_hex_escapes: 1 << 24,
+        max_rtf_document_bytes: 1 << 34,
+        max_container_members: 1 << 20,
+        max_container_name_bytes: 1 << 26,
+        max_container_entry_name_bytes: 1 << 16,
+        max_container_extensions: 1 << 20,
+        max_container_path_depth: 256,
+        max_container_document_bytes: 1 << 34,
+        max_hdf_objects: 1 << 20,
+        max_hdf_dimensions: 1 << 20,
+        max_hdf_attributes: 1 << 22,
+        max_hdf_depth: 64,
+        max_hdf_name_bytes: 1 << 26,
+        max_hdf_entry_name_bytes: 1 << 16,
+        max_hdf_attr_value_bytes: 1 << 24,
+        max_hdf_document_bytes: 1 << 34,
+        max_cfbf_entries: 1 << 20,
+        max_cfbf_streams: 1 << 20,
+        max_cfbf_depth: 256,
+        max_cfbf_name_bytes: 1 << 26,
+        max_cfbf_entry_name_bytes: 1 << 16,
+        max_cfbf_chain_sectors: 1 << 24,
+        max_cfbf_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -737,6 +1364,11 @@ impl Limits {
         max_json_nodes: 1 << 16,
         max_json_string_bytes: 1 << 20,
         max_json_document_bytes: 1 << 26,
+        max_json5_depth: 64,
+        max_json5_nodes: 1 << 16,
+        max_json5_string_bytes: 1 << 20,
+        max_json5_comments: 1 << 12,
+        max_json5_document_bytes: 1 << 26,
         max_yaml_depth: 64,
         max_yaml_nodes: 1 << 16,
         max_yaml_scalars: 1 << 16,
@@ -793,6 +1425,130 @@ impl Limits {
         max_arrow_decompressed_bytes: 1 << 20,
         max_arrow_document_bytes: 1 << 26,
         max_arrow_metadata_bytes: 1 << 20,
+        max_cbor_depth: 64,
+        max_cbor_nodes: 1 << 16,
+        max_cbor_string_bytes: 1 << 20,
+        max_cbor_document_bytes: 1 << 26,
+        max_msgpack_depth: 64,
+        max_msgpack_nodes: 1 << 16,
+        max_msgpack_str_bytes: 1 << 20,
+        max_msgpack_bin_bytes: 1 << 20,
+        max_msgpack_ext_bytes: 1 << 20,
+        max_msgpack_document_bytes: 1 << 26,
+        max_config_lines: 1 << 16,
+        max_config_nodes: 1 << 16,
+        max_config_entries: 1 << 16,
+        max_config_depth: 64,
+        max_config_line_bytes: 1 << 20,
+        max_config_key_bytes: 1 << 14,
+        max_config_value_bytes: 1 << 20,
+        max_config_document_bytes: 1 << 26,
+        max_feed_entries: 1 << 12,
+        max_feed_fields: 1 << 14,
+        max_feed_field_bytes: 1 << 20,
+        max_feed_text_bytes: 1 << 20,
+        max_feed_document_bytes: 1 << 26,
+        max_geojson_features: 1 << 12,
+        max_geojson_geometries: 1 << 12,
+        max_geojson_coordinates: 1 << 16,
+        max_geojson_depth: 64,
+        max_geojson_nodes: 1 << 16,
+        max_geojson_document_bytes: 1 << 26,
+        max_gis_placemarks: 1 << 12,
+        max_gis_tracks: 1 << 12,
+        max_gis_points: 1 << 14,
+        max_gis_depth: 64,
+        max_gis_nodes: 1 << 16,
+        max_gis_text_bytes: 1 << 20,
+        max_gis_document_bytes: 1 << 26,
+        max_notebook_cells: 1 << 12,
+        max_notebook_outputs: 1 << 12,
+        max_notebook_nodes: 1 << 16,
+        max_notebook_depth: 64,
+        max_notebook_source_bytes: 1 << 20,
+        max_notebook_document_bytes: 1 << 26,
+        max_fixedwidth_rows: 1 << 16,
+        max_fixedwidth_cols: 1 << 12,
+        max_fixedwidth_record_bytes: 1 << 20,
+        max_fixedwidth_field_bytes: 1 << 18,
+        max_fixedwidth_document_bytes: 1 << 26,
+        max_fixedwidth_sampled_lines_for_detection: 64,
+        max_rst_blocks: 1 << 14,
+        max_rst_inline_spans: 1 << 16,
+        max_rst_nodes: 1 << 16,
+        max_rst_depth: 64,
+        max_rst_line_bytes: 1 << 20,
+        max_rst_document_bytes: 1 << 26,
+        max_asciidoc_blocks: 1 << 14,
+        max_asciidoc_inline_spans: 1 << 16,
+        max_asciidoc_nodes: 1 << 16,
+        max_asciidoc_depth: 64,
+        max_asciidoc_line_bytes: 1 << 20,
+        max_asciidoc_document_bytes: 1 << 26,
+        max_mdx_esm_statements: 1 << 14,
+        max_mdx_jsx_blocks: 1 << 14,
+        max_mdx_expressions: 1 << 16,
+        max_mdx_nodes: 1 << 16,
+        max_mdx_depth: 64,
+        max_mdx_line_bytes: 1 << 20,
+        max_mdx_document_bytes: 1 << 26,
+        max_mhtml_parts: 1 << 12,
+        max_mhtml_headers: 1 << 12,
+        max_mhtml_depth: 16,
+        max_mhtml_resources: 1 << 12,
+        max_mhtml_decoded_bytes: 1 << 20,
+        max_mhtml_nodes: 1 << 16,
+        max_mhtml_document_bytes: 1 << 26,
+        max_logstream_records: 1 << 12,
+        max_logstream_fields: 1 << 16,
+        max_logstream_sd_elements: 1 << 12,
+        max_logstream_line_bytes: 1 << 16,
+        max_logstream_depth: 4,
+        max_logstream_document_bytes: 1 << 26,
+        max_pkgmeta_nodes: 1 << 16,
+        max_pkgmeta_sections: 1 << 12,
+        max_pkgmeta_entries: 1 << 14,
+        max_pkgmeta_depth: 8,
+        max_pkgmeta_document_bytes: 1 << 26,
+        max_apispec_nodes: 1 << 16,
+        max_apispec_objects: 1 << 14,
+        max_apispec_members: 1 << 16,
+        max_apispec_refs: 1 << 14,
+        max_apispec_depth: 64,
+        max_apispec_document_bytes: 1 << 26,
+        max_bib_entries: 1 << 12,
+        max_bib_fields: 1 << 14,
+        max_bib_value_bytes: 1 << 16,
+        max_bib_nodes: 1 << 16,
+        max_bib_depth: 64,
+        max_bib_document_bytes: 1 << 26,
+        max_rtf_groups: 1 << 12,
+        max_rtf_depth: 64,
+        max_rtf_control_words: 1 << 16,
+        max_rtf_text_bytes: 1 << 20,
+        max_rtf_hex_escapes: 1 << 16,
+        max_rtf_document_bytes: 1 << 26,
+        max_container_members: 1 << 12,
+        max_container_name_bytes: 1 << 18,
+        max_container_entry_name_bytes: 1 << 14,
+        max_container_extensions: 1 << 12,
+        max_container_path_depth: 64,
+        max_container_document_bytes: 1 << 26,
+        max_hdf_objects: 1 << 12,
+        max_hdf_dimensions: 1 << 12,
+        max_hdf_attributes: 1 << 14,
+        max_hdf_depth: 32,
+        max_hdf_name_bytes: 1 << 18,
+        max_hdf_entry_name_bytes: 1 << 14,
+        max_hdf_attr_value_bytes: 1 << 16,
+        max_hdf_document_bytes: 1 << 26,
+        max_cfbf_entries: 1 << 12,
+        max_cfbf_streams: 1 << 12,
+        max_cfbf_depth: 64,
+        max_cfbf_name_bytes: 1 << 18,
+        max_cfbf_entry_name_bytes: 1 << 14,
+        max_cfbf_chain_sectors: 1 << 16,
+        max_cfbf_document_bytes: 1 << 26,
     };
 }
 

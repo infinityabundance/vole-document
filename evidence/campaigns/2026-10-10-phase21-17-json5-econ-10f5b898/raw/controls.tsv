@@ -1,0 +1,5 @@
+fixture	expect_fmt	fmt	expect_decline_rc	decline_rc	ok
+strict.json	json	json	6	6	true
+bomb.json5	opaque	opaque	6	6	true
+malformed.json5	opaque	opaque	6	6	true
+prose.txt	opaque	opaque	6	6	true

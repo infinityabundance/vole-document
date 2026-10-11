@@ -1,0 +1,77 @@
+# Phase 21.25 — PSV + fixed-width economic court — tabular economic court
+
+**Question.** Against two conventional comparators — a source-retaining store that keeps the raw bytes plus a conventional extraction, and a conventional decode-to-host-values load — on contract-equivalent terms, can VOLE answer the same question family (Q1–Q12) it can answer, while closing the original tabular byte-exactly, and does it add value by **preserving representation** (source spans, exact spelling, attribute/quote/continuation markers, duplicate keys, member order)?
+
+Corpus: **7 fixtures**; lanes **vole, sqlite, conv**; questions **Q1–Q12**; bootstrap **10000 resamples, seed 2125**, cluster-resampled by fixture; tie band **+/-10%**.
+
+VOLE lane: **release** profile (`target/release/vole-document`); substrate: **--profile runtime --packed**.
+
+## Verdict
+
+- **VOLE exactness (Q6): 11/11 byte-exact** (length + SHA-256 + `cmp`, after source + descriptor deletion in a fresh process).
+- **COURT VERDICT: PASS**.
+
+## Build + storage (per lane, per fixture)
+
+Time columns are **microseconds (`us`)**.
+
+| fixture | src B | vole build us | sqlite build us | conv build us | vole B | sqlite B | conv B |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| psv-basic.psv | 25 | 28558 | 33221 | 27631 | 4770 | 8256 | 207 |
+| psv-quotes.psv | 30 | 27730 | 28572 | 21751 | 4780 | 8256 | 219 |
+| fw-basic.fw | 33 | 28299 | 31145 | 23165 | 4818 | 8262 | 221 |
+| fw-three.fw | 42 | 28266 | 31694 | 24512 | 4836 | 8262 | 252 |
+| fw-crlf.fw | 36 | 27980 | 32436 | 24177 | 4826 | 8262 | 221 |
+| large.psv | 262148 | 33163 | 35243 | 35455 | 529027 | 942148 | 672182 |
+| large.fw | 262164 | 43414 | 37127 | 34933 | 529091 | 794698 | 527233 |
+
+`build us` is the best-of-N (min) of the retained repetitions.
+
+## Paired ratios VOLE/comparator (median + geometric mean, 95% CI by fixture)
+
+| metric | comparator | n | median | geomean | median 95% CI | geomean 95% CI | wins | ties | losses | ratio of sums |
+|---|---|---:|---:|---:|---|---|---:|---:|---:|---:|
+| build | sqlite | 7 | 0.909 | 0.939 | 0.863..0.971 | 0.883..1.017 | 3 | 3 | 1 | 0.948 |
+| build | conv | 7 | 1.157 | 1.140 | 1.034..1.243 | 1.050..1.222 | 0 | 2 | 5 | 1.135 |
+| storage | sqlite | 7 | 0.583 | 0.590 | 0.578..0.585 | 0.574..0.616 | 7 | 0 | 0 | 0.609 |
+| storage | conv | 7 | 21.801 | 8.652 | 1.004..21.837 | 3.234..21.821 | 1 | 1 | 5 | 0.901 |
+| cold | sqlite | 7 | 0.027 | 0.034 | 0.026..0.061 | 0.026..0.048 | 7 | 0 | 0 | 0.039 |
+| cold | conv | 7 | 0.028 | 0.036 | 0.028..0.066 | 0.028..0.051 | 7 | 0 | 0 | 0.041 |
+| warm | sqlite | 7 | 0.057 | 0.081 | 0.054..0.132 | 0.056..0.133 | 7 | 0 | 0 | 0.202 |
+| warm | conv | 7 | 0.737 | 0.555 | 0.386..0.762 | 0.364..0.756 | 7 | 0 | 0 | 0.299 |
+
+A ratio < 1 favours VOLE. The estimator is the **paired per-fixture ratio**, summarised by the median and geometric mean with a fixed-seed cluster bootstrap over fixtures; `ratio of sums` is reported separately and named as such. Each per-fixture lane cost is the **minimum over the retained repetitions** (best-of-N); storage is measured once after the last build. Every raw sample is kept in `raw/build.tsv`, `raw/storage.tsv`, `raw/cold.tsv`, `raw/warm.tsv`.
+
+## Per-lane totals (sum over fixtures; times in microseconds `us`)
+
+| lane | build us | storage B | cold us | warm us |
+|---|---:|---:|---:|---:|
+| vole | 217410 | 1082148 | 77886 | 9827 |
+| sqlite | 229438 | 1778144 | 2002772 | 48718 |
+| conv | 191624 | 1200535 | 1891034 | 32887 |
+
+## What each lane derives and what it declines
+
+| Q | VOLE | source-retaining baseline | conventional load |
+|---|---|---|---|
+| Q1 | a decoded cell's text | extracted cell text | host cell text |
+| Q2 | a cell's exact source span | no source span -> typed decline | no source span -> typed decline |
+| Q3 | a record's column count | extracted column count | host column count |
+| Q4 | the table's record count | extracted row count | host row count |
+| Q5 | a record descriptor (ordered cell texts) | extracted record | host record |
+| Q6 | `materialize --exact` (byte authority) | retained raw BLOB (byte authority) | no source bytes -> typed decline |
+| Q7 | `tabular-find` over cell text (with spans) | scan over extracted cells (no spans) | scan over host cells (no spans) |
+| Q8 | a cell's exact padded/raw bytes | re-decoded -> typed decline | host value -> typed decline |
+| Q9 | a record's exact content bytes | no source bytes -> typed decline | host value -> typed decline |
+| Q10 | the header row's cell names (ordered) | extracted header names | host header names |
+| Q11 | the recorded dialect (pipe vs fixedwidth) | stored dialect | dialect not recorded -> typed decline |
+| Q12 | the recovered column layout / per-cell quoting spelling | no layout/spelling -> typed decline | no layout/spelling -> typed decline |
+
+## Scope (honest)
+
+- **Self-authored deterministic corpus, NOT a real-world population.** The fixtures are generated by `tools/fixtures/make-tabular.py` (Python stdlib only). Every claim is scoped to these files.
+- **Only Q6 is a byte-authority claim.**
+- **The conventional load is deliberately the weaker comparator.** It drops spans, exact spelling, duplicate keys, and member/attribute order; a span-preserving loader could in principle match VOLE on those, and no claim is made against one.
+- **VOLE capability gaps are recorded, never papered over** — any question VOLE declines is shown as a `capability-gap`.
+- **Nothing here is run on the host**; every command ran in a pinned container.
+

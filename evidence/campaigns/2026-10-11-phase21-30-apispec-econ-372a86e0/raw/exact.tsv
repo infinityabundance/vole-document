@@ -1,0 +1,9 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+schema.json	true	true	true	true	true	4732	28841
+openapi.json	true	true	true	true	true	3357	28713
+swagger.json	true	true	true	true	true	3253	29142
+asyncapi.json	true	true	true	true	true	3472	29443
+large.json	true	true	true	true	true	4300	28500
+generic.json	true	-	true	true	true	3338	-
+prose.txt	true	-	true	true	true	3104	-
+shape.json	true	-	true	true	true	3404	-

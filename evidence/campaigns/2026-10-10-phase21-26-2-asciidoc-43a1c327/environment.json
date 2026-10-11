@@ -1,0 +1,18 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-26-2-asciidoc-43a1c327",
+  "phase": "21.26.2 — AsciiDoc (Asciidoctor) prose surface + exact closure + model",
+  "utc": "2026-10-11T01:45:19Z",
+  "git_commit": "43a1c3277a49367efb6314ef93137eb3e662b8ea",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-26-1-rst-43a1c327/ ?? evidence/campaigns/2026-10-10-phase21-26-2-asciidoc-43a1c327/ ?? evidence/campaigns/2026-10-11-phase21-8-1-markdown-43a1c327/ ?? src/adapter/asciidoc.rs ?? tests/asciidoc_adapter.rs ?? tools/phase21-26-2-asciidoc-court.sh ",
+  "arch": "x86_64",
+  "service": "dev",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "abed1a38b72925fcd9dddbde8e178420bd7b6fa9c2b64205ee6135b064f45381",
+  "profile": "debug",
+  "fixtures_tool": "POSIX shell + GNU /usr/bin/printf (no python3, no jq); generated in-court, never committed",
+  "env_affecting_semantics": {"LC_ALL": "C", "CARGO_PROFILE_DEV_DEBUG": "0"}
+}

@@ -1,0 +1,11 @@
+fixtures 8
+rst_fixtures 6
+control_fixtures 2
+exact_ok 8
+exact_fail 0
+surface_fail 0
+typed_declines_ok 6
+boundary_ok 2
+opaque_controls_ok 1
+usage_ok 1
+binary abed1a38b72925fcd9dddbde8e178420bd7b6fa9c2b64205ee6135b064f45381

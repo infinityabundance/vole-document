@@ -170,6 +170,10 @@ fn find(pattern: &str) -> Selector {
 const DOC: &[u8] =
     b"name,note,age\r\nalice,\"a,b\",30\r\nbob,\"x\ny\",25\r\n\"q\"\"q\",plain,7\r\n";
 
+// A pipe-separated (PSV) fixture with a quoted embedded pipe and a `""` escape: the
+// same adapter, a third recorded delimiter.
+const PSV: &[u8] = b"name|note|age\nalice|\"a|b\"|30\nbob|\"q\"\"q\"|25\n";
+
 fn parse_span(json: &str) -> (usize, usize) {
     let tag = "\"span\":[";
     let i = json.find(tag).unwrap() + tag.len();
@@ -232,6 +236,104 @@ fn detection_is_byte_based_and_conservative() {
         assert!(caps.native_selectors.contains(&n), "missing {n}");
     }
     assert!(caps.to_json().contains("\"format\":\"csv\""));
+}
+
+#[test]
+fn psv_is_detected_and_reports_the_pipe_dialect() {
+    // A pipe-delimited table is CSV under the pipe dialect (one parser, three
+    // delimiters), and the recorded dialect reports `pipe`.
+    assert_eq!(
+        detect_document_format(PSV, Limits::DEFAULT),
+        DocumentFormat::Csv
+    );
+    let mut fx = Fixture::new("psv", PSV);
+    let field = fx.report.field;
+    let meta = answer_json(&observe_ok(
+        &mut fx.store,
+        &field,
+        Selector::Metadata,
+        Representation::Metadata,
+    ));
+    assert!(meta.contains("\"delimiter\":\"pipe\""), "{meta}");
+    assert!(meta.contains("\"rows\":3"), "{meta}");
+    assert!(meta.contains("\"columns\":3"), "{meta}");
+
+    // Exact field bytes keep the embedded pipe; `""` is preserved in ExactBytes but
+    // unescaped in Text.
+    let bytes = answer_bytes(&observe_ok(
+        &mut fx.store,
+        &field,
+        cell("1:1"),
+        Representation::ExactBytes,
+    ));
+    assert_eq!(bytes, b"\"a|b\"");
+    let text = answer_text(&observe_ok(
+        &mut fx.store,
+        &field,
+        cell("1:1"),
+        Representation::Text,
+    ));
+    assert_eq!(text, "a|b");
+    let bytes = answer_bytes(&observe_ok(
+        &mut fx.store,
+        &field,
+        cell("2:1"),
+        Representation::ExactBytes,
+    ));
+    assert_eq!(bytes, b"\"q\"\"q\"");
+    let text = answer_text(&observe_ok(
+        &mut fx.store,
+        &field,
+        cell("2:1"),
+        Representation::Text,
+    ));
+    assert_eq!(text, "q\"q");
+
+    // The record's exact bytes exclude the terminator and keep the pipe delimiter.
+    let bytes = answer_bytes(&observe_ok(
+        &mut fx.store,
+        &field,
+        row(1),
+        Representation::ExactBytes,
+    ));
+    assert_eq!(bytes, b"alice|\"a|b\"|30");
+}
+
+#[test]
+fn psv_detection_never_steals_other_tables() {
+    // A comma table stays CSV.
+    assert_eq!(
+        detect_document_format(b"a,b\nc,d\n", Limits::DEFAULT),
+        DocumentFormat::Csv
+    );
+    // A tab table stays CSV.
+    assert_eq!(
+        detect_document_format(b"a\tb\nc\td\n", Limits::DEFAULT),
+        DocumentFormat::Csv
+    );
+    // A GFM/Markdown pipe table carries a delimiter row and must **not** be claimed
+    // by the pipe dialect; it falls through to Markdown (or Opaque without the
+    // markdown feature).
+    let md = b"| a | b |\n| --- | --- |\n| c | d |\n";
+    assert_ne!(
+        detect_document_format(md, Limits::DEFAULT),
+        DocumentFormat::Csv
+    );
+    #[cfg(feature = "markdown")]
+    assert_eq!(
+        detect_document_format(md, Limits::DEFAULT),
+        DocumentFormat::Markdown
+    );
+    #[cfg(not(feature = "markdown"))]
+    assert_eq!(
+        detect_document_format(md, Limits::DEFAULT),
+        DocumentFormat::Opaque
+    );
+    // A one-column blob (no consistent field count >= 2) is Opaque.
+    assert_eq!(
+        detect_document_format(b"only one\nstill one\n", Limits::DEFAULT),
+        DocumentFormat::Opaque
+    );
 }
 
 #[test]

@@ -1,0 +1,11 @@
+fixture	expect_fmt	fmt	expect_rc	rc	ok
+badc1.msgpack	opaque	opaque	6	6	true
+badmap.msgpack	opaque	opaque	6	6	true
+control.cbor	cbor	cbor	6	6	true
+fixarray3.bin	opaque	opaque	6	6	true
+fixmap2.bin	opaque	opaque	6	6	true
+prose.txt	opaque	opaque	6	6	true
+scalar.msgpack	opaque	opaque	6	6	true
+single.msgpack	opaque	opaque	6	6	true
+strict.json	json	json	6	6	true
+trailing.msgpack	opaque	opaque	6	6	true

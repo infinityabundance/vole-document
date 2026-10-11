@@ -1,6 +1,6 @@
-//! Bounded, representation-preserving CSV/TSV adapter (Phase 21.7.1).
+//! Bounded, representation-preserving CSV/TSV/PSV adapter (Phase 21.7.1, 21.25).
 //!
-//! CSV/TSV is the first **tabular** Wave-2 format. It is *not* an office package:
+//! CSV/TSV/PSV is the first **tabular** Wave-2 format. It is *not* an office package:
 //! there is no OPC/ZIP layer, no `mimetype`, and no relationship graph. The exact
 //! leaf is therefore the **whole source** (a `DocumentExact`, a RAW-like
 //! authority), and everything this module produces is a bounded, deterministic
@@ -12,8 +12,10 @@
 //! values. For every record and every field the parser records its exact **byte
 //! span** in the source, so it preserves, and can report:
 //!
-//! * the **dialect** (delimiter `,` or tab, quote `"`, line terminator CRLF/LF/CR,
-//!   an optional UTF-8 BOM) — never guessed silently, always reported;
+//! * the **dialect** (delimiter `,`, tab, or `|`, quote `"`, line terminator
+//!   CRLF/LF/CR, an optional UTF-8 BOM) — never guessed silently, always reported
+//!   (Phase 21.25 adds the pipe delimiter/PSV to this same dialect set; it is one
+//!   parser with three recorded delimiters, never a second parser);
 //! * the **original quoting** (`"a,b"` keeps its quote bytes; `""` escapes are not
 //!   collapsed away in `ExactBytes`);
 //! * **embedded delimiters, newlines, and quotes** inside quoted fields (a record
@@ -36,9 +38,12 @@
 //!
 //! CSV has **no magic bytes**, so detection is deliberately conservative: after
 //! the PDF/ZIP/JSON/YAML families have been declined, the source must parse under
-//! a specific delimiter (`,` or tab) as a table with a **consistent field count
-//! across a sampled majority of at least two records** and **at least two
-//! columns**, with the first record (the header) sharing that count. When in
+//! a specific delimiter (`,`, tab, or `|`) as a table with a **consistent field
+//! count across a sampled majority of at least two records** and **at least two
+//! columns**, with the first record (the header) sharing that count. The pipe
+//! delimiter is tried **last** (so CSV/TSV keep their formats) and is declined when
+//! the source carries a GFM/Markdown table **delimiter row**, so a Markdown pipe
+//! table is never stolen (it falls through to the Markdown detector). When in
 //! doubt the input stays
 //! [`Opaque`](crate::field::document_format::DocumentFormat::Opaque).
 
@@ -56,6 +61,8 @@ pub const MAX_MODEL_FIELDS: u64 = 1 << 24;
 pub const DELIM_COMMA: u8 = b',';
 /// Delimiter byte for a tab-separated file.
 pub const DELIM_TAB: u8 = b'\t';
+/// Delimiter byte for a pipe-separated file (PSV; Phase 21.25).
+pub const DELIM_PIPE: u8 = b'|';
 /// Terminator tag: `\n`.
 pub const TERM_LF: u8 = 0;
 /// Terminator tag: `\r\n`.
@@ -68,7 +75,7 @@ pub const QUOTE: u8 = b'"';
 /// The recorded dialect of a CSV/TSV source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Dialect {
-    /// The field delimiter (`DELIM_COMMA` or `DELIM_TAB`).
+    /// The field delimiter (`DELIM_COMMA`, `DELIM_TAB`, or `DELIM_PIPE`).
     pub delimiter: u8,
     /// The quote character (always `QUOTE`).
     pub quote: u8,
@@ -85,6 +92,7 @@ impl Dialect {
     pub const fn delimiter_name(&self) -> &'static str {
         match self.delimiter {
             DELIM_TAB => "tab",
+            DELIM_PIPE => "pipe",
             _ => "comma",
         }
     }
@@ -207,7 +215,7 @@ impl CsvModel {
             return Err(corrupt("unsupported model version"));
         }
         let delimiter = r.u8()?;
-        if delimiter != DELIM_COMMA && delimiter != DELIM_TAB {
+        if delimiter != DELIM_COMMA && delimiter != DELIM_TAB && delimiter != DELIM_PIPE {
             return Err(corrupt("unknown delimiter"));
         }
         let quote = r.u8()?;
@@ -351,14 +359,81 @@ pub fn sniff_dialect(source: &[u8], limits: Limits) -> Result<Dialect> {
     } else {
         0
     };
-    for delimiter in [DELIM_COMMA, DELIM_TAB] {
+    for delimiter in [DELIM_COMMA, DELIM_TAB, DELIM_PIPE] {
+        // A pipe-delimited table must never steal a GFM/Markdown table: a Markdown
+        // table always carries a **delimiter row** (a line of `-`/`:`/space/`|`),
+        // which a pipe-separated data table does not. Decline the pipe dialect when
+        // one is present, so the document falls through to the Markdown detector
+        // (or stays Opaque). Comma and tab are tried first, so CSV/TSV keep their
+        // formats.
+        if delimiter == DELIM_PIPE && has_markdown_delimiter_row(source) {
+            continue;
+        }
         if let Some(dialect) = try_dialect(source, delimiter, bom_len, limits) {
             return Ok(dialect);
         }
     }
     Err(corrupt(
-        "source is not a CSV table under a comma or tab delimiter",
+        "source is not a CSV table under a comma, tab, or pipe delimiter",
     ))
+}
+
+/// Whether `source` carries a GFM/Markdown table **delimiter row** — a
+/// whitespace-trimmed physical line whose bytes are all drawn from `-`, `:` and
+/// space/tab, containing at least one `-` **and** at least one `|`. Such a row only
+/// occurs in a Markdown table (it is the column-alignment row under the header), so
+/// the pipe-delimited (PSV) dialect declines when it sees one and lets the Markdown
+/// detector claim the document. This deliberately mirrors the Markdown adapter's own
+/// delimiter-row rule but is kept local so the CSV/PSV guard has **no** cross-feature
+/// dependency (it must hold even in a `csv`-only build).
+pub fn has_markdown_delimiter_row(source: &[u8]) -> bool {
+    let n = source.len();
+    let mut i = 0usize;
+    while i < n {
+        let start = i;
+        while i < n && source[i] != b'\n' && source[i] != b'\r' {
+            i += 1;
+        }
+        let line = &source[start..i];
+        if i < n {
+            if source[i] == b'\r' && source.get(i + 1) == Some(&b'\n') {
+                i += 2;
+            } else {
+                i += 1;
+            }
+        }
+        if is_markdown_delimiter_line(line) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Whether one physical line (terminator excluded) is a Markdown table delimiter row.
+fn is_markdown_delimiter_line(line: &[u8]) -> bool {
+    let mut s = 0usize;
+    let mut e = line.len();
+    while s < e && (line[s] == b' ' || line[s] == b'\t') {
+        s += 1;
+    }
+    while e > s && (line[e - 1] == b' ' || line[e - 1] == b'\t') {
+        e -= 1;
+    }
+    let row = &line[s..e];
+    if row.is_empty() {
+        return false;
+    }
+    let mut has_pipe = false;
+    let mut has_dash = false;
+    for &c in row {
+        match c {
+            b'|' => has_pipe = true,
+            b'-' => has_dash = true,
+            b':' | b' ' | b'\t' => {}
+            _ => return false,
+        }
+    }
+    has_pipe && has_dash
 }
 
 /// Try one delimiter: stream up to the detection sample cap and check that the
@@ -858,6 +933,16 @@ mod tests {
     fn detects_tables_and_rejects_plain_text() {
         assert!(detect(b"a,b\nc,d\n", Limits::DEFAULT));
         assert!(detect(b"a\tb\nc\td\n", Limits::DEFAULT));
+        // A pipe-delimited table is a table under the third (PSV) dialect.
+        assert!(detect(b"a|b\nc|d\n", Limits::DEFAULT));
+        // ...but a Markdown pipe table (which carries a delimiter row) is **not** a
+        // PSV table: it must fall through to the Markdown detector.
+        assert!(!detect(
+            b"| a | b |\n| --- | --- |\n| c | d |\n",
+            Limits::DEFAULT
+        ));
+        assert!(has_markdown_delimiter_row(b"| a | b |\n| --- | --- |\n"));
+        assert!(!has_markdown_delimiter_row(b"a|b\nc|d\n"));
         // A one-column blob is not a table (indistinguishable from text).
         assert!(!detect(b"hello\nworld\n", Limits::DEFAULT));
         // A single record is not enough; the heuristic needs >= 2 records.
@@ -880,6 +965,9 @@ mod tests {
         assert_eq!(d.bom_len, 0);
         let d = dialect(b"a\tb\nc\td\n");
         assert_eq!(d.delimiter_name(), "tab");
+        let d = dialect(b"a|b\nc|d\n");
+        assert_eq!(d.delimiter, DELIM_PIPE);
+        assert_eq!(d.delimiter_name(), "pipe");
         let d = dialect(b"\xEF\xBB\xBFa,b\nc,d\n");
         assert_eq!(d.bom_len, 3);
     }
@@ -927,6 +1015,25 @@ mod tests {
         assert_eq!(m.records[0].fields.len(), 3);
         assert_eq!(m.records[1].fields.len(), 2);
         assert_eq!(m.records[2].fields.len(), 3);
+    }
+
+    #[test]
+    fn psv_preserves_pipe_spans_and_quoting() {
+        // A pipe-delimited table with an embedded pipe (quoted), a `""` escape, and
+        // an embedded newline in a quoted field.
+        let src = br#"a|"b|c"|d
+1|"|x|y|"|2
+"#;
+        let m = parse(src, Limits::DEFAULT, true).unwrap();
+        assert_eq!(m.dialect.delimiter, DELIM_PIPE);
+        assert_eq!(m.records.len(), 2);
+        assert_eq!(m.records[0].fields.len(), 3);
+        let f = m.records[0].fields[1];
+        assert!(f.quoted);
+        assert_eq!(field_bytes(src, &f).unwrap(), b"\"b|c\"");
+        assert_eq!(decode_field(src, &f).unwrap(), "b|c");
+        // The recorded dialect survives an encode/decode round trip.
+        assert_eq!(CsvModel::decode(&m.encode()).unwrap(), m);
     }
 
     #[test]

@@ -1,0 +1,6 @@
+fixture	expect_fmt	fmt	expect_rc	rc	common_rc	own_rc	foreign_rc	ok
+cfbf_bad_dir_sector.cfb	opaque	opaque	6	6	6	6	6	true
+cfbf_badshift.cfb	opaque	opaque	6	6	6	6	6	true
+cfbf_badsig.cfb	opaque	opaque	6	6	6	6	6	true
+prose.txt	opaque	opaque	6	6	6	6	6	true
+sig_only.bin	opaque	opaque	6	6	6	6	6	true

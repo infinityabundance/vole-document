@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {}, "lane": "sqlite", "native": true, "q": "Q5", "value": {"compressed_size": 16, "kind": "file", "method": 0, "name": "hello.txt", "uncompressed_size": 16}}

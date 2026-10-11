@@ -192,6 +192,36 @@ fn ingest_pdf_stage_b(
         return ingest_json_stage_b(store, source, manifest, limits);
     }
 
+    // GeoJSON is the spatial Wave-2 format, also with no package layer: it is
+    // inverted by a dedicated (non-PDF) tail that adds the derived `GeojsonModel`
+    // node over the exact root (Phase 21.22). Detection is a semantic sub-test run
+    // before the generic JSON detector, so a GeoJSON source is never misrouted to
+    // the plain JSON tail.
+    #[cfg(feature = "geojson")]
+    if fmt == crate::field::document_format::DocumentFormat::Geojson {
+        return ingest_geojson_stage_b(store, source, manifest, limits);
+    }
+
+    // A Jupyter notebook is the document-shaped Wave-2 format, also with no package
+    // layer: it is inverted by a dedicated (non-PDF) tail that adds the derived
+    // `NotebookModel` node over the exact root (Phase 21.24). Detection is a semantic
+    // sub-test run before the generic JSON detector, so a notebook source is never
+    // misrouted to the plain JSON tail.
+    #[cfg(feature = "notebook")]
+    if fmt == crate::field::document_format::DocumentFormat::Notebook {
+        return ingest_notebook_stage_b(store, source, manifest, limits);
+    }
+
+    // JSON5/JSONC is the structured-extra Wave-2 format, also with no package layer:
+    // it is inverted by a dedicated (non-PDF) tail that adds the derived
+    // `Json5Model` node over the exact root (Phase 21.17.1). It is checked here —
+    // immediately after strict JSON — so a JSON5/JSONC source never reaches the
+    // line/stream or tabular tails.
+    #[cfg(feature = "json5")]
+    if fmt == crate::field::document_format::DocumentFormat::Json5 {
+        return ingest_json5_stage_b(store, source, manifest, limits);
+    }
+
     // JSONL/NDJSON is the line/event-stream Wave-2 format, also with no package
     // layer: it is inverted by a dedicated (non-PDF) tail that adds the derived
     // `JsonlModel` node over the exact root (Phase 21.12).
@@ -206,6 +236,58 @@ fn ingest_pdf_stage_b(
     #[cfg(feature = "eml")]
     if fmt == crate::field::document_format::DocumentFormat::Eml {
         return ingest_eml_stage_b(store, source, manifest, limits);
+    }
+
+    // CBOR is the binary structured-tree Wave-2 format, also with no package layer:
+    // it is inverted by a dedicated (non-PDF) tail that adds the derived `CborModel`
+    // node over the exact root (Phase 21.18). It is checked here — after the JSON
+    // family — so a CBOR source (whose detection requires a container/tag root) is
+    // never misrouted to the textual or analytical tails.
+    #[cfg(feature = "cbor")]
+    if fmt == crate::field::document_format::DocumentFormat::Cbor {
+        return ingest_cbor_stage_b(store, source, manifest, limits);
+    }
+
+    // MessagePack is the binary structured-tree Wave-2 sibling of CBOR, also with no
+    // package layer: it is inverted by a dedicated (non-PDF) tail that adds the
+    // derived `MsgpackModel` node over the exact root (Phase 21.19). It is checked
+    // here — immediately after CBOR — so a MessagePack source (whose detection
+    // requires a container root, and which is only reached when CBOR declines) is
+    // never misrouted to the textual or analytical tails.
+    #[cfg(feature = "msgpack")]
+    if fmt == crate::field::document_format::DocumentFormat::Msgpack {
+        return ingest_msgpack_stage_b(store, source, manifest, limits);
+    }
+
+    // The config family (INI / `.env` / Java `.properties`) is the key/value line
+    // Wave-2 format, also with no package layer: it is inverted by a dedicated
+    // (non-PDF) tail that adds the derived `ConfigModel` node over the exact root
+    // (Phase 21.20). It is checked here — after the JSON family, the binary
+    // structured-tree family, and TOML — so a config source (which detection admits
+    // only on a dialect-distinguishing signal) is never misrouted to the tabular or
+    // prose tails.
+    #[cfg(feature = "config")]
+    if fmt == crate::field::document_format::DocumentFormat::Config {
+        return ingest_config_stage_b(store, source, manifest, limits);
+    }
+
+    // RSS/Atom is the syndication Wave-2 format, also with no package layer: it is
+    // inverted by a dedicated (non-PDF) tail that adds the derived `FeedModel` node
+    // over the exact root (Phase 21.21). Detection is a semantic sub-test run before
+    // the generic XML detector, so a feed source is never misrouted to the XML tail.
+    #[cfg(feature = "feed")]
+    if fmt == crate::field::document_format::DocumentFormat::Feed {
+        return ingest_feed_stage_b(store, source, manifest, limits);
+    }
+
+    // KML/GPX is the geospatial Wave-2 format, also with no package layer: it is
+    // inverted by a dedicated (non-PDF) tail that adds the derived `GisModel` node
+    // over the exact root (Phase 21.23). Detection is a semantic sub-test run before
+    // the generic XML detector, so a KML/GPX source is never misrouted to the XML
+    // tail.
+    #[cfg(feature = "gis")]
+    if fmt == crate::field::document_format::DocumentFormat::Gis {
+        return ingest_gis_stage_b(store, source, manifest, limits);
     }
 
     // Parquet is the analytical Wave-2 format, also with no package layer: it is
@@ -240,12 +322,118 @@ fn ingest_pdf_stage_b(
         return ingest_csv_stage_b(store, source, manifest, limits);
     }
 
+    // Fixed-width (column-position) text is the second tabular Wave-2 format, also
+    // with no package layer: it is inverted by a dedicated (non-PDF) tail that adds the
+    // derived `FixedWidthModel` node over the exact root (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    if fmt == crate::field::document_format::DocumentFormat::FixedWidth {
+        return ingest_fixedwidth_stage_b(store, source, manifest, limits);
+    }
+
     // Markdown is the first prose Wave-2 format, also with no package layer: it is
     // inverted by a dedicated (non-PDF) tail that adds the derived `MarkdownModel`
     // node over the exact root (Phase 21.8.1).
     #[cfg(feature = "markdown")]
     if fmt == crate::field::document_format::DocumentFormat::Markdown {
         return ingest_markdown_stage_b(store, source, manifest, limits);
+    }
+
+    // reStructuredText is the next prose Wave-2 format, also with no package layer: it
+    // is inverted by a dedicated (non-PDF) tail that adds the derived `RstModel` node
+    // over the exact root (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    if fmt == crate::field::document_format::DocumentFormat::Rst {
+        return ingest_rst_stage_b(store, source, manifest, limits);
+    }
+
+    // AsciiDoc is the third prose Wave-2 format, also with no package layer: it is
+    // inverted by a dedicated (non-PDF) tail that adds the derived `AsciidocModel` node
+    // over the exact root (Phase 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    if fmt == crate::field::document_format::DocumentFormat::Asciidoc {
+        return ingest_asciidoc_stage_b(store, source, manifest, limits);
+    }
+
+    // MDX (Markdown + JSX/ESM) is the next prose Wave-2 format, also with no package
+    // layer: it is inverted by a dedicated (non-PDF) tail that adds the derived
+    // `MdxModel` node over the exact root (Phase 21.26.3).
+    #[cfg(feature = "mdx")]
+    if fmt == crate::field::document_format::DocumentFormat::Mdx {
+        return ingest_mdx_stage_b(store, source, manifest, limits);
+    }
+
+    // MHTML (MIME HTML) is the web-archive Wave-2 format, also with no package layer:
+    // it is inverted by a dedicated (non-PDF) tail that adds the derived `MhtmlModel`
+    // node over the exact root (Phase 21.27).
+    #[cfg(feature = "mhtml")]
+    if fmt == crate::field::document_format::DocumentFormat::Mhtml {
+        return ingest_mhtml_stage_b(store, source, manifest, limits);
+    }
+
+    // A syslog / log stream is the line/event-stream Wave-2 format, also with no
+    // package layer: it is inverted by a dedicated (non-PDF) tail that adds the
+    // derived `LogstreamModel` node over the exact root (Phase 21.28).
+    #[cfg(feature = "logstream")]
+    if fmt == crate::field::document_format::DocumentFormat::Logstream {
+        return ingest_logstream_stage_b(store, source, manifest, limits);
+    }
+
+    // A package-metadata manifest is the manifest Wave-2 format, also with no package
+    // layer: it is inverted by a dedicated (non-PDF) tail that adds the derived
+    // `PkgmetaModel` node over the exact root (Phase 21.29).
+    #[cfg(feature = "pkgmeta")]
+    if fmt == crate::field::document_format::DocumentFormat::Pkgmeta {
+        return ingest_pkgmeta_stage_b(store, source, manifest, limits);
+    }
+
+    // An API specification is the API/spec Wave-2 format, also with no package layer:
+    // it is inverted by a dedicated (non-PDF) tail that adds the derived
+    // `ApispecModel` node over the exact root (Phase 21.30).
+    #[cfg(feature = "apispec")]
+    if fmt == crate::field::document_format::DocumentFormat::Apispec {
+        return ingest_apispec_stage_b(store, source, manifest, limits);
+    }
+
+    // A bibliography (BibTeX / RIS / CSL-JSON) is the bibliography Wave-2 format, also
+    // with no package layer: it is inverted by a dedicated (non-PDF) tail that adds the
+    // derived `BibModel` node over the exact root (Phase 21.31).
+    #[cfg(feature = "bib")]
+    if fmt == crate::field::document_format::DocumentFormat::Bib {
+        return ingest_bib_stage_b(store, source, manifest, limits);
+    }
+
+    // RTF (Rich Text Format) is the word-processor markup Wave-2 format, also with no
+    // package layer: it is inverted by a dedicated (non-PDF) tail that adds the derived
+    // `RtfModel` node over the exact root (Phase 21.32).
+    #[cfg(feature = "rtf")]
+    if fmt == crate::field::document_format::DocumentFormat::Rtf {
+        return ingest_rtf_stage_b(store, source, manifest, limits);
+    }
+
+    // The generic archive container (ZIP/TAR) is the standalone-archive Wave-2
+    // format, also with no package layer at this tail: it is inverted by a dedicated
+    // (non-PDF) tail that adds the derived `ContainerModel` node over the exact root
+    // (Phase 21.33). It is checked **after** the office ZIP family (which detection
+    // admits first) so an office package is never misrouted here.
+    #[cfg(feature = "container")]
+    if fmt == crate::field::document_format::DocumentFormat::Container {
+        return ingest_container_stage_b(store, source, manifest, limits);
+    }
+
+    // The scientific container (NetCDF classic / HDF5-subset) is a standalone format
+    // with no package layer: it is inverted by a dedicated (non-PDF) tail that adds the
+    // derived `HdfModel` node over the exact root (Phase 21.34).
+    #[cfg(feature = "hdf")]
+    if fmt == crate::field::document_format::DocumentFormat::Hdf {
+        return ingest_hdf_stage_b(store, source, manifest, limits);
+    }
+
+    // A CFBF / OLE2 compound file is a standalone physical-layer container with no
+    // package layer: it is inverted by a dedicated (non-PDF) tail that adds the
+    // derived `CfbfModel` node over the exact root (Phase 21.35).
+    #[cfg(feature = "cfbf")]
+    if fmt == crate::field::document_format::DocumentFormat::Cfbf {
+        return ingest_cfbf_stage_b(store, source, manifest, limits);
     }
 
     // XML is the structured-tree Wave-2 format for a bare XML source, also with no
@@ -430,6 +618,701 @@ fn ingest_json_stage_b(
     })
 }
 
+/// The JSON5/JSONC (structured-extra Wave-2) ingest tail (Phase 21.17.1).
+///
+/// JSON5 has no package layer, so there is nothing to scan: the exact authority is
+/// the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::Json5Model`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads
+/// the source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path.
+#[cfg(feature = "json5")]
+fn ingest_json5_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_JSON5_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::Json5Model,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "json5:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_JSON5_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-json5;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Json5.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Json5,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The CBOR (binary structured-tree Wave-2) ingest tail (Phase 21.18).
+///
+/// CBOR has no package layer, so there is nothing to scan: the exact authority is
+/// the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::CborModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads
+/// the source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path.
+#[cfg(feature = "cbor")]
+fn ingest_cbor_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_CBOR_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::CborModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "cbor:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_CBOR_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-cbor;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Cbor.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Cbor,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The MessagePack (binary structured-tree Wave-2) ingest tail (Phase 21.19).
+///
+/// MessagePack has no package layer, so there is nothing to scan: the exact
+/// authority is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::MsgpackModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads
+/// the source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path.
+#[cfg(feature = "msgpack")]
+fn ingest_msgpack_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_MSGPACK_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::MsgpackModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "msgpack:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_MSGPACK_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-msgpack;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Msgpack.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Msgpack,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The config-family (INI / `.env` / Java `.properties`) ingest tail (Phase 21.20).
+///
+/// The config family has no package layer, so there is nothing to scan: the exact
+/// authority is the whole source (`DocumentExact`) and the only derived node is
+/// the representation-preserving [`NodeKind::ConfigModel`], whose single dependency
+/// is that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node
+/// reads the source bytes, so it must carry a source-identity input and can never
+/// alias another field's source. The model is never on the exactness path. The
+/// recorded dialect is echoed into the provenance token (as CSV records its
+/// dialect), so a common observation can report it without re-reading the source.
+#[cfg(feature = "config")]
+fn ingest_config_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_CONFIG_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    // A bounded dialect sniff so the provenance token is informative without
+    // parsing the whole document. Detection already admitted the source, so a
+    // failure here is only possible under a tighter cap; it degrades gracefully.
+    let dialect = crate::adapter::config::classify(source, limits).ok();
+    let mut model = SeedNode::new(
+        NodeKind::ConfigModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "config:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_CONFIG_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let dialect_token = match dialect {
+        Some(d) => format!("dialect={}", crate::adapter::config::dialect_name(d)),
+        None => "dialect=none".to_string(),
+    };
+    let provenance = format!(
+        "{}field:ingest-config;model=1;{};nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Config.provenance_prefix(),
+        dialect_token,
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Config,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The RSS/Atom feed ingest tail (Phase 21.21).
+///
+/// A feed has no package layer, so there is nothing to scan: the exact authority is
+/// the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::FeedModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads
+/// the source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path. The recorded
+/// dialect is echoed into the provenance token (as CSV/config record their
+/// dialects), so a common observation can report it without re-reading the source.
+#[cfg(feature = "feed")]
+fn ingest_feed_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_FEED_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    // A bounded dialect sniff so the provenance token is informative without
+    // parsing the whole document. Detection already admitted the source, so a
+    // failure here is only possible under a tighter cap; it degrades gracefully.
+    let dialect = crate::adapter::feed::classify(source, limits).ok();
+    let mut model = SeedNode::new(
+        NodeKind::FeedModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "feed:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_FEED_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let dialect_token = match dialect {
+        Some(d) => format!("dialect={}", crate::adapter::feed::dialect_name(d)),
+        None => "dialect=none".to_string(),
+    };
+    let provenance = format!(
+        "{}field:ingest-feed;model=1;{};nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Feed.provenance_prefix(),
+        dialect_token,
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Feed,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The GeoJSON ingest tail (Phase 21.22).
+///
+/// GeoJSON has no package layer, so there is nothing to scan: the exact authority is
+/// the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::GeojsonModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads
+/// the source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path. The recorded
+/// root class is echoed into the provenance token (as a feed records its dialect), so
+/// a common observation can report it without re-reading the source.
+#[cfg(feature = "geojson")]
+fn ingest_geojson_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_GEOJSON_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    // A bounded class sniff so the provenance token is informative without parsing
+    // the whole document twice. Detection already admitted the source, so a failure
+    // here is only possible under a tighter cap; it degrades gracefully.
+    let class = crate::adapter::geojson::classify(source, limits).ok();
+    let mut model = SeedNode::new(
+        NodeKind::GeojsonModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "geojson:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_GEOJSON_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let class_token = match class {
+        Some(c) => format!("geojson-type={}", crate::adapter::geojson::class_name(c)),
+        None => "geojson-type=none".to_string(),
+    };
+    let provenance = format!(
+        "{}field:ingest-geojson;model=1;{};nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Geojson.provenance_prefix(),
+        class_token,
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Geojson,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The KML/GPX geospatial ingest tail (Phase 21.23).
+///
+/// A GIS document has no package layer, so there is nothing to scan: the exact
+/// authority is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::GisModel`], whose single dependency is that
+/// exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path. The recorded
+/// dialect is echoed into the provenance token (as CSV/config/feed record their
+/// dialects), so a common observation can report it without re-reading the source.
+#[cfg(feature = "gis")]
+fn ingest_gis_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_GIS_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    // A bounded dialect sniff so the provenance token is informative without parsing
+    // the whole document. Detection already admitted the source, so a failure here is
+    // only possible under a tighter cap; it degrades gracefully.
+    let dialect = crate::adapter::gis::classify(source, limits).ok();
+    let mut model = SeedNode::new(
+        NodeKind::GisModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "gis:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_GIS_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let dialect_token = match dialect {
+        Some(d) => format!("dialect={}", crate::adapter::gis::dialect_name(d)),
+        None => "dialect=none".to_string(),
+    };
+    let provenance = format!(
+        "{}field:ingest-gis;model=1;{};nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Gis.provenance_prefix(),
+        dialect_token,
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Gis,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The Jupyter notebook ingest tail (Phase 21.24).
+///
+/// A notebook has no package layer, so there is nothing to scan: the exact authority
+/// is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::NotebookModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads
+/// the source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path. The recorded
+/// `nbformat` is echoed into the provenance token (as a feed records its dialect), so
+/// a common observation can report it without re-reading the source.
+#[cfg(feature = "notebook")]
+fn ingest_notebook_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_NOTEBOOK_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    // A bounded parse so the provenance token is informative without parsing the whole
+    // document twice. Detection already admitted the source, so a failure here is only
+    // possible under a tighter cap; it degrades gracefully.
+    let nbformat = crate::adapter::notebook::classify(source, limits).ok();
+    let mut model = SeedNode::new(
+        NodeKind::NotebookModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "notebook:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_NOTEBOOK_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let nbformat_token = match nbformat {
+        Some(n) => format!("notebook-nbformat={n}"),
+        None => "notebook-nbformat=none".to_string(),
+    };
+    let provenance = format!(
+        "{}field:ingest-notebook;model=1;{};nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Notebook.provenance_prefix(),
+        nbformat_token,
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Notebook,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
 /// The JSONL/NDJSON (line/event-stream Wave-2) ingest tail (Phase 21.12).
 ///
 /// JSONL has no package layer, so there is nothing to scan: the exact authority is
@@ -510,7 +1393,669 @@ fn ingest_jsonl_stage_b(
     })
 }
 
-/// The EML/MIME (messaging Wave-2) ingest tail (Phase 21.13).
+/// The syslog / log-stream (line/event-stream Wave-2) ingest tail (Phase 21.28).
+///
+/// A log stream has no package layer, so there is nothing to scan: the exact
+/// authority is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::LogstreamModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads
+/// the source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model is never on the exactness path.
+#[cfg(feature = "logstream")]
+fn ingest_logstream_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_LOGSTREAM_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::LogstreamModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "logstream:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_LOGSTREAM_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-logstream;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Logstream.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Logstream,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The package-metadata (manifest Wave-2) ingest tail (Phase 21.29).
+///
+/// A manifest has no package layer, so there is nothing to scan: the exact authority
+/// is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::PkgmetaModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias another
+/// field's source. The model is never on the exactness path.
+#[cfg(feature = "pkgmeta")]
+fn ingest_pkgmeta_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_PKGMETA_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::PkgmetaModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "pkgmeta:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_PKGMETA_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-pkgmeta;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Pkgmeta.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Pkgmeta,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The API/specification (API/spec Wave-2) ingest tail (Phase 21.30).
+///
+/// An API spec has no package layer, so there is nothing to scan: the exact authority
+/// is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::ApispecModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias another
+/// field's source. The model is never on the exactness path. The recorded dialect is
+/// echoed into the provenance token (as a feed/pkgmeta records its dialect), so a
+/// common observation can report it without re-reading the source.
+#[cfg(feature = "apispec")]
+fn ingest_apispec_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_APISPEC_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    // A bounded dialect sniff so the provenance token is informative without parsing
+    // the whole document twice. Detection already admitted the source, so a failure
+    // here is only possible under a tighter cap; it degrades gracefully.
+    let dialect = crate::adapter::apispec::classify(source, limits).ok();
+    let mut model = SeedNode::new(
+        NodeKind::ApispecModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "apispec:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_APISPEC_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let dialect_token = match dialect {
+        Some(d) => format!("dialect={}", crate::adapter::apispec::dialect_name(d)),
+        None => "dialect=none".to_string(),
+    };
+    let provenance = format!(
+        "{}field:ingest-apispec;model=1;{};nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Apispec.provenance_prefix(),
+        dialect_token,
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Apispec,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The bibliography (BibTeX / RIS / CSL-JSON Wave-2) ingest tail (Phase 21.31).
+///
+/// A bibliography has no package layer, so there is nothing to scan: the exact
+/// authority is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::BibModel`], whose single dependency is that
+/// exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias another
+/// field's source. The model is never on the exactness path. The recorded dialect is
+/// echoed into the provenance token (as a feed/pkgmeta/apispec records its dialect), so
+/// a common observation can report it without re-reading the source.
+#[cfg(feature = "bib")]
+fn ingest_bib_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_BIB_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    // A bounded dialect sniff so the provenance token is informative without parsing
+    // the whole document twice. Detection already admitted the source, so a failure
+    // here is only possible under a tighter cap; it degrades gracefully.
+    let dialect = crate::adapter::bib::classify(source, limits).ok();
+    let mut model = SeedNode::new(
+        NodeKind::BibModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "bib:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_BIB_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let dialect_token = match dialect {
+        Some(d) => format!("dialect={}", crate::adapter::bib::dialect_name(d)),
+        None => "dialect=none".to_string(),
+    };
+    let provenance = format!(
+        "{}field:ingest-bib;model=1;{};nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Bib.provenance_prefix(),
+        dialect_token,
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Bib,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The RTF (Rich Text Format Wave-2) ingest tail (Phase 21.32).
+///
+/// RTF has no package layer, so there is nothing to scan: the exact authority is the
+/// whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::RtfModel`], whose single dependency is that
+/// exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias another
+/// field's source. The model is never on the exactness path.
+#[cfg(feature = "rtf")]
+fn ingest_rtf_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_RTF_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::RtfModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "rtf:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_RTF_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-rtf;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Rtf.provenance_prefix(),
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Rtf,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The generic archive-container (ZIP/TAR Wave-2) ingest tail (Phase 21.33).
+///
+/// A container has no separate package layer at this tail, so there is nothing to
+/// scan here: the exact authority is the whole source (`DocumentExact`) and the only
+/// derived node is the representation-preserving [`NodeKind::ContainerModel`], whose
+/// single dependency is that exact root (keyed by `sha256(source)`), satisfying
+/// ADR-0060: the node reads the source bytes, so it must carry a source-identity
+/// input and can never alias another field's source. The model is never on the
+/// exactness path.
+#[cfg(feature = "container")]
+fn ingest_container_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_CONTAINER_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::ContainerModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "container:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_CONTAINER_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-container;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Container.provenance_prefix(),
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Container,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The scientific-container (NetCDF classic / HDF5-subset Wave-2) ingest tail (Phase
+/// 21.34).
+///
+/// A scientific container has no package layer at this tail, so there is nothing to
+/// scan here: the exact authority is the whole source (`DocumentExact`) and the only
+/// derived node is the representation-preserving [`NodeKind::HdfModel`], whose single
+/// dependency is that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the
+/// node reads the source bytes, so it must carry a source-identity input and can never
+/// alias another field's source. The model is never on the exactness path.
+#[cfg(feature = "hdf")]
+fn ingest_hdf_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_HDF_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::HdfModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "hdf:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_HDF_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-hdf;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Hdf.provenance_prefix(),
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Hdf,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The CFBF / OLE2 compound-file (Wave-2) ingest tail (Phase 21.35).
+///
+/// A compound file has no package layer at this tail, so there is nothing to scan
+/// here: the exact authority is the whole source (`DocumentExact`) and the only
+/// derived node is the representation-preserving [`NodeKind::CfbfModel`], whose single
+/// dependency is that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the
+/// node reads the source bytes, so it must carry a source-identity input and can never
+/// alias another field's source. The model is never on the exactness path.
+#[cfg(feature = "cfbf")]
+fn ingest_cfbf_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_CFBF_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::CfbfModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "cfbf:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_CFBF_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-cfbf;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Cfbf.provenance_prefix(),
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Cfbf,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
 ///
 /// EML has no package layer, so there is nothing to scan: the exact authority is the
 /// whole source (`DocumentExact`) and the only derived node is the
@@ -926,6 +2471,103 @@ fn ingest_csv_stage_b(
     })
 }
 
+/// The fixed-width (column-position tabular Wave-2) ingest tail (Phase 21.25).
+///
+/// Fixed-width has no package layer, so there is nothing to scan: the exact authority
+/// is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::FixedWidthModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias another
+/// field's source. The inferred layout is sniffed with a bounded sample for the
+/// provenance token; the model itself is never built at ingest (so a very large file
+/// ingests in bounded memory) and is never on the exactness path.
+#[cfg(feature = "fixedwidth")]
+fn ingest_fixedwidth_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_FIXEDWIDTH_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    // A bounded layout sniff (sampled) so the provenance token is informative without
+    // parsing the whole table. Detection already admitted the source, so a failure here
+    // is only possible under a tighter cap; it degrades gracefully.
+    let layout = crate::adapter::fixedwidth::infer_layout(source, limits).ok();
+    let mut model = SeedNode::new(
+        NodeKind::FixedWidthModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "fixedwidth:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_FIXEDWIDTH_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let layout_token = match layout {
+        Some(l) => format!(
+            "columns={};width={};terminator={};bom={}",
+            l.column_count(),
+            l.width,
+            l.terminator_name(),
+            l.bom_len
+        ),
+        None => "columns=none".to_string(),
+    };
+    let provenance = format!(
+        "{}field:ingest-fixedwidth;model=1;{};nodes={node_count}",
+        crate::field::document_format::DocumentFormat::FixedWidth.provenance_prefix(),
+        layout_token,
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::FixedWidth,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
 /// The Markdown (prose Wave-2) ingest tail (Phase 21.8.1).
 ///
 /// Markdown has no package layer, so there is nothing to scan: the exact authority
@@ -1007,7 +2649,330 @@ fn ingest_markdown_stage_b(
     })
 }
 
-/// The TOML (structured-tree Wave-2) ingest tail (Phase 21.11).
+/// The reStructuredText (prose Wave-2) ingest tail (Phase 21.26.1).
+///
+/// reStructuredText has no package layer, so there is nothing to scan: the exact
+/// authority is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::RstModel`], whose single dependency is that
+/// exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias another
+/// field's source. The model itself is never built at ingest (so a large file ingests
+/// in bounded memory) and is never on the exactness path.
+#[cfg(feature = "rst")]
+fn ingest_rst_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_RST_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::RstModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "rst:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_RST_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-rst;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Rst.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Rst,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The AsciiDoc (prose Wave-2) ingest tail (Phase 21.26.2).
+///
+/// AsciiDoc has no package layer, so there is nothing to scan: the exact authority is
+/// the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::AsciidocModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias another
+/// field's source. The model itself is never built at ingest (so a large file ingests
+/// in bounded memory) and is never on the exactness path.
+#[cfg(feature = "asciidoc")]
+fn ingest_asciidoc_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_ASCIIDOC_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::AsciidocModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "asciidoc:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_ASCIIDOC_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-asciidoc;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Asciidoc.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Asciidoc,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The MDX (prose Wave-2) ingest tail (Phase 21.26.3).
+///
+/// MDX has no package layer, so there is nothing to scan: the exact authority is the
+/// whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::MdxModel`], whose single dependency is that
+/// exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias another
+/// field's source. The model itself is never built at ingest (so a large file ingests
+/// in bounded memory) and is never on the exactness path.
+#[cfg(feature = "mdx")]
+fn ingest_mdx_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_MDX_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::MdxModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "mdx:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_MDX_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-mdx;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Mdx.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Mdx,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
+/// The MHTML (MIME HTML) ingest tail (Phase 21.27).
+///
+/// MHTML has no package layer, so there is nothing to scan: the exact authority is
+/// the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::MhtmlModel`], whose single dependency is
+/// that exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads
+/// the source bytes, so it must carry a source-identity input and can never alias
+/// another field's source. The model itself is never built at ingest (so a large file
+/// ingests in bounded memory) and is never on the exactness path.
+#[cfg(feature = "mhtml")]
+fn ingest_mhtml_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_MHTML_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::MhtmlModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "mhtml:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_MHTML_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-mhtml;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Mhtml.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Mhtml,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
+
 ///
 /// TOML has no package layer, so there is nothing to scan: the exact authority is
 /// the whole source (`DocumentExact`) and the only derived node is the

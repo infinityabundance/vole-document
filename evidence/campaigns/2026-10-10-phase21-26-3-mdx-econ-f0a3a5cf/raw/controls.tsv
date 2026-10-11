@@ -1,0 +1,7 @@
+fixture	expect_fmt	fmt	expect_rc	rc	common_rc	own_rc	foreign_rc	ok
+braces.txt	opaque	opaque	6	6	6	6	6	true
+html.html	html	html	6	6	0	6	6	true
+inline_expr.md	markdown	markdown	6	6	0	6	6	true
+markdown.md	markdown	markdown	6	6	0	6	6	true
+markdown_code.md	markdown	markdown	6	6	0	6	6	true
+prose.txt	opaque	opaque	6	6	6	6	6	true

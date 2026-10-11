@@ -1,0 +1,6 @@
+fixtures 12
+exact_ok 12
+exact_fail 0
+typed_declines_ok 10
+opaque_controls_ok 2
+binary 23d14d0a784bb9c944d15817670d77d65c6789150d3e8b7bef622f6171086921

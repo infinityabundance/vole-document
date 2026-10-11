@@ -1,0 +1,20 @@
+{
+  "campaign": "evidence/campaigns/2026-10-11-phase21-13-1-eml-eccb438c",
+  "phase": "21.13.1 — EML/MIME message surface + exact closure",
+  "utc": "2026-10-11T03:41:03Z",
+  "git_commit": "eccb438c53dfb8a01aa6bda305474fde3eb20d8e",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/html_adapter.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-27-1-mhtml-eccb438c/ ?? evidence/campaigns/2026-10-11-phase21-10-1-html-eccb438c/ ?? evidence/campaigns/2026-10-11-phase21-13-1-eml-eccb438c/ ?? src/adapter/mhtml.rs ?? tests/mhtml_adapter.rs ?? tools/phase21-27-1-mhtml-court.sh ",
+  "arch": "x86_64",
+  "service": "doc-baseline",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python3": "Python 3.11.2",
+  "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+  "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "9755cf41cf6326f05325720e2dee20349f73e35395ad0ca2ddf889a5557ac204",
+  "profile": "debug",
+  "fixtures_tool": "tools/fixtures/make-eml.py",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

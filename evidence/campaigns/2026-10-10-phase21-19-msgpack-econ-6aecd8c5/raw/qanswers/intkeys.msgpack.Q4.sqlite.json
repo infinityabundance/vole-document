@@ -1,0 +1,1 @@
+{"decline": {"code": "no-strict-json-representation", "detail": "the source cannot be normalized to strict JSON: map key 1 has no strict-JSON representation"}, "declined": true, "detail": {}, "lane": "sqlite", "native": true, "q": "Q4", "value": null}

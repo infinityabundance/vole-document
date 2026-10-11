@@ -1,0 +1,324 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-22-geojson-econ-735d9b69",
+  "comparators": [
+    "sqlite",
+    "conv"
+  ],
+  "declines": "an out-of-range feature/geometry and an unknown property decline typed (rc 6); a plain JSON control (including a wrong type) stays Json and a native GeoJSON selector declines typed; malformed JSON and prose stay Opaque and a common observation declines typed (rc 6), never a panic",
+  "detection_boundary": "GeoJSON requires a JSON object with a recognized type (Feature/FeatureCollection/a geometry class) and GeoJSON structure; a plain JSON document stays Json and is never stolen",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "03a6358b2ffaa328fd6d08fae6db762c4b7adaab173cc5626ccefb594210771d",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-10-phase21-22-geojson-econ-735d9b69",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+    "controls": "malformed.geojson notgeojson.json prose.txt wrongtype.json",
+    "econ_module_sha256": "73119c91de194e0f6cf9ecb89830a71f0d8678db1d07c9a31b93e20024f776cf",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "coords.geojson": {
+        "len": 124,
+        "sha256": "bc8cf2d863c7e1c36db7734595d02b25d0ff8c2aec09a09c13f9e562987528c3"
+      },
+      "dupkeys.geojson": {
+        "len": 127,
+        "sha256": "5b1cf88149fa33817b5b39e3f616649a5a6823c2c29941dd468a89e15bd94e94"
+      },
+      "feature.geojson": {
+        "len": 118,
+        "sha256": "5615b67d05f2ef44c7556c3d2fa8928a5a538776be21c89d792556b4307ecbfb"
+      },
+      "foreign.geojson": {
+        "len": 164,
+        "sha256": "904b16779717e56ac2978cc0eaa7b3ee46ce13e469ff6d258e79a09d1c4990d7"
+      },
+      "geomcoll.geojson": {
+        "len": 220,
+        "sha256": "fd76e7dbfdb758491212debb4963f5490f5510c5b3f73a6f8db183c135b1a54d"
+      },
+      "large.geojson": {
+        "len": 264262,
+        "sha256": "bde7ab51cc811e56c806dbbaf2ee362ef814afb142167e3d3e2ce8ee8b2912c6"
+      },
+      "points.geojson": {
+        "len": 383,
+        "sha256": "82e078839aa70cd2044b6a1f938f8214341ea0ab6e10cd102d81ff8ac48d70bd"
+      }
+    },
+    "foreign_selector": "--gis-root --kind structure",
+    "format": "geojson",
+    "generator_sha256": "11124b037894d1b99d5059ab40078df99e64f0bff3b30caa436940af207a54e6",
+    "lane_fixtures": "points.geojson feature.geojson coords.geojson foreign.geojson geomcoll.geojson dupkeys.geojson large.geojson",
+    "measured_commit": "735d9b69178e3e67cf65deea95c4ebf74c1aae8c",
+    "own_selector": "--geojson-type --kind metadata",
+    "phase": "21.22 \u2014 GeoJSON economic court",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 6148,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M src/field/observe.rs ?? evidence/campaigns/2026-10-10-phase21-20-config-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-21-feed-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-22-geojson-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-23-gis-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-24-notebook-econ-735d9b69/ ?? tools/fixtures/make-config.py ?? tools/fixtures/make-feed.py ?? tools/fixtures/make-geojson.py ?? tools/fixtures/make-gis.py ?? tools/fixtures/make-notebook.py ?? tools/fixtures/textfmt-court.sh ?? tools/fixtures/textfmt-vole.py ?? tools/fixtures/textfmt_econ.py ?? tools/phase21-20-config-court.sh ?? tools/phase21-21-feed-court.sh ?? tools/phase21-22-geojson-court.sh ?? tools/phase21-23-gis-court.sh ?? tools/phase21-24-notebook-court.sh ",
+    "utc": "2026-10-10T22:55:15Z",
+    "vole_probe_sha256": "cadbadd8a5143c4a956091ae2a5edf1f8a50530318871caaab9448c9eddda3ca",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q10": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q11": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q12": {
+      "conv": {
+        "both-decline": 1,
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "both-decline": 1,
+        "capability-gap": 6
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    },
+    "Q3": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q4": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q5": {
+      "conv": {
+        "equal": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q7": {
+      "conv": {
+        "equal": 6,
+        "mismatch": 1
+      },
+      "sqlite": {
+        "equal": 7
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 7
+      },
+      "sqlite": {
+        "capability-gap": 7
+      }
+    },
+    "Q9": {
+      "conv": {
+        "both-decline": 1,
+        "capability-gap": 6
+      },
+      "sqlite": {
+        "both-decline": 1,
+        "capability-gap": 6
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 2122); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 11,
+  "exact_ok": 11,
+  "fixtures": [
+    "points.geojson",
+    "feature.geojson",
+    "coords.geojson",
+    "foreign.geojson",
+    "geomcoll.geojson",
+    "dupkeys.geojson",
+    "large.geojson"
+  ],
+  "format": "geojson",
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "measured_commit": "735d9b69178e3e67cf65deea95c4ebf74c1aae8c",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native selectors (exact + structure)"
+  ],
+  "phase": "21.22 \u2014 GeoJSON economic court",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 0.9598184699818271,
+        "geomean_hi": 1.0087462846166975,
+        "geomean_lo": 0.9029569311019466,
+        "losses": 0,
+        "median": 0.942524129178773,
+        "median_hi": 1.0327153762268266,
+        "median_lo": 0.9399461518255845,
+        "n": 7,
+        "ratio_of_sums": 0.9500789918864381,
+        "ties": 6,
+        "wins": 1
+      },
+      "sqlite": {
+        "geomean": 0.9913935182968449,
+        "geomean_hi": 1.0296274710678932,
+        "geomean_lo": 0.9597411210584321,
+        "losses": 0,
+        "median": 1.0132078952222836,
+        "median_hi": 1.014236174484395,
+        "median_lo": 0.9391753259646568,
+        "n": 7,
+        "ratio_of_sums": 0.9929038982291403,
+        "ties": 7,
+        "wins": 0
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.03665966806051131,
+        "geomean_hi": 0.05151611194074683,
+        "geomean_lo": 0.030322674939902147,
+        "losses": 0,
+        "median": 0.030817130755473515,
+        "median_hi": 0.03417725269748009,
+        "median_lo": 0.03024579986418121,
+        "n": 7,
+        "ratio_of_sums": 0.041223733038047335,
+        "ties": 0,
+        "wins": 7
+      },
+      "sqlite": {
+        "geomean": 0.034459554460295125,
+        "geomean_hi": 0.046555091097862475,
+        "geomean_lo": 0.029113120560616147,
+        "losses": 0,
+        "median": 0.029853646928171974,
+        "median_hi": 0.031293564656336446,
+        "median_lo": 0.0292127407773123,
+        "n": 7,
+        "ratio_of_sums": 0.038727942934274825,
+        "ties": 0,
+        "wins": 7
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 0.6097030818633914,
+        "geomean_hi": 0.624187933153826,
+        "geomean_lo": 0.5973654895278419,
+        "losses": 0,
+        "median": 0.6007848733499822,
+        "median_hi": 0.6334428137862221,
+        "median_lo": 0.594168260038241,
+        "n": 7,
+        "ratio_of_sums": 0.6319013867488443,
+        "ties": 0,
+        "wins": 7
+      },
+      "sqlite": {
+        "geomean": 0.6554896752311955,
+        "geomean_hi": 0.7387350846420295,
+        "geomean_lo": 0.6076069434986042,
+        "losses": 0,
+        "median": 0.6131812113120524,
+        "median_hi": 0.6675567423230975,
+        "median_lo": 0.6034712950600801,
+        "n": 7,
+        "ratio_of_sums": 0.8993221906797232,
+        "ties": 1,
+        "wins": 6
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 1.012257458180885,
+        "geomean_hi": 1.1379564477483461,
+        "geomean_lo": 0.8470843175485206,
+        "losses": 3,
+        "median": 1.096774193548387,
+        "median_hi": 1.1487603305785123,
+        "median_lo": 0.9682539682539683,
+        "n": 7,
+        "ratio_of_sums": 0.6397860962566845,
+        "ties": 3,
+        "wins": 1
+      },
+      "sqlite": {
+        "geomean": 0.1000947060662371,
+        "geomean_hi": 0.1424855641018387,
+        "geomean_lo": 0.07993588862714589,
+        "losses": 0,
+        "median": 0.08982826948480846,
+        "median_hi": 0.09572072072072071,
+        "median_lo": 0.07908611599297012,
+        "n": 7,
+        "ratio_of_sums": 0.22708407146834034,
+        "ties": 0,
+        "wins": 7
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit",
+  "service": "doc-baseline",
+  "surface": "a FeatureCollection and a bare Feature; Point/LineString/Polygon/GeometryCollection; exact numeric coordinate spelling; properties member order and duplicate keys; foreign (non-core) members preserved; id/bbox; the root type",
+  "tree_state": "M src/field/observe.rs ?? evidence/campaigns/2026-10-10-phase21-20-config-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-21-feed-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-22-geojson-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-23-gis-econ-735d9b69/ ?? evidence/campaigns/2026-10-10-phase21-24-notebook-econ-735d9b69/ ?? tools/fixtures/make-config.py ?? tools/fixtures/make-feed.py ?? tools/fixtures/make-geojson.py ?? tools/fixtures/make-gis.py ?? tools/fixtures/make-notebook.py ?? tools/fixtures/textfmt-court.sh ?? tools/fixtures/textfmt-vole.py ?? tools/fixtures/textfmt_econ.py ?? tools/phase21-20-config-court.sh ?? tools/phase21-21-feed-court.sh ?? tools/phase21-22-geojson-court.sh ?? tools/phase21-23-gis-court.sh ?? tools/phase21-24-notebook-court.sh",
+  "utc": "2026-10-10T22:55:16Z",
+  "verdict": "PASS"
+}

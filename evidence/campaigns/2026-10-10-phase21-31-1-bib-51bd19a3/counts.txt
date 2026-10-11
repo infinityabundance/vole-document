@@ -1,0 +1,11 @@
+fixtures 5
+bib_fixtures 3
+control_fixtures 2
+exact_ok 5
+exact_fail 0
+surface_fail 0
+boundary_ok 2
+opaque_control_ok 1
+json_control_ok 1
+typed_declines_ok 1
+binary bae2ee1cb3c56b663918ddae8fd97a0eb2fa0c78c29944b63d3f877438f3dae4

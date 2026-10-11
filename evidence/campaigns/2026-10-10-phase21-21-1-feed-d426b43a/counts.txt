@@ -1,0 +1,12 @@
+fixtures 7
+feed_fixtures 2
+exact_ok 7
+exact_fail 0
+surface_fail 0
+typed_decline_records_ok 2
+typed_decline_fields_ok 2
+cross_format_controls_ok 4
+usage_ok 1
+opaque_controls_ok 1
+opaque_controls 1
+binary dab94091ba30a4f0b6f4e2cfc793f64cd54a9f0266ba5ab44d27911ea959c3d1

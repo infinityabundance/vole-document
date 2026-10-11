@@ -96,6 +96,134 @@ pub enum ErrorClass {
     /// `ARROW1` magic, a truncated or out-of-bounds Flatbuffers metadata table, an
     /// invalid message framing, or a buffer span outside the message body.
     InvalidArrowStructure,
+    /// A JSON5/JSONC structure error (Phase 21.17.1+): a malformed token, an
+    /// unterminated string/comment/container, a bad escape or identifier, or a
+    /// trailing byte after the single top-level value.
+    InvalidJson5Structure,
+    /// A CBOR structure error (Phase 21.18+): a malformed head (reserved additional
+    /// information, a non-minimal simple value), a truncated item, trailing bytes
+    /// after the single top-level item, an unterminated indefinite-length item, a
+    /// map key with no value, or a text string that is not valid UTF-8.
+    InvalidCborStructure,
+    /// A MessagePack structure error (Phase 21.19+): a malformed head (the never-used
+    /// `0xc1` byte), a truncated item, trailing bytes after the single top-level item,
+    /// a map key with no value, an over-long declared length, or a `str` that is not
+    /// valid UTF-8.
+    InvalidMsgpackStructure,
+    /// A config-family structure error (Phase 21.20+): a line that is not a valid
+    /// INI/`.env`/`.properties` construct under the detected dialect, an unterminated
+    /// quoted value, or a source that carries no config-family dialect signal at all
+    /// (so it stays `Opaque`).
+    InvalidConfigStructure,
+    /// An RSS/Atom feed structure error (Phase 21.21+): a source that is not
+    /// well-formed XML, an `<rss>` root with no `<channel>`, an Atom `<feed>` whose
+    /// namespace is not the Atom URI or which carries no `<entry>`, or a root that is
+    /// not an RSS/Atom feed (so it stays `Xml`/`Opaque`).
+    InvalidFeedStructure,
+    /// A GeoJSON structure error (Phase 21.22+): a source that is not a single JSON
+    /// value, a root that is not an object with a string `"type"` member, a `"type"`
+    /// that is not one of the nine GeoJSON type names, or a type-consistent object
+    /// whose shape is not consistent (a geometry with no array `coordinates`/`geometries`,
+    /// a `Feature` with no `geometry`/`properties`, a `FeatureCollection` with no array
+    /// `features`) — so it stays `Json`/`Opaque` rather than being claimed.
+    InvalidGeojsonStructure,
+    /// A KML/GPX geospatial structure error (Phase 21.23+): a source that is not
+    /// well-formed XML, a `<kml>` root not in the KML namespace or with no
+    /// `Document`/`Folder`/`Placemark` child, a `<gpx>` root not in the GPX namespace
+    /// or with no `metadata`/`wpt`/`rte`/`trk` child, or a root that is not a KML/GPX
+    /// document (so it stays `Xml`/`Opaque`).
+    InvalidGisStructure,
+    /// A Jupyter notebook structure error (Phase 21.24+): a source that is not a single
+    /// JSON value, a root that is not an object with a plain non-negative integer-literal
+    /// `nbformat` (≥ 1) and an array `cells`, a cell that is not an object with a string
+    /// `cell_type`, a present-but-malformed recognized cell field (a `source` that is not
+    /// a string or array of strings, an `execution_count` that is neither a number nor
+    /// `null`, a non-object `metadata`/`attachments`, an `outputs` that is not an array of
+    /// objects with a string `output_type`), or a non-object root `metadata` — so it stays
+    /// `Json`/`Opaque` rather than being claimed.
+    InvalidNotebookStructure,
+    /// A fixed-width structure error (Phase 21.25+): a source that carries no strong
+    /// fixed-width signal (fewer than the minimum sampled records, records that do not
+    /// share an identical byte width, fewer than two non-empty columns, or an interior
+    /// column gap narrower than the minimum), or a document whose later records
+    /// disagree with the sampled layout — so it stays `Opaque` rather than being
+    /// claimed.
+    InvalidFixedWidthStructure,
+    /// A reStructuredText structure error (Phase 21.26.1+): a source that carries no
+    /// reST-specific signal (an explicit markup start, a grid/simple table, a field
+    /// list, or an admissible section adornment), a malformed directive/marker, or an
+    /// input that exceeds a cap — so it stays `Opaque` rather than being claimed.
+    InvalidRstStructure,
+    /// An AsciiDoc structure error (Phase 21.26.2+): a source that carries no
+    /// AsciiDoc-specific signal (a document title followed by a block, a `==`+ section,
+    /// a `|===` table, a complete delimited block, or a block attribute line followed by
+    /// a block), a malformed attribute/list/macro marker, or an input that exceeds a cap
+    /// — so it stays `Opaque` rather than being claimed.
+    InvalidAsciidocStructure,
+    /// An MDX structure error (Phase 21.26.3+): a source that carries no MDX-specific
+    /// signal (a top-level ESM statement, a JSX component/fragment/attribute, or a
+    /// whole-line block expression), an unbalanced/ambiguous brace in a non-code
+    /// position, a malformed JSX/ESM construct, or an input that exceeds a cap — so it
+    /// stays `Opaque` rather than being claimed.
+    InvalidMdxStructure,
+    /// An MHTML structure error (Phase 21.27): a source that is not a well-formed MIME
+    /// message, a root that is not `multipart/related`, a `multipart/related` document
+    /// that carries no MHTML-specific signal (`Snapshot-Content-Location`/`Content-Base`,
+    /// or a `From`+`Subject` envelope with a `text/html` part), a root part that cannot
+    /// be decoded/parsed as HTML, or an input that exceeds a cap — so it stays
+    /// `Eml`/`Html`/`Opaque` rather than being claimed.
+    InvalidMhtmlStructure,
+    /// A syslog / log-stream structure error (Phase 21.28): a source that is not a log
+    /// stream (fewer than two non-blank record lines, or a non-blank line that matches
+    /// no recognized dialect — RFC 5424 syslog, RFC 3164 (BSD) syslog, or a generic
+    /// application log line), or an input that exceeds a cap — so it stays `Opaque`
+    /// rather than being claimed.
+    InvalidLogstreamStructure,
+    /// A package-metadata structure error (Phase 21.29): a JSON/TOML source that is not
+    /// a recognized package-manifest shape (an npm `package.json`/`package-lock.json`, a
+    /// Cargo `Cargo.toml`/`Cargo.lock`, or a Python `pyproject.toml`), a malformed
+    /// manifest, or an input that exceeds a cap — so it stays `Json`/`Toml`/`Opaque`
+    /// rather than being claimed.
+    InvalidPkgmetaStructure,
+    /// An API-specification structure error (Phase 21.30): a JSON source that is not a
+    /// recognized API spec (a JSON Schema, an OpenAPI 3.x, a Swagger 2.0, or an
+    /// AsyncAPI document), a root object carrying no strong marker, a malformed source,
+    /// or an input that exceeds a cap — so it stays `Json`/`Opaque` rather than being
+    /// claimed.
+    InvalidApispecStructure,
+    /// A bibliography structure error (Phase 21.31): a source that is not a recognized
+    /// bibliography (a BibTeX entry sequence, an RIS `TY`/`ER` entry sequence, or a
+    /// CSL-JSON item array/object carrying a string `id` and a string `type`), a
+    /// malformed entry/field, or an input that exceeds a cap — so it stays
+    /// `Json`/`Opaque` rather than being claimed.
+    InvalidBibStructure,
+    /// An RTF (Rich Text Format) structure error (Phase 21.32): a source that begins
+    /// with `{\rtf<digit>` but is not well-formed under the bounded group-brace
+    /// grammar (an unbalanced brace, a trailing backslash, an over-long control word,
+    /// or trailing bytes after the root group) — so it stays `Opaque` rather than being
+    /// claimed as a derived model. Detection and the exact leaf are unaffected.
+    InvalidRtfStructure,
+    /// A generic archive-container structure error (Phase 21.33): a source that is
+    /// neither a valid ZIP (magic + EOCD + coherent central directory) nor a valid
+    /// TAR (a strong header whose checksum matches), or a container whose TAR
+    /// member is truncated / has a bad checksum / has a malformed PAX record — so
+    /// it stays `Opaque` rather than being claimed as a derived model. Detection
+    /// and the whole-source exact leaf are unaffected.
+    InvalidContainerStructure,
+    /// A scientific-container structure error (Phase 21.34): a NetCDF classic
+    /// (CDF-1/CDF-2) or HDF5 source that is structurally malformed — a bad tag, an
+    /// out-of-bounds declared offset, a truncated header/message, an unsatisfied
+    /// object-header message count, or a bad local heap / B-tree / symbol table — so
+    /// it stays `Opaque` rather than being claimed as a derived model. Detection and
+    /// the whole-source exact leaf are unaffected.
+    InvalidHdfStructure,
+    /// A CFBF/OLE2 structure error (Phase 21.35): a compound-file source that is
+    /// structurally malformed — an inconsistent header, a bad sector shift, an
+    /// out-of-range sector ID, a cyclic/overlapping FAT or MiniFAT chain, an invalid
+    /// directory object type, a truncated stream, or a header/sector-size mismatch —
+    /// so it stays `Opaque` rather than being claimed as a derived model. Detection
+    /// and the whole-source exact leaf are unaffected.
+    InvalidCfbfStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -133,6 +261,27 @@ impl ErrorClass {
             ErrorClass::InvalidEmlStructure => 28,
             ErrorClass::InvalidParquetStructure => 29,
             ErrorClass::InvalidArrowStructure => 30,
+            ErrorClass::InvalidJson5Structure => 31,
+            ErrorClass::InvalidCborStructure => 32,
+            ErrorClass::InvalidMsgpackStructure => 33,
+            ErrorClass::InvalidConfigStructure => 34,
+            ErrorClass::InvalidFeedStructure => 35,
+            ErrorClass::InvalidGeojsonStructure => 36,
+            ErrorClass::InvalidGisStructure => 37,
+            ErrorClass::InvalidNotebookStructure => 38,
+            ErrorClass::InvalidFixedWidthStructure => 39,
+            ErrorClass::InvalidRstStructure => 40,
+            ErrorClass::InvalidAsciidocStructure => 41,
+            ErrorClass::InvalidMdxStructure => 42,
+            ErrorClass::InvalidMhtmlStructure => 43,
+            ErrorClass::InvalidLogstreamStructure => 44,
+            ErrorClass::InvalidPkgmetaStructure => 45,
+            ErrorClass::InvalidApispecStructure => 46,
+            ErrorClass::InvalidBibStructure => 47,
+            ErrorClass::InvalidRtfStructure => 48,
+            ErrorClass::InvalidContainerStructure => 49,
+            ErrorClass::InvalidHdfStructure => 50,
+            ErrorClass::InvalidCfbfStructure => 51,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -169,6 +318,27 @@ impl ErrorClass {
             ErrorClass::InvalidEmlStructure => "InvalidEmlStructure",
             ErrorClass::InvalidParquetStructure => "InvalidParquetStructure",
             ErrorClass::InvalidArrowStructure => "InvalidArrowStructure",
+            ErrorClass::InvalidJson5Structure => "InvalidJson5Structure",
+            ErrorClass::InvalidCborStructure => "InvalidCborStructure",
+            ErrorClass::InvalidMsgpackStructure => "InvalidMsgpackStructure",
+            ErrorClass::InvalidConfigStructure => "InvalidConfigStructure",
+            ErrorClass::InvalidFeedStructure => "InvalidFeedStructure",
+            ErrorClass::InvalidGeojsonStructure => "InvalidGeojsonStructure",
+            ErrorClass::InvalidGisStructure => "InvalidGisStructure",
+            ErrorClass::InvalidNotebookStructure => "InvalidNotebookStructure",
+            ErrorClass::InvalidFixedWidthStructure => "InvalidFixedWidthStructure",
+            ErrorClass::InvalidRstStructure => "InvalidRstStructure",
+            ErrorClass::InvalidAsciidocStructure => "InvalidAsciidocStructure",
+            ErrorClass::InvalidMdxStructure => "InvalidMdxStructure",
+            ErrorClass::InvalidMhtmlStructure => "InvalidMhtmlStructure",
+            ErrorClass::InvalidLogstreamStructure => "InvalidLogstreamStructure",
+            ErrorClass::InvalidPkgmetaStructure => "InvalidPkgmetaStructure",
+            ErrorClass::InvalidApispecStructure => "InvalidApispecStructure",
+            ErrorClass::InvalidBibStructure => "InvalidBibStructure",
+            ErrorClass::InvalidRtfStructure => "InvalidRtfStructure",
+            ErrorClass::InvalidContainerStructure => "InvalidContainerStructure",
+            ErrorClass::InvalidHdfStructure => "InvalidHdfStructure",
+            ErrorClass::InvalidCfbfStructure => "InvalidCfbfStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -259,6 +429,27 @@ impl Error {
     ctor!(invalid_eml_structure, InvalidEmlStructure);
     ctor!(invalid_parquet_structure, InvalidParquetStructure);
     ctor!(invalid_arrow_structure, InvalidArrowStructure);
+    ctor!(invalid_json5_structure, InvalidJson5Structure);
+    ctor!(invalid_cbor_structure, InvalidCborStructure);
+    ctor!(invalid_msgpack_structure, InvalidMsgpackStructure);
+    ctor!(invalid_config_structure, InvalidConfigStructure);
+    ctor!(invalid_feed_structure, InvalidFeedStructure);
+    ctor!(invalid_geojson_structure, InvalidGeojsonStructure);
+    ctor!(invalid_gis_structure, InvalidGisStructure);
+    ctor!(invalid_notebook_structure, InvalidNotebookStructure);
+    ctor!(invalid_fixedwidth_structure, InvalidFixedWidthStructure);
+    ctor!(invalid_rst_structure, InvalidRstStructure);
+    ctor!(invalid_asciidoc_structure, InvalidAsciidocStructure);
+    ctor!(invalid_mdx_structure, InvalidMdxStructure);
+    ctor!(invalid_mhtml_structure, InvalidMhtmlStructure);
+    ctor!(invalid_logstream_structure, InvalidLogstreamStructure);
+    ctor!(invalid_pkgmeta_structure, InvalidPkgmetaStructure);
+    ctor!(invalid_apispec_structure, InvalidApispecStructure);
+    ctor!(invalid_bib_structure, InvalidBibStructure);
+    ctor!(invalid_rtf_structure, InvalidRtfStructure);
+    ctor!(invalid_container_structure, InvalidContainerStructure);
+    ctor!(invalid_hdf_structure, InvalidHdfStructure);
+    ctor!(invalid_cfbf_structure, InvalidCfbfStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

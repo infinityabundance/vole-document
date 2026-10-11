@@ -371,11 +371,12 @@ fn detection_and_capabilities_are_byte_based() {
         detect_document_format(&source, Limits::DEFAULT),
         DocumentFormat::Ods
     );
-    // A ZIP that is neither DOCX/EPUB/ODT/ODS/XLSX/PPTX is opaque.
+    // A ZIP that is neither DOCX/EPUB/ODT/ODS/XLSX/PPTX is a generic archive
+    // container, not opaque (Phase 21.33).
     let plain = build_zip(&[Entry::stored("hello.txt", b"hi")]);
     assert_eq!(
         detect_document_format(&plain, Limits::DEFAULT),
-        DocumentFormat::Opaque
+        DocumentFormat::Container
     );
 
     let caps = capabilities_for_format(DocumentFormat::Ods);

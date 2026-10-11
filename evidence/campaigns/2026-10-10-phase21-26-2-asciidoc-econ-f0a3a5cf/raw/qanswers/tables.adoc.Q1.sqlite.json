@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {}, "lane": "sqlite", "native": true, "q": "Q1", "value": "= Tables\n\n[cols=\"2\"]\n|===\n| Name | Value\n| alpha | 1\n| beta | 2\n|===\n\nA closing paragraph.\n"}

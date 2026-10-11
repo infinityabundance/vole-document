@@ -1,0 +1,11 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+generic.log	true	true	true	true	true	3339	30956
+rfc5424.log	true	true	true	true	true	3306	31612
+rfc3164.log	true	true	true	true	true	3390	28172
+crlf.log	true	true	true	true	true	3471	34480
+blank.log	true	true	true	true	true	3328	28192
+large.log	true	true	true	true	true	5220	35655
+bsd_nocolon.log	true	-	true	true	true	3086	-
+prose.txt	true	-	true	true	true	3250	-
+single.json	true	-	true	true	true	3074	-
+stream.jsonl	true	-	true	true	true	3207	-

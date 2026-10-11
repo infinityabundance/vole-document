@@ -1,6 +1,6 @@
 # Phase 21 — Format programme
 
-> **WAVE 1 COMPLETE; WAVE-2 LISTED FORMATS COMPLETE.** Subphases **21.1 (XLSX)**, **21.2 (PPTX)**, **21.3 (ODS)** and
+> **WAVE 1 COMPLETE; WAVE 2 COMPLETE (21.1–21.35).** Subphases **21.1 (XLSX)**, **21.2 (PPTX)**, **21.3 (ODS)** and
 > **21.4 (ODP)** are complete and shipped — the **six office
 > formats** from two shared package substrates (OPC: DOCX/XLSX/PPTX; ODF:
 > ODT/ODS/ODP):
@@ -23,7 +23,12 @@
 > branch, each with an adapter + sealed economic court: **JSON** (21.5),
 > **YAML** (21.6), **CSV/TSV** (21.7), **Markdown** (21.8), **XML** (21.9),
 > **HTML** (21.10), **TOML** (21.11), **JSONL/NDJSON** (21.12), **EML/MIME**
-> (21.13), **Parquet** (21.14) and **Arrow IPC** (21.16). Review-driven
+> (21.13), **Parquet** (21.14) and **Arrow IPC** (21.16). **The next eight
+> Wave-2 subphases (21.17–21.24) have since shipped** on the same branch, each
+> with an adapter court + a sealed economic court: **JSON5/JSONC** (21.17),
+> **CBOR** (21.18), **MessagePack** (21.19), **config / INI / `.env` /
+> properties** (21.20), **RSS/Atom** (21.21), **GeoJSON** (21.22), **KML/GPX**
+> (21.23) and the **Jupyter notebook / `.ipynb`** (21.24). Review-driven
 > corrections also landed on this branch: the **JSON comparator** was repaired
 > (modern SQLite+JSONB, fixed duplicate-key accounting, an independent
 > span-preserving baseline), the **YAML comparator** got the same
@@ -31,9 +36,21 @@
 > O(n²), a permanent **cross-field identity court** was added (ADR-0060), the
 > **stratified real-world court** sealed (52 real + 8 hostile, 60/60 byte-exact),
 > and a **detection repair** fixed five real-world detection root causes. The
-> remaining Wave-2 families below are not started.
+> 21.20–21.24 economic courts also found and fixed a **GeoJSON JSON-validity
+> defect** (7 observation projections emitted invalid JSON; fixed in
+> `src/field/observe.rs`, commit `ba4df0d4`). **The tabular extra (21.25, PSV +
+>fixed-width) and the prose formats (21.26.1 reStructuredText, 21.26.2 AsciiDoc,
+>21.26.3 MDX) have since shipped** on the same branch, each with an adapter court
+>+ a sealed economic court. **The final Wave-2 families (21.27–21.35) have now shipped too** —
+>**MHTML** (21.27), **syslog / log streams** (21.28), **package metadata** (21.29),
+>**API/spec** (21.30), **bibliography** (21.31), **RTF** (21.32), **standalone
+>ZIP/TAR containers** (21.33), **NetCDF classic / HDF5-subset** (21.34) and the
+>**CFBF/OLE2 physical layer** (21.35), each with an adapter + a sealed economic
+>court. **The Wave-2 order is now complete.** The only remaining format work is
+>the legacy **DOC/XLS/PPT/MSG *semantic* models** built on top of the CFBF
+>physical layer (not started).
 >
-> Branch: `phase21-wave2` @ `v0.1.0-alpha.33`+ (Wave 2). Wave 1 shipped as
+> Branch: `phase21-wave2` @ `v0.1.0-alpha.35` (Wave 2; the batch 21.17–21.35). Wave 1 shipped as
 > `v0.1.0-alpha.30`, JSON as `v0.1.0-alpha.31`, YAML as `v0.1.0-alpha.32` on
 > `main`. The Phase-22 economic programme (22.1–22.7) is complete and released in
 > `v0.1.0-alpha.29`.
@@ -114,6 +131,64 @@ indexes — winning only against SQLite there could just mean the wrong competit
 was chosen (the Phase-22 "maximize the competitor first" rule, applied per
 format). Parquet and Arrow IPC themselves are the **most adversarial** later
 targets for exactly this reason.
+
+### Wave 2 — the remaining order (frozen; complete)
+
+Beyond the eleven shipped Wave-2 formats, the remaining families are decomposed
+into one subphase each. **All of 21.17–21.35 have since shipped** (marked below):
+**21.17–21.24** (structured extra, binary structured, config, feeds, GIS,
+notebook), **21.25** (PSV + fixed-width) and **21.26.1–21.26.3** (reST/AsciiDoc/
+MDX), and the final families **21.27–21.35** (MHTML, log streams, package
+metadata, API/spec, bibliography, RTF, ZIP/TAR containers, NetCDF classic/HDF5
+subset, and the CFBF/OLE2 physical layer). **The Wave-2 order is now complete**;
+the only remaining format work is the legacy **DOC/XLS/PPT/MSG *semantic* models**
+built on top of the CFBF physical layer (not started). The order was chosen for
+**maximum reuse** — the structured-tree, tabular, XML, JSON and MIME layers are
+already paid for, so a format enters by reusing one of them and paying mostly for
+its own span policy. Each subphase is the established unit: **adapter → tests →
+adapter court → economic court → docs**, with a sealed receipt per court, and it
+may be closed as an honest negative if the court declines it.
+
+```text
+21.17  JSON5 / JSONC        (structured extra; reuses the JSON parser + span policy)  — SHIPPED
+21.18  CBOR                 (binary structured; new byte/integer/float policy)         — SHIPPED
+21.19  MessagePack          (binary structured; new byte/integer/float policy)         — SHIPPED
+21.20  INI / .env / properties   (config; trivial line grammar)                          — SHIPPED
+21.21  RSS / Atom           (feeds; reuses the XML parser + span policy)               — SHIPPED
+21.22  GeoJSON              (GIS; reuses the JSON parser + geo semantics)              — SHIPPED
+21.23  KML / GPX            (GIS; reuses the XML parser + geo semantics)               — SHIPPED
+21.24  Jupyter notebook     (.ipynb; reuses the JSON parser + cell/output model)       — SHIPPED
+21.25  PSV / fixed-width    (tabular extra; reuses the tabular layer)                  — SHIPPED
+21.26  reST / AsciiDoc / MDX (docs; reuses the prose/line layer)                       — SHIPPED (21.26.1/2/3)
+21.27  MHTML                (messaging + web; reuses the MIME + HTML layers)          — SHIPPED
+21.28  syslog / log streams (line/event stream; new line policy)                      — SHIPPED
+21.29  package metadata      (package.json / pyproject.toml / Cargo.toml / lockfiles)  — SHIPPED
+21.30  JSON Schema / OpenAPI (API/spec; reuses the JSON parser + a schema model)       — SHIPPED
+21.31  BibTeX / CSL-JSON / RIS (bibliography)                                          — SHIPPED
+21.32  RTF                  (legacy prose; new control-word grammar)                  — SHIPPED
+21.33  ZIP / TAR containers (containers; reuses the package physical layer)            — SHIPPED
+21.34  HDF5 / NetCDF         (scientific; new binary container policy)                 — SHIPPED
+21.35  CFBF / OLE            (legacy DOC/XLS/PPT/MSG via one shared physical layer)    — SHIPPED (physical layer)
+```
+
+**Wave 2 is complete.** `21.35` ships the **CFBF/OLE2 physical layer only**: the
+legacy DOC/XLS/PPT/MSG *semantic* models that sit on top of it remain future work
+(not started).
+
+The JSON-based members (21.17, 21.22, 21.24, 21.29, 21.30, 21.31) need a **semantic
+sub-detection** step: their physical bytes are JSON, so the generic JSON
+classification must be refined by a bounded semantic test (a JSON5/JSONC dialect
+marker, a GeoJSON `type`, a notebook `cells`/`nbformat`, a known package key set,
+a schema `$schema`/`openapi` key, a CSL-JSON `id`+`type` pair) — a plain JSON
+document stays `Json`. The binary/scientific/legacy members (21.18, 21.19, 21.32,
+21.33, 21.34, 21.35) each pay honestly for a new physical parser and a typed
+decline on anything they do not fully support, so an unsupported input stays
+`Opaque`.
+
+**Analytical comparators are required, not optional.** For the tabular/analytical
+formats the court must include a **DuckDB/Parquet** baseline as well as SQLite, and
+for any format whose conventional peer is already efficient on the same question
+the court must say so and record the negative rather than claim a win.
 
 ## The reuse architecture
 

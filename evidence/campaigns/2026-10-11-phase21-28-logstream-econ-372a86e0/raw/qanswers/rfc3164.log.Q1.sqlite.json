@@ -1,0 +1,1 @@
+{"decline": {"code": "no-typed-message", "detail": "a conventional line reader does not split this dialect's message"}, "declined": true, "detail": {}, "lane": "sqlite", "native": true, "q": "Q1", "value": null}

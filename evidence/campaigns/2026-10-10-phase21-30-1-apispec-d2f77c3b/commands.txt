@@ -1,0 +1,15 @@
+docker compose run --rm --no-TTY dev sh tools/phase21-30-1-apispec-court.sh
+# inside the court:
+#   cargo build --locked --all-features
+#   target/debug/vole-document field-build FIXTURE --store STORE --voldoc F.voldoc
+#   target/debug/vole-document observe --store STORE --field HEX (--metadata|--doc-text|--text PAT|--apispec-dialect|--apispec-version|--apispec-object N|--apispec-ref N|--apispec-find PAT|--table N) --kind metadata|text|exact
+#   rm source F.voldoc
+#   target/debug/vole-document materialize --store STORE --field HEX --exact --output OUT ; cmp OUT source
+# Regression controls (apispec must not break the reused JSON court):
+#   docker compose run --rm --no-TTY dev sh tools/phase21-5-1-json-court.sh
+# Full gate (dev service):
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features
+#   cargo test --locked
+#   MSRV: docker compose run --rm --no-TTY msrv cargo build --locked --all-features

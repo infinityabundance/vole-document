@@ -1,0 +1,1 @@
+{"decline": {"code": "dialect-not-recorded", "detail": "a conventional JSON5->object load does not record jsonc-vs-json5"}, "declined": true, "detail": {}, "lane": "conv", "native": true, "q": "Q11", "value": null}

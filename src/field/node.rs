@@ -258,6 +258,277 @@ pub enum NodeKind {
     /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
     /// ADR-0060). Arrow has no package layer. Derived, never exact.
     ArrowModel = 0x31,
+    /// The canonical, representation-preserving JSON5 / JSONC structured-tree model
+    /// (Phase 21.17.1): the same representation guarantees as [`NodeKind::JsonModel`]
+    /// (exact token spans, member order, duplicate keys, numeric/escape spelling)
+    /// plus the JSON5 superset — unquoted keys, single-quoted strings, trailing
+    /// commas, hex/leading-dot/`Infinity`/`NaN` numbers, string continuations, the
+    /// extended whitespace set, and every comment's exact span — and a recorded
+    /// dialect (`jsonc` vs `json5`). It is derived on demand from the exact source
+    /// (its single dependency is the `DocumentExact` root, keyed by `sha256(source)`
+    /// per ADR-0060). JSON5 has no package layer. Derived, never exact.
+    Json5Model = 0x32,
+    /// The canonical, representation-preserving CBOR structured-tree model (Phase
+    /// 21.18): the same representation guarantees as [`NodeKind::JsonModel`] (exact
+    /// token spans, member order, duplicate keys) plus the CBOR-specific facts — the
+    /// major type of every item, the encoding width actually used (the head byte's
+    /// additional-information nibble), byte-vs-text string as distinct kinds, tag
+    /// numbers preserved verbatim (never resolved/expanded), float width
+    /// (half/single/double) with the IEEE-754 bits, simple values, and definite vs
+    /// indefinite-length items. It is derived on demand from the exact source (its
+    /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+    /// ADR-0060). CBOR has no package layer. Derived, never exact.
+    CborModel = 0x33,
+    /// The canonical, representation-preserving MessagePack structured-tree model
+    /// (Phase 21.19): the same representation guarantees as [`NodeKind::JsonModel`]
+    /// (exact token spans, member order, duplicate keys) plus the MessagePack-specific
+    /// facts — the exact format byte of every item (so the encoding width **and
+    /// signedness** actually used are preserved), `str` vs `bin` as distinct kinds,
+    /// float width (`float32`/`float64`) with the IEEE-754 bits, and extension type
+    /// numbers + payload lengths preserved verbatim (never interpreted). It is derived
+    /// on demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060). MessagePack has no package layer.
+    /// Derived, never exact.
+    MsgpackModel = 0x34,
+    /// The canonical, representation-preserving config-family model (Phase 21.20):
+    /// the whole source parsed as INI / `.env` / Java `.properties` into a bounded
+    /// arena of lines (exact content spans and terminators) with exact key,
+    /// separator, and value spans per entry, the recorded dialect, the `export`
+    /// marker, quoting and inline-comment facts, `properties` trailing-`\`
+    /// continuations, and `\uXXXX` escapes preserved as spelling. It is computed on
+    /// demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060); the config family has no
+    /// package layer. Derived, never exact.
+    ConfigModel = 0x35,
+    /// The canonical, representation-preserving RSS 2.0 / Atom 1.0 feed model
+    /// (Phase 21.21): the whole source parsed (via the shared bounded XML parser)
+    /// into a span-preserving element/attribute tree plus the recorded dialect
+    /// (`rss`/`atom`), the channel/feed container node, and the ordered `<item>` /
+    /// `<entry>` record nodes. Every element's and attribute's exact source span,
+    /// element order, attribute spelling (Atom `<link href=… rel=…>`, RSS `<guid
+    /// isPermaLink=…>`), and the Atom namespace declaration are preserved; entity
+    /// references are surfaced literally (never expanded). It is computed on demand
+    /// from the exact source (its single dependency is the `DocumentExact` root,
+    /// keyed by `sha256(source)` per ADR-0060); a feed has no package layer. Derived,
+    /// never exact.
+    FeedModel = 0x36,
+    /// The canonical, representation-preserving GeoJSON (RFC 7946) model
+    /// (Phase 21.22): the whole source parsed by the **shared JSON parser** into a
+    /// span-preserving JSON arena (exact token spans, member order, duplicate keys,
+    /// numeric/escape spelling) plus the GeoJSON semantic anchors — the recorded
+    /// root class (one of the nine RFC 7946 type names), the exact `"type"` token,
+    /// and the geometry and feature object nodes in document order. `coordinates`
+    /// nesting is preserved verbatim (a position is `[lon, lat, (alt)]`, never
+    /// normalized/reordered), and `properties`/`id`/`bbox`/`geometry`/`features`
+    /// order plus every foreign member are preserved. It is computed on demand from
+    /// the exact source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); GeoJSON has no package layer. Derived, never
+    /// exact.
+    GeojsonModel = 0x37,
+    /// The canonical, representation-preserving KML 2.2 / GPX 1.1 geospatial model
+    /// (Phase 21.23): the whole source parsed (via the shared bounded XML parser)
+    /// into a span-preserving element/attribute tree plus the recorded dialect
+    /// (`kml`/`gpx`), the ordered record nodes (KML `<Placemark>` features, or GPX
+    /// top-level `<wpt>`/`<rte>`/`<trk>` records), and the ordered point nodes (KML
+    /// `Point`/`LineString`/`Polygon` geometry, or GPX `<wpt>`/`<rtept>`/`<trkpt>`
+    /// point elements). Every element's and attribute's exact source span, element
+    /// order, attribute spelling (KML geometry `coordinates`, GPX `lat`/`lon`), and
+    /// the namespace declaration are preserved; entity references are surfaced
+    /// literally (never expanded). It is computed on demand from the exact source
+    /// (its single dependency is the `DocumentExact` root, keyed by `sha256(source)`
+    /// per ADR-0060); a GIS document has no package layer. Derived, never exact.
+    GisModel = 0x38,
+    /// The canonical, representation-preserving Jupyter notebook (`.ipynb`, nbformat)
+    /// model (Phase 21.24): the whole source parsed by the **shared JSON parser** into a
+    /// span-preserving JSON arena (exact token spans, member order, duplicate keys,
+    /// numeric/escape spelling) plus the notebook semantic anchors — the exact
+    /// `nbformat`/`nbformat_minor` tokens, the root `metadata` object node, and the
+    /// ordered cell anchors. Every cell preserves its exact `cell_type` string
+    /// (`code`/`markdown`/`raw`, or any other), its `source` **exactly as written** (a
+    /// single string or an array of line strings, never re-joined or normalized), its
+    /// `execution_count`/`metadata`/`attachments` when present, and its ordered
+    /// `outputs` with each output's exact `output_type` string
+    /// (`stream`/`execute_result`/`display_data`/`error`, or any other) and every field
+    /// token, including a `stream` `text` and an `execute_result`/`display_data` `data`
+    /// representation. It is computed on demand from the exact source (its single
+    /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+    /// a notebook has no package layer. Derived, never exact.
+    NotebookModel = 0x39,
+    /// The canonical, representation-preserving fixed-width (column-position) model
+    /// (Phase 21.25): the whole source parsed into a bounded table whose columns are
+    /// defined by **character positions** (not a delimiter). It records the inferred
+    /// layout (per-column start/end positions and widths, the uniform record width, the
+    /// line terminator, a BOM, and the mixed-terminator fact), the optional header row
+    /// (record 0), and every record's exact content span and per-column field spans
+    /// (padding preserved). It is computed on demand from the exact source (its single
+    /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+    /// a fixed-width document has no package layer. Derived, never exact.
+    FixedWidthModel = 0x3A,
+    /// The canonical, representation-preserving reStructuredText (Docutils) model
+    /// (Phase 21.26.1): the whole source parsed into a bounded, span-preserving prose
+    /// model — section titles with their exact underline/overline adornment (char and
+    /// length) and a recorded hierarchy, paragraphs, explicit markup (`.. ` comments,
+    /// `.. directive::` directives preserved verbatim, substitution definitions,
+    /// footnotes/citations, hyperlink targets), field/option/definition lists, literal
+    /// (`::`) and doctest (`>>> `) blocks, bullet/enumerated lists with nesting, inline
+    /// spans (strong/emphasis/literal/interpreted/substitution/footnote/hyperlink/
+    /// anonymous references), and grid/simple tables. Every span is exact and the
+    /// source is never re-flowed or normalized. It is computed on demand from the exact
+    /// source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); a reST document has no package layer. Derived,
+    /// never exact.
+    RstModel = 0x3B,
+    /// The canonical, representation-preserving AsciiDoc model (Phase 21.26.2): the
+    /// whole source parsed into a bounded, span-preserving prose model — a level-0
+    /// document title and `==`+ sections with their exact `=` marker and recorded
+    /// level, paragraphs, document attributes (`:name: value` / `:name!:`) with
+    /// attribute references (`{name}`) surfaced literally (never expanded), block
+    /// attribute lines attached to the following block, delimited blocks (listing /
+    /// literal / example / sidebar / quote / open / passthrough) with their exact
+    /// delimiter and verbatim content, unordered/ordered/description lists with
+    /// nesting, tables (`|===`), admonitions (`NOTE:` / `[NOTE]`), and inline spans
+    /// (strong/emphasis/mono/passthrough/superscript/subscript/mark plus the `link:`,
+    /// `image:`, `include::`, `xref:` and bare-URL macros, preserved verbatim). Every
+    /// span is exact and the source is never re-flowed or normalized. It is computed
+    /// on demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060); an AsciiDoc document has no
+    /// package layer. Derived, never exact.
+    AsciidocModel = 0x3C,
+    /// The canonical, representation-preserving MDX (Markdown + JSX/ESM) model
+    /// (Phase 21.26.3): the reused Markdown prose model of the whole source **plus** the
+    /// MDX-specific arenas — top-level ESM `import`/`export` statements, JSX elements
+    /// and fragments with their attributes and nested children (recorded as extents,
+    /// never executed and never parsed as JavaScript), and MDX `{ … }` expressions
+    /// inline and block (brace-balanced with string literals, escapes, and comments
+    /// respected) — and the bit-set of MDX signals observed. Every span is exact and
+    /// the source is never re-flowed or normalized. It is computed on demand from the
+    /// exact source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); an MDX document has no package layer. Derived,
+    /// never exact.
+    MdxModel = 0x3D,
+    /// The canonical, representation-preserving MHTML (MIME HTML, RFC 2557) web
+    /// archive model (Phase 21.27): the whole source parsed (via the **reused**
+    /// bounded EML MIME layer) into a span-preserving MIME envelope and ordered parts,
+    /// plus the MHTML-specific anchors — the top-level `Snapshot-Content-Location`/
+    /// `Content-Base`, the ordered sub-resources keyed by `Content-Location`/
+    /// `Content-ID`, and the root HTML part (the `start=` `Content-ID`, else the first
+    /// `text/html` part, else the first part). The root part's **decoded** body is
+    /// parsed by the **reused** bounded HTML scanner into a span-preserving
+    /// [`HtmlModel`](crate::adapter::html::HtmlModel) whose spans are relative to that
+    /// decoded body. It is computed on demand from the exact source (its single
+    /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+    /// ADR-0060); MHTML has no package layer. Derived, never exact.
+    MhtmlModel = 0x3E,
+    /// The canonical, representation-preserving syslog / log-stream model (Phase
+    /// 21.28): the whole source split into physical lines, each non-blank line
+    /// classified by a recorded dialect (RFC 5424 syslog, RFC 3164 (BSD) syslog, or a
+    /// generic application log line) into a bounded record with its **exact line
+    /// span** and terminator, its physical line number, its decoded priority (when a
+    /// syslog `<PRI>` is present), the deepest structured-data nesting, and its
+    /// **exact-span fields** (PRI/version/timestamp/hostname/app-name/procid/msgid/
+    /// structured-data element/id/parameter-name/parameter-value/tag/pid/level/msg).
+    /// Messages, NILVALUE (`-`), and timestamp/level spelling are preserved verbatim
+    /// and never normalized. It is computed on demand from the exact source (its
+    /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+    /// ADR-0060); a log stream has no package layer. Derived, never exact.
+    LogstreamModel = 0x3F,
+    /// The canonical, representation-preserving package-metadata model (Phase 21.29):
+    /// the reused JSON/TOML arena (member order, duplicate keys, numeric and
+    /// string-escape spelling, and exact token spans all preserved) **plus** a bounded
+    /// semantic projection — every recorded **section** (a named table /
+    /// array-of-tables / array element in TOML, or an object / array member in JSON)
+    /// with its exact name and value spans, and every recorded key/value **entry** with
+    /// its exact key and value spans, grouped by section in document order, and the
+    /// **recorded dialect** (`npm_package` / `cargo_manifest` / `pyproject_manifest` /
+    /// `cargo_lock` / `npm_lock`). Nothing is normalized or re-serialized. It is
+    /// computed on demand from the exact source (its single dependency is the
+    /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a manifest has no
+    /// package layer. Derived, never exact.
+    PkgmetaModel = 0x40,
+    /// The canonical, representation-preserving API/specification model
+    /// (Phase 21.30): the whole source parsed by the **shared JSON parser** into a
+    /// bounded, representation-preserving JSON arena (exact token spans, member order,
+    /// duplicate keys, numeric/escape spelling) plus the API-spec semantic projection:
+    /// the **recorded dialect** (`json_schema` / `openapi` / `swagger` / `asyncapi`),
+    /// the exact spec-version token, every recorded **object** (with its role, exact
+    /// value span, naming span, and member range), every **member** (exact key/value
+    /// spans), and every **`$ref`** member (target preserved verbatim, never resolved).
+    /// Nothing is normalized, resolved, or re-serialized. It is computed on demand from
+    /// the exact source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); an API spec has no package layer. Derived, never
+    /// exact.
+    ApispecModel = 0x41,
+    /// The canonical, representation-preserving bibliography model (Phase 21.31): one
+    /// adapter covering **BibTeX**, **RIS**, and **CSL-JSON**, with the **recorded
+    /// dialect** (`bibtex` / `ris` / `csl_json`). For the text dialects it is the
+    /// entry/field arena (entry key, entry type and field names *as written*, field
+    /// order, every value's exact spelling and delimiters, duplicate-field flags, RIS
+    /// tag separator and multi-line continuation spans); for CSL-JSON it embeds the
+    /// reused JSON arena (member order, duplicate keys, numeric/string-escape spelling,
+    /// exact token spans) plus the item projection (each item's string `id` and `type`
+    /// node). Nothing is normalized or re-serialized. It is computed on demand from the
+    /// exact source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); a bibliography has no package layer. Derived,
+    /// never exact.
+    BibModel = 0x42,
+    /// The canonical, representation-preserving RTF (Rich Text Format) model
+    /// (Phase 21.32): the whole source parsed into a bounded, span-preserving
+    /// group-brace model — the header (`\rtfN` version, charset, `\deffN`), every
+    /// group with its exact brace span and nesting depth, every control word (with its
+    /// optional numeric parameter) and control symbol, every `\'hh` hex escape and
+    /// `\uN` Unicode escape (with the active `\ucN` fallback count), every destination
+    /// (`\fonttbl`/`\colortbl`/`\stylesheet`/`\info`/`\pict`/`\object`/`\*`) verbatim,
+    /// and every plain text run byte-exactly (never whitespace-normalized). Nothing is
+    /// normalized or re-serialized. It is computed on demand from the exact source (its
+    /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+    /// ADR-0060); RTF has no package layer. Derived, never exact.
+    RtfModel = 0x43,
+    /// The canonical, representation-preserving generic archive-container model
+    /// (Phase 21.33): one adapter covering **ZIP** and **TAR** with the **recorded
+    /// dialect** (`zip`/`tar`). For ZIP it reuses the byte-authoritative physical
+    /// layer ([`crate::adapter::package::zip`]) and records the ordered
+    /// central-directory member list — raw name bytes (case, UTF-8 flag bit 11, and
+    /// non-UTF-8 bytes preserved), compression method, both declared sizes, CRC-32,
+    /// local-header offset, and each member's exact raw byte span — plus the
+    /// end-of-central-directory record and archive comment. For TAR it records the
+    /// standard 512-byte headers (name/prefix, mode, uid/gid, size, mtime, typeflag,
+    /// linkname, `ustar` magic/version), the old-GNU/v7 variant, the GNU long-name
+    /// (`L`)/long-link (`K`) extensions and the PAX (`x`/`g`) records folded into the
+    /// following member, and every member's exact (512-byte-aligned) span. Nothing is
+    /// unzipped, re-zipped, decompressed, or re-serialized. It is computed on demand
+    /// from the exact source (its single dependency is the `DocumentExact` or
+    /// `PackageRoot` node, keyed by `sha256(source)` per ADR-0060); an archive has no
+    /// separate package layer in this adapter. Derived, never exact.
+    ContainerModel = 0x44,
+    /// The canonical, representation-preserving scientific-container model (Phase
+    /// 21.34): one adapter covering **NetCDF classic** (CDF-1/CDF-2) and a documented
+    /// **bounded subset of HDF5**, with the **recorded dialect** (`netcdf`/`hdf5`). For
+    /// NetCDF it records the magic/`numrecs`, the dimension table (with the unlimited
+    /// dimension), the global attribute list, and the variable list (name, dimensions,
+    /// attributes, type, `vsize`, `begin`) plus the record/array data layout. For HDF5
+    /// it records the superblock, the group/dataset tree reached through the symbol-
+    /// table link traversal, each dataset's datatype / simple-or-scalar dataspace /
+    /// contiguous data layout, and the v1 object-header attribute messages. Everything
+    /// outside the HDF5 subset declines typed. Nothing is decompressed, re-serialized,
+    /// or rewritten. It is computed on demand from the exact source (its single
+    /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+    /// neither dialect has a separate package layer in this adapter. Derived, never
+    /// exact.
+    HdfModel = 0x45,
+    /// The canonical, representation-preserving CFBF / OLE2 compound-file model (Phase
+    /// 21.35): the physical layer behind legacy Word/Excel/PowerPoint/Outlook files,
+    /// with the **recorded dialect** (`cfb3`/`cfb4`). It records the 512-byte header
+    /// (signature, version, byte order, sector/mini-sector shifts, counts, first
+    /// sectors), the directory entries (verbatim UTF-16LE names, object type, color,
+    /// the left/right/child sibling tree, start sector, stream size) with the
+    /// red-black sibling/child tree reconstructed into a `parent`/`depth`, and every
+    /// stream resolved to an exact byte span (regular streams through the FAT, small
+    /// streams through the MiniFAT inside the root entry's mini stream). Nothing is
+    /// un-OLE'd or re-OLE'd. It is computed on demand from the exact source (its single
+    /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+    /// a compound file has no separate package layer in this adapter. Derived, never
+    /// exact.
+    CfbfModel = 0x46,
 }
 
 impl NodeKind {
@@ -313,6 +584,27 @@ impl NodeKind {
             0x2F => NodeKind::EmlModel,
             0x30 => NodeKind::ParquetModel,
             0x31 => NodeKind::ArrowModel,
+            0x32 => NodeKind::Json5Model,
+            0x33 => NodeKind::CborModel,
+            0x34 => NodeKind::MsgpackModel,
+            0x35 => NodeKind::ConfigModel,
+            0x36 => NodeKind::FeedModel,
+            0x37 => NodeKind::GeojsonModel,
+            0x38 => NodeKind::GisModel,
+            0x39 => NodeKind::NotebookModel,
+            0x3A => NodeKind::FixedWidthModel,
+            0x3B => NodeKind::RstModel,
+            0x3C => NodeKind::AsciidocModel,
+            0x3D => NodeKind::MdxModel,
+            0x3E => NodeKind::MhtmlModel,
+            0x3F => NodeKind::LogstreamModel,
+            0x40 => NodeKind::PkgmetaModel,
+            0x41 => NodeKind::ApispecModel,
+            0x42 => NodeKind::BibModel,
+            0x43 => NodeKind::RtfModel,
+            0x44 => NodeKind::ContainerModel,
+            0x45 => NodeKind::HdfModel,
+            0x46 => NodeKind::CfbfModel,
             _ => return None,
         })
     }
@@ -369,6 +661,27 @@ impl NodeKind {
             NodeKind::EmlModel => "EmlModel",
             NodeKind::ParquetModel => "ParquetModel",
             NodeKind::ArrowModel => "ArrowModel",
+            NodeKind::Json5Model => "Json5Model",
+            NodeKind::CborModel => "CborModel",
+            NodeKind::MsgpackModel => "MsgpackModel",
+            NodeKind::ConfigModel => "ConfigModel",
+            NodeKind::FeedModel => "FeedModel",
+            NodeKind::GeojsonModel => "GeojsonModel",
+            NodeKind::GisModel => "GisModel",
+            NodeKind::NotebookModel => "NotebookModel",
+            NodeKind::FixedWidthModel => "FixedWidthModel",
+            NodeKind::RstModel => "RstModel",
+            NodeKind::AsciidocModel => "AsciidocModel",
+            NodeKind::MdxModel => "MdxModel",
+            NodeKind::MhtmlModel => "MhtmlModel",
+            NodeKind::LogstreamModel => "LogstreamModel",
+            NodeKind::PkgmetaModel => "PkgmetaModel",
+            NodeKind::ApispecModel => "ApispecModel",
+            NodeKind::BibModel => "BibModel",
+            NodeKind::RtfModel => "RtfModel",
+            NodeKind::ContainerModel => "ContainerModel",
+            NodeKind::HdfModel => "HdfModel",
+            NodeKind::CfbfModel => "CfbfModel",
         }
     }
 

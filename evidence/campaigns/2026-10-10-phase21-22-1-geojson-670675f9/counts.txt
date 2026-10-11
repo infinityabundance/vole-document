@@ -1,0 +1,14 @@
+fixtures 8
+geojson_fixtures 4
+exact_ok 8
+exact_fail 0
+surface_fail 0
+typed_decline_features_ok 4
+typed_decline_geometries_ok 4
+typed_decline_properties_ok 4
+typed_decline_gc_coordinates_ok 1
+json_controls_ok 3
+usage_ok 1
+opaque_controls_ok 1
+opaque_controls 1
+binary c04b5a6827bbf8983ebc94808a0d3abf37dc363dae49bdb9805fde9db434a89b

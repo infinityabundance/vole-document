@@ -1,0 +1,12 @@
+fixtures 9
+logstream_fixtures 5
+control_fixtures 4
+exact_ok 9
+exact_fail 0
+surface_fail 0
+boundary_ok 4
+opaque_controls_ok 1
+jsonl_control_ok 1
+typed_declines_ok 1
+usage_ok 1
+binary 0cd3d729a9401c007927b6dcc639f4356cb345dd7b6b892b524b046afe5b7a54

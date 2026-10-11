@@ -1,0 +1,5 @@
+fixture	expect_fmt	fmt	expect_rc	rc	common_rc	own_rc	foreign_rc	ok
+comma.csv	csv	csv	6	39	0	39	6	true
+markdown.md	markdown	markdown	6	39	0	39	6	true
+prose.txt	opaque	opaque	6	39	6	39	6	true
+spaced.txt	opaque	opaque	6	39	6	39	6	true

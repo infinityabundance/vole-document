@@ -1,0 +1,12 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+psv-basic.psv	true	true	true	true	true	3393	24469
+psv-quotes.psv	true	true	true	true	true	4170	39729
+fw-basic.fw	true	true	true	true	true	3594	26455
+fw-three.fw	true	true	true	true	true	3346	24733
+fw-crlf.fw	true	true	true	true	true	3248	22573
+large.psv	true	true	true	true	true	4171	28486
+large.fw	true	true	true	true	true	4414	26534
+comma.csv	true	-	true	true	true	2928	-
+markdown.md	true	-	true	true	true	2969	-
+prose.txt	true	-	true	true	true	2764	-
+spaced.txt	true	-	true	true	true	2940	-

@@ -1,0 +1,1 @@
+{"decline": {"code": "no-source-bytes", "detail": "a conventional manifest load keeps no exact entry bytes"}, "declined": true, "detail": {}, "lane": "sqlite", "native": true, "q": "Q12", "value": null}

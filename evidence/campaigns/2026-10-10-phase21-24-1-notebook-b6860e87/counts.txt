@@ -1,0 +1,13 @@
+fixtures 7
+notebook_fixtures 3
+exact_ok 7
+exact_fail 0
+surface_fail 0
+typed_decline_cells_ok 3
+typed_decline_outputs_ok 3
+typed_decline_source_less_ok 1
+json_controls_ok 3
+usage_ok 1
+opaque_controls_ok 1
+opaque_controls 1
+binary cd870560aef649e962225c65c7c87e08d3d6c5b0721dade5c4017427c0d98b7d

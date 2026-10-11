@@ -1,0 +1,14 @@
+fixture	format	src_len	src_sha	out_len	out_sha	cmp	exact	decline_rc	ctl_rc
+netcdf_badoffset.nc	hdf	-	-	-	-	-	-	50	50
+nc_truncated.nc	hdf	-	-	-	-	-	-	50	50
+nc_junk.nc	hdf	-	-	-	-	-	-	50	50
+hdf5_filtered.h5	hdf	-	-	-	-	-	-	6	6
+hdf5_ohv2.h5	hdf	-	-	-	-	-	-	6	6
+hdf5_badmagic.bin	opaque	-	-	-	-	-	-	-	6
+hdf5_truncated.h5	opaque	-	-	-	-	-	-	-	6
+hdf5_junk.bin	opaque	-	-	-	-	-	-	-	6
+prose.txt	opaque	-	-	-	-	-	-	-	6
+netcdf_cdf1.nc	hdf	372	8d3bf2f175b4265f56d923febd518e50fcc030de44a46f9ef84270786c558851	372	8d3bf2f175b4265f56d923febd518e50fcc030de44a46f9ef84270786c558851	true	true	-	-
+netcdf_cdf2.nc	hdf	424	f87af49d1d4b8b02312f5cfa756e286f4eec68aa4b6809c1bc7e598f212d9175	424	f87af49d1d4b8b02312f5cfa756e286f4eec68aa4b6809c1bc7e598f212d9175	true	true	-	-
+hdf5_basic.h5	hdf	1209	4cb167fbdce5c2bdd91ef3bb9b0114c7c2abd19b8a575867074a67e7aa7629b9	1209	4cb167fbdce5c2bdd91ef3bb9b0114c7c2abd19b8a575867074a67e7aa7629b9	true	true	-	-
+hdf5_userblock.h5	hdf	1721	4862e945f87170387af7bb809fae4b76ccd1f2876dc090be362ae5553f3dc7ca	1721	4862e945f87170387af7bb809fae4b76ccd1f2876dc090be362ae5553f3dc7ca	true	true	-	-

@@ -33,12 +33,74 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
+#[cfg(feature = "apispec")]
+use crate::adapter::apispec::{
+    ApispecModel, NONE as API_NONE, canonical_text as apispec_canonical_text,
+    decode_string as apispec_decode_string, dialect_name as apispec_dialect_name,
+    find as apispec_find_matches, object_bytes as apispec_object_bytes,
+    ref_target as apispec_ref_target, role_name as apispec_role_name,
+    token_bytes as apispec_token_bytes, version_text as apispec_version_text,
+    version_token as apispec_version_token,
+};
 #[cfg(feature = "arrow")]
 use crate::adapter::arrow::{
     ArrowModel, LeafColumn as ArrowLeaf, Value as ArrowValue, batch_detail as arrow_batch_detail,
     cell_value as arrow_cell_value, column_bytes as arrow_column_bytes,
     column_span as arrow_column_span, column_values as arrow_column_values,
     type_name as arrow_type_name, value_text as arrow_value_text,
+};
+#[cfg(feature = "asciidoc")]
+use crate::adapter::asciidoc::{
+    AdocModel, block_bytes as adoc_block_bytes, block_kind_name as adoc_block_kind_name,
+    canonical_text as adoc_canonical_text, content_bytes as adoc_content_bytes,
+    find as adoc_find_matches, inline_kind_name as adoc_inline_kind_name,
+    inline_text_bytes as adoc_inline_text_bytes,
+};
+#[cfg(feature = "bib")]
+use crate::adapter::bib::{
+    BibModel, NONE as BIB_NONE, canonical_text as bib_canonical_text,
+    dialect_name as bib_dialect_name, entry_bytes as bib_entry_bytes,
+    entry_field_index as bib_entry_field_index, entry_key_index as bib_entry_key_index,
+    entry_key_text as bib_entry_key_text, entry_kind_name as bib_entry_kind_name,
+    entry_type_text as bib_entry_type_text, field_name_text as bib_field_name_text,
+    field_value_bytes as bib_field_value_bytes, field_value_text as bib_field_value_text,
+    find as bib_find_matches, item_bytes as bib_item_bytes, item_id_text as bib_item_id_text,
+    item_member_node as bib_item_member_node, item_type_text as bib_item_type_text,
+    node_token_bytes as bib_node_token_bytes, node_value_text as bib_node_value_text,
+    role_name as bib_role_name, value_kind_name as bib_value_kind_name,
+};
+#[cfg(feature = "cbor")]
+use crate::adapter::cbor::{
+    CborModel, canonical_text as cbor_canonical_text, decode_text as cbor_decode_text,
+    find as cbor_find_matches, find_parent as cbor_find_parent, kind_name as cbor_kind_name,
+    resolve_pointer as cbor_resolve_pointer, subtree_text as cbor_subtree_text,
+    token_bytes as cbor_token_bytes,
+};
+#[cfg(feature = "cfbf")]
+use crate::adapter::cfbf::{
+    CfbfModel, OBJ_ROOT as CFBF_OBJ_ROOT, OBJ_STREAM as CFBF_OBJ_STREAM,
+    canonical_text as cfbf_canonical_text, dialect_name as cfbf_dialect_name,
+    entry_bytes as cfbf_entry_bytes, entry_name_text as cfbf_name_text,
+    entry_path as cfbf_entry_path, field_name as cfbf_field_name, find as cfbf_find_matches,
+    obj_type_name as cfbf_obj_type_name, stream_bytes as cfbf_stream_bytes,
+};
+#[cfg(feature = "config")]
+use crate::adapter::config::{
+    CfgLine, ConfigModel, F_CONTINUED, F_DOUBLE_QUOTED, F_EXPORT, F_INLINE_COMMENT,
+    F_SINGLE_QUOTED, L_COMMENT, L_ENTRY, L_SECTION, canonical_text as config_canonical_text,
+    decode_key as config_decode_key, decode_value as config_decode_value,
+    dialect_name as config_dialect_name, find as config_find_matches,
+    key_bytes as config_key_bytes, line_bytes as config_line_bytes,
+    line_kind_name as config_line_kind_name, role_name as config_role_name,
+    terminator_name as config_terminator_name,
+};
+#[cfg(feature = "container")]
+use crate::adapter::container::{
+    ContainerModel, canonical_text as container_canonical_text,
+    dialect_name as container_dialect_name, entry_bytes as container_entry_bytes,
+    entry_is_dir as container_is_dir, entry_kind_name as container_kind_name,
+    entry_name_text as container_name_text, field_name as container_field_name,
+    find as container_find_matches,
 };
 #[cfg(feature = "csv")]
 use crate::adapter::csv::{
@@ -57,8 +119,49 @@ use crate::adapter::eml::{
     decode_body as eml_decode_body, find as eml_find_matches, kind_name as eml_kind_name,
     loc_name as eml_loc_name, raw_body_bytes as eml_raw_body_bytes,
 };
+#[cfg(feature = "mhtml")]
+use crate::adapter::eml::{cte_name as mhtml_cte_name, loc_name as mhtml_loc_name};
 #[cfg(feature = "epub")]
 use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
+#[cfg(feature = "feed")]
+use crate::adapter::feed::{
+    FeedModel, canonical_text as feed_canonical_text,
+    channel_field_nodes as feed_channel_field_nodes, dialect_name as feed_dialect_name,
+    entry_field_nodes as feed_entry_field_nodes, field_attrs as feed_field_attrs,
+    field_bytes as feed_field_bytes, field_text as feed_field_text, find as feed_find_matches,
+    split_qname as feed_split_qname,
+};
+#[cfg(feature = "fixedwidth")]
+use crate::adapter::fixedwidth::{
+    FixedWidthModel, Layout as FwLayout, StreamRecord as FwStreamRecord,
+    canonical_text as fw_canonical_text, decode_field as fw_decode_field,
+    field_bytes as fw_field_bytes, find as fw_find_matches, infer_layout as fw_infer_layout,
+    record_at as fw_record_at, record_bytes as fw_record_bytes, trimmed_text as fw_trimmed_text,
+};
+#[cfg(feature = "geojson")]
+use crate::adapter::geojson::{
+    GeojsonModel, canonical_text as geojson_canonical_text, class_name as geojson_class_name,
+    coordinate_numbers as geojson_coordinate_numbers, coordinates_node as geojson_coordinates_node,
+    find as geojson_find_matches, foreign_members as geojson_foreign_members,
+    geometries_node as geojson_geometries_node, object_member as geojson_object_member,
+    object_members as geojson_object_members, token_bytes as geojson_token_bytes,
+    type_of_object as geojson_type_of_object,
+};
+#[cfg(feature = "gis")]
+use crate::adapter::gis::{
+    GisModel, attr_value_by_local as gis_attr_value_by_local, canonical_text as gis_canonical_text,
+    dialect_name as gis_dialect_name, field_attrs as gis_field_attrs,
+    field_bytes as gis_field_bytes, field_name as gis_field_name, field_text as gis_field_text,
+    find as gis_find_matches, point_field_nodes as gis_point_field_nodes,
+    record_field_nodes as gis_record_field_nodes, root_field_nodes as gis_root_field_nodes,
+};
+#[cfg(feature = "hdf")]
+use crate::adapter::hdf::{
+    HdfModel, NO_PARENT as HDF_NO_PARENT, attribute_bytes as hdf_attribute_bytes,
+    canonical_text as hdf_canonical_text, dialect_name as hdf_dialect_name,
+    field_name as hdf_field_name, find as hdf_find_matches, kind_name as hdf_kind_name,
+    object_bytes as hdf_object_bytes, object_path as hdf_object_path, type_name as hdf_type_name,
+};
 #[cfg(feature = "html")]
 use crate::adapter::html::{
     HtmlModel, anchors as html_anchors, attr_name as html_attr_name,
@@ -74,12 +177,28 @@ use crate::adapter::json::{
     kind_name as json_kind_name, resolve_pointer as json_resolve_pointer,
     token_bytes as json_token_bytes,
 };
+#[cfg(feature = "json5")]
+use crate::adapter::json5::{
+    Json5Model, canonical_text as json5_canonical_text,
+    comment_kind_name as json5_comment_kind_name, decode_key as json5_decode_key,
+    decode_string as json5_decode_string, dialect_name as json5_dialect_name,
+    find as json5_find_matches, find_parent as json5_find_parent, kind_name as json5_kind_name,
+    resolve_pointer as json5_resolve_pointer, token_bytes as json5_token_bytes,
+};
 #[cfg(feature = "jsonl")]
 use crate::adapter::jsonl::{
     JsonlModel, canonical_text as jsonl_canonical_text, find as jsonl_find_matches,
     parse_record_ref as jsonl_parse_record_ref,
     resolve_record_pointer as jsonl_resolve_record_pointer,
     terminator_name as jsonl_terminator_name, value_bytes as jsonl_value_bytes,
+};
+#[cfg(feature = "logstream")]
+use crate::adapter::logstream::{
+    DIALECT_GENERIC, DIALECT_RFC3164, DIALECT_RFC5424, F_LEVEL, F_MSG, FLAG_HAS_PRI, LogField,
+    LogRecord, LogstreamModel, canonical_text as logstream_canonical_text,
+    dialect_name as logstream_dialect_name, field_bytes as logstream_field_bytes,
+    find as logstream_find_matches, role_for_name as logstream_role_for_name,
+    role_name as logstream_role_name, terminator_name as logstream_terminator_name,
 };
 #[cfg(feature = "markdown")]
 use crate::adapter::markdown::{
@@ -90,6 +209,34 @@ use crate::adapter::markdown::{
     fence_language as md_fence_language, find as md_find_matches,
     inline_kind_name as md_inline_kind_name, inline_text_bytes as md_inline_text_bytes,
     is_code_block as md_is_code_block,
+};
+#[cfg(feature = "mdx")]
+use crate::adapter::mdx::{
+    F_COMPONENT, F_HAS_ATTRS, F_HAS_SPREAD, F_JSX_ATTR, F_NAMESPACED, F_SELF_CLOSING, MdxModel,
+    S_BLOCK_EXPR, S_COMPONENT, S_ESM, S_FRAGMENT, S_JSX_ATTR, X_BLOCK, X_COMMENT,
+    esm_kind_name as mdx_esm_kind_name, find as mdx_find_matches,
+    jsx_kind_name as mdx_jsx_kind_name,
+};
+#[cfg(feature = "mhtml")]
+use crate::adapter::mhtml::{
+    F_HAS_CONTENT_BASE, F_HAS_FROM, F_HAS_HTML_PART, F_HAS_SNAPSHOT_LOCATION, F_HAS_SUBJECT,
+    MhtmlModel, find as mhtml_find_matches, resource_bytes as mhtml_resource_bytes,
+    root_body_bytes as mhtml_root_body_bytes,
+};
+#[cfg(feature = "msgpack")]
+use crate::adapter::msgpack::{
+    MsgpackModel, canonical_text as msgpack_canonical_text, decode_text as msgpack_decode_text,
+    find as msgpack_find_matches, find_parent as msgpack_find_parent,
+    kind_name as msgpack_kind_name, resolve_pointer as msgpack_resolve_pointer,
+    subtree_text as msgpack_subtree_text, token_bytes as msgpack_token_bytes,
+};
+#[cfg(feature = "notebook")]
+use crate::adapter::notebook::{
+    NotebookModel, canonical_text as notebook_canonical_text,
+    cell_type_of as notebook_cell_type_of, find as notebook_find_matches,
+    member_keys as notebook_member_keys, member_string_value as notebook_member_string_value,
+    object_member as notebook_object_member, output_type_of as notebook_output_type_of,
+    token_bytes as notebook_token_bytes,
 };
 #[cfg(feature = "odp")]
 use crate::adapter::odp::{
@@ -113,10 +260,40 @@ use crate::adapter::parquet::{
     physical_type_name as parquet_physical_name, repetition_name as parquet_repetition_name,
     stats_value_text as parquet_stats_text, value_text as parquet_value_text,
 };
+#[cfg(feature = "pkgmeta")]
+use crate::adapter::pkgmeta::{
+    NONE as PKG_NONE, PkgmetaModel, canonical_text as pkgmeta_canonical_text,
+    dialect_name as pkgmeta_dialect_name, entry_key_text as pkgmeta_entry_key_text,
+    entry_value_bytes as pkgmeta_entry_value_bytes,
+    entry_value_kind_name as pkgmeta_entry_value_kind_name,
+    entry_value_text as pkgmeta_entry_value_text, find as pkgmeta_find_matches,
+    role_for_name as pkgmeta_role_for_name, role_name as pkgmeta_role_name,
+    section_bytes as pkgmeta_section_bytes, section_kind_name as pkgmeta_section_kind_name,
+    section_name as pkgmeta_section_name,
+};
 #[cfg(feature = "pptx")]
 use crate::adapter::pptx::{
     NotesModel as PptxNotesModel, PptxExtractProfile, PptxModel, PptxShape, PptxTable,
     PresentationModel as PptxPresentationModel, SlideModel as PptxSlideModel,
+};
+#[cfg(feature = "rst")]
+use crate::adapter::rst::{
+    B_DIRECTIVE, B_TITLE, RstModel, block_bytes as rst_block_bytes,
+    block_kind_name as rst_block_kind_name, canonical_text as rst_canonical_text,
+    content_bytes as rst_content_bytes, find as rst_find_matches,
+    inline_kind_name as rst_inline_kind_name, inline_text_bytes as rst_inline_text_bytes,
+};
+#[cfg(feature = "rtf")]
+use crate::adapter::rtf::{
+    D_COLOR_TABLE, D_FONT_TABLE, D_IGNORE, D_INFO, D_OBJECT, D_PICT, D_STYLESHEET, NO_GROUP,
+    RtfModel, canonical_text as rtf_canonical_text, charset_name as rtf_charset_name,
+    control_bytes as rtf_control_bytes, control_kind_name as rtf_control_kind_name,
+    control_name_bytes as rtf_control_name_bytes, control_param as rtf_control_param,
+    destination_bytes as rtf_destination_bytes, destination_kind_for_name as rtf_destination_kind,
+    destination_name as rtf_destination_name, find as rtf_find_matches,
+    group_bytes as rtf_group_bytes, group_content_bytes as rtf_group_content_bytes,
+    hex_bytes as rtf_hex_bytes, hex_char as rtf_hex_char, text_run_bytes as rtf_text_run_bytes,
+    unicode_bytes as rtf_unicode_bytes, unicode_char as rtf_unicode_char,
 };
 #[cfg(feature = "toml")]
 use crate::adapter::toml::{
@@ -151,8 +328,22 @@ use crate::error::{Error, Result};
 use crate::field::cache::DerivedCache;
 use crate::field::dag::{self, EvalBudget, OutputCache, ReuseStats, SourceServer};
 use crate::field::document_format::DocumentFormat;
+#[cfg(feature = "apispec")]
+use crate::field::index::SEL_APISPEC_MODEL;
 #[cfg(feature = "arrow")]
 use crate::field::index::SEL_ARROW_MODEL;
+#[cfg(feature = "asciidoc")]
+use crate::field::index::SEL_ASCIIDOC_MODEL;
+#[cfg(feature = "bib")]
+use crate::field::index::SEL_BIB_MODEL;
+#[cfg(feature = "cbor")]
+use crate::field::index::SEL_CBOR_MODEL;
+#[cfg(feature = "cfbf")]
+use crate::field::index::SEL_CFBF_MODEL;
+#[cfg(feature = "config")]
+use crate::field::index::SEL_CONFIG_MODEL;
+#[cfg(feature = "container")]
+use crate::field::index::SEL_CONTAINER_MODEL;
 #[cfg(feature = "csv")]
 use crate::field::index::SEL_CSV_MODEL;
 #[cfg(feature = "docx")]
@@ -161,14 +352,36 @@ use crate::field::index::SEL_DOCX_MODEL;
 use crate::field::index::SEL_EML_MODEL;
 #[cfg(feature = "epub")]
 use crate::field::index::SEL_EPUB_MODEL;
+#[cfg(feature = "feed")]
+use crate::field::index::SEL_FEED_MODEL;
+#[cfg(feature = "fixedwidth")]
+use crate::field::index::SEL_FIXEDWIDTH_MODEL;
+#[cfg(feature = "geojson")]
+use crate::field::index::SEL_GEOJSON_MODEL;
+#[cfg(feature = "gis")]
+use crate::field::index::SEL_GIS_MODEL;
+#[cfg(feature = "hdf")]
+use crate::field::index::SEL_HDF_MODEL;
 #[cfg(feature = "html")]
 use crate::field::index::SEL_HTML_MODEL;
 #[cfg(feature = "json")]
 use crate::field::index::SEL_JSON_MODEL;
+#[cfg(feature = "json5")]
+use crate::field::index::SEL_JSON5_MODEL;
 #[cfg(feature = "jsonl")]
 use crate::field::index::SEL_JSONL_MODEL;
+#[cfg(feature = "logstream")]
+use crate::field::index::SEL_LOGSTREAM_MODEL;
 #[cfg(feature = "markdown")]
 use crate::field::index::SEL_MARKDOWN_MODEL;
+#[cfg(feature = "mdx")]
+use crate::field::index::SEL_MDX_MODEL;
+#[cfg(feature = "mhtml")]
+use crate::field::index::SEL_MHTML_MODEL;
+#[cfg(feature = "msgpack")]
+use crate::field::index::SEL_MSGPACK_MODEL;
+#[cfg(feature = "notebook")]
+use crate::field::index::SEL_NOTEBOOK_MODEL;
 #[cfg(feature = "odp")]
 use crate::field::index::SEL_ODP_MODEL;
 #[cfg(feature = "ods")]
@@ -179,8 +392,14 @@ use crate::field::index::SEL_ODT_MODEL;
 use crate::field::index::SEL_OPC_MODEL;
 #[cfg(feature = "parquet")]
 use crate::field::index::SEL_PARQUET_MODEL;
+#[cfg(feature = "pkgmeta")]
+use crate::field::index::SEL_PKGMETA_MODEL;
 #[cfg(feature = "pptx")]
 use crate::field::index::SEL_PPTX_MODEL;
+#[cfg(feature = "rst")]
+use crate::field::index::SEL_RST_MODEL;
+#[cfg(feature = "rtf")]
+use crate::field::index::SEL_RTF_MODEL;
 #[cfg(feature = "toml")]
 use crate::field::index::SEL_TOML_MODEL;
 #[cfg(feature = "xlsx")]
@@ -732,6 +951,356 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A JSON5/JSONC node addressed by an RFC 6901 pointer (Phase 21.17.1), e.g.
+    /// `/a/0`. Same addressing as [`Selector::JsonPointer`] but resolved against
+    /// the JSON5 superset (unquoted keys and single-quoted strings resolve too).
+    /// JSON5 has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "json5")]
+    Json5Pointer {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A JSON5/JSONC node's structural view (Phase 21.17.1): kind, span,
+    /// parent/child spans, and, for objects, each member's key and key/value spans.
+    /// Same RFC 6901 addressing as [`Selector::Json5Pointer`].
+    #[cfg(feature = "json5")]
+    Json5Node {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A lexical, case-sensitive search over JSON5 object keys and string values
+    /// (Phase 21.17.1). Never an embedding or a model call.
+    #[cfg(feature = "json5")]
+    Json5Find {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// Every comment (`//` line and `/* … */` block) of a JSON5/JSONC document in
+    /// source order, each with its kind and exact span (Phase 21.17.1). Comments
+    /// are never silently dropped.
+    #[cfg(feature = "json5")]
+    Json5Comments,
+    /// A CBOR item addressed by an RFC 6901 pointer (Phase 21.18), e.g. `/a/0`.
+    /// `ExactBytes` returns the item's exact encoded token bytes; `Text` the decoded
+    /// text (or the canonical subtree for a container/scalar); `Metadata`/`Structure`
+    /// a CBOR descriptor with the kind, the exact span, the encoding width, the
+    /// tag/float facts, and the duplicate-key match count. CBOR has no package layer,
+    /// so the source *is* the whole document. A tag is transparent to traversal (tag
+    /// numbers are preserved, never resolved).
+    #[cfg(feature = "cbor")]
+    CborPointer {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A CBOR item's structural view (Phase 21.18): kind, span, encoding width,
+    /// tag/float facts, parent/child spans, and, for a map, each member's key/value
+    /// kinds and spans (duplicate keys reported, never hidden). Same RFC 6901
+    /// addressing as [`Selector::CborPointer`].
+    #[cfg(feature = "cbor")]
+    CborNode {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A lexical, case-sensitive search over CBOR text-string map keys and text
+    /// values (Phase 21.18). Never an embedding or a model call.
+    #[cfg(feature = "cbor")]
+    CborFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// A MessagePack item addressed by an RFC 6901 pointer (Phase 21.19), e.g.
+    /// `/a/0`. `ExactBytes` returns the item's exact encoded token bytes; `Text` the
+    /// decoded text (or the canonical subtree for a container/scalar);
+    /// `Metadata`/`Structure` a MessagePack descriptor with the kind, the exact span,
+    /// the exact format byte (encoding width and signedness), the extension type, and
+    /// the duplicate-key match count. MessagePack has no package layer, so the source
+    /// *is* the whole document.
+    #[cfg(feature = "msgpack")]
+    MsgpackPointer {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A MessagePack item's structural view (Phase 21.19): kind, span, exact format
+    /// byte, float/extension facts, parent/child spans, and, for a map, each member's
+    /// key/value kinds and spans (duplicate keys reported, never hidden). Same RFC
+    /// 6901 addressing as [`Selector::MsgpackPointer`].
+    #[cfg(feature = "msgpack")]
+    MsgpackNode {
+        /// The RFC 6901 pointer (`""` is the whole document).
+        pointer: String,
+    },
+    /// A lexical, case-sensitive search over MessagePack text-string map keys and
+    /// text values (Phase 21.19). Never an embedding or a model call.
+    #[cfg(feature = "msgpack")]
+    MsgpackFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// A config-family line by 0-based logical index (Phase 21.20), e.g. `0`. A
+    /// `properties` logical line that used trailing-`\` continuations counts as a
+    /// single line. `ExactBytes` returns the line's exact content bytes (its
+    /// terminator excluded); `Text` the decoded line; `Metadata`/`Structure` a
+    /// descriptor with the line kind, its exact spans, and its entry facts. The
+    /// config family has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "config")]
+    ConfigLine {
+        /// The 0-based logical line index.
+        index: u32,
+    },
+    /// A config-family entry by 0-based entry ordinal (Phase 21.20), i.e. the
+    /// `index`-th key/value line in source order (comments, blanks, and sections are
+    /// skipped). `ExactBytes` returns the entry's exact content bytes; `Text` the
+    /// decoded `key=value`; `Metadata`/`Structure` a descriptor with exact key,
+    /// separator, and value spans, the quoting/`export`/continuation/inline-comment
+    /// facts, and the duplicate-key match count (duplicates are reported, never
+    /// collapsed).
+    #[cfg(feature = "config")]
+    ConfigEntry {
+        /// The 0-based entry ordinal in source order.
+        index: u32,
+    },
+    /// A config-family section header by name (Phase 21.20). The answer reports the
+    /// matching header lines (by name), their exact spans, and the match count; an
+    /// unknown name declines typed.
+    #[cfg(feature = "config")]
+    ConfigSection {
+        /// The section name (the bytes between `[` and `]`).
+        name: String,
+    },
+    /// A lexical, case-sensitive search over config keys and values (Phase 21.20),
+    /// in source order. Each match reports its line index, entry ordinal, role
+    /// (`key`/`value`), and exact span. Never an embedding or a model call.
+    #[cfg(feature = "config")]
+    ConfigFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// A feed's channel (RSS) or feed container (Atom) element (Phase 21.21).
+    /// `ExactBytes` returns the container element's whole source span; `Text` its
+    /// character data; `Metadata`/`Structure` a descriptor with the recorded dialect,
+    /// the channel/feed-level fields and their exact spans, and the entry count. A
+    /// feed has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "feed")]
+    FeedChannel,
+    /// A feed channel/feed-level field by local name (Phase 21.21), e.g. `title`,
+    /// `link`, `description`, `language` (RSS) or `id`, `title`, `updated`, `link`
+    /// (Atom). `ExactBytes` returns the field element's whole source span; `Text`
+    /// its decoded value (for an Atom `<link>` the `href` attribute);
+    /// `Metadata`/`Structure` a descriptor with the field name, span, and its
+    /// attributes in source order. An unknown name declines typed.
+    #[cfg(feature = "feed")]
+    FeedField {
+        /// The field element's local name.
+        name: String,
+    },
+    /// A feed record (RSS `<item>` / Atom `<entry>`) by 0-based ordinal (Phase
+    /// 21.21), in document order. `ExactBytes` returns the record element's whole
+    /// source span; `Text` the concatenation of its fields' values; `Metadata`/
+    /// `Structure` a descriptor with the record's fields and their exact spans.
+    #[cfg(feature = "feed")]
+    FeedEntry {
+        /// The 0-based record ordinal in document order.
+        index: u32,
+    },
+    /// One field of one feed record (Phase 21.21), e.g. `0:title`. Same
+    /// representations as [`Selector::FeedField`]. An out-of-range record or an
+    /// unknown field name declines typed.
+    #[cfg(feature = "feed")]
+    FeedEntryField {
+        /// The 0-based record ordinal.
+        entry: u32,
+        /// The field element's local name.
+        name: String,
+    },
+    /// A lexical, case-sensitive search over feed field values (Phase 21.21), in
+    /// document order (channel/feed fields first, then each record's fields). Each
+    /// match reports its record ordinal (or none for a channel/feed field), the
+    /// field name, and its exact span. Never an embedding or a model call.
+    #[cfg(feature = "feed")]
+    FeedFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The root `"type"` of a GeoJSON document (Phase 21.22). `ExactBytes`
+    /// returns the exact `"type"` string token (with quotes); `Text` the decoded
+    /// type name; `Metadata`/`Structure` a descriptor with the type, the geometry
+    /// and feature counts, and the byte length. GeoJSON has no package layer, so the
+    /// source *is* the whole document.
+    #[cfg(feature = "geojson")]
+    GeojsonType,
+    /// A GeoJSON feature by 0-based ordinal (Phase 21.22), in document order (the
+    /// root `Feature`, or every element of a `FeatureCollection`'s `features` array).
+    /// `ExactBytes` returns the feature object's whole source span; `Text` its
+    /// canonical JSON projection; `Metadata`/`Structure` a descriptor with the type,
+    /// the geometry span, `id`, `bbox`, the `properties` keys, and the foreign
+    /// members. An out-of-range index declines typed.
+    #[cfg(feature = "geojson")]
+    GeojsonFeature {
+        /// The 0-based feature ordinal in document order.
+        index: u32,
+    },
+    /// A GeoJSON geometry by 0-based ordinal (Phase 21.22), in document order
+    /// (pre-order; a `GeometryCollection`'s members are included). `ExactBytes`
+    /// returns the geometry object's whole source span; `Text` its canonical JSON
+    /// projection; `Metadata`/`Structure` a descriptor with the geometry type, span,
+    /// and (for a non-collection) the coordinates summary. An out-of-range index
+    /// declines typed.
+    #[cfg(feature = "geojson")]
+    GeojsonGeometry {
+        /// The 0-based geometry ordinal in document order.
+        index: u32,
+    },
+    /// The `coordinates` of the `index`-th GeoJSON geometry (Phase 21.22).
+    /// `ExactBytes` returns the coordinates value's exact source span;
+    /// `Metadata`/`Structure` a descriptor listing every coordinate number's exact
+    /// span and literal spelling. A `GeometryCollection` has no `coordinates` and
+    /// declines typed, as does an out-of-range index.
+    #[cfg(feature = "geojson")]
+    GeojsonCoordinates {
+        /// The 0-based geometry ordinal in document order.
+        index: u32,
+    },
+    /// One property of one GeoJSON feature, addressed as `FEATURE:NAME` (Phase
+    /// 21.22). `ExactBytes` returns the value's exact source span; `Text` its
+    /// decoded value; `Metadata`/`Structure` a descriptor with the feature ordinal,
+    /// the property name, the value kind, and the exact span. A missing property, an
+    /// out-of-range feature, or a non-object `properties` declines typed.
+    #[cfg(feature = "geojson")]
+    GeojsonProperty {
+        /// The 0-based feature ordinal in document order.
+        feature: u32,
+        /// The property (member) name.
+        name: String,
+    },
+    /// A lexical, case-sensitive search over GeoJSON object keys and string values
+    /// (Phase 21.22), reusing the shared JSON match vocabulary. Each match reports
+    /// its canonical RFC 6901 pointer, role (key/value), and exact source span.
+    /// Never an embedding or a model call.
+    #[cfg(feature = "geojson")]
+    GeojsonFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// A KML/GPX geospatial document's root container (Phase 21.23): the `<kml>`
+    /// or `<gpx>` element. `ExactBytes` returns the root element's whole source
+    /// span; `Text` its character data; `Metadata`/`Structure` a descriptor with the
+    /// recorded dialect, the record and point counts, and the root-level fields with
+    /// their exact spans. A GIS document has no package layer, so the source *is*
+    /// the whole document.
+    #[cfg(feature = "gis")]
+    GisRoot,
+    /// A KML/GPX root-level field by local name (Phase 21.23), e.g. `Document`,
+    /// `Folder`, `Placemark` (KML) or `metadata`, `name`, `desc` (GPX). `ExactBytes`
+    /// returns the field element's whole source span; `Text` its decoded text;
+    /// `Metadata`/`Structure` a descriptor with the field name, span, and its
+    /// attributes in source order. An unknown name declines typed.
+    #[cfg(feature = "gis")]
+    GisField {
+        /// The field element's local name.
+        name: String,
+    },
+    /// A KML/GPX record by 0-based ordinal (Phase 21.23), in document order (KML
+    /// `<Placemark>` features, or GPX top-level `<wpt>`/`<rte>`/`<trk>` records).
+    /// `ExactBytes` returns the record element's whole source span; `Text` the
+    /// concatenation of its fields' values; `Metadata`/`Structure` a descriptor with
+    /// the record kind, span, and its fields with their exact spans. An out-of-range
+    /// index declines typed.
+    #[cfg(feature = "gis")]
+    GisRecord {
+        /// The 0-based record ordinal in document order.
+        index: u32,
+    },
+    /// One field of one KML/GPX record (Phase 21.23), e.g. `0:name`,
+    /// `0:coordinates`. Same representations as [`Selector::GisField`]. An
+    /// out-of-range record or an unknown field name declines typed.
+    #[cfg(feature = "gis")]
+    GisRecordField {
+        /// The 0-based record ordinal.
+        record: u32,
+        /// The field element's local name.
+        name: String,
+    },
+    /// A KML/GPX point by 0-based ordinal (Phase 21.23), in document order (KML
+    /// `Point`/`LineString`/`Polygon` geometry, or GPX `<wpt>`/`<rtept>`/`<trkpt>`
+    /// point elements). `ExactBytes` returns the point element's whole source span;
+    /// `Text` its decoded text; `Metadata`/`Structure` a descriptor with the point
+    /// kind, span, the `lat`/`lon` attributes (GPX), and its fields.
+    #[cfg(feature = "gis")]
+    GisPoint {
+        /// The 0-based point ordinal in document order.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over KML/GPX recognized field values
+    /// (Phase 21.23), in document order (root fields first, then each record's
+    /// fields, then each point's fields). Each match reports its arena kind, the
+    /// record/point ordinal (or none for a root field), the field name, and its exact
+    /// span. Never an embedding or a model call.
+    #[cfg(feature = "gis")]
+    GisFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The `nbformat` of a Jupyter notebook (Phase 21.24). `ExactBytes` returns the
+    /// exact `nbformat` integer token; `Text` the decoded decimal value;
+    /// `Metadata`/`Structure` a descriptor with the `nbformat`, the `nbformat_minor`,
+    /// the cell count, the total output count, and the byte length. A notebook has no
+    /// package layer, so the source *is* the whole document.
+    #[cfg(feature = "notebook")]
+    NotebookNbformat,
+    /// A Jupyter notebook cell by 0-based ordinal (Phase 21.24), in document order.
+    /// `ExactBytes` returns the cell object's whole source span; `Text` its canonical
+    /// JSON projection; `Metadata`/`Structure` a descriptor with the `cell_type`, the
+    /// `source` form/span, the `execution_count` token, the output count, and the
+    /// `metadata`/`attachments` presence. An out-of-range index declines typed.
+    #[cfg(feature = "notebook")]
+    NotebookCell {
+        /// The 0-based cell ordinal in document order.
+        index: u32,
+    },
+    /// The exact `cell_type` string of the `index`-th Jupyter notebook cell
+    /// (Phase 21.24). `ExactBytes` returns the exact `cell_type` string token (with
+    /// quotes); `Text` the decoded name; `Metadata`/`Structure` a descriptor with the
+    /// cell ordinal and the type. An out-of-range index declines typed.
+    #[cfg(feature = "notebook")]
+    NotebookCellType {
+        /// The 0-based cell ordinal in document order.
+        index: u32,
+    },
+    /// The `source` of the `index`-th Jupyter notebook cell (Phase 21.24),
+    /// **preserving its exact representation**: a `string` source is returned decoded
+    /// for `Text`, an array-of-lines source is returned as its canonical JSON array
+    /// (never re-joined or split). `ExactBytes` returns the source value's exact span;
+    /// `Metadata`/`Structure` a descriptor with the cell ordinal, the form, the span,
+    /// and the element count. A cell with no `source` declines typed, as does an
+    /// out-of-range index.
+    #[cfg(feature = "notebook")]
+    NotebookCellSource {
+        /// The 0-based cell ordinal in document order.
+        index: u32,
+    },
+    /// One output of one Jupyter notebook cell, addressed as `CELL:OUTPUT`
+    /// (Phase 21.24). `ExactBytes` returns the output object's whole source span;
+    /// `Text` its canonical JSON projection; `Metadata`/`Structure` a descriptor with
+    /// the exact `output_type` string and the type-specific fields (a `stream`'s
+    /// `name`/`text` form, an `execute_result`/`display_data`'s `data` keys, an
+    /// `error`'s `ename`/`evalue`/`traceback` count). An out-of-range cell/output
+    /// declines typed.
+    #[cfg(feature = "notebook")]
+    NotebookCellOutput {
+        /// The 0-based cell ordinal in document order.
+        cell: u32,
+        /// The 0-based output ordinal within the cell.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over Jupyter notebook object keys and string
+    /// values (Phase 21.24), reusing the shared JSON match vocabulary. Each match
+    /// reports its canonical RFC 6901 pointer, role (key/value), and exact source
+    /// span. Never an embedding or a model call.
+    #[cfg(feature = "notebook")]
+    NotebookFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// A YAML node addressed by a dotted path (Phase 21.6.1), e.g. `a.b.0`. The
     /// optional first segment `docN` selects a document (default 0). The answer
     /// reports the node's kind/style, its exact source span, and (for `ExactBytes`)
@@ -803,6 +1372,49 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// A fixed-width record by 0-based physical index (record 0 is the header row),
+    /// returned with its exact source span and exact bytes (Phase 21.25). A
+    /// fixed-width document has no package layer, so the source *is* the whole
+    /// document.
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthRow {
+        /// The 0-based record index (the header row is index 0).
+        index: u32,
+    },
+    /// A fixed-width cell addressed as `R:C` (0-based record and column indices) or
+    /// `R:COLNAME` (record `R`, the column whose header name is `COLNAME`)
+    /// (Phase 21.25). `ExactBytes` returns the field's exact source bytes (padding
+    /// preserved); `Text` the decoded, whitespace-trimmed field; `Metadata`/
+    /// `Structure` a descriptor with the field's span, padded text, and trimmed text.
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthCell {
+        /// The `R:C` or `R:COLNAME` reference.
+        spec: String,
+    },
+    /// The fixed-width header row (record 0): its column names and exact bytes
+    /// (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthHeader,
+    /// The recovered fixed-width column layout (Phase 21.25): every column's start/end
+    /// position and width, the uniform record width, and the terminator. `Text`
+    /// returns a compact `start:end` list; `Metadata`/`Structure` a descriptor with the
+    /// exact per-column positions.
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthColumns,
+    /// A fixed-width rectangular range of cells addressed as `R1:C1:R2:C2` (0-based,
+    /// inclusive) (Phase 21.25).
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthRange {
+        /// The `R1:C1:R2:C2` reference.
+        spec: String,
+    },
+    /// A lexical, case-sensitive search over fixed-width (trimmed) field text
+    /// (Phase 21.25). Never an embedding or a model call.
+    #[cfg(feature = "fixedwidth")]
+    FixedWidthFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// The `index`-th ATX heading in document order (Phase 21.8.1). `Text` returns
     /// the heading's exact content text; `ExactBytes` its exact content bytes;
     /// `Metadata`/`Structure` a descriptor with its level and exact spans.
@@ -841,6 +1453,175 @@ pub enum Selector {
     /// Never an embedding or a model call.
     #[cfg(feature = "markdown")]
     MdFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The `index`-th section title in document order (Phase 21.26.1). `Text` returns
+    /// the title text; `ExactBytes` its exact content bytes; `Metadata`/`Structure` a
+    /// descriptor with its hierarchy level, adornment, and exact spans.
+    #[cfg(feature = "rst")]
+    RstHeading {
+        /// The 0-based title ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th block in document order (Phase 21.26.1). `ExactBytes` returns
+    /// the block's exact source span bytes; `Text` its exact content text;
+    /// `Metadata`/`Structure` a descriptor with its kind, exact spans, and inline
+    /// count. reStructuredText has no package layer, so the source *is* the whole
+    /// document.
+    #[cfg(feature = "rst")]
+    RstBlock {
+        /// The 0-based block ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th directive (`.. name:: ...`) in document order (Phase 21.26.1),
+    /// preserved verbatim and never executed or resolved. `Text` returns the exact
+    /// directive source; `Metadata`/`Structure` a descriptor with its name, argument,
+    /// and exact spans.
+    #[cfg(feature = "rst")]
+    RstDirective {
+        /// The 0-based directive ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th inline span in document order (Phase 21.26.1). `Text` returns
+    /// the inline's inner text; `ExactBytes` its exact whole span bytes;
+    /// `Metadata`/`Structure` a descriptor with its kind, role/reference name, and
+    /// exact spans.
+    #[cfg(feature = "rst")]
+    RstInline {
+        /// The 0-based inline ordinal in document order.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over reStructuredText block content (Phase
+    /// 21.26.1). Never an embedding or a model call.
+    #[cfg(feature = "rst")]
+    RstFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The `index`-th heading in document order (Phase 21.26.2): index 0 is the
+    /// document title (level 0) when present, then each `==`+ section (level = marker
+    /// run length − 1). `Text` returns the heading text; `ExactBytes` its exact content
+    /// bytes; `Metadata`/`Structure` a descriptor with its level, exact `=` marker, and
+    /// exact spans.
+    #[cfg(feature = "asciidoc")]
+    AdocHeading {
+        /// The 0-based heading ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th block in document order (Phase 21.26.2). `ExactBytes` returns the
+    /// block's exact source span bytes; `Text` its exact content text;
+    /// `Metadata`/`Structure` a descriptor with its kind, exact spans, attached block
+    /// attributes, and inline count. AsciiDoc has no package layer, so the source *is*
+    /// the whole document.
+    #[cfg(feature = "asciidoc")]
+    AdocBlock {
+        /// The 0-based block ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th document attribute (`:name: value` / `:name!:`) in document order
+    /// (Phase 21.26.2), preserved literally. `Text` returns the exact attribute source;
+    /// `Metadata`/`Structure` a descriptor with its name, value, unset flag, and exact
+    /// spans.
+    #[cfg(feature = "asciidoc")]
+    AdocAttribute {
+        /// The 0-based attribute ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th inline span in document order (Phase 21.26.2). `Text` returns the
+    /// inline's inner text; `ExactBytes` its exact whole span bytes; `Metadata`/
+    /// `Structure` a descriptor with its kind, macro target, and exact spans.
+    #[cfg(feature = "asciidoc")]
+    AdocInline {
+        /// The 0-based inline ordinal in document order.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over AsciiDoc block content (Phase 21.26.2).
+    /// Never an embedding or a model call.
+    #[cfg(feature = "asciidoc")]
+    AdocFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The `index`-th ATX heading in document order (Phase 21.26.3), reusing the
+    /// Markdown heading arena. `Text` returns the heading's exact content text;
+    /// `ExactBytes` its exact content bytes; `Metadata`/`Structure` a descriptor with
+    /// its level and exact spans.
+    #[cfg(feature = "mdx")]
+    MdxHeading {
+        /// The 0-based heading ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th block in document order (Phase 21.26.3), reusing the Markdown
+    /// block arena. `ExactBytes` returns the block's exact source span bytes; `Text`
+    /// its exact source text; `Metadata`/`Structure` a descriptor with its kind, exact
+    /// spans, and inline count. MDX has no package layer, so the source *is* the whole
+    /// document.
+    #[cfg(feature = "mdx")]
+    MdxBlock {
+        /// The 0-based block ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th ESM `import`/`export` statement in document order (Phase
+    /// 21.26.3), preserved verbatim and never executed. `Text`/`ExactBytes` return its
+    /// exact source bytes; `Metadata`/`Structure` a descriptor with its kind and exact
+    /// span.
+    #[cfg(feature = "mdx")]
+    MdxEsm {
+        /// The 0-based ESM-statement ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th JSX element or fragment in document order (Phase 21.26.3),
+    /// recorded as an extent (never executed, never parsed as JavaScript). `Text`/
+    /// `ExactBytes` return its exact source bytes; `Metadata`/`Structure` a descriptor
+    /// with its kind, name, attribute count, child count, depth, and exact span.
+    #[cfg(feature = "mdx")]
+    MdxJsx {
+        /// The 0-based JSX-element ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th MDX expression `{ … }` in document order (Phase 21.26.3),
+    /// preserved verbatim. `Text`/`ExactBytes` return its exact source bytes;
+    /// `Metadata`/`Structure` a descriptor with its flags, depth, and exact span.
+    #[cfg(feature = "mdx")]
+    MdxExpression {
+        /// The 0-based expression ordinal in document order.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over MDX (Markdown) block content (Phase
+    /// 21.26.3). Never an embedding or a model call.
+    #[cfg(feature = "mdx")]
+    MdxFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The root HTML part of an MHTML web archive (Phase 21.27), identified by the
+    /// `multipart/related` `start=` `Content-ID` when present, else the first
+    /// `text/html` part, else the first part. `Text`/`ExactBytes` return the root
+    /// part's **decoded** body; `Metadata`/`Structure` a descriptor with its MIME
+    /// spans, `Content-Location`, decoded length, and the reused HTML model summary.
+    #[cfg(feature = "mhtml")]
+    MhtmlRoot,
+    /// The `ordinal`-th MHTML sub-resource (a part keyed by `Content-Location`/
+    /// `Content-ID`) in document order (Phase 21.27). `Text`/`ExactBytes` return its
+    /// exact decoded bytes; `Metadata`/`Structure` a descriptor with its keys, media
+    /// type, encoding, exact spans, and decoded length.
+    #[cfg(feature = "mhtml")]
+    MhtmlResource {
+        /// The 0-based sub-resource ordinal in document order.
+        ordinal: u32,
+    },
+    /// The MHTML envelope's top-level locations (Phase 21.27): the
+    /// `Snapshot-Content-Location` and `Content-Base` headers, with exact spans.
+    /// `Text` returns the first present location value; `ExactBytes` its raw bytes;
+    /// `Metadata`/`Structure` a descriptor with both values and spans.
+    #[cfg(feature = "mhtml")]
+    MhtmlLocation,
+    /// A lexical, case-sensitive search over the whole MHTML document (reusing the
+    /// MIME finder: every part's header names/values and every decoded `text/*` body,
+    /// including the root HTML part) (Phase 21.27).
+    #[cfg(feature = "mhtml")]
+    MhtmlFind {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
@@ -963,6 +1744,322 @@ pub enum Selector {
     /// and string values (Phase 21.12). Never an embedding or a model call.
     #[cfg(feature = "jsonl")]
     JsonlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The `index`-th log-stream record (0-based, blank lines do not count) (Phase
+    /// 21.28): its dialect, its **exact line span** and terminator, its decoded
+    /// priority, and its exact-span fields. `ExactBytes` returns the record's exact
+    /// line content bytes (the terminator excluded); `Text` the record's message; a
+    /// log stream has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "logstream")]
+    LogstreamLine {
+        /// The 0-based record index (blank lines do not count).
+        index: u32,
+    },
+    /// A log-stream record's field addressed as `N:ROLE` (`N` is a 0-based record
+    /// index and `ROLE` is a field role name such as `timestamp`, `level`, `hostname`,
+    /// `pri`, `sd-element`, or `msg`) (Phase 21.28). `ExactBytes` returns the first
+    /// matching field's exact source bytes; `Text` its decoded text; `Metadata`/
+    /// `Structure` a descriptor with the field's role, span, and match count. An
+    /// unknown role is a usage error; a known role absent from the record declines
+    /// typed.
+    #[cfg(feature = "logstream")]
+    LogstreamField {
+        /// The `N:ROLE` reference.
+        spec: String,
+    },
+    /// A bounded, case-sensitive search across **every** log-stream record's fields
+    /// (Phase 21.28). Never an embedding or a model call.
+    #[cfg(feature = "logstream")]
+    LogstreamFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The `index`-th recorded package-metadata **section** (0-based, in document
+    /// order; index `0` is the root) (Phase 21.29): its recorded dialect and role, its
+    /// exact name span (when named) and exact value span, and its entry range.
+    /// `ExactBytes` returns the section's exact source bytes; `Text` its decoded name.
+    /// A manifest has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "pkgmeta")]
+    PkgmetaSection {
+        /// The 0-based section index.
+        index: u32,
+    },
+    /// The `index`-th recorded package-metadata **entry** (0-based, in document order
+    /// grouped by section) (Phase 21.29): its owning section, its exact key span, and
+    /// its exact value span. `ExactBytes` returns the entry's exact value bytes;
+    /// `Text` its decoded value text; `Metadata`/`Structure` a descriptor.
+    #[cfg(feature = "pkgmeta")]
+    PkgmetaEntry {
+        /// The 0-based entry index.
+        index: u32,
+    },
+    /// A package-manifest entry addressed as `SECTION:KEY` (Phase 21.29). `SECTION` is
+    /// a section name or role name (e.g. `dependencies`, `package`, `scripts`); `KEY`
+    /// is the decoded entry key. The **first** matching section and its first matching
+    /// entry are used, and the duplicate-key count is reported. `ExactBytes` returns
+    /// the value's exact source bytes; `Text` its decoded value; `Metadata`/`Structure`
+    /// a descriptor. A malformed reference is a usage error; an absent section or key
+    /// declines typed.
+    #[cfg(feature = "pkgmeta")]
+    PkgmetaKey {
+        /// The `SECTION:KEY` reference.
+        spec: String,
+    },
+    /// A bounded, case-sensitive search across every section name, entry key, and entry
+    /// value text (Phase 21.29). Never an embedding or a model call.
+    #[cfg(feature = "pkgmeta")]
+    PkgmetaFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The **recorded dialect** of an API-specification document (Phase 21.30): one of
+    /// `json_schema` / `openapi` / `swagger` / `asyncapi`. `Text` returns the dialect
+    /// name; `Metadata`/`Structure` a descriptor with the dialect, the exact
+    /// spec-version string, the object/member/`$ref` counts, and the byte length. An
+    /// API spec has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "apispec")]
+    ApispecDialect,
+    /// The exact **spec-version string** of an API-specification document (Phase
+    /// 21.30): the `$schema` / `openapi` / `swagger` / `asyncapi` value, never
+    /// normalized. `ExactBytes` returns the exact token (with quotes); `Text` the
+    /// decoded string; `Metadata`/`Structure` a descriptor with the dialect, the
+    /// version, and its exact span.
+    #[cfg(feature = "apispec")]
+    ApispecVersion,
+    /// The `index`-th recorded API-spec **object** (0-based, pre-order; index `0` is the
+    /// root) (Phase 21.30): its role, its exact value span, its naming key's exact span
+    /// (when named), and its member range. `ExactBytes` returns the object's exact
+    /// source bytes; `Text` its decoded name; `Metadata`/`Structure` a descriptor. An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "apispec")]
+    ApispecObject {
+        /// The 0-based object index.
+        index: u32,
+    },
+    /// The `index`-th recorded `$ref` (0-based, in document order) (Phase 21.30): its
+    /// owning object, its exact key span, and the exact target-string span. The target
+    /// is preserved **verbatim** and is **never** resolved. `ExactBytes` returns the
+    /// target's exact token; `Text` its decoded target; `Metadata`/`Structure` a
+    /// descriptor. An out-of-range index declines typed.
+    #[cfg(feature = "apispec")]
+    ApispecRef {
+        /// The 0-based `$ref` index.
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over API-spec object keys and string
+    /// values (Phase 21.30), reusing the shared JSON match vocabulary. Each match
+    /// reports its canonical RFC 6901 pointer, role (key/value), and exact source span.
+    /// Never an embedding or a model call.
+    #[cfg(feature = "apispec")]
+    ApispecFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The **recorded dialect** of a bibliography document (Phase 21.31): one of
+    /// `bibtex` / `ris` / `csl_json`. `Text` returns the dialect name;
+    /// `Metadata`/`Structure` a descriptor with the dialect, the entry/item and field
+    /// counts, the BOM length, and the byte length. A bibliography has no package layer,
+    /// so the source *is* the whole document.
+    #[cfg(feature = "bib")]
+    BibDialect,
+    /// The `index`-th recorded bibliography **entry** (BibTeX/RIS) or **item**
+    /// (CSL-JSON) (0-based) (Phase 21.31). `ExactBytes` returns the entry/item's exact
+    /// source bytes; `Text` its entry key (BibTeX), `TY` value (RIS), or string `id`
+    /// (CSL-JSON); `Metadata`/`Structure` a descriptor. An out-of-range index declines
+    /// typed.
+    #[cfg(feature = "bib")]
+    BibEntry {
+        /// The 0-based entry (or item) index.
+        index: u32,
+    },
+    /// A field of an entry (or a member of a CSL-JSON item) as `N:FIELD` (Phase 21.31):
+    /// `N` is a 0-based entry/item index and `FIELD` is a BibTeX field name
+    /// (case-insensitive) or RIS tag / CSL-JSON member key (exact). `ExactBytes`
+    /// returns the value's exact bytes (delimiters included); `Text` its decoded text;
+    /// `Metadata`/`Structure` a descriptor. A malformed reference is a usage error; an
+    /// absent entry or field declines typed.
+    #[cfg(feature = "bib")]
+    BibField {
+        /// The `N:FIELD` reference.
+        spec: String,
+    },
+    /// A bibliography entry looked up by its **citation key** (BibTeX), its `ID` field
+    /// (RIS), or its string `id` (CSL-JSON) (Phase 21.31). `ExactBytes` returns the
+    /// matching entry's exact bytes; `Text` its key/id; `Metadata`/`Structure` a
+    /// descriptor. An absent key declines typed.
+    #[cfg(feature = "bib")]
+    BibKey {
+        /// The citation key / item id.
+        spec: String,
+    },
+    /// A bounded, case-sensitive lexical search over every bibliography entry type/key,
+    /// field name, and field value (Phase 21.31; CSL-JSON matches reuse the shared JSON
+    /// match vocabulary and report their canonical RFC 6901 pointer). Never an embedding
+    /// or a model call.
+    #[cfg(feature = "bib")]
+    BibFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The RTF header (`{\rtf1\ansi\deffN …}`) (Phase 21.32): the exact `\rtf`
+    /// version number and control-word span, the charset control word, and `\deffN`.
+    /// `Text` returns a compact canonical string; `Metadata`/`Structure` a descriptor
+    /// with every recorded span. RTF has no package layer, so the source *is* the whole
+    /// document.
+    #[cfg(feature = "rtf")]
+    RtfHeader,
+    /// The `index`-th group `{ … }` (0-based, the outermost group is 0) with its exact
+    /// brace span, parent, nesting depth, and destination kind (Phase 21.32).
+    /// `ExactBytes` returns the exact group bytes (braces included); `Text` its inner
+    /// content; `Metadata`/`Structure` a descriptor. An out-of-range index declines
+    /// typed.
+    #[cfg(feature = "rtf")]
+    RtfGroup {
+        /// The 0-based group index (the outermost group is 0).
+        index: u32,
+    },
+    /// The `index`-th control word or control symbol (Phase 21.32). `ExactBytes`
+    /// returns its exact spelling (including any numeric parameter); `Text` its name;
+    /// `Metadata`/`Structure` a descriptor with the name/parameter spans and whether a
+    /// terminating delimiter space followed. An out-of-range index declines typed.
+    #[cfg(feature = "rtf")]
+    RtfControl {
+        /// The 0-based control index.
+        index: u32,
+    },
+    /// The `index`-th `\'hh` hex escape (Phase 21.32). `ExactBytes` returns the
+    /// `\'hh` spelling; `Text` the decoded scalar under the declared charset;
+    /// `Metadata`/`Structure` a descriptor with the decoded byte and span. An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "rtf")]
+    RtfHex {
+        /// The 0-based hex-escape index.
+        index: u32,
+    },
+    /// The `index`-th `\uN` Unicode escape (Phase 21.32). `ExactBytes` returns the
+    /// `\uN` spelling; `Text` the decoded scalar; `Metadata`/`Structure` a descriptor
+    /// with the value and the active `\ucN` fallback count. An out-of-range index
+    /// declines typed.
+    #[cfg(feature = "rtf")]
+    RtfUnicode {
+        /// The 0-based Unicode-escape index.
+        index: u32,
+    },
+    /// The `index`-th plain text run (Phase 21.32), byte-exact (never
+    /// whitespace-normalized). `ExactBytes` returns its exact bytes; `Text` its text;
+    /// `Metadata`/`Structure` a descriptor with its span. An out-of-range index declines
+    /// typed.
+    #[cfg(feature = "rtf")]
+    RtfText {
+        /// The 0-based text-run index.
+        index: u32,
+    },
+    /// A destination named by `spec` (Phase 21.32) — one of `fonttbl`, `colortbl`,
+    /// `stylesheet`, `info`, `pict`, `object`, or `ignore` — with an optional
+    /// `:N` ordinal among destinations of that name (default `0`). `ExactBytes` returns
+    /// the destination group's exact bytes; `Text` its inner content; `Metadata`/
+    /// `Structure` a descriptor. A malformed reference is a usage error; an absent
+    /// destination declines typed.
+    #[cfg(feature = "rtf")]
+    RtfDestination {
+        /// The `NAME` or `NAME:N` reference.
+        spec: String,
+    },
+    /// A bounded, case-sensitive lexical search over every RTF plain text run
+    /// (Phase 21.32). Never an embedding or a model call.
+    #[cfg(feature = "rtf")]
+    RtfFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The recorded archive-container dialect (`zip` or `tar`), from the model
+    /// (Phase 21.33). `Text` returns the dialect name; `Metadata`/`Structure` a
+    /// descriptor with the member count and the exact archive trailer span.
+    #[cfg(feature = "container")]
+    ContainerDialect,
+    /// The `index`-th archive member (0-based, in archive order) (Phase 21.33): its
+    /// raw name bytes (lossy UTF-8 for `Text`), method/typeflag, declared sizes, and
+    /// exact spans. `ExactBytes` returns the member's exact raw byte span; an
+    /// out-of-range index declines typed.
+    #[cfg(feature = "container")]
+    ContainerEntry {
+        /// The 0-based member index (archive order).
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over every archive member name and
+    /// linkname (Phase 21.33). Never an embedding or a model call.
+    #[cfg(feature = "container")]
+    ContainerFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The recorded scientific-container dialect (`netcdf` or `hdf5`), from the model
+    /// (Phase 21.34). `Text` returns the dialect name; `Metadata`/`Structure` a
+    /// descriptor with the object/dimension/attribute counts and the exact header span.
+    #[cfg(feature = "hdf")]
+    HdfDialect,
+    /// The `index`-th object (0-based, model order) (Phase 21.34): a group, an HDF5
+    /// dataset, or a NetCDF variable. `ExactBytes` returns the object's exact data span
+    /// (a group declines typed); `Text` its name (or path); `Metadata`/`Structure` a
+    /// descriptor with the kind, path, type, shape, parent/depth, and exact spans. An
+    /// out-of-range index declines typed.
+    #[cfg(feature = "hdf")]
+    HdfObject {
+        /// The 0-based object index (model order).
+        index: u32,
+    },
+    /// The `index`-th NetCDF dimension (0-based) (Phase 21.34): its name, length, and
+    /// whether it is the unlimited/record dimension. HDF5 declines typed (its dims are
+    /// per dataset). An out-of-range index declines typed.
+    #[cfg(feature = "hdf")]
+    HdfDimension {
+        /// The 0-based dimension index.
+        index: u32,
+    },
+    /// The `index`-th global (NetCDF) / root-group (HDF5) attribute (Phase 21.34): its
+    /// name, type, element count, and exact value span. `ExactBytes` returns the value
+    /// bytes. An out-of-range index declines typed.
+    #[cfg(feature = "hdf")]
+    HdfAttribute {
+        /// The 0-based global/root attribute index.
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over every object, dimension, and
+    /// attribute name (Phase 21.34). Never an embedding or a model call.
+    #[cfg(feature = "hdf")]
+    HdfFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
+    /// The recorded CFBF/OLE2 dialect (`cfb3` or `cfb4`), from the model (Phase 21.35).
+    /// `Text` returns the dialect name; `Metadata`/`Structure` a descriptor with the
+    /// sector size, the FAT/directory counts, and the exact header span.
+    #[cfg(feature = "cfbf")]
+    CfbfDialect,
+    /// The `index`-th directory entry (0-based, directory order) (Phase 21.35): its
+    /// verbatim UTF-16LE name (lossy UTF-8 for `Text`), object type, color, sibling/child
+    /// tree links, start sector, stream size, and exact spans. `ExactBytes` returns the
+    /// exact 128-byte directory entry; an out-of-range index declines typed.
+    #[cfg(feature = "cfbf")]
+    CfbfEntry {
+        /// The 0-based directory-entry index.
+        index: u32,
+    },
+    /// The stream at directory index `index` (0-based) (Phase 21.35): `ExactBytes`
+    /// returns its exact content bytes (a storage declines typed, as does a
+    /// non-contiguous chain); `Text` its name/path; `Metadata`/`Structure` a descriptor
+    /// with the object kind, exact content span, size, and sector count.
+    #[cfg(feature = "cfbf")]
+    CfbfStream {
+        /// The 0-based directory-entry index (which must address a stream).
+        index: u32,
+    },
+    /// A bounded, case-sensitive lexical search over every directory entry name
+    /// (Phase 21.35). Never an embedding or a model call.
+    #[cfg(feature = "cfbf")]
+    CfbfFind {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
@@ -1335,6 +2432,86 @@ impl Selector {
             Selector::JsonNode { pointer } => format!("json-node:{pointer}"),
             #[cfg(feature = "json")]
             Selector::JsonFind { pattern } => format!("json-find:{pattern}"),
+            #[cfg(feature = "json5")]
+            Selector::Json5Pointer { pointer } => format!("json5-pointer:{pointer}"),
+            #[cfg(feature = "json5")]
+            Selector::Json5Node { pointer } => format!("json5-node:{pointer}"),
+            #[cfg(feature = "json5")]
+            Selector::Json5Find { pattern } => format!("json5-find:{pattern}"),
+            #[cfg(feature = "json5")]
+            Selector::Json5Comments => "json5-comments".to_string(),
+            #[cfg(feature = "cbor")]
+            Selector::CborPointer { pointer } => format!("cbor-pointer:{pointer}"),
+            #[cfg(feature = "cbor")]
+            Selector::CborNode { pointer } => format!("cbor-node:{pointer}"),
+            #[cfg(feature = "cbor")]
+            Selector::CborFind { pattern } => format!("cbor-find:{pattern}"),
+            #[cfg(feature = "msgpack")]
+            Selector::MsgpackPointer { pointer } => format!("msgpack-pointer:{pointer}"),
+            #[cfg(feature = "msgpack")]
+            Selector::MsgpackNode { pointer } => format!("msgpack-node:{pointer}"),
+            #[cfg(feature = "msgpack")]
+            Selector::MsgpackFind { pattern } => format!("msgpack-find:{pattern}"),
+            #[cfg(feature = "config")]
+            Selector::ConfigLine { index } => format!("config-line:{index}"),
+            #[cfg(feature = "config")]
+            Selector::ConfigEntry { index } => format!("config-entry:{index}"),
+            #[cfg(feature = "config")]
+            Selector::ConfigSection { name } => format!("config-section:{name}"),
+            #[cfg(feature = "config")]
+            Selector::ConfigFind { pattern } => format!("config-find:{pattern}"),
+            #[cfg(feature = "feed")]
+            Selector::FeedChannel => "feed-channel".to_string(),
+            #[cfg(feature = "feed")]
+            Selector::FeedField { name } => format!("feed-field:{name}"),
+            #[cfg(feature = "feed")]
+            Selector::FeedEntry { index } => format!("feed-entry:{index}"),
+            #[cfg(feature = "feed")]
+            Selector::FeedEntryField { entry, name } => format!("feed-entry-field:{entry}:{name}"),
+            #[cfg(feature = "feed")]
+            Selector::FeedFind { pattern } => format!("feed-find:{pattern}"),
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonType => "geojson-type".to_string(),
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonFeature { index } => format!("geojson-feature:{index}"),
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonGeometry { index } => format!("geojson-geometry:{index}"),
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonCoordinates { index } => format!("geojson-coordinates:{index}"),
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonProperty { feature, name } => {
+                format!("geojson-property:{feature}:{name}")
+            }
+            #[cfg(feature = "geojson")]
+            Selector::GeojsonFind { pattern } => format!("geojson-find:{pattern}"),
+            #[cfg(feature = "gis")]
+            Selector::GisRoot => "gis-root".to_string(),
+            #[cfg(feature = "gis")]
+            Selector::GisField { name } => format!("gis-field:{name}"),
+            #[cfg(feature = "gis")]
+            Selector::GisRecord { index } => format!("gis-record:{index}"),
+            #[cfg(feature = "gis")]
+            Selector::GisRecordField { record, name } => {
+                format!("gis-record-field:{record}:{name}")
+            }
+            #[cfg(feature = "gis")]
+            Selector::GisPoint { index } => format!("gis-point:{index}"),
+            #[cfg(feature = "gis")]
+            Selector::GisFind { pattern } => format!("gis-find:{pattern}"),
+            #[cfg(feature = "notebook")]
+            Selector::NotebookNbformat => "notebook-nbformat".to_string(),
+            #[cfg(feature = "notebook")]
+            Selector::NotebookCell { index } => format!("notebook-cell:{index}"),
+            #[cfg(feature = "notebook")]
+            Selector::NotebookCellType { index } => format!("notebook-cell-type:{index}"),
+            #[cfg(feature = "notebook")]
+            Selector::NotebookCellSource { index } => format!("notebook-cell-source:{index}"),
+            #[cfg(feature = "notebook")]
+            Selector::NotebookCellOutput { cell, index } => {
+                format!("notebook-cell-output:{cell}:{index}")
+            }
+            #[cfg(feature = "notebook")]
+            Selector::NotebookFind { pattern } => format!("notebook-find:{pattern}"),
             #[cfg(feature = "yaml")]
             Selector::YamlPath { path } => format!("yaml-path:{path}"),
             #[cfg(feature = "yaml")]
@@ -1355,6 +2532,18 @@ impl Selector {
             Selector::CsvRange { spec } => format!("csv-range:{spec}"),
             #[cfg(feature = "csv")]
             Selector::CsvFind { pattern } => format!("csv-find:{pattern}"),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthRow { index } => format!("fixedwidth-row:{index}"),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthCell { spec } => format!("fixedwidth-cell:{spec}"),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthHeader => "fixedwidth-header".to_string(),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthColumns => "fixedwidth-columns".to_string(),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthRange { spec } => format!("fixedwidth-range:{spec}"),
+            #[cfg(feature = "fixedwidth")]
+            Selector::FixedWidthFind { pattern } => format!("fixedwidth-find:{pattern}"),
             #[cfg(feature = "markdown")]
             Selector::MdHeading { index } => format!("md-heading:{index}"),
             #[cfg(feature = "markdown")]
@@ -1365,6 +2554,46 @@ impl Selector {
             Selector::MdLink { index } => format!("md-link:{index}"),
             #[cfg(feature = "markdown")]
             Selector::MdFind { pattern } => format!("md-find:{pattern}"),
+            #[cfg(feature = "rst")]
+            Selector::RstHeading { index } => format!("rst-heading:{index}"),
+            #[cfg(feature = "rst")]
+            Selector::RstBlock { index } => format!("rst-block:{index}"),
+            #[cfg(feature = "rst")]
+            Selector::RstDirective { index } => format!("rst-directive:{index}"),
+            #[cfg(feature = "rst")]
+            Selector::RstInline { index } => format!("rst-inline:{index}"),
+            #[cfg(feature = "rst")]
+            Selector::RstFind { pattern } => format!("rst-find:{pattern}"),
+            #[cfg(feature = "asciidoc")]
+            Selector::AdocHeading { index } => format!("adoc-heading:{index}"),
+            #[cfg(feature = "asciidoc")]
+            Selector::AdocBlock { index } => format!("adoc-block:{index}"),
+            #[cfg(feature = "asciidoc")]
+            Selector::AdocAttribute { index } => format!("adoc-attribute:{index}"),
+            #[cfg(feature = "asciidoc")]
+            Selector::AdocInline { index } => format!("adoc-inline:{index}"),
+            #[cfg(feature = "asciidoc")]
+            Selector::AdocFind { pattern } => format!("adoc-find:{pattern}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxHeading { index } => format!("mdx-heading:{index}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxBlock { index } => format!("mdx-block:{index}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxEsm { index } => format!("mdx-esm:{index}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxJsx { index } => format!("mdx-jsx:{index}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxExpression { index } => format!("mdx-expression:{index}"),
+            #[cfg(feature = "mdx")]
+            Selector::MdxFind { pattern } => format!("mdx-find:{pattern}"),
+            #[cfg(feature = "mhtml")]
+            Selector::MhtmlRoot => "mhtml-root".to_string(),
+            #[cfg(feature = "mhtml")]
+            Selector::MhtmlResource { ordinal } => format!("mhtml-resource:{ordinal}"),
+            #[cfg(feature = "mhtml")]
+            Selector::MhtmlLocation => "mhtml-location".to_string(),
+            #[cfg(feature = "mhtml")]
+            Selector::MhtmlFind { pattern } => format!("mhtml-find:{pattern}"),
             #[cfg(feature = "xml")]
             Selector::XmlPath { path } => format!("xml-path:{path}"),
             #[cfg(feature = "xml")]
@@ -1397,6 +2626,80 @@ impl Selector {
             Selector::JsonlPointer { spec } => format!("jsonl-pointer:{spec}"),
             #[cfg(feature = "jsonl")]
             Selector::JsonlFind { pattern } => format!("jsonl-find:{pattern}"),
+            #[cfg(feature = "logstream")]
+            Selector::LogstreamLine { index } => format!("logstream-line:{index}"),
+            #[cfg(feature = "logstream")]
+            Selector::LogstreamField { spec } => format!("logstream-field:{spec}"),
+            #[cfg(feature = "logstream")]
+            Selector::LogstreamFind { pattern } => format!("logstream-find:{pattern}"),
+            #[cfg(feature = "pkgmeta")]
+            Selector::PkgmetaSection { index } => format!("pkgmeta-section:{index}"),
+            #[cfg(feature = "pkgmeta")]
+            Selector::PkgmetaEntry { index } => format!("pkgmeta-entry:{index}"),
+            #[cfg(feature = "pkgmeta")]
+            Selector::PkgmetaKey { spec } => format!("pkgmeta-key:{spec}"),
+            #[cfg(feature = "pkgmeta")]
+            Selector::PkgmetaFind { pattern } => format!("pkgmeta-find:{pattern}"),
+            #[cfg(feature = "apispec")]
+            Selector::ApispecDialect => "apispec-dialect".to_string(),
+            #[cfg(feature = "apispec")]
+            Selector::ApispecVersion => "apispec-version".to_string(),
+            #[cfg(feature = "apispec")]
+            Selector::ApispecObject { index } => format!("apispec-object:{index}"),
+            #[cfg(feature = "apispec")]
+            Selector::ApispecRef { index } => format!("apispec-ref:{index}"),
+            #[cfg(feature = "apispec")]
+            Selector::ApispecFind { pattern } => format!("apispec-find:{pattern}"),
+            #[cfg(feature = "bib")]
+            Selector::BibDialect => "bib-dialect".to_string(),
+            #[cfg(feature = "bib")]
+            Selector::BibEntry { index } => format!("bib-entry:{index}"),
+            #[cfg(feature = "bib")]
+            Selector::BibField { spec } => format!("bib-field:{spec}"),
+            #[cfg(feature = "bib")]
+            Selector::BibKey { spec } => format!("bib-key:{spec}"),
+            #[cfg(feature = "bib")]
+            Selector::BibFind { pattern } => format!("bib-find:{pattern}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfHeader => "rtf-header".to_string(),
+            #[cfg(feature = "rtf")]
+            Selector::RtfGroup { index } => format!("rtf-group:{index}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfControl { index } => format!("rtf-control:{index}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfHex { index } => format!("rtf-hex:{index}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfUnicode { index } => format!("rtf-unicode:{index}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfText { index } => format!("rtf-text:{index}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfDestination { spec } => format!("rtf-dest:{spec}"),
+            #[cfg(feature = "rtf")]
+            Selector::RtfFind { pattern } => format!("rtf-find:{pattern}"),
+            #[cfg(feature = "container")]
+            Selector::ContainerDialect => "container-dialect".to_string(),
+            #[cfg(feature = "container")]
+            Selector::ContainerEntry { index } => format!("container-entry:{index}"),
+            #[cfg(feature = "container")]
+            Selector::ContainerFind { pattern } => format!("container-find:{pattern}"),
+            #[cfg(feature = "hdf")]
+            Selector::HdfDialect => "hdf-dialect".to_string(),
+            #[cfg(feature = "hdf")]
+            Selector::HdfObject { index } => format!("hdf-object:{index}"),
+            #[cfg(feature = "hdf")]
+            Selector::HdfDimension { index } => format!("hdf-dimension:{index}"),
+            #[cfg(feature = "hdf")]
+            Selector::HdfAttribute { index } => format!("hdf-attribute:{index}"),
+            #[cfg(feature = "hdf")]
+            Selector::HdfFind { pattern } => format!("hdf-find:{pattern}"),
+            #[cfg(feature = "cfbf")]
+            Selector::CfbfDialect => "cfbf-dialect".to_string(),
+            #[cfg(feature = "cfbf")]
+            Selector::CfbfEntry { index } => format!("cfbf-entry:{index}"),
+            #[cfg(feature = "cfbf")]
+            Selector::CfbfStream { index } => format!("cfbf-stream:{index}"),
+            #[cfg(feature = "cfbf")]
+            Selector::CfbfFind { pattern } => format!("cfbf-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -2702,7 +4005,8 @@ fn opt_u8_json(v: Option<u8>) -> String {
     feature = "xlsx",
     feature = "pptx",
     feature = "eml",
-    feature = "parquet"
+    feature = "parquet",
+    feature = "notebook"
 ))]
 fn opt_str_json(v: Option<&str>) -> String {
     match v {
@@ -3207,6 +4511,177 @@ impl<S: SeedStore> Ctx<'_, S> {
             (Selector::JsonFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.json_find(req, pattern)
             }
+            #[cfg(feature = "json5")]
+            (
+                Selector::Json5Pointer { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.json5_pointer(req, pointer),
+            #[cfg(feature = "json5")]
+            (
+                Selector::Json5Node { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.json5_node(req, pointer),
+            #[cfg(feature = "json5")]
+            (Selector::Json5Find { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.json5_find(req, pattern)
+            }
+            #[cfg(feature = "json5")]
+            (Selector::Json5Comments, R::Text | R::Metadata | R::Structure) => {
+                self.json5_comments(req)
+            }
+            #[cfg(feature = "cbor")]
+            (
+                Selector::CborPointer { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.cbor_pointer(req, pointer),
+            #[cfg(feature = "cbor")]
+            (
+                Selector::CborNode { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.cbor_node(req, pointer),
+            #[cfg(feature = "cbor")]
+            (Selector::CborFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.cbor_find(req, pattern)
+            }
+            #[cfg(feature = "msgpack")]
+            (
+                Selector::MsgpackPointer { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.msgpack_pointer(req, pointer),
+            #[cfg(feature = "msgpack")]
+            (
+                Selector::MsgpackNode { pointer },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.msgpack_node(req, pointer),
+            #[cfg(feature = "msgpack")]
+            (Selector::MsgpackFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.msgpack_find(req, pattern)
+            }
+            #[cfg(feature = "config")]
+            (
+                Selector::ConfigLine { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.config_line(req, *index),
+            #[cfg(feature = "config")]
+            (
+                Selector::ConfigEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.config_entry(req, *index),
+            #[cfg(feature = "config")]
+            (
+                Selector::ConfigSection { name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.config_section(req, name),
+            #[cfg(feature = "config")]
+            (Selector::ConfigFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.config_find(req, pattern)
+            }
+            #[cfg(feature = "feed")]
+            (Selector::FeedChannel, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.feed_channel(req)
+            }
+            #[cfg(feature = "feed")]
+            (
+                Selector::FeedField { name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.feed_field(req, name),
+            #[cfg(feature = "feed")]
+            (
+                Selector::FeedEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.feed_entry(req, *index),
+            #[cfg(feature = "feed")]
+            (
+                Selector::FeedEntryField { entry, name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.feed_entry_field(req, *entry, name),
+            #[cfg(feature = "feed")]
+            (Selector::FeedFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.feed_find(req, pattern)
+            }
+            #[cfg(feature = "geojson")]
+            (Selector::GeojsonType, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.geojson_type(req)
+            }
+            #[cfg(feature = "geojson")]
+            (
+                Selector::GeojsonFeature { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.geojson_feature(req, *index),
+            #[cfg(feature = "geojson")]
+            (
+                Selector::GeojsonGeometry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.geojson_geometry(req, *index),
+            #[cfg(feature = "geojson")]
+            (
+                Selector::GeojsonCoordinates { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.geojson_coordinates(req, *index),
+            #[cfg(feature = "geojson")]
+            (
+                Selector::GeojsonProperty { feature, name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.geojson_property(req, *feature, name),
+            #[cfg(feature = "geojson")]
+            (Selector::GeojsonFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.geojson_find(req, pattern)
+            }
+            #[cfg(feature = "gis")]
+            (Selector::GisRoot, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.gis_root(req)
+            }
+            #[cfg(feature = "gis")]
+            (Selector::GisField { name }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.gis_field(req, name)
+            }
+            #[cfg(feature = "gis")]
+            (
+                Selector::GisRecord { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.gis_record(req, *index),
+            #[cfg(feature = "gis")]
+            (
+                Selector::GisRecordField { record, name },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.gis_record_field(req, *record, name),
+            #[cfg(feature = "gis")]
+            (
+                Selector::GisPoint { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.gis_point(req, *index),
+            #[cfg(feature = "gis")]
+            (Selector::GisFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.gis_find(req, pattern)
+            }
+            #[cfg(feature = "notebook")]
+            (Selector::NotebookNbformat, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.notebook_nbformat(req)
+            }
+            #[cfg(feature = "notebook")]
+            (
+                Selector::NotebookCell { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.notebook_cell(req, *index),
+            #[cfg(feature = "notebook")]
+            (
+                Selector::NotebookCellType { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.notebook_cell_type(req, *index),
+            #[cfg(feature = "notebook")]
+            (
+                Selector::NotebookCellSource { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.notebook_cell_source(req, *index),
+            #[cfg(feature = "notebook")]
+            (
+                Selector::NotebookCellOutput { cell, index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.notebook_cell_output(req, *cell, *index),
+            #[cfg(feature = "notebook")]
+            (Selector::NotebookFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.notebook_find(req, pattern)
+            }
             #[cfg(feature = "yaml")]
             (Selector::YamlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
                 self.yaml_path(req, path)
@@ -3248,6 +4723,32 @@ impl<S: SeedStore> Ctx<'_, S> {
             (Selector::CsvFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.csv_find(req, pattern)
             }
+            #[cfg(feature = "fixedwidth")]
+            (
+                Selector::FixedWidthRow { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.fixedwidth_row(req, *index),
+            #[cfg(feature = "fixedwidth")]
+            (
+                Selector::FixedWidthCell { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.fixedwidth_cell(req, spec),
+            #[cfg(feature = "fixedwidth")]
+            (Selector::FixedWidthHeader, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.fixedwidth_header(req)
+            }
+            #[cfg(feature = "fixedwidth")]
+            (Selector::FixedWidthColumns, R::Text | R::Metadata | R::Structure) => {
+                self.fixedwidth_columns(req)
+            }
+            #[cfg(feature = "fixedwidth")]
+            (Selector::FixedWidthRange { spec }, R::Text | R::Metadata | R::Structure) => {
+                self.fixedwidth_range(req, spec)
+            }
+            #[cfg(feature = "fixedwidth")]
+            (Selector::FixedWidthFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.fixedwidth_find(req, pattern)
+            }
             #[cfg(feature = "markdown")]
             (
                 Selector::MdHeading { index },
@@ -3268,6 +4769,98 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "markdown")]
             (Selector::MdFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.md_find(req, pattern)
+            }
+            #[cfg(feature = "rst")]
+            (
+                Selector::RstHeading { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rst_heading(req, *index),
+            #[cfg(feature = "rst")]
+            (
+                Selector::RstBlock { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rst_block(req, *index),
+            #[cfg(feature = "rst")]
+            (
+                Selector::RstDirective { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rst_directive(req, *index),
+            #[cfg(feature = "rst")]
+            (
+                Selector::RstInline { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rst_inline(req, *index),
+            #[cfg(feature = "rst")]
+            (Selector::RstFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.rst_find(req, pattern)
+            }
+            #[cfg(feature = "asciidoc")]
+            (
+                Selector::AdocHeading { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.adoc_heading(req, *index),
+            #[cfg(feature = "asciidoc")]
+            (
+                Selector::AdocBlock { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.adoc_block(req, *index),
+            #[cfg(feature = "asciidoc")]
+            (
+                Selector::AdocAttribute { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.adoc_attribute(req, *index),
+            #[cfg(feature = "asciidoc")]
+            (
+                Selector::AdocInline { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.adoc_inline(req, *index),
+            #[cfg(feature = "asciidoc")]
+            (Selector::AdocFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.adoc_find(req, pattern)
+            }
+            #[cfg(feature = "mdx")]
+            (
+                Selector::MdxHeading { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.mdx_heading(req, *index),
+            #[cfg(feature = "mdx")]
+            (
+                Selector::MdxBlock { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.mdx_block(req, *index),
+            #[cfg(feature = "mdx")]
+            (Selector::MdxEsm { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.mdx_esm(req, *index)
+            }
+            #[cfg(feature = "mdx")]
+            (Selector::MdxJsx { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.mdx_jsx(req, *index)
+            }
+            #[cfg(feature = "mdx")]
+            (
+                Selector::MdxExpression { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.mdx_expression(req, *index),
+            #[cfg(feature = "mdx")]
+            (Selector::MdxFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.mdx_find(req, pattern)
+            }
+            #[cfg(feature = "mhtml")]
+            (Selector::MhtmlRoot, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.mhtml_root(req)
+            }
+            #[cfg(feature = "mhtml")]
+            (
+                Selector::MhtmlResource { ordinal },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.mhtml_resource(req, *ordinal),
+            #[cfg(feature = "mhtml")]
+            (Selector::MhtmlLocation, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.mhtml_location(req)
+            }
+            #[cfg(feature = "mhtml")]
+            (Selector::MhtmlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.mhtml_find(req, pattern)
             }
             #[cfg(feature = "xml")]
             (Selector::XmlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -3336,6 +4929,163 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "jsonl")]
             (Selector::JsonlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.jsonl_find(req, pattern)
+            }
+            #[cfg(feature = "logstream")]
+            (
+                Selector::LogstreamLine { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.logstream_line(req, *index),
+            #[cfg(feature = "logstream")]
+            (
+                Selector::LogstreamField { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.logstream_field(req, spec),
+            #[cfg(feature = "logstream")]
+            (Selector::LogstreamFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.logstream_find(req, pattern)
+            }
+            #[cfg(feature = "pkgmeta")]
+            (
+                Selector::PkgmetaSection { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.pkgmeta_section(req, *index),
+            #[cfg(feature = "pkgmeta")]
+            (
+                Selector::PkgmetaEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.pkgmeta_entry(req, *index),
+            #[cfg(feature = "pkgmeta")]
+            (
+                Selector::PkgmetaKey { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.pkgmeta_key(req, spec),
+            #[cfg(feature = "pkgmeta")]
+            (Selector::PkgmetaFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.pkgmeta_find(req, pattern)
+            }
+            #[cfg(feature = "apispec")]
+            (Selector::ApispecDialect, R::Text | R::Metadata | R::Structure) => {
+                self.apispec_dialect(req)
+            }
+            #[cfg(feature = "apispec")]
+            (Selector::ApispecVersion, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.apispec_version(req)
+            }
+            #[cfg(feature = "apispec")]
+            (
+                Selector::ApispecObject { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.apispec_object(req, *index),
+            #[cfg(feature = "apispec")]
+            (
+                Selector::ApispecRef { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.apispec_ref(req, *index),
+            #[cfg(feature = "apispec")]
+            (Selector::ApispecFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.apispec_find(req, pattern)
+            }
+            #[cfg(feature = "bib")]
+            (Selector::BibDialect, R::Text | R::Metadata | R::Structure) => self.bib_dialect(req),
+            #[cfg(feature = "bib")]
+            (
+                Selector::BibEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.bib_entry(req, *index),
+            #[cfg(feature = "bib")]
+            (Selector::BibField { spec }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.bib_field(req, spec)
+            }
+            #[cfg(feature = "bib")]
+            (Selector::BibKey { spec }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.bib_key(req, spec)
+            }
+            #[cfg(feature = "bib")]
+            (Selector::BibFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.bib_find(req, pattern)
+            }
+            #[cfg(feature = "rtf")]
+            (Selector::RtfHeader, R::Text | R::Metadata | R::Structure) => self.rtf_header(req),
+            #[cfg(feature = "rtf")]
+            (
+                Selector::RtfGroup { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rtf_group(req, *index),
+            #[cfg(feature = "rtf")]
+            (
+                Selector::RtfControl { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rtf_control(req, *index),
+            #[cfg(feature = "rtf")]
+            (Selector::RtfHex { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.rtf_hex(req, *index)
+            }
+            #[cfg(feature = "rtf")]
+            (
+                Selector::RtfUnicode { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rtf_unicode(req, *index),
+            #[cfg(feature = "rtf")]
+            (Selector::RtfText { index }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.rtf_text(req, *index)
+            }
+            #[cfg(feature = "rtf")]
+            (
+                Selector::RtfDestination { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rtf_destination(req, spec),
+            #[cfg(feature = "rtf")]
+            (Selector::RtfFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.rtf_find(req, pattern)
+            }
+            #[cfg(feature = "container")]
+            (Selector::ContainerDialect, R::Text | R::Metadata | R::Structure) => {
+                self.container_dialect(req)
+            }
+            #[cfg(feature = "container")]
+            (
+                Selector::ContainerEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.container_entry(req, *index),
+            #[cfg(feature = "container")]
+            (Selector::ContainerFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.container_find(req, pattern)
+            }
+            #[cfg(feature = "hdf")]
+            (Selector::HdfDialect, R::Text | R::Metadata | R::Structure) => self.hdf_dialect(req),
+            #[cfg(feature = "hdf")]
+            (
+                Selector::HdfObject { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.hdf_object(req, *index),
+            #[cfg(feature = "hdf")]
+            (Selector::HdfDimension { index }, R::Text | R::Metadata | R::Structure) => {
+                self.hdf_dimension(req, *index)
+            }
+            #[cfg(feature = "hdf")]
+            (
+                Selector::HdfAttribute { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.hdf_attribute(req, *index),
+            #[cfg(feature = "hdf")]
+            (Selector::HdfFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.hdf_find(req, pattern)
+            }
+            #[cfg(feature = "cfbf")]
+            (Selector::CfbfDialect, R::Text | R::Metadata | R::Structure) => self.cfbf_dialect(req),
+            #[cfg(feature = "cfbf")]
+            (
+                Selector::CfbfEntry { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.cfbf_entry(req, *index),
+            #[cfg(feature = "cfbf")]
+            (
+                Selector::CfbfStream { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.cfbf_stream(req, *index),
+            #[cfg(feature = "cfbf")]
+            (Selector::CfbfFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.cfbf_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -8558,9 +10308,26 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Xlsx => self.common_xlsx(req)?,
             DocumentFormat::Pptx => self.common_pptx(req)?,
             DocumentFormat::Json => self.common_json(req)?,
+            DocumentFormat::Json5 => {
+                #[cfg(feature = "json5")]
+                {
+                    self.common_json5(req)?
+                }
+                #[cfg(not(feature = "json5"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "JSON5 support is not compiled in (feature `json5`)",
+                    ));
+                }
+            }
             DocumentFormat::Yaml => self.common_yaml(req)?,
             DocumentFormat::Csv => self.common_csv(req)?,
+            DocumentFormat::FixedWidth => self.common_fixedwidth(req)?,
             DocumentFormat::Markdown => self.common_markdown(req)?,
+            DocumentFormat::Rst => self.common_rst(req)?,
+            DocumentFormat::Asciidoc => self.common_asciidoc(req)?,
+            DocumentFormat::Mdx => self.common_mdx(req)?,
+            DocumentFormat::Mhtml => self.common_mhtml(req)?,
             DocumentFormat::Xml => self.common_xml(req)?,
             DocumentFormat::Html => {
                 #[cfg(feature = "html")]
@@ -8598,6 +10365,102 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Logstream => {
+                #[cfg(feature = "logstream")]
+                {
+                    self.common_logstream(req)?
+                }
+                #[cfg(not(feature = "logstream"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "log-stream support is not compiled in (feature `logstream`)",
+                    ));
+                }
+            }
+            DocumentFormat::Pkgmeta => {
+                #[cfg(feature = "pkgmeta")]
+                {
+                    self.common_pkgmeta(req)?
+                }
+                #[cfg(not(feature = "pkgmeta"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "package-metadata support is not compiled in (feature `pkgmeta`)",
+                    ));
+                }
+            }
+            DocumentFormat::Apispec => {
+                #[cfg(feature = "apispec")]
+                {
+                    self.common_apispec(req)?
+                }
+                #[cfg(not(feature = "apispec"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "API-specification support is not compiled in (feature `apispec`)",
+                    ));
+                }
+            }
+            DocumentFormat::Bib => {
+                #[cfg(feature = "bib")]
+                {
+                    self.common_bib(req)?
+                }
+                #[cfg(not(feature = "bib"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "bibliography support is not compiled in (feature `bib`)",
+                    ));
+                }
+            }
+            DocumentFormat::Rtf => {
+                #[cfg(feature = "rtf")]
+                {
+                    self.common_rtf(req)?
+                }
+                #[cfg(not(feature = "rtf"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "RTF support is not compiled in (feature `rtf`)",
+                    ));
+                }
+            }
+            DocumentFormat::Container => {
+                #[cfg(feature = "container")]
+                {
+                    self.common_container(req)?
+                }
+                #[cfg(not(feature = "container"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "container support is not compiled in (feature `container`)",
+                    ));
+                }
+            }
+            DocumentFormat::Hdf => {
+                #[cfg(feature = "hdf")]
+                {
+                    self.common_hdf(req)?
+                }
+                #[cfg(not(feature = "hdf"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "scientific-container support is not compiled in (feature `hdf`)",
+                    ));
+                }
+            }
+            DocumentFormat::Cfbf => {
+                #[cfg(feature = "cfbf")]
+                {
+                    self.common_cfbf(req)?
+                }
+                #[cfg(not(feature = "cfbf"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "compound-file support is not compiled in (feature `cfbf`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -8631,6 +10494,90 @@ impl<S: SeedStore> Ctx<'_, S> {
                 {
                     return Err(Error::unsupported_feature(
                         "Arrow support is not compiled in (feature `arrow`)",
+                    ));
+                }
+            }
+            DocumentFormat::Cbor => {
+                #[cfg(feature = "cbor")]
+                {
+                    self.common_cbor(req)?
+                }
+                #[cfg(not(feature = "cbor"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "CBOR support is not compiled in (feature `cbor`)",
+                    ));
+                }
+            }
+            DocumentFormat::Msgpack => {
+                #[cfg(feature = "msgpack")]
+                {
+                    self.common_msgpack(req)?
+                }
+                #[cfg(not(feature = "msgpack"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "MessagePack support is not compiled in (feature `msgpack`)",
+                    ));
+                }
+            }
+            DocumentFormat::Config => {
+                #[cfg(feature = "config")]
+                {
+                    self.common_config(req)?
+                }
+                #[cfg(not(feature = "config"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "config support is not compiled in (feature `config`)",
+                    ));
+                }
+            }
+            DocumentFormat::Feed => {
+                #[cfg(feature = "feed")]
+                {
+                    self.common_feed(req)?
+                }
+                #[cfg(not(feature = "feed"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "feed support is not compiled in (feature `feed`)",
+                    ));
+                }
+            }
+            DocumentFormat::Geojson => {
+                #[cfg(feature = "geojson")]
+                {
+                    self.common_geojson(req)?
+                }
+                #[cfg(not(feature = "geojson"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "GeoJSON support is not compiled in (feature `geojson`)",
+                    ));
+                }
+            }
+            DocumentFormat::Gis => {
+                #[cfg(feature = "gis")]
+                {
+                    self.common_gis(req)?
+                }
+                #[cfg(not(feature = "gis"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "GIS support is not compiled in (feature `gis`)",
+                    ));
+                }
+            }
+            DocumentFormat::Notebook => {
+                #[cfg(feature = "notebook")]
+                {
+                    self.common_notebook(req)?
+                }
+                #[cfg(not(feature = "notebook"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "notebook support is not compiled in (feature `notebook`)",
                     ));
                 }
             }
@@ -8980,10 +10927,45 @@ impl<S: SeedStore> Ctx<'_, S> {
         ))
     }
 
+    #[cfg(not(feature = "fixedwidth"))]
+    fn common_fixedwidth(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "fixed-width observations require a build with the fixedwidth feature",
+        ))
+    }
+
     #[cfg(not(feature = "markdown"))]
     fn common_markdown(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "Markdown observations require a build with the markdown feature",
+        ))
+    }
+
+    #[cfg(not(feature = "rst"))]
+    fn common_rst(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "reStructuredText observations require a build with the rst feature",
+        ))
+    }
+
+    #[cfg(not(feature = "asciidoc"))]
+    fn common_asciidoc(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "AsciiDoc observations require a build with the asciidoc feature",
+        ))
+    }
+
+    #[cfg(not(feature = "mdx"))]
+    fn common_mdx(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "MDX observations require a build with the mdx feature",
+        ))
+    }
+
+    #[cfg(not(feature = "mhtml"))]
+    fn common_mhtml(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "MHTML observations require a build with the mhtml feature",
         ))
     }
 
@@ -10256,6 +12238,5929 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "jsonl;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Log-stream observations (Phase 21.28)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "logstream")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the log-stream model (derived, `Q_gen`).
+    fn logstream_model(&mut self) -> Result<(LogstreamModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_LOGSTREAM_MODEL, 0), "log-stream model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((LogstreamModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn logstream_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn logstream_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The message field's decoded text (lossy), or the empty string when the record
+    /// carries no message.
+    fn logstream_message(source: &[u8], rec: &LogRecord) -> Result<String> {
+        match rec.field(F_MSG) {
+            Some(f) => Ok(String::from_utf8_lossy(logstream_field_bytes(source, f)?).into_owned()),
+            None => Ok(String::new()),
+        }
+    }
+
+    /// The `index`-th record (0-based; blank lines do not count). `ExactBytes`
+    /// returns the record's exact line content bytes (terminator excluded); `Text`
+    /// the record's message; `Metadata`/`Structure` a JSON descriptor with the
+    /// dialect, the exact line span/terminator, and every field's role and span.
+    fn logstream_line(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.logstream_model()?;
+        let (source, root) = self.logstream_source()?;
+        let rec = model.record(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "log-stream record {index} is out of range (record count {})",
+                model.records.len()
+            ))
+        })?;
+        let content_end = rec.content_end();
+        let span = Some((rec.line_start, content_end));
+        let provenance = format!(
+            "logstream;line={index};dialect={};pri={};fields={};terminator={}",
+            logstream_dialect_name(rec.dialect),
+            rec.pri,
+            rec.fields.len(),
+            logstream_terminator_name(rec.terminator)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                let s = rec.line_start as usize;
+                let e = content_end as usize;
+                let bytes = source.get(s..e).ok_or_else(|| {
+                    Error::internal_invariant("log-stream line span is out of range")
+                })?;
+                AnswerValue::Bytes(bytes.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(Self::logstream_message(&source, rec)?),
+            _ => {
+                let mut fs: Vec<String> = Vec::new();
+                for f in &rec.fields {
+                    fs.push(format!(
+                        "{{\"role\":\"{}\",\"span\":[{},{}]}}",
+                        logstream_role_name(f.role),
+                        f.start,
+                        f.end
+                    ));
+                }
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"record\":{},\"dialect\":\"{}\",\"line_span\":[{},{}],",
+                        "\"terminator\":\"{}\",\"pri\":{},\"facility\":{},\"severity\":{},",
+                        "\"depth\":{},\"line_bytes\":{},\"fields\":[{}]}}"
+                    ),
+                    index,
+                    logstream_dialect_name(rec.dialect),
+                    rec.line_start,
+                    content_end,
+                    logstream_terminator_name(rec.terminator),
+                    rec.pri,
+                    rec.facility(),
+                    rec.severity(),
+                    rec.depth,
+                    content_end - rec.line_start,
+                    fs.join(","),
+                ))
+            }
+        };
+        Ok(self.logstream_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// Resolve a `N:ROLE` field reference and answer per representation. `ExactBytes`
+    /// returns the first matching field's exact bytes; `Metadata`/`Structure` a
+    /// descriptor with the role, span, and match count.
+    fn logstream_field(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.logstream_model()?;
+        let (source, root) = self.logstream_source()?;
+        let (index, role) = parse_logstream_field_ref(spec)?;
+        let rec = model.record(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "log-stream record {index} is out of range (record count {})",
+                model.records.len()
+            ))
+        })?;
+        let matches: Vec<&LogField> = rec.fields_with(role).collect();
+        let first = matches.first().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "log-stream record {index} has no `{}` field",
+                logstream_role_name(role)
+            ))
+        })?;
+        let span = Some((first.start, first.end));
+        let provenance = format!(
+            "logstream;field={spec};role={};matches={}",
+            logstream_role_name(role),
+            matches.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(logstream_field_bytes(&source, first)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(
+                String::from_utf8_lossy(logstream_field_bytes(&source, first)?).into_owned(),
+            ),
+            _ => {
+                let spans: Vec<String> = matches
+                    .iter()
+                    .map(|f| format!("[{},{}]", f.start, f.end))
+                    .collect();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"record\":{},\"role\":\"{}\",\"span\":[{},{}],",
+                        "\"matches\":{},\"spans\":[{}]}}"
+                    ),
+                    index,
+                    logstream_role_name(role),
+                    first.start,
+                    first.end,
+                    matches.len(),
+                    spans.join(","),
+                ))
+            }
+        };
+        Ok(self.logstream_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search across every record's fields; each match reports its
+    /// record index, role, and exact span.
+    fn logstream_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.logstream_model()?;
+        let (source, root) = self.logstream_source()?;
+        let matches = logstream_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "log-stream find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"record\":{},\"role\":\"{}\",",
+                    "\"kind\":\"field\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.record,
+                logstream_role_name(m.role),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("logstream;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.logstream_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_logstream(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.logstream_common_metadata(req),
+            Selector::Text => self.logstream_common_text(req),
+            Selector::SearchMatch(p) => self.logstream_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "log-stream does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn logstream_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.logstream_model()?;
+        let (source, root) = self.logstream_source()?;
+        let text = logstream_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.logstream_answer(
+            req,
+            AnswerValue::Text(text),
+            "logstream;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn logstream_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.logstream_model()?;
+        let (source, root) = self.logstream_source()?;
+        let mut rfc5424 = 0u64;
+        let mut rfc3164 = 0u64;
+        let mut generic = 0u64;
+        let mut pri_records = 0u64;
+        let mut level_records = 0u64;
+        let mut msg_records = 0u64;
+        for rec in &model.records {
+            match rec.dialect {
+                DIALECT_RFC5424 => rfc5424 += 1,
+                DIALECT_RFC3164 => rfc3164 += 1,
+                DIALECT_GENERIC => generic += 1,
+                _ => {}
+            }
+            if rec.flags & FLAG_HAS_PRI != 0 {
+                pri_records += 1;
+            }
+            if rec.fields_with(F_LEVEL).count() > 0 {
+                level_records += 1;
+            }
+            if rec.field(F_MSG).is_some() {
+                msg_records += 1;
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"logstream\",\"records\":{},\"blank_lines\":{},",
+                "\"crlf_records\":{},\"trailing_newline\":{},\"bom\":{},\"bytes\":{},",
+                "\"fields\":{},\"sd_elements\":{},",
+                "\"rfc5424\":{},\"rfc3164\":{},\"generic\":{},",
+                "\"pri_records\":{},\"level_records\":{},\"msg_records\":{}}}"
+            ),
+            model.records.len(),
+            model.blank_lines,
+            model.crlf_records,
+            model.trailing_newline,
+            model.bom_len,
+            model.doc_len,
+            model.field_count(),
+            model.sd_element_count(),
+            rfc5424,
+            rfc3164,
+            generic,
+            pri_records,
+            level_records,
+            msg_records,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.logstream_answer(
+            req,
+            value,
+            "logstream;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// Parse a `N:ROLE` log-stream field reference. `N` is a 0-based record index; the
+/// role is a stable field role name. A missing/non-numeric `N` or an unknown role is
+/// a usage error.
+#[cfg(feature = "logstream")]
+fn parse_logstream_field_ref(spec: &str) -> Result<(u32, u8)> {
+    let (n, role) = spec.split_once(':').ok_or_else(|| {
+        Error::usage(format!(
+            "log-stream field reference {spec:?} must be N:ROLE"
+        ))
+    })?;
+    if n.is_empty() || (n.len() > 1 && n.starts_with('0')) {
+        return Err(Error::usage(format!(
+            "log-stream field reference {spec:?} must have a canonical record index"
+        )));
+    }
+    let index: u32 = n.parse().map_err(|_| {
+        Error::usage(format!(
+            "log-stream field reference {spec:?} has a non-numeric record index"
+        ))
+    })?;
+    let role = logstream_role_for_name(role).ok_or_else(|| {
+        Error::usage(format!(
+            "log-stream field reference {spec:?} has an unknown role"
+        ))
+    })?;
+    Ok((index, role))
+}
+
+// ---------------------------------------------------------------------------
+// Package-metadata observations (Phase 21.29)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "pkgmeta")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the package-metadata model (derived, `Q_gen`).
+    fn pkgmeta_model(&mut self) -> Result<(PkgmetaModel, NodeId)> {
+        let entry = self.require_entry(
+            SelectorKey::new(SEL_PKGMETA_MODEL, 0),
+            "package-metadata model",
+        )?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((PkgmetaModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn pkgmeta_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn pkgmeta_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th recorded section. `ExactBytes` returns its exact source bytes;
+    /// `Text` its decoded name; `Metadata`/`Structure` a JSON descriptor.
+    fn pkgmeta_section(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let s = model.section(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "package-metadata section {index} is out of range (section count {})",
+                model.sections.len()
+            ))
+        })?;
+        let name = pkgmeta_section_name(&model, &source, s)?;
+        let provenance = format!(
+            "pkgmeta;section={index};dialect={};role={};kind={};entries={}",
+            pkgmeta_dialect_name(model.dialect),
+            pkgmeta_role_name(s.role),
+            pkgmeta_section_kind_name(s.kind),
+            s.entry_count
+        );
+        let span = Some((s.start, s.end));
+        let parent = if s.parent == PKG_NONE {
+            "null".to_string()
+        } else {
+            s.parent.to_string()
+        };
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(pkgmeta_section_bytes(&model, &source, s)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(name.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dialect\":\"{}\",\"section\":{},\"role\":\"{}\",\"kind\":\"{}\",",
+                    "\"name\":\"{}\",\"name_span\":[{},{}],\"span\":[{},{}],",
+                    "\"parent\":{},\"entries\":{},\"first_entry\":{}}}"
+                ),
+                pkgmeta_dialect_name(model.dialect),
+                index,
+                pkgmeta_role_name(s.role),
+                pkgmeta_section_kind_name(s.kind),
+                json_escape(&name),
+                s.name_start,
+                s.name_end,
+                s.start,
+                s.end,
+                parent,
+                s.entry_count,
+                s.first_entry,
+            )),
+        };
+        Ok(self.pkgmeta_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th recorded entry. `ExactBytes` returns its exact value bytes;
+    /// `Text` its decoded value text; `Metadata`/`Structure` a JSON descriptor.
+    fn pkgmeta_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let e = model.entry(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "package-metadata entry {index} is out of range (entry count {})",
+                model.entries.len()
+            ))
+        })?;
+        let key = pkgmeta_entry_key_text(&model, &source, e)?;
+        let role = model.sections[e.section as usize].role;
+        let provenance = format!(
+            "pkgmeta;entry={index};section={};dialect={};role={};kind={}",
+            e.section,
+            pkgmeta_dialect_name(model.dialect),
+            pkgmeta_role_name(role),
+            pkgmeta_entry_value_kind_name(&model, e),
+        );
+        let span = Some((e.value_start, e.value_end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(pkgmeta_entry_value_bytes(&model, &source, e)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(pkgmeta_entry_value_text(&model, &source, e)?)
+            }
+            _ => {
+                let vtext = pkgmeta_entry_value_text(&model, &source, e)?;
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"dialect\":\"{}\",\"entry\":{},\"section\":{},\"role\":\"{}\",",
+                        "\"key\":\"{}\",\"key_span\":[{},{}],\"value_kind\":\"{}\",",
+                        "\"value_span\":[{},{}],\"value\":\"{}\"}}"
+                    ),
+                    pkgmeta_dialect_name(model.dialect),
+                    index,
+                    e.section,
+                    pkgmeta_role_name(role),
+                    json_escape(&key),
+                    e.key_start,
+                    e.key_end,
+                    pkgmeta_entry_value_kind_name(&model, e),
+                    e.value_start,
+                    e.value_end,
+                    json_escape(&vtext),
+                ))
+            }
+        };
+        Ok(self.pkgmeta_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A `SECTION:KEY` reference. `ExactBytes` returns the first matching entry's exact
+    /// value bytes; `Text` its decoded value; `Metadata`/`Structure` a descriptor that
+    /// reports the duplicate-key count.
+    fn pkgmeta_key(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let (section_ref, key) = parse_pkgmeta_key_ref(spec)?;
+        let want_role = pkgmeta_role_for_name(section_ref);
+        let mut found: Option<u32> = None;
+        for (si, s) in model.sections.iter().enumerate() {
+            let name = pkgmeta_section_name(&model, &source, s)?;
+            if name == section_ref || want_role == Some(s.role) {
+                found = Some(si as u32);
+                break;
+            }
+        }
+        let si = found.ok_or_else(|| {
+            Error::unsupported_feature(format!("package-metadata has no section {section_ref:?}"))
+        })?;
+        let s = &model.sections[si as usize];
+        let first = s.first_entry as usize;
+        let end = first + s.entry_count as usize;
+        let mut matches = 0u32;
+        let mut first_entry: Option<u32> = None;
+        for ei in first..end {
+            let e = &model.entries[ei];
+            if pkgmeta_entry_key_text(&model, &source, e)? == key {
+                matches += 1;
+                if first_entry.is_none() {
+                    first_entry = Some(ei as u32);
+                }
+            }
+        }
+        let ei = first_entry.ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "package-metadata section {section_ref:?} has no entry {key:?}"
+            ))
+        })?;
+        let e = &model.entries[ei as usize];
+        let role = s.role;
+        let provenance = format!(
+            "pkgmeta;key={spec};dialect={};section={};role={};matches={}",
+            pkgmeta_dialect_name(model.dialect),
+            si,
+            pkgmeta_role_name(role),
+            matches,
+        );
+        let span = Some((e.value_start, e.value_end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(pkgmeta_entry_value_bytes(&model, &source, e)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(pkgmeta_entry_value_text(&model, &source, e)?)
+            }
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dialect\":\"{}\",\"section\":{},\"role\":\"{}\",",
+                    "\"key\":\"{}\",\"entry\":{},\"value_kind\":\"{}\",",
+                    "\"value_span\":[{},{}],\"matches\":{}}}"
+                ),
+                pkgmeta_dialect_name(model.dialect),
+                si,
+                pkgmeta_role_name(role),
+                json_escape(key),
+                ei,
+                pkgmeta_entry_value_kind_name(&model, e),
+                e.value_start,
+                e.value_end,
+                matches,
+            )),
+        };
+        Ok(self.pkgmeta_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search across section names, entry keys, and entry values.
+    fn pkgmeta_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let matches = pkgmeta_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "package-metadata find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            let entry = if m.entry == PKG_NONE {
+                "null".to_string()
+            } else {
+                m.entry.to_string()
+            };
+            out.push(format!(
+                concat!(
+                    "{{\"section\":{},\"entry\":{},\"role\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.section,
+                entry,
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("pkgmeta;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.pkgmeta_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_pkgmeta(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.pkgmeta_common_metadata(req),
+            Selector::Text => self.pkgmeta_common_text(req),
+            Selector::SearchMatch(p) => self.pkgmeta_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "package-metadata does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn pkgmeta_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let text = pkgmeta_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.pkgmeta_answer(
+            req,
+            AnswerValue::Text(text),
+            "pkgmeta;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn pkgmeta_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.pkgmeta_model()?;
+        let (source, root) = self.pkgmeta_source()?;
+        let mut tables = 0u64;
+        let mut arrays = 0u64;
+        let mut elements = 0u64;
+        for s in &model.sections {
+            match s.kind {
+                crate::adapter::pkgmeta::S_TABLE => tables += 1,
+                crate::adapter::pkgmeta::S_ARRAY => arrays += 1,
+                crate::adapter::pkgmeta::S_ELEMENT => elements += 1,
+                _ => {}
+            }
+        }
+        let root_entries = model.sections.first().map(|s| s.entry_count).unwrap_or(0);
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"pkgmeta\",\"dialect\":\"{}\",\"bytes\":{},",
+                "\"sections\":{},\"tables\":{},\"arrays\":{},\"elements\":{},",
+                "\"entries\":{},\"root_entries\":{},\"arena_nodes\":{}}}"
+            ),
+            pkgmeta_dialect_name(model.dialect),
+            model.doc_len,
+            model.sections.len(),
+            tables,
+            arrays,
+            elements,
+            model.entries.len(),
+            root_entries,
+            model.arena_len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.pkgmeta_answer(
+            req,
+            value,
+            "pkgmeta;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// Parse a `SECTION:KEY` package-metadata reference. An empty section or key is a
+/// usage error.
+#[cfg(feature = "pkgmeta")]
+fn parse_pkgmeta_key_ref(spec: &str) -> Result<(&str, &str)> {
+    let (section, key) = spec.split_once(':').ok_or_else(|| {
+        Error::usage(format!(
+            "package-metadata key reference {spec:?} must be SECTION:KEY"
+        ))
+    })?;
+    if section.is_empty() || key.is_empty() {
+        return Err(Error::usage(format!(
+            "package-metadata key reference {spec:?} must have a non-empty section and key"
+        )));
+    }
+    Ok((section, key))
+}
+
+// ---------------------------------------------------------------------------
+// API-spec observations (Phase 21.30)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "apispec")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the API-spec model (derived, `Q_gen`).
+    fn apispec_model(&mut self) -> Result<(ApispecModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_APISPEC_MODEL, 0), "API-spec model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((ApispecModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn apispec_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn apispec_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The recorded dialect. `Text` returns the dialect name; `Metadata`/`Structure` a
+    /// descriptor with the dialect, the exact spec-version string, the counts, and the
+    /// byte length.
+    fn apispec_dialect(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let dialect = apispec_dialect_name(model.dialect).to_string();
+        let version = apispec_version_text(&model, &source)?;
+        let provenance = format!("apispec;dialect={dialect}");
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(dialect.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"apispec\",\"dialect\":\"{}\",\"version\":\"{}\",",
+                    "\"objects\":{},\"members\":{},\"refs\":{},\"bytes\":{}}}"
+                ),
+                json_escape(&dialect),
+                json_escape(&version),
+                model.objects.len(),
+                model.members.len(),
+                model.refs.len(),
+                model.doc_len(),
+            )),
+        };
+        Ok(self.apispec_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The exact spec-version string. `ExactBytes` returns the exact token (with
+    /// quotes); `Text` the decoded string; `Metadata`/`Structure` a descriptor.
+    fn apispec_version(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let node = model
+            .node(model.version_node)
+            .ok_or_else(|| Error::internal_invariant("API-spec version node is out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let dialect = apispec_dialect_name(model.dialect).to_string();
+        let version = apispec_version_text(&model, &source)?;
+        let token = apispec_version_token(&model, &source)?;
+        let provenance = format!("apispec;version={version};dialect={dialect}");
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(token.to_vec()),
+            Representation::Text => AnswerValue::Text(version.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dialect\":\"{}\",\"version\":\"{}\",",
+                    "\"span\":[{},{}],\"token\":\"{}\"}}"
+                ),
+                json_escape(&dialect),
+                json_escape(&version),
+                node.start,
+                node.end,
+                json_escape(&String::from_utf8_lossy(token)),
+            )),
+        };
+        Ok(self.apispec_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th recorded object. `ExactBytes` returns its exact source bytes;
+    /// `Text` its decoded name; `Metadata`/`Structure` a JSON descriptor.
+    fn apispec_object(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let o = model.object(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "API-spec has no object {index} (object count {})",
+                model.objects.len()
+            ))
+        })?;
+        let name = if o.name_node == API_NONE {
+            String::new()
+        } else {
+            let kn = model.node(o.name_node).ok_or_else(|| {
+                Error::internal_invariant("API-spec object name node is out of range")
+            })?;
+            apispec_decode_string(&source, kn)?
+        };
+        let provenance = format!(
+            "apispec;object={index};dialect={};role={};members={}",
+            apispec_dialect_name(model.dialect),
+            apispec_role_name(o.role),
+            o.member_count,
+        );
+        let span = Some((o.start, o.end));
+        let parent = if o.parent == API_NONE {
+            "null".to_string()
+        } else {
+            o.parent.to_string()
+        };
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(apispec_object_bytes(&model, &source, o)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(name.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dialect\":\"{}\",\"object\":{},\"role\":\"{}\",",
+                    "\"name\":\"{}\",\"name_span\":[{},{}],\"span\":[{},{}],",
+                    "\"parent\":{},\"members\":{},\"first_member\":{}}}"
+                ),
+                apispec_dialect_name(model.dialect),
+                index,
+                apispec_role_name(o.role),
+                json_escape(&name),
+                o.name_start,
+                o.name_end,
+                o.start,
+                o.end,
+                parent,
+                o.member_count,
+                o.first_member,
+            )),
+        };
+        Ok(self.apispec_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th recorded `$ref`. `ExactBytes` returns the target's exact token;
+    /// `Text` its decoded target; `Metadata`/`Structure` a descriptor. The target is
+    /// preserved verbatim and never resolved.
+    fn apispec_ref(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let r = model.ref_(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "API-spec has no $ref {index} ($ref count {})",
+                model.refs.len()
+            ))
+        })?;
+        let target = apispec_ref_target(&model, &source, r)?;
+        let provenance = format!("apispec;ref={index};owner={}", r.owner);
+        let span = Some((r.start, r.end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                let n = model.node(r.value_node).ok_or_else(|| {
+                    Error::internal_invariant("API-spec ref target node is out of range")
+                })?;
+                AnswerValue::Bytes(apispec_token_bytes(&source, n)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(target.clone()),
+            _ => AnswerValue::Json(format!(
+                "{{\"ref\":{index},\"owner\":{},\"target\":\"{}\",\"span\":[{},{}]}}",
+                r.owner,
+                json_escape(&target),
+                r.start,
+                r.end,
+            )),
+        };
+        Ok(self.apispec_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over API-spec object keys and string values, reusing the
+    /// shared JSON match vocabulary.
+    fn apispec_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let matches = apispec_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "API-spec find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                "{{\"pointer\":\"{}\",\"role\":\"{}\",\"kind\":\"string\",\"span\":[{},{}],\"text\":\"{}\"}}",
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("apispec;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.apispec_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_apispec(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.apispec_common_metadata(req),
+            Selector::Text => self.apispec_common_text(req),
+            Selector::SearchMatch(p) => self.apispec_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "API-spec does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn apispec_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let text = apispec_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.apispec_answer(
+            req,
+            AnswerValue::Text(text),
+            "apispec;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn apispec_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.apispec_model()?;
+        let (source, root) = self.apispec_source()?;
+        let dialect = apispec_dialect_name(model.dialect).to_string();
+        let version = apispec_version_text(&model, &source)?;
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"apispec\",\"dialect\":\"{}\",\"version\":\"{}\",",
+                "\"objects\":{},\"members\":{},\"refs\":{},\"bytes\":{}}}"
+            ),
+            json_escape(&dialect),
+            json_escape(&version),
+            model.objects.len(),
+            model.members.len(),
+            model.refs.len(),
+            model.doc_len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.apispec_answer(
+            req,
+            value,
+            "apispec;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Bibliography observations (Phase 21.31)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "bib")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the bibliography model (derived, `Q_gen`).
+    fn bib_model(&mut self) -> Result<(BibModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_BIB_MODEL, 0), "bibliography model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((BibModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn bib_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn bib_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The recorded dialect. `Text` returns the dialect name; `Metadata`/`Structure` a
+    /// descriptor with the dialect, the entry/item/field counts, and the byte length.
+    fn bib_dialect(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        let dialect = bib_dialect_name(model.dialect).to_string();
+        let provenance = format!("bib;dialect={dialect}");
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(dialect.clone()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"bib\",\"dialect\":\"{}\",\"records\":{},",
+                    "\"entries\":{},\"items\":{},\"fields\":{},\"bom\":{},\"bytes\":{}}}"
+                ),
+                json_escape(&dialect),
+                model.record_count(),
+                model.entries.len(),
+                model.items.len(),
+                model.field_count(),
+                model.bom_len,
+                model.doc_len(),
+            )),
+        };
+        Ok(self.bib_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th recorded entry (BibTeX/RIS) or item (CSL-JSON). `ExactBytes`
+    /// returns its exact source bytes; `Text` its key/id; `Metadata`/`Structure` a
+    /// descriptor.
+    fn bib_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        if model.is_json() {
+            let it = model.item(index).ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "bibliography has no item {index} (item count {})",
+                    model.items.len()
+                ))
+            })?;
+            let id = bib_item_id_text(&model, &source, it)?;
+            let ty = bib_item_type_text(&model, &source, it)?;
+            let span = Some((it.start, it.end));
+            let provenance = format!("bib;item={index};dialect=csl_json;id={id}");
+            let value = match req.representation {
+                Representation::ExactBytes => {
+                    AnswerValue::Bytes(bib_item_bytes(&model, &source, it)?.to_vec())
+                }
+                Representation::Text => AnswerValue::Text(id.clone()),
+                _ => AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"dialect\":\"csl_json\",\"item\":{},\"id\":\"{}\",",
+                        "\"type\":\"{}\",\"span\":[{},{}]}}"
+                    ),
+                    index,
+                    json_escape(&id),
+                    json_escape(&ty),
+                    it.start,
+                    it.end,
+                )),
+            };
+            return Ok(self.bib_answer(req, value, provenance, span, vec![model_id, root]));
+        }
+        let e = model.entry(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "bibliography has no entry {index} (entry count {})",
+                model.entries.len()
+            ))
+        })?;
+        let key = bib_entry_key_text(&source, e)?;
+        let ty = bib_entry_type_text(&source, e)?;
+        let name = if model.dialect == crate::adapter::bib::D_BIBTEX {
+            key.clone()
+        } else {
+            ty.clone()
+        };
+        let span = Some((e.start, e.end));
+        let provenance = format!(
+            "bib;entry={index};dialect={};kind={};fields={}",
+            bib_dialect_name(model.dialect),
+            bib_entry_kind_name(e.kind),
+            e.fields.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(bib_entry_bytes(&source, e)?.to_vec()),
+            Representation::Text => AnswerValue::Text(name.clone()),
+            _ => {
+                let mut fs: Vec<String> = Vec::new();
+                for f in &e.fields {
+                    let fname = bib_field_name_text(&source, f)?;
+                    fs.push(format!(
+                        concat!(
+                            "{{\"name\":\"{}\",\"kind\":\"{}\",\"flags\":{},",
+                            "\"name_span\":[{},{}],\"value_span\":[{},{}]}}"
+                        ),
+                        json_escape(&fname),
+                        bib_value_kind_name(f.value_kind),
+                        f.flags,
+                        f.name_start,
+                        f.name_end,
+                        f.value_start,
+                        f.value_end,
+                    ));
+                }
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"dialect\":\"{}\",\"entry\":{},\"kind\":\"{}\",\"type\":\"{}\",",
+                        "\"key\":\"{}\",\"type_span\":[{},{}],\"key_span\":[{},{}],",
+                        "\"span\":[{},{}],\"duplicates\":{},\"fields\":[{}]}}"
+                    ),
+                    bib_dialect_name(model.dialect),
+                    index,
+                    bib_entry_kind_name(e.kind),
+                    json_escape(&ty),
+                    json_escape(&key),
+                    e.type_start,
+                    e.type_end,
+                    e.key_start,
+                    e.key_end,
+                    e.start,
+                    e.end,
+                    e.duplicate_field_count(),
+                    fs.join(","),
+                ))
+            }
+        };
+        Ok(self.bib_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A field of an entry/item as `N:FIELD`. `ExactBytes` returns the value's exact
+    /// bytes; `Text` its decoded text; `Metadata`/`Structure` a descriptor.
+    fn bib_field(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        let (index, field) = parse_bib_field_ref(spec)?;
+        if model.is_json() {
+            let it = model.item(index).ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "bibliography has no item {index} (item count {})",
+                    model.items.len()
+                ))
+            })?;
+            let node = bib_item_member_node(&model, &source, index, field)?.ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "bibliography item {index} has no member {field:?}"
+                ))
+            })?;
+            let n = model.node(node).ok_or_else(|| {
+                Error::internal_invariant("bibliography member node is out of range")
+            })?;
+            let kind = crate::adapter::json::kind_name(n.kind);
+            let span = Some((n.start, n.end));
+            let provenance = format!("bib;item={index};member={field};kind={kind}");
+            let value = match req.representation {
+                Representation::ExactBytes => {
+                    AnswerValue::Bytes(bib_node_token_bytes(&model, &source, node)?.to_vec())
+                }
+                Representation::Text => {
+                    AnswerValue::Text(bib_node_value_text(&model, &source, node)?)
+                }
+                _ => AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"dialect\":\"csl_json\",\"item\":{},\"id\":\"{}\",",
+                        "\"member\":\"{}\",\"value_kind\":\"{}\",\"span\":[{},{}]}}"
+                    ),
+                    index,
+                    json_escape(&bib_item_id_text(&model, &source, it)?),
+                    json_escape(field),
+                    kind,
+                    n.start,
+                    n.end,
+                )),
+            };
+            return Ok(self.bib_answer(req, value, provenance, span, vec![model_id, root]));
+        }
+        let e = model.entry(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "bibliography has no entry {index} (entry count {})",
+                model.entries.len()
+            ))
+        })?;
+        let fi = bib_entry_field_index(&model, &source, index, field)?.ok_or_else(|| {
+            Error::unsupported_feature(format!("bibliography entry {index} has no field {field:?}"))
+        })?;
+        let f = &e.fields[fi as usize];
+        let fname = bib_field_name_text(&source, f)?;
+        let span = Some((f.value_start, f.value_end));
+        let provenance = format!(
+            "bib;entry={index};field={fname};kind={};flags={}",
+            bib_value_kind_name(f.value_kind),
+            f.flags
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(bib_field_value_bytes(&source, f)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(bib_field_value_text(&source, f)?),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dialect\":\"{}\",\"entry\":{},\"field\":\"{}\",\"field_index\":{},",
+                    "\"value_kind\":\"{}\",\"flags\":{},\"name_span\":[{},{}],\"value_span\":[{},{}]}}"
+                ),
+                bib_dialect_name(model.dialect),
+                index,
+                json_escape(&fname),
+                fi,
+                bib_value_kind_name(f.value_kind),
+                f.flags,
+                f.name_start,
+                f.name_end,
+                f.value_start,
+                f.value_end,
+            )),
+        };
+        Ok(self.bib_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// An entry looked up by its citation key (BibTeX), `ID` field (RIS), or string
+    /// `id` (CSL-JSON). Resolves and defers to [`Self::bib_entry`].
+    fn bib_key(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, _) = self.bib_model()?;
+        let (source, _) = self.bib_source()?;
+        let index = bib_entry_key_index(&model, &source, spec)?.ok_or_else(|| {
+            Error::unsupported_feature(format!("bibliography has no key {spec:?}"))
+        })?;
+        self.bib_entry(req, index)
+    }
+
+    /// A bounded lexical search over every entry type/key, field name, and value (or,
+    /// for CSL-JSON, the shared JSON match vocabulary).
+    fn bib_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        let matches = bib_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "bibliography find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            let entry = if m.entry == BIB_NONE {
+                "null".to_string()
+            } else {
+                m.entry.to_string()
+            };
+            let field = if m.field == BIB_NONE {
+                "null".to_string()
+            } else {
+                m.field.to_string()
+            };
+            out.push(format!(
+                concat!(
+                    "{{\"entry\":{},\"field\":{},\"role\":\"{}\",",
+                    "\"pointer\":\"{}\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                entry,
+                field,
+                bib_role_name(m.role),
+                json_escape(&m.pointer),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("bib;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.bib_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_bib(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.bib_common_metadata(req),
+            Selector::Text => self.bib_common_text(req),
+            Selector::SearchMatch(p) => self.bib_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "bibliography does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn bib_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        let text = bib_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.bib_answer(
+            req,
+            AnswerValue::Text(text),
+            "bib;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn bib_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.bib_model()?;
+        let (source, root) = self.bib_source()?;
+        let dialect = bib_dialect_name(model.dialect).to_string();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"bib\",\"dialect\":\"{}\",\"records\":{},",
+                "\"entries\":{},\"items\":{},\"fields\":{},\"arena_nodes\":{},",
+                "\"bom\":{},\"trailing_newline\":{},\"bytes\":{}}}"
+            ),
+            json_escape(&dialect),
+            model.record_count(),
+            model.entries.len(),
+            model.items.len(),
+            model.field_count(),
+            model.arena_len(),
+            model.bom_len,
+            model.trailing_newline,
+            model.doc_len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.bib_answer(
+            req,
+            value,
+            "bib;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// Parse a `N:FIELD` bibliography field reference. `N` is a 0-based entry/item index;
+/// the field is a BibTeX field name (case-insensitive) or a RIS tag / CSL-JSON member
+/// key. A missing/non-numeric `N` or an empty field is a usage error.
+#[cfg(feature = "bib")]
+fn parse_bib_field_ref(spec: &str) -> Result<(u32, &str)> {
+    let (n, field) = spec.split_once(':').ok_or_else(|| {
+        Error::usage(format!(
+            "bibliography field reference {spec:?} must be N:FIELD"
+        ))
+    })?;
+    if n.is_empty() || (n.len() > 1 && n.starts_with('0')) {
+        return Err(Error::usage(format!(
+            "bibliography field reference {spec:?} must have a canonical entry index"
+        )));
+    }
+    let index: u32 = n.parse().map_err(|_| {
+        Error::usage(format!(
+            "bibliography field reference {spec:?} has a non-numeric entry index"
+        ))
+    })?;
+    if field.is_empty() {
+        return Err(Error::usage(format!(
+            "bibliography field reference {spec:?} must have a non-empty field"
+        )));
+    }
+    Ok((index, field))
+}
+
+// ---------------------------------------------------------------------------
+// RTF observations (Phase 21.32)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "rtf")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the RTF model (derived, `Q_gen`).
+    fn rtf_model(&mut self) -> Result<(RtfModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_RTF_MODEL, 0), "RTF model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((RtfModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn rtf_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn rtf_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The RTF header (`{\rtf1\ansi\deffN …}`): the exact `\rtf` version, the charset
+    /// control word, and `\deffN`. `Text` returns a compact canonical string;
+    /// `Metadata`/`Structure` a descriptor with every recorded span.
+    fn rtf_header(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let h = &model.header;
+        let charset = rtf_charset_name(h.charset);
+        let provenance = format!("rtf;header;version={};charset={charset}", h.version);
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => {
+                let deff = match h.deff_value() {
+                    Some(v) => format!(" deff{v}"),
+                    None => String::new(),
+                };
+                AnswerValue::Text(format!("rtf{} {charset}{deff}", h.version))
+            }
+            _ => {
+                let deff = match h.deff_value() {
+                    Some(v) => v.to_string(),
+                    None => "null".to_string(),
+                };
+                let deff_span = if h.has_deff {
+                    format!("[{},{}]", h.deff_start, h.deff_end)
+                } else {
+                    "null".to_string()
+                };
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"format\":\"rtf\",\"version\":{},\"charset\":\"{}\",",
+                        "\"deff\":{},\"rtf_span\":[{},{}],\"version_span\":[{},{}],",
+                        "\"charset_span\":[{},{}],\"deff_span\":{}}}"
+                    ),
+                    h.version,
+                    charset,
+                    deff,
+                    h.rtf_start,
+                    h.rtf_end,
+                    h.version_start,
+                    h.version_end,
+                    h.charset_start,
+                    h.charset_end,
+                    deff_span,
+                ))
+            }
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th group `{ … }` with its exact brace span, parent, depth, and
+    /// destination kind.
+    fn rtf_group(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let g = model.group(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("RTF document has no group {index}"))
+        })?;
+        let span_bytes = rtf_group_bytes(&source, g)?;
+        let content = rtf_group_content_bytes(&source, g)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((g.start, g.end));
+        let provenance = format!(
+            "rtf;group={index};depth={};dest={}",
+            g.depth,
+            rtf_destination_name(g.dest)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => {
+                let parent = if g.parent == NO_GROUP {
+                    "null".to_string()
+                } else {
+                    g.parent.to_string()
+                };
+                let dest = if g.dest == 0 {
+                    "null".to_string()
+                } else {
+                    format!("\"{}\"", rtf_destination_name(g.dest))
+                };
+                let mut ce = g.end.saturating_sub(1);
+                let cs = g.start.saturating_add(1);
+                if ce < cs {
+                    ce = cs;
+                }
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"group\":{},\"parent\":{},\"depth\":{},\"dest\":{},",
+                        "\"span\":[{},{}],\"content_span\":[{},{}]}}"
+                    ),
+                    index, parent, g.depth, dest, g.start, g.end, cs, ce,
+                ))
+            }
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th control word or control symbol.
+    fn rtf_control(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let c = model.control(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("RTF document has no control {index}"))
+        })?;
+        let span_bytes = rtf_control_bytes(&source, c)?;
+        let name = String::from_utf8_lossy(rtf_control_name_bytes(&source, c)?).into_owned();
+        let span = Some((c.start, c.end));
+        let provenance = format!(
+            "rtf;control={index};kind={};name={name}",
+            rtf_control_kind_name(c.kind)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(name),
+            _ => {
+                let param = match rtf_control_param(&source, c) {
+                    Some(v) => v.to_string(),
+                    None => "null".to_string(),
+                };
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"control\":{},\"group\":{},\"kind\":\"{}\",\"name\":\"{}\",",
+                        "\"span\":[{},{}],\"name_span\":[{},{}],\"param\":{},",
+                        "\"param_span\":[{},{}],\"delimited\":{}}}"
+                    ),
+                    index,
+                    c.group,
+                    rtf_control_kind_name(c.kind),
+                    json_escape(&name),
+                    c.start,
+                    c.end,
+                    c.name_start,
+                    c.name_end,
+                    param,
+                    c.param_start,
+                    c.param_end,
+                    c.delimited,
+                ))
+            }
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th `\'hh` hex escape.
+    fn rtf_hex(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let h = model.hex_escape(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("RTF document has no hex escape {index}"))
+        })?;
+        let span_bytes = rtf_hex_bytes(&source, h)?;
+        let ch = rtf_hex_char(model.header.charset, h.byte);
+        let span = Some((h.start, h.end));
+        let provenance = format!(
+            "rtf;hex={index};byte={};charset={}",
+            h.byte,
+            rtf_charset_name(model.header.charset)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(ch.to_string()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"hex\":{},\"group\":{},\"byte\":{},\"char\":\"{}\",",
+                    "\"charset\":\"{}\",\"span\":[{},{}]}}"
+                ),
+                index,
+                h.group,
+                h.byte,
+                json_escape(&ch.to_string()),
+                rtf_charset_name(model.header.charset),
+                h.start,
+                h.end,
+            )),
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th `\uN` Unicode escape (with its active `\ucN` fallback count).
+    fn rtf_unicode(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let u = model.unicode_escape(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("RTF document has no unicode escape {index}"))
+        })?;
+        let span_bytes = rtf_unicode_bytes(&source, u)?;
+        let ch = rtf_unicode_char(u.code);
+        let span = Some((u.start, u.end));
+        let provenance = format!("rtf;unicode={index};code={};uc={}", u.code, u.uc);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => {
+                AnswerValue::Text(ch.map(|c| c.to_string()).unwrap_or_default())
+            }
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"unicode\":{},\"group\":{},\"code\":{},\"uc\":{},",
+                    "\"char\":{},\"span\":[{},{}]}}"
+                ),
+                index,
+                u.group,
+                u.code,
+                u.uc,
+                match ch {
+                    Some(c) => format!("\"{}\"", json_escape(&c.to_string())),
+                    None => "null".to_string(),
+                },
+                u.start,
+                u.end,
+            )),
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th plain text run (byte-exact).
+    fn rtf_text(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let t = model.text_run(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("RTF document has no text run {index}"))
+        })?;
+        let span_bytes = rtf_text_run_bytes(&source, t)?;
+        let text = String::from_utf8_lossy(span_bytes).into_owned();
+        let span = Some((t.start, t.end));
+        let provenance = format!(
+            "rtf;text={index};group={};bytes={}",
+            t.group,
+            span_bytes.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!("{{\"text\":{},\"group\":{},\"span\":[{},{}],\"bytes\":{}}}"),
+                index,
+                t.group,
+                t.start,
+                t.end,
+                span_bytes.len(),
+            )),
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A destination named by `NAME` or `NAME:N`.
+    fn rtf_destination(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let (name, ord) = parse_rtf_dest_ref(spec)?;
+        let kind = rtf_destination_kind(name).ok_or_else(|| {
+            Error::usage(format!(
+                "RTF destination {name:?} is not one of fonttbl/colortbl/stylesheet/info/pict/object/ignore"
+            ))
+        })?;
+        let idxs = model.destinations_of_kind(kind);
+        let di = *idxs.get(ord as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "RTF document has no destination {name} {ord} (count {})",
+                idxs.len()
+            ))
+        })?;
+        let d = model
+            .destination(di)
+            .ok_or_else(|| Error::internal_invariant("RTF destination index is out of range"))?;
+        let g = model
+            .group(d.group)
+            .ok_or_else(|| Error::internal_invariant("RTF destination group is out of range"))?;
+        let span_bytes = rtf_destination_bytes(&source, &model, d)?;
+        let content = rtf_group_content_bytes(&source, g)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((g.start, g.end));
+        let provenance = format!(
+            "rtf;dest={name};ordinal={ord};kind={};group={}",
+            rtf_destination_name(d.kind),
+            d.group
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"dest\":\"{}\",\"ordinal\":{},\"destination\":{},\"group\":{},",
+                    "\"span\":[{},{}],\"name_span\":[{},{}]}}"
+                ),
+                rtf_destination_name(d.kind),
+                ord,
+                di,
+                d.group,
+                g.start,
+                g.end,
+                d.name_start,
+                d.name_end,
+            )),
+        };
+        Ok(self.rtf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over every RTF plain text run.
+    fn rtf_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let matches = rtf_find_matches(&source, &model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"run\":{},\"group\":{},\"span\":[{},{}],\"text\":\"{}\"}}"),
+                m.run,
+                m.group,
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("rtf;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.rtf_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_rtf(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.rtf_common_metadata(req),
+            Selector::Text => self.rtf_common_text(req),
+            Selector::SearchMatch(p) => self.rtf_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "RTF does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the exact source (lossily decoded), never rendered.
+    fn rtf_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.rtf_source()?;
+        let text = rtf_canonical_text(&source, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.rtf_answer(
+            req,
+            AnswerValue::Text(text),
+            "rtf;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn rtf_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rtf_model()?;
+        let (source, root) = self.rtf_source()?;
+        let words = model
+            .controls
+            .iter()
+            .filter(|c| c.kind == crate::adapter::rtf::C_WORD)
+            .count();
+        let symbols = model.controls.len() - words;
+        let text_bytes: u64 = model.text_runs.iter().map(|t| t.end - t.start).sum();
+        let dcount = |k: u8| model.destinations_of_kind(k).len();
+        let h = &model.header;
+        let deff = match h.deff_value() {
+            Some(v) => v.to_string(),
+            None => "null".to_string(),
+        };
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"rtf\",\"bytes\":{},\"groups\":{},\"max_depth\":{},",
+                "\"controls\":{},\"words\":{},\"symbols\":{},\"text_runs\":{},",
+                "\"text_bytes\":{},\"hex_escapes\":{},\"unicode_escapes\":{},",
+                "\"destinations\":{},\"fonttbl\":{},\"colortbl\":{},\"stylesheet\":{},",
+                "\"info\":{},\"pict\":{},\"object\":{},\"ignore\":{},",
+                "\"version\":{},\"charset\":\"{}\",\"deff\":{}}}"
+            ),
+            model.doc_len,
+            model.groups.len(),
+            model.max_depth(),
+            model.controls.len(),
+            words,
+            symbols,
+            model.text_runs.len(),
+            text_bytes,
+            model.hex.len(),
+            model.unicode.len(),
+            model.destinations.len(),
+            dcount(D_FONT_TABLE),
+            dcount(D_COLOR_TABLE),
+            dcount(D_STYLESHEET),
+            dcount(D_INFO),
+            dcount(D_PICT),
+            dcount(D_OBJECT),
+            dcount(D_IGNORE),
+            h.version,
+            rtf_charset_name(h.charset),
+            deff,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.rtf_answer(
+            req,
+            value,
+            "rtf;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Archive-container observations (Phase 21.33)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "container")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the archive-container model (derived, `Q_gen`).
+    fn container_model(&mut self) -> Result<(ContainerModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_CONTAINER_MODEL, 0), "container model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((ContainerModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the field root (a `DocumentExact`
+    /// for TAR, or the `PackageRoot` of the reused ZIP physical layer) so the read is
+    /// a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn container_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn container_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The recorded archive-container dialect (`zip`/`tar`), from the model.
+    fn container_dialect(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.container_model()?;
+        let (source, root) = self.container_source()?;
+        let d = container_dialect_name(model.dialect);
+        let provenance = format!("container;dialect={d};members={}", model.entries.len());
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(d.to_string()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"container\",\"dialect\":\"{}\",\"bytes\":{},",
+                    "\"members\":{},\"trailer_span\":[{},{}]}}"
+                ),
+                d,
+                model.doc_len,
+                model.entries.len(),
+                model.trailer.0,
+                model.trailer.1
+            )),
+        };
+        Ok(self.container_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th archive member (0-based, archive order).
+    fn container_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.container_model()?;
+        let (source, root) = self.container_source()?;
+        let e = model.entry(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("container has no member {index}"))
+        })?;
+        let span = Some(e.span);
+        let provenance = format!(
+            "container;entry={index};kind={};bytes={}",
+            container_kind_name(model.dialect, e),
+            e.span.1.saturating_sub(e.span.0)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(container_entry_bytes(&source, e)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(container_name_text(e)),
+            _ => {
+                let name = container_name_text(e);
+                let link = String::from_utf8_lossy(&e.linkname).into_owned();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"index\":{},\"name\":\"{}\",\"kind\":\"{}\",",
+                        "\"method\":{},\"flags\":{},\"typeflag\":{},",
+                        "\"crc32\":{},\"compressed_size\":{},\"uncompressed_size\":{},",
+                        "\"mode\":{},\"uid\":{},\"gid\":{},\"mtime\":{},",
+                        "\"span\":[{},{}],\"header_span\":[{},{}],\"data_span\":[{},{}],",
+                        "\"name_span\":[{},{}],\"linkname\":\"{}\",\"ext\":{},",
+                        "\"directory\":{}}}"
+                    ),
+                    index,
+                    json_escape(&name),
+                    container_kind_name(model.dialect, e),
+                    e.method,
+                    e.flags,
+                    e.typeflag,
+                    e.crc32,
+                    e.compressed_size,
+                    e.uncompressed_size,
+                    e.mode,
+                    e.uid,
+                    e.gid,
+                    e.mtime,
+                    e.span.0,
+                    e.span.1,
+                    e.header.0,
+                    e.header.1,
+                    e.data.0,
+                    e.data.1,
+                    e.name_span.0,
+                    e.name_span.1,
+                    json_escape(&link),
+                    e.ext,
+                    container_is_dir(model.dialect, e),
+                ))
+            }
+        };
+        Ok(self.container_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over every member name and linkname.
+    fn container_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.container_model()?;
+        let (_, root) = self.container_source()?;
+        let matches = container_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"entry\":{},\"field\":\"{}\",\"span\":[{},{}],\"text\":\"{}\"}}"),
+                m.entry,
+                container_field_name(m.field),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("container;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.container_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_container(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.container_common_metadata(req),
+            Selector::Text => self.container_common_text(req),
+            Selector::SearchMatch(p) => self.container_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "container does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn container_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.container_model()?;
+        let (source, root) = self.container_source()?;
+        let text = container_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.container_answer(
+            req,
+            AnswerValue::Text(text),
+            "container;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn container_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.container_model()?;
+        let (source, root) = self.container_source()?;
+        let dirs = model
+            .entries
+            .iter()
+            .filter(|e| container_is_dir(model.dialect, e))
+            .count();
+        let names_bytes: u64 = model.entries.iter().map(|e| e.name.len() as u64).sum();
+        let d = container_dialect_name(model.dialect);
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"container\",\"dialect\":\"{}\",\"bytes\":{},",
+                "\"members\":{},\"directories\":{},\"name_bytes\":{},",
+                "\"trailer_span\":[{},{}]}}"
+            ),
+            d,
+            model.doc_len,
+            model.entries.len(),
+            dirs,
+            names_bytes,
+            model.trailer.0,
+            model.trailer.1,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.container_answer(
+            req,
+            value,
+            "container;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Scientific-container observations (Phase 21.34)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "hdf")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the scientific-container model (derived, `Q_gen`).
+    fn hdf_model(&mut self) -> Result<(HdfModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_HDF_MODEL, 0), "hdf model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((HdfModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the field root (a `DocumentExact`,
+    /// keyed by `sha256(source)`) so the read is a real DAG dependency (ADR-0060),
+    /// never a bare source fetch.
+    fn hdf_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn hdf_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn hdf_dialect_json(model: &HdfModel) -> String {
+        format!(
+            concat!(
+                "{{\"format\":\"hdf\",\"dialect\":\"{}\",\"bytes\":{},",
+                "\"numrecs\":{},\"streaming\":{},\"objects\":{},\"groups\":{},",
+                "\"datasets\":{},\"dimensions\":{},\"attributes\":{},",
+                "\"header_span\":[{},{}]}}"
+            ),
+            hdf_dialect_name(model.dialect),
+            model.doc_len,
+            model.numrecs,
+            model.streaming,
+            model.objects.len(),
+            model.group_count(),
+            model.dataset_count(),
+            model.dimensions.len(),
+            model.attributes.len(),
+            model.header_span.0,
+            model.header_span.1,
+        )
+    }
+
+    /// The recorded scientific-container dialect (`netcdf`/`hdf5`), from the model.
+    fn hdf_dialect(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let d = hdf_dialect_name(model.dialect);
+        let provenance = format!(
+            "hdf;dialect={d};objects={};dimensions={}",
+            model.objects.len(),
+            model.dimensions.len()
+        );
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(d.to_string()),
+            _ => AnswerValue::Json(Self::hdf_dialect_json(&model)),
+        };
+        Ok(self.hdf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th object (0-based, model order).
+    fn hdf_object(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let o = model
+            .object(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("hdf has no object {index}")))?;
+        let path = hdf_object_path(&model, index);
+        let span = Some(o.data_span);
+        let provenance = format!(
+            "hdf;object={index};kind={};bytes={}",
+            hdf_kind_name(o.kind),
+            o.data_span.1.saturating_sub(o.data_span.0)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(hdf_object_bytes(&source, o)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(path),
+            _ => {
+                let shape = o
+                    .dims
+                    .iter()
+                    .map(|d| d.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let parent = if o.parent == HDF_NO_PARENT {
+                    "null".to_string()
+                } else {
+                    o.parent.to_string()
+                };
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"index\":{},\"dialect\":\"{}\",\"kind\":\"{}\",",
+                        "\"path\":\"{}\",\"name\":\"{}\",\"type\":\"{}\",",
+                        "\"elem_size\":{},\"shape\":[{}],\"parent\":{},\"depth\":{},",
+                        "\"is_record\":{},\"attributes\":{},\"offset\":{},",
+                        "\"span\":[{},{}],\"header_span\":[{},{}],\"data_span\":[{},{}]}}"
+                    ),
+                    index,
+                    hdf_dialect_name(model.dialect),
+                    hdf_kind_name(o.kind),
+                    json_escape(&path),
+                    json_escape(&String::from_utf8_lossy(&o.name)),
+                    hdf_type_name(o.ty),
+                    o.elem_size,
+                    shape,
+                    parent,
+                    o.depth,
+                    o.is_record,
+                    o.attrs.len(),
+                    o.offset,
+                    o.data_span.0,
+                    o.data_span.1,
+                    o.header_span.0,
+                    o.header_span.1,
+                    o.data_span.0,
+                    o.data_span.1,
+                ))
+            }
+        };
+        Ok(self.hdf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th NetCDF dimension.
+    fn hdf_dimension(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let d = model
+            .dimension(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("hdf has no dimension {index}")))?;
+        let name = String::from_utf8_lossy(&d.name).into_owned();
+        let span = Some(d.name_span);
+        let provenance = format!("hdf;dimension={index};unlimited={}", d.unlimited);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(name),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"index\":{},\"name\":\"{}\",\"length\":{},",
+                    "\"unlimited\":{},\"name_span\":[{},{}]}}"
+                ),
+                index,
+                json_escape(&name),
+                d.length,
+                d.unlimited,
+                d.name_span.0,
+                d.name_span.1,
+            )),
+        };
+        let _ = source;
+        Ok(self.hdf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th global (NetCDF) / root-group (HDF5) attribute.
+    fn hdf_attribute(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let a = model
+            .attribute(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("hdf has no attribute {index}")))?;
+        let name = String::from_utf8_lossy(&a.name).into_owned();
+        let span = Some(a.data_span);
+        let provenance = format!(
+            "hdf;attribute={index};type={};values={}",
+            hdf_type_name(a.ty),
+            a.num_values
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(hdf_attribute_bytes(&source, a)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(name),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"index\":{},\"name\":\"{}\",\"type\":\"{}\",",
+                    "\"num_values\":{},\"value_bytes\":{},\"span\":[{},{}],",
+                    "\"name_span\":[{},{}]}}"
+                ),
+                index,
+                json_escape(&name),
+                hdf_type_name(a.ty),
+                a.num_values,
+                a.value.len(),
+                a.data_span.0,
+                a.data_span.1,
+                a.name_span.0,
+                a.name_span.1,
+            )),
+        };
+        Ok(self.hdf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over every object/dimension/attribute name.
+    fn hdf_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (_, root) = self.hdf_source()?;
+        let matches = hdf_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"entry\":{},\"field\":\"{}\",\"span\":[{},{}],\"text\":\"{}\"}}"),
+                m.entry,
+                hdf_field_name(m.field),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("hdf;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.hdf_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_hdf(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.hdf_common_metadata(req),
+            Selector::Text => self.hdf_common_text(req),
+            Selector::SearchMatch(p) => self.hdf_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "hdf does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn hdf_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let text = hdf_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.hdf_answer(
+            req,
+            AnswerValue::Text(text),
+            "hdf;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn hdf_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.hdf_model()?;
+        let (source, root) = self.hdf_source()?;
+        let value = AnswerValue::Json(Self::hdf_dialect_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.hdf_answer(
+            req,
+            value,
+            "hdf;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CFBF / OLE2 compound-file observations (Phase 21.35)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "cfbf")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the compound-file model (derived, `Q_gen`).
+    fn cfbf_model(&mut self) -> Result<(CfbfModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_CFBF_MODEL, 0), "cfbf model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((CfbfModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the read
+    /// is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn cfbf_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn cfbf_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn cfbf_dialect_json(model: &CfbfModel) -> String {
+        format!(
+            concat!(
+                "{{\"format\":\"cfbf\",\"dialect\":\"{}\",\"bytes\":{},",
+                "\"major\":{},\"minor\":{},\"sector_size\":{},\"mini_sector_size\":{},",
+                "\"mini_cutoff\":{},\"entries\":{},\"streams\":{},",
+                "\"fat_sectors\":{},\"minifat_sectors\":{},\"difat_sectors\":{},",
+                "\"first_dir_sector\":{},\"header_span\":[{},{}]}}"
+            ),
+            cfbf_dialect_name(model.dialect),
+            model.doc_len,
+            model.major,
+            model.minor,
+            model.sector_size,
+            model.mini_sector_size,
+            model.mini_cutoff,
+            model.entries.len(),
+            model.stream_count(),
+            model.num_fat_sectors,
+            model.num_minifat_sectors,
+            model.num_difat_sectors,
+            model.first_dir_sector,
+            model.header_span.0,
+            model.header_span.1,
+        )
+    }
+
+    /// The recorded CFBF dialect (`cfb3`/`cfb4`), from the model.
+    fn cfbf_dialect(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (source, root) = self.cfbf_source()?;
+        let d = cfbf_dialect_name(model.dialect);
+        let provenance = format!(
+            "cfbf;dialect={d};entries={};streams={}",
+            model.entries.len(),
+            model.stream_count()
+        );
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(d.to_string()),
+            _ => AnswerValue::Json(Self::cfbf_dialect_json(&model)),
+        };
+        Ok(self.cfbf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th directory entry (0-based, directory order).
+    fn cfbf_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (source, root) = self.cfbf_source()?;
+        let e = model
+            .entry(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("cfbf has no entry {index}")))?;
+        let path = cfbf_entry_path(&model, index);
+        let span = Some(e.entry_span);
+        let provenance = format!(
+            "cfbf;entry={index};type={};bytes={}",
+            cfbf_obj_type_name(e.obj_type),
+            e.stream_size
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(cfbf_entry_bytes(&source, e)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(cfbf_name_text(e)),
+            _ => self.cfbf_entry_json(&model, index, e, &path),
+        };
+        Ok(self.cfbf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The stream at directory index `index`.
+    fn cfbf_stream(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (source, root) = self.cfbf_source()?;
+        let e = model
+            .entry(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("cfbf has no entry {index}")))?;
+        if e.obj_type != CFBF_OBJ_STREAM && e.obj_type != CFBF_OBJ_ROOT {
+            return Err(Error::unsupported_feature(format!(
+                "cfbf entry {index} is a storage, not a stream"
+            )));
+        }
+        let path = cfbf_entry_path(&model, index);
+        let span = Some(e.data_span);
+        let provenance = format!(
+            "cfbf;stream={index};bytes={};sectors={}",
+            e.stream_size, e.num_sectors
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(cfbf_stream_bytes(&source, e)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(path),
+            _ => self.cfbf_entry_json(&model, index, e, &path),
+        };
+        Ok(self.cfbf_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn cfbf_entry_json(
+        &self,
+        model: &CfbfModel,
+        index: u32,
+        e: &crate::adapter::cfbf::CfbfEntry,
+        path: &str,
+    ) -> AnswerValue {
+        let name = cfbf_name_text(e);
+        let parent = if e.parent == crate::adapter::cfbf::NO_PARENT {
+            "null".to_string()
+        } else {
+            e.parent.to_string()
+        };
+        AnswerValue::Json(format!(
+            concat!(
+                "{{\"index\":{},\"dialect\":\"{}\",\"type\":\"{}\",",
+                "\"path\":\"{}\",\"name\":\"{}\",\"color\":{},",
+                "\"left\":{},\"right\":{},\"child\":{},\"start_sector\":{},",
+                "\"stream_size\":{},\"mini\":{},\"contiguous\":{},",
+                "\"num_sectors\":{},\"parent\":{},\"depth\":{},",
+                "\"entry_span\":[{},{}],\"name_span\":[{},{}],\"data_span\":[{},{}]}}"
+            ),
+            index,
+            cfbf_dialect_name(model.dialect),
+            cfbf_obj_type_name(e.obj_type),
+            json_escape(path),
+            json_escape(&name),
+            e.color,
+            e.left,
+            e.right,
+            e.child,
+            e.start_sector,
+            e.stream_size,
+            e.stream_size > 0 && e.stream_size < model.mini_cutoff as u64,
+            e.contiguous,
+            e.num_sectors,
+            parent,
+            e.depth,
+            e.entry_span.0,
+            e.entry_span.1,
+            e.name_span.0,
+            e.name_span.1,
+            e.data_span.0,
+            e.data_span.1,
+        ))
+    }
+
+    /// A bounded lexical search over every directory entry name.
+    fn cfbf_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (_, root) = self.cfbf_source()?;
+        let matches = cfbf_find_matches(&model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!("{{\"entry\":{},\"field\":\"{}\",\"span\":[{},{}],\"text\":\"{}\"}}"),
+                m.entry,
+                cfbf_field_name(m.field),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("cfbf;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.cfbf_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_cfbf(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.cfbf_common_metadata(req),
+            Selector::Text => self.cfbf_common_text(req),
+            Selector::SearchMatch(p) => self.cfbf_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "cfbf does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn cfbf_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (source, root) = self.cfbf_source()?;
+        let text = cfbf_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.cfbf_answer(
+            req,
+            AnswerValue::Text(text),
+            "cfbf;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn cfbf_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cfbf_model()?;
+        let (source, root) = self.cfbf_source()?;
+        let value = AnswerValue::Json(Self::cfbf_dialect_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.cfbf_answer(
+            req,
+            value,
+            "cfbf;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// Parse a `NAME` or `NAME:N` RTF destination reference. `NAME` is a destination name
+/// and `N` is a canonical 0-based ordinal among destinations of that name (default 0).
+#[cfg(feature = "rtf")]
+fn parse_rtf_dest_ref(spec: &str) -> Result<(&str, u32)> {
+    let (name, ord) = match spec.split_once(':') {
+        Some((n, o)) => (n, Some(o)),
+        None => (spec, None),
+    };
+    if name.is_empty() {
+        return Err(Error::usage(format!(
+            "RTF destination reference {spec:?} must name a destination"
+        )));
+    }
+    let ord = match ord {
+        None => 0,
+        Some(o) => {
+            if o.is_empty() || (o.len() > 1 && o.starts_with('0')) {
+                return Err(Error::usage(format!(
+                    "RTF destination reference {spec:?} must have a canonical ordinal"
+                )));
+            }
+            o.parse::<u32>().map_err(|_| {
+                Error::usage(format!(
+                    "RTF destination reference {spec:?} has a non-numeric ordinal"
+                ))
+            })?
+        }
+    };
+    Ok((name, ord))
+}
+
+// ---------------------------------------------------------------------------
+// CBOR observations (Phase 21.18)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "cbor")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the CBOR structured-tree model (derived, `Q_gen`).
+    fn cbor_model(&mut self) -> Result<(CborModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_CBOR_MODEL, 0), "CBOR model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((CborModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn cbor_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn cbor_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn cbor_node_text(
+        model: &CborModel,
+        source: &[u8],
+        index: u32,
+        node: &crate::adapter::cbor::CborNode,
+    ) -> Result<String> {
+        if node.kind == crate::adapter::cbor::K_TEXT && !node.indefinite {
+            cbor_decode_text(source, node)
+        } else {
+            cbor_subtree_text(model, source, index)
+        }
+    }
+
+    /// Resolve `pointer` and answer per representation: `ExactBytes` returns the
+    /// item's exact encoded token bytes; `Text` the decoded text (or the canonical
+    /// subtree for a container/scalar); `Metadata`/`Structure` a CBOR descriptor with
+    /// the kind, the exact span, the encoding width (`info`), the definite/indefinite
+    /// form, the tag number, and the duplicate-key match count.
+    fn cbor_pointer(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cbor_model()?;
+        let (source, root) = self.cbor_source()?;
+        let r = cbor_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("CBOR pointer resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "cbor;pointer={pointer};kind={};info={};indefinite={};tag={};matches={}",
+            cbor_kind_name(node.kind),
+            node.info,
+            node.indefinite,
+            node.tag,
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(cbor_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::cbor_node_text(&model, &source, index, &node)?)
+            }
+            _ => {
+                let token = cbor_hex(cbor_token_bytes(&source, &node)?);
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"pointer\":\"{}\",\"kind\":\"{}\",\"span\":[{},{}],",
+                        "\"matches\":{},\"info\":{},\"indefinite\":{},\"tag\":{},",
+                        "\"arg\":{},\"float\":\"{}\",\"hex\":\"{}\",",
+                        "\"top_type\":\"{}\"}}"
+                    ),
+                    json_escape(pointer),
+                    cbor_kind_name(node.kind),
+                    node.start,
+                    node.end,
+                    r.matches,
+                    node.info,
+                    node.indefinite,
+                    node.tag,
+                    node.arg,
+                    cbor_float_name(&node),
+                    token,
+                    cbor_kind_name(model.top_type),
+                ))
+            }
+        };
+        Ok(self.cbor_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The structural view of a CBOR item: kind, span, encoding width, tag/float
+    /// facts, parent span, and (for containers) the child spans; a map's members
+    /// expose each key/value kind and span, and duplicate keys are reported.
+    fn cbor_node(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cbor_model()?;
+        let (source, root) = self.cbor_source()?;
+        let r = cbor_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("CBOR node resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "cbor;node={pointer};kind={};children={}",
+            cbor_kind_name(node.kind),
+            node.children.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(cbor_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::cbor_node_text(&model, &source, index, &node)?)
+            }
+            _ => {
+                AnswerValue::Json(self.cbor_node_structure(&model, &source, pointer, index, &node)?)
+            }
+        };
+        Ok(self.cbor_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn cbor_node_structure(
+        &self,
+        model: &CborModel,
+        source: &[u8],
+        pointer: &str,
+        index: u32,
+        node: &crate::adapter::cbor::CborNode,
+    ) -> Result<String> {
+        let parent_span = match cbor_find_parent(model, index) {
+            Some(p) => model
+                .node(p)
+                .map_or("null".to_string(), |n| format!("[{},{}]", n.start, n.end)),
+            None => "null".to_string(),
+        };
+        let mut extra = String::new();
+        if node.kind == crate::adapter::cbor::K_ARRAY {
+            let mut elems: Vec<String> = Vec::new();
+            for (i, child) in node.children.iter().enumerate() {
+                let cn = model
+                    .node(*child)
+                    .ok_or_else(|| Error::internal_invariant("CBOR element out of range"))?;
+                elems.push(format!(
+                    "{{\"index\":{},\"kind\":\"{}\",\"span\":[{},{}],\"info\":{}}}",
+                    i,
+                    cbor_kind_name(cn.kind),
+                    cn.start,
+                    cn.end,
+                    cn.info
+                ));
+            }
+            extra = format!(",\"elements\":[{}]", elems.join(","));
+        } else if node.kind == crate::adapter::cbor::K_MAP {
+            let mut members: Vec<String> = Vec::new();
+            let mut keys: Vec<String> = Vec::new();
+            let mut i = 0usize;
+            while i + 1 < node.children.len() {
+                let key_node = model
+                    .node(node.children[i])
+                    .ok_or_else(|| Error::internal_invariant("CBOR key index out of range"))?;
+                let val_node = model
+                    .node(node.children[i + 1])
+                    .ok_or_else(|| Error::internal_invariant("CBOR value index out of range"))?;
+                i += 2;
+                let key_text =
+                    if key_node.kind == crate::adapter::cbor::K_TEXT && !key_node.indefinite {
+                        let s = cbor_decode_text(source, key_node)?;
+                        keys.push(s.clone());
+                        format!("\"{}\"", json_escape(&s))
+                    } else {
+                        "null".to_string()
+                    };
+                members.push(format!(
+                    concat!(
+                        "{{\"key_kind\":\"{}\",\"key_span\":[{},{}],\"key_text\":{},",
+                        "\"value_kind\":\"{}\",\"value_span\":[{},{}],\"value_info\":{}}}"
+                    ),
+                    cbor_kind_name(key_node.kind),
+                    key_node.start,
+                    key_node.end,
+                    key_text,
+                    cbor_kind_name(val_node.kind),
+                    val_node.start,
+                    val_node.end,
+                    val_node.info,
+                ));
+            }
+            let mut dupes: Vec<String> = Vec::new();
+            for (idx, k) in keys.iter().enumerate() {
+                if keys[..idx].contains(k) && !dupes.contains(k) {
+                    dupes.push(k.clone());
+                }
+            }
+            let dupes_json = dupes
+                .iter()
+                .map(|d| format!("\"{}\"", json_escape(d)))
+                .collect::<Vec<_>>()
+                .join(",");
+            extra = format!(
+                ",\"members\":[{}],\"duplicate_keys\":[{}]",
+                members.join(","),
+                dupes_json
+            );
+        } else if node.kind == crate::adapter::cbor::K_TAG
+            && let Some(child) = node.children.first()
+            && let Some(cn) = model.node(*child)
+        {
+            extra = format!(",\"tagged_kind\":\"{}\"", cbor_kind_name(cn.kind));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"pointer\":\"{}\",\"kind\":\"{}\",\"info\":{},",
+                "\"indefinite\":{},\"tag\":{},\"float\":\"{}\",",
+                "\"span\":[{},{}],\"parent_span\":{},\"children\":{}{}}}"
+            ),
+            json_escape(pointer),
+            cbor_kind_name(node.kind),
+            node.info,
+            node.indefinite,
+            node.tag,
+            cbor_float_name(node),
+            node.start,
+            node.end,
+            parent_span,
+            node.children.len(),
+            extra,
+        ))
+    }
+
+    /// A bounded lexical search over text-string map keys and text values; each match
+    /// reports its canonical pointer, role (key/value), and exact source span.
+    fn cbor_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cbor_model()?;
+        let (source, root) = self.cbor_source()?;
+        let matches = cbor_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "CBOR find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"pointer\":\"{}\",\"role\":\"{}\",",
+                    "\"kind\":\"text\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("cbor;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.cbor_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_cbor(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.cbor_common_metadata(req),
+            Selector::Text => self.cbor_common_text(req),
+            Selector::SearchMatch(p) => self.cbor_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "CBOR does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn cbor_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cbor_model()?;
+        let (source, root) = self.cbor_source()?;
+        let text = cbor_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.cbor_answer(
+            req,
+            AnswerValue::Text(text),
+            "cbor;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn cbor_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.cbor_model()?;
+        let (source, root) = self.cbor_source()?;
+        let mut arrays = 0u64;
+        let mut maps = 0u64;
+        let mut texts = 0u64;
+        let mut byte_strings = 0u64;
+        let mut tags = 0u64;
+        let mut floats = 0u64;
+        let mut dup_keys = 0u64;
+        for n in &model.nodes {
+            match n.kind {
+                crate::adapter::cbor::K_ARRAY => arrays += 1,
+                crate::adapter::cbor::K_MAP => {
+                    maps += 1;
+                    let mut seen: Vec<String> = Vec::new();
+                    let mut i = 0usize;
+                    while i + 1 < n.children.len() {
+                        if let Some(k) = model.node(n.children[i])
+                            && k.kind == crate::adapter::cbor::K_TEXT
+                            && !k.indefinite
+                            && let Ok(s) = cbor_decode_text(&source, k)
+                        {
+                            if seen.contains(&s) {
+                                dup_keys += 1;
+                            } else {
+                                seen.push(s);
+                            }
+                        }
+                        i += 2;
+                    }
+                }
+                crate::adapter::cbor::K_TEXT => texts += 1,
+                crate::adapter::cbor::K_BYTES => byte_strings += 1,
+                crate::adapter::cbor::K_TAG => tags += 1,
+                crate::adapter::cbor::K_FLOAT => floats += 1,
+                _ => {}
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"cbor\",\"top_type\":\"{}\",",
+                "\"nodes\":{},\"max_depth\":{},\"bytes\":{},",
+                "\"definite\":{},\"indefinite\":{},",
+                "\"arrays\":{},\"maps\":{},\"texts\":{},\"byte_strings\":{},",
+                "\"tags\":{},\"floats\":{},\"duplicate_keys\":{}}}"
+            ),
+            cbor_kind_name(model.top_type),
+            model.nodes.len(),
+            model.max_depth,
+            model.doc_len,
+            model.definite,
+            model.indefinite,
+            arrays,
+            maps,
+            texts,
+            byte_strings,
+            tags,
+            floats,
+            dup_keys,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.cbor_answer(
+            req,
+            value,
+            "cbor;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// A stable name for a CBOR float node's width, or `"null"` for a non-float.
+#[cfg(feature = "cbor")]
+fn cbor_float_name(node: &crate::adapter::cbor::CborNode) -> &'static str {
+    if node.kind == crate::adapter::cbor::K_FLOAT {
+        crate::adapter::cbor::float_width_name(node.info)
+    } else {
+        "null"
+    }
+}
+
+/// Lower-case hex of a byte slice (a diagnostic projection for CBOR binary tokens).
+#[cfg(feature = "cbor")]
+fn cbor_hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for &b in bytes {
+        out.push(DIGITS[(b >> 4) as usize] as char);
+        out.push(DIGITS[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+
+// ---------------------------------------------------------------------------
+// MessagePack observations (Phase 21.19)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "msgpack")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the MessagePack structured-tree model (derived, `Q_gen`).
+    fn msgpack_model(&mut self) -> Result<(MsgpackModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_MSGPACK_MODEL, 0), "MessagePack model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((MsgpackModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn msgpack_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn msgpack_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn msgpack_node_text(
+        model: &MsgpackModel,
+        source: &[u8],
+        index: u32,
+        node: &crate::adapter::msgpack::MsgpackNode,
+    ) -> Result<String> {
+        if node.kind == crate::adapter::msgpack::K_STR {
+            msgpack_decode_text(source, node)
+        } else {
+            msgpack_subtree_text(model, source, index)
+        }
+    }
+
+    /// Resolve `pointer` and answer per representation: `ExactBytes` returns the
+    /// item's exact encoded token bytes; `Text` the decoded text (or the canonical
+    /// subtree for a container/scalar); `Metadata`/`Structure` a MessagePack
+    /// descriptor with the kind, the exact span, the exact format byte (encoding
+    /// width and signedness), the extension type, and the duplicate-key match count.
+    fn msgpack_pointer(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msgpack_model()?;
+        let (source, root) = self.msgpack_source()?;
+        let r = msgpack_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("MessagePack pointer resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "msgpack;pointer={pointer};kind={};head={};ext_type={};matches={}",
+            msgpack_kind_name(node.kind),
+            node.head,
+            node.ext_type,
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(msgpack_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::msgpack_node_text(&model, &source, index, &node)?)
+            }
+            _ => {
+                let token = msgpack_hex(msgpack_token_bytes(&source, &node)?);
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"pointer\":\"{}\",\"kind\":\"{}\",\"span\":[{},{}],",
+                        "\"matches\":{},\"head\":{},\"ext_type\":{},",
+                        "\"arg\":{},\"float\":\"{}\",\"hex\":\"{}\",",
+                        "\"top_type\":\"{}\"}}"
+                    ),
+                    json_escape(pointer),
+                    msgpack_kind_name(node.kind),
+                    node.start,
+                    node.end,
+                    r.matches,
+                    node.head,
+                    node.ext_type,
+                    node.arg,
+                    msgpack_float_name(&node),
+                    token,
+                    msgpack_kind_name(model.top_type),
+                ))
+            }
+        };
+        Ok(self.msgpack_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The structural view of a MessagePack item: kind, span, exact format byte,
+    /// float/extension facts, parent span, and (for containers) the child spans; a
+    /// map's members expose each key/value kind and span, and duplicate keys are
+    /// reported.
+    fn msgpack_node(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msgpack_model()?;
+        let (source, root) = self.msgpack_source()?;
+        let r = msgpack_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("MessagePack node resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "msgpack;node={pointer};kind={};children={}",
+            msgpack_kind_name(node.kind),
+            node.children.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(msgpack_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::msgpack_node_text(&model, &source, index, &node)?)
+            }
+            _ => AnswerValue::Json(
+                self.msgpack_node_structure(&model, &source, pointer, index, &node)?,
+            ),
+        };
+        Ok(self.msgpack_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn msgpack_node_structure(
+        &self,
+        model: &MsgpackModel,
+        source: &[u8],
+        pointer: &str,
+        index: u32,
+        node: &crate::adapter::msgpack::MsgpackNode,
+    ) -> Result<String> {
+        let parent_span = match msgpack_find_parent(model, index) {
+            Some(p) => model
+                .node(p)
+                .map_or("null".to_string(), |n| format!("[{},{}]", n.start, n.end)),
+            None => "null".to_string(),
+        };
+        let mut extra = String::new();
+        if node.kind == crate::adapter::msgpack::K_ARRAY {
+            let mut elems: Vec<String> = Vec::new();
+            for (i, child) in node.children.iter().enumerate() {
+                let cn = model
+                    .node(*child)
+                    .ok_or_else(|| Error::internal_invariant("MessagePack element out of range"))?;
+                elems.push(format!(
+                    "{{\"index\":{},\"kind\":\"{}\",\"span\":[{},{}],\"head\":{}}}",
+                    i,
+                    msgpack_kind_name(cn.kind),
+                    cn.start,
+                    cn.end,
+                    cn.head
+                ));
+            }
+            extra = format!(",\"elements\":[{}]", elems.join(","));
+        } else if node.kind == crate::adapter::msgpack::K_MAP {
+            let mut members: Vec<String> = Vec::new();
+            let mut keys: Vec<String> = Vec::new();
+            let mut i = 0usize;
+            while i + 1 < node.children.len() {
+                let key_node = model.node(node.children[i]).ok_or_else(|| {
+                    Error::internal_invariant("MessagePack key index out of range")
+                })?;
+                let val_node = model.node(node.children[i + 1]).ok_or_else(|| {
+                    Error::internal_invariant("MessagePack value index out of range")
+                })?;
+                i += 2;
+                let key_text = if key_node.kind == crate::adapter::msgpack::K_STR {
+                    let s = msgpack_decode_text(source, key_node)?;
+                    keys.push(s.clone());
+                    format!("\"{}\"", json_escape(&s))
+                } else {
+                    "null".to_string()
+                };
+                members.push(format!(
+                    concat!(
+                        "{{\"key_kind\":\"{}\",\"key_span\":[{},{}],\"key_text\":{},",
+                        "\"value_kind\":\"{}\",\"value_span\":[{},{}],\"value_head\":{}}}"
+                    ),
+                    msgpack_kind_name(key_node.kind),
+                    key_node.start,
+                    key_node.end,
+                    key_text,
+                    msgpack_kind_name(val_node.kind),
+                    val_node.start,
+                    val_node.end,
+                    val_node.head,
+                ));
+            }
+            let mut dupes: Vec<String> = Vec::new();
+            for (idx, k) in keys.iter().enumerate() {
+                if keys[..idx].contains(k) && !dupes.contains(k) {
+                    dupes.push(k.clone());
+                }
+            }
+            let dupes_json = dupes
+                .iter()
+                .map(|d| format!("\"{}\"", json_escape(d)))
+                .collect::<Vec<_>>()
+                .join(",");
+            extra = format!(
+                ",\"members\":[{}],\"duplicate_keys\":[{}]",
+                members.join(","),
+                dupes_json
+            );
+        }
+        Ok(format!(
+            concat!(
+                "{{\"pointer\":\"{}\",\"kind\":\"{}\",\"head\":{},",
+                "\"ext_type\":{},\"float\":\"{}\",",
+                "\"span\":[{},{}],\"parent_span\":{},\"children\":{}{}}}"
+            ),
+            json_escape(pointer),
+            msgpack_kind_name(node.kind),
+            node.head,
+            node.ext_type,
+            msgpack_float_name(node),
+            node.start,
+            node.end,
+            parent_span,
+            node.children.len(),
+            extra,
+        ))
+    }
+
+    /// A bounded lexical search over text-string map keys and text values; each match
+    /// reports its canonical pointer, role (key/value), and exact source span.
+    fn msgpack_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msgpack_model()?;
+        let (source, root) = self.msgpack_source()?;
+        let matches = msgpack_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "MessagePack find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"pointer\":\"{}\",\"role\":\"{}\",",
+                    "\"kind\":\"str\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("msgpack;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.msgpack_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_msgpack(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.msgpack_common_metadata(req),
+            Selector::Text => self.msgpack_common_text(req),
+            Selector::SearchMatch(p) => self.msgpack_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "MessagePack does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn msgpack_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msgpack_model()?;
+        let (source, root) = self.msgpack_source()?;
+        let text = msgpack_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.msgpack_answer(
+            req,
+            AnswerValue::Text(text),
+            "msgpack;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn msgpack_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.msgpack_model()?;
+        let (source, root) = self.msgpack_source()?;
+        let mut arrays = 0u64;
+        let mut maps = 0u64;
+        let mut strs = 0u64;
+        let mut bins = 0u64;
+        let mut exts = 0u64;
+        let mut floats = 0u64;
+        let mut ints = 0u64;
+        let mut dup_keys = 0u64;
+        for n in &model.nodes {
+            match n.kind {
+                crate::adapter::msgpack::K_ARRAY => arrays += 1,
+                crate::adapter::msgpack::K_MAP => {
+                    maps += 1;
+                    let mut seen: Vec<String> = Vec::new();
+                    let mut i = 0usize;
+                    while i + 1 < n.children.len() {
+                        if let Some(k) = model.node(n.children[i])
+                            && k.kind == crate::adapter::msgpack::K_STR
+                            && let Ok(s) = msgpack_decode_text(&source, k)
+                        {
+                            if seen.contains(&s) {
+                                dup_keys += 1;
+                            } else {
+                                seen.push(s);
+                            }
+                        }
+                        i += 2;
+                    }
+                }
+                crate::adapter::msgpack::K_STR => strs += 1,
+                crate::adapter::msgpack::K_BIN => bins += 1,
+                crate::adapter::msgpack::K_EXT => exts += 1,
+                crate::adapter::msgpack::K_FLOAT => floats += 1,
+                crate::adapter::msgpack::K_UINT | crate::adapter::msgpack::K_NEGINT => ints += 1,
+                _ => {}
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"msgpack\",\"top_type\":\"{}\",",
+                "\"nodes\":{},\"max_depth\":{},\"bytes\":{},",
+                "\"arrays\":{},\"maps\":{},\"ints\":{},\"strs\":{},\"bins\":{},",
+                "\"exts\":{},\"floats\":{},\"duplicate_keys\":{}}}"
+            ),
+            msgpack_kind_name(model.top_type),
+            model.nodes.len(),
+            model.max_depth,
+            model.doc_len,
+            arrays,
+            maps,
+            ints,
+            strs,
+            bins,
+            exts,
+            floats,
+            dup_keys,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.msgpack_answer(
+            req,
+            value,
+            "msgpack;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// A stable name for a MessagePack float node's width, or `"null"` for a non-float.
+#[cfg(feature = "msgpack")]
+fn msgpack_float_name(node: &crate::adapter::msgpack::MsgpackNode) -> &'static str {
+    if node.kind == crate::adapter::msgpack::K_FLOAT {
+        crate::adapter::msgpack::float_width_name(node.head)
+    } else {
+        "null"
+    }
+}
+
+/// Lower-case hex of a byte slice (a diagnostic projection for MessagePack binary
+/// tokens).
+#[cfg(feature = "msgpack")]
+fn msgpack_hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for &b in bytes {
+        out.push(DIGITS[(b >> 4) as usize] as char);
+        out.push(DIGITS[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+
+// ---------------------------------------------------------------------------
+// Config-family observations (Phase 21.20)
+// ---------------------------------------------------------------------------
+
+/// The config family (INI / `.env` / Java `.properties`) has no package layer:
+/// the exact leaf is the whole source, and every line/entry/section observation is
+/// a bounded, span-preserving (`Q_gen`) projection of it (ADR-0060: the model node
+/// depends on the `sha256(source)` root).
+#[cfg(feature = "config")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the config-family model (derived, `Q_gen`).
+    fn config_model(&mut self) -> Result<(ConfigModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_CONFIG_MODEL, 0), "config model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((ConfigModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn config_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn config_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn config_line_text(model: &ConfigModel, source: &[u8], line: &CfgLine) -> Result<String> {
+        match line.kind {
+            L_ENTRY => {
+                let k = config_decode_key(source, line)?;
+                let v = config_decode_value(model.dialect, source, line)?;
+                Ok(format!("{k}={v}"))
+            }
+            L_SECTION => config_decode_key(source, line),
+            _ => Ok(String::from_utf8_lossy(config_line_bytes(source, line)?).into_owned()),
+        }
+    }
+
+    /// The number of entries whose decoded key equals `key` (duplicates reported).
+    fn config_key_matches(model: &ConfigModel, source: &[u8], key: &str) -> usize {
+        model
+            .lines
+            .iter()
+            .filter(|l| l.kind == L_ENTRY)
+            .filter(|l| config_decode_key(source, l).is_ok_and(|k| k == key))
+            .count()
+    }
+
+    /// The physical line index of the `index`-th entry, or `0` when out of range
+    /// (the caller has already validated the entry exists).
+    fn config_entry_line_index(model: &ConfigModel, index: u32) -> u32 {
+        let mut seen = 0u32;
+        for (i, l) in model.lines.iter().enumerate() {
+            if l.kind == L_ENTRY {
+                if seen == index {
+                    return i as u32;
+                }
+                seen += 1;
+            }
+        }
+        0
+    }
+
+    fn config_line_structure(
+        model: &ConfigModel,
+        source: &[u8],
+        index: u32,
+        line: &CfgLine,
+    ) -> Result<String> {
+        let mut extra = String::new();
+        if line.kind == L_ENTRY {
+            let k = config_decode_key(source, line)?;
+            let v = config_decode_value(model.dialect, source, line)?;
+            let same = Self::config_key_matches(model, source, &k);
+            extra = format!(
+                concat!(
+                    ",\"key\":\"{}\",\"value\":\"{}\",",
+                    "\"key_span\":[{},{}],\"sep_span\":[{},{}],\"value_span\":[{},{}],",
+                    "\"export\":{},\"single_quoted\":{},\"double_quoted\":{},",
+                    "\"continued\":{},\"inline_comment\":{},\"same_key_entries\":{}"
+                ),
+                json_escape(&k),
+                json_escape(&v),
+                line.key_start,
+                line.key_end,
+                line.sep_start,
+                line.sep_end,
+                line.value_start,
+                line.value_end,
+                line.flags & F_EXPORT != 0,
+                line.flags & F_SINGLE_QUOTED != 0,
+                line.flags & F_DOUBLE_QUOTED != 0,
+                line.flags & F_CONTINUED != 0,
+                line.flags & F_INLINE_COMMENT != 0,
+                same,
+            );
+        } else if line.kind == L_SECTION {
+            let name = config_decode_key(source, line)?;
+            extra = format!(",\"name\":\"{}\"", json_escape(&name));
+        } else if line.kind == L_COMMENT {
+            extra = format!(",\"marker\":\"{}\"", line.marker as char);
+        }
+        Ok(format!(
+            concat!(
+                "{{\"line\":{},\"kind\":\"{}\",\"dialect\":\"{}\",",
+                "\"span\":[{},{}],\"terminator\":\"{}\",\"marker\":{}{}}}"
+            ),
+            index,
+            config_line_kind_name(line.kind),
+            config_dialect_name(model.dialect),
+            line.start,
+            line.end,
+            config_terminator_name(line.terminator),
+            line.marker,
+            extra,
+        ))
+    }
+
+    /// A config line by 0-based logical index.
+    fn config_line(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let line = *model
+            .line(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("config has no line {index}")))?;
+        let span = Some((line.start, line.end));
+        let provenance = format!(
+            "config;line={index};kind={};dialect={}",
+            config_line_kind_name(line.kind),
+            config_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(config_line_bytes(&source, &line)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::config_line_text(&model, &source, &line)?)
+            }
+            _ => AnswerValue::Json(Self::config_line_structure(&model, &source, index, &line)?),
+        };
+        Ok(self.config_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A config entry by 0-based entry ordinal.
+    fn config_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let line = *model
+            .nth_entry(index)
+            .ok_or_else(|| Error::unsupported_feature(format!("config has no entry {index}")))?;
+        let key = config_decode_key(&source, &line)?;
+        let same = Self::config_key_matches(&model, &source, &key);
+        let line_index = Self::config_entry_line_index(&model, index);
+        let span = Some((line.start, line.end));
+        let provenance = format!(
+            "config;entry={index};key={key};matches={same};dialect={}",
+            config_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(config_line_bytes(&source, &line)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::config_line_text(&model, &source, &line)?)
+            }
+            _ => AnswerValue::Json(Self::config_line_structure(
+                &model, &source, line_index, &line,
+            )?),
+        };
+        Ok(self.config_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A section header by name; duplicates are reported.
+    fn config_section(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let mut hits: Vec<String> = Vec::new();
+        let mut first_line: Option<usize> = None;
+        for (i, line) in model.lines.iter().enumerate() {
+            if line.kind != L_SECTION {
+                continue;
+            }
+            if config_decode_key(&source, line)? == name {
+                if first_line.is_none() {
+                    first_line = Some(i);
+                }
+                hits.push(format!(
+                    "{{\"line\":{},\"span\":[{},{}]}}",
+                    i, line.start, line.end
+                ));
+            }
+        }
+        let Some(first) = first_line else {
+            return Err(Error::unsupported_feature(format!(
+                "config has no section named {name:?}"
+            )));
+        };
+        let count = hits.len();
+        let span = Some((model.lines[first].start, model.lines[first].end));
+        let provenance = format!("config;section={name};matches={count}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(config_key_bytes(&source, &model.lines[first])?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(name.to_string()),
+            _ => AnswerValue::Json(format!(
+                "{{\"name\":\"{}\",\"matches\":{},\"headers\":[{}]}}",
+                json_escape(name),
+                count,
+                hits.join(",")
+            )),
+        };
+        Ok(self.config_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over decoded keys and values.
+    fn config_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let matches = config_find_matches(&model, &source, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"line\":{},\"entry\":{},\"role\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.line,
+                m.entry,
+                config_role_name(m.role),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("config;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.config_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_config(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.config_common_metadata(req),
+            Selector::Text => self.config_common_text(req),
+            Selector::SearchMatch(p) => self.config_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "config does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn config_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let text = config_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.config_answer(
+            req,
+            AnswerValue::Text(text),
+            "config;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn config_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.config_model()?;
+        let (source, root) = self.config_source()?;
+        let entries = model.entry_count();
+        let sections = model.section_count();
+        let comments = model.lines.iter().filter(|l| l.kind == L_COMMENT).count();
+        let blanks = model
+            .lines
+            .iter()
+            .filter(|l| l.kind == crate::adapter::config::L_BLANK)
+            .count();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"config\",\"dialect\":\"{}\",",
+                "\"lines\":{},\"entries\":{},\"sections\":{},\"comments\":{},",
+                "\"blanks\":{},\"trailing_terminator\":{},\"bytes\":{}}}"
+            ),
+            config_dialect_name(model.dialect),
+            model.lines.len(),
+            entries,
+            sections,
+            comments,
+            blanks,
+            model.trailing_terminator,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.config_answer(
+            req,
+            value,
+            "config;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RSS/Atom feed observations (Phase 21.21)
+// ---------------------------------------------------------------------------
+
+/// A feed has no package layer: the exact leaf is the whole source, and every
+/// channel/field/entry observation is a bounded, span-preserving (`Q_gen`)
+/// projection of it (ADR-0060: the model node depends on the `sha256(source)`
+/// root).
+#[cfg(feature = "feed")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the feed model (derived, `Q_gen`).
+    fn feed_model(&mut self) -> Result<(FeedModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_FEED_MODEL, 0), "feed model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((FeedModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn feed_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn feed_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The local name of a field element and its exact span.
+    fn feed_field_meta(model: &FeedModel, source: &[u8], node: u32) -> Result<(String, u64, u64)> {
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("feed field node is out of range"))?;
+        let name = feed_split_qname(xml_element_name(source, n)?).1.to_string();
+        Ok((name, n.start, n.end))
+    }
+
+    /// The structural descriptor of one field element: local name, exact span, the
+    /// decoded value, and the attributes in source order.
+    fn feed_field_descriptor(model: &FeedModel, source: &[u8], node: u32) -> Result<String> {
+        let (name, start, end) = Self::feed_field_meta(model, source, node)?;
+        let text = feed_field_text(model, source, node)?;
+        let attrs = feed_field_attrs(model, source, node)?;
+        let mut parts: Vec<String> = Vec::with_capacity(attrs.len());
+        for a in &attrs {
+            parts.push(format!(
+                "{{\"name\":\"{}\",\"value\":\"{}\",\"span\":[{},{}]}}",
+                json_escape(&a.name),
+                json_escape(&a.value),
+                a.start,
+                a.end,
+            ));
+        }
+        Ok(format!(
+            "{{\"name\":\"{}\",\"span\":[{},{}],\"text\":\"{}\",\"attrs\":[{}]}}",
+            json_escape(&name),
+            start,
+            end,
+            json_escape(&text),
+            parts.join(","),
+        ))
+    }
+
+    /// The channel/feed container descriptor.
+    fn feed_channel_structure(model: &FeedModel, source: &[u8]) -> Result<String> {
+        let fields = feed_channel_field_nodes(model, source)?;
+        let mut parts: Vec<String> = Vec::with_capacity(fields.len());
+        for f in fields {
+            parts.push(Self::feed_field_descriptor(model, source, f)?);
+        }
+        Ok(format!(
+            "{{\"dialect\":\"{}\",\"entries\":{},\"fields\":[{}]}}",
+            feed_dialect_name(model.dialect),
+            model.entry_count(),
+            parts.join(","),
+        ))
+    }
+
+    /// One record's (`<item>`/`<entry>`) descriptor.
+    fn feed_entry_structure(model: &FeedModel, source: &[u8], index: u32) -> Result<String> {
+        let node = *model
+            .entries
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("feed has no entry {index}")))?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("feed entry node is out of range"))?;
+        let (start, end) = (n.start, n.end);
+        let fields = feed_entry_field_nodes(model, source, index)?;
+        let mut parts: Vec<String> = Vec::with_capacity(fields.len());
+        for f in fields {
+            parts.push(Self::feed_field_descriptor(model, source, f)?);
+        }
+        Ok(format!(
+            "{{\"index\":{},\"dialect\":\"{}\",\"span\":[{},{}],\"fields\":[{}]}}",
+            index,
+            feed_dialect_name(model.dialect),
+            start,
+            end,
+            parts.join(","),
+        ))
+    }
+
+    /// Find a field by local name among the given node indices, in document order.
+    fn feed_field_by_name(
+        model: &FeedModel,
+        source: &[u8],
+        nodes: &[u32],
+        name: &str,
+    ) -> Result<Option<u32>> {
+        for &n in nodes {
+            if Self::feed_field_meta(model, source, n)?.0 == name {
+                return Ok(Some(n));
+            }
+        }
+        Ok(None)
+    }
+
+    fn feed_channel(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let node = model.channel;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("feed channel node is out of range"))?;
+        let span = Some((n.start, n.end));
+        let provenance = format!("feed;channel;dialect={}", feed_dialect_name(model.dialect));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(feed_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model.xml, &source, node)?),
+            _ => AnswerValue::Json(Self::feed_channel_structure(&model, &source)?),
+        };
+        Ok(self.feed_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn feed_field(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let nodes = feed_channel_field_nodes(&model, &source)?;
+        let node = Self::feed_field_by_name(&model, &source, &nodes, name)?.ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "feed channel has no field named {name:?} (dialect {})",
+                feed_dialect_name(model.dialect)
+            ))
+        })?;
+        let (_, start, end) = Self::feed_field_meta(&model, &source, node)?;
+        let provenance = format!(
+            "feed;field={name};dialect={}",
+            feed_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(feed_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(feed_field_text(&model, &source, node)?),
+            _ => AnswerValue::Json(Self::feed_field_descriptor(&model, &source, node)?),
+        };
+        Ok(self.feed_answer(
+            req,
+            value,
+            provenance,
+            Some((start, end)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn feed_entry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let node = *model
+            .entries
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("feed has no entry {index}")))?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("feed entry node is out of range"))?;
+        let span = Some((n.start, n.end));
+        let provenance = format!(
+            "feed;entry={index};dialect={}",
+            feed_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(feed_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model.xml, &source, node)?),
+            _ => AnswerValue::Json(Self::feed_entry_structure(&model, &source, index)?),
+        };
+        Ok(self.feed_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn feed_entry_field(
+        &mut self,
+        req: &ObserveRequest,
+        entry: u32,
+        name: &str,
+    ) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let nodes = feed_entry_field_nodes(&model, &source, entry)?;
+        let node = Self::feed_field_by_name(&model, &source, &nodes, name)?.ok_or_else(|| {
+            Error::unsupported_feature(format!("feed entry {entry} has no field named {name:?}"))
+        })?;
+        let (_, start, end) = Self::feed_field_meta(&model, &source, node)?;
+        let provenance = format!(
+            "feed;entry={entry};field={name};dialect={}",
+            feed_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(feed_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(feed_field_text(&model, &source, node)?),
+            _ => AnswerValue::Json(Self::feed_field_descriptor(&model, &source, node)?),
+        };
+        Ok(self.feed_answer(
+            req,
+            value,
+            provenance,
+            Some((start, end)),
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over decoded field values.
+    fn feed_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let matches = feed_find_matches(&model, &source, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            let entry = match m.entry {
+                Some(e) => e.to_string(),
+                None => "null".to_string(),
+            };
+            out.push(format!(
+                concat!(
+                    "{{\"entry\":{},\"name\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                entry,
+                json_escape(&m.name),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("feed;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.feed_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_feed(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.feed_common_metadata(req),
+            Selector::Text => self.feed_common_text(req),
+            Selector::SearchMatch(p) => self.feed_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "feed does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn feed_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let text = feed_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.feed_answer(
+            req,
+            AnswerValue::Text(text),
+            "feed;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn feed_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.feed_model()?;
+        let (source, root) = self.feed_source()?;
+        let channel_fields = feed_channel_field_nodes(&model, &source)?.len();
+        let mut fields = channel_fields;
+        for i in 0..model.entries.len() as u32 {
+            fields += feed_entry_field_nodes(&model, &source, i)?.len();
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"feed\",\"dialect\":\"{}\",",
+                "\"entries\":{},\"channel_fields\":{},\"fields\":{},\"bytes\":{}}}"
+            ),
+            feed_dialect_name(model.dialect),
+            model.entry_count(),
+            channel_fields,
+            fields,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.feed_answer(
+            req,
+            value,
+            "feed;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GeoJSON observations (Phase 21.22)
+// ---------------------------------------------------------------------------
+
+/// GeoJSON's physical bytes are JSON, so the exact leaf is the whole source, and
+/// every type/feature/geometry/coordinate/property observation is a bounded,
+/// span-preserving (`Q_gen`) projection of the shared JSON parse (ADR-0060: the
+/// model node depends on the `sha256(source)` root).
+#[cfg(feature = "geojson")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the GeoJSON model (derived, `Q_gen`).
+    fn geojson_model(&mut self) -> Result<(GeojsonModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_GEOJSON_MODEL, 0), "GeoJSON model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((GeojsonModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn geojson_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn geojson_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// A JSON leaf/container node as text: a string is decoded; a container is its
+    /// canonical JSON projection; a scalar is its literal token.
+    fn geojson_node_text(
+        model: &GeojsonModel,
+        source: &[u8],
+        index: u32,
+        node: &crate::adapter::json::JNode,
+    ) -> Result<String> {
+        if node.kind == crate::adapter::json::K_STRING {
+            json_decode_string(source, node)
+        } else if crate::adapter::json::is_container(node.kind) {
+            crate::adapter::json::subtree_text(&model.json, source, index)
+        } else {
+            Ok(String::from_utf8_lossy(json_token_bytes(source, node)?).into_owned())
+        }
+    }
+
+    /// The coordinate-number summary: every number's exact span and literal spelling.
+    fn geojson_numbers_json(model: &GeojsonModel, source: &[u8], nums: &[u32]) -> Result<String> {
+        let mut parts: Vec<String> = Vec::with_capacity(nums.len());
+        for &n in nums {
+            let node = model
+                .node(n)
+                .ok_or_else(|| Error::internal_invariant("GeoJSON coordinate node out of range"))?;
+            let tok = String::from_utf8_lossy(geojson_token_bytes(source, node)?).into_owned();
+            parts.push(format!(
+                "{{\"span\":[{},{}],\"spelling\":\"{}\"}}",
+                node.start,
+                node.end,
+                json_escape(&tok),
+            ));
+        }
+        Ok(format!("[{}]", parts.join(",")))
+    }
+
+    /// A geometry object's structural descriptor.
+    fn geojson_geometry_descriptor(
+        model: &GeojsonModel,
+        source: &[u8],
+        index: u32,
+        limits: Limits,
+    ) -> Result<String> {
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON geometry node out of range"))?;
+        let (start, end) = (node.start, node.end);
+        let ty = geojson_type_of_object(model, source, index)?.unwrap_or_default();
+        if ty == geojson_class_name(crate::adapter::geojson::G_GEOMETRYCOLLECTION) {
+            let g = geojson_geometries_node(model, source, index)?;
+            let count = match g {
+                Some(g) => model
+                    .node(g)
+                    .ok_or_else(|| Error::internal_invariant("geometries node out of range"))?
+                    .children
+                    .len(),
+                None => 0,
+            };
+            Ok(format!(
+                "{{\"index\":{index},\"type\":\"{}\",\"span\":[{start},{end}],\"geometries\":{count}}}",
+                json_escape(&ty)
+            ))
+        } else {
+            let (cspan, count) = match geojson_coordinates_node(model, source, index)? {
+                Some(c) => {
+                    let cn = model.node(c).ok_or_else(|| {
+                        Error::internal_invariant("coordinates node out of range")
+                    })?;
+                    let nums = geojson_coordinate_numbers(model, c, limits)?;
+                    (format!("[{},{}]", cn.start, cn.end), nums.len())
+                }
+                None => ("null".to_string(), 0),
+            };
+            Ok(format!(
+                "{{\"index\":{index},\"type\":\"{}\",\"span\":[{start},{end}],\"coordinates_span\":{cspan},\"count\":{count}}}",
+                json_escape(&ty)
+            ))
+        }
+    }
+
+    fn geojson_type(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let node = model
+            .node(model.type_node)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON type node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let ty = geojson_class_name(model.class).to_string();
+        let provenance = format!("geojson;type={ty}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(geojson_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(ty.clone()),
+            _ => AnswerValue::Json(format!(
+                "{{\"format\":\"geojson\",\"type\":\"{}\",\"geometries\":{},\"features\":{},\"bytes\":{}}}",
+                json_escape(&ty),
+                model.geometry_count(),
+                model.feature_count(),
+                model.doc_len(),
+            )),
+        };
+        Ok(self.geojson_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn geojson_feature(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let node_idx = *model
+            .features
+            .get(index as usize)
+            .ok_or_else(|| Error::unsupported_feature(format!("GeoJSON has no feature {index}")))?;
+        let node = model
+            .node(node_idx)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON feature node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!("geojson;feature={index}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(geojson_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::geojson_node_text(&model, &source, node_idx, &node)?)
+            }
+            _ => {
+                let geometry = match geojson_object_member(&model, &source, node_idx, "geometry")? {
+                    Some(g) => {
+                        let gn = model.node(g).ok_or_else(|| {
+                            Error::internal_invariant("GeoJSON geometry member out of range")
+                        })?;
+                        if gn.kind == crate::adapter::json::K_NULL {
+                            "null".to_string()
+                        } else {
+                            let gty =
+                                geojson_type_of_object(&model, &source, g)?.unwrap_or_default();
+                            format!(
+                                "{{\"type\":\"{}\",\"span\":[{},{}]}}",
+                                json_escape(&gty),
+                                gn.start,
+                                gn.end
+                            )
+                        }
+                    }
+                    None => "null".to_string(),
+                };
+                let id = Self::geojson_member_token(&model, &source, node_idx, "id")?;
+                let bbox = match geojson_object_member(&model, &source, node_idx, "bbox")? {
+                    Some(b) => {
+                        let bn = model.node(b).ok_or_else(|| {
+                            Error::internal_invariant("GeoJSON bbox member out of range")
+                        })?;
+                        format!("[{},{}]", bn.start, bn.end)
+                    }
+                    None => "null".to_string(),
+                };
+                let props = Self::geojson_property_keys(&model, &source, node_idx)?;
+                let foreign = geojson_foreign_members(&model, &source, node_idx)?;
+                let foreign_keys: Vec<String> = foreign
+                    .iter()
+                    .map(|(k, _)| format!("\"{}\"", json_escape(k)))
+                    .collect();
+                AnswerValue::Json(format!(
+                    "{{\"index\":{index},\"type\":\"Feature\",\"span\":[{},{}],\"geometry\":{geometry},\"id\":{id},\"bbox_span\":{bbox},\"properties\":{props},\"foreign\":[{}]}}",
+                    node.start,
+                    node.end,
+                    foreign_keys.join(","),
+                ))
+            }
+        };
+        Ok(self.geojson_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The exact token (lossy UTF-8) of one object member's value, or `null`.
+    fn geojson_member_token(
+        model: &GeojsonModel,
+        source: &[u8],
+        obj: u32,
+        key: &str,
+    ) -> Result<String> {
+        match geojson_object_member(model, source, obj, key)? {
+            Some(v) => {
+                let n = model
+                    .node(v)
+                    .ok_or_else(|| Error::internal_invariant("GeoJSON member out of range"))?;
+                Ok(format!(
+                    "\"{}\"",
+                    json_escape(&String::from_utf8_lossy(geojson_token_bytes(source, n)?))
+                ))
+            }
+            None => Ok("null".to_string()),
+        }
+    }
+
+    /// The `properties` keys (member order, duplicates preserved), or `null` when
+    /// `properties` is absent or not an object.
+    fn geojson_property_keys(model: &GeojsonModel, source: &[u8], feature: u32) -> Result<String> {
+        let Some(props) = geojson_object_member(model, source, feature, "properties")? else {
+            return Ok("null".to_string());
+        };
+        let pn = model
+            .node(props)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON properties node out of range"))?;
+        if pn.kind != crate::adapter::json::K_OBJECT {
+            return Ok("null".to_string());
+        }
+        let members = geojson_object_members(model, source, props)?;
+        let keys: Vec<String> = members
+            .iter()
+            .map(|(k, _)| format!("\"{}\"", json_escape(k)))
+            .collect();
+        Ok(format!("[{}]", keys.join(",")))
+    }
+
+    fn geojson_geometry(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let node_idx = *model.geometries.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("GeoJSON has no geometry {index}"))
+        })?;
+        let node = model
+            .node(node_idx)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON geometry node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!("geojson;geometry={index}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(geojson_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::geojson_node_text(&model, &source, node_idx, &node)?)
+            }
+            _ => AnswerValue::Json(Self::geojson_geometry_descriptor(
+                &model,
+                &source,
+                node_idx,
+                self.limits,
+            )?),
+        };
+        Ok(self.geojson_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn geojson_coordinates(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let geom = *model.geometries.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("GeoJSON has no geometry {index}"))
+        })?;
+        let ty = geojson_type_of_object(&model, &source, geom)?.unwrap_or_default();
+        if ty == geojson_class_name(crate::adapter::geojson::G_GEOMETRYCOLLECTION) {
+            return Err(Error::unsupported_feature(format!(
+                "GeoJSON geometry {index} is a GeometryCollection and has no coordinates"
+            )));
+        }
+        let coords = geojson_coordinates_node(&model, &source, geom)?.ok_or_else(|| {
+            Error::unsupported_feature(format!("GeoJSON geometry {index} has no coordinates"))
+        })?;
+        let cn = model
+            .node(coords)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON coordinates node out of range"))?
+            .clone();
+        let span = Some((cn.start, cn.end));
+        let provenance = format!("geojson;coordinates={index};type={ty}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(geojson_token_bytes(&source, &cn)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::geojson_node_text(&model, &source, coords, &cn)?)
+            }
+            _ => {
+                let nums = geojson_coordinate_numbers(&model, coords, self.limits)?;
+                let numbers = Self::geojson_numbers_json(&model, &source, &nums)?;
+                AnswerValue::Json(format!(
+                    "{{\"index\":{index},\"type\":\"{}\",\"span\":[{},{}],\"count\":{},\"numbers\":{numbers}}}",
+                    json_escape(&ty),
+                    cn.start,
+                    cn.end,
+                    nums.len(),
+                ))
+            }
+        };
+        Ok(self.geojson_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn geojson_property(
+        &mut self,
+        req: &ObserveRequest,
+        feature: u32,
+        name: &str,
+    ) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let feat = *model.features.get(feature as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("GeoJSON has no feature {feature}"))
+        })?;
+        let props =
+            geojson_object_member(&model, &source, feat, "properties")?.ok_or_else(|| {
+                Error::unsupported_feature(format!("GeoJSON feature {feature} has no properties"))
+            })?;
+        let pn = model
+            .node(props)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON properties node out of range"))?;
+        if pn.kind != crate::adapter::json::K_OBJECT {
+            return Err(Error::unsupported_feature(format!(
+                "GeoJSON feature {feature} properties is not an object"
+            )));
+        }
+        let val = geojson_object_member(&model, &source, props, name)?.ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "GeoJSON feature {feature} has no property {name:?}"
+            ))
+        })?;
+        let vn = model
+            .node(val)
+            .ok_or_else(|| Error::internal_invariant("GeoJSON property node out of range"))?
+            .clone();
+        let span = Some((vn.start, vn.end));
+        let provenance = format!("geojson;feature={feature};property={name}");
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(geojson_token_bytes(&source, &vn)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::geojson_node_text(&model, &source, val, &vn)?)
+            }
+            _ => {
+                let token =
+                    String::from_utf8_lossy(geojson_token_bytes(&source, &vn)?).into_owned();
+                AnswerValue::Json(format!(
+                    "{{\"feature\":{feature},\"name\":\"{}\",\"kind\":\"{}\",\"span\":[{},{}],\"token\":\"{}\"}}",
+                    json_escape(name),
+                    json_kind_name(vn.kind),
+                    vn.start,
+                    vn.end,
+                    json_escape(&token),
+                ))
+            }
+        };
+        Ok(self.geojson_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over GeoJSON keys and string values, reusing the
+    /// shared JSON match vocabulary.
+    fn geojson_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let matches = geojson_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "GeoJSON find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                "{{\"pointer\":\"{}\",\"role\":\"{}\",\"kind\":\"string\",\"span\":[{},{}],\"text\":\"{}\"}}",
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("geojson;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.geojson_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_geojson(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.geojson_common_metadata(req),
+            Selector::Text => self.geojson_common_text(req),
+            Selector::SearchMatch(p) => self.geojson_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "GeoJSON does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn geojson_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let text = geojson_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.geojson_answer(
+            req,
+            AnswerValue::Text(text),
+            "geojson;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn geojson_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.geojson_model()?;
+        let (source, root) = self.geojson_source()?;
+        let value = AnswerValue::Json(format!(
+            "{{\"format\":\"geojson\",\"type\":\"{}\",\"geometries\":{},\"features\":{},\"bytes\":{}}}",
+            json_escape(geojson_class_name(model.class)),
+            model.geometry_count(),
+            model.feature_count(),
+            model.doc_len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.geojson_answer(
+            req,
+            value,
+            "geojson;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// KML/GPX geospatial observations (Phase 21.23)
+// ---------------------------------------------------------------------------
+
+/// KML and GPX are XML, so the exact leaf is the whole source, and every
+/// root/field/record/point observation is a bounded, span-preserving (`Q_gen`)
+/// projection of it (ADR-0060: the model node depends on the `sha256(source)`
+/// root).
+#[cfg(feature = "gis")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the GIS model (derived, `Q_gen`).
+    fn gis_model(&mut self) -> Result<(GisModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_GIS_MODEL, 0), "GIS model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((GisModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn gis_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn gis_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The local name of a field element and its exact span.
+    fn gis_field_meta(model: &GisModel, source: &[u8], node: u32) -> Result<(String, u64, u64)> {
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS field node is out of range"))?;
+        Ok((gis_field_name(model, source, node)?, n.start, n.end))
+    }
+
+    /// The structural descriptor of one field element: local name, exact span, the
+    /// decoded value, and the attributes in source order.
+    fn gis_field_descriptor(model: &GisModel, source: &[u8], node: u32) -> Result<String> {
+        let (name, start, end) = Self::gis_field_meta(model, source, node)?;
+        let text = gis_field_text(model, source, node)?;
+        let attrs = gis_field_attrs(model, source, node)?;
+        let mut parts: Vec<String> = Vec::with_capacity(attrs.len());
+        for a in &attrs {
+            parts.push(format!(
+                "{{\"name\":\"{}\",\"value\":\"{}\",\"span\":[{},{}]}}",
+                json_escape(&a.name),
+                json_escape(&a.value),
+                a.start,
+                a.end,
+            ));
+        }
+        Ok(format!(
+            "{{\"name\":\"{}\",\"span\":[{},{}],\"text\":\"{}\",\"attrs\":[{}]}}",
+            json_escape(&name),
+            start,
+            end,
+            json_escape(&text),
+            parts.join(","),
+        ))
+    }
+
+    /// The root container descriptor.
+    fn gis_root_structure(model: &GisModel, source: &[u8]) -> Result<String> {
+        let fields = gis_root_field_nodes(model, source)?;
+        let mut parts: Vec<String> = Vec::with_capacity(fields.len());
+        for f in fields {
+            parts.push(Self::gis_field_descriptor(model, source, f)?);
+        }
+        Ok(format!(
+            "{{\"dialect\":\"{}\",\"records\":{},\"points\":{},\"fields\":[{}]}}",
+            gis_dialect_name(model.dialect),
+            model.record_count(),
+            model.point_count(),
+            parts.join(","),
+        ))
+    }
+
+    /// One record's descriptor.
+    fn gis_record_structure(model: &GisModel, source: &[u8], index: u32) -> Result<String> {
+        let node = *model.records.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("geospatial has no record {index}"))
+        })?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS record node is out of range"))?;
+        let (start, end) = (n.start, n.end);
+        let kind = gis_field_name(model, source, node)?;
+        let fields = gis_record_field_nodes(model, source, index)?;
+        let mut parts: Vec<String> = Vec::with_capacity(fields.len());
+        for f in fields {
+            parts.push(Self::gis_field_descriptor(model, source, f)?);
+        }
+        Ok(format!(
+            "{{\"index\":{},\"kind\":\"{}\",\"dialect\":\"{}\",\"span\":[{},{}],\"fields\":[{}]}}",
+            index,
+            json_escape(&kind),
+            gis_dialect_name(model.dialect),
+            start,
+            end,
+            parts.join(","),
+        ))
+    }
+
+    /// One point's descriptor: the point kind, exact span, its attributes (including
+    /// the GPX `lat`/`lon`), and its fields.
+    fn gis_point_structure(model: &GisModel, source: &[u8], index: u32) -> Result<String> {
+        let node = *model.points.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("geospatial has no point {index}"))
+        })?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS point node is out of range"))?;
+        let (start, end) = (n.start, n.end);
+        let kind = gis_field_name(model, source, node)?;
+        let attrs = gis_field_attrs(model, source, node)?;
+        let mut attr_parts: Vec<String> = Vec::with_capacity(attrs.len());
+        for a in &attrs {
+            attr_parts.push(format!(
+                "{{\"name\":\"{}\",\"value\":\"{}\",\"span\":[{},{}]}}",
+                json_escape(&a.name),
+                json_escape(&a.value),
+                a.start,
+                a.end,
+            ));
+        }
+        let fields = gis_point_field_nodes(model, source, index)?;
+        let mut field_parts: Vec<String> = Vec::with_capacity(fields.len());
+        for f in fields {
+            field_parts.push(Self::gis_field_descriptor(model, source, f)?);
+        }
+        let lat = Self::gis_attr_json(model, source, node, "lat")?;
+        let lon = Self::gis_attr_json(model, source, node, "lon")?;
+        Ok(format!(
+            concat!(
+                "{{\"index\":{},\"kind\":\"{}\",\"dialect\":\"{}\",\"span\":[{},{}],",
+                "\"lat\":{},\"lon\":{},\"attrs\":[{}],\"fields\":[{}]}}"
+            ),
+            index,
+            json_escape(&kind),
+            gis_dialect_name(model.dialect),
+            start,
+            end,
+            lat,
+            lon,
+            attr_parts.join(","),
+            field_parts.join(","),
+        ))
+    }
+
+    /// The quoted value of one attribute of a node by local name, or `null`.
+    fn gis_attr_json(model: &GisModel, source: &[u8], node: u32, name: &str) -> Result<String> {
+        match gis_attr_value_by_local(model, source, node, name)? {
+            Some(v) => Ok(format!("\"{}\"", json_escape(&v))),
+            None => Ok("null".to_string()),
+        }
+    }
+
+    /// Find a field by local name among the given node indices, in document order.
+    fn gis_field_by_name(
+        model: &GisModel,
+        source: &[u8],
+        nodes: &[u32],
+        name: &str,
+    ) -> Result<Option<u32>> {
+        for &n in nodes {
+            if Self::gis_field_meta(model, source, n)?.0 == name {
+                return Ok(Some(n));
+            }
+        }
+        Ok(None)
+    }
+
+    fn gis_root(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let node = model.root;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS root node is out of range"))?;
+        let span = Some((n.start, n.end));
+        let provenance = format!("gis;root;dialect={}", gis_dialect_name(model.dialect));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(gis_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model.xml, &source, node)?),
+            _ => AnswerValue::Json(Self::gis_root_structure(&model, &source)?),
+        };
+        Ok(self.gis_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn gis_field(&mut self, req: &ObserveRequest, name: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let nodes = gis_root_field_nodes(&model, &source)?;
+        let node = Self::gis_field_by_name(&model, &source, &nodes, name)?.ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "GIS root has no field named {name:?} (dialect {})",
+                gis_dialect_name(model.dialect)
+            ))
+        })?;
+        let (_, start, end) = Self::gis_field_meta(&model, &source, node)?;
+        let provenance = format!(
+            "gis;field={name};dialect={}",
+            gis_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(gis_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(gis_field_text(&model, &source, node)?),
+            _ => AnswerValue::Json(Self::gis_field_descriptor(&model, &source, node)?),
+        };
+        Ok(self.gis_answer(
+            req,
+            value,
+            provenance,
+            Some((start, end)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn gis_record(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let node = *model.records.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("geospatial has no record {index}"))
+        })?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS record node is out of range"))?;
+        let span = Some((n.start, n.end));
+        let provenance = format!(
+            "gis;record={index};dialect={}",
+            gis_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(gis_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model.xml, &source, node)?),
+            _ => AnswerValue::Json(Self::gis_record_structure(&model, &source, index)?),
+        };
+        Ok(self.gis_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn gis_record_field(
+        &mut self,
+        req: &ObserveRequest,
+        record: u32,
+        name: &str,
+    ) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let nodes = gis_record_field_nodes(&model, &source, record)?;
+        let node = Self::gis_field_by_name(&model, &source, &nodes, name)?.ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "geospatial record {record} has no field named {name:?}"
+            ))
+        })?;
+        let (_, start, end) = Self::gis_field_meta(&model, &source, node)?;
+        let provenance = format!(
+            "gis;record={record};field={name};dialect={}",
+            gis_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(gis_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(gis_field_text(&model, &source, node)?),
+            _ => AnswerValue::Json(Self::gis_field_descriptor(&model, &source, node)?),
+        };
+        Ok(self.gis_answer(
+            req,
+            value,
+            provenance,
+            Some((start, end)),
+            vec![model_id, root],
+        ))
+    }
+
+    fn gis_point(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let node = *model.points.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("geospatial has no point {index}"))
+        })?;
+        let n = model
+            .node(node)
+            .ok_or_else(|| Error::internal_invariant("GIS point node is out of range"))?;
+        let span = Some((n.start, n.end));
+        let provenance = format!(
+            "gis;point={index};dialect={}",
+            gis_dialect_name(model.dialect)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(gis_field_bytes(&model, &source, node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(xml_subtree_text(&model.xml, &source, node)?),
+            _ => AnswerValue::Json(Self::gis_point_structure(&model, &source, index)?),
+        };
+        Ok(self.gis_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over decoded recognized field values.
+    fn gis_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let matches = gis_find_matches(&model, &source, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            let index = match m.index {
+                Some(i) => i.to_string(),
+                None => "null".to_string(),
+            };
+            out.push(format!(
+                concat!(
+                    "{{\"kind\":\"{}\",\"index\":{},\"name\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.kind,
+                index,
+                json_escape(&m.name),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("gis;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.gis_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_gis(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.gis_common_metadata(req),
+            Selector::Text => self.gis_common_text(req),
+            Selector::SearchMatch(p) => self.gis_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "GIS does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn gis_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let text = gis_canonical_text(&model, &source, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.gis_answer(
+            req,
+            AnswerValue::Text(text),
+            "gis;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn gis_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.gis_model()?;
+        let (source, root) = self.gis_source()?;
+        let root_fields = gis_root_field_nodes(&model, &source)?.len();
+        let mut fields = root_fields;
+        for i in 0..model.records.len() as u32 {
+            fields += gis_record_field_nodes(&model, &source, i)?.len();
+        }
+        for i in 0..model.points.len() as u32 {
+            fields += gis_point_field_nodes(&model, &source, i)?.len();
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"gis\",\"dialect\":\"{}\",",
+                "\"records\":{},\"points\":{},\"root_fields\":{},\"fields\":{},\"bytes\":{}}}"
+            ),
+            gis_dialect_name(model.dialect),
+            model.record_count(),
+            model.point_count(),
+            root_fields,
+            fields,
+            model.doc_len,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.gis_answer(
+            req,
+            value,
+            "gis;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Jupyter notebook observations (Phase 21.24)
+// ---------------------------------------------------------------------------
+
+/// A notebook's physical bytes are JSON, so the exact leaf is the whole source, and
+/// every nbformat/cell/output observation is a bounded, span-preserving (`Q_gen`)
+/// projection of the shared JSON parse (ADR-0060: the model node depends on the
+/// `sha256(source)` root).
+#[cfg(feature = "notebook")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the notebook model (derived, `Q_gen`).
+    fn notebook_model(&mut self) -> Result<(NotebookModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_NOTEBOOK_MODEL, 0), "notebook model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((NotebookModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn notebook_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn notebook_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// A JSON leaf/container node as text: a string is decoded; a container is its
+    /// canonical JSON projection; a scalar is its literal token.
+    fn notebook_node_text(
+        model: &NotebookModel,
+        source: &[u8],
+        index: u32,
+        node: &crate::adapter::json::JNode,
+    ) -> Result<String> {
+        if node.kind == crate::adapter::json::K_STRING {
+            json_decode_string(source, node)
+        } else if crate::adapter::json::is_container(node.kind) {
+            crate::adapter::json::subtree_text(&model.json, source, index)
+        } else {
+            Ok(String::from_utf8_lossy(json_token_bytes(source, node)?).into_owned())
+        }
+    }
+
+    /// The exact literal token of one object member's value (a number, `null`, or a
+    /// quoted string token), or `null` when absent. Used where the member is known to
+    /// be a number or `null`, so embedding the token verbatim stays valid JSON.
+    fn notebook_member_literal(
+        model: &NotebookModel,
+        source: &[u8],
+        obj: u32,
+        key: &str,
+    ) -> Result<String> {
+        match notebook_object_member(model, source, obj, key)? {
+            Some(v) => {
+                let n = model
+                    .node(v)
+                    .ok_or_else(|| Error::internal_invariant("notebook member out of range"))?;
+                Ok(String::from_utf8_lossy(notebook_token_bytes(source, n)?).into_owned())
+            }
+            None => Ok("null".to_string()),
+        }
+    }
+
+    /// The member keys of an object member (`document order, duplicates preserved`) as
+    /// a JSON array, or `null` when the member is absent or not an object.
+    fn notebook_keys_json(
+        model: &NotebookModel,
+        source: &[u8],
+        obj: u32,
+        key: &str,
+    ) -> Result<String> {
+        match notebook_member_keys(model, source, obj, key)? {
+            Some(keys) => {
+                let parts: Vec<String> = keys
+                    .iter()
+                    .map(|k| format!("\"{}\"", json_escape(k)))
+                    .collect();
+                Ok(format!("[{}]", parts.join(",")))
+            }
+            None => Ok("null".to_string()),
+        }
+    }
+
+    /// The `source`/`execution_count`/`metadata`/`attachments` descriptor of a cell.
+    fn notebook_cell_descriptor(
+        model: &NotebookModel,
+        source: &[u8],
+        index: u32,
+        a: &crate::adapter::notebook::CellAnchor,
+    ) -> Result<String> {
+        use crate::adapter::notebook::{ABSENT, SRC_LINES, source_form_name};
+        let node = model
+            .node(a.node)
+            .ok_or_else(|| Error::internal_invariant("notebook cell node out of range"))?;
+        let cell_type = notebook_cell_type_of(model, source, a.node)?.unwrap_or_default();
+        let (source_span, source_elements) = if a.source_node == ABSENT {
+            ("null".to_string(), 0u32)
+        } else {
+            let sn = model
+                .node(a.source_node)
+                .ok_or_else(|| Error::internal_invariant("notebook source node out of range"))?;
+            let elems = if a.source_form == SRC_LINES {
+                sn.children.len() as u32
+            } else {
+                1
+            };
+            (format!("[{},{}]", sn.start, sn.end), elems)
+        };
+        // A number or `null` token is embedded verbatim (it is already valid JSON).
+        let exec = Self::notebook_member_literal(model, source, a.node, "execution_count")?;
+        let attachments = Self::notebook_keys_json(model, source, a.node, "attachments")?;
+        let has_metadata = a.metadata_node != ABSENT;
+        Ok(format!(
+            "{{\"index\":{index},\"cell_type\":\"{}\",\"span\":[{},{}],\"source_form\":\"{}\",\"source_span\":{source_span},\"source_elements\":{source_elements},\"execution_count\":{exec},\"outputs\":{},\"metadata\":{has_metadata},\"attachments\":{attachments}}}",
+            json_escape(&cell_type),
+            node.start,
+            node.end,
+            source_form_name(a.source_form),
+            a.outputs.len(),
+        ))
+    }
+
+    fn notebook_nbformat(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let node = model
+            .node(model.nbformat_node)
+            .ok_or_else(|| Error::internal_invariant("notebook nbformat node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(notebook_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(model.nbformat.to_string()),
+            _ => AnswerValue::Json(Self::notebook_metadata_json(&model)),
+        };
+        Ok(self.notebook_answer(
+            req,
+            value,
+            format!("notebook;nbformat={}", model.nbformat),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn notebook_metadata_json(model: &NotebookModel) -> String {
+        format!(
+            concat!(
+                "{{\"format\":\"notebook\",\"nbformat\":{},\"nbformat_minor\":{},",
+                "\"cells\":{},\"outputs\":{},\"bytes\":{}}}"
+            ),
+            model.nbformat,
+            model.nbformat_minor,
+            model.cell_count(),
+            model.output_count(),
+            model.doc_len(),
+        )
+    }
+
+    fn notebook_cell(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let a = model
+            .cell(index)
+            .cloned()
+            .ok_or_else(|| Error::unsupported_feature(format!("notebook has no cell {index}")))?;
+        let node = model
+            .node(a.node)
+            .ok_or_else(|| Error::internal_invariant("notebook cell node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(notebook_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::notebook_node_text(&model, &source, a.node, &node)?)
+            }
+            _ => AnswerValue::Json(Self::notebook_cell_descriptor(&model, &source, index, &a)?),
+        };
+        Ok(self.notebook_answer(
+            req,
+            value,
+            format!("notebook;cell={index}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn notebook_cell_type(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let a = model
+            .cell(index)
+            .cloned()
+            .ok_or_else(|| Error::unsupported_feature(format!("notebook has no cell {index}")))?;
+        let node = model
+            .node(a.cell_type_node)
+            .ok_or_else(|| Error::internal_invariant("notebook cell_type node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let cell_type = notebook_cell_type_of(&model, &source, a.node)?.unwrap_or_default();
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(notebook_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(cell_type.clone()),
+            _ => AnswerValue::Json(format!(
+                "{{\"index\":{index},\"cell_type\":\"{}\"}}",
+                json_escape(&cell_type)
+            )),
+        };
+        Ok(self.notebook_answer(
+            req,
+            value,
+            format!("notebook;cell={index};cell_type={cell_type}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn notebook_cell_source(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        use crate::adapter::notebook::{ABSENT, SRC_LINES, SRC_STRING, source_form_name};
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let a = model
+            .cell(index)
+            .cloned()
+            .ok_or_else(|| Error::unsupported_feature(format!("notebook has no cell {index}")))?;
+        if a.source_node == ABSENT {
+            return Err(Error::unsupported_feature(format!(
+                "notebook cell {index} has no source"
+            )));
+        }
+        let node = model
+            .node(a.source_node)
+            .ok_or_else(|| Error::internal_invariant("notebook source node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(notebook_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => match a.source_form {
+                // A string source is returned decoded (its text, not its token).
+                SRC_STRING => AnswerValue::Text(json_decode_string(&source, &node)?),
+                // An array-of-lines source is returned as its canonical JSON array —
+                // never re-joined or normalized (representation preserved).
+                SRC_LINES => AnswerValue::Text(crate::adapter::json::subtree_text(
+                    &model.json,
+                    &source,
+                    a.source_node,
+                )?),
+                _ => AnswerValue::Text(String::new()),
+            },
+            _ => AnswerValue::Json(format!(
+                "{{\"cell\":{index},\"form\":\"{}\",\"span\":[{},{}],\"elements\":{},\"bytes\":{}}}",
+                source_form_name(a.source_form),
+                node.start,
+                node.end,
+                if a.source_form == SRC_LINES {
+                    node.children.len()
+                } else {
+                    1
+                },
+                node.end - node.start,
+            )),
+        };
+        Ok(self.notebook_answer(
+            req,
+            value,
+            format!("notebook;cell={index};source"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn notebook_cell_output(
+        &mut self,
+        req: &ObserveRequest,
+        cell: u32,
+        index: u32,
+    ) -> Result<FieldAnswer> {
+        use crate::adapter::notebook::output_class_of;
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let a = model
+            .cell(cell)
+            .cloned()
+            .ok_or_else(|| Error::unsupported_feature(format!("notebook has no cell {cell}")))?;
+        let out = *a.outputs.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("notebook cell {cell} has no output {index}"))
+        })?;
+        let node = model
+            .node(out)
+            .ok_or_else(|| Error::internal_invariant("notebook output node out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(notebook_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::notebook_node_text(&model, &source, out, &node)?)
+            }
+            _ => {
+                let oty = notebook_output_type_of(&model, &source, out)?.unwrap_or_default();
+                let mut fields: Vec<String> = vec![format!(
+                    "\"cell\":{cell},\"index\":{index},\"output_type\":\"{}\",\"span\":[{},{}]",
+                    json_escape(&oty),
+                    node.start,
+                    node.end,
+                )];
+                match output_class_of(&oty) {
+                    crate::adapter::notebook::O_STREAM => {
+                        let name = match notebook_member_string_value(&model, &source, out, "name")?
+                        {
+                            Some(s) => opt_str_json(Some(s.as_str())),
+                            None => "null".to_string(),
+                        };
+                        let text_form = match notebook_object_member(&model, &source, out, "text")?
+                        {
+                            Some(t) => {
+                                let tn = model.node(t).ok_or_else(|| {
+                                    Error::internal_invariant("notebook stream text out of range")
+                                })?;
+                                if tn.kind == crate::adapter::json::K_STRING {
+                                    "string"
+                                } else if tn.kind == crate::adapter::json::K_ARRAY {
+                                    "lines"
+                                } else {
+                                    "other"
+                                }
+                            }
+                            None => "null",
+                        };
+                        fields.push(format!("\"name\":{name}"));
+                        fields.push(format!("\"text_form\":\"{text_form}\""));
+                    }
+                    crate::adapter::notebook::O_EXECUTE_RESULT => {
+                        let exec =
+                            Self::notebook_member_literal(&model, &source, out, "execution_count")?;
+                        let data = Self::notebook_keys_json(&model, &source, out, "data")?;
+                        fields.push(format!("\"execution_count\":{exec}"));
+                        fields.push(format!("\"data_keys\":{data}"));
+                    }
+                    crate::adapter::notebook::O_DISPLAY_DATA => {
+                        let data = Self::notebook_keys_json(&model, &source, out, "data")?;
+                        fields.push(format!("\"data_keys\":{data}"));
+                    }
+                    crate::adapter::notebook::O_ERROR => {
+                        let ename =
+                            match notebook_member_string_value(&model, &source, out, "ename")? {
+                                Some(s) => opt_str_json(Some(s.as_str())),
+                                None => "null".to_string(),
+                            };
+                        let evalue =
+                            match notebook_member_string_value(&model, &source, out, "evalue")? {
+                                Some(s) => opt_str_json(Some(s.as_str())),
+                                None => "null".to_string(),
+                            };
+                        let tb = match notebook_object_member(&model, &source, out, "traceback")? {
+                            Some(t) => {
+                                let tn = model.node(t).ok_or_else(|| {
+                                    Error::internal_invariant("notebook traceback out of range")
+                                })?;
+                                if tn.kind == crate::adapter::json::K_ARRAY {
+                                    tn.children.len().to_string()
+                                } else {
+                                    "null".to_string()
+                                }
+                            }
+                            None => "null".to_string(),
+                        };
+                        fields.push(format!("\"ename\":{ename}"));
+                        fields.push(format!("\"evalue\":{evalue}"));
+                        fields.push(format!("\"traceback\":{tb}"));
+                    }
+                    _ => {}
+                }
+                AnswerValue::Json(format!("{{{}}}", fields.join(",")))
+            }
+        };
+        Ok(self.notebook_answer(
+            req,
+            value,
+            format!("notebook;cell={cell};output={index}"),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over notebook keys and string values, reusing the
+    /// shared JSON match vocabulary.
+    fn notebook_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let matches = notebook_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "notebook find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"pointer\":\"{}\",\"role\":\"{}\",\"kind\":\"string\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("notebook;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.notebook_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_notebook(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.notebook_common_metadata(req),
+            Selector::Text => self.notebook_common_text(req),
+            Selector::SearchMatch(p) => self.notebook_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "notebook does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn notebook_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let text = notebook_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.notebook_answer(
+            req,
+            AnswerValue::Text(text),
+            "notebook;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn notebook_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.notebook_model()?;
+        let (source, root) = self.notebook_source()?;
+        let value = AnswerValue::Json(Self::notebook_metadata_json(&model));
+        let span = Some((0, source.len() as u64));
+        Ok(self.notebook_answer(
+            req,
+            value,
+            "notebook;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// JSON5 / JSONC observations (Phase 21.17.1)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "json5")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the JSON5/JSONC structured-tree model (derived, `Q_gen`).
+    fn json5_model(&mut self) -> Result<(Json5Model, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_JSON5_MODEL, 0), "JSON5 model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((Json5Model::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn json5_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn json5_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn json5_node_text(
+        model: &Json5Model,
+        source: &[u8],
+        index: u32,
+        node: &crate::adapter::json::JNode,
+    ) -> Result<String> {
+        if node.kind == crate::adapter::json5::K_STRING {
+            json5_decode_string(source, node)
+        } else if crate::adapter::json5::is_container(node.kind) {
+            crate::adapter::json5::subtree_text(model, source, index)
+        } else {
+            Ok(String::from_utf8_lossy(json5_token_bytes(source, node)?).into_owned())
+        }
+    }
+
+    /// Resolve `pointer` and answer per representation: `ExactBytes` returns the
+    /// exact token bytes; `Text` the decoded string (or the canonical subtree for a
+    /// container/scalar); `Metadata`/`Structure` a JSON5 descriptor with the kind,
+    /// the exact span, the recorded dialect, and the duplicate-key match count.
+    fn json5_pointer(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let r = json5_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("JSON5 pointer resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "json5;pointer={pointer};kind={};matches={}",
+            json5_kind_name(node.kind),
+            r.matches
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(json5_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::json5_node_text(&model, &source, index, &node)?)
+            }
+            _ => {
+                let token =
+                    String::from_utf8_lossy(json5_token_bytes(&source, &node)?).into_owned();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"pointer\":\"{}\",\"kind\":\"{}\",",
+                        "\"span\":[{},{}],\"matches\":{},\"token\":\"{}\",",
+                        "\"dialect\":\"{}\",\"top_type\":\"{}\"}}"
+                    ),
+                    json_escape(pointer),
+                    json5_kind_name(node.kind),
+                    node.start,
+                    node.end,
+                    r.matches,
+                    json_escape(&token),
+                    json5_dialect_name(model.dialect),
+                    json5_kind_name(model.top_type),
+                ))
+            }
+        };
+        Ok(self.json5_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The structural view of a JSON5 node: kind, span, parent span, and (for
+    /// containers) the child spans; object member keys and key/value spans are
+    /// exposed separately, and duplicate keys are reported, never hidden.
+    fn json5_node(&mut self, req: &ObserveRequest, pointer: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let r = json5_resolve_pointer(&model, &source, pointer)?;
+        let index = r.index;
+        let node = model
+            .node(index)
+            .ok_or_else(|| Error::internal_invariant("JSON5 node resolved out of range"))?
+            .clone();
+        let span = Some((node.start, node.end));
+        let provenance = format!(
+            "json5;node={pointer};kind={};children={}",
+            json5_kind_name(node.kind),
+            node.children.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(json5_token_bytes(&source, &node)?.to_vec())
+            }
+            Representation::Text => {
+                AnswerValue::Text(Self::json5_node_text(&model, &source, index, &node)?)
+            }
+            _ => AnswerValue::Json(
+                self.json5_node_structure(&model, &source, pointer, index, &node)?,
+            ),
+        };
+        Ok(self.json5_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    fn json5_node_structure(
+        &self,
+        model: &Json5Model,
+        source: &[u8],
+        pointer: &str,
+        index: u32,
+        node: &crate::adapter::json::JNode,
+    ) -> Result<String> {
+        let parent_span = match json5_find_parent(model, index) {
+            Some(p) => model
+                .node(p)
+                .map_or("null".to_string(), |n| format!("[{},{}]", n.start, n.end)),
+            None => "null".to_string(),
+        };
+        let mut extra = String::new();
+        if node.kind == crate::adapter::json5::K_OBJECT {
+            let mut members: Vec<String> = Vec::new();
+            let mut keys: Vec<String> = Vec::new();
+            let mut i = 0usize;
+            while i + 1 < node.children.len() {
+                let key_node = model
+                    .node(node.children[i])
+                    .ok_or_else(|| Error::internal_invariant("JSON5 key index out of range"))?;
+                let val_node = model
+                    .node(node.children[i + 1])
+                    .ok_or_else(|| Error::internal_invariant("JSON5 value index out of range"))?;
+                i += 2;
+                let key = json5_decode_key(source, key_node)?;
+                keys.push(key.clone());
+                members.push(format!(
+                    concat!(
+                        "{{\"key\":\"{}\",\"key_kind\":\"{}\",\"key_span\":[{},{}],",
+                        "\"value_kind\":\"{}\",\"value_span\":[{},{}]}}"
+                    ),
+                    json_escape(&key),
+                    json5_kind_name(key_node.kind),
+                    key_node.start,
+                    key_node.end,
+                    json5_kind_name(val_node.kind),
+                    val_node.start,
+                    val_node.end,
+                ));
+            }
+            let mut dupes: Vec<String> = Vec::new();
+            for (idx, k) in keys.iter().enumerate() {
+                if keys[..idx].contains(k) && !dupes.contains(k) {
+                    dupes.push(k.clone());
+                }
+            }
+            let dupes_json = dupes
+                .iter()
+                .map(|d| format!("\"{}\"", json_escape(d)))
+                .collect::<Vec<_>>()
+                .join(",");
+            extra = format!(
+                ",\"members\":[{}],\"duplicate_keys\":[{}]",
+                members.join(","),
+                dupes_json
+            );
+        } else if node.kind == crate::adapter::json5::K_ARRAY {
+            let mut elems: Vec<String> = Vec::new();
+            for (i, child) in node.children.iter().enumerate() {
+                let cn = model
+                    .node(*child)
+                    .ok_or_else(|| Error::internal_invariant("JSON5 element out of range"))?;
+                elems.push(format!(
+                    "{{\"index\":{},\"kind\":\"{}\",\"span\":[{},{}]}}",
+                    i,
+                    json5_kind_name(cn.kind),
+                    cn.start,
+                    cn.end
+                ));
+            }
+            extra = format!(",\"elements\":[{}]", elems.join(","));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"pointer\":\"{}\",\"kind\":\"{}\",\"span\":[{},{}],",
+                "\"parent_span\":{},\"children\":{}{}}}"
+            ),
+            json_escape(pointer),
+            json5_kind_name(node.kind),
+            node.start,
+            node.end,
+            parent_span,
+            node.children.len(),
+            extra,
+        ))
+    }
+
+    /// A bounded lexical search over keys and string values; each match reports its
+    /// canonical pointer, role (key/value), and exact source span.
+    fn json5_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let matches = json5_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "JSON5 find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"pointer\":\"{}\",\"role\":\"{}\",",
+                    "\"kind\":\"string\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                json_escape(&m.pointer),
+                m.role.name(),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("json5;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.json5_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    /// Every comment in source order, each with its kind and exact span. `Text`
+    /// returns the exact comment bytes (newline-joined); `Metadata`/`Structure` a
+    /// bounded JSON descriptor.
+    fn json5_comments(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let provenance = format!(
+            "json5;comments={};dialect={}",
+            model.comments.len(),
+            json5_dialect_name(model.dialect)
+        );
+        let span = Some((0, source.len() as u64));
+        let value = match req.representation {
+            Representation::Text => {
+                let mut text = String::new();
+                for (i, c) in model.comments.iter().enumerate() {
+                    if i > 0 {
+                        text.push('\n');
+                    }
+                    let s = usize::try_from(c.start)
+                        .map_err(|_| Error::internal_invariant("JSON5 comment span overflow"))?;
+                    let e = usize::try_from(c.end)
+                        .map_err(|_| Error::internal_invariant("JSON5 comment span overflow"))?;
+                    let bytes = source.get(s..e).ok_or_else(|| {
+                        Error::internal_invariant("JSON5 comment span outside the source")
+                    })?;
+                    text.push_str(&String::from_utf8_lossy(bytes));
+                    if text.len() as u64 > req.budget.max_output_bytes {
+                        return Err(Error::resource_limit(format!(
+                            "JSON5 comments exceeded the {}-byte budget",
+                            req.budget.max_output_bytes
+                        )));
+                    }
+                }
+                AnswerValue::Text(text)
+            }
+            _ => {
+                let mut out: Vec<String> = Vec::new();
+                for (i, c) in model.comments.iter().enumerate() {
+                    out.push(format!(
+                        "{{\"index\":{},\"kind\":\"{}\",\"span\":[{},{}]}}",
+                        i,
+                        json5_comment_kind_name(c.kind),
+                        c.start,
+                        c.end
+                    ));
+                }
+                AnswerValue::Json(format!(
+                    "{{\"dialect\":\"{}\",\"comments\":{},\"spans\":[{}]}}",
+                    json5_dialect_name(model.dialect),
+                    model.comments.len(),
+                    out.join(",")
+                ))
+            }
+        };
+        Ok(self.json5_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_json5(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.json5_common_metadata(req),
+            Selector::Text => self.json5_common_text(req),
+            Selector::SearchMatch(p) => self.json5_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "JSON5 does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn json5_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let text = json5_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.json5_answer(
+            req,
+            AnswerValue::Text(text),
+            "json5;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn json5_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.json5_model()?;
+        let (source, root) = self.json5_source()?;
+        let mut objects = 0u64;
+        let mut members = 0u64;
+        let mut arrays = 0u64;
+        let mut elements = 0u64;
+        let mut dup_keys = 0u64;
+        for n in &model.nodes {
+            if n.kind == crate::adapter::json5::K_OBJECT {
+                objects += 1;
+                let mut seen: Vec<String> = Vec::new();
+                let mut i = 0usize;
+                while i + 1 < n.children.len() {
+                    members += 1;
+                    if let Some(k) = model.node(n.children[i])
+                        && let Ok(s) = json5_decode_key(&source, k)
+                    {
+                        if seen.contains(&s) {
+                            dup_keys += 1;
+                        } else {
+                            seen.push(s);
+                        }
+                    }
+                    i += 2;
+                }
+            } else if n.kind == crate::adapter::json5::K_ARRAY {
+                arrays += 1;
+                elements += n.children.len() as u64;
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"json5\",\"dialect\":\"{}\",\"top_type\":\"{}\",",
+                "\"nodes\":{},\"max_depth\":{},\"bytes\":{},",
+                "\"objects\":{},\"members\":{},\"arrays\":{},\"array_elements\":{},",
+                "\"duplicate_keys\":{},\"comments\":{},",
+                "\"trailing_commas\":{},\"unquoted_keys\":{}}}"
+            ),
+            json5_dialect_name(model.dialect),
+            json5_kind_name(model.top_type),
+            model.nodes.len(),
+            model.max_depth,
+            model.doc_len,
+            objects,
+            members,
+            arrays,
+            elements,
+            dup_keys,
+            model.comments.len(),
+            model.trailing_commas,
+            model.unquoted_keys,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.json5_answer(
+            req,
+            value,
+            "json5;metadata".to_string(),
             span,
             vec![model_id, root],
         ))
@@ -12812,6 +20717,511 @@ impl<S: SeedStore> Ctx<'_, S> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Fixed-width (column-position) observations (Phase 21.25)
+// ---------------------------------------------------------------------------
+
+/// A parsed column reference for `fixedwidth-cell`: a 0-based index or a header name.
+#[cfg(feature = "fixedwidth")]
+enum FwCol {
+    Index(u32),
+    Name(String),
+}
+
+#[cfg(feature = "fixedwidth")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the fixed-width model (derived, `Q_gen`).
+    fn fixedwidth_model(&mut self) -> Result<(FixedWidthModel, NodeId)> {
+        let entry = self.require_entry(
+            SelectorKey::new(SEL_FIXEDWIDTH_MODEL, 0),
+            "fixed-width model",
+        )?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((FixedWidthModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn fixedwidth_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    /// The exact source bytes plus the re-inferred layout (the streaming selectors do
+    /// not build the whole model).
+    fn fixedwidth_layout(&mut self) -> Result<(Vec<u8>, FwLayout, NodeId)> {
+        let (source, root) = self.fixedwidth_source()?;
+        let layout = fw_infer_layout(&source, self.limits)?;
+        Ok((source, layout, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn fixedwidth_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    fn fixedwidth_record_text(source: &[u8], rec: &FwStreamRecord) -> Result<String> {
+        Ok(String::from_utf8_lossy(fw_record_bytes(source, rec)?).into_owned())
+    }
+
+    fn fixedwidth_record_structure(
+        source: &[u8],
+        layout: &FwLayout,
+        index: u32,
+        rec: &FwStreamRecord,
+    ) -> Result<String> {
+        let mut fields: Vec<String> = Vec::new();
+        for (i, f) in rec.fields.iter().enumerate() {
+            let padded = fw_decode_field(source, f)?;
+            let trimmed = fw_trimmed_text(source, f)?;
+            let (cs, ce) = layout
+                .columns
+                .get(i)
+                .map(|c| (c.start, c.end))
+                .unwrap_or((0, 0));
+            fields.push(format!(
+                concat!(
+                    "{{\"column\":{},\"col_start\":{},\"col_end\":{},",
+                    "\"span\":[{},{}],\"padded\":\"{}\",\"text\":\"{}\"}}"
+                ),
+                i,
+                cs,
+                ce,
+                f.start,
+                f.end,
+                json_escape(&padded),
+                json_escape(&trimmed),
+            ));
+        }
+        Ok(format!(
+            concat!(
+                "{{\"record\":{},\"span\":[{},{}],\"terminator\":\"{}\",",
+                "\"columns\":{},\"fields\":[{}]}}"
+            ),
+            index,
+            rec.start,
+            rec.end,
+            layout.terminator_name(),
+            rec.fields.len(),
+            fields.join(","),
+        ))
+    }
+
+    /// A record by physical index: `ExactBytes` returns its exact content bytes
+    /// (terminator excluded, padding preserved); `Text` the same content as text;
+    /// `Metadata`/`Structure` a descriptor with each field's span, padded text, and
+    /// trimmed text.
+    fn fixedwidth_row(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let rec = fw_record_at(&source, &layout, index, self.limits)?;
+        let span = Some((rec.start, rec.end));
+        let provenance = format!(
+            "fixedwidth;row={index};columns={};terminator={}",
+            rec.fields.len(),
+            layout.terminator_name()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(fw_record_bytes(&source, &rec)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(Self::fixedwidth_record_text(&source, &rec)?),
+            _ => AnswerValue::Json(Self::fixedwidth_record_structure(
+                &source, &layout, index, &rec,
+            )?),
+        };
+        Ok(self.fixedwidth_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// Parse a `fixedwidth-cell` reference: `R:C` (0-based indices) or `R:COLNAME`.
+    fn fixedwidth_parse_cell(spec: &str) -> Result<(u32, FwCol)> {
+        let (row_s, col_s) = spec.split_once(':').ok_or_else(|| {
+            Error::usage(format!("fixedwidth-cell {spec:?} must be R:C or R:COLNAME"))
+        })?;
+        let row: u32 = row_s
+            .parse()
+            .map_err(|_| Error::usage(format!("fixedwidth-cell row {row_s:?} is not a u32")))?;
+        let col = match col_s.parse::<u32>() {
+            Ok(n) => FwCol::Index(n),
+            Err(_) if !col_s.is_empty() => FwCol::Name(col_s.to_string()),
+            Err(_) => {
+                return Err(Error::usage(format!(
+                    "fixedwidth-cell column {col_s:?} is neither an index nor a name"
+                )));
+            }
+        };
+        Ok((row, col))
+    }
+
+    /// Resolve a column reference to a 0-based index. A name is resolved against the
+    /// header row (record 0, trimmed text); an unknown name declines typed.
+    fn fixedwidth_resolve_col(
+        source: &[u8],
+        layout: &FwLayout,
+        col: &FwCol,
+        limits: Limits,
+    ) -> Result<u32> {
+        match col {
+            FwCol::Index(n) => Ok(*n),
+            FwCol::Name(name) => {
+                let header = fw_record_at(source, layout, 0, limits)?;
+                for (i, f) in header.fields.iter().enumerate() {
+                    if fw_trimmed_text(source, f)? == *name {
+                        return Ok(i as u32);
+                    }
+                }
+                Err(Error::unsupported_feature(format!(
+                    "fixed-width header has no column named {name:?}"
+                )))
+            }
+        }
+    }
+
+    /// A cell addressed as `R:C` or `R:COLNAME`.
+    fn fixedwidth_cell(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let (row, col) = Self::fixedwidth_parse_cell(spec)?;
+        let col = Self::fixedwidth_resolve_col(&source, &layout, &col, self.limits)?;
+        let rec = fw_record_at(&source, &layout, row, self.limits)?;
+        let field = *rec.fields.get(col as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "fixed-width record {row} has no column {col} ({} columns)",
+                rec.fields.len()
+            ))
+        })?;
+        let span = Some((field.start, field.end));
+        let provenance = format!("fixedwidth;cell={row}:{col};columns={}", rec.fields.len());
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(fw_field_bytes(&source, &field)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(fw_trimmed_text(&source, &field)?),
+            _ => {
+                let padded = fw_decode_field(&source, &field)?;
+                let trimmed = fw_trimmed_text(&source, &field)?;
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"row\":{},\"column\":{},\"col_start\":{},\"col_end\":{},",
+                        "\"span\":[{},{}],\"padded\":\"{}\",\"text\":\"{}\"}}"
+                    ),
+                    row,
+                    col,
+                    layout.columns[col as usize].start,
+                    layout.columns[col as usize].end,
+                    field.start,
+                    field.end,
+                    json_escape(&padded),
+                    json_escape(&trimmed),
+                ))
+            }
+        };
+        Ok(self.fixedwidth_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// The header row (record 0): its column names, span, and exact bytes.
+    fn fixedwidth_header(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let rec = fw_record_at(&source, &layout, 0, self.limits)?;
+        let span = Some((rec.start, rec.end));
+        let provenance = format!("fixedwidth;header;columns={}", rec.fields.len());
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(fw_record_bytes(&source, &rec)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(Self::fixedwidth_record_text(&source, &rec)?),
+            _ => {
+                let mut names: Vec<String> = Vec::new();
+                for f in &rec.fields {
+                    names.push(format!(
+                        "\"{}\"",
+                        json_escape(&fw_trimmed_text(&source, f)?)
+                    ));
+                }
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"count\":{},\"span\":[{},{}],",
+                        "\"terminator\":\"{}\",\"names\":[{}]}}"
+                    ),
+                    rec.fields.len(),
+                    rec.start,
+                    rec.end,
+                    layout.terminator_name(),
+                    names.join(","),
+                ))
+            }
+        };
+        Ok(self.fixedwidth_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// The recovered column layout.
+    fn fixedwidth_columns(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let span = Some((0, source.len() as u64));
+        let provenance = format!(
+            "fixedwidth;columns={};width={}",
+            layout.column_count(),
+            layout.width
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                let parts: Vec<String> = layout
+                    .columns
+                    .iter()
+                    .map(|c| format!("{}:{}", c.start, c.end))
+                    .collect();
+                AnswerValue::Text(parts.join(","))
+            }
+            _ => {
+                let cols: Vec<String> = layout
+                    .columns
+                    .iter()
+                    .map(|c| {
+                        format!(
+                            "{{\"start\":{},\"end\":{},\"width\":{}}}",
+                            c.start,
+                            c.end,
+                            c.width()
+                        )
+                    })
+                    .collect();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"format\":\"fixedwidth\",\"columns\":{},\"width\":{},",
+                        "\"terminator\":\"{}\",\"bom_bytes\":{},\"mixed_terminators\":{},",
+                        "\"column_layout\":[{}]}}"
+                    ),
+                    layout.column_count(),
+                    layout.width,
+                    layout.terminator_name(),
+                    layout.bom_len,
+                    layout.mixed_terminators,
+                    cols.join(","),
+                ))
+            }
+        };
+        Ok(self.fixedwidth_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// A rectangular range `R1:C1:R2:C2` (0-based, inclusive).
+    fn fixedwidth_range(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let parts: Vec<&str> = spec.split(':').collect();
+        if parts.len() != 4 {
+            return Err(Error::usage(format!(
+                "fixedwidth-range {spec:?} must be R1:C1:R2:C2"
+            )));
+        }
+        let mut nums = [0u32; 4];
+        for (i, p) in parts.iter().enumerate() {
+            nums[i] = p.parse().map_err(|_| {
+                Error::usage(format!("fixedwidth-range component {p:?} is not a u32"))
+            })?;
+        }
+        let (r1, c1, r2, c2) = (nums[0], nums[1], nums[2], nums[3]);
+        if r1 > r2 || c1 > c2 {
+            return Err(Error::usage(format!(
+                "fixedwidth-range {spec:?} has an inverted rectangle"
+            )));
+        }
+        let rows = (r2 - r1 + 1) as u64;
+        let cols = (c2 - c1 + 1) as u64;
+        const MAX_RANGE_CELLS: u64 = 1 << 20;
+        if rows.saturating_mul(cols) > MAX_RANGE_CELLS {
+            return Err(Error::resource_limit(format!(
+                "fixedwidth-range {spec:?} covers more than {MAX_RANGE_CELLS} cells"
+            )));
+        }
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let mut out: Vec<String> = Vec::new();
+        for r in r1..=r2 {
+            let rec = fw_record_at(&source, &layout, r, self.limits)?;
+            for c in c1..=c2 {
+                match rec.fields.get(c as usize) {
+                    Some(f) => {
+                        let padded = fw_decode_field(&source, f)?;
+                        let trimmed = fw_trimmed_text(&source, f)?;
+                        out.push(format!(
+                            concat!(
+                                "{{\"row\":{},\"column\":{},",
+                                "\"span\":[{},{}],\"padded\":\"{}\",\"text\":\"{}\"}}"
+                            ),
+                            r,
+                            c,
+                            f.start,
+                            f.end,
+                            json_escape(&padded),
+                            json_escape(&trimmed),
+                        ));
+                    }
+                    None => {
+                        out.push(format!("{{\"row\":{r},\"column\":{c},\"present\":false}}"));
+                    }
+                }
+                if out.len() as u64 * 32 > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "fixedwidth-range exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+            }
+        }
+        let span = Some((0, source.len() as u64));
+        let provenance = format!("fixedwidth;range={spec};cells={}", out.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"range\":\"{}\",\"cells\":[{}]}}",
+            json_escape(spec),
+            out.join(",")
+        ));
+        Ok(self.fixedwidth_answer(req, value, provenance, span, vec![root]))
+    }
+
+    /// A bounded lexical search over decoded (trimmed) field text.
+    fn fixedwidth_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let matches = fw_find_matches(
+            &source,
+            &layout,
+            pattern,
+            self.limits,
+            req.budget.max_output_bytes,
+        )?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"record\":{},\"column\":{},",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.record,
+                m.column,
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("fixedwidth;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.fixedwidth_answer(req, value, provenance, None, vec![root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_fixedwidth(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.fixedwidth_common_metadata(req),
+            Selector::Text => self.fixedwidth_common_text(req),
+            Selector::Table(i) => {
+                if *i == 0 {
+                    self.fixedwidth_common_text(req)
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "fixed-width has a single table; table {i} does not exist"
+                    )))
+                }
+            }
+            Selector::Cell { table, row, col } => {
+                if *table == 0 {
+                    self.fixedwidth_cell(req, &format!("{row}:{col}"))
+                } else {
+                    Err(Error::unsupported_feature(format!(
+                        "fixed-width has a single table; cell table {table} does not exist"
+                    )))
+                }
+            }
+            Selector::SearchMatch(p) => self.fixedwidth_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "fixed-width does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-table canonical text (exact content bytes, padding preserved,
+    /// terminators normalized to `\n`).
+    fn fixedwidth_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, layout, root) = self.fixedwidth_layout()?;
+        let text = fw_canonical_text(&source, &layout, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.fixedwidth_answer(
+            req,
+            AnswerValue::Text(text),
+            "fixedwidth;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// The whole-table structural metadata, computed from the canonical model so the
+    /// recovered layout, the column count, the terminator, the BOM, and the header are
+    /// all reported (declines typed when the table exceeds a build cap).
+    fn fixedwidth_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.fixedwidth_model()?;
+        let (source, root) = self.fixedwidth_source()?;
+        let rows = model.records.len();
+        let cols: Vec<String> = model
+            .layout
+            .columns
+            .iter()
+            .map(|c| {
+                format!(
+                    "{{\"start\":{},\"end\":{},\"width\":{}}}",
+                    c.start,
+                    c.end,
+                    c.width()
+                )
+            })
+            .collect();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"fixedwidth\",\"columns\":{},\"width\":{},",
+                "\"terminator\":\"{}\",\"bom_bytes\":{},",
+                "\"mixed_terminators\":{},\"header\":{},",
+                "\"rows\":{},\"ragged_records\":0,\"bytes\":{},",
+                "\"column_layout\":[{}]}}"
+            ),
+            model.column_count(),
+            model.layout.width,
+            model.layout.terminator_name(),
+            model.layout.bom_len,
+            model.layout.mixed_terminators,
+            model.has_header,
+            rows,
+            model.doc_len,
+            cols.join(","),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.fixedwidth_answer(
+            req,
+            value,
+            "fixedwidth;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
 // -- Markdown ---------------------------------------------------------------
 
 /// Render an optional string as JSON (`null` or a quoted escaped string).
@@ -13136,6 +21546,1388 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "markdown;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// -- MDX (Phase 21.26.3) -----------------------------------------------------
+
+#[cfg(feature = "mdx")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the MDX (Markdown + JSX/ESM) model (derived, `Q_gen`).
+    fn mdx_model(&mut self) -> Result<(MdxModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_MDX_MODEL, 0), "MDX model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((MdxModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn mdx_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn mdx_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th ATX heading in document order (reusing the Markdown arena).
+    fn mdx_heading(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let heads = model.md.blocks_of_kind(B_HEADING);
+        let bi = *heads.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("MDX document has no heading {index}"))
+        })?;
+        let b = model
+            .md
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("mdx heading index out of range"))?;
+        let content = md_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.content_start, b.content_end));
+        let provenance = format!("mdx;heading={index};level={};block={bi}", b.level);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(content.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"mdx\",\"heading\":{},\"block\":{},",
+                    "\"level\":{},\"span\":[{},{}],\"content_span\":[{},{}],",
+                    "\"text_len\":{}}}"
+                ),
+                index,
+                bi,
+                b.level,
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                text.len(),
+            )),
+        };
+        Ok(self.mdx_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th block in document order (reusing the Markdown arena).
+    fn mdx_block(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let b = model.md.block(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("MDX document has no block {index}"))
+        })?;
+        let span_bytes = md_block_bytes(&source, b)?;
+        let content = md_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!("mdx;block={index};kind={}", md_block_kind_name(b.kind));
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"content_span\":[{},{}],\"level\":{},\"inlines\":{}}}"
+                ),
+                index,
+                md_block_kind_name(b.kind),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                b.level,
+                b.inlines.len(),
+            )),
+        };
+        Ok(self.mdx_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th ESM statement in document order.
+    fn mdx_esm(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let e = model.esm(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("MDX document has no ESM statement {index}"))
+        })?;
+        let bytes = slice_span(&source, e.start, e.end, "ESM span is outside the source")?;
+        let text = String::from_utf8_lossy(bytes).into_owned();
+        let span = Some((e.start, e.end));
+        let provenance = format!("mdx;esm={index};kind={}", mdx_esm_kind_name(e.kind));
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::ExactBytes => AnswerValue::Bytes(bytes.to_vec()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"esm\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"bytes\":{}}}"
+                ),
+                index,
+                mdx_esm_kind_name(e.kind),
+                e.start,
+                e.end,
+                bytes.len(),
+            )),
+        };
+        Ok(self.mdx_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th JSX element or fragment in document order.
+    fn mdx_jsx(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let j = model.jsx(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("MDX document has no JSX element {index}"))
+        })?;
+        let bytes = slice_span(&source, j.start, j.end, "JSX span is outside the source")?;
+        let text = String::from_utf8_lossy(bytes).into_owned();
+        let span = Some((j.start, j.end));
+        let provenance = format!(
+            "mdx;jsx={index};kind={};name={}",
+            mdx_jsx_kind_name(j.kind),
+            j.name.as_deref().unwrap_or("fragment"),
+        );
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::ExactBytes => AnswerValue::Bytes(bytes.to_vec()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"jsx\":{},\"kind\":\"{}\",\"name\":{},",
+                    "\"self_closing\":{},\"component\":{},\"namespaced\":{},",
+                    "\"has_attrs\":{},\"jsx_attr\":{},\"spread\":{},",
+                    "\"attrs\":{},\"children\":{},\"depth\":{},",
+                    "\"span\":[{},{}],\"bytes\":{}}}"
+                ),
+                index,
+                mdx_jsx_kind_name(j.kind),
+                md_opt_json(j.name.as_deref()),
+                j.flags & F_SELF_CLOSING != 0,
+                j.flags & F_COMPONENT != 0,
+                j.flags & F_NAMESPACED != 0,
+                j.flags & F_HAS_ATTRS != 0,
+                j.flags & F_JSX_ATTR != 0,
+                j.flags & F_HAS_SPREAD != 0,
+                j.attrs,
+                j.children,
+                j.depth,
+                j.start,
+                j.end,
+                bytes.len(),
+            )),
+        };
+        Ok(self.mdx_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th MDX expression in document order.
+    fn mdx_expression(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let x = model.expr(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("MDX document has no expression {index}"))
+        })?;
+        let bytes = slice_span(
+            &source,
+            x.start,
+            x.end,
+            "expression span is outside the source",
+        )?;
+        let text = String::from_utf8_lossy(bytes).into_owned();
+        let span = Some((x.start, x.end));
+        let provenance = format!("mdx;expression={index};block={}", x.flags & X_BLOCK != 0);
+        let value = match req.representation {
+            Representation::Text => AnswerValue::Text(text),
+            Representation::ExactBytes => AnswerValue::Bytes(bytes.to_vec()),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"expression\":{},\"block\":{},\"comment\":{},",
+                    "\"depth\":{},\"span\":[{},{}],\"bytes\":{}}}"
+                ),
+                index,
+                x.flags & X_BLOCK != 0,
+                x.flags & X_COMMENT != 0,
+                x.depth,
+                x.start,
+                x.end,
+                bytes.len(),
+            )),
+        };
+        Ok(self.mdx_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over MDX (Markdown) block content.
+    fn mdx_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let matches = mdx_find_matches(&source, &model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"text\":\"{}\"}}"
+                ),
+                m.block,
+                md_block_kind_name(m.kind),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("mdx;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.mdx_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_mdx(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.mdx_common_metadata(req),
+            Selector::Text => self.mdx_common_text(req),
+            Selector::Heading(i) => self.mdx_heading(req, *i),
+            Selector::Block(i) => self.mdx_block(req, *i),
+            Selector::SearchMatch(p) => self.mdx_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "MDX does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the exact source (lossily decoded), never re-flowed.
+    fn mdx_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.mdx_source()?;
+        let text = md_canonical_text(&source, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.mdx_answer(
+            req,
+            AnswerValue::Text(text),
+            "mdx;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn mdx_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mdx_model()?;
+        let (source, root) = self.mdx_source()?;
+        let md = &model.md;
+        let count = |k: u8| md.blocks_of_kind(k).len();
+        let code_blocks = md
+            .blocks
+            .iter()
+            .filter(|b| md_is_code_block(b.kind))
+            .count();
+        let links = md
+            .inlines
+            .iter()
+            .filter(|x| matches!(x.kind, I_LINK | I_REF_LINK))
+            .count();
+        let images = md.inlines_of_kind(I_IMAGE).len();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"mdx\",\"bytes\":{},\"signals\":{},",
+                "\"has_esm\":{},\"has_component\":{},\"has_fragment\":{},",
+                "\"has_jsx_attribute\":{},\"has_block_expression\":{},",
+                "\"esm\":{},\"jsx\":{},\"expressions\":{},\"jsx_depth\":{},",
+                "\"blocks\":{},\"headings\":{},\"max_heading_level\":{},",
+                "\"paragraphs\":{},\"list_items\":{},\"code_blocks\":{},",
+                "\"blockquotes\":{},\"tables\":{},\"ref_defs\":{},\"footnotes\":{},",
+                "\"thematic_breaks\":{},\"front_matter\":{},",
+                "\"links\":{},\"images\":{},\"inline_spans\":{}}}"
+            ),
+            model.doc_len,
+            model.signals,
+            model.signals & S_ESM != 0,
+            model.signals & S_COMPONENT != 0,
+            model.signals & S_FRAGMENT != 0,
+            model.signals & S_JSX_ATTR != 0,
+            model.signals & S_BLOCK_EXPR != 0,
+            model.esm.len(),
+            model.jsx.len(),
+            model.exprs.len(),
+            model.max_jsx_depth(),
+            md.blocks.len(),
+            count(B_HEADING),
+            md.max_heading_level(),
+            count(B_PARAGRAPH),
+            count(B_LIST_ITEM),
+            code_blocks,
+            count(B_BLOCKQUOTE),
+            count(B_TABLE),
+            count(B_REF_DEF),
+            count(B_FOOTNOTE_DEF),
+            count(B_THEMATIC_BREAK),
+            count(B_FRONT_MATTER) > 0,
+            links,
+            images,
+            md.inlines.len(),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.mdx_answer(
+            req,
+            value,
+            "mdx;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// A bounded source slice for an MDX span.
+#[cfg(feature = "mdx")]
+fn slice_span<'a>(source: &'a [u8], start: u64, end: u64, msg: &str) -> Result<&'a [u8]> {
+    let s = usize::try_from(start).map_err(|_| Error::internal_invariant("span overflow"))?;
+    let e = usize::try_from(end).map_err(|_| Error::internal_invariant("span overflow"))?;
+    source
+        .get(s..e)
+        .ok_or_else(|| Error::internal_invariant(msg))
+}
+
+// -- MHTML (Phase 21.27) -----------------------------------------------------
+
+/// Render an optional exact span as JSON (`null` or `[a,b]`).
+#[cfg(feature = "mhtml")]
+fn mhtml_span_json(s: Option<(u64, u64)>) -> String {
+    match s {
+        Some((a, b)) => format!("[{a},{b}]"),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "mhtml")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the MHTML web-archive model (derived, `Q_gen`).
+    fn mhtml_model(&mut self) -> Result<(MhtmlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_MHTML_MODEL, 0), "MHTML model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((MhtmlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn mhtml_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn mhtml_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The root HTML part: its MIME spans, `Content-Location`, decoded length, and the
+    /// reused HTML model summary. `Text`/`ExactBytes` return its decoded body bytes.
+    fn mhtml_root(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let p = model
+            .root_part()
+            .ok_or_else(|| Error::internal_invariant("MHTML root part is out of range"))?
+            .clone();
+        let decoded = mhtml_root_body_bytes(&source, &model, self.limits)?;
+        if decoded.len() as u64 > req.budget.max_output_bytes {
+            return Err(Error::resource_limit(format!(
+                "MHTML root body exceeded the {}-byte budget",
+                req.budget.max_output_bytes
+            )));
+        }
+        let loc = p.last_header("content-location").map(|h| h.value.clone());
+        let span = Some((p.entity_start, p.entity_end));
+        let provenance = format!("mhtml;root;part={};media_type={}", p.index, p.media_type);
+        let value = match req.representation {
+            Representation::ExactBytes | Representation::DecodedBytes => {
+                AnswerValue::Bytes(decoded)
+            }
+            Representation::Text => {
+                AnswerValue::Text(String::from_utf8_lossy(&decoded).into_owned())
+            }
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"mhtml\",\"root_part\":{},\"media_type\":\"{}\",",
+                    "\"cte\":\"{}\",\"content_location\":{},",
+                    "\"entity_span\":[{},{}],\"header_span\":[{},{}],\"body_span\":[{},{}],",
+                    "\"decoded_len\":{},\"html_nodes\":{},\"html_attrs\":{},",
+                    "\"html_root\":{},\"html_depth\":{}}}"
+                ),
+                p.index,
+                json_escape(&p.media_type),
+                mhtml_cte_name(p.cte),
+                opt_str_json(loc.as_deref()),
+                p.entity_start,
+                p.entity_end,
+                p.header_start,
+                p.header_end,
+                p.body_start,
+                p.body_end,
+                decoded.len(),
+                model.html.nodes.len(),
+                model.html.attrs.len(),
+                model.html.root,
+                model.html.max_depth,
+            )),
+        };
+        Ok(self.mhtml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `ordinal`-th sub-resource: its keys, media type, encoding, exact spans, and
+    /// decoded length. `Text`/`ExactBytes` return its decoded bytes.
+    fn mhtml_resource(&mut self, req: &ObserveRequest, ordinal: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let r = model
+            .resource(ordinal)
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "MHTML has no resource {ordinal} (resource count {})",
+                    model.resources.len()
+                ))
+            })?
+            .clone();
+        let span = Some((r.body_start, r.body_end));
+        let provenance = format!(
+            "mhtml;resource={ordinal};part={};cte={}",
+            r.index,
+            mhtml_cte_name(r.cte)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes | Representation::DecodedBytes => {
+                AnswerValue::Bytes(mhtml_resource_bytes(&source, &model, ordinal, self.limits)?)
+            }
+            Representation::Text => {
+                let bytes = mhtml_resource_bytes(&source, &model, ordinal, self.limits)?;
+                AnswerValue::Text(String::from_utf8_lossy(&bytes).into_owned())
+            }
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"resource\":{},\"part\":{},\"location\":{},\"location_span\":{},",
+                    "\"content_id\":{},\"content_id_span\":{},",
+                    "\"content_base\":{},\"content_base_span\":{},",
+                    "\"media_type\":\"{}\",\"cte\":\"{}\",",
+                    "\"body_span\":[{},{}],\"decoded_len\":{}}}"
+                ),
+                r.ordinal,
+                r.index,
+                opt_str_json(r.location.as_deref()),
+                mhtml_span_json(r.location_span),
+                opt_str_json(r.content_id.as_deref()),
+                mhtml_span_json(r.content_id_span),
+                opt_str_json(r.content_base.as_deref()),
+                mhtml_span_json(r.content_base_span),
+                json_escape(&r.media_type),
+                mhtml_cte_name(r.cte),
+                r.body_start,
+                r.body_end,
+                r.decoded_len,
+            )),
+        };
+        Ok(self.mhtml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The envelope's top-level locations (`Snapshot-Content-Location`, `Content-Base`).
+    fn mhtml_location(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let envelope = model
+            .eml
+            .part(0)
+            .ok_or_else(|| Error::internal_invariant("MHTML has no MIME root part"))?;
+        let snap = envelope.last_header("snapshot-content-location");
+        let base = envelope.last_header("content-base");
+        let first = snap.or(base);
+        let span = first.map(|h| (h.value_start, h.value_end));
+        let value = match req.representation {
+            Representation::ExactBytes | Representation::DecodedBytes => {
+                let h = first.ok_or_else(|| {
+                    Error::unsupported_feature(
+                        "MHTML envelope has no Snapshot-Content-Location or Content-Base",
+                    )
+                })?;
+                let (s, e) = (h.value_start as usize, h.value_end as usize);
+                AnswerValue::Bytes(
+                    source
+                        .get(s..e)
+                        .ok_or_else(|| Error::internal_invariant("location span is out of range"))?
+                        .to_vec(),
+                )
+            }
+            Representation::Text => {
+                AnswerValue::Text(first.map(|h| h.value.clone()).unwrap_or_default())
+            }
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"snapshot_content_location\":{},\"snapshot_span\":{},",
+                    "\"content_base\":{},\"content_base_span\":{}}}"
+                ),
+                opt_str_json(model.snapshot_location.as_deref()),
+                mhtml_span_json(snap.map(|h| (h.value_start, h.value_end))),
+                opt_str_json(model.content_base.as_deref()),
+                mhtml_span_json(base.map(|h| (h.value_start, h.value_end))),
+            )),
+        };
+        Ok(self.mhtml_answer(
+            req,
+            value,
+            "mhtml;location".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over the whole document (reusing the MIME finder).
+    fn mhtml_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let matches = mhtml_find_matches(&source, &model, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "MHTML find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"location\":\"{}\",\"part\":{},\"name\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                mhtml_loc_name(m.location),
+                m.part,
+                json_escape(&m.name),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("mhtml;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.mhtml_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_mhtml(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.mhtml_common_metadata(req),
+            Selector::Text => self.mhtml_common_text(req),
+            Selector::Resource(i) => self.mhtml_resource(req, *i),
+            Selector::SearchMatch(p) => self.mhtml_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "MHTML does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the root HTML part's decoded body, never re-encoded.
+    fn mhtml_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let bytes = mhtml_root_body_bytes(&source, &model, self.limits)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.mhtml_answer(
+            req,
+            AnswerValue::Text(String::from_utf8_lossy(&bytes).into_owned()),
+            "mhtml;root".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn mhtml_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"mhtml\",\"parts\":{},\"headers\":{},\"resources\":{},",
+                "\"bytes\":{},\"root_part\":{},\"root_decoded_len\":{},",
+                "\"html_nodes\":{},\"html_attrs\":{},\"html_depth\":{},",
+                "\"has_snapshot_location\":{},\"has_content_base\":{},",
+                "\"has_from\":{},\"has_subject\":{},\"has_html_part\":{},",
+                "\"snapshot_location\":{},\"content_base\":{}}}"
+            ),
+            model.eml.parts.len(),
+            model.eml.header_count,
+            model.resources.len(),
+            model.doc_len,
+            model.root_part,
+            model.root_body_decoded_len,
+            model.html.nodes.len(),
+            model.html.attrs.len(),
+            model.html.max_depth,
+            model.flags & F_HAS_SNAPSHOT_LOCATION != 0,
+            model.flags & F_HAS_CONTENT_BASE != 0,
+            model.flags & F_HAS_FROM != 0,
+            model.flags & F_HAS_SUBJECT != 0,
+            model.flags & F_HAS_HTML_PART != 0,
+            opt_str_json(model.snapshot_location.as_deref()),
+            opt_str_json(model.content_base.as_deref()),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.mhtml_answer(
+            req,
+            value,
+            "mhtml;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// -- reStructuredText (Phase 21.26.1) ----------------------------------------
+
+/// Render an optional string as JSON (`null` or a quoted escaped string).
+#[cfg(feature = "rst")]
+fn rst_opt_json(s: Option<&str>) -> String {
+    match s {
+        Some(x) => format!("\"{}\"", json_escape(x)),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "rst")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the reStructuredText prose model (derived, `Q_gen`).
+    fn rst_model(&mut self) -> Result<(RstModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_RST_MODEL, 0), "reStructuredText model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((RstModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn rst_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn rst_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th section title in document order.
+    fn rst_heading(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let titles = model.blocks_of_kind(B_TITLE);
+        let bi = *titles.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("reStructuredText document has no title {index}"))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("rst title index out of range"))?;
+        let content = rst_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.content_start, b.content_end));
+        let adornment = b.info.as_deref().unwrap_or("");
+        let provenance = format!(
+            "rst;heading={index};level={};adornment={adornment}",
+            b.level
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(content.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"rst\",\"heading\":{},\"block\":{},",
+                    "\"level\":{},\"overline\":{},\"adornment\":\"{}\",",
+                    "\"span\":[{},{}],\"content_span\":[{},{}],\"text_len\":{}}}"
+                ),
+                index,
+                bi,
+                b.level,
+                b.flags & crate::adapter::rst::F_OVERLINE != 0,
+                json_escape(adornment),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                text.len(),
+            )),
+        };
+        Ok(self.rst_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th block in document order.
+    fn rst_block(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let b = model.block(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("reStructuredText document has no block {index}"))
+        })?;
+        let span_bytes = rst_block_bytes(&source, b)?;
+        let content = rst_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!("rst;block={index};kind={}", rst_block_kind_name(b.kind));
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"content_span\":[{},{}],\"level\":{},\"flags\":{},",
+                    "\"rows\":{},\"cols\":{},\"info\":{},",
+                    "\"target\":{},\"title\":{},\"inlines\":{}}}"
+                ),
+                index,
+                rst_block_kind_name(b.kind),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                b.level,
+                b.flags,
+                b.rows,
+                b.cols,
+                rst_opt_json(b.info.as_deref()),
+                rst_opt_json(b.target.as_deref()),
+                rst_opt_json(b.title.as_deref()),
+                b.inlines.len(),
+            )),
+        };
+        Ok(self.rst_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th directive in document order (preserved verbatim).
+    fn rst_directive(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let dirs = model.blocks_of_kind(B_DIRECTIVE);
+        let bi = *dirs.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "reStructuredText document has no directive {index}"
+            ))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("rst directive index out of range"))?;
+        let span_bytes = rst_block_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(span_bytes).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!(
+            "rst;directive={index};block={bi};name={}",
+            b.info.as_deref().unwrap_or("none")
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"directive\":{},\"block\":{},\"name\":{},\"argument\":{},",
+                    "\"span\":[{},{}],\"content_span\":[{},{}],\"bytes\":{}}}"
+                ),
+                index,
+                bi,
+                rst_opt_json(b.info.as_deref()),
+                rst_opt_json(b.title.as_deref()),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                span_bytes.len(),
+            )),
+        };
+        Ok(self.rst_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th inline span in document order.
+    fn rst_inline(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let x = model.inline(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("reStructuredText document has no inline {index}"))
+        })?;
+        let span_bytes = crate::adapter::rst::inline_bytes(&source, x)?;
+        let inner = rst_inline_text_bytes(&source, x)?;
+        let text = String::from_utf8_lossy(inner).into_owned();
+        let span = Some((x.start, x.end));
+        let provenance = format!("rst;inline={index};kind={}", rst_inline_kind_name(x.kind));
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"inline\":{},\"kind\":\"{}\",\"block\":{},",
+                    "\"span\":[{},{}],\"inner_span\":[{},{}],",
+                    "\"target\":{},\"text\":\"{}\"}}"
+                ),
+                index,
+                rst_inline_kind_name(x.kind),
+                x.block,
+                x.start,
+                x.end,
+                x.inner_start,
+                x.inner_end,
+                rst_opt_json(x.target.as_deref()),
+                json_escape(&text),
+            )),
+        };
+        Ok(self.rst_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over reStructuredText block content.
+    fn rst_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let matches = rst_find_matches(&source, &model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"text\":\"{}\"}}"
+                ),
+                m.block,
+                rst_block_kind_name(m.kind),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("rst;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.rst_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_rst(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.rst_common_metadata(req),
+            Selector::Text => self.rst_common_text(req),
+            Selector::Heading(i) => self.rst_heading(req, *i),
+            Selector::Block(i) => self.rst_block(req, *i),
+            Selector::SearchMatch(p) => self.rst_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "reStructuredText does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the exact source (lossily decoded), never re-flowed
+    /// or rendered.
+    fn rst_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.rst_source()?;
+        let text = rst_canonical_text(&source, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.rst_answer(
+            req,
+            AnswerValue::Text(text),
+            "rst;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn rst_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let count = |k: u8| model.blocks_of_kind(k).len();
+        let icount = |k: u8| model.inlines_of_kind(k).len();
+        let explicit = model
+            .blocks
+            .iter()
+            .filter(|b| crate::adapter::rst::is_explicit_markup_block(b.kind))
+            .count();
+        let tables = model
+            .blocks
+            .iter()
+            .filter(|b| crate::adapter::rst::is_table_block(b.kind))
+            .count();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"rst\",\"bytes\":{},\"blocks\":{},",
+                "\"titles\":{},\"max_title_level\":{},\"paragraphs\":{},",
+                "\"list_items\":{},\"explicit_markup\":{},\"directives\":{},",
+                "\"footnotes\":{},\"targets\":{},\"fields\":{},\"options\":{},",
+                "\"definitions\":{},\"literal_blocks\":{},\"doctests\":{},",
+                "\"tables\":{},\"grid_tables\":{},\"simple_tables\":{},",
+                "\"inline_spans\":{},\"strong\":{},\"emphasis\":{},",
+                "\"literals\":{},\"interpreted\":{},\"substitutions\":{},",
+                "\"footnote_refs\":{},\"hyperlink_refs\":{},\"anonymous_refs\":{},",
+                "\"table_cells\":{}}}"
+            ),
+            model.doc_len,
+            model.blocks.len(),
+            count(B_TITLE),
+            model.max_title_level(),
+            count(crate::adapter::rst::B_PARAGRAPH),
+            count(crate::adapter::rst::B_LIST_ITEM),
+            explicit,
+            count(B_DIRECTIVE),
+            count(crate::adapter::rst::B_FOOTNOTE_DEF),
+            count(crate::adapter::rst::B_HYPERLINK_TARGET),
+            count(crate::adapter::rst::B_FIELD),
+            count(crate::adapter::rst::B_OPTION),
+            count(crate::adapter::rst::B_DEFINITION),
+            count(crate::adapter::rst::B_LITERAL_BLOCK),
+            count(crate::adapter::rst::B_DOCTEST),
+            tables,
+            count(crate::adapter::rst::B_GRID_TABLE),
+            count(crate::adapter::rst::B_SIMPLE_TABLE),
+            model.inlines.len(),
+            icount(crate::adapter::rst::I_STRONG),
+            icount(crate::adapter::rst::I_EMPHASIS),
+            icount(crate::adapter::rst::I_LITERAL),
+            icount(crate::adapter::rst::I_INTERPRETED),
+            icount(crate::adapter::rst::I_SUBSTITUTION_REF),
+            icount(crate::adapter::rst::I_FOOTNOTE_REF),
+            icount(crate::adapter::rst::I_HYPERLINK_REF),
+            icount(crate::adapter::rst::I_ANON_REF),
+            icount(crate::adapter::rst::I_TABLE_CELL),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.rst_answer(
+            req,
+            value,
+            "rst;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// -- AsciiDoc (Phase 21.26.2) ------------------------------------------------
+
+/// Render an optional string as JSON (`null` or a quoted escaped string).
+#[cfg(feature = "asciidoc")]
+fn adoc_opt_json(s: Option<&str>) -> String {
+    match s {
+        Some(x) => format!("\"{}\"", json_escape(x)),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "asciidoc")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the AsciiDoc prose model (derived, `Q_gen`).
+    fn adoc_model(&mut self) -> Result<(AdocModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_ASCIIDOC_MODEL, 0), "AsciiDoc model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((AdocModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn adoc_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn adoc_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th heading in document order (document title first, then sections).
+    fn adoc_heading(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        use crate::adapter::asciidoc::B_DOC_TITLE;
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let hs = model.headings();
+        let bi = *hs.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("AsciiDoc document has no heading {index}"))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("adoc heading index out of range"))?;
+        let content = adoc_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.content_start, b.content_end));
+        let marker = b.info.as_deref().unwrap_or("");
+        let provenance = format!("asciidoc;heading={index};level={};marker={marker}", b.level);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(content.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"asciidoc\",\"heading\":{},\"block\":{},",
+                    "\"document_title\":{},\"level\":{},\"marker\":\"{}\",",
+                    "\"span\":[{},{}],\"content_span\":[{},{}],\"text_len\":{}}}"
+                ),
+                index,
+                bi,
+                b.kind == B_DOC_TITLE,
+                b.level,
+                json_escape(marker),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                text.len(),
+            )),
+        };
+        Ok(self.adoc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th block in document order.
+    fn adoc_block(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let b = model.block(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("AsciiDoc document has no block {index}"))
+        })?;
+        let span_bytes = adoc_block_bytes(&source, b)?;
+        let content = adoc_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!(
+            "asciidoc;block={index};kind={}",
+            adoc_block_kind_name(b.kind)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"content_span\":[{},{}],\"level\":{},\"flags\":{},",
+                    "\"rows\":{},\"cols\":{},\"info\":{},",
+                    "\"target\":{},\"title\":{},\"attrs\":{},\"inlines\":{}}}"
+                ),
+                index,
+                adoc_block_kind_name(b.kind),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                b.level,
+                b.flags,
+                b.rows,
+                b.cols,
+                adoc_opt_json(b.info.as_deref()),
+                adoc_opt_json(b.target.as_deref()),
+                adoc_opt_json(b.title.as_deref()),
+                adoc_opt_json(b.attrs.as_deref()),
+                b.inlines.len(),
+            )),
+        };
+        Ok(self.adoc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th document attribute in document order (preserved literally).
+    fn adoc_attribute(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        use crate::adapter::asciidoc::{B_ATTRIBUTE, F_UNSET};
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let attrs = model.blocks_of_kind(B_ATTRIBUTE);
+        let bi = *attrs.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("AsciiDoc document has no attribute {index}"))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("adoc attribute index out of range"))?;
+        let span_bytes = adoc_block_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(span_bytes).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!(
+            "asciidoc;attribute={index};block={bi};name={}",
+            b.info.as_deref().unwrap_or("none")
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"attribute\":{},\"block\":{},\"name\":{},\"value\":{},",
+                    "\"unset\":{},\"span\":[{},{}],\"content_span\":[{},{}]}}"
+                ),
+                index,
+                bi,
+                adoc_opt_json(b.info.as_deref()),
+                adoc_opt_json(b.title.as_deref()),
+                b.flags & F_UNSET != 0,
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+            )),
+        };
+        Ok(self.adoc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th inline span in document order.
+    fn adoc_inline(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let x = model.inline(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("AsciiDoc document has no inline {index}"))
+        })?;
+        let span_bytes = crate::adapter::asciidoc::inline_bytes(&source, x)?;
+        let inner = adoc_inline_text_bytes(&source, x)?;
+        let text = String::from_utf8_lossy(inner).into_owned();
+        let span = Some((x.start, x.end));
+        let provenance = format!(
+            "asciidoc;inline={index};kind={}",
+            adoc_inline_kind_name(x.kind)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"inline\":{},\"kind\":\"{}\",\"block\":{},",
+                    "\"span\":[{},{}],\"inner_span\":[{},{}],",
+                    "\"target\":{},\"text\":\"{}\"}}"
+                ),
+                index,
+                adoc_inline_kind_name(x.kind),
+                x.block,
+                x.start,
+                x.end,
+                x.inner_start,
+                x.inner_end,
+                adoc_opt_json(x.target.as_deref()),
+                json_escape(&text),
+            )),
+        };
+        Ok(self.adoc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over AsciiDoc block content.
+    fn adoc_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let matches = adoc_find_matches(&source, &model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"text\":\"{}\"}}"
+                ),
+                m.block,
+                adoc_block_kind_name(m.kind),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("asciidoc;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.adoc_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_asciidoc(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.adoc_common_metadata(req),
+            Selector::Text => self.adoc_common_text(req),
+            Selector::Heading(i) => self.adoc_heading(req, *i),
+            Selector::Block(i) => self.adoc_block(req, *i),
+            Selector::SearchMatch(p) => self.adoc_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "AsciiDoc does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the exact source (lossily decoded), never re-flowed
+    /// or rendered.
+    fn adoc_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.adoc_source()?;
+        let text = adoc_canonical_text(&source, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.adoc_answer(
+            req,
+            AnswerValue::Text(text),
+            "asciidoc;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn adoc_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        use crate::adapter::asciidoc::{
+            B_ADMONITION, B_ATTRIBUTE, B_BLOCK_ATTR, B_DOC_TITLE, B_EXAMPLE, B_LIST_ITEM,
+            B_LISTING, B_LITERAL, B_OPEN, B_PASSTHROUGH, B_QUOTE, B_SECTION, B_SIDEBAR, B_TABLE,
+            F_BLOCK, I_ATTR_REF, I_EMPHASIS, I_IMAGE, I_INCLUDE, I_LINK, I_MARK, I_MARK_DOUBLE,
+            I_MONO, I_PASSTHROUGH, I_STRONG, I_SUBSCRIPT, I_SUPERSCRIPT, I_TABLE_CELL, I_URL,
+            I_XREF,
+        };
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let count = |k: u8| model.blocks_of_kind(k).len();
+        let icount = |k: u8| model.inlines_of_kind(k).len();
+        let delimited = model
+            .blocks
+            .iter()
+            .filter(|b| crate::adapter::asciidoc::is_delimited_block(b.kind))
+            .count();
+        let block_admonitions = model
+            .blocks
+            .iter()
+            .filter(|b| b.kind == B_ADMONITION && b.flags & F_BLOCK != 0)
+            .count();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"asciidoc\",\"bytes\":{},\"blocks\":{},",
+                "\"doc_title\":{},\"sections\":{},\"max_section_level\":{},",
+                "\"paragraphs\":{},\"attributes\":{},\"block_attrs\":{},",
+                "\"listings\":{},\"literals\":{},\"examples\":{},\"sidebars\":{},",
+                "\"quotes\":{},\"opens\":{},\"passthrough_blocks\":{},\"delimited\":{},",
+                "\"list_items\":{},\"tables\":{},\"admonitions\":{},",
+                "\"block_admonitions\":{},\"inline_spans\":{},\"strong\":{},",
+                "\"emphasis\":{},\"mono\":{},\"passthrough\":{},\"superscript\":{},",
+                "\"subscript\":{},\"marks\":{},\"mark_double\":{},\"links\":{},",
+                "\"images\":{},\"includes\":{},\"xrefs\":{},\"urls\":{},",
+                "\"attribute_refs\":{},\"table_cells\":{}}}"
+            ),
+            model.doc_len,
+            model.blocks.len(),
+            count(B_DOC_TITLE),
+            count(B_SECTION),
+            model.max_section_level(),
+            count(crate::adapter::asciidoc::B_PARAGRAPH),
+            count(B_ATTRIBUTE),
+            count(B_BLOCK_ATTR),
+            count(B_LISTING),
+            count(B_LITERAL),
+            count(B_EXAMPLE),
+            count(B_SIDEBAR),
+            count(B_QUOTE),
+            count(B_OPEN),
+            count(B_PASSTHROUGH),
+            delimited,
+            count(B_LIST_ITEM),
+            count(B_TABLE),
+            count(B_ADMONITION),
+            block_admonitions,
+            model.inlines.len(),
+            icount(I_STRONG),
+            icount(I_EMPHASIS),
+            icount(I_MONO),
+            icount(I_PASSTHROUGH),
+            icount(I_SUPERSCRIPT),
+            icount(I_SUBSCRIPT),
+            icount(I_MARK),
+            icount(I_MARK_DOUBLE),
+            icount(I_LINK),
+            icount(I_IMAGE),
+            icount(I_INCLUDE),
+            icount(I_XREF),
+            icount(I_URL),
+            icount(I_ATTR_REF),
+            icount(I_TABLE_CELL),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.adoc_answer(
+            req,
+            value,
+            "asciidoc;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

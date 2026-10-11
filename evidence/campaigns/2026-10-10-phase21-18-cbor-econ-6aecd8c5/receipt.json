@@ -1,0 +1,359 @@
+{
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "1d7e9baf14fed1c3c8461812c66f0da0df864d72630631987cfc20f21cf9bf31",
+  "campaign": "evidence/campaigns/2026-10-10-phase21-18-cbor-econ-6aecd8c5",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "comparators": [
+    "sqlite",
+    "conv"
+  ],
+  "controls": "badmap.cbor fixarray3.bin fixmap2.bin prose.txt scalar.cbor single.cbor strict.json trailing.cbor unterm.cbor",
+  "declines": "an out-of-range pointer and a missing member decline typed (rc 6); a malformed pointer is a usage error (rc 2); the strict-JSON control stays Json and a native CBOR selector on it declines typed; the lone-scalar, truncated, map-key-without-value, unterminated, trailing-byte, ambiguous fixarray(3)/fixmap(2), and prose controls stay Opaque and a common observation declines typed (rc 6), never a panic",
+  "detection_boundary": "CBOR has no magic bytes, so detection is conservative: the self-described-CBOR tag 55799 (0xd9 0xd9 0xf7), or a full-input well-formed parse whose root is a container/tag reaching at least three nodes; ambiguous or trivial inputs fall back to Opaque rather than being guessed",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "baseline_sha256": "e54b2715ada66c7a1f1f270320b5d3faa269ce17ca1d4fdc42f7530834d0fc4a",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "1d7e9baf14fed1c3c8461812c66f0da0df864d72630631987cfc20f21cf9bf31",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-10-phase21-18-cbor-econ-6aecd8c5",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+    "cbor_min_sha256": "408c220be4872c65e164300ad3fd97490c3739505fc96211824739d7ebede45d",
+    "controls": "badmap.cbor fixarray3.bin fixmap2.bin prose.txt scalar.cbor single.cbor strict.json trailing.cbor unterm.cbor",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "basic.cbor": {
+        "len": 12,
+        "sha256": "385906bb172443a8ac38657e355de05777a7c66faab7ba1d1b86c0f9321079db"
+      },
+      "bytestext.cbor": {
+        "len": 9,
+        "sha256": "ed65b384ecd453b743ccc1a6e9201bd76b23959c56b27388ff5e001183d3bc64"
+      },
+      "dupkeys.cbor": {
+        "len": 7,
+        "sha256": "a1ba48ece6f0b8d1f923c6877447b05e05b8fbba65be9f1ee2e9817af34a0526"
+      },
+      "floats.cbor": {
+        "len": 18,
+        "sha256": "99aeb3ce15e71475b150cc560da0065997b0d95b7a0074b7383475e656f4955f"
+      },
+      "indef.cbor": {
+        "len": 13,
+        "sha256": "a08800d9d7e012214c47787bfad69453be37c04eafe78e62464f6a2f4df41951"
+      },
+      "large.cbor": {
+        "len": 4003,
+        "sha256": "fcb0ae4b870a08f86cbe0618ddfa838348499971872f8e2f9ad6705c77ef75cf"
+      },
+      "mapkeys.cbor": {
+        "len": 13,
+        "sha256": "6f7d3fc207d2ab8675430f98db052a294e973c90f79aec36e74c3a2268ffb980"
+      },
+      "nested.cbor": {
+        "len": 13,
+        "sha256": "d4a2fb7257bf1e0c7187831996eccaff00bcce324264c8587ac63215f27a7ff9"
+      },
+      "nonfinite.cbor": {
+        "len": 10,
+        "sha256": "f3526d50ec8de309a01dd78330e68111c6e89bfb83b43f65c82de4796284afd0"
+      },
+      "tags.cbor": {
+        "len": 15,
+        "sha256": "7e7ba9050c46c68120dba20ee1a48db17849c03056b7173bf94012ae0fea746a"
+      },
+      "widths.cbor": {
+        "len": 7,
+        "sha256": "8b20353b8e7aeb00d7724d28de74032b29e2183aab684f1905cc0aa90dab0709"
+      }
+    },
+    "format": "cbor",
+    "lane_fixtures": "basic.cbor widths.cbor floats.cbor bytestext.cbor dupkeys.cbor tags.cbor indef.cbor nested.cbor mapkeys.cbor nonfinite.cbor large.cbor",
+    "measured_commit": "6aecd8c5511883109f8d1cba98d249569d8a94ab",
+    "msgpack_min_sha256": "615b15b3b0ffdb121eec69e56b608c23e727db4cf23acf9d3169c5ec1e025986",
+    "phase": "21.18 \u2014 CBOR economic court (VOLE vs source-retaining strict-JSON SQLite + conventional CBOR load)",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 4826,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M .gitignore ?? evidence/campaigns/2026-10-10-phase21-18-cbor-econ-6aecd8c5/ ?? evidence/campaigns/2026-10-10-phase21-19-msgpack-econ-6aecd8c5/ ?? tools/fixtures/binfmt-baseline.py ?? tools/fixtures/binfmt-court.sh ?? tools/fixtures/binfmt-vole.py ?? tools/fixtures/cbor/ ?? tools/fixtures/cbor_min.py ?? tools/fixtures/make-cbor.py ?? tools/fixtures/make-msgpack.py ?? tools/fixtures/msgpack/ ?? tools/fixtures/msgpack_min.py ?? tools/phase21-18-cbor-court.sh ?? tools/phase21-19-msgpack-court.sh ",
+    "utc": "2026-10-10T19:51:56Z",
+    "vole_probe_sha256": "ee79270233bf2c3a5dc2e5858878286db24f18510b3e8f31a3ecf0dd01b8e1fa",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "equal": 10,
+        "mismatch": 1
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 9
+      }
+    },
+    "Q10": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    },
+    "Q11": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    },
+    "Q12": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    },
+    "Q3": {
+      "conv": {
+        "equal": 11
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 9
+      }
+    },
+    "Q4": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 9
+      }
+    },
+    "Q5": {
+      "conv": {
+        "equal": 10,
+        "mismatch": 1
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 9
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "equal": 11
+      }
+    },
+    "Q7": {
+      "conv": {
+        "equal": 10,
+        "mismatch": 1
+      },
+      "sqlite": {
+        "capability-gap": 2,
+        "equal": 9
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    },
+    "Q9": {
+      "conv": {
+        "capability-gap": 11
+      },
+      "sqlite": {
+        "capability-gap": 11
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 211821); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 20,
+  "exact_ok": 20,
+  "fixtures": [
+    "basic.cbor",
+    "widths.cbor",
+    "floats.cbor",
+    "bytestext.cbor",
+    "dupkeys.cbor",
+    "tags.cbor",
+    "indef.cbor",
+    "nested.cbor",
+    "mapkeys.cbor",
+    "nonfinite.cbor",
+    "large.cbor"
+  ],
+  "hypotheses": {
+    "H1": "byte-exactness == 100% or FAIL (materialize --exact == source after source + descriptor deletion)",
+    "H2": "contract questions Q1-Q12 answered where the lane's model permits",
+    "H3": "every unanswerable question is a typed decline (rc 6); malformed pointer is a usage error (rc 2); detection boundaries pinned",
+    "H4": "build/storage/cold/warm measured per lane with the ADR-0054 estimator"
+  },
+  "lane_fixtures": "basic.cbor widths.cbor floats.cbor bytestext.cbor dupkeys.cbor tags.cbor indef.cbor nested.cbor mapkeys.cbor nonfinite.cbor large.cbor",
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "measured_commit": "6aecd8c5511883109f8d1cba98d249569d8a94ab",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native pointer (exact + metadata)"
+  ],
+  "phase": "21.18 \u2014 CBOR economic court",
+  "profile": "release",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 1.426817467296073,
+        "geomean_hi": 1.45397707966799,
+        "geomean_lo": 1.3986368562831242,
+        "losses": 11,
+        "median": 1.4333091887417218,
+        "median_hi": 1.4786711966779917,
+        "median_lo": 1.3911751372588526,
+        "n": 11,
+        "ratio_of_sums": 1.426167149113041,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 1.0358963343300054,
+        "geomean_hi": 1.0616894125272966,
+        "geomean_lo": 1.0089518916575901,
+        "losses": 1,
+        "median": 1.0421512732801217,
+        "median_hi": 1.0706625589829584,
+        "median_lo": 1.022703780271707,
+        "n": 11,
+        "ratio_of_sums": 1.0351345618364922,
+        "ties": 10,
+        "wins": 0
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.033568654847735566,
+        "geomean_hi": 0.03458833375026012,
+        "geomean_lo": 0.03270658716985917,
+        "losses": 0,
+        "median": 0.03322074095368141,
+        "median_hi": 0.03489692704929052,
+        "median_lo": 0.032128130561222275,
+        "n": 11,
+        "ratio_of_sums": 0.033596777293747285,
+        "ties": 0,
+        "wins": 11
+      },
+      "sqlite": {
+        "geomean": 0.03134388402017109,
+        "geomean_hi": 0.03226450312916875,
+        "geomean_lo": 0.030581674025922916,
+        "losses": 0,
+        "median": 0.031086076834690512,
+        "median_hi": 0.031772221517113,
+        "median_lo": 0.030226679679683767,
+        "n": 11,
+        "ratio_of_sums": 0.03137227693726638,
+        "ties": 0,
+        "wins": 11
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 27.933273877653097,
+        "geomean_hi": 37.41456763263232,
+        "geomean_lo": 16.369414116185503,
+        "losses": 11,
+        "median": 35.40601503759399,
+        "median_hi": 38.333333333333336,
+        "median_lo": 33.43971631205674,
+        "n": 11,
+        "ratio_of_sums": 8.069337650074194,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.6008878518331232,
+        "geomean_hi": 0.669232873362639,
+        "geomean_lo": 0.5688902752792495,
+        "losses": 0,
+        "median": 0.5701669489474958,
+        "median_hi": 0.5708928139366078,
+        "median_lo": 0.5687840290381125,
+        "n": 11,
+        "ratio_of_sums": 0.6290208944551353,
+        "ties": 1,
+        "wins": 10
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 3.996148569049096,
+        "geomean_hi": 4.307942658260743,
+        "geomean_lo": 3.7418736811791433,
+        "losses": 11,
+        "median": 3.75,
+        "median_hi": 4.346153846153846,
+        "median_lo": 3.625,
+        "n": 11,
+        "ratio_of_sums": 3.8447204968944098,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.5730847785729246,
+        "geomean_hi": 0.7460276876614622,
+        "geomean_lo": 0.4622435716964581,
+        "losses": 1,
+        "median": 0.4672131147540984,
+        "median_hi": 0.8244274809160306,
+        "median_lo": 0.43253968253968256,
+        "n": 11,
+        "ratio_of_sums": 0.6857459379615952,
+        "ties": 1,
+        "wins": 9
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 32 invalid-cbor-structure",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "service": "doc-baseline",
+  "surface": "every major type; the encoding width actually used (0x17 vs 0x1817) and signedness (uint vs negint); byte string vs text string as distinct kinds; tag numbers preserved (never resolved); map order and duplicate keys; float width (half/single/double); definite vs indefinite-length items",
+  "tree_state": " M .gitignore ?? evidence/campaigns/2026-10-10-phase21-18-cbor-econ-6aecd8c5/ ?? evidence/campaigns/2026-10-10-phase21-19-msgpack-econ-6aecd8c5/ ?? tools/fixtures/binfmt-baseline.py ?? tools/fixtures/binfmt-court.sh ?? tools/fixtures/binfmt-vole.py ?? tools/fixtures/cbor/ ?? tools/fixtures/cbor_min.py ?? tools/fixtures/make-cbor.py ?? tools/fixtures/make-msgpack.py ?? tools/fixtures/msgpack/ ?? tools/fixtures/msgpack_min.py ?? tools/phase21-18-cbor-court.sh ?? tools/phase21-19-msgpack-court.sh ",
+  "utc": "2026-10-10T19:51:56Z",
+  "verdict": "PASS"
+}

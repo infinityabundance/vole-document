@@ -1,0 +1,8 @@
+fixture	expect_fmt	fmt	expect_rc	rc	common_rc	own_rc	foreign_rc	ok
+bad_checksum.tar	opaque	opaque	6	6	6	6	6	true
+bad_eocd.zip	opaque	opaque	6	6	6	6	6	true
+office.docx	docx	docx	6	6	20	6	6	true
+office.odt	odt	odt	6	6	20	6	6	true
+pk_junk.bin	opaque	opaque	6	6	6	6	6	true
+prose.txt	opaque	opaque	6	6	6	6	6	true
+truncated.zip	opaque	opaque	6	6	6	6	6	true

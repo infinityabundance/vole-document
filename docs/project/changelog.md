@@ -2,6 +2,298 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.35] — Phase 21 Wave 2: the remaining structured/tabular/document/web/messaging/analytical/legacy formats — *unreleased*
+
+- **21.17 — JSON5/JSONC adapter + economic court.** Non-default `json5 = ["json"]`
+  (dependency-free; reuses the JSON parser). A representation-preserving
+  **superset**: comments with spans, unquoted keys, single-quoted strings,
+  trailing commas, hex/leading-dot/`Infinity`/`NaN` numbers, string continuations,
+  the extended whitespace set, member order, duplicate keys, and a recorded
+  `jsonc`-vs-`json5` dialect. Strict JSON stays `Json`. Native `--json5-pointer`/
+  `--json5-node`/`--json5-find`/`--json5-comments`; common metadata/text/search-match.
+  Exact 10/10 · 9/9; economic court vs SQLite (strict-JSON normalized) **and** a
+  conventional JSON5→object load; the strict-JSON lane cannot represent `NaN`/
+  `Infinity` (recorded). `2026-10-10-phase21-17-1-json5-88b30730`,
+  `…-phase21-17-json5-econ-10f5b898`.
+- **21.18 — CBOR (RFC 8949) adapter + economic court.** Non-default, dependency-free
+  `cbor = ["json"]`. Binary structured tree; **no magic bytes** (the self-described
+  tag `55799`, or a full well-formed parse reaching ≥ 3 nodes). Every major type,
+  encoding width, byte-vs-text, tags (never resolved), map order + duplicate keys,
+  float width, definite/indefinite form. Native `--cbor-pointer`/`--cbor-node`/
+  `--cbor-find`. Exact 16/16 · 20/20; economic court vs SQLite (strict-JSON
+  normalized) **and** a conventional CBOR→host load; the small-int/short-container
+  prefix **overlaps MessagePack** (recorded; ambiguous inputs stay `Opaque`).
+  `2026-10-10-phase21-18-1-cbor-f7093672`, `…-phase21-18-cbor-econ-6aecd8c5`.
+- **21.19 — MessagePack adapter + economic court.** Non-default, dependency-free
+  `msgpack = ["json"]`. Binary structured tree; **no magic bytes**; the exact format
+  byte (encoding width **and** signedness), `str` vs `bin`, map order + duplicate
+  keys, float width, extension type + payload length. Native `--msgpack-pointer`/
+  `--msgpack-node`/`--msgpack-find`. Exact 17/17 (incl. a CBOR coexistence
+  control) · 21/21. CBOR is tried first, so a CBOR document is never stolen.
+  `2026-10-10-phase21-19-1-msgpack-f7093672`, `…-phase21-19-msgpack-econ-6aecd8c5`.
+- **21.20 — config (INI/`.env`/Java properties) adapter + economic court.**
+  Non-default, dependency-free `config = []`. One bounded key/value-line parser
+  preserving the dialect, exact spans, line order, the `export` marker, quoting,
+  properties continuations and `\uXXXX` spelling; duplicate keys reported. TOML is
+  tried first (an INI-shaped TOML stays `Toml`); the pure `KEY=VALUE`
+  env-vs-properties overlap stays `Opaque` (recorded). Native `--config-line`/
+  `--config-entry`/`--config-section`/`--config-find`. Exact 11/11 · 14/14.
+  `2026-10-10-phase21-20-1-config-646e812b`, `…-phase21-20-config-econ-735d9b69`.
+- **21.21 — RSS/Atom feed adapter + economic court.** Non-default `feed = ["xml"]`
+  (reuses the XML parser). RSS 2.0 `<rss><channel>` and Atom 1.0 `<feed>`+`<entry>`;
+  recorded dialect, element/attribute spans, element order, attribute spelling,
+  Atom namespace. Tried **before** the generic XML detector; plain XML and older
+  namespaces (RSS 1.0, Atom 0.3) stay `Xml`. Native `--feed-channel`/`--feed-field`/
+  `--feed-entry`/`--feed-entry-field`/`--feed-find`. Exact 7/7 · 11/11.
+  `2026-10-10-phase21-21-1-feed-d426b43a`, `…-phase21-21-feed-econ-735d9b69`.
+- **21.22 — GeoJSON (RFC 7946) adapter + economic court.** Non-default
+  `geojson = ["json"]` (reuses the JSON parser). Bounded semantic sub-detection
+  **before** the generic JSON detector; the exact `type` token, `coordinates`
+  nesting with exact numeric spelling, `properties` order + duplicates,
+  `id`/`bbox`/`geometry`/`features` order and foreign members; plain JSON stays
+  `Json`. Native `--geojson-type`/`--geojson-feature`/`--geojson-geometry`/
+  `--geojson-coordinates`/`--geojson-property`/`--geojson-find`. Exact 8/8 · 11/11.
+  `2026-10-10-phase21-22-1-geojson-670675f9`, `…-phase21-22-geojson-econ-735d9b69`.
+- **21.23 — KML 2.2/GPX 1.1 adapter + economic court.** Non-default `gis = ["xml"]`
+  (reuses the XML parser). Bounded semantic sub-detection **before** the generic XML
+  detector; recorded dialect, element/attribute spans, element order, KML
+  `<coordinates>`/GPX `lat`/`lon` spelling, namespace declaration. Plain XML and
+  older namespaces (KML 2.0/2.1, GPX 1.0) stay `Xml`. Native `--gis-root`/
+  `--gis-field`/`--gis-record`/`--gis-record-field`/`--gis-point`/`--gis-find`.
+  Exact 8/8 · 10/10. `2026-10-10-phase21-23-1-gis-aed361cf`,
+  `…-phase21-23-gis-econ-735d9b69`.
+- **21.24 — Jupyter notebook (`.ipynb`) adapter + economic court.** Non-default
+  `notebook = ["json"]` (reuses the JSON parser). Bounded semantic sub-detection
+  **before** the generic JSON detector; exact `nbformat`/`nbformat_minor`, exact
+  `cell_type`/`output_type`, the exact `source` form (string vs line array, never
+  re-joined), `execution_count`, cell/output order, `metadata`, `attachments`.
+  Plain JSON / non-nbformat `cells` stay `Json`. Native `--notebook-nbformat`/
+  `--notebook-cell`/`--notebook-cell-type`/`--notebook-cell-source`/
+  `--notebook-cell-output`/`--notebook-find`. Exact 7/7 · 11/11.
+  `2026-10-10-phase21-24-1-notebook-b6860e87`, `…-phase21-24-notebook-econ-735d9b69`.
+- **GeoJSON JSON-validity defect fixed.** The 21.20–21.24 economic courts found
+  that **7 GeoJSON observation projections emitted invalid JSON** (a stray `"`);
+  the adapter court's substring assertions had missed it. Found by parsing the
+  outputs in the economic court and fixed in `src/field/observe.rs` (commit
+  `ba4df0d4`). All five profile-format economic courts re-sealed
+  (`…-phase21-{20,21,22,23,24}-*-econ-735d9b69`); the JSON validity checks are now
+  part of the courts.
+- **21.25 — PSV (pipe dialect) + fixed-width (column-position) tabular extra.**
+  The **pipe** delimiter is added as the CSV/TSV adapter's **third recorded
+  dialect** (one parser, three delimiters — never a second parser; tried after
+  comma and tab and **declined on a GFM/Markdown delimiter row**, so a Markdown
+  pipe table is never stolen); PSV needs no new feature gate. A **distinct**
+  fixed-width adapter (`fixedwidth = ["csv"]`, **non-default**) is added for
+  character-position columns: the inferred per-column start/end positions and
+  widths, the uniform record width, every record's exact content span and every
+  field's exact padded bytes, the terminator, a BOM, and the header row. Native
+  `--fixedwidth-row`/`--fixedwidth-cell`/`--fixedwidth-header`/
+  `--fixedwidth-columns`/`--fixedwidth-range`/`--fixedwidth-find`; common
+  metadata/text/table/cell/search-match. Detection is maximally conservative
+  (**≥ 3 sampled records of identical byte width**, ≥ 2 non-empty columns,
+  interior gaps ≥ 2 columns wide) and **declines anything that also parses as a
+  delimited or Markdown table**; `parse` re-validates every line
+  (`invalid-fixedwidth-structure`, exit 39). Adapter exactness **10/10**
+  (4 fixed-width + 3 delimited + 1 Markdown + 2 opaque controls). Economic court
+  **(3-lane; ADR-0059)** vs a **source-retaining SQLite store**, a **conventional
+  decode-to-host load** and the mandatory **DuckDB/Parquet** lane: exact 11/11;
+  build **0.760/0.857** SQLite · **0.928/0.994** conv · **0.333/0.381** DuckDB,
+  storage **0.583/0.590** SQLite · **21.801/8.652** conv · **6.557/7.483** DuckDB
+  (ratio-of-sums **11.233** — **DuckDB wins storage**, e.g. `large.psv`
+  49,804 B vs VOLE 529,027 B), cold **0.027/0.033** · **0.028/0.034** ·
+  **0.010/0.013**, warm **0.074/0.088** · **0.776/0.591** · **0.001/0.003**
+  (median/geomean). DuckDB equivalence 6 equal · 6 capability-gap · 0 mismatch.
+  An ambiguous aligned-text blob **is** claimed (recorded); positions are **byte**
+  positions; cold ratios are Python-startup-dominated.
+  `2026-10-10-phase21-25-1-tabular-e3c77a86`,
+  `…-phase21-25-tabular-econ-584ee52e` (3-lane; supersedes the retained 2-lane
+  `…-f0a3a5cf`).
+- **21.26.1 — reStructuredText (Docutils) adapter + economic court.** Non-default,
+  dependency-free `rst = []`. A bounded, line-based Docutils-subset parser keeping
+  exact block/inline byte spans: section titles with their exact underline/
+  overline adornment and a recorded hierarchy, paragraphs, explicit markup
+  (comments, directives preserved **verbatim**, substitution definitions,
+  footnotes/citations, hyperlink targets), field/option/definition lists, literal
+  and doctest blocks, bullet/enumerated lists with nesting, inline markup, and
+  grid/simple tables. Detection requires a reST-**specific** signal (explicit
+  markup, a grid/simple table, a field list, a literal/doctest block, or a
+  non-Markdown adornment); Markdown is tried first, so a Markdown document is
+  never stolen. Native `--rst-heading`/`--rst-block`/`--rst-directive`/
+  `--rst-inline`/`--rst-find`. Adapter exactness **8/8**; economic court exact
+  **9/9** — build **0.902/0.928** SQLite · **1.223/1.232** conv, storage
+  **0.602/0.599** · **9.160/7.032**, cold **0.029/0.031** · **0.030/0.033**, warm
+  **0.086/0.097** · **1.058/0.889**. `2026-10-10-phase21-26-1-rst-91b02068`,
+  `…-phase21-26-1-rst-econ-f0a3a5cf`.
+- **21.26.2 — AsciiDoc (Asciidoctor) adapter + economic court.** Non-default,
+  dependency-free `asciidoc = []`. A bounded, line-based AsciiDoc-subset parser
+  keeping exact block/inline byte spans: a level-0 document title and `==`+
+  sections with their exact `=` marker and a recorded level, document attributes
+  (`:name: value` / `:name!:`) with attribute references (`{name}`) surfaced
+  literally (never expanded), block attribute lines attached to the following
+  block, delimited blocks (listing/literal/example/sidebar/quote/open/passthrough)
+  with their exact delimiter and verbatim content, unordered/ordered/description
+  lists with nesting, `|===` tables, admonitions, and inline markup plus the
+  `link:`/`image:`/`include::`/`xref:`/bare-URL macros. Detection requires an
+  AsciiDoc-**specific** mark (a document title, a `==`+ section, a `|===` table, a
+  complete delimited block, or a block-attribute line followed by a block);
+  Markdown and reST are tried first. Native `--adoc-heading`/`--adoc-block`/
+  `--adoc-attribute`/`--adoc-inline`/`--adoc-find`. Adapter exactness **11/11**;
+  economic court exact **11/11** — build **0.915/0.944** · **1.254/1.243**,
+  storage **0.602/0.608** · **7.475/6.129**, cold **0.028/0.030** · **0.030/0.032**,
+  warm **0.086/0.097** · **1.069/0.907**. `2026-10-10-phase21-26-2-asciidoc-91b02068`,
+  `…-phase21-26-2-asciidoc-econ-f0a3a5cf`.
+- **21.26.3 — MDX (Markdown + JSX/ESM) adapter + economic court.** Non-default
+  `mdx = ["markdown"]`; MDX is a **superset** of Markdown, so this adapter
+  **reuses the Markdown parser and model** (never a second prose parser) and layers
+  exact-span MDX constructs on top: top-level ESM `import`/`export` statements,
+  JSX elements and fragments with their attributes and nested children (recorded
+  as extents, **never executed and never parsed as JavaScript**), and MDX `{ … }`
+  expressions inline and block (brace-balanced, with string literals, escapes, and
+  comments respected). Detection is tried **before** generic Markdown and HTML and
+  requires an MDX-**specific** signal on top of a successful Markdown parse (a
+  top-level ESM statement, a JSX component/fragment, a JSX-specific attribute, or
+  a whole-line block expression); the scanner skips fenced/indented code, front
+  matter, and inline code spans. Native `--mdx-heading`/`--mdx-block`/`--mdx-esm`/
+  `--mdx-jsx`/`--mdx-expression`/`--mdx-find`. Adapter exactness **11/11** (5 MDX
+  + 6 controls); economic court exact **12/12** — build **0.904/0.911** ·
+  **1.202/1.195**, storage **0.594/0.599** · **9.932/6.197**, cold
+  **0.029/0.032** · **0.029/0.034**, warm **0.081/0.093** · **1.027/0.836**.
+  `2026-10-10-phase21-26-3-mdx-91b02068`, `…-phase21-26-3-mdx-econ-f0a3a5cf`.
+- **Recorded boundaries (honest negatives).** PSV **declines on a GFM delimiter
+  row**; fixed-width **requires ≥ 3 uniform-width records** and **declines on
+  delimited/Markdown input**; reST **claims spaced `:name:` field lists ahead of
+  AsciiDoc**; AsciiDoc **needs an AsciiDoc-specific mark** (a single-non-blank-line
+  `====`/`++++`/`....` block is a reST overline title; only the no-space
+  `:name:value` spelling stays AsciiDoc); MDX **needs an ESM/JSX/expression
+  signal**, `Html` stays `html`, and an inline `{x}` alone does not promote
+  Markdown. The four economic courts are measured by the shared
+  `tools/fixtures/textfmt-court.sh` engine; **cold ratios are Python-startup-
+  dominated**, and only exact closure (Q6) is a byte-authority claim.
+- **21.27 — MHTML (MIME HTML) adapter + economic court.** Non-default `mhtml =
+  ["eml", "html"]`; reuses the EML MIME layer and the HTML scanner (never a
+  second parser). Exposes the MIME envelope, the ordered parts, the ordered
+  sub-resources keyed by `Content-Location`/`Content-ID`, and the root HTML part;
+  quoted-printable/base64 parts are decoded **only for a derived observation**
+  (the exact encoded body span is retained). Native
+  `--mhtml-root`/`--mhtml-resource`/`--mhtml-location`/`--mhtml-find`. Detection
+  is a bounded semantic sub-detection **before** the generic EML detector (a
+  `multipart/related` root plus a `Snapshot-Content-Location`/`Content-Base`, or a
+  `From`+`Subject` envelope with a `text/html` part). Adapter exactness **9/9**;
+  economic court exact **7/7** — build **0.690/0.673** SQLite · **0.821/0.806**
+  conv, storage **0.709/0.736** · **12.298/8.214**, cold **0.026/0.036** ·
+  **0.028/0.038**, warm **0.128/0.245** · **1.608/1.969**. `2026-10-10-phase21-27-1-mhtml-eccb438c`,
+  `2026-10-11-phase21-27-mhtml-econ-372a86e0`.
+- **21.28 — syslog / log-stream adapter + economic court.** Non-default,
+  dependency-free `logstream = []` (a log line is not JSON, so it uses no JSON
+  parser). Records three dialects (RFC 5424, RFC 3164/BSD, generic), each
+  record's exact line span/terminator, line number, decoded priority, deepest
+  structured-data nesting, and every field's exact span. Native
+  `--logstream-line`/`--logstream-field`/`--logstream-find`. Detection is
+  byte-based and conservative (≥ 2 non-blank lines, every line matches a
+  dialect), tried **after** the structured/prose family and **before**
+  fixed-width. Adapter exactness **9/9**; economic court exact **10/10** — build
+  **0.811/0.839** · **1.040/1.043**, storage **0.593/0.604** · **14.432/10.036**,
+  cold **0.025/0.029** · **0.026/0.031**, warm **0.082/0.107** · **0.566/0.618**.
+  `2026-10-10-phase21-28-1-logstream-bd187003`, `2026-10-11-phase21-28-logstream-econ-372a86e0`.
+- **21.29 — package-metadata adapter + economic court.** Non-default `pkgmeta =
+  ["json", "toml"]`; reuses the JSON and TOML parsers. Covers five recorded
+  dialects (`npm_package` / `cargo_manifest` / `pyproject_manifest` / `cargo_lock`
+  / `npm_lock`) with a span-preserving section/entry model. Native
+  `--pkgmeta-section`/`--pkgmeta-entry`/`--pkgmeta-key`/`--pkgmeta-find`.
+  Content-only detection **before** the generic JSON/TOML detectors. Adapter
+  exactness **8/8**; economic court exact **9/9** — build **0.723/0.745** ·
+  **0.915/0.911**, storage **0.606/0.650** · **15.841/11.515**, cold
+  **0.024/0.029** · **0.025/0.031**, warm **0.109/0.148** · **1.292/1.236**.
+  `2026-10-10-phase21-29-1-pkgmeta-867eb792`, `2026-10-11-phase21-29-pkgmeta-econ-372a86e0`.
+- **21.30 — API/specification adapter + economic court.** Non-default `apispec =
+  ["json"]`; reuses the JSON parser. Four dialects (`json_schema` / `openapi` /
+  `swagger` / `asyncapi`); records the exact spec-version token, every object
+  (role + spans + member range), every member, and every `$ref` **verbatim (never
+  resolved)**. Native `--apispec-dialect`/`--apispec-version`/`--apispec-object`/
+  `--apispec-ref`/`--apispec-find`. Content-only detection on a strong root-level
+  marker (`$schema`/`openapi`/`swagger`/`asyncapi`) **before** the generic JSON
+  detector. Adapter exactness **7/7**; economic court exact **8/8** — build
+  **0.798/0.791** · **1.031/1.040**, storage **0.620/0.784** · **27.245/64.667**,
+  cold **0.023/0.030** · **0.024/0.031**, warm **0.113/0.250** · **1.491/3.833**.
+  `2026-10-10-phase21-30-1-apispec-d2f77c3b`, `2026-10-11-phase21-30-apispec-econ-372a86e0`.
+- **21.31 — bibliography (BibTeX / RIS / CSL-JSON) adapter + economic court.**
+  Non-default `bib = ["json"]`; reuses the JSON parser for CSL-JSON. Records the
+  dialect (`bibtex`/`ris`/`csl_json`); BibTeX keeps the key/type/field names *as
+  written*, the brace/quoted/number/macro value forms, `#` concatenation, and
+  duplicate fields; RIS keeps the two-space separator and a multi-line
+  continuation; CSL-JSON keeps member order/duplicates/spelling. Native
+  `--bib-dialect`/`--bib-entry`/`--bib-field`/`--bib-key`/`--bib-find`.
+  Content-only detection **before** the generic JSON detector. Adapter exactness
+  **5/5**; economic court exact **6/6** — build **0.776/0.817** · **0.984/1.002**,
+  storage **0.600/0.670** · **14.463/8.921**, cold **0.022/0.030** ·
+  **0.024/0.033**, warm **0.087/0.142** · **1.090/1.089**.
+  `2026-10-10-phase21-31-1-bib-51bd19a3`, `2026-10-11-phase21-31-bib-econ-372a86e0`.
+- **21.32 — RTF adapter + economic court.** Non-default, dependency-free `rtf =
+  []`. Preserves the header, every group's exact brace span/depth, control
+  words/symbols, `\'hh` hex escapes, `\uN` with its `\ucN` fallback,
+  destinations verbatim, and byte-exact text runs (never whitespace-normalized).
+  Native `--rtf-header`/`--rtf-group`/`--rtf-control`/`--rtf-hex`/
+  `--rtf-unicode`/`--rtf-text`/`--rtf-dest`/`--rtf-find`. Detection is the strong
+  `{\rtf<digit>` magic plus a bounded brace-balance scan (not a full grammar),
+  before the JSON family. Adapter exactness **5/5**; economic court exact **6/6**
+  — build **0.664/0.663** · **0.950/0.947**, storage **1.292/1.109** ·
+  **1077.372/215.200**, cold **0.047/0.040** · **0.051/0.044**, warm
+  **1.522/0.588** · **38.762/10.792**. `2026-10-10-phase21-32-1-rtf-714e1009`,
+  `2026-10-11-phase21-32-rtf-econ-372a86e0`.
+- **21.33 — generic archive-container (ZIP / TAR) adapter + economic court.**
+  Non-default `container = ["package"]`; reuses the byte-authoritative ZIP
+  physical layer and adds a bounded TAR parser (GNU `L`/`K` and PAX `x`/`g`
+  extensions folded in). Records raw member names (incl. non-UTF-8), method, both
+  declared sizes, CRC-32, exact spans, and the recorded dialect (`zip`/`tar`).
+  Native `--container-dialect`/`--container-entry`/`--container-find`.
+  Detection is strong-magic + validation, inserted **after the office ZIP
+  family** and **before** the weak heuristics. Adapter exactness **6/6**;
+  economic court exact **12/12** — build **0.706/0.656** · **0.887/0.826**,
+  storage **0.980/1.050** · **24.449/24.342**, cold **0.025/0.025** ·
+  **0.025/0.026**, warm **0.098/0.098** · **1.246/1.296**.
+  `2026-10-11-phase21-33-1-container-7362e74b`, `2026-10-11-phase21-33-container-econ-372a86e0`.
+- **21.34 — scientific-container (NetCDF classic / HDF5 subset) adapter +
+  economic court.** Non-default, dependency-free `hdf = []`. **NetCDF classic
+  (CDF-1/CDF-2) is supported in full**; **HDF5 is a documented bounded subset**
+  (superblock v0/v1, symbol-table groups, contiguous datasets, v1 object headers,
+  fixed-point/float/string, simple dataspace, v1 attributes). Out-of-subset HDF5
+  (superblock v2/v3, v2/v3 object headers, compact/chunked/virtual layouts,
+  filtered datasets, external data, other datatype classes) declines **typed**
+  (rc 6; malformed headers rc 50). Records the dialect (`netcdf`/`hdf5`). Native
+  `--hdf-dialect`/`--hdf-object`/`--hdf-dimension`/`--hdf-attribute`/`--hdf-find`.
+  Adapter exactness **4/4**; economic court exact **8/8** — build
+  **0.702/0.712** · **0.974/0.988**, storage **0.766/0.782** · **29.258/24.206**,
+  cold **0.022/0.023** · **0.023/0.024**, warm **0.097/0.096** · **1.336/1.349**.
+  `2026-10-10-phase21-34-1-hdf-ea347edb`, `2026-10-11-phase21-34-hdf-econ-372a86e0`.
+- **21.35 — CFBF / OLE2 compound-file physical layer + economic court.**
+  Non-default, dependency-free `cfbf = []`. Parses the 512-byte header,
+  DIFAT/FAT/MiniFAT, the 128-byte directory entries (verbatim UTF-16LE names,
+  reconstructed sibling/child tree), and each stream resolved to an exact byte
+  span (regular + mini); recorded dialect `cfb3`/`cfb4`. Native
+  `--cfbf-dialect`/`--cfbf-entry`/`--cfbf-stream`/`--cfbf-find`. Detection is the
+  8-byte signature plus an internally consistent header. Adapter exactness
+  **2/2**; economic court exact **7/7** — build **0.643/0.627** · **0.815/0.796**,
+  storage **1.481/1.467** · **333.156/290.461**, cold **0.023/0.023** ·
+  **0.027/0.027**, warm **0.113/0.111** · **1.880/1.848**.
+  `2026-10-11-phase21-35-1-cfbf-42791bce`, `2026-10-11-phase21-35-cfbf-econ-372a86e0`.
+- **Recorded boundaries / honest negatives.** MHTML **over-approximates** (a
+  plain `multipart/related` with a `From`+`Subject` envelope and a `text/html`
+  part is admitted) and warm-vs-SQLite is a loss; logstream **claims all-INFO
+  prose** and a **BSD-without-colon stream stays `yaml`**; pkgmeta leaves a
+  generic `name`/`version` as `Json`/`Toml`; apispec leaves a schema-shaped
+  object with **no `$schema`** as `Json`; bib records the **RIS continuation
+  ambiguity** and a non-bibliographic `id`+`type` CSL-JSON over-claim; RTF is a
+  **magic + brace-balance** test, **not a full grammar**; the plain ZIP runs
+  **after** the office family; **HDF5 is a bounded subset** and, with **CFBF**, is
+  the **physical layer only** (the DOC/XLS/PPT/MSG semantics are later work) and
+  a non-contiguous CFBF stream passes only a **bounding hull** and declines
+  `ExactBytes`; **HDF5 and CFBF have no faithful Python-stdlib comparator
+  (`comparator_absent`)**; storage-vs-`conv` is a recorded loss for every format
+  and storage-vs-SQLite is a loss for RTF and CFBF; and the **cold ratios are
+  Python-startup-dominated**. Only exact closure (Q6) is a byte-authority claim.
+  **With 21.35 shipped the Wave-2 order is complete**; the only remaining format
+  work is the legacy DOC/XLS/PPT/MSG *semantic* models on top of CFBF.
+
 ## [0.1.0-alpha.34] — Phase 21 Wave 2: Markdown, XML, HTML, TOML, JSONL, EML/MIME, Parquet, Arrow IPC + the real-world court — *unreleased*
 
 - **21.8 — Markdown adapter + economic court.** Non-default, dependency-free

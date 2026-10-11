@@ -1,0 +1,18 @@
+{
+  "campaign": "evidence/campaigns/2026-10-10-phase21-23-1-gis-aed361cf",
+  "phase": "21.23.1 — KML 2.2 / GPX 1.1 geospatial surface + exact closure",
+  "utc": "2026-10-10T21:58:28Z",
+  "git_commit": "aed361cf1e90e6e3c3ec8a87fabe3866487ccdbe",
+  "git_dirty": " M Cargo.toml  M src/adapter/mod.rs  M src/error.rs  M src/field/capabilities.rs  M src/field/dag.rs  M src/field/document_format.rs  M src/field/index.rs  M src/field/ingest.rs  M src/field/node.rs  M src/field/observe.rs  M src/field/plan.rs  M src/limits.rs  M src/main.rs  M tests/property.rs ?? evidence/campaigns/2026-10-10-phase21-23-1-gis-aed361cf/ ?? src/adapter/gis.rs ?? tests/gis_adapter.rs ?? tools/phase21-23-1-gis-court.sh ",
+  "arch": "x86_64",
+  "service": "dev",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "1d8b49232ea80a409aa8577fe0283b501daa16e021e68d3f0496e9373646bb9a",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "8d3004495cad5569a760bf77aa8594a33be9f6c769a03f4bc723da5c1bd2a0c7",
+  "profile": "debug",
+  "fixtures_tool": "POSIX shell + GNU /usr/bin/printf (no python3, no jq); generated in-court, never committed",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}
