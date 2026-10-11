@@ -611,6 +611,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_mhtml_decoded_bytes: 1 << 50,
         max_mhtml_nodes: 1 << 30,
         max_mhtml_document_bytes: 1 << 50,
+        max_logstream_records: 1 << 30,
+        max_logstream_fields: 1 << 30,
+        max_logstream_sd_elements: 1 << 30,
+        max_logstream_line_bytes: 1 << 50,
+        max_logstream_depth: 1 << 12,
+        max_logstream_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

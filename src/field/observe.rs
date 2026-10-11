@@ -147,6 +147,14 @@ use crate::adapter::jsonl::{
     resolve_record_pointer as jsonl_resolve_record_pointer,
     terminator_name as jsonl_terminator_name, value_bytes as jsonl_value_bytes,
 };
+#[cfg(feature = "logstream")]
+use crate::adapter::logstream::{
+    DIALECT_GENERIC, DIALECT_RFC3164, DIALECT_RFC5424, F_LEVEL, F_MSG, FLAG_HAS_PRI, LogField,
+    LogRecord, LogstreamModel, canonical_text as logstream_canonical_text,
+    dialect_name as logstream_dialect_name, field_bytes as logstream_field_bytes,
+    find as logstream_find_matches, role_for_name as logstream_role_for_name,
+    role_name as logstream_role_name, terminator_name as logstream_terminator_name,
+};
 #[cfg(feature = "markdown")]
 use crate::adapter::markdown::{
     B_BLOCKQUOTE, B_FOOTNOTE_DEF, B_FRONT_MATTER, B_HEADING, B_LIST_ITEM, B_PARAGRAPH, B_REF_DEF,
@@ -284,6 +292,8 @@ use crate::field::index::SEL_JSON_MODEL;
 use crate::field::index::SEL_JSON5_MODEL;
 #[cfg(feature = "jsonl")]
 use crate::field::index::SEL_JSONL_MODEL;
+#[cfg(feature = "logstream")]
+use crate::field::index::SEL_LOGSTREAM_MODEL;
 #[cfg(feature = "markdown")]
 use crate::field::index::SEL_MARKDOWN_MODEL;
 #[cfg(feature = "mdx")]
@@ -1655,6 +1665,35 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The `index`-th log-stream record (0-based, blank lines do not count) (Phase
+    /// 21.28): its dialect, its **exact line span** and terminator, its decoded
+    /// priority, and its exact-span fields. `ExactBytes` returns the record's exact
+    /// line content bytes (the terminator excluded); `Text` the record's message; a
+    /// log stream has no package layer, so the source *is* the whole document.
+    #[cfg(feature = "logstream")]
+    LogstreamLine {
+        /// The 0-based record index (blank lines do not count).
+        index: u32,
+    },
+    /// A log-stream record's field addressed as `N:ROLE` (`N` is a 0-based record
+    /// index and `ROLE` is a field role name such as `timestamp`, `level`, `hostname`,
+    /// `pri`, `sd-element`, or `msg`) (Phase 21.28). `ExactBytes` returns the first
+    /// matching field's exact source bytes; `Text` its decoded text; `Metadata`/
+    /// `Structure` a descriptor with the field's role, span, and match count. An
+    /// unknown role is a usage error; a known role absent from the record declines
+    /// typed.
+    #[cfg(feature = "logstream")]
+    LogstreamField {
+        /// The `N:ROLE` reference.
+        spec: String,
+    },
+    /// A bounded, case-sensitive search across **every** log-stream record's fields
+    /// (Phase 21.28). Never an embedding or a model call.
+    #[cfg(feature = "logstream")]
+    LogstreamFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// Every header named `name` (case-insensitive) across every message part, in
     /// document order, each with its exact name/value/full span (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2218,6 +2257,12 @@ impl Selector {
             Selector::JsonlPointer { spec } => format!("jsonl-pointer:{spec}"),
             #[cfg(feature = "jsonl")]
             Selector::JsonlFind { pattern } => format!("jsonl-find:{pattern}"),
+            #[cfg(feature = "logstream")]
+            Selector::LogstreamLine { index } => format!("logstream-line:{index}"),
+            #[cfg(feature = "logstream")]
+            Selector::LogstreamField { spec } => format!("logstream-field:{spec}"),
+            #[cfg(feature = "logstream")]
+            Selector::LogstreamFind { pattern } => format!("logstream-find:{pattern}"),
             #[cfg(feature = "eml")]
             Selector::EmlHeader { name } => format!("eml-header:{name}"),
             #[cfg(feature = "eml")]
@@ -4447,6 +4492,20 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "jsonl")]
             (Selector::JsonlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.jsonl_find(req, pattern)
+            }
+            #[cfg(feature = "logstream")]
+            (
+                Selector::LogstreamLine { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.logstream_line(req, *index),
+            #[cfg(feature = "logstream")]
+            (
+                Selector::LogstreamField { spec },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.logstream_field(req, spec),
+            #[cfg(feature = "logstream")]
+            (Selector::LogstreamFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.logstream_find(req, pattern)
             }
             #[cfg(feature = "eml")]
             (
@@ -9726,6 +9785,18 @@ impl<S: SeedStore> Ctx<'_, S> {
                     ));
                 }
             }
+            DocumentFormat::Logstream => {
+                #[cfg(feature = "logstream")]
+                {
+                    self.common_logstream(req)?
+                }
+                #[cfg(not(feature = "logstream"))]
+                {
+                    return Err(Error::unsupported_feature(
+                        "log-stream support is not compiled in (feature `logstream`)",
+                    ));
+                }
+            }
             DocumentFormat::Eml => {
                 #[cfg(feature = "eml")]
                 {
@@ -11507,6 +11578,333 @@ impl<S: SeedStore> Ctx<'_, S> {
             vec![model_id, root],
         ))
     }
+}
+
+// ---------------------------------------------------------------------------
+// Log-stream observations (Phase 21.28)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "logstream")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the log-stream model (derived, `Q_gen`).
+    fn logstream_model(&mut self) -> Result<(LogstreamModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_LOGSTREAM_MODEL, 0), "log-stream model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((LogstreamModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn logstream_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    fn logstream_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The message field's decoded text (lossy), or the empty string when the record
+    /// carries no message.
+    fn logstream_message(source: &[u8], rec: &LogRecord) -> Result<String> {
+        match rec.field(F_MSG) {
+            Some(f) => Ok(String::from_utf8_lossy(logstream_field_bytes(source, f)?).into_owned()),
+            None => Ok(String::new()),
+        }
+    }
+
+    /// The `index`-th record (0-based; blank lines do not count). `ExactBytes`
+    /// returns the record's exact line content bytes (terminator excluded); `Text`
+    /// the record's message; `Metadata`/`Structure` a JSON descriptor with the
+    /// dialect, the exact line span/terminator, and every field's role and span.
+    fn logstream_line(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.logstream_model()?;
+        let (source, root) = self.logstream_source()?;
+        let rec = model.record(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "log-stream record {index} is out of range (record count {})",
+                model.records.len()
+            ))
+        })?;
+        let content_end = rec.content_end();
+        let span = Some((rec.line_start, content_end));
+        let provenance = format!(
+            "logstream;line={index};dialect={};pri={};fields={};terminator={}",
+            logstream_dialect_name(rec.dialect),
+            rec.pri,
+            rec.fields.len(),
+            logstream_terminator_name(rec.terminator)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                let s = rec.line_start as usize;
+                let e = content_end as usize;
+                let bytes = source.get(s..e).ok_or_else(|| {
+                    Error::internal_invariant("log-stream line span is out of range")
+                })?;
+                AnswerValue::Bytes(bytes.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(Self::logstream_message(&source, rec)?),
+            _ => {
+                let mut fs: Vec<String> = Vec::new();
+                for f in &rec.fields {
+                    fs.push(format!(
+                        "{{\"role\":\"{}\",\"span\":[{},{}]}}",
+                        logstream_role_name(f.role),
+                        f.start,
+                        f.end
+                    ));
+                }
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"record\":{},\"dialect\":\"{}\",\"line_span\":[{},{}],",
+                        "\"terminator\":\"{}\",\"pri\":{},\"facility\":{},\"severity\":{},",
+                        "\"depth\":{},\"line_bytes\":{},\"fields\":[{}]}}"
+                    ),
+                    index,
+                    logstream_dialect_name(rec.dialect),
+                    rec.line_start,
+                    content_end,
+                    logstream_terminator_name(rec.terminator),
+                    rec.pri,
+                    rec.facility(),
+                    rec.severity(),
+                    rec.depth,
+                    content_end - rec.line_start,
+                    fs.join(","),
+                ))
+            }
+        };
+        Ok(self.logstream_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// Resolve a `N:ROLE` field reference and answer per representation. `ExactBytes`
+    /// returns the first matching field's exact bytes; `Metadata`/`Structure` a
+    /// descriptor with the role, span, and match count.
+    fn logstream_field(&mut self, req: &ObserveRequest, spec: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.logstream_model()?;
+        let (source, root) = self.logstream_source()?;
+        let (index, role) = parse_logstream_field_ref(spec)?;
+        let rec = model.record(index).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "log-stream record {index} is out of range (record count {})",
+                model.records.len()
+            ))
+        })?;
+        let matches: Vec<&LogField> = rec.fields_with(role).collect();
+        let first = matches.first().ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "log-stream record {index} has no `{}` field",
+                logstream_role_name(role)
+            ))
+        })?;
+        let span = Some((first.start, first.end));
+        let provenance = format!(
+            "logstream;field={spec};role={};matches={}",
+            logstream_role_name(role),
+            matches.len()
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => {
+                AnswerValue::Bytes(logstream_field_bytes(&source, first)?.to_vec())
+            }
+            Representation::Text => AnswerValue::Text(
+                String::from_utf8_lossy(logstream_field_bytes(&source, first)?).into_owned(),
+            ),
+            _ => {
+                let spans: Vec<String> = matches
+                    .iter()
+                    .map(|f| format!("[{},{}]", f.start, f.end))
+                    .collect();
+                AnswerValue::Json(format!(
+                    concat!(
+                        "{{\"record\":{},\"role\":\"{}\",\"span\":[{},{}],",
+                        "\"matches\":{},\"spans\":[{}]}}"
+                    ),
+                    index,
+                    logstream_role_name(role),
+                    first.start,
+                    first.end,
+                    matches.len(),
+                    spans.join(","),
+                ))
+            }
+        };
+        Ok(self.logstream_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search across every record's fields; each match reports its
+    /// record index, role, and exact span.
+    fn logstream_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.logstream_model()?;
+        let (source, root) = self.logstream_source()?;
+        let matches = logstream_find_matches(&model, &source, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "log-stream find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"record\":{},\"role\":\"{}\",",
+                    "\"kind\":\"field\",\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                m.record,
+                logstream_role_name(m.role),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("logstream;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.logstream_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_logstream(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.logstream_common_metadata(req),
+            Selector::Text => self.logstream_common_text(req),
+            Selector::SearchMatch(p) => self.logstream_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "log-stream does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    fn logstream_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.logstream_model()?;
+        let (source, root) = self.logstream_source()?;
+        let text = logstream_canonical_text(&model, &source)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.logstream_answer(
+            req,
+            AnswerValue::Text(text),
+            "logstream;canonical-text".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    fn logstream_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.logstream_model()?;
+        let (source, root) = self.logstream_source()?;
+        let mut rfc5424 = 0u64;
+        let mut rfc3164 = 0u64;
+        let mut generic = 0u64;
+        let mut pri_records = 0u64;
+        let mut level_records = 0u64;
+        let mut msg_records = 0u64;
+        for rec in &model.records {
+            match rec.dialect {
+                DIALECT_RFC5424 => rfc5424 += 1,
+                DIALECT_RFC3164 => rfc3164 += 1,
+                DIALECT_GENERIC => generic += 1,
+                _ => {}
+            }
+            if rec.flags & FLAG_HAS_PRI != 0 {
+                pri_records += 1;
+            }
+            if rec.fields_with(F_LEVEL).count() > 0 {
+                level_records += 1;
+            }
+            if rec.field(F_MSG).is_some() {
+                msg_records += 1;
+            }
+        }
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"logstream\",\"records\":{},\"blank_lines\":{},",
+                "\"crlf_records\":{},\"trailing_newline\":{},\"bom\":{},\"bytes\":{},",
+                "\"fields\":{},\"sd_elements\":{},",
+                "\"rfc5424\":{},\"rfc3164\":{},\"generic\":{},",
+                "\"pri_records\":{},\"level_records\":{},\"msg_records\":{}}}"
+            ),
+            model.records.len(),
+            model.blank_lines,
+            model.crlf_records,
+            model.trailing_newline,
+            model.bom_len,
+            model.doc_len,
+            model.field_count(),
+            model.sd_element_count(),
+            rfc5424,
+            rfc3164,
+            generic,
+            pri_records,
+            level_records,
+            msg_records,
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.logstream_answer(
+            req,
+            value,
+            "logstream;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+/// Parse a `N:ROLE` log-stream field reference. `N` is a 0-based record index; the
+/// role is a stable field role name. A missing/non-numeric `N` or an unknown role is
+/// a usage error.
+#[cfg(feature = "logstream")]
+fn parse_logstream_field_ref(spec: &str) -> Result<(u32, u8)> {
+    let (n, role) = spec.split_once(':').ok_or_else(|| {
+        Error::usage(format!(
+            "log-stream field reference {spec:?} must be N:ROLE"
+        ))
+    })?;
+    if n.is_empty() || (n.len() > 1 && n.starts_with('0')) {
+        return Err(Error::usage(format!(
+            "log-stream field reference {spec:?} must have a canonical record index"
+        )));
+    }
+    let index: u32 = n.parse().map_err(|_| {
+        Error::usage(format!(
+            "log-stream field reference {spec:?} has a non-numeric record index"
+        ))
+    })?;
+    let role = logstream_role_for_name(role).ok_or_else(|| {
+        Error::usage(format!(
+            "log-stream field reference {spec:?} has an unknown role"
+        ))
+    })?;
+    Ok((index, role))
 }
 
 // ---------------------------------------------------------------------------

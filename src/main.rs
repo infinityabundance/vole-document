@@ -148,6 +148,7 @@ const USAGE_FIELD: &str = "\
         --html-path P | --html-element P | --html-attr PATH@NAME |
         --html-scripts | --html-find PATTERN |
         --jsonl-line N | --jsonl-pointer N:POINTER | --jsonl-find PATTERN |
+        --logstream-line N | --logstream-field N:ROLE | --logstream-find PATTERN |
         --eml-header NAME | --eml-part N | --eml-attachments | --eml-body |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
@@ -1986,6 +1987,19 @@ struct FieldArgs {
     /// keys and string values (Phase 21.12).
     #[cfg(feature = "jsonl")]
     jsonl_find: Option<String>,
+    /// `--logstream-line N`: the N-th log-stream record (0-based; blank lines do not
+    /// count), returning its dialect, exact line span, terminator, priority, and
+    /// exact-span fields (Phase 21.28).
+    #[cfg(feature = "logstream")]
+    logstream_line: Option<u32>,
+    /// `--logstream-field N:ROLE`: a record's field by role name (`timestamp`,
+    /// `level`, `hostname`, `pri`, `sd-element`, `msg`, ...) (Phase 21.28).
+    #[cfg(feature = "logstream")]
+    logstream_field: Option<String>,
+    /// `--logstream-find`: a lexical, case-sensitive search over every log-stream
+    /// record's fields (Phase 21.28).
+    #[cfg(feature = "logstream")]
+    logstream_find: Option<String>,
     /// `--eml-header NAME`: every header named `NAME` (case-insensitive) across every
     /// message part, with exact spans (Phase 21.13).
     #[cfg(feature = "eml")]
@@ -2938,6 +2952,21 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "jsonl")]
             "--jsonl-find" => {
                 out.jsonl_find = Some(field_arg_value(args, &mut i, "--jsonl-find", inline)?);
+            }
+            #[cfg(feature = "logstream")]
+            "--logstream-line" => {
+                let v = field_arg_value(args, &mut i, "--logstream-line", inline)?;
+                out.logstream_line = Some(parse_field_u32(&v, "--logstream-line")?);
+            }
+            #[cfg(feature = "logstream")]
+            "--logstream-field" => {
+                out.logstream_field =
+                    Some(field_arg_value(args, &mut i, "--logstream-field", inline)?);
+            }
+            #[cfg(feature = "logstream")]
+            "--logstream-find" => {
+                out.logstream_find =
+                    Some(field_arg_value(args, &mut i, "--logstream-find", inline)?);
             }
             #[cfg(feature = "eml")]
             "--eml-header" => {
@@ -3901,6 +3930,23 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.jsonl_find {
             chosen.push(Selector::JsonlFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // Log-stream: `--logstream-line` addresses a record by 0-based index;
+    // `--logstream-field` addresses a field as `N:ROLE`; `--logstream-find` is a
+    // lexical search. Each stands alone (Phase 21.28).
+    #[cfg(feature = "logstream")]
+    {
+        if let Some(index) = out.logstream_line {
+            chosen.push(Selector::LogstreamLine { index });
+        }
+        if let Some(spec) = &out.logstream_field {
+            chosen.push(Selector::LogstreamField { spec: spec.clone() });
+        }
+        if let Some(pattern) = &out.logstream_find {
+            chosen.push(Selector::LogstreamFind {
                 pattern: pattern.clone(),
             });
         }

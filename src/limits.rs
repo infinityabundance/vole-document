@@ -789,6 +789,33 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.27).
     pub max_mhtml_document_bytes: u64,
+    // The syslog / log-stream caps below bound the derived, span-preserving model
+    // (Phase 21.28). A log stream is not a package: the whole source is the exact
+    // leaf, and everything derived is `Q_gen` only. The model is a flat arena of
+    // records with exact-span fields, so it is bounded by record, field, and
+    // structured-data-element counts, one line's length, the deepest
+    // structured-data nesting, and the source length.
+    /// Maximum non-blank record lines accepted in one log stream. A larger document
+    /// declines typed rather than allocating (Phase 21.28).
+    pub max_logstream_records: u32,
+    /// Maximum total field spans accepted across **all** records of one log stream.
+    /// This is a whole-document budget; an over-large document declines typed rather
+    /// than allocating (Phase 21.28).
+    pub max_logstream_fields: u64,
+    /// Maximum total RFC 5424 structured-data elements accepted across one log
+    /// stream. An over-large document declines typed rather than allocating
+    /// (Phase 21.28).
+    pub max_logstream_sd_elements: u64,
+    /// Maximum byte length of one record line's content (the terminator excluded). A
+    /// longer line declines typed (Phase 21.28).
+    pub max_logstream_line_bytes: u64,
+    /// Maximum structured-data nesting depth accepted (record = 1, an element = 2, a
+    /// parameter = 3). A deeper record declines typed (Phase 21.28).
+    pub max_logstream_depth: u32,
+    /// Maximum source length admitted for byte-based log-stream detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.28).
+    pub max_logstream_document_bytes: u64,
 }
 
 impl Limits {
@@ -1020,6 +1047,12 @@ impl Limits {
         max_mhtml_decoded_bytes: 1 << 28,
         max_mhtml_nodes: 1 << 24,
         max_mhtml_document_bytes: 1 << 34,
+        max_logstream_records: 1 << 22,
+        max_logstream_fields: 1 << 24,
+        max_logstream_sd_elements: 1 << 20,
+        max_logstream_line_bytes: 1 << 20,
+        max_logstream_depth: 8,
+        max_logstream_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1250,6 +1283,12 @@ impl Limits {
         max_mhtml_decoded_bytes: 1 << 20,
         max_mhtml_nodes: 1 << 16,
         max_mhtml_document_bytes: 1 << 26,
+        max_logstream_records: 1 << 12,
+        max_logstream_fields: 1 << 16,
+        max_logstream_sd_elements: 1 << 12,
+        max_logstream_line_bytes: 1 << 16,
+        max_logstream_depth: 4,
+        max_logstream_document_bytes: 1 << 26,
     };
 }
 

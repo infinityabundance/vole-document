@@ -36,6 +36,8 @@ pub mod json;
 pub mod json5;
 #[cfg(feature = "jsonl")]
 pub mod jsonl;
+#[cfg(feature = "logstream")]
+pub mod logstream;
 #[cfg(feature = "markdown")]
 pub mod markdown;
 #[cfg(feature = "mdx")]

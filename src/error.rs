@@ -166,13 +166,19 @@ pub enum ErrorClass {
     /// position, a malformed JSX/ESM construct, or an input that exceeds a cap — so it
     /// stays `Opaque` rather than being claimed.
     InvalidMdxStructure,
-    /// An MHTML structure error (Phase 21.27+): a source that is not a well-formed MIME
+    /// An MHTML structure error (Phase 21.27): a source that is not a well-formed MIME
     /// message, a root that is not `multipart/related`, a `multipart/related` document
     /// that carries no MHTML-specific signal (`Snapshot-Content-Location`/`Content-Base`,
     /// or a `From`+`Subject` envelope with a `text/html` part), a root part that cannot
     /// be decoded/parsed as HTML, or an input that exceeds a cap — so it stays
     /// `Eml`/`Html`/`Opaque` rather than being claimed.
     InvalidMhtmlStructure,
+    /// A syslog / log-stream structure error (Phase 21.28): a source that is not a log
+    /// stream (fewer than two non-blank record lines, or a non-blank line that matches
+    /// no recognized dialect — RFC 5424 syslog, RFC 3164 (BSD) syslog, or a generic
+    /// application log line), or an input that exceeds a cap — so it stays `Opaque`
+    /// rather than being claimed.
+    InvalidLogstreamStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -223,6 +229,7 @@ impl ErrorClass {
             ErrorClass::InvalidAsciidocStructure => 41,
             ErrorClass::InvalidMdxStructure => 42,
             ErrorClass::InvalidMhtmlStructure => 43,
+            ErrorClass::InvalidLogstreamStructure => 44,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -272,6 +279,7 @@ impl ErrorClass {
             ErrorClass::InvalidAsciidocStructure => "InvalidAsciidocStructure",
             ErrorClass::InvalidMdxStructure => "InvalidMdxStructure",
             ErrorClass::InvalidMhtmlStructure => "InvalidMhtmlStructure",
+            ErrorClass::InvalidLogstreamStructure => "InvalidLogstreamStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -375,6 +383,7 @@ impl Error {
     ctor!(invalid_asciidoc_structure, InvalidAsciidocStructure);
     ctor!(invalid_mdx_structure, InvalidMdxStructure);
     ctor!(invalid_mhtml_structure, InvalidMhtmlStructure);
+    ctor!(invalid_logstream_structure, InvalidLogstreamStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

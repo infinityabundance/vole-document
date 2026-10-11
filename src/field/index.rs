@@ -428,6 +428,20 @@ pub const SEL_MDX_MODEL: u8 = 41;
 /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
 /// ADR-0060); MHTML has no package layer. Derived, never exact.
 pub const SEL_MHTML_MODEL: u8 = 42;
+/// Selector kind: the canonical syslog / log-stream model (Phase 21.28).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source split into physical lines, each non-blank line classified by a
+/// recorded dialect (RFC 5424 syslog, RFC 3164 (BSD) syslog, or a generic
+/// application log line) into a bounded record — the exact line span and terminator,
+/// the physical line number, the decoded priority, the deepest structured-data
+/// nesting, and every field's exact span (PRI/version/timestamp/hostname/app-name/
+/// procid/msgid/structured-data element/id/parameter-name/parameter-value/tag/pid/
+/// level/msg) — as `Q_gen` derived state. It is computed on demand from the exact
+/// source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); a log stream has no package layer. Derived, never
+/// exact.
+pub const SEL_LOGSTREAM_MODEL: u8 = 43;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

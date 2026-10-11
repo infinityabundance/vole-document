@@ -489,6 +489,28 @@ toml = []
 # Dependency-free (`jsonl` pulls no external crate) and never in `default`; it
 # reuses the JSON adapter per line, so it implies `json`.
 jsonl = ["json"]
+# Phase 21.28: the syslog / log-stream adapter — the **line/event stream** Wave-2
+# format. Like the other Wave-2 formats it is not a package (no OPC/ZIP layer): the
+# exact leaf is the whole source (a `DocumentExact`, RAW-like authority) and every
+# derived observation is a bounded, span-preserving (`Q_gen`) projection of it. It
+# adds a bounded, dependency-free parser that **preserves representation**: each
+# physical line is classified by a recorded dialect — RFC 5424 syslog
+# (`<PRI>VERSION … STRUCTURED-DATA [SP MSG]`), RFC 3164 (BSD) syslog
+# (`<PRI>Mmm dd hh:mm:ss HOSTNAME TAG[pid]: MSG`), or a generic application log line
+# (an optional leading timestamp and/or level token followed by the message) — and
+# every record keeps its exact line span and terminator (LF/CRLF/none), its physical
+# line number, its decoded priority, the deepest structured-data nesting, and every
+# field's exact span. Structured-data elements, NILVALUE (`-`), and timestamp/level
+# spelling are preserved verbatim; a message is **never** normalized. Detection is
+# byte-based and conservative (at least two non-blank lines, **every** non-blank line
+# must match a dialect) and must not steal a higher-priority format; plain prose and
+# code stay `Opaque`. It adds **no** decoder behavior: the log-stream model is never
+# on the exactness path, so enabling it never changes `.voldoc` bytes and exactness is
+# untouched. **Dependency-free (`logstream = []`)** — a log line is *not* JSON, so
+# reusing the JSON parser would add no representation value; the physical-line split
+# vocabulary is a few lines implemented directly, and there is no external crate.
+# Never in `default`.
+logstream = []
 # Phase 21.13: the EML / MIME adapter — the **messaging** Wave-2 format. Like the
 # other Wave-2 formats it is not a package (no OPC/ZIP layer): the exact leaf is
 # the whole source (a `DocumentExact`, RAW-like authority) and every derived

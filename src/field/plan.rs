@@ -447,6 +447,18 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["JsonlModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-records", "whole-document"]),
         }),
+        #[cfg(feature = "logstream")]
+        (Selector::LogstreamLine { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::LogstreamField { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::LogstreamFind { .. }, R::Text | R::Metadata | R::Structure) => {
+            Ok(ObservePlan {
+                shape: PlanShape::DeepenThenObserve,
+                index_reads: 1,
+                required_nodes: 2,
+                will_materialize: kinds(&["LogstreamModel", "DocumentExact"]),
+                will_not_materialize: kinds(&["other-records", "whole-document"]),
+            })
+        }
         #[cfg(feature = "json5")]
         (Selector::Json5Pointer { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
         | (Selector::Json5Node { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
@@ -677,6 +689,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Asciidoc => &["AsciidocModel", "DocumentExact"],
         DocumentFormat::Mdx => &["MdxModel", "DocumentExact"],
         DocumentFormat::Mhtml => &["MhtmlModel", "DocumentExact"],
+        DocumentFormat::Logstream => &["LogstreamModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

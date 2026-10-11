@@ -330,6 +330,18 @@ pub enum DocumentFormat {
     /// the exact leaf is the whole source, and every envelope/part/resource/HTML span
     /// is a `Q_gen` projection (Phase 21.27).
     Mhtml,
+    /// A syslog / log-stream document (the source carries at least two non-blank
+    /// lines and **every** non-blank line matches one of three dialects — RFC 5424
+    /// syslog, RFC 3164 (BSD) syslog, or a generic application log line with a
+    /// leading timestamp and/or level token). The recorded dialect lives per record.
+    /// Detection is byte-based and conservative and must not steal a higher-priority
+    /// format (JSON/JSON5/JSONL/CBOR/Msgpack/YAML/TOML/config/CSV or the prose
+    /// family), all of which the whole-source dispatcher tries first; plain prose and
+    /// code stay `Opaque`. Not a package: the exact leaf is the whole source, and
+    /// every record's exact line span/terminator plus every field's exact span (and
+    /// the preserved message, NILVALUE, and timestamp/level spelling) are `Q_gen`
+    /// projections (Phase 21.28).
+    Logstream,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -370,6 +382,7 @@ impl DocumentFormat {
             DocumentFormat::Asciidoc => "asciidoc",
             DocumentFormat::Mdx => "mdx",
             DocumentFormat::Mhtml => "mhtml",
+            DocumentFormat::Logstream => "logstream",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -409,6 +422,7 @@ impl DocumentFormat {
             DocumentFormat::Asciidoc => "asciidoc",
             DocumentFormat::Mdx => "mdx",
             DocumentFormat::Mhtml => "mhtml",
+            DocumentFormat::Logstream => "logstream",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -448,6 +462,7 @@ impl DocumentFormat {
             DocumentFormat::Asciidoc => cfg!(feature = "asciidoc"),
             DocumentFormat::Mdx => cfg!(feature = "mdx"),
             DocumentFormat::Mhtml => cfg!(feature = "mhtml"),
+            DocumentFormat::Logstream => cfg!(feature = "logstream"),
         }
     }
 
@@ -497,6 +512,7 @@ impl DocumentFormat {
             "asciidoc" => Some(DocumentFormat::Asciidoc),
             "mdx" => Some(DocumentFormat::Mdx),
             "mhtml" => Some(DocumentFormat::Mhtml),
+            "logstream" => Some(DocumentFormat::Logstream),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -783,6 +799,25 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "asciidoc")]
     if crate::adapter::asciidoc::detect(source, limits) {
         return DocumentFormat::Asciidoc;
+    }
+    // A syslog / log stream is the **line/event-stream** Wave-2 format (Phase 21.28),
+    // also with no package layer. Precedence (explicit): it is tried **after** every
+    // structured and prose format above — the JSON family (JSON/JSON5/JSONL/CBOR/
+    // Msgpack), MHTML/EML, YAML/TOML, the config family, CSV, and the prose family
+    // (MDX/Markdown/RST/AsciiDoc) — so a JSON/YAML/CSV/prose document is never stolen;
+    // and **before** the maximally ambiguous fixed-width heuristic, which could
+    // otherwise read a column-aligned log stream as a column-position table. It is
+    // tried before the XML/HTML family too, but a log line never begins with a valid
+    // XML/HTML root (a syslog `<PRI>` is not well-formed XML). Detection is byte-based
+    // and conservative: at least two non-blank lines, and **every** non-blank line must
+    // match a dialect — an RFC 5424 syslog header, an RFC 3164 (BSD) syslog line, or a
+    // generic application log line with a leading timestamp and/or level token. Plain
+    // prose and code stay `Opaque` (a prose line that does not begin with a timestamp/
+    // level declines the whole file; a file whose every line begins with a level word
+    // IS claimed — recorded honestly in the adapter docs).
+    #[cfg(feature = "logstream")]
+    if crate::adapter::logstream::detect(source, limits) {
+        return DocumentFormat::Logstream;
     }
     // Fixed-width (column-position) text is the second **tabular** Wave-2 format
     // (Phase 21.25), but its columns are defined by character positions, not a
@@ -1099,6 +1134,7 @@ mod tests {
             DocumentFormat::Asciidoc,
             DocumentFormat::Mdx,
             DocumentFormat::Mhtml,
+            DocumentFormat::Logstream,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

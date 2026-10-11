@@ -419,6 +419,19 @@ pub enum NodeKind {
     /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per
     /// ADR-0060); MHTML has no package layer. Derived, never exact.
     MhtmlModel = 0x3E,
+    /// The canonical, representation-preserving syslog / log-stream model (Phase
+    /// 21.28): the whole source split into physical lines, each non-blank line
+    /// classified by a recorded dialect (RFC 5424 syslog, RFC 3164 (BSD) syslog, or a
+    /// generic application log line) into a bounded record with its **exact line
+    /// span** and terminator, its physical line number, its decoded priority (when a
+    /// syslog `<PRI>` is present), the deepest structured-data nesting, and its
+    /// **exact-span fields** (PRI/version/timestamp/hostname/app-name/procid/msgid/
+    /// structured-data element/id/parameter-name/parameter-value/tag/pid/level/msg).
+    /// Messages, NILVALUE (`-`), and timestamp/level spelling are preserved verbatim
+    /// and never normalized. It is computed on demand from the exact source (its
+    /// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+    /// ADR-0060); a log stream has no package layer. Derived, never exact.
+    LogstreamModel = 0x3F,
 }
 
 impl NodeKind {
@@ -487,6 +500,7 @@ impl NodeKind {
             0x3C => NodeKind::AsciidocModel,
             0x3D => NodeKind::MdxModel,
             0x3E => NodeKind::MhtmlModel,
+            0x3F => NodeKind::LogstreamModel,
             _ => return None,
         })
     }
@@ -556,6 +570,7 @@ impl NodeKind {
             NodeKind::AsciidocModel => "AsciidocModel",
             NodeKind::MdxModel => "MdxModel",
             NodeKind::MhtmlModel => "MhtmlModel",
+            NodeKind::LogstreamModel => "LogstreamModel",
         }
     }
 
