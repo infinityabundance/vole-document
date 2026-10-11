@@ -315,6 +315,21 @@ pub enum DocumentFormat {
     /// `Markdown`, plain HTML stays `Html`, and plain prose stays `Opaque`. Not a
     /// package: the exact leaf is the whole source (Phase 21.26.3).
     Mdx,
+    /// An MHTML (MIME HTML, RFC 2557) web archive. MHTML is a MIME
+    /// `multipart/related` document, so its physical bytes are shared with
+    /// [`DocumentFormat::Eml`]; the adapter **reuses the EML adapter's bounded MIME
+    /// layer** for the envelope, parts, headers, and spans, and the **HTML adapter's
+    /// bounded, error-recovering scanner** for the root part, recording the ordered
+    /// sub-resources (keyed by `Content-Location`/`Content-ID`) and the root HTML part
+    /// (the `start=` `Content-ID`, else the first `text/html` part, else the first
+    /// part). Detection is a **bounded semantic sub-detection** run before the generic
+    /// EML detector: a `multipart/related` root plus an MHTML-specific signal — a
+    /// top-level `Snapshot-Content-Location`/`Content-Base`, or a `From`+`Subject`
+    /// envelope with a `text/html` part. A plain `multipart/related` email, a plain
+    /// HTML document, and a plain MIME message stay `Eml`/`Html`/`Eml`. Not a package:
+    /// the exact leaf is the whole source, and every envelope/part/resource/HTML span
+    /// is a `Q_gen` projection (Phase 21.27).
+    Mhtml,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -354,6 +369,7 @@ impl DocumentFormat {
             DocumentFormat::Rst => "rst",
             DocumentFormat::Asciidoc => "asciidoc",
             DocumentFormat::Mdx => "mdx",
+            DocumentFormat::Mhtml => "mhtml",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -392,6 +408,7 @@ impl DocumentFormat {
             DocumentFormat::Rst => "rst",
             DocumentFormat::Asciidoc => "asciidoc",
             DocumentFormat::Mdx => "mdx",
+            DocumentFormat::Mhtml => "mhtml",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -430,6 +447,7 @@ impl DocumentFormat {
             DocumentFormat::Rst => cfg!(feature = "rst"),
             DocumentFormat::Asciidoc => cfg!(feature = "asciidoc"),
             DocumentFormat::Mdx => cfg!(feature = "mdx"),
+            DocumentFormat::Mhtml => cfg!(feature = "mhtml"),
         }
     }
 
@@ -478,6 +496,7 @@ impl DocumentFormat {
             "rst" => Some(DocumentFormat::Rst),
             "asciidoc" => Some(DocumentFormat::Asciidoc),
             "mdx" => Some(DocumentFormat::Mdx),
+            "mhtml" => Some(DocumentFormat::Mhtml),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -625,6 +644,20 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "msgpack")]
     if crate::adapter::msgpack::detect(source, limits) {
         return DocumentFormat::Msgpack;
+    }
+    // MHTML (MIME HTML, RFC 2557) is the **web-archive** Wave-2 format (Phase
+    // 21.27), whose physical bytes are a MIME `multipart/related` message. It is a
+    // **bounded semantic sub-detection** run **before** the generic EML detector
+    // below (a `multipart/related` message is otherwise claimed by EML, which is a
+    // weaker claim): the root must be `multipart/related` **and** carry an
+    // MHTML-specific signal — a top-level `Snapshot-Content-Location`/`Content-Base`,
+    // or a `From`+`Subject` envelope with a `text/html` part. A plain
+    // `multipart/related` email without those markers, a plain HTML document (no MIME
+    // envelope), and a plain MIME message (not `multipart/related`) all decline here
+    // and are then claimed by their own detectors (`Eml`/`Html`/`Eml`).
+    #[cfg(feature = "mhtml")]
+    if crate::adapter::mhtml::detect(source, limits) {
+        return DocumentFormat::Mhtml;
     }
     // EML/MIME is the **messaging** Wave-2 format (Phase 21.13), also with no package
     // layer. It is tried **immediately after JSONL** and **before YAML/TOML/CSV/
@@ -1065,6 +1098,7 @@ mod tests {
             DocumentFormat::Rst,
             DocumentFormat::Asciidoc,
             DocumentFormat::Mdx,
+            DocumentFormat::Mhtml,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

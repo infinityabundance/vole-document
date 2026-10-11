@@ -299,6 +299,13 @@ const MDX_NATIVE: &[&str] = &[
     "mdx-find",
 ];
 
+const MHTML_NATIVE: &[&str] = &[
+    "mhtml-root",
+    "mhtml-resource",
+    "mhtml-location",
+    "mhtml-find",
+];
+
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
 const COMMON_TEXT_META: &[&str] = &["text", "metadata"];
@@ -650,6 +657,16 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 MDX_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Mhtml => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("resource", COMMON_RESOURCE_BYTES),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                MHTML_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

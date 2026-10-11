@@ -406,6 +406,30 @@ asciidoc = []
 # crate) and never in `default`; it reuses the Markdown adapter, so it implies
 # `markdown`.
 mdx = ["markdown"]
+# Phase 21.27: the MHTML (MIME HTML) adapter — a browser-saved web archive. MHTML is
+# a MIME `multipart/related` document whose root part is an HTML page and whose
+# remaining parts are the page's sub-resources (images/CSS/...). It is **not** a new
+# container: this adapter **reuses the EML adapter's bounded MIME layer** (Phase
+# 21.13's `eml` feature) for the envelope, the ordered parts, their headers, and
+# their exact spans, and **reuses the HTML adapter's bounded, error-recovering
+# scanner** (Phase 21.10's `html` feature) for the root part — never a second MIME or
+# HTML parser. Like the other Wave-2 formats it is not a package (no OPC/ZIP layer):
+# the exact leaf is the whole source (a `DocumentExact`, RAW-like authority) and every
+# derived observation is a bounded, span-preserving (`Q_gen`) projection of it. The
+# model records the MIME envelope (incl. `Snapshot-Content-Location`/`Content-Base`),
+# the ordered sub-resources keyed by `Content-Location`/`Content-ID`, and the root
+# HTML part (the `start=` `Content-ID`, else the first `text/html` part, else the
+# first part), each with exact spans; a `Content-Transfer-Encoding` value is decoded
+# only for a derived observation, never re-encoded into the exact leaf. Detection is
+# conservative and **MHTML-specific** (a `multipart/related` root plus a top-level
+# `Snapshot-Content-Location`/`Content-Base`, or a `From`+`Subject` envelope with a
+# `text/html` part), so a plain `multipart/related` email stays `Eml`, a plain HTML
+# document stays `Html`, and a plain MIME message stays `Eml`. It adds **no** decoder
+# behavior: the MHTML model is never on the exactness path, so enabling it never
+# changes `.voldoc` bytes and exactness is untouched. Dependency-free (`mhtml` pulls no
+# external crate) and never in `default`; it reuses the EML and HTML adapters, so it
+# implies `eml` and `html`.
+mhtml = ["eml", "html"]
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores; Phase 21.9 also gates the standalone **XML adapter**
 # (the structured-tree format for a bare `.xml` source) on this same feature. The

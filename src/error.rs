@@ -166,6 +166,13 @@ pub enum ErrorClass {
     /// position, a malformed JSX/ESM construct, or an input that exceeds a cap — so it
     /// stays `Opaque` rather than being claimed.
     InvalidMdxStructure,
+    /// An MHTML structure error (Phase 21.27+): a source that is not a well-formed MIME
+    /// message, a root that is not `multipart/related`, a `multipart/related` document
+    /// that carries no MHTML-specific signal (`Snapshot-Content-Location`/`Content-Base`,
+    /// or a `From`+`Subject` envelope with a `text/html` part), a root part that cannot
+    /// be decoded/parsed as HTML, or an input that exceeds a cap — so it stays
+    /// `Eml`/`Html`/`Opaque` rather than being claimed.
+    InvalidMhtmlStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -215,6 +222,7 @@ impl ErrorClass {
             ErrorClass::InvalidRstStructure => 40,
             ErrorClass::InvalidAsciidocStructure => 41,
             ErrorClass::InvalidMdxStructure => 42,
+            ErrorClass::InvalidMhtmlStructure => 43,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -263,6 +271,7 @@ impl ErrorClass {
             ErrorClass::InvalidRstStructure => "InvalidRstStructure",
             ErrorClass::InvalidAsciidocStructure => "InvalidAsciidocStructure",
             ErrorClass::InvalidMdxStructure => "InvalidMdxStructure",
+            ErrorClass::InvalidMhtmlStructure => "InvalidMhtmlStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -365,6 +374,7 @@ impl Error {
     ctor!(invalid_rst_structure, InvalidRstStructure);
     ctor!(invalid_asciidoc_structure, InvalidAsciidocStructure);
     ctor!(invalid_mdx_structure, InvalidMdxStructure);
+    ctor!(invalid_mhtml_structure, InvalidMhtmlStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

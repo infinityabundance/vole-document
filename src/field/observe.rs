@@ -81,6 +81,8 @@ use crate::adapter::eml::{
     decode_body as eml_decode_body, find as eml_find_matches, kind_name as eml_kind_name,
     loc_name as eml_loc_name, raw_body_bytes as eml_raw_body_bytes,
 };
+#[cfg(feature = "mhtml")]
+use crate::adapter::eml::{cte_name as mhtml_cte_name, loc_name as mhtml_loc_name};
 #[cfg(feature = "epub")]
 use crate::adapter::epub::{EpubExtractProfile, EpubModel, ManifestItem, PackageDoc};
 #[cfg(feature = "feed")]
@@ -161,6 +163,12 @@ use crate::adapter::mdx::{
     S_BLOCK_EXPR, S_COMPONENT, S_ESM, S_FRAGMENT, S_JSX_ATTR, X_BLOCK, X_COMMENT,
     esm_kind_name as mdx_esm_kind_name, find as mdx_find_matches,
     jsx_kind_name as mdx_jsx_kind_name,
+};
+#[cfg(feature = "mhtml")]
+use crate::adapter::mhtml::{
+    F_HAS_CONTENT_BASE, F_HAS_FROM, F_HAS_HTML_PART, F_HAS_SNAPSHOT_LOCATION, F_HAS_SUBJECT,
+    MhtmlModel, find as mhtml_find_matches, resource_bytes as mhtml_resource_bytes,
+    root_body_bytes as mhtml_root_body_bytes,
 };
 #[cfg(feature = "msgpack")]
 use crate::adapter::msgpack::{
@@ -280,6 +288,8 @@ use crate::field::index::SEL_JSONL_MODEL;
 use crate::field::index::SEL_MARKDOWN_MODEL;
 #[cfg(feature = "mdx")]
 use crate::field::index::SEL_MDX_MODEL;
+#[cfg(feature = "mhtml")]
+use crate::field::index::SEL_MHTML_MODEL;
 #[cfg(feature = "msgpack")]
 use crate::field::index::SEL_MSGPACK_MODEL;
 #[cfg(feature = "notebook")]
@@ -1493,6 +1503,36 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The root HTML part of an MHTML web archive (Phase 21.27), identified by the
+    /// `multipart/related` `start=` `Content-ID` when present, else the first
+    /// `text/html` part, else the first part. `Text`/`ExactBytes` return the root
+    /// part's **decoded** body; `Metadata`/`Structure` a descriptor with its MIME
+    /// spans, `Content-Location`, decoded length, and the reused HTML model summary.
+    #[cfg(feature = "mhtml")]
+    MhtmlRoot,
+    /// The `ordinal`-th MHTML sub-resource (a part keyed by `Content-Location`/
+    /// `Content-ID`) in document order (Phase 21.27). `Text`/`ExactBytes` return its
+    /// exact decoded bytes; `Metadata`/`Structure` a descriptor with its keys, media
+    /// type, encoding, exact spans, and decoded length.
+    #[cfg(feature = "mhtml")]
+    MhtmlResource {
+        /// The 0-based sub-resource ordinal in document order.
+        ordinal: u32,
+    },
+    /// The MHTML envelope's top-level locations (Phase 21.27): the
+    /// `Snapshot-Content-Location` and `Content-Base` headers, with exact spans.
+    /// `Text` returns the first present location value; `ExactBytes` its raw bytes;
+    /// `Metadata`/`Structure` a descriptor with both values and spans.
+    #[cfg(feature = "mhtml")]
+    MhtmlLocation,
+    /// A lexical, case-sensitive search over the whole MHTML document (reusing the
+    /// MIME finder: every part's header names/values and every decoded `text/*` body,
+    /// including the root HTML part) (Phase 21.27).
+    #[cfg(feature = "mhtml")]
+    MhtmlFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// A standalone-XML element addressed by a simple element path
     /// (`/a/b[2]/c`; `""` is the root element) (Phase 21.9). The answer reports
     /// the element's qualified name, exact source span, and (for `ExactBytes`) its
@@ -2138,6 +2178,14 @@ impl Selector {
             Selector::MdxExpression { index } => format!("mdx-expression:{index}"),
             #[cfg(feature = "mdx")]
             Selector::MdxFind { pattern } => format!("mdx-find:{pattern}"),
+            #[cfg(feature = "mhtml")]
+            Selector::MhtmlRoot => "mhtml-root".to_string(),
+            #[cfg(feature = "mhtml")]
+            Selector::MhtmlResource { ordinal } => format!("mhtml-resource:{ordinal}"),
+            #[cfg(feature = "mhtml")]
+            Selector::MhtmlLocation => "mhtml-location".to_string(),
+            #[cfg(feature = "mhtml")]
+            Selector::MhtmlFind { pattern } => format!("mhtml-find:{pattern}"),
             #[cfg(feature = "xml")]
             Selector::XmlPath { path } => format!("xml-path:{path}"),
             #[cfg(feature = "xml")]
@@ -4314,6 +4362,23 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "mdx")]
             (Selector::MdxFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.mdx_find(req, pattern)
+            }
+            #[cfg(feature = "mhtml")]
+            (Selector::MhtmlRoot, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.mhtml_root(req)
+            }
+            #[cfg(feature = "mhtml")]
+            (
+                Selector::MhtmlResource { ordinal },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.mhtml_resource(req, *ordinal),
+            #[cfg(feature = "mhtml")]
+            (Selector::MhtmlLocation, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
+                self.mhtml_location(req)
+            }
+            #[cfg(feature = "mhtml")]
+            (Selector::MhtmlFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.mhtml_find(req, pattern)
             }
             #[cfg(feature = "xml")]
             (Selector::XmlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -9623,6 +9688,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Rst => self.common_rst(req)?,
             DocumentFormat::Asciidoc => self.common_asciidoc(req)?,
             DocumentFormat::Mdx => self.common_mdx(req)?,
+            DocumentFormat::Mhtml => self.common_mhtml(req)?,
             DocumentFormat::Xml => self.common_xml(req)?,
             DocumentFormat::Html => {
                 #[cfg(feature = "html")]
@@ -10158,6 +10224,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_mdx(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "MDX observations require a build with the mdx feature",
+        ))
+    }
+
+    #[cfg(not(feature = "mhtml"))]
+    fn common_mhtml(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "MHTML observations require a build with the mhtml feature",
         ))
     }
 
@@ -18475,6 +18548,324 @@ fn slice_span<'a>(source: &'a [u8], start: u64, end: u64, msg: &str) -> Result<&
     source
         .get(s..e)
         .ok_or_else(|| Error::internal_invariant(msg))
+}
+
+// -- MHTML (Phase 21.27) -----------------------------------------------------
+
+/// Render an optional exact span as JSON (`null` or `[a,b]`).
+#[cfg(feature = "mhtml")]
+fn mhtml_span_json(s: Option<(u64, u64)>) -> String {
+    match s {
+        Some((a, b)) => format!("[{a},{b}]"),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "mhtml")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the MHTML web-archive model (derived, `Q_gen`).
+    fn mhtml_model(&mut self) -> Result<(MhtmlModel, NodeId)> {
+        let entry = self.require_entry(SelectorKey::new(SEL_MHTML_MODEL, 0), "MHTML model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((MhtmlModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn mhtml_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn mhtml_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The root HTML part: its MIME spans, `Content-Location`, decoded length, and the
+    /// reused HTML model summary. `Text`/`ExactBytes` return its decoded body bytes.
+    fn mhtml_root(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let p = model
+            .root_part()
+            .ok_or_else(|| Error::internal_invariant("MHTML root part is out of range"))?
+            .clone();
+        let decoded = mhtml_root_body_bytes(&source, &model, self.limits)?;
+        if decoded.len() as u64 > req.budget.max_output_bytes {
+            return Err(Error::resource_limit(format!(
+                "MHTML root body exceeded the {}-byte budget",
+                req.budget.max_output_bytes
+            )));
+        }
+        let loc = p.last_header("content-location").map(|h| h.value.clone());
+        let span = Some((p.entity_start, p.entity_end));
+        let provenance = format!("mhtml;root;part={};media_type={}", p.index, p.media_type);
+        let value = match req.representation {
+            Representation::ExactBytes | Representation::DecodedBytes => {
+                AnswerValue::Bytes(decoded)
+            }
+            Representation::Text => {
+                AnswerValue::Text(String::from_utf8_lossy(&decoded).into_owned())
+            }
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"mhtml\",\"root_part\":{},\"media_type\":\"{}\",",
+                    "\"cte\":\"{}\",\"content_location\":{},",
+                    "\"entity_span\":[{},{}],\"header_span\":[{},{}],\"body_span\":[{},{}],",
+                    "\"decoded_len\":{},\"html_nodes\":{},\"html_attrs\":{},",
+                    "\"html_root\":{},\"html_depth\":{}}}"
+                ),
+                p.index,
+                json_escape(&p.media_type),
+                mhtml_cte_name(p.cte),
+                opt_str_json(loc.as_deref()),
+                p.entity_start,
+                p.entity_end,
+                p.header_start,
+                p.header_end,
+                p.body_start,
+                p.body_end,
+                decoded.len(),
+                model.html.nodes.len(),
+                model.html.attrs.len(),
+                model.html.root,
+                model.html.max_depth,
+            )),
+        };
+        Ok(self.mhtml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `ordinal`-th sub-resource: its keys, media type, encoding, exact spans, and
+    /// decoded length. `Text`/`ExactBytes` return its decoded bytes.
+    fn mhtml_resource(&mut self, req: &ObserveRequest, ordinal: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let r = model
+            .resource(ordinal)
+            .ok_or_else(|| {
+                Error::unsupported_feature(format!(
+                    "MHTML has no resource {ordinal} (resource count {})",
+                    model.resources.len()
+                ))
+            })?
+            .clone();
+        let span = Some((r.body_start, r.body_end));
+        let provenance = format!(
+            "mhtml;resource={ordinal};part={};cte={}",
+            r.index,
+            mhtml_cte_name(r.cte)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes | Representation::DecodedBytes => {
+                AnswerValue::Bytes(mhtml_resource_bytes(&source, &model, ordinal, self.limits)?)
+            }
+            Representation::Text => {
+                let bytes = mhtml_resource_bytes(&source, &model, ordinal, self.limits)?;
+                AnswerValue::Text(String::from_utf8_lossy(&bytes).into_owned())
+            }
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"resource\":{},\"part\":{},\"location\":{},\"location_span\":{},",
+                    "\"content_id\":{},\"content_id_span\":{},",
+                    "\"content_base\":{},\"content_base_span\":{},",
+                    "\"media_type\":\"{}\",\"cte\":\"{}\",",
+                    "\"body_span\":[{},{}],\"decoded_len\":{}}}"
+                ),
+                r.ordinal,
+                r.index,
+                opt_str_json(r.location.as_deref()),
+                mhtml_span_json(r.location_span),
+                opt_str_json(r.content_id.as_deref()),
+                mhtml_span_json(r.content_id_span),
+                opt_str_json(r.content_base.as_deref()),
+                mhtml_span_json(r.content_base_span),
+                json_escape(&r.media_type),
+                mhtml_cte_name(r.cte),
+                r.body_start,
+                r.body_end,
+                r.decoded_len,
+            )),
+        };
+        Ok(self.mhtml_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The envelope's top-level locations (`Snapshot-Content-Location`, `Content-Base`).
+    fn mhtml_location(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let envelope = model
+            .eml
+            .part(0)
+            .ok_or_else(|| Error::internal_invariant("MHTML has no MIME root part"))?;
+        let snap = envelope.last_header("snapshot-content-location");
+        let base = envelope.last_header("content-base");
+        let first = snap.or(base);
+        let span = first.map(|h| (h.value_start, h.value_end));
+        let value = match req.representation {
+            Representation::ExactBytes | Representation::DecodedBytes => {
+                let h = first.ok_or_else(|| {
+                    Error::unsupported_feature(
+                        "MHTML envelope has no Snapshot-Content-Location or Content-Base",
+                    )
+                })?;
+                let (s, e) = (h.value_start as usize, h.value_end as usize);
+                AnswerValue::Bytes(
+                    source
+                        .get(s..e)
+                        .ok_or_else(|| Error::internal_invariant("location span is out of range"))?
+                        .to_vec(),
+                )
+            }
+            Representation::Text => {
+                AnswerValue::Text(first.map(|h| h.value.clone()).unwrap_or_default())
+            }
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"snapshot_content_location\":{},\"snapshot_span\":{},",
+                    "\"content_base\":{},\"content_base_span\":{}}}"
+                ),
+                opt_str_json(model.snapshot_location.as_deref()),
+                mhtml_span_json(snap.map(|h| (h.value_start, h.value_end))),
+                opt_str_json(model.content_base.as_deref()),
+                mhtml_span_json(base.map(|h| (h.value_start, h.value_end))),
+            )),
+        };
+        Ok(self.mhtml_answer(
+            req,
+            value,
+            "mhtml;location".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A bounded lexical search over the whole document (reusing the MIME finder).
+    fn mhtml_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let matches = mhtml_find_matches(&source, &model, pattern, self.limits)?;
+        let mut out: Vec<String> = Vec::new();
+        let mut estimated: u64 = 0;
+        for m in &matches {
+            estimated = estimated.saturating_add(64 + m.text.len() as u64);
+            if estimated > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "MHTML find exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            out.push(format!(
+                concat!(
+                    "{{\"location\":\"{}\",\"part\":{},\"name\":\"{}\",",
+                    "\"span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                mhtml_loc_name(m.location),
+                m.part,
+                json_escape(&m.name),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("mhtml;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.mhtml_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_mhtml(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.mhtml_common_metadata(req),
+            Selector::Text => self.mhtml_common_text(req),
+            Selector::Resource(i) => self.mhtml_resource(req, *i),
+            Selector::SearchMatch(p) => self.mhtml_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "MHTML does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the root HTML part's decoded body, never re-encoded.
+    fn mhtml_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let bytes = mhtml_root_body_bytes(&source, &model, self.limits)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.mhtml_answer(
+            req,
+            AnswerValue::Text(String::from_utf8_lossy(&bytes).into_owned()),
+            "mhtml;root".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn mhtml_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.mhtml_model()?;
+        let (source, root) = self.mhtml_source()?;
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"mhtml\",\"parts\":{},\"headers\":{},\"resources\":{},",
+                "\"bytes\":{},\"root_part\":{},\"root_decoded_len\":{},",
+                "\"html_nodes\":{},\"html_attrs\":{},\"html_depth\":{},",
+                "\"has_snapshot_location\":{},\"has_content_base\":{},",
+                "\"has_from\":{},\"has_subject\":{},\"has_html_part\":{},",
+                "\"snapshot_location\":{},\"content_base\":{}}}"
+            ),
+            model.eml.parts.len(),
+            model.eml.header_count,
+            model.resources.len(),
+            model.doc_len,
+            model.root_part,
+            model.root_body_decoded_len,
+            model.html.nodes.len(),
+            model.html.attrs.len(),
+            model.html.max_depth,
+            model.flags & F_HAS_SNAPSHOT_LOCATION != 0,
+            model.flags & F_HAS_CONTENT_BASE != 0,
+            model.flags & F_HAS_FROM != 0,
+            model.flags & F_HAS_SUBJECT != 0,
+            model.flags & F_HAS_HTML_PART != 0,
+            opt_str_json(model.snapshot_location.as_deref()),
+            opt_str_json(model.content_base.as_deref()),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.mhtml_answer(
+            req,
+            value,
+            "mhtml;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
 }
 
 // -- reStructuredText (Phase 21.26.1) ----------------------------------------

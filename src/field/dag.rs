@@ -1359,6 +1359,39 @@ fn materialize_inner(
                 ));
             }
         }
+        NodeKind::MhtmlModel => {
+            // The canonical MHTML (MIME HTML) model is derived on demand from the exact
+            // source. MHTML has no package layer, so its single dependency is the exact
+            // `DocumentExact` root (keyed by `sha256(source)` per ADR-0060): the model
+            // node *reads the source bytes*, so it must carry a source-identity input,
+            // never alias another field's source. Parsing and all bounds live in
+            // `adapter::mhtml` (which reuses `adapter::eml` and `adapter::html`).
+            #[cfg(feature = "mhtml")]
+            {
+                let dep = node
+                    .deps
+                    .first()
+                    .ok_or_else(|| Error::usage("MhtmlModel has no source dependency"))?;
+                let child = load_node(store, dep)?;
+                let source_bytes = materialize_inner(
+                    source,
+                    store,
+                    cache,
+                    &child,
+                    limits,
+                    budget,
+                    depth - 1,
+                    reuse,
+                )?;
+                crate::adapter::mhtml::build_mhtml_model(&source_bytes, limits)?
+            }
+            #[cfg(not(feature = "mhtml"))]
+            {
+                return Err(Error::unsupported_feature(
+                    "MHTML support is not compiled in (feature `mhtml`)",
+                ));
+            }
+        }
         NodeKind::YamlModel => {
             // The canonical YAML structured-tree model is derived on demand from the
             // exact source. YAML has no package layer, so its single dependency is

@@ -415,6 +415,19 @@ pub const SEL_ASCIIDOC_MODEL: u8 = 40;
 /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); MDX has no package
 /// layer. Derived, never exact.
 pub const SEL_MDX_MODEL: u8 = 41;
+/// Selector kind: the canonical MHTML (MIME HTML, RFC 2557) web-archive model
+/// (Phase 21.27).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source as the reused, span-preserving MIME envelope and ordered parts **plus** the
+/// MHTML-specific anchors — the top-level `Snapshot-Content-Location`/`Content-Base`,
+/// the ordered sub-resources keyed by `Content-Location`/`Content-ID`, and the root
+/// HTML part (the `start=` `Content-ID`, else the first `text/html` part, else the
+/// first part) with its **decoded** body parsed by the reused bounded HTML scanner —
+/// as `Q_gen` derived state. It is computed on demand from the exact source (its
+/// single dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+/// ADR-0060); MHTML has no package layer. Derived, never exact.
+pub const SEL_MHTML_MODEL: u8 = 42;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

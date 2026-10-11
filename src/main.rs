@@ -141,6 +141,8 @@ const USAGE_FIELD: &str = "\
         --adoc-find PATTERN |
         --mdx-heading N | --mdx-block N | --mdx-esm N | --mdx-jsx N |
         --mdx-expression N | --mdx-find PATTERN |
+        --mhtml-root | --mhtml-resource N | --mhtml-location |
+        --mhtml-find PATTERN |
         --xml-path P | --xml-element P | --xml-attr PATH@NAME |
         --xml-namespaces | --xml-find PATTERN |
         --html-path P | --html-element P | --html-attr PATH@NAME |
@@ -1903,6 +1905,23 @@ struct FieldArgs {
     /// 21.26.3).
     #[cfg(feature = "mdx")]
     mdx_find: Option<String>,
+    /// `--mhtml-root`: the root HTML part of an MHTML web archive (the `start=`
+    /// `Content-ID`, else the first `text/html` part, else the first part) (Phase
+    /// 21.27).
+    #[cfg(feature = "mhtml")]
+    mhtml_root: bool,
+    /// `--mhtml-resource N`: the N-th MHTML sub-resource (a part keyed by
+    /// `Content-Location`/`Content-ID`) in document order (Phase 21.27).
+    #[cfg(feature = "mhtml")]
+    mhtml_resource: Option<u32>,
+    /// `--mhtml-location`: the MHTML envelope's top-level `Snapshot-Content-Location`
+    /// and `Content-Base` (Phase 21.27).
+    #[cfg(feature = "mhtml")]
+    mhtml_location: bool,
+    /// `--mhtml-find`: a lexical, case-sensitive search over the whole MHTML document
+    /// (reusing the MIME finder) (Phase 21.27).
+    #[cfg(feature = "mhtml")]
+    mhtml_find: Option<String>,
     /// `--xml-path P`: resolve a simple element path (`/a/b[2]/c`; `""` is the root
     /// element), returning the element's name, exact source span, and exact bytes
     /// (Phase 21.9).
@@ -2831,6 +2850,27 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "mdx")]
             "--mdx-find" => {
                 out.mdx_find = Some(field_arg_value(args, &mut i, "--mdx-find", inline)?);
+            }
+            #[cfg(feature = "mhtml")]
+            "--mhtml-root" => {
+                out.mhtml_root = true;
+                i += 1;
+            }
+            #[cfg(feature = "mhtml")]
+            "--mhtml-resource" => {
+                out.mhtml_resource = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--mhtml-resource", inline)?,
+                    "--mhtml-resource",
+                )?);
+            }
+            #[cfg(feature = "mhtml")]
+            "--mhtml-location" => {
+                out.mhtml_location = true;
+                i += 1;
+            }
+            #[cfg(feature = "mhtml")]
+            "--mhtml-find" => {
+                out.mhtml_find = Some(field_arg_value(args, &mut i, "--mhtml-find", inline)?);
             }
             #[cfg(feature = "xml")]
             "--xml-path" => {
@@ -3761,6 +3801,26 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.mdx_find {
             chosen.push(Selector::MdxFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // MHTML: `--mhtml-root` addresses the root HTML part; `--mhtml-resource` a
+    // sub-resource by 0-based ordinal; `--mhtml-location` the envelope's top-level
+    // locations; `--mhtml-find` is a lexical search. Each stands alone (Phase 21.27).
+    #[cfg(feature = "mhtml")]
+    {
+        if out.mhtml_root {
+            chosen.push(Selector::MhtmlRoot);
+        }
+        if let Some(ordinal) = out.mhtml_resource {
+            chosen.push(Selector::MhtmlResource { ordinal });
+        }
+        if out.mhtml_location {
+            chosen.push(Selector::MhtmlLocation);
+        }
+        if let Some(pattern) = &out.mhtml_find {
+            chosen.push(Selector::MhtmlFind {
                 pattern: pattern.clone(),
             });
         }

@@ -762,6 +762,33 @@ pub struct Limits {
     /// Larger inputs fall back to
     /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.26.3).
     pub max_mdx_document_bytes: u64,
+    // The MHTML (MIME HTML) caps below bound the derived, span-preserving model
+    // (Phase 21.27). MHTML reuses the EML MIME layer and the HTML scanner, so their
+    // caps also apply; these add the MHTML-specific bounds on top. MHTML is not a
+    // package: the whole source is the exact leaf, and everything derived is `Q_gen`.
+    /// Maximum MIME part count accepted across one MHTML document (the root counts).
+    /// An over-large document declines typed rather than allocating (Phase 21.27).
+    pub max_mhtml_parts: u32,
+    /// Maximum header count accepted across one MHTML document (all parts). A
+    /// document with more declines typed (Phase 21.27).
+    pub max_mhtml_headers: u32,
+    /// Maximum MIME nesting depth accepted (root = 0). A deeper document declines
+    /// typed (Phase 21.27).
+    pub max_mhtml_depth: u32,
+    /// Maximum sub-resource count accepted across one MHTML document (parts carrying
+    /// a `Content-Location`/`Content-ID`). An over-large document declines typed
+    /// rather than allocating (Phase 21.27).
+    pub max_mhtml_resources: u32,
+    /// Maximum total decoded bytes accepted across one MHTML document (the root
+    /// part's decoded body plus every sub-resource). A larger decode declines typed
+    /// (Phase 21.27).
+    pub max_mhtml_decoded_bytes: u64,
+    /// Maximum embedded HTML node count accepted for the root part (Phase 21.27).
+    pub max_mhtml_nodes: u32,
+    /// Maximum source length admitted for byte-based MHTML detection and parsing.
+    /// Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.27).
+    pub max_mhtml_document_bytes: u64,
 }
 
 impl Limits {
@@ -986,6 +1013,13 @@ impl Limits {
         max_mdx_depth: 256,
         max_mdx_line_bytes: 1 << 26,
         max_mdx_document_bytes: 1 << 34,
+        max_mhtml_parts: 1 << 20,
+        max_mhtml_headers: 1 << 20,
+        max_mhtml_depth: 64,
+        max_mhtml_resources: 1 << 20,
+        max_mhtml_decoded_bytes: 1 << 28,
+        max_mhtml_nodes: 1 << 24,
+        max_mhtml_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1209,6 +1243,13 @@ impl Limits {
         max_mdx_depth: 64,
         max_mdx_line_bytes: 1 << 20,
         max_mdx_document_bytes: 1 << 26,
+        max_mhtml_parts: 1 << 12,
+        max_mhtml_headers: 1 << 12,
+        max_mhtml_depth: 16,
+        max_mhtml_resources: 1 << 12,
+        max_mhtml_decoded_bytes: 1 << 20,
+        max_mhtml_nodes: 1 << 16,
+        max_mhtml_document_bytes: 1 << 26,
     };
 }
 

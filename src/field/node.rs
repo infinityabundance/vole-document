@@ -406,6 +406,19 @@ pub enum NodeKind {
     /// `sha256(source)` per ADR-0060); an MDX document has no package layer. Derived,
     /// never exact.
     MdxModel = 0x3D,
+    /// The canonical, representation-preserving MHTML (MIME HTML, RFC 2557) web
+    /// archive model (Phase 21.27): the whole source parsed (via the **reused**
+    /// bounded EML MIME layer) into a span-preserving MIME envelope and ordered parts,
+    /// plus the MHTML-specific anchors — the top-level `Snapshot-Content-Location`/
+    /// `Content-Base`, the ordered sub-resources keyed by `Content-Location`/
+    /// `Content-ID`, and the root HTML part (the `start=` `Content-ID`, else the first
+    /// `text/html` part, else the first part). The root part's **decoded** body is
+    /// parsed by the **reused** bounded HTML scanner into a span-preserving
+    /// [`HtmlModel`](crate::adapter::html::HtmlModel) whose spans are relative to that
+    /// decoded body. It is computed on demand from the exact source (its single
+    /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per
+    /// ADR-0060); MHTML has no package layer. Derived, never exact.
+    MhtmlModel = 0x3E,
 }
 
 impl NodeKind {
@@ -473,6 +486,7 @@ impl NodeKind {
             0x3B => NodeKind::RstModel,
             0x3C => NodeKind::AsciidocModel,
             0x3D => NodeKind::MdxModel,
+            0x3E => NodeKind::MhtmlModel,
             _ => return None,
         })
     }
@@ -541,6 +555,7 @@ impl NodeKind {
             NodeKind::RstModel => "RstModel",
             NodeKind::AsciidocModel => "AsciidocModel",
             NodeKind::MdxModel => "MdxModel",
+            NodeKind::MhtmlModel => "MhtmlModel",
         }
     }
 

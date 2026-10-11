@@ -676,6 +676,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Rst => &["RstModel", "DocumentExact"],
         DocumentFormat::Asciidoc => &["AsciidocModel", "DocumentExact"],
         DocumentFormat::Mdx => &["MdxModel", "DocumentExact"],
+        DocumentFormat::Mhtml => &["MhtmlModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }
