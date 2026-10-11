@@ -378,6 +378,20 @@ pub const SEL_NOTEBOOK_MODEL: u8 = 37;
 /// `DocumentExact` root, keyed by `sha256(source)` per ADR-0060); a fixed-width
 /// document has no package layer. Derived, never exact.
 pub const SEL_FIXEDWIDTH_MODEL: u8 = 38;
+/// Selector kind: the canonical reStructuredText (Docutils) prose model (Phase
+/// 21.26.1).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the
+/// whole source parsed as a bounded, representation-preserving prose model (section
+/// titles with their exact adornment and recorded hierarchy, paragraphs, explicit
+/// markup (`.. ` comments, `.. directive::` directives preserved verbatim,
+/// substitution definitions, footnotes/citations, hyperlink targets),
+/// field/option/definition lists, literal (`::`) and doctest (`>>> `) blocks,
+/// bullet/enumerated lists with nesting, inline spans, and grid/simple tables) as
+/// `Q_gen` derived state. It is computed on demand from the exact source (its single
+/// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
+/// reStructuredText has no package layer. Derived, never exact.
+pub const SEL_RST_MODEL: u8 = 39;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;

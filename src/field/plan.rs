@@ -503,6 +503,18 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
             will_materialize: kinds(&["MarkdownModel", "DocumentExact"]),
             will_not_materialize: kinds(&["other-nodes", "whole-document"]),
         }),
+        #[cfg(feature = "rst")]
+        (Selector::RstHeading { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RstBlock { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RstDirective { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RstInline { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
+        | (Selector::RstFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
+            shape: PlanShape::DeepenThenObserve,
+            index_reads: 1,
+            required_nodes: 2,
+            will_materialize: kinds(&["RstModel", "DocumentExact"]),
+            will_not_materialize: kinds(&["other-nodes", "whole-document"]),
+        }),
         _ => Err(Error::unsupported_feature(format!(
             "unsupported observation: selector {} with representation {}",
             req.selector.canonical(),
@@ -636,6 +648,7 @@ fn common_materialize(fmt: DocumentFormat) -> &'static [&'static str] {
         DocumentFormat::Gis => &["GisModel", "DocumentExact"],
         DocumentFormat::Notebook => &["NotebookModel", "DocumentExact"],
         DocumentFormat::FixedWidth => &["FixedWidthModel", "DocumentExact"],
+        DocumentFormat::Rst => &["RstModel", "DocumentExact"],
         DocumentFormat::Opaque => &[],
     }
 }

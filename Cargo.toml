@@ -344,6 +344,26 @@ fixedwidth = ["csv"]
 # `.voldoc` bytes and exactness is untouched. Dependency-free (`markdown = []`) and
 # never in `default`.
 markdown = []
+# Phase 21.26.1: the reStructuredText adapter — the next **prose** Wave-2 format
+# (the Docutils input language). Like Markdown it is not a package (no OPC/ZIP
+# layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It adds a bounded, line-based Docutils-subset parser that
+# preserves representation — exact block and inline source spans, section titles
+# with their exact underline/overline adornment (char and length) and a recorded
+# hierarchy, paragraphs, explicit markup (`.. ` comments, `.. directive::`
+# directives preserved verbatim, substitution definitions, footnotes/citations,
+# hyperlink targets), field/option/definition lists, literal (`::`) and doctest
+# (`>>> `) blocks, bullet/enumerated lists with nesting, inline markup
+# (strong/emphasis/literal/interpreted/substitution/footnote/hyperlink/anonymous
+# references), and grid/simple tables — and never re-flows or normalizes the
+# source. Detection is conservative (no magic bytes) and **reST-specific** (an
+# explicit markup start, a grid/simple table, a field list, or an adornment whose
+# char is not a Markdown construct), so plain prose stays Opaque and a valid
+# Markdown document is never stolen. It adds **no** decoder behavior: the model is
+# never on the exactness path, so enabling it never changes `.voldoc` bytes and
+# exactness is untouched. Dependency-free (`rst = []`) and never in `default`.
+rst = []
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores; Phase 21.9 also gates the standalone **XML adapter**
 # (the structured-tree format for a bare `.xml` source) on this same feature. The

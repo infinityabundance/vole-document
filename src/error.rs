@@ -149,6 +149,11 @@ pub enum ErrorClass {
     /// disagree with the sampled layout — so it stays `Opaque` rather than being
     /// claimed.
     InvalidFixedWidthStructure,
+    /// A reStructuredText structure error (Phase 21.26.1+): a source that carries no
+    /// reST-specific signal (an explicit markup start, a grid/simple table, a field
+    /// list, or an admissible section adornment), a malformed directive/marker, or an
+    /// input that exceeds a cap — so it stays `Opaque` rather than being claimed.
+    InvalidRstStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -195,6 +200,7 @@ impl ErrorClass {
             ErrorClass::InvalidGisStructure => 37,
             ErrorClass::InvalidNotebookStructure => 38,
             ErrorClass::InvalidFixedWidthStructure => 39,
+            ErrorClass::InvalidRstStructure => 40,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -240,6 +246,7 @@ impl ErrorClass {
             ErrorClass::InvalidGisStructure => "InvalidGisStructure",
             ErrorClass::InvalidNotebookStructure => "InvalidNotebookStructure",
             ErrorClass::InvalidFixedWidthStructure => "InvalidFixedWidthStructure",
+            ErrorClass::InvalidRstStructure => "InvalidRstStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -339,6 +346,7 @@ impl Error {
     ctor!(invalid_gis_structure, InvalidGisStructure);
     ctor!(invalid_notebook_structure, InvalidNotebookStructure);
     ctor!(invalid_fixedwidth_structure, InvalidFixedWidthStructure);
+    ctor!(invalid_rst_structure, InvalidRstStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

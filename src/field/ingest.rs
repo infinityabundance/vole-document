@@ -338,6 +338,14 @@ fn ingest_pdf_stage_b(
         return ingest_markdown_stage_b(store, source, manifest, limits);
     }
 
+    // reStructuredText is the next prose Wave-2 format, also with no package layer: it
+    // is inverted by a dedicated (non-PDF) tail that adds the derived `RstModel` node
+    // over the exact root (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    if fmt == crate::field::document_format::DocumentFormat::Rst {
+        return ingest_rst_stage_b(store, source, manifest, limits);
+    }
+
     // XML is the structured-tree Wave-2 format for a bare XML source, also with no
     // package layer: it is inverted by a dedicated (non-PDF) tail that adds the
     // derived `XmlModel` node over the exact root (Phase 21.9).
@@ -1889,7 +1897,86 @@ fn ingest_markdown_stage_b(
     })
 }
 
-/// The TOML (structured-tree Wave-2) ingest tail (Phase 21.11).
+/// The reStructuredText (prose Wave-2) ingest tail (Phase 21.26.1).
+///
+/// reStructuredText has no package layer, so there is nothing to scan: the exact
+/// authority is the whole source (`DocumentExact`) and the only derived node is the
+/// representation-preserving [`NodeKind::RstModel`], whose single dependency is that
+/// exact root (keyed by `sha256(source)`), satisfying ADR-0060: the node reads the
+/// source bytes, so it must carry a source-identity input and can never alias another
+/// field's source. The model itself is never built at ingest (so a large file ingests
+/// in bounded memory) and is never on the exactness path.
+#[cfg(feature = "rst")]
+fn ingest_rst_stage_b(
+    store: &mut FieldStore,
+    source: &[u8],
+    manifest: FieldRoot,
+    limits: Limits,
+) -> Result<IngestReport> {
+    use crate::field::index::{IndexEntry, SEL_RST_MODEL, SelectorKey};
+
+    let source_len = source.len() as u64;
+    let mut model = SeedNode::new(
+        NodeKind::RstModel,
+        limits.max_output_bytes,
+        Vec::new(),
+        vec![manifest.root_node],
+        "rst:model",
+    );
+    model.limits.max_output_bytes = limits.max_output_bytes;
+    let model_id = model.content_id();
+    let model_bytes = model.encode_canonical();
+    let (nodes_id_shared, seed_bytes_written) = if store.seeds().contains_node(&model_id)? {
+        (1u64, 0u64)
+    } else {
+        let written = model_bytes.len() as u64;
+        store.seeds_mut().put_node(&model_bytes)?;
+        (0u64, written)
+    };
+    let node_count = manifest.node_count.saturating_add(1);
+
+    let entries = vec![IndexEntry {
+        key: SelectorKey::new(SEL_RST_MODEL, 0),
+        out_off: 0,
+        out_len: 0,
+        node_id: model_id,
+    }];
+    let mut istore = FsIndexStore::open(store.root())?;
+    let index_root = build(&mut istore, &entries)?;
+    let (index_node_count, _depth) = validate(&istore, &index_root)?;
+
+    let provenance = format!(
+        "{}field:ingest-rst;model=1;nodes={node_count}",
+        crate::field::document_format::DocumentFormat::Rst.provenance_prefix()
+    );
+    let mut new_manifest = manifest.clone();
+    new_manifest.index_root = *index_root.as_bytes();
+    new_manifest.node_count = node_count;
+    new_manifest.index_node_count = index_node_count;
+    new_manifest.provenance = provenance;
+    let field = store.put_field(&new_manifest)?;
+
+    Ok(IngestReport {
+        format: crate::field::document_format::DocumentFormat::Rst,
+        field,
+        root_node: manifest.root_node,
+        index_root: Some(index_root),
+        node_count,
+        index_node_count,
+        source_len,
+        object_nodes: 0,
+        stream_nodes: 0,
+        decoded_stream_nodes: 0,
+        page_nodes: 0,
+        revision_nodes: 0,
+        declined_streams: 0,
+        resource_blob_nodes: 0,
+        shared_resource_ids: 0,
+        shared_resource_bytes: 0,
+        nodes_id_shared,
+        seed_bytes_written,
+    })
+}
 ///
 /// TOML has no package layer, so there is nothing to scan: the exact authority is
 /// the whole source (`DocumentExact`) and the only derived node is the

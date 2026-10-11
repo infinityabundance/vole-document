@@ -135,6 +135,8 @@ const USAGE_FIELD: &str = "\
         --csv-find PATTERN |
         --md-heading N | --md-block N | --md-code N | --md-link N |
         --md-find PATTERN |
+        --rst-heading N | --rst-block N | --rst-directive N | --rst-inline N |
+        --rst-find PATTERN |
         --xml-path P | --xml-element P | --xml-attr PATH@NAME |
         --xml-namespaces | --xml-find PATTERN |
         --html-path P | --html-element P | --html-attr PATH@NAME |
@@ -1842,6 +1844,22 @@ struct FieldArgs {
     /// (Phase 21.8.1).
     #[cfg(feature = "markdown")]
     md_find: Option<String>,
+    /// `--rst-heading N`: the N-th section title in document order (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    rst_heading: Option<u32>,
+    /// `--rst-block N`: the N-th block in document order (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    rst_block: Option<u32>,
+    /// `--rst-directive N`: the N-th directive in document order (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    rst_directive: Option<u32>,
+    /// `--rst-inline N`: the N-th inline span in document order (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    rst_inline: Option<u32>,
+    /// `--rst-find`: a lexical, case-sensitive search over reStructuredText block
+    /// content (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    rst_find: Option<String>,
     /// `--xml-path P`: resolve a simple element path (`/a/b[2]/c`; `""` is the root
     /// element), returning the element's name, exact source span, and exact bytes
     /// (Phase 21.9).
@@ -2667,6 +2685,38 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "markdown")]
             "--md-find" => {
                 out.md_find = Some(field_arg_value(args, &mut i, "--md-find", inline)?);
+            }
+            #[cfg(feature = "rst")]
+            "--rst-heading" => {
+                out.rst_heading = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--rst-heading", inline)?,
+                    "--rst-heading",
+                )?);
+            }
+            #[cfg(feature = "rst")]
+            "--rst-block" => {
+                out.rst_block = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--rst-block", inline)?,
+                    "--rst-block",
+                )?);
+            }
+            #[cfg(feature = "rst")]
+            "--rst-directive" => {
+                out.rst_directive = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--rst-directive", inline)?,
+                    "--rst-directive",
+                )?);
+            }
+            #[cfg(feature = "rst")]
+            "--rst-inline" => {
+                out.rst_inline = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--rst-inline", inline)?,
+                    "--rst-inline",
+                )?);
+            }
+            #[cfg(feature = "rst")]
+            "--rst-find" => {
+                out.rst_find = Some(field_arg_value(args, &mut i, "--rst-find", inline)?);
             }
             #[cfg(feature = "xml")]
             "--xml-path" => {
@@ -3524,6 +3574,29 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.md_find {
             chosen.push(Selector::MdFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // reStructuredText: `--rst-heading`/`--rst-block`/`--rst-directive`/`--rst-inline`
+    // address titles, blocks, directives, and inline spans; `--rst-find` is a lexical
+    // search. Each stands alone (Phase 21.26.1).
+    #[cfg(feature = "rst")]
+    {
+        if let Some(index) = out.rst_heading {
+            chosen.push(Selector::RstHeading { index });
+        }
+        if let Some(index) = out.rst_block {
+            chosen.push(Selector::RstBlock { index });
+        }
+        if let Some(index) = out.rst_directive {
+            chosen.push(Selector::RstDirective { index });
+        }
+        if let Some(index) = out.rst_inline {
+            chosen.push(Selector::RstInline { index });
+        }
+        if let Some(pattern) = &out.rst_find {
+            chosen.push(Selector::RstFind {
                 pattern: pattern.clone(),
             });
         }

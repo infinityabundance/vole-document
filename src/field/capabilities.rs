@@ -276,6 +276,13 @@ const FIXEDWIDTH_NATIVE: &[&str] = &[
     "fixedwidth-range",
     "fixedwidth-find",
 ];
+const RST_NATIVE: &[&str] = &[
+    "rst-heading",
+    "rst-block",
+    "rst-directive",
+    "rst-inline",
+    "rst-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -595,6 +602,17 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 FIXEDWIDTH_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Rst => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("heading", COMMON_TEXT_META),
+                    caps("block", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                RST_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

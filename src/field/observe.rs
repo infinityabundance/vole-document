@@ -190,6 +190,13 @@ use crate::adapter::pptx::{
     NotesModel as PptxNotesModel, PptxExtractProfile, PptxModel, PptxShape, PptxTable,
     PresentationModel as PptxPresentationModel, SlideModel as PptxSlideModel,
 };
+#[cfg(feature = "rst")]
+use crate::adapter::rst::{
+    B_DIRECTIVE, B_TITLE, RstModel, block_bytes as rst_block_bytes,
+    block_kind_name as rst_block_kind_name, canonical_text as rst_canonical_text,
+    content_bytes as rst_content_bytes, find as rst_find_matches,
+    inline_kind_name as rst_inline_kind_name, inline_text_bytes as rst_inline_text_bytes,
+};
 #[cfg(feature = "toml")]
 use crate::adapter::toml::{
     TNode as TomlNode, TomlModel, canonical_text as toml_canonical_text, find as toml_find_matches,
@@ -271,6 +278,8 @@ use crate::field::index::SEL_OPC_MODEL;
 use crate::field::index::SEL_PARQUET_MODEL;
 #[cfg(feature = "pptx")]
 use crate::field::index::SEL_PPTX_MODEL;
+#[cfg(feature = "rst")]
+use crate::field::index::SEL_RST_MODEL;
 #[cfg(feature = "toml")]
 use crate::field::index::SEL_TOML_MODEL;
 #[cfg(feature = "xlsx")]
@@ -1327,6 +1336,49 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The `index`-th section title in document order (Phase 21.26.1). `Text` returns
+    /// the title text; `ExactBytes` its exact content bytes; `Metadata`/`Structure` a
+    /// descriptor with its hierarchy level, adornment, and exact spans.
+    #[cfg(feature = "rst")]
+    RstHeading {
+        /// The 0-based title ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th block in document order (Phase 21.26.1). `ExactBytes` returns
+    /// the block's exact source span bytes; `Text` its exact content text;
+    /// `Metadata`/`Structure` a descriptor with its kind, exact spans, and inline
+    /// count. reStructuredText has no package layer, so the source *is* the whole
+    /// document.
+    #[cfg(feature = "rst")]
+    RstBlock {
+        /// The 0-based block ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th directive (`.. name:: ...`) in document order (Phase 21.26.1),
+    /// preserved verbatim and never executed or resolved. `Text` returns the exact
+    /// directive source; `Metadata`/`Structure` a descriptor with its name, argument,
+    /// and exact spans.
+    #[cfg(feature = "rst")]
+    RstDirective {
+        /// The 0-based directive ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th inline span in document order (Phase 21.26.1). `Text` returns
+    /// the inline's inner text; `ExactBytes` its exact whole span bytes;
+    /// `Metadata`/`Structure` a descriptor with its kind, role/reference name, and
+    /// exact spans.
+    #[cfg(feature = "rst")]
+    RstInline {
+        /// The 0-based inline ordinal in document order.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over reStructuredText block content (Phase
+    /// 21.26.1). Never an embedding or a model call.
+    #[cfg(feature = "rst")]
+    RstFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// A standalone-XML element addressed by a simple element path
     /// (`/a/b[2]/c`; `""` is the root element) (Phase 21.9). The answer reports
     /// the element's qualified name, exact source span, and (for `ExactBytes`) its
@@ -1940,6 +1992,16 @@ impl Selector {
             Selector::MdLink { index } => format!("md-link:{index}"),
             #[cfg(feature = "markdown")]
             Selector::MdFind { pattern } => format!("md-find:{pattern}"),
+            #[cfg(feature = "rst")]
+            Selector::RstHeading { index } => format!("rst-heading:{index}"),
+            #[cfg(feature = "rst")]
+            Selector::RstBlock { index } => format!("rst-block:{index}"),
+            #[cfg(feature = "rst")]
+            Selector::RstDirective { index } => format!("rst-directive:{index}"),
+            #[cfg(feature = "rst")]
+            Selector::RstInline { index } => format!("rst-inline:{index}"),
+            #[cfg(feature = "rst")]
+            Selector::RstFind { pattern } => format!("rst-find:{pattern}"),
             #[cfg(feature = "xml")]
             Selector::XmlPath { path } => format!("xml-path:{path}"),
             #[cfg(feature = "xml")]
@@ -4041,6 +4103,30 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "markdown")]
             (Selector::MdFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.md_find(req, pattern)
+            }
+            #[cfg(feature = "rst")]
+            (
+                Selector::RstHeading { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rst_heading(req, *index),
+            #[cfg(feature = "rst")]
+            (
+                Selector::RstBlock { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rst_block(req, *index),
+            #[cfg(feature = "rst")]
+            (
+                Selector::RstDirective { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rst_directive(req, *index),
+            #[cfg(feature = "rst")]
+            (
+                Selector::RstInline { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.rst_inline(req, *index),
+            #[cfg(feature = "rst")]
+            (Selector::RstFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.rst_find(req, pattern)
             }
             #[cfg(feature = "xml")]
             (Selector::XmlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -9347,6 +9433,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::Csv => self.common_csv(req)?,
             DocumentFormat::FixedWidth => self.common_fixedwidth(req)?,
             DocumentFormat::Markdown => self.common_markdown(req)?,
+            DocumentFormat::Rst => self.common_rst(req)?,
             DocumentFormat::Xml => self.common_xml(req)?,
             DocumentFormat::Html => {
                 #[cfg(feature = "html")]
@@ -9861,6 +9948,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_markdown(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "Markdown observations require a build with the markdown feature",
+        ))
+    }
+
+    #[cfg(not(feature = "rst"))]
+    fn common_rst(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "reStructuredText observations require a build with the rst feature",
         ))
     }
 
@@ -17814,6 +17908,348 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "markdown;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// -- reStructuredText (Phase 21.26.1) ----------------------------------------
+
+/// Render an optional string as JSON (`null` or a quoted escaped string).
+#[cfg(feature = "rst")]
+fn rst_opt_json(s: Option<&str>) -> String {
+    match s {
+        Some(x) => format!("\"{}\"", json_escape(x)),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "rst")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the reStructuredText prose model (derived, `Q_gen`).
+    fn rst_model(&mut self) -> Result<(RstModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_RST_MODEL, 0), "reStructuredText model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((RstModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn rst_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn rst_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th section title in document order.
+    fn rst_heading(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let titles = model.blocks_of_kind(B_TITLE);
+        let bi = *titles.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("reStructuredText document has no title {index}"))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("rst title index out of range"))?;
+        let content = rst_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.content_start, b.content_end));
+        let adornment = b.info.as_deref().unwrap_or("");
+        let provenance = format!(
+            "rst;heading={index};level={};adornment={adornment}",
+            b.level
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(content.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"rst\",\"heading\":{},\"block\":{},",
+                    "\"level\":{},\"overline\":{},\"adornment\":\"{}\",",
+                    "\"span\":[{},{}],\"content_span\":[{},{}],\"text_len\":{}}}"
+                ),
+                index,
+                bi,
+                b.level,
+                b.flags & crate::adapter::rst::F_OVERLINE != 0,
+                json_escape(adornment),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                text.len(),
+            )),
+        };
+        Ok(self.rst_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th block in document order.
+    fn rst_block(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let b = model.block(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("reStructuredText document has no block {index}"))
+        })?;
+        let span_bytes = rst_block_bytes(&source, b)?;
+        let content = rst_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!("rst;block={index};kind={}", rst_block_kind_name(b.kind));
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"content_span\":[{},{}],\"level\":{},\"flags\":{},",
+                    "\"rows\":{},\"cols\":{},\"info\":{},",
+                    "\"target\":{},\"title\":{},\"inlines\":{}}}"
+                ),
+                index,
+                rst_block_kind_name(b.kind),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                b.level,
+                b.flags,
+                b.rows,
+                b.cols,
+                rst_opt_json(b.info.as_deref()),
+                rst_opt_json(b.target.as_deref()),
+                rst_opt_json(b.title.as_deref()),
+                b.inlines.len(),
+            )),
+        };
+        Ok(self.rst_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th directive in document order (preserved verbatim).
+    fn rst_directive(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let dirs = model.blocks_of_kind(B_DIRECTIVE);
+        let bi = *dirs.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!(
+                "reStructuredText document has no directive {index}"
+            ))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("rst directive index out of range"))?;
+        let span_bytes = rst_block_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(span_bytes).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!(
+            "rst;directive={index};block={bi};name={}",
+            b.info.as_deref().unwrap_or("none")
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"directive\":{},\"block\":{},\"name\":{},\"argument\":{},",
+                    "\"span\":[{},{}],\"content_span\":[{},{}],\"bytes\":{}}}"
+                ),
+                index,
+                bi,
+                rst_opt_json(b.info.as_deref()),
+                rst_opt_json(b.title.as_deref()),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                span_bytes.len(),
+            )),
+        };
+        Ok(self.rst_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th inline span in document order.
+    fn rst_inline(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let x = model.inline(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("reStructuredText document has no inline {index}"))
+        })?;
+        let span_bytes = crate::adapter::rst::inline_bytes(&source, x)?;
+        let inner = rst_inline_text_bytes(&source, x)?;
+        let text = String::from_utf8_lossy(inner).into_owned();
+        let span = Some((x.start, x.end));
+        let provenance = format!("rst;inline={index};kind={}", rst_inline_kind_name(x.kind));
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"inline\":{},\"kind\":\"{}\",\"block\":{},",
+                    "\"span\":[{},{}],\"inner_span\":[{},{}],",
+                    "\"target\":{},\"text\":\"{}\"}}"
+                ),
+                index,
+                rst_inline_kind_name(x.kind),
+                x.block,
+                x.start,
+                x.end,
+                x.inner_start,
+                x.inner_end,
+                rst_opt_json(x.target.as_deref()),
+                json_escape(&text),
+            )),
+        };
+        Ok(self.rst_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over reStructuredText block content.
+    fn rst_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let matches = rst_find_matches(&source, &model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"text\":\"{}\"}}"
+                ),
+                m.block,
+                rst_block_kind_name(m.kind),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("rst;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.rst_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_rst(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.rst_common_metadata(req),
+            Selector::Text => self.rst_common_text(req),
+            Selector::Heading(i) => self.rst_heading(req, *i),
+            Selector::Block(i) => self.rst_block(req, *i),
+            Selector::SearchMatch(p) => self.rst_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "reStructuredText does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the exact source (lossily decoded), never re-flowed
+    /// or rendered.
+    fn rst_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.rst_source()?;
+        let text = rst_canonical_text(&source, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.rst_answer(
+            req,
+            AnswerValue::Text(text),
+            "rst;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn rst_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (model, model_id) = self.rst_model()?;
+        let (source, root) = self.rst_source()?;
+        let count = |k: u8| model.blocks_of_kind(k).len();
+        let icount = |k: u8| model.inlines_of_kind(k).len();
+        let explicit = model
+            .blocks
+            .iter()
+            .filter(|b| crate::adapter::rst::is_explicit_markup_block(b.kind))
+            .count();
+        let tables = model
+            .blocks
+            .iter()
+            .filter(|b| crate::adapter::rst::is_table_block(b.kind))
+            .count();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"rst\",\"bytes\":{},\"blocks\":{},",
+                "\"titles\":{},\"max_title_level\":{},\"paragraphs\":{},",
+                "\"list_items\":{},\"explicit_markup\":{},\"directives\":{},",
+                "\"footnotes\":{},\"targets\":{},\"fields\":{},\"options\":{},",
+                "\"definitions\":{},\"literal_blocks\":{},\"doctests\":{},",
+                "\"tables\":{},\"grid_tables\":{},\"simple_tables\":{},",
+                "\"inline_spans\":{},\"strong\":{},\"emphasis\":{},",
+                "\"literals\":{},\"interpreted\":{},\"substitutions\":{},",
+                "\"footnote_refs\":{},\"hyperlink_refs\":{},\"anonymous_refs\":{},",
+                "\"table_cells\":{}}}"
+            ),
+            model.doc_len,
+            model.blocks.len(),
+            count(B_TITLE),
+            model.max_title_level(),
+            count(crate::adapter::rst::B_PARAGRAPH),
+            count(crate::adapter::rst::B_LIST_ITEM),
+            explicit,
+            count(B_DIRECTIVE),
+            count(crate::adapter::rst::B_FOOTNOTE_DEF),
+            count(crate::adapter::rst::B_HYPERLINK_TARGET),
+            count(crate::adapter::rst::B_FIELD),
+            count(crate::adapter::rst::B_OPTION),
+            count(crate::adapter::rst::B_DEFINITION),
+            count(crate::adapter::rst::B_LITERAL_BLOCK),
+            count(crate::adapter::rst::B_DOCTEST),
+            tables,
+            count(crate::adapter::rst::B_GRID_TABLE),
+            count(crate::adapter::rst::B_SIMPLE_TABLE),
+            model.inlines.len(),
+            icount(crate::adapter::rst::I_STRONG),
+            icount(crate::adapter::rst::I_EMPHASIS),
+            icount(crate::adapter::rst::I_LITERAL),
+            icount(crate::adapter::rst::I_INTERPRETED),
+            icount(crate::adapter::rst::I_SUBSTITUTION_REF),
+            icount(crate::adapter::rst::I_FOOTNOTE_REF),
+            icount(crate::adapter::rst::I_HYPERLINK_REF),
+            icount(crate::adapter::rst::I_ANON_REF),
+            icount(crate::adapter::rst::I_TABLE_CELL),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.rst_answer(
+            req,
+            value,
+            "rst;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

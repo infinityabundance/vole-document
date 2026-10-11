@@ -54,6 +54,8 @@ pub mod parquet;
 pub mod pdf;
 #[cfg(feature = "pptx")]
 pub mod pptx;
+#[cfg(feature = "rst")]
+pub mod rst;
 #[cfg(feature = "toml")]
 pub mod toml;
 #[cfg(feature = "xlsx")]

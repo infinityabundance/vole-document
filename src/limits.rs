@@ -695,6 +695,28 @@ pub struct Limits {
     /// Detection is a bounded sample, so a huge source is classified in bounded
     /// memory (Phase 21.25).
     pub max_fixedwidth_sampled_lines_for_detection: u32,
+    // The reStructuredText caps below bound the derived, span-preserving reST prose
+    // model and its inline extraction (Phase 21.26.1). reST is not a package: the
+    // whole source is the exact leaf, and everything derived is `Q_gen` only.
+    /// Maximum blocks accepted in one reStructuredText document (Phase 21.26.1).
+    pub max_rst_blocks: u32,
+    /// Maximum inline spans accepted in one reStructuredText document (Phase
+    /// 21.26.1).
+    pub max_rst_inline_spans: u32,
+    /// Maximum nodes (blocks plus inline spans) accepted in one reStructuredText
+    /// document. An over-large document declines typed rather than allocating
+    /// (Phase 21.26.1).
+    pub max_rst_nodes: u32,
+    /// Maximum section-title/list nesting depth accepted (Phase 21.26.1). A deeper
+    /// document is a typed resource-limit decline.
+    pub max_rst_depth: u32,
+    /// Maximum byte length of one physical line (content, terminator excluded) in a
+    /// reStructuredText document. A longer line declines typed (Phase 21.26.1).
+    pub max_rst_line_bytes: u64,
+    /// Maximum source length admitted for byte-based reStructuredText detection and
+    /// parsing. Larger inputs fall back to
+    /// [`crate::field::document_format::DocumentFormat::Opaque`] (Phase 21.26.1).
+    pub max_rst_document_bytes: u64,
 }
 
 impl Limits {
@@ -900,6 +922,12 @@ impl Limits {
         max_fixedwidth_field_bytes: 1 << 24,
         max_fixedwidth_document_bytes: 1 << 34,
         max_fixedwidth_sampled_lines_for_detection: 1024,
+        max_rst_blocks: 1 << 22,
+        max_rst_inline_spans: 1 << 24,
+        max_rst_nodes: 1 << 24,
+        max_rst_depth: 256,
+        max_rst_line_bytes: 1 << 26,
+        max_rst_document_bytes: 1 << 34,
     };
 
     /// Tight limits for hostile-input testing and fuzzing.
@@ -1104,6 +1132,12 @@ impl Limits {
         max_fixedwidth_field_bytes: 1 << 18,
         max_fixedwidth_document_bytes: 1 << 26,
         max_fixedwidth_sampled_lines_for_detection: 64,
+        max_rst_blocks: 1 << 14,
+        max_rst_inline_spans: 1 << 16,
+        max_rst_nodes: 1 << 16,
+        max_rst_depth: 64,
+        max_rst_line_bytes: 1 << 20,
+        max_rst_document_bytes: 1 << 26,
     };
 }
 

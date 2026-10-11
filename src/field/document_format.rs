@@ -294,6 +294,13 @@ pub enum DocumentFormat {
     /// inferred layout, per-record spans, per-column spans, padding, terminator, BOM,
     /// and header row are `Q_gen` projections (Phase 21.25).
     FixedWidth,
+    /// A reStructuredText (Docutils) prose document (the whole source carries a
+    /// reST-specific structural mark — an explicit markup start (`.. ` comment,
+    /// directive, target, footnote/citation, or substitution definition), a grid or
+    /// simple table, a field list, or a section adornment whose char is not a
+    /// Markdown construct — so plain prose and a Markdown document are never stolen).
+    /// Not a package: the exact leaf is the whole source (Phase 21.26.1).
+    Rst,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -330,6 +337,7 @@ impl DocumentFormat {
             DocumentFormat::Gis => "gis",
             DocumentFormat::Notebook => "notebook",
             DocumentFormat::FixedWidth => "fixedwidth",
+            DocumentFormat::Rst => "rst",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -365,6 +373,7 @@ impl DocumentFormat {
             DocumentFormat::Gis => "gis",
             DocumentFormat::Notebook => "notebook",
             DocumentFormat::FixedWidth => "fixedwidth",
+            DocumentFormat::Rst => "rst",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -400,6 +409,7 @@ impl DocumentFormat {
             DocumentFormat::Gis => cfg!(feature = "gis"),
             DocumentFormat::Notebook => cfg!(feature = "notebook"),
             DocumentFormat::FixedWidth => cfg!(feature = "fixedwidth"),
+            DocumentFormat::Rst => cfg!(feature = "rst"),
         }
     }
 
@@ -445,6 +455,7 @@ impl DocumentFormat {
             "gis" => Some(DocumentFormat::Gis),
             "notebook" => Some(DocumentFormat::Notebook),
             "fixedwidth" => Some(DocumentFormat::FixedWidth),
+            "rst" => Some(DocumentFormat::Rst),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -675,12 +686,25 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     if crate::adapter::markdown::detect(source, limits) {
         return DocumentFormat::Markdown;
     }
+    // reStructuredText (Phase 21.26.1) is the **next prose** Wave-2 format, also with
+    // no package layer. It is tried **immediately after Markdown** and **before
+    // fixed-width**: Markdown must be tried first so a Markdown document is never
+    // stolen (reST detection requires a reST-**specific** signal — an explicit markup
+    // start, a grid/simple table, a field list, or an adornment whose char is not a
+    // Markdown construct), and a reST document must be claimed before the maximally
+    // ambiguous fixed-width heuristic (which could otherwise read an aligned reST body
+    // as a column-position table). Plain prose stays Opaque.
+    #[cfg(feature = "rst")]
+    if crate::adapter::rst::detect(source, limits) {
+        return DocumentFormat::Rst;
+    }
     // Fixed-width (column-position) text is the second **tabular** Wave-2 format
     // (Phase 21.25), but its columns are defined by character positions, not a
     // delimiter, so it is a distinct format (and adapter), never a CSV dialect. It is
-    // tried **last among the tabular/prose heuristics** — after CSV/TSV/PSV and after
-    // Markdown — so a delimited table or a Markdown table always keeps its own format
-    // (the fixed-width detector also declines both explicitly, defence in depth).
+    // tried **last among the tabular/prose heuristics** — after CSV/TSV/PSV, after
+    // Markdown, and after reStructuredText — so a delimited table, a Markdown table, or
+    // a reST document always keeps its own format (the fixed-width detector also
+    // declines a delimited or Markdown table explicitly, defence in depth).
     // Fixed-width is **genuinely ambiguous** (nearly any aligned text can look
     // tabular), so detection is maximally conservative: at least three sampled records
     // of identical byte width, an inferred column layout whose interior whitespace gaps
@@ -985,6 +1009,7 @@ mod tests {
             DocumentFormat::Gis,
             DocumentFormat::Notebook,
             DocumentFormat::FixedWidth,
+            DocumentFormat::Rst,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

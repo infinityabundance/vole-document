@@ -364,6 +364,20 @@ pub enum NodeKind {
     /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
     /// a fixed-width document has no package layer. Derived, never exact.
     FixedWidthModel = 0x3A,
+    /// The canonical, representation-preserving reStructuredText (Docutils) model
+    /// (Phase 21.26.1): the whole source parsed into a bounded, span-preserving prose
+    /// model — section titles with their exact underline/overline adornment (char and
+    /// length) and a recorded hierarchy, paragraphs, explicit markup (`.. ` comments,
+    /// `.. directive::` directives preserved verbatim, substitution definitions,
+    /// footnotes/citations, hyperlink targets), field/option/definition lists, literal
+    /// (`::`) and doctest (`>>> `) blocks, bullet/enumerated lists with nesting, inline
+    /// spans (strong/emphasis/literal/interpreted/substitution/footnote/hyperlink/
+    /// anonymous references), and grid/simple tables. Every span is exact and the
+    /// source is never re-flowed or normalized. It is computed on demand from the exact
+    /// source (its single dependency is the `DocumentExact` root, keyed by
+    /// `sha256(source)` per ADR-0060); a reST document has no package layer. Derived,
+    /// never exact.
+    RstModel = 0x3B,
 }
 
 impl NodeKind {
@@ -428,6 +442,7 @@ impl NodeKind {
             0x38 => NodeKind::GisModel,
             0x39 => NodeKind::NotebookModel,
             0x3A => NodeKind::FixedWidthModel,
+            0x3B => NodeKind::RstModel,
             _ => return None,
         })
     }
@@ -493,6 +508,7 @@ impl NodeKind {
             NodeKind::GisModel => "GisModel",
             NodeKind::NotebookModel => "NotebookModel",
             NodeKind::FixedWidthModel => "FixedWidthModel",
+            NodeKind::RstModel => "RstModel",
         }
     }
 
