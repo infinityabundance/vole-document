@@ -301,6 +301,13 @@ pub enum DocumentFormat {
     /// Markdown construct — so plain prose and a Markdown document are never stolen).
     /// Not a package: the exact leaf is the whole source (Phase 21.26.1).
     Rst,
+    /// An AsciiDoc prose document (the whole source carries an AsciiDoc-specific
+    /// structural mark — a level-0 document title followed by a further block, a
+    /// `==`+ section, a `|===` table, a complete delimited block, or a block attribute
+    /// line followed by a block — so plain prose and a Markdown or reStructuredText
+    /// document are never stolen). Not a package: the exact leaf is the whole source
+    /// (Phase 21.26.2).
+    Asciidoc,
     /// Anything else; preserved exactly by the opaque floor.
     Opaque,
 }
@@ -338,6 +345,7 @@ impl DocumentFormat {
             DocumentFormat::Notebook => "notebook",
             DocumentFormat::FixedWidth => "fixedwidth",
             DocumentFormat::Rst => "rst",
+            DocumentFormat::Asciidoc => "asciidoc",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -374,6 +382,7 @@ impl DocumentFormat {
             DocumentFormat::Notebook => "notebook",
             DocumentFormat::FixedWidth => "fixedwidth",
             DocumentFormat::Rst => "rst",
+            DocumentFormat::Asciidoc => "asciidoc",
             DocumentFormat::Opaque => "opaque",
         }
     }
@@ -410,6 +419,7 @@ impl DocumentFormat {
             DocumentFormat::Notebook => cfg!(feature = "notebook"),
             DocumentFormat::FixedWidth => cfg!(feature = "fixedwidth"),
             DocumentFormat::Rst => cfg!(feature = "rst"),
+            DocumentFormat::Asciidoc => cfg!(feature = "asciidoc"),
         }
     }
 
@@ -456,6 +466,7 @@ impl DocumentFormat {
             "notebook" => Some(DocumentFormat::Notebook),
             "fixedwidth" => Some(DocumentFormat::FixedWidth),
             "rst" => Some(DocumentFormat::Rst),
+            "asciidoc" => Some(DocumentFormat::Asciidoc),
             "opaque" => Some(DocumentFormat::Opaque),
             _ => None,
         }
@@ -697,6 +708,22 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
     #[cfg(feature = "rst")]
     if crate::adapter::rst::detect(source, limits) {
         return DocumentFormat::Rst;
+    }
+    // AsciiDoc (Phase 21.26.2) is the **third prose** Wave-2 format, also with no
+    // package layer. It is tried **immediately after reStructuredText** and **before
+    // fixed-width**: Markdown and reST must be tried first so neither is stolen (a
+    // valid Markdown or reST document always keeps its own format), and AsciiDoc must
+    // be claimed before the maximally ambiguous fixed-width heuristic (which could
+    // otherwise read an aligned AsciiDoc body as a column-position table). The
+    // dispatcher already tries PDF/ZIP/JSON/YAML/config/CSV ahead of it, so a
+    // `:name: value`-shaped config source and a `#`/fence-bearing Markdown source are
+    // claimed earlier. Detection is conservative and AsciiDoc-specific (a document
+    // title followed by a block, a `==`+ section, a `|===` table, a complete
+    // delimited block, or a block attribute line followed by a block); a lone `= text`
+    // line and plain prose stay Opaque.
+    #[cfg(feature = "asciidoc")]
+    if crate::adapter::asciidoc::detect(source, limits) {
+        return DocumentFormat::Asciidoc;
     }
     // Fixed-width (column-position) text is the second **tabular** Wave-2 format
     // (Phase 21.25), but its columns are defined by character positions, not a
@@ -1010,6 +1037,7 @@ mod tests {
             DocumentFormat::Notebook,
             DocumentFormat::FixedWidth,
             DocumentFormat::Rst,
+            DocumentFormat::Asciidoc,
             DocumentFormat::Opaque,
         ] {
             let token = format!("{}field:package;members=1", f.provenance_prefix());

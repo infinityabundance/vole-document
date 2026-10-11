@@ -283,6 +283,13 @@ const RST_NATIVE: &[&str] = &[
     "rst-inline",
     "rst-find",
 ];
+const ASCIIDOC_NATIVE: &[&str] = &[
+    "adoc-heading",
+    "adoc-block",
+    "adoc-attribute",
+    "adoc-inline",
+    "adoc-find",
+];
 
 const COMMON_METADATA: &[&str] = &["metadata"];
 const COMMON_TEXT: &[&str] = &["text"];
@@ -613,6 +620,17 @@ pub fn capabilities_for_format(format: DocumentFormat) -> Capabilities {
                 ],
                 Vec::new(),
                 RST_NATIVE.to_vec(),
+            ),
+            DocumentFormat::Asciidoc => (
+                vec![
+                    caps("metadata", COMMON_METADATA),
+                    caps("text", COMMON_TEXT),
+                    caps("heading", COMMON_TEXT_META),
+                    caps("block", COMMON_TEXT_META),
+                    caps("search-match", SEARCH),
+                ],
+                Vec::new(),
+                ASCIIDOC_NATIVE.to_vec(),
             ),
             DocumentFormat::Opaque => (Vec::new(), Vec::new(), Vec::new()),
         };

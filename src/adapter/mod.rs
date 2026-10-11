@@ -6,6 +6,8 @@
 
 #[cfg(feature = "arrow")]
 pub mod arrow;
+#[cfg(feature = "asciidoc")]
+pub mod asciidoc;
 #[cfg(feature = "cbor")]
 pub mod cbor;
 #[cfg(feature = "config")]

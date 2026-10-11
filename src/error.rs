@@ -154,6 +154,12 @@ pub enum ErrorClass {
     /// list, or an admissible section adornment), a malformed directive/marker, or an
     /// input that exceeds a cap — so it stays `Opaque` rather than being claimed.
     InvalidRstStructure,
+    /// An AsciiDoc structure error (Phase 21.26.2+): a source that carries no
+    /// AsciiDoc-specific signal (a document title followed by a block, a `==`+ section,
+    /// a `|===` table, a complete delimited block, or a block attribute line followed by
+    /// a block), a malformed attribute/list/macro marker, or an input that exceeds a cap
+    /// — so it stays `Opaque` rather than being claimed.
+    InvalidAsciidocStructure,
     /// A bug in this implementation; never a description of malformed input.
     InternalInvariant,
 }
@@ -201,6 +207,7 @@ impl ErrorClass {
             ErrorClass::InvalidNotebookStructure => 38,
             ErrorClass::InvalidFixedWidthStructure => 39,
             ErrorClass::InvalidRstStructure => 40,
+            ErrorClass::InvalidAsciidocStructure => 41,
             ErrorClass::InternalInvariant => 70,
         }
     }
@@ -247,6 +254,7 @@ impl ErrorClass {
             ErrorClass::InvalidNotebookStructure => "InvalidNotebookStructure",
             ErrorClass::InvalidFixedWidthStructure => "InvalidFixedWidthStructure",
             ErrorClass::InvalidRstStructure => "InvalidRstStructure",
+            ErrorClass::InvalidAsciidocStructure => "InvalidAsciidocStructure",
             ErrorClass::InternalInvariant => "InternalInvariant",
         }
     }
@@ -347,6 +355,7 @@ impl Error {
     ctor!(invalid_notebook_structure, InvalidNotebookStructure);
     ctor!(invalid_fixedwidth_structure, InvalidFixedWidthStructure);
     ctor!(invalid_rst_structure, InvalidRstStructure);
+    ctor!(invalid_asciidoc_structure, InvalidAsciidocStructure);
     ctor!(internal_invariant, InternalInvariant);
 }
 

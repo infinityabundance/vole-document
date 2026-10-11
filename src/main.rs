@@ -137,6 +137,8 @@ const USAGE_FIELD: &str = "\
         --md-find PATTERN |
         --rst-heading N | --rst-block N | --rst-directive N | --rst-inline N |
         --rst-find PATTERN |
+        --adoc-heading N | --adoc-block N | --adoc-attribute N | --adoc-inline N |
+        --adoc-find PATTERN |
         --xml-path P | --xml-element P | --xml-attr PATH@NAME |
         --xml-namespaces | --xml-find PATTERN |
         --html-path P | --html-element P | --html-attr PATH@NAME |
@@ -1860,6 +1862,24 @@ struct FieldArgs {
     /// content (Phase 21.26.1).
     #[cfg(feature = "rst")]
     rst_find: Option<String>,
+    /// `--adoc-heading N`: the N-th heading in document order (document title first,
+    /// then sections) (Phase 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    adoc_heading: Option<u32>,
+    /// `--adoc-block N`: the N-th block in document order (Phase 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    adoc_block: Option<u32>,
+    /// `--adoc-attribute N`: the N-th document attribute in document order (Phase
+    /// 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    adoc_attribute: Option<u32>,
+    /// `--adoc-inline N`: the N-th inline span in document order (Phase 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    adoc_inline: Option<u32>,
+    /// `--adoc-find`: a lexical, case-sensitive search over AsciiDoc block content
+    /// (Phase 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    adoc_find: Option<String>,
     /// `--xml-path P`: resolve a simple element path (`/a/b[2]/c`; `""` is the root
     /// element), returning the element's name, exact source span, and exact bytes
     /// (Phase 21.9).
@@ -2717,6 +2737,38 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "rst")]
             "--rst-find" => {
                 out.rst_find = Some(field_arg_value(args, &mut i, "--rst-find", inline)?);
+            }
+            #[cfg(feature = "asciidoc")]
+            "--adoc-heading" => {
+                out.adoc_heading = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--adoc-heading", inline)?,
+                    "--adoc-heading",
+                )?);
+            }
+            #[cfg(feature = "asciidoc")]
+            "--adoc-block" => {
+                out.adoc_block = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--adoc-block", inline)?,
+                    "--adoc-block",
+                )?);
+            }
+            #[cfg(feature = "asciidoc")]
+            "--adoc-attribute" => {
+                out.adoc_attribute = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--adoc-attribute", inline)?,
+                    "--adoc-attribute",
+                )?);
+            }
+            #[cfg(feature = "asciidoc")]
+            "--adoc-inline" => {
+                out.adoc_inline = Some(parse_field_u32(
+                    &field_arg_value(args, &mut i, "--adoc-inline", inline)?,
+                    "--adoc-inline",
+                )?);
+            }
+            #[cfg(feature = "asciidoc")]
+            "--adoc-find" => {
+                out.adoc_find = Some(field_arg_value(args, &mut i, "--adoc-find", inline)?);
             }
             #[cfg(feature = "xml")]
             "--xml-path" => {
@@ -3597,6 +3649,29 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if let Some(pattern) = &out.rst_find {
             chosen.push(Selector::RstFind {
+                pattern: pattern.clone(),
+            });
+        }
+    }
+    // AsciiDoc: `--adoc-heading`/`--adoc-block`/`--adoc-attribute`/`--adoc-inline`
+    // address headings, blocks, document attributes, and inline spans; `--adoc-find` is
+    // a lexical search. Each stands alone (Phase 21.26.2).
+    #[cfg(feature = "asciidoc")]
+    {
+        if let Some(index) = out.adoc_heading {
+            chosen.push(Selector::AdocHeading { index });
+        }
+        if let Some(index) = out.adoc_block {
+            chosen.push(Selector::AdocBlock { index });
+        }
+        if let Some(index) = out.adoc_attribute {
+            chosen.push(Selector::AdocAttribute { index });
+        }
+        if let Some(index) = out.adoc_inline {
+            chosen.push(Selector::AdocInline { index });
+        }
+        if let Some(pattern) = &out.adoc_find {
+            chosen.push(Selector::AdocFind {
                 pattern: pattern.clone(),
             });
         }

@@ -591,6 +591,12 @@ fn limits_never_change_reconstructed_bytes() {
         max_rst_depth: 1 << 12,
         max_rst_line_bytes: 1 << 50,
         max_rst_document_bytes: 1 << 50,
+        max_asciidoc_blocks: 1 << 30,
+        max_asciidoc_inline_spans: 1 << 30,
+        max_asciidoc_nodes: 1 << 30,
+        max_asciidoc_depth: 1 << 12,
+        max_asciidoc_line_bytes: 1 << 50,
+        max_asciidoc_document_bytes: 1 << 50,
     };
 
     let mut rng = Rng::new(0x5EED_0006);

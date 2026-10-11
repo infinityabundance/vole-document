@@ -40,6 +40,13 @@ use crate::adapter::arrow::{
     column_span as arrow_column_span, column_values as arrow_column_values,
     type_name as arrow_type_name, value_text as arrow_value_text,
 };
+#[cfg(feature = "asciidoc")]
+use crate::adapter::asciidoc::{
+    AdocModel, block_bytes as adoc_block_bytes, block_kind_name as adoc_block_kind_name,
+    canonical_text as adoc_canonical_text, content_bytes as adoc_content_bytes,
+    find as adoc_find_matches, inline_kind_name as adoc_inline_kind_name,
+    inline_text_bytes as adoc_inline_text_bytes,
+};
 #[cfg(feature = "cbor")]
 use crate::adapter::cbor::{
     CborModel, canonical_text as cbor_canonical_text, decode_text as cbor_decode_text,
@@ -232,6 +239,8 @@ use crate::field::dag::{self, EvalBudget, OutputCache, ReuseStats, SourceServer}
 use crate::field::document_format::DocumentFormat;
 #[cfg(feature = "arrow")]
 use crate::field::index::SEL_ARROW_MODEL;
+#[cfg(feature = "asciidoc")]
+use crate::field::index::SEL_ASCIIDOC_MODEL;
 #[cfg(feature = "cbor")]
 use crate::field::index::SEL_CBOR_MODEL;
 #[cfg(feature = "config")]
@@ -1379,6 +1388,50 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// The `index`-th heading in document order (Phase 21.26.2): index 0 is the
+    /// document title (level 0) when present, then each `==`+ section (level = marker
+    /// run length − 1). `Text` returns the heading text; `ExactBytes` its exact content
+    /// bytes; `Metadata`/`Structure` a descriptor with its level, exact `=` marker, and
+    /// exact spans.
+    #[cfg(feature = "asciidoc")]
+    AdocHeading {
+        /// The 0-based heading ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th block in document order (Phase 21.26.2). `ExactBytes` returns the
+    /// block's exact source span bytes; `Text` its exact content text;
+    /// `Metadata`/`Structure` a descriptor with its kind, exact spans, attached block
+    /// attributes, and inline count. AsciiDoc has no package layer, so the source *is*
+    /// the whole document.
+    #[cfg(feature = "asciidoc")]
+    AdocBlock {
+        /// The 0-based block ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th document attribute (`:name: value` / `:name!:`) in document order
+    /// (Phase 21.26.2), preserved literally. `Text` returns the exact attribute source;
+    /// `Metadata`/`Structure` a descriptor with its name, value, unset flag, and exact
+    /// spans.
+    #[cfg(feature = "asciidoc")]
+    AdocAttribute {
+        /// The 0-based attribute ordinal in document order.
+        index: u32,
+    },
+    /// The `index`-th inline span in document order (Phase 21.26.2). `Text` returns the
+    /// inline's inner text; `ExactBytes` its exact whole span bytes; `Metadata`/
+    /// `Structure` a descriptor with its kind, macro target, and exact spans.
+    #[cfg(feature = "asciidoc")]
+    AdocInline {
+        /// The 0-based inline ordinal in document order.
+        index: u32,
+    },
+    /// A lexical, case-sensitive search over AsciiDoc block content (Phase 21.26.2).
+    /// Never an embedding or a model call.
+    #[cfg(feature = "asciidoc")]
+    AdocFind {
+        /// The pattern (case-sensitive substring).
+        pattern: String,
+    },
     /// A standalone-XML element addressed by a simple element path
     /// (`/a/b[2]/c`; `""` is the root element) (Phase 21.9). The answer reports
     /// the element's qualified name, exact source span, and (for `ExactBytes`) its
@@ -2002,6 +2055,16 @@ impl Selector {
             Selector::RstInline { index } => format!("rst-inline:{index}"),
             #[cfg(feature = "rst")]
             Selector::RstFind { pattern } => format!("rst-find:{pattern}"),
+            #[cfg(feature = "asciidoc")]
+            Selector::AdocHeading { index } => format!("adoc-heading:{index}"),
+            #[cfg(feature = "asciidoc")]
+            Selector::AdocBlock { index } => format!("adoc-block:{index}"),
+            #[cfg(feature = "asciidoc")]
+            Selector::AdocAttribute { index } => format!("adoc-attribute:{index}"),
+            #[cfg(feature = "asciidoc")]
+            Selector::AdocInline { index } => format!("adoc-inline:{index}"),
+            #[cfg(feature = "asciidoc")]
+            Selector::AdocFind { pattern } => format!("adoc-find:{pattern}"),
             #[cfg(feature = "xml")]
             Selector::XmlPath { path } => format!("xml-path:{path}"),
             #[cfg(feature = "xml")]
@@ -4127,6 +4190,30 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "rst")]
             (Selector::RstFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.rst_find(req, pattern)
+            }
+            #[cfg(feature = "asciidoc")]
+            (
+                Selector::AdocHeading { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.adoc_heading(req, *index),
+            #[cfg(feature = "asciidoc")]
+            (
+                Selector::AdocBlock { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.adoc_block(req, *index),
+            #[cfg(feature = "asciidoc")]
+            (
+                Selector::AdocAttribute { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.adoc_attribute(req, *index),
+            #[cfg(feature = "asciidoc")]
+            (
+                Selector::AdocInline { index },
+                R::Text | R::Metadata | R::Structure | R::ExactBytes,
+            ) => self.adoc_inline(req, *index),
+            #[cfg(feature = "asciidoc")]
+            (Selector::AdocFind { pattern }, R::Text | R::Metadata | R::Structure) => {
+                self.adoc_find(req, pattern)
             }
             #[cfg(feature = "xml")]
             (Selector::XmlPath { path }, R::Text | R::Metadata | R::Structure | R::ExactBytes) => {
@@ -9434,6 +9521,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             DocumentFormat::FixedWidth => self.common_fixedwidth(req)?,
             DocumentFormat::Markdown => self.common_markdown(req)?,
             DocumentFormat::Rst => self.common_rst(req)?,
+            DocumentFormat::Asciidoc => self.common_asciidoc(req)?,
             DocumentFormat::Xml => self.common_xml(req)?,
             DocumentFormat::Html => {
                 #[cfg(feature = "html")]
@@ -9955,6 +10043,13 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn common_rst(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
         Err(Error::unsupported_feature(
             "reStructuredText observations require a build with the rst feature",
+        ))
+    }
+
+    #[cfg(not(feature = "asciidoc"))]
+    fn common_asciidoc(&mut self, _req: &ObserveRequest) -> Result<FieldAnswer> {
+        Err(Error::unsupported_feature(
+            "AsciiDoc observations require a build with the asciidoc feature",
         ))
     }
 
@@ -18250,6 +18345,368 @@ impl<S: SeedStore> Ctx<'_, S> {
             req,
             value,
             "rst;metadata".to_string(),
+            span,
+            vec![model_id, root],
+        ))
+    }
+}
+
+// -- AsciiDoc (Phase 21.26.2) ------------------------------------------------
+
+/// Render an optional string as JSON (`null` or a quoted escaped string).
+#[cfg(feature = "asciidoc")]
+fn adoc_opt_json(s: Option<&str>) -> String {
+    match s {
+        Some(x) => format!("\"{}\"", json_escape(x)),
+        None => "null".to_string(),
+    }
+}
+
+#[cfg(feature = "asciidoc")]
+impl<S: SeedStore> Ctx<'_, S> {
+    /// Materialize and decode the AsciiDoc prose model (derived, `Q_gen`).
+    fn adoc_model(&mut self) -> Result<(AdocModel, NodeId)> {
+        let entry =
+            self.require_entry(SelectorKey::new(SEL_ASCIIDOC_MODEL, 0), "AsciiDoc model")?;
+        let node = self.load(&entry.node_id)?;
+        let bytes = self.materialize(&node)?;
+        Ok((AdocModel::decode(&bytes)?, entry.node_id))
+    }
+
+    /// The exact source bytes, materialized through the `DocumentExact` root so the
+    /// read is a real DAG dependency (ADR-0060), never a bare source fetch.
+    fn adoc_source(&mut self) -> Result<(Vec<u8>, NodeId)> {
+        let root = self.manifest.root_node;
+        let node = self.load(&root)?;
+        let bytes = self.materialize(&node)?;
+        Ok((bytes, root))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn adoc_answer(
+        &self,
+        req: &ObserveRequest,
+        value: AnswerValue,
+        provenance: String,
+        span: Option<(u64, u64)>,
+        deps: Vec<NodeId>,
+    ) -> FieldAnswer {
+        FieldAnswer {
+            value,
+            basis: Basis::DeterministicallyDerived,
+            selector: req.selector.canonical(),
+            representation: req.representation.name().to_string(),
+            source_span: span,
+            provenance,
+            dependency_ids: deps,
+            integrity_scope: IntegrityScope::None,
+            exact: false,
+        }
+    }
+
+    /// The `index`-th heading in document order (document title first, then sections).
+    fn adoc_heading(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        use crate::adapter::asciidoc::B_DOC_TITLE;
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let hs = model.headings();
+        let bi = *hs.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("AsciiDoc document has no heading {index}"))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("adoc heading index out of range"))?;
+        let content = adoc_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.content_start, b.content_end));
+        let marker = b.info.as_deref().unwrap_or("");
+        let provenance = format!("asciidoc;heading={index};level={};marker={marker}", b.level);
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(content.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"format\":\"asciidoc\",\"heading\":{},\"block\":{},",
+                    "\"document_title\":{},\"level\":{},\"marker\":\"{}\",",
+                    "\"span\":[{},{}],\"content_span\":[{},{}],\"text_len\":{}}}"
+                ),
+                index,
+                bi,
+                b.kind == B_DOC_TITLE,
+                b.level,
+                json_escape(marker),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                text.len(),
+            )),
+        };
+        Ok(self.adoc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th block in document order.
+    fn adoc_block(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let b = model.block(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("AsciiDoc document has no block {index}"))
+        })?;
+        let span_bytes = adoc_block_bytes(&source, b)?;
+        let content = adoc_content_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(content).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!(
+            "asciidoc;block={index};kind={}",
+            adoc_block_kind_name(b.kind)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"content_span\":[{},{}],\"level\":{},\"flags\":{},",
+                    "\"rows\":{},\"cols\":{},\"info\":{},",
+                    "\"target\":{},\"title\":{},\"attrs\":{},\"inlines\":{}}}"
+                ),
+                index,
+                adoc_block_kind_name(b.kind),
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+                b.level,
+                b.flags,
+                b.rows,
+                b.cols,
+                adoc_opt_json(b.info.as_deref()),
+                adoc_opt_json(b.target.as_deref()),
+                adoc_opt_json(b.title.as_deref()),
+                adoc_opt_json(b.attrs.as_deref()),
+                b.inlines.len(),
+            )),
+        };
+        Ok(self.adoc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th document attribute in document order (preserved literally).
+    fn adoc_attribute(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        use crate::adapter::asciidoc::{B_ATTRIBUTE, F_UNSET};
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let attrs = model.blocks_of_kind(B_ATTRIBUTE);
+        let bi = *attrs.get(index as usize).ok_or_else(|| {
+            Error::unsupported_feature(format!("AsciiDoc document has no attribute {index}"))
+        })?;
+        let b = model
+            .block(bi)
+            .ok_or_else(|| Error::internal_invariant("adoc attribute index out of range"))?;
+        let span_bytes = adoc_block_bytes(&source, b)?;
+        let text = String::from_utf8_lossy(span_bytes).into_owned();
+        let span = Some((b.start, b.end));
+        let provenance = format!(
+            "asciidoc;attribute={index};block={bi};name={}",
+            b.info.as_deref().unwrap_or("none")
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"attribute\":{},\"block\":{},\"name\":{},\"value\":{},",
+                    "\"unset\":{},\"span\":[{},{}],\"content_span\":[{},{}]}}"
+                ),
+                index,
+                bi,
+                adoc_opt_json(b.info.as_deref()),
+                adoc_opt_json(b.title.as_deref()),
+                b.flags & F_UNSET != 0,
+                b.start,
+                b.end,
+                b.content_start,
+                b.content_end,
+            )),
+        };
+        Ok(self.adoc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// The `index`-th inline span in document order.
+    fn adoc_inline(&mut self, req: &ObserveRequest, index: u32) -> Result<FieldAnswer> {
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let x = model.inline(index).ok_or_else(|| {
+            Error::unsupported_feature(format!("AsciiDoc document has no inline {index}"))
+        })?;
+        let span_bytes = crate::adapter::asciidoc::inline_bytes(&source, x)?;
+        let inner = adoc_inline_text_bytes(&source, x)?;
+        let text = String::from_utf8_lossy(inner).into_owned();
+        let span = Some((x.start, x.end));
+        let provenance = format!(
+            "asciidoc;inline={index};kind={}",
+            adoc_inline_kind_name(x.kind)
+        );
+        let value = match req.representation {
+            Representation::ExactBytes => AnswerValue::Bytes(span_bytes.to_vec()),
+            Representation::Text => AnswerValue::Text(text),
+            _ => AnswerValue::Json(format!(
+                concat!(
+                    "{{\"inline\":{},\"kind\":\"{}\",\"block\":{},",
+                    "\"span\":[{},{}],\"inner_span\":[{},{}],",
+                    "\"target\":{},\"text\":\"{}\"}}"
+                ),
+                index,
+                adoc_inline_kind_name(x.kind),
+                x.block,
+                x.start,
+                x.end,
+                x.inner_start,
+                x.inner_end,
+                adoc_opt_json(x.target.as_deref()),
+                json_escape(&text),
+            )),
+        };
+        Ok(self.adoc_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A bounded lexical search over AsciiDoc block content.
+    fn adoc_find(&mut self, req: &ObserveRequest, pattern: &str) -> Result<FieldAnswer> {
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let matches = adoc_find_matches(&source, &model, pattern, req.budget.max_output_bytes)?;
+        let mut out: Vec<String> = Vec::new();
+        for m in &matches {
+            out.push(format!(
+                concat!(
+                    "{{\"block\":{},\"kind\":\"{}\",\"span\":[{},{}],",
+                    "\"text\":\"{}\"}}"
+                ),
+                m.block,
+                adoc_block_kind_name(m.kind),
+                m.start,
+                m.end,
+                json_escape(&m.text),
+            ));
+        }
+        let provenance = format!("asciidoc;find={pattern};matches={}", matches.len());
+        let value = AnswerValue::Json(format!(
+            "{{\"pattern\":\"{}\",\"matches\":[{}]}}",
+            json_escape(pattern),
+            out.join(",")
+        ));
+        Ok(self.adoc_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    // -- common -----------------------------------------------------------------
+
+    fn common_asciidoc(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        match &req.selector {
+            Selector::Metadata => self.adoc_common_metadata(req),
+            Selector::Text => self.adoc_common_text(req),
+            Selector::Heading(i) => self.adoc_heading(req, *i),
+            Selector::Block(i) => self.adoc_block(req, *i),
+            Selector::SearchMatch(p) => self.adoc_find(req, p),
+            other => Err(Error::unsupported_feature(format!(
+                "AsciiDoc does not support common selector {}",
+                other.canonical()
+            ))),
+        }
+    }
+
+    /// The whole-document text: the exact source (lossily decoded), never re-flowed
+    /// or rendered.
+    fn adoc_common_text(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        let (source, root) = self.adoc_source()?;
+        let text = adoc_canonical_text(&source, self.limits, req.budget.max_output_bytes)?;
+        let span = Some((0, source.len() as u64));
+        Ok(self.adoc_answer(
+            req,
+            AnswerValue::Text(text),
+            "asciidoc;canonical-text".to_string(),
+            span,
+            vec![root],
+        ))
+    }
+
+    /// Whole-document structural metadata, computed from the canonical model.
+    fn adoc_common_metadata(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
+        use crate::adapter::asciidoc::{
+            B_ADMONITION, B_ATTRIBUTE, B_BLOCK_ATTR, B_DOC_TITLE, B_EXAMPLE, B_LIST_ITEM,
+            B_LISTING, B_LITERAL, B_OPEN, B_PASSTHROUGH, B_QUOTE, B_SECTION, B_SIDEBAR, B_TABLE,
+            F_BLOCK, I_ATTR_REF, I_EMPHASIS, I_IMAGE, I_INCLUDE, I_LINK, I_MARK, I_MARK_DOUBLE,
+            I_MONO, I_PASSTHROUGH, I_STRONG, I_SUBSCRIPT, I_SUPERSCRIPT, I_TABLE_CELL, I_URL,
+            I_XREF,
+        };
+        let (model, model_id) = self.adoc_model()?;
+        let (source, root) = self.adoc_source()?;
+        let count = |k: u8| model.blocks_of_kind(k).len();
+        let icount = |k: u8| model.inlines_of_kind(k).len();
+        let delimited = model
+            .blocks
+            .iter()
+            .filter(|b| crate::adapter::asciidoc::is_delimited_block(b.kind))
+            .count();
+        let block_admonitions = model
+            .blocks
+            .iter()
+            .filter(|b| b.kind == B_ADMONITION && b.flags & F_BLOCK != 0)
+            .count();
+        let value = AnswerValue::Json(format!(
+            concat!(
+                "{{\"format\":\"asciidoc\",\"bytes\":{},\"blocks\":{},",
+                "\"doc_title\":{},\"sections\":{},\"max_section_level\":{},",
+                "\"paragraphs\":{},\"attributes\":{},\"block_attrs\":{},",
+                "\"listings\":{},\"literals\":{},\"examples\":{},\"sidebars\":{},",
+                "\"quotes\":{},\"opens\":{},\"passthrough_blocks\":{},\"delimited\":{},",
+                "\"list_items\":{},\"tables\":{},\"admonitions\":{},",
+                "\"block_admonitions\":{},\"inline_spans\":{},\"strong\":{},",
+                "\"emphasis\":{},\"mono\":{},\"passthrough\":{},\"superscript\":{},",
+                "\"subscript\":{},\"marks\":{},\"mark_double\":{},\"links\":{},",
+                "\"images\":{},\"includes\":{},\"xrefs\":{},\"urls\":{},",
+                "\"attribute_refs\":{},\"table_cells\":{}}}"
+            ),
+            model.doc_len,
+            model.blocks.len(),
+            count(B_DOC_TITLE),
+            count(B_SECTION),
+            model.max_section_level(),
+            count(crate::adapter::asciidoc::B_PARAGRAPH),
+            count(B_ATTRIBUTE),
+            count(B_BLOCK_ATTR),
+            count(B_LISTING),
+            count(B_LITERAL),
+            count(B_EXAMPLE),
+            count(B_SIDEBAR),
+            count(B_QUOTE),
+            count(B_OPEN),
+            count(B_PASSTHROUGH),
+            delimited,
+            count(B_LIST_ITEM),
+            count(B_TABLE),
+            count(B_ADMONITION),
+            block_admonitions,
+            model.inlines.len(),
+            icount(I_STRONG),
+            icount(I_EMPHASIS),
+            icount(I_MONO),
+            icount(I_PASSTHROUGH),
+            icount(I_SUPERSCRIPT),
+            icount(I_SUBSCRIPT),
+            icount(I_MARK),
+            icount(I_MARK_DOUBLE),
+            icount(I_LINK),
+            icount(I_IMAGE),
+            icount(I_INCLUDE),
+            icount(I_XREF),
+            icount(I_URL),
+            icount(I_ATTR_REF),
+            icount(I_TABLE_CELL),
+        ));
+        let span = Some((0, source.len() as u64));
+        Ok(self.adoc_answer(
+            req,
+            value,
+            "asciidoc;metadata".to_string(),
             span,
             vec![model_id, root],
         ))

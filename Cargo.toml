@@ -364,6 +364,28 @@ markdown = []
 # never on the exactness path, so enabling it never changes `.voldoc` bytes and
 # exactness is untouched. Dependency-free (`rst = []`) and never in `default`.
 rst = []
+# Phase 21.26.2: the AsciiDoc adapter — the third **prose** Wave-2 format (the
+# Asciidoctor input language). Like Markdown and reStructuredText it is not a package
+# (no OPC/ZIP layer): the exact leaf is the whole source (a `DocumentExact`, RAW-like
+# authority) and every derived observation is a bounded, span-preserving (`Q_gen`)
+# projection of it. It adds a bounded, line-based AsciiDoc-subset parser that preserves
+# representation — exact block and inline source spans, a level-0 document title and
+# `==`+ sections with their exact `=` marker and recorded level, paragraphs, document
+# attributes (`:name: value` / `:name!:`) with attribute references (`{name}`)
+# surfaced literally (never expanded), block attribute lines attached to the following
+# block, delimited blocks (listing/literal/example/sidebar/quote/open/passthrough) with
+# their exact delimiter and verbatim content, unordered/ordered/description lists with
+# nesting, tables (`|===`), admonitions (`NOTE:` / `[NOTE]`), and inline spans
+# (strong/emphasis/mono/passthrough/superscript/subscript/mark plus the `link:`,
+# `image:`, `include::`, `xref:` and bare-URL macros, preserved verbatim) — and never
+# re-flows or normalizes the source. Detection is conservative (no magic bytes) and
+# **AsciiDoc-specific** (a document title followed by a block, a `==`+ section, a
+# `|===` table, a complete delimited block, or a block attribute line followed by a
+# block), so plain prose stays Opaque and a valid Markdown or reStructuredText document
+# is never stolen. It adds **no** decoder behavior: the model is never on the exactness
+# path, so enabling it never changes `.voldoc` bytes and exactness is untouched.
+# Dependency-free (`asciidoc = []`) and never in `default`.
+asciidoc = []
 # Phase 12.5: the shared bounded-XML policy (hardening + per-part budgets) used by
 # both the OPC and EPUB cores; Phase 21.9 also gates the standalone **XML adapter**
 # (the structured-tree format for a bare `.xml` source) on this same feature. The

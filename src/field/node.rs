@@ -378,6 +378,22 @@ pub enum NodeKind {
     /// `sha256(source)` per ADR-0060); a reST document has no package layer. Derived,
     /// never exact.
     RstModel = 0x3B,
+    /// The canonical, representation-preserving AsciiDoc model (Phase 21.26.2): the
+    /// whole source parsed into a bounded, span-preserving prose model — a level-0
+    /// document title and `==`+ sections with their exact `=` marker and recorded
+    /// level, paragraphs, document attributes (`:name: value` / `:name!:`) with
+    /// attribute references (`{name}`) surfaced literally (never expanded), block
+    /// attribute lines attached to the following block, delimited blocks (listing /
+    /// literal / example / sidebar / quote / open / passthrough) with their exact
+    /// delimiter and verbatim content, unordered/ordered/description lists with
+    /// nesting, tables (`|===`), admonitions (`NOTE:` / `[NOTE]`), and inline spans
+    /// (strong/emphasis/mono/passthrough/superscript/subscript/mark plus the `link:`,
+    /// `image:`, `include::`, `xref:` and bare-URL macros, preserved verbatim). Every
+    /// span is exact and the source is never re-flowed or normalized. It is computed
+    /// on demand from the exact source (its single dependency is the `DocumentExact`
+    /// root, keyed by `sha256(source)` per ADR-0060); an AsciiDoc document has no
+    /// package layer. Derived, never exact.
+    AsciidocModel = 0x3C,
 }
 
 impl NodeKind {
@@ -443,6 +459,7 @@ impl NodeKind {
             0x39 => NodeKind::NotebookModel,
             0x3A => NodeKind::FixedWidthModel,
             0x3B => NodeKind::RstModel,
+            0x3C => NodeKind::AsciidocModel,
             _ => return None,
         })
     }
@@ -509,6 +526,7 @@ impl NodeKind {
             NodeKind::NotebookModel => "NotebookModel",
             NodeKind::FixedWidthModel => "FixedWidthModel",
             NodeKind::RstModel => "RstModel",
+            NodeKind::AsciidocModel => "AsciidocModel",
         }
     }
 

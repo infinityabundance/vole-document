@@ -392,6 +392,19 @@ pub const SEL_FIXEDWIDTH_MODEL: u8 = 38;
 /// dependency is the `DocumentExact` root, keyed by `sha256(source)` per ADR-0060);
 /// reStructuredText has no package layer. Derived, never exact.
 pub const SEL_RST_MODEL: u8 = 39;
+/// Selector kind: the canonical AsciiDoc prose model (Phase 21.26.2).
+///
+/// There is exactly one entry, keyed by number `0`, whose node materializes the whole
+/// source parsed as a bounded, representation-preserving prose model (a level-0
+/// document title and `==`+ sections with their exact marker and recorded level,
+/// paragraphs, document attributes and literal attribute references, block attribute
+/// lines attached to the following block, delimited blocks with their exact delimiter
+/// and verbatim content, unordered/ordered/description lists with nesting, tables,
+/// admonitions, and inline spans including the `link:`/`image:`/`include::`/`xref:`
+/// and bare-URL macros) as `Q_gen` derived state. It is computed on demand from the
+/// exact source (its single dependency is the `DocumentExact` root, keyed by
+/// `sha256(source)` per ADR-0060); AsciiDoc has no package layer. Derived, never exact.
+pub const SEL_ASCIIDOC_MODEL: u8 = 40;
 
 /// Node kind: a run of leaf entries.
 const KIND_LEAF: u8 = 0;
