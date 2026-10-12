@@ -1,0 +1,23 @@
+{
+  "campaign": "evidence/campaigns/2026-10-12-phase28-2-arrow-econ-f7e0a961",
+  "phase": "28.2 — Arrow IPC analytical economic court (competitor envelope)",
+  "utc": "2026-10-12T12:52:05Z",
+  "measured_commit": "f7e0a961f61f51cfca810b16c83ec5aa5ab36759",
+  "tree_state": " M tools/fixtures/phase21-14-parquet-baseline.py  M tools/fixtures/phase21-14-parquet-duckdb.py  M tools/fixtures/phase21-14-parquet-vole.py  M tools/fixtures/phase21-16-arrow-baseline.py  M tools/fixtures/phase21-16-arrow-duckdb.py  M tools/fixtures/phase21-16-arrow-pyarrow.py  M tools/fixtures/phase21-16-arrow-vole.py  M tools/phase21-14-parquet-court.sh  M tools/phase21-16-arrow-court.sh ?? evidence/campaigns/2026-10-12-phase28-2-arrow-econ-f7e0a961/ ?? evidence/campaigns/2026-10-12-phase28-2-parquet-econ-f7e0a961/ ?? tools/fixtures/phase28-2-harness.py ",
+  "service": "analytical",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "98889a3b09da8c1e30ff3aead1ff012496a26b0efe35da4b65c1e5c5043bf7d1",
+  "duckdb_version": "1.5.6",
+  "pyarrow_version": "25.0.1",
+  "lanes": ["vole", "sqlite", "duckdb", "pyarrow"],
+  "questions": {"Q1": "column values", "Q2": "predicate count", "Q3": "buffer span + min/max", "Q4": "record-batch count", "Q5": "lexical find count", "Q6": "exact closure"},
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "exact_ok": 3,
+  "exact_n": 3,
+  "headline_metric": "in-process steady-state (warm connection/state; per-question median)",
+  "separate_metrics": ["cold-process", "cold-cache"],
+  "verdict_rule": "FAIL only if VOLE exactness is not 100% (or a cross-lane mismatch is recorded)",
+  "honest_scope": "self-authored corpus; only Q6 is a byte-authority claim; DuckDB now reads the real Arrow data through the Arrow C data interface (Phase 28.2), and the pyarrow lane opens the Arrow IPC file directly; both decline Q3 (Arrow stores no per-column statistics/span) and Q6 (not a source-retaining store)",
+  "verdict": "PASS"
+}

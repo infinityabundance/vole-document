@@ -1,0 +1,200 @@
+{
+  "capability_accounting": {
+    "duckdb": {
+      "answered": 12,
+      "declined": 6,
+      "declined_codes": {
+        "not-native": 3,
+        "not-retained": 3
+      },
+      "vs_vole": {
+        "both_decline": 0,
+        "capability_gap": 6,
+        "equal": 12,
+        "mismatch": 0
+      }
+    },
+    "pyarrow": {
+      "answered": 12,
+      "declined": 6,
+      "declined_codes": {
+        "not-native": 3,
+        "not-retained": 3
+      },
+      "vs_vole": {
+        "both_decline": 0,
+        "capability_gap": 6,
+        "equal": 12,
+        "mismatch": 0
+      }
+    },
+    "sqlite": {
+      "answered": 12,
+      "declined": 6,
+      "declined_codes": {
+        "not-retained": 6
+      },
+      "vs_vole": {
+        "both_decline": 0,
+        "capability_gap": 6,
+        "equal": 12,
+        "mismatch": 0
+      }
+    },
+    "vole": {
+      "answered": 18,
+      "declined": 0,
+      "declined_codes": {},
+      "vs_vole": {}
+    }
+  },
+  "estimator": "paired per-fixture ratio over the per-fixture common answer set; median + geometric mean; fixed-seed cluster bootstrap (10000 resamples, seed 21616); tie band +/-10%",
+  "exact_n": 3,
+  "exact_ok": 3,
+  "fixtures": [
+    "e_small.arrow",
+    "e_multi.arrow",
+    "e_large.arrow"
+  ],
+  "headline_metric": "steady (in-process, warm connection/state; per-question median; equal-contract common answer set)",
+  "historical_control": {
+    "campaign": "evidence/campaigns/2026-10-12-phase21-16-arrow-econ-efb51887",
+    "note": "pre-28.2 (26.6): DuckDB read a Parquet projection; `warm` was a single-shot session with no percentiles and summed ALL six questions (not the equal-contract common set); `cold` was fresh-process-per-question; pyarrow re-opened and `read_all()`-ed the file on every query. Its VOLE/pyarrow warm median was 8.626x (geomean 10.475x) over the unequal all-six-question sum, so it is a historical control, not a like-for-like delta"
+  },
+  "lanes": [
+    "vole",
+    "sqlite",
+    "duckdb",
+    "pyarrow"
+  ],
+  "phase": "28.2 \u2014 Arrow IPC analytical economic court (VOLE vs SQLite vs DuckDB vs pyarrow)",
+  "qcompare": {
+    "Q1": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "pyarrow": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      }
+    },
+    "Q2": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "pyarrow": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      }
+    },
+    "Q3": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 3,
+        "equal": 0,
+        "mismatch": 0
+      },
+      "pyarrow": {
+        "both_decline": 0,
+        "capability_gap": 3,
+        "equal": 0,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 3,
+        "equal": 0,
+        "mismatch": 0
+      }
+    },
+    "Q4": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "pyarrow": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 3,
+        "equal": 0,
+        "mismatch": 0
+      }
+    },
+    "Q5": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "pyarrow": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      }
+    },
+    "Q6": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 3,
+        "equal": 0,
+        "mismatch": 0
+      },
+      "pyarrow": {
+        "both_decline": 0,
+        "capability_gap": 3,
+        "equal": 0,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 3,
+        "mismatch": 0
+      }
+    }
+  },
+  "separate_metrics": [
+    "cold-process (fresh OS process per question)",
+    "cold-cache (fresh connection/reader, warm interpreter)"
+  ],
+  "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s')",
+  "total_mismatch": 0,
+  "verdict": "PASS"
+}

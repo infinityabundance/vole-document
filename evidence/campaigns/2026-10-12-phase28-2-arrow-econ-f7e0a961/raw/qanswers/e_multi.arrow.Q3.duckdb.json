@@ -1,0 +1,1 @@
+{"decline": {"code": "not-retained", "detail": "Arrow IPC carries no per-column min/max statistics and DuckDB exposes no exact source buffer span for an Arrow buffer; there is no zonemap to prune"}, "declined": true, "detail": {}, "lane": "duckdb", "native": false, "q": "Q3", "value": null}

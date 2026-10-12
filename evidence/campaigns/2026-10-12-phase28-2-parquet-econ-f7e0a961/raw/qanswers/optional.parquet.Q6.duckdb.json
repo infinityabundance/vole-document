@@ -1,0 +1,1 @@
+{"decline": {"code": "not-native", "detail": "DuckDB/Parquet is not a source-retaining store: the original Parquet bytes are not recoverable"}, "declined": true, "detail": {}, "lane": "duckdb", "native": false, "q": "Q6", "value": null}

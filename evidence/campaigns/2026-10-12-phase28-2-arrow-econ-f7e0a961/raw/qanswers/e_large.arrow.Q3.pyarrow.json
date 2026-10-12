@@ -1,0 +1,1 @@
+{"decline": {"code": "not-retained", "detail": "Arrow IPC stores no per-column min/max statistics, and pyarrow exposes no exact source offset for a decoded buffer span"}, "declined": true, "detail": {}, "lane": "pyarrow", "native": false, "q": "Q3", "value": null}

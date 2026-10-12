@@ -1,0 +1,1 @@
+{"code": "not-applicable", "declined": true, "detail": "pyarrow.compute kernels are invoked directly; there is no query plan", "lane": "pyarrow", "planner": "none (kernel reader)"}

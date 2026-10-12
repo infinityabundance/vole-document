@@ -1,0 +1,1 @@
+{"decline": {"code": "not-retained", "detail": "SQLite has no Parquet reader: the row-group count is not retained"}, "declined": true, "detail": {}, "lane": "sqlite", "native": false, "q": "Q4", "value": null}
