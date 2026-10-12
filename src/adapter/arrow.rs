@@ -2672,6 +2672,7 @@ pub fn fused_numeric_scan(
 /// Typed-declining: a non-numeric column, an unindexable layout, body compression,
 /// an unsigned value above the `i64` range, or `grouped` on a float column returns
 /// [`Error::unsupported_feature`], never a wrong answer.
+#[allow(clippy::chunks_exact_to_as_chunks)]
 pub fn fused_scan(
     source: &[u8],
     model: &ArrowModel,
@@ -2722,9 +2723,7 @@ pub fn fused_scan(
         values_left: limits.max_arrow_values,
         bytes_left: limits.max_arrow_decompressed_bytes,
     };
-    let mut ivals: Vec<i64> = Vec::new();
-    let mut fvals: Vec<f64> = Vec::new();
-    let mut mask: Vec<bool> = Vec::new();
+    let mut ivals_f16: Vec<f64> = Vec::new();
     for desc in &model.batches {
         if desc.compression >= 0 {
             return Err(Error::unsupported_feature(
@@ -2735,7 +2734,8 @@ pub fn fused_scan(
         let rows = usize::try_from(meta.rows.max(0))
             .map_err(|_| Error::resource_limit("record batch row count is implausible"))?;
         budget.add_values(rows as u64)?;
-        let validity = match slot(&meta.buffers, leaf.validity_slot).ok() {
+        // The validity bitmap is optional; an absent/empty slot means all-valid.
+        let validity: Option<&[u8]> = match slot(&meta.buffers, leaf.validity_slot).ok() {
             Some(b) => {
                 let s = buffer_slice(source, desc, b)?;
                 if s.is_empty() {
@@ -2744,12 +2744,7 @@ pub fn fused_scan(
                     if s.len() < rows.div_ceil(8) {
                         return Err(corrupt("validity bitmap is too short"));
                     }
-                    mask.clear();
-                    mask.reserve(rows);
-                    for i in 0..rows {
-                        mask.push(validity_bit(s, i));
-                    }
-                    Some(&mask[..])
+                    Some(s)
                 }
             }
             None => None,
@@ -2763,34 +2758,42 @@ pub fn fused_scan(
             return Err(corrupt("data buffer is too short"));
         }
         budget.add_bytes(need as u64)?;
+        // One single-pass, monomorphized decode+predicate+fold over the column's
+        // contiguous bytes; the width and signedness dispatch is resolved at
+        // monomorphization, so no per-value branch, `Vec`, or `Result` remains.
+        let vals = &data_slice[..need];
         if kind == ColumnKind::Int {
-            ivals.clear();
-            ivals.reserve(rows);
-            for i in 0..rows {
-                let p = i * width;
-                let cell = &data_slice[p..p + width];
-                if leaf.int_signed {
-                    ivals.push(read_int_le(cell, width)?);
-                } else {
-                    let v = read_uint_le(cell, width)?;
-                    if v > i64::MAX as u64 {
-                        return Err(Error::unsupported_feature(
-                            "unsigned Arrow value exceeds the i64 range",
-                        ));
-                    }
-                    ivals.push(v as i64);
-                }
+            match (width, leaf.int_signed) {
+                (1, true) => acc.push_i64_le::<1, true>(vals, validity)?,
+                (1, false) => acc.push_i64_le::<1, false>(vals, validity)?,
+                (2, true) => acc.push_i64_le::<2, true>(vals, validity)?,
+                (2, false) => acc.push_i64_le::<2, false>(vals, validity)?,
+                (4, true) => acc.push_i64_le::<4, true>(vals, validity)?,
+                (4, false) => acc.push_i64_le::<4, false>(vals, validity)?,
+                (8, true) => acc.push_i64_le::<8, true>(vals, validity)?,
+                (8, false) => acc.push_i64_le::<8, false>(vals, validity)?,
+                _ => return Err(corrupt("unsupported integer width")),
             }
-            acc.push_i64(&ivals, validity);
         } else {
-            fvals.clear();
-            fvals.reserve(rows);
-            for i in 0..rows {
-                let p = i * width;
-                let cell = &data_slice[p..p + width];
-                fvals.push(read_float_le(cell, leaf.float_precision)?);
+            match leaf.float_precision {
+                // `f16` has no monomorphized width here; decode it natively, then fold.
+                0 => {
+                    ivals_f16.clear();
+                    ivals_f16.reserve(rows);
+                    for c in vals.chunks_exact(2) {
+                        ivals_f16.push(f64::from(half_to_f32(u16::from_le_bytes([c[0], c[1]]))));
+                    }
+                    let mask = validity.map(|vb| {
+                        (0..rows)
+                            .map(|i| (vb[i >> 3] >> (i & 7)) & 1 != 0)
+                            .collect::<Vec<bool>>()
+                    });
+                    acc.push_f64(&ivals_f16, mask.as_deref());
+                }
+                1 => acc.push_f64_le::<4>(vals, validity),
+                2 => acc.push_f64_le::<8>(vals, validity),
+                _ => return Err(corrupt("unknown floating-point precision")),
             }
-            acc.push_f64(&fvals, validity);
         }
     }
     Ok(acc.finish(kind))

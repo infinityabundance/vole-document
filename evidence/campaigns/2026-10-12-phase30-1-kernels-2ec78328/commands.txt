@@ -1,0 +1,12 @@
+docker compose run --rm --no-TTY analytical bash tools/phase29-1-fused-econ-court.sh
+# PROFILE defaults to release (target/release/vole-document).
+# Inside the court:
+#   cargo build --release --locked --all-features
+#   python3 tools/fixtures/make-arrow.py --econ $WORK/corpus     # .arrow + .parquet + .csv
+#   VOLE: $BIN field-build F --store S --voldoc D --profile runtime --packed
+#         $BIN fused-scan --store S --field HEX --packed --format FMT --column C \
+#             --kind int|float --pred gt:K --op OP [--also-current] --warmup W --repeat R
+#   pyarrow: python3 $DRIVER pyarrow --source F --format FMT --column C --kind K --op OP --gt G ...
+#   DuckDB:  python3 $DRIVER duckdb  --source F --format FMT --column C --kind K --op OP --gt G ...
+#   aggregate: python3 $DRIVER collect --raw RAW --reps REPS
+#              python3 $DRIVER aggregate --raw RAW --campaign CAMPAIGN --env ENV

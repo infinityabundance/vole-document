@@ -2,6 +2,46 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.40] — Phase 30.1: large-input fused kernels — *unreleased*
+
+- **30.1 — large-input fused kernels (Arrow and Parquet now beat pyarrow on large
+  inputs).** The Phase-29.1 generalized fused kernel lost the large-input lane
+  (fused/pyarrow ≈**2.7–4.2×** on `e_large` Arrow and **15–52×** on CSV). 30.1
+  replaces the per-value `Vec` + `Value` decode in the physical scanners with a
+  **monomorphized, single-pass fold over the addressed column's contiguous bytes**:
+  `src/adapter/fused.rs` gains `push_i64_le::<W, SIGNED>` / `push_f64_le::<W>`
+  (`chunks_exact` alignment — no panic on a non-multiple remainder; signedness and
+  width resolve at monomorphization) plus an **exact `i128` sum** for the integer
+  `avg`; `src/adapter/arrow.rs` consumes the null mask with a **word-wise,
+  bounds-checked validity bitmap**; `src/adapter/parquet.rs` adds a `PLAIN` +
+  `max_def == 0` fast path (`checked_mul`/`get`) behind the stats-skip `count`;
+  `src/adapter/csv.rs` gets an **allocation-free SWAR field scanner** with
+  bit-identical native int/float parsers. The versioned plan
+  (`FUSED_PLAN_VERSION = 1`), the SQL-null/validity semantics, the typed declines,
+  and the exactness path are unchanged. Result (in-process steady-state; ratio
+  `fused / comparator`, `< 1` favours fused; ADR-0054 paired estimator, every raw
+  sample retained): large `e_large` **Arrow ≈2.87 → 0.65** and **Parquet ≈1.28 →
+  0.61** (**every cell `< 1.0`**); **CSV ≈46.2 → 35.5** (improved **≈23 %**, but
+  still **10.5–42× slower** — the **remaining recorded loss**). Full econ matrix
+  pooled pyarrow median **0.0772 → 0.0461**, **W/T/L 406/41/163 → 489/8/81**; vs
+  **DuckDB 150/0/0** on the large-input court (**570/0/0** on the full matrix);
+  shipped in-process `observe` `count` **70/0/0**. Exactness **3/3** (large-input)
+  and **12/12** (full econ court), oracle agreement **228/228**. The econ court
+  `tools/phase29-1-fused-econ-court.sh` had a real defect: `IFS=$'\t'` is bash-only
+  and does not expand under the documented `sh tools/…` invocation, silently
+  corrupting the `plan.tsv` field split — fixed to `TAB=$(printf '\t')` with
+  `IFS="$TAB"`, and the same court is reused via `ECON_FIXTURES=e_large`. New
+  court `tools/phase30-1-kernels-court.sh` (the `analytical` lane — `mode full` —
+  is authoritative; the `dev` kernel lane is exactness/structural only and its
+  absolute ns are not comparable to `e_large`). Receipt
+  `2026-10-12-phase30-1-kernels-2ec78328` (+ `2026-10-12-phase29-1-fused-2ec78328`
+  after-econ; the Phase-29.1 receipt `…-19d2c372` is retained as the control).
+  Regression tests `tests/fused_kernel.rs`; correctness court
+  `tools/phase29-1-1-fused-court.sh`. **Remaining Phase-30 work — 30.2 (coarse
+  index for reading requests), 30.3 (incremental index < 10 %), and 30.4 (standing
+  negatives) — is PENDING** (see [phase-30-plan.md](../phases/phase-30-plan.md),
+  [phase-30-results.md](../phases/phase-30-results.md)).
+
 ## [0.1.0-alpha.39] — Phase 29: generalized fused execution, coarse structural index, incremental observation — *unreleased*
 
 - **29.1 — generalized fused execution kernel.** The Phase-28.5 Arrow

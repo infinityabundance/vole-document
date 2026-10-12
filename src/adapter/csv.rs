@@ -928,60 +928,6 @@ impl<'a> BinReader<'a> {
 /// The number of values folded per native chunk (a bounded, cache-friendly batch).
 const FUSED_BATCH: usize = 4096;
 
-/// Strip the surrounding quotes of a quoted token; return the token unchanged when
-/// it is not quoted.
-fn strip_quotes(tok: &[u8], quoted: bool) -> Result<&[u8]> {
-    if !quoted {
-        return Ok(tok);
-    }
-    if tok.len() < 2 || tok[0] != QUOTE || tok[tok.len() - 1] != QUOTE {
-        return Err(corrupt("quoted field is not a well-formed quoted token"));
-    }
-    Ok(&tok[1..tok.len() - 1])
-}
-
-fn trim_ascii(b: &[u8]) -> &[u8] {
-    let s = b
-        .iter()
-        .position(|&c| c != b' ' && c != b'\t')
-        .unwrap_or(b.len());
-    let e = b
-        .iter()
-        .rposition(|&c| c != b' ' && c != b'\t')
-        .map_or(s, |i| i + 1);
-    &b[s..e]
-}
-
-/// Parse an addressed numeric field natively. `Ok(None)` is a NULL (an empty
-/// field); `Err` is a typed decline (a non-numeric, non-empty field).
-fn parse_field_i64(source: &[u8], field: &CsvField, trim: bool) -> Result<Option<i64>> {
-    let tok = field_bytes(source, field)?;
-    let inner = strip_quotes(tok, field.quoted)?;
-    let s = if trim { trim_ascii(inner) } else { inner };
-    if s.is_empty() {
-        return Ok(None);
-    }
-    let text = std::str::from_utf8(s)
-        .map_err(|_| Error::unsupported_feature("non-UTF-8 field in a numeric column"))?;
-    text.parse::<i64>().map(Some).map_err(|_| {
-        Error::unsupported_feature(format!("delimited field {text:?} is not an integer"))
-    })
-}
-
-fn parse_field_f64(source: &[u8], field: &CsvField, trim: bool) -> Result<Option<f64>> {
-    let tok = field_bytes(source, field)?;
-    let inner = strip_quotes(tok, field.quoted)?;
-    let s = if trim { trim_ascii(inner) } else { inner };
-    if s.is_empty() {
-        return Ok(None);
-    }
-    let text = std::str::from_utf8(s)
-        .map_err(|_| Error::unsupported_feature("non-UTF-8 field in a numeric column"))?;
-    text.parse::<f64>().map(Some).map_err(|_| {
-        Error::unsupported_feature(format!("delimited field {text:?} is not a number"))
-    })
-}
-
 /// Resolve a column spec (a 0-based data-column index, or an exact header name).
 fn resolve_column(source: &[u8], header: &RawRecord, spec: &str) -> Result<usize> {
     let ncols = header.fields.len();
@@ -1004,13 +950,305 @@ fn resolve_column(source: &[u8], header: &RawRecord, spec: &str) -> Result<usize
     )))
 }
 
+/// A minimal, allocation-free forward scanner for the fused delimited path.
+///
+/// It walks the raw source bytes record by record but extracts **only** the
+/// addressed field's span (`(start, end, quoted)`) per record — never a
+/// `Vec<CsvField>` per record, a `String`, or a `Value`. Quotes are understood so
+/// an embedded delimiter or newline in a **skipped** column is stepped over
+/// correctly, and a record that ends before the addressed column is a typed
+/// decline (never a wrong value). The addressed span is handed to the native
+/// numeric parser as a borrowed byte slice.
+struct FusedScanner<'a> {
+    b: &'a [u8],
+    at: usize,
+    delim: u8,
+    quote: u8,
+    limits: Limits,
+}
+
+impl<'a> FusedScanner<'a> {
+    fn new(b: &'a [u8], dialect: Dialect, start: usize, limits: Limits) -> Self {
+        FusedScanner {
+            b,
+            at: start.min(b.len()),
+            delim: dialect.delimiter,
+            quote: dialect.quote,
+            limits,
+        }
+    }
+
+    /// The addressed field of the next data record, or `None` at end of input.
+    fn next_target(&mut self, idx: usize) -> Result<Option<(usize, usize, bool)>> {
+        let b = self.b;
+        let delim = self.delim;
+        let quote = self.quote;
+        let max_field = self.limits.max_csv_field_bytes as usize;
+        let max_cols = self.limits.max_csv_cols as u64;
+        if self.at >= b.len() {
+            return Ok(None);
+        }
+        let mut at = self.at;
+        let rec_start = at;
+        let mut target: Option<(usize, usize, bool)> = None;
+        let mut col = 0usize;
+        loop {
+            let field_start = at;
+            let quoted = b.get(at) == Some(&quote);
+            if quoted {
+                at += 1;
+                loop {
+                    match b.get(at) {
+                        None => return Err(corrupt("unterminated quoted field")),
+                        Some(&c) if c == quote => {
+                            if b.get(at + 1) == Some(&quote) {
+                                at += 2; // an escaped `""`
+                            } else {
+                                at += 1; // the close quote
+                                break;
+                            }
+                        }
+                        Some(_) => at += 1,
+                    }
+                }
+            } else {
+                at = scan_to_field_end(b, at, delim);
+            }
+            let field_end = at;
+            if field_end - field_start > max_field {
+                return Err(Error::resource_limit(format!(
+                    "CSV field exceeds the {max_field}-byte cap"
+                )));
+            }
+            if col == idx && target.is_none() {
+                target = Some((field_start, field_end, quoted));
+            }
+            col += 1;
+            if col as u64 > max_cols {
+                return Err(Error::resource_limit(format!(
+                    "CSV record exceeds the {max_cols}-column cap"
+                )));
+            }
+            match b.get(at) {
+                None => break,
+                Some(&c) if c == delim => at += 1,
+                Some(&b'\r') => {
+                    at += if b.get(at + 1) == Some(&b'\n') { 2 } else { 1 };
+                    break;
+                }
+                Some(&b'\n') => {
+                    at += 1;
+                    break;
+                }
+                Some(_) => {
+                    return Err(corrupt(
+                        "unexpected byte after a closing quote (expected a delimiter or end of record)",
+                    ));
+                }
+            }
+        }
+        self.at = at;
+        if at as u64 - rec_start as u64 > self.limits.max_csv_record_bytes as u64 {
+            return Err(Error::resource_limit(format!(
+                "CSV record exceeds the {}-byte cap",
+                self.limits.max_csv_record_bytes
+            )));
+        }
+        match target {
+            Some(t) => Ok(Some(t)),
+            // The record ended before the addressed column: a ragged row.
+            None => Err(Error::unsupported_feature(
+                "CSV data row has fewer columns than the header",
+            )),
+        }
+    }
+}
+
+/// SWAR constants for an 8-byte-at-a-time byte search.
+const SWAR_LO: u64 = 0x0101_0101_0101_0101;
+const SWAR_HI: u64 = 0x8080_8080_8080_8080;
+
+#[inline(always)]
+fn swar_zero(x: u64) -> u64 {
+    x.wrapping_sub(SWAR_LO) & !x & SWAR_HI
+}
+
+/// A high-bit mask with a bit set in every byte of `x` equal to `b`.
+#[inline(always)]
+fn swar_eq(x: u64, b: u8) -> u64 {
+    swar_zero(x ^ u64::from(b).wrapping_mul(SWAR_LO))
+}
+
+/// The index of the first byte in `bytes[at..]` that is the delimiter, `\r`, `\n`,
+/// or the end of input — an 8-byte-at-a-time (SWAR) unquoted-field scan. A quote
+/// inside an unquoted field is an ordinary byte, so it is not a stop byte here.
+#[inline]
+fn scan_to_field_end(bytes: &[u8], mut at: usize, delim: u8) -> usize {
+    let n = bytes.len();
+    while at + 8 <= n {
+        let w = u64::from_le_bytes([
+            bytes[at],
+            bytes[at + 1],
+            bytes[at + 2],
+            bytes[at + 3],
+            bytes[at + 4],
+            bytes[at + 5],
+            bytes[at + 6],
+            bytes[at + 7],
+        ]);
+        let m = swar_eq(w, delim) | swar_eq(w, b'\r') | swar_eq(w, b'\n');
+        if m != 0 {
+            return at + (m.trailing_zeros() as usize / 8);
+        }
+        at += 8;
+    }
+    while at < n {
+        let c = bytes[at];
+        if c == delim || c == b'\r' || c == b'\n' {
+            break;
+        }
+        at += 1;
+    }
+    at
+}
+
+/// Powers of ten exactly representable in `f64` (up to `10^22`).
+const POW10: [f64; 23] = [
+    1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16,
+    1e17, 1e18, 1e19, 1e20, 1e21, 1e22,
+];
+
+/// Strip the surrounding quotes of a raw addressed span (`quoted` is known from the
+/// scanner). Returns `None` for an empty field (SQL `NULL`).
+#[inline]
+fn addr_inner(raw: &[u8], quoted: bool) -> Result<Option<&[u8]>> {
+    let inner = if quoted {
+        if raw.len() < 2 || raw[0] != QUOTE || raw[raw.len() - 1] != QUOTE {
+            return Err(corrupt("quoted field is not a well-formed quoted token"));
+        }
+        &raw[1..raw.len() - 1]
+    } else {
+        raw
+    };
+    Ok(if inner.is_empty() { None } else { Some(inner) })
+}
+
+/// Parse an addressed numeric field natively from its raw bytes. `Ok(None)` is a
+/// NULL (an empty field); `Err` is a typed decline (a non-numeric non-empty field).
+#[inline]
+fn parse_num_i64(raw: &[u8], quoted: bool) -> Result<Option<i64>> {
+    let Some(s) = addr_inner(raw, quoted)? else {
+        return Ok(None);
+    };
+    let (neg, digits) = match s[0] {
+        b'-' => (true, &s[1..]),
+        b'+' => (false, &s[1..]),
+        _ => (false, s),
+    };
+    let bad = || {
+        Error::unsupported_feature(format!(
+            "delimited field {:?} is not an integer",
+            String::from_utf8_lossy(s)
+        ))
+    };
+    if digits.is_empty() {
+        return Err(bad());
+    }
+    let mut acc: u64 = 0;
+    let mut overflow = false;
+    for &c in digits {
+        let d = c.wrapping_sub(b'0');
+        if d > 9 {
+            return Err(bad());
+        }
+        let (m, o1) = acc.overflowing_mul(10);
+        let (a, o2) = m.overflowing_add(u64::from(d));
+        overflow |= o1 | o2;
+        acc = a;
+    }
+    if overflow {
+        return Err(bad());
+    }
+    if neg {
+        if acc > i64::MAX as u64 + 1 {
+            return Err(bad());
+        }
+        Ok(Some((acc as i128).wrapping_neg() as i64))
+    } else {
+        if acc > i64::MAX as u64 {
+            return Err(bad());
+        }
+        Ok(Some(acc as i64))
+    }
+}
+
+/// Parse an addressed floating-point field natively. A plain decimal
+/// (`[+\-]?digits[.digits]?`, at most 15 significant digits and 22 fractional)
+/// is decoded by an exact integer/`POW10` computation (IEEE correctly-rounded, so
+/// bit-identical to `str::parse`); anything else falls back to the standard parser.
+#[inline]
+fn parse_num_f64(raw: &[u8], quoted: bool) -> Result<Option<f64>> {
+    let Some(s) = addr_inner(raw, quoted)? else {
+        return Ok(None);
+    };
+    let fallback = || {
+        let text = std::str::from_utf8(s)
+            .map_err(|_| Error::unsupported_feature("non-UTF-8 field in a numeric column"))?;
+        text.parse::<f64>().map(Some).map_err(|_| {
+            Error::unsupported_feature(format!("delimited field {text:?} is not a number"))
+        })
+    };
+    let (neg, mut i) = match s[0] {
+        b'-' => (true, 1usize),
+        b'+' => (false, 1usize),
+        _ => (false, 0usize),
+    };
+    let mut mantissa: u64 = 0;
+    let mut digits = 0u32;
+    let mut frac = 0i32;
+    let mut dot = false;
+    while i < s.len() {
+        match s[i] {
+            b'0'..=b'9' => {
+                digits += 1;
+                if digits > 15 {
+                    return fallback();
+                }
+                mantissa = mantissa * 10 + u64::from(s[i] - b'0');
+                if dot {
+                    frac += 1;
+                    if frac > 22 {
+                        return fallback();
+                    }
+                }
+                i += 1;
+            }
+            b'.' if !dot => {
+                dot = true;
+                i += 1;
+            }
+            // An exponent, sign, `inf`/`nan`, or any other byte: use the full parser.
+            _ => return fallback(),
+        }
+    }
+    if digits == 0 {
+        return fallback();
+    }
+    let mut v = mantissa as f64 / POW10[frac as usize];
+    if neg {
+        v = -v;
+    }
+    Ok(Some(v))
+}
+
 /// **Fused** predicate/aggregate scan of one numeric CSV/TSV/PSV column.
 ///
-/// Streams the records with the shipped delimited reader, decodes **only** the
-/// addressed field of each data record into a native `i64`/`f64` batch (no `Value`,
-/// no per-value allocation, no text), and folds each batch into the validity-aware
-/// [`Accumulator`](crate::adapter::fused::Accumulator). The header record (record 0)
-/// resolves an index-or-name column spec; the data records follow.
+/// The header record (record 0) resolves an index-or-name column spec with the
+/// shipped reader (so header names are decoded exactly as everywhere else); the
+/// data records are then streamed by the allocation-free [`FusedScanner`], which
+/// extracts **only** the addressed field's bytes and parses them natively into an
+/// `i64`/`f64` batch (no `Value`, no per-value allocation, no text). Each batch is
+/// folded into the validity-aware [`Accumulator`](crate::adapter::fused::Accumulator).
 ///
 /// The column kind is supplied by the caller (a delimited column has no schema):
 /// `Int` parses each field as `i64`, `Float` as `f64`. A non-empty field that does
@@ -1025,8 +1263,7 @@ pub fn fused_scan(
 ) -> Result<crate::adapter::fused::FusedAnswer> {
     use crate::adapter::fused::{Accumulator, ColumnKind};
     let dialect = sniff_dialect(source, limits)?;
-    let mut scanner = Scanner::new(source, dialect, limits);
-    let header = scanner
+    let header = Scanner::new(source, dialect, limits)
         .next_record(false)?
         .ok_or_else(|| Error::unsupported_feature("CSV table has no header record"))?;
     let idx = resolve_column(source, &header, column)?;
@@ -1035,17 +1272,22 @@ pub fn fused_scan(
             "grouped counts require an integer column",
         ));
     }
+    // The first data record starts just past the header's terminator.
+    let eol = match header.terminator {
+        TERM_CRLF => 2usize,
+        _ => 1,
+    };
+    let start = (header.end as usize).saturating_add(eol);
+    let mut scanner = FusedScanner::new(source, dialect, start, limits);
     let mut acc = Accumulator::new(plan);
     let mut vals: Vec<f64> = Vec::with_capacity(FUSED_BATCH);
     let mut ivals: Vec<i64> = Vec::with_capacity(FUSED_BATCH);
     let mut mask: Vec<bool> = Vec::with_capacity(FUSED_BATCH);
     let mut any_null = false;
-    while let Some(rec) = scanner.next_record(false)? {
-        let field = rec.fields.get(idx).ok_or_else(|| {
-            Error::unsupported_feature("CSV data row has fewer columns than the header")
-        })?;
+    while let Some((fs, fe, quoted)) = scanner.next_target(idx)? {
+        let raw = &source[fs..fe];
         match kind {
-            ColumnKind::Int => match parse_field_i64(source, field, false)? {
+            ColumnKind::Int => match parse_num_i64(raw, quoted)? {
                 Some(v) => {
                     ivals.push(v);
                     mask.push(true);
@@ -1056,7 +1298,7 @@ pub fn fused_scan(
                     any_null = true;
                 }
             },
-            ColumnKind::Float => match parse_field_f64(source, field, false)? {
+            ColumnKind::Float => match parse_num_f64(raw, quoted)? {
                 Some(v) => {
                     vals.push(v);
                     mask.push(true);

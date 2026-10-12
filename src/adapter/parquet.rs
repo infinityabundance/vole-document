@@ -2117,6 +2117,15 @@ fn parquet_column_kind(physical: i32) -> Result<crate::adapter::fused::ColumnKin
     }
 }
 
+/// The fixed byte width of a supported Parquet physical type's PLAIN values.
+fn parquet_value_width(physical: i32) -> Option<usize> {
+    match physical {
+        T_INT32 | T_FLOAT => Some(4),
+        T_INT64 | T_DOUBLE => Some(8),
+        _ => None,
+    }
+}
+
 /// Decode a PLAIN region of `count` numeric values natively (no `Value`).
 fn native_plain(data: &[u8], physical: i32, count: usize) -> Result<NativeChunk> {
     match physical {
@@ -2323,6 +2332,30 @@ fn fused_decode_data_page(
     let value_bytes = decoded
         .get(at..)
         .ok_or_else(|| corrupt("data page value region is truncated"))?;
+    // Fast path: a PLAIN, non-nullable page is a contiguous little-endian value
+    // region, so it folds straight from its bytes in one monomorphized pass
+    // (no `Vec`, no second loop) — the same kernel the Arrow scanner uses.
+    if header.data_encoding == ENC_PLAIN
+        && leaf.max_def == 0
+        && let Some(w) = parquet_value_width(leaf.physical)
+    {
+        let need = n
+            .checked_mul(w)
+            .ok_or_else(|| corrupt("plain data page size overflows"))?;
+        let vals = value_bytes
+            .get(..need)
+            .ok_or_else(|| corrupt("plain data page is truncated"))?;
+        match (kind, leaf.physical) {
+            (ColumnKind::Int, T_INT32) => acc.push_i64_le::<4, true>(vals, None)?,
+            (ColumnKind::Int, T_INT64) => acc.push_i64_le::<8, true>(vals, None)?,
+            (ColumnKind::Float, T_FLOAT) => acc.push_f64_le::<4>(vals, None),
+            (ColumnKind::Float, T_DOUBLE) => acc.push_f64_le::<8>(vals, None),
+            _ => {
+                return Err(corrupt("column kind disagrees with the decoded chunk"));
+            }
+        }
+        return Ok(());
+    }
     let values = match header.data_encoding {
         ENC_PLAIN => native_plain(value_bytes, leaf.physical, present)?,
         ENC_PLAIN_DICTIONARY | ENC_RLE_DICTIONARY => {

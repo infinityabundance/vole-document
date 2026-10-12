@@ -1,0 +1,751 @@
+{
+ "agreement": {
+  "comparisons": 60,
+  "disagreements": 0,
+  "ok": true
+ },
+ "campaign": "evidence/campaigns/2026-10-12-phase30-1-kernels-2ec78328",
+ "clusters": 30,
+ "cold": {
+  "overall_ns": {
+   "duckdb": 122691264.5,
+   "fused": 7881808.5,
+   "pyarrow": 77630621.0
+  },
+  "ratios": {
+   "duckdb": {
+    "cells": 30,
+    "geomean": 0.11483427781505733,
+    "median": 0.10505815122007506
+   },
+   "pyarrow": {
+    "cells": 30,
+    "geomean": 0.1937718010003479,
+    "median": 0.11190087864913952
+   }
+  }
+ },
+ "court_status": "PASS",
+ "declines": {},
+ "env": {
+  "arch": "x86_64",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "753a380aa71b257b27deb5026d45c02a4954096b406baad4ee2f2626bcf33e07",
+  "build_args": "--release --locked --all-features",
+  "campaign": "evidence/campaigns/2026-10-12-phase30-1-kernels-2ec78328",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "c9e522887f7fc7ce2e955a81eba93c39d4ebf973cafa912e6c4822574d0b535a",
+  "duckdb_version": "1.5.6",
+  "env_affecting_semantics": {
+   "LC_ALL": "C"
+  },
+  "headline_metric": "in-process steady-state median",
+  "iters": 9,
+  "lanes": [
+   "fused",
+   "current",
+   "pyarrow",
+   "duckdb"
+  ],
+  "measured_commit": "2ec7832895bd232d94f62546581eec8dba3c2f59",
+  "phase": "30.1 \u2014 large-input fused kernels (Arrow/CSV/Parquet past pyarrow) decision Experiment",
+  "profile": "release",
+  "pyarrow_version": "25.0.1",
+  "python": "Python 3.11.2",
+  "reps": 5,
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "service": "analytical",
+  "tree_state": " M src/adapter/arrow.rs  M src/adapter/csv.rs  M src/adapter/fused.rs  M src/adapter/parquet.rs  M tools/phase29-1-fused-econ-court.sh ?? evidence/campaigns/2026-10-12-phase29-1-fused-2ec78328/ ?? evidence/campaigns/2026-10-12-phase30-1-kernels-2ec78328/ ?? tools/phase30-1-kernels-court.sh ",
+  "utc": "2026-10-12T23:05:13Z",
+  "vole_substrate": "--profile runtime --packed",
+  "warmup": 3
+ },
+ "estimator": {
+  "current": {
+   "geomean": 0.0032817739690813945,
+   "geomean_ci": [
+    0.0014876206916842193,
+    0.0072397758678301805
+   ],
+   "losses": 0,
+   "mde": 0.004951892904298058,
+   "median": 0.004638293540778235,
+   "median_ci": [
+    0.0013233577257647125,
+    0.008251957780880127
+   ],
+   "n_clusters": 4,
+   "n_samples": 20,
+   "ties": 0,
+   "wins": 20
+  },
+  "duckdb": {
+   "geomean": 0.07515116289933832,
+   "geomean_ci": [
+    0.05930584037199475,
+    0.0927849845730416
+   ],
+   "losses": 0,
+   "mde": 0.04391657596126904,
+   "median": 0.09763290984086195,
+   "median_ci": [
+    0.05660297085875351,
+    0.11805025909909994
+   ],
+   "n_clusters": 30,
+   "n_samples": 150,
+   "ties": 0,
+   "wins": 150
+  },
+  "pyarrow": {
+   "geomean": 1.991902841297826,
+   "geomean_ci": [
+    1.0190078906390467,
+    4.031977722994527
+   ],
+   "losses": 51,
+   "mde": 2.1421216460343477,
+   "median": 0.7915265406688763,
+   "median_ci": [
+    0.6636849797987538,
+    3.6609033045115695
+   ],
+   "n_clusters": 30,
+   "n_samples": 150,
+   "ties": 4,
+   "wins": 99
+  }
+ },
+ "exactness": {
+  "n": 3,
+  "ok": 3
+ },
+ "historical_control": {
+  "campaign": "evidence/campaigns/2026-10-12-phase29-1-fused-19d2c372",
+  "estimator": {
+   "current": {
+    "geomean": 0.024277965839500502,
+    "geomean_ci": [
+     0.013813285844603349,
+     0.038237727743808014
+    ],
+    "losses": 0,
+    "mde": 0.007166111298043168,
+    "median": 0.03405587294103628,
+    "median_ci": [
+     0.028940346316536518,
+     0.03896704117730174
+    ],
+    "n_clusters": 14,
+    "n_samples": 70,
+    "ties": 0,
+    "wins": 70
+   },
+   "duckdb": {
+    "geomean": 0.00683597659930183,
+    "geomean_ci": [
+     0.004569169368185281,
+     0.010266094713060139
+    ],
+    "losses": 0,
+    "mde": 0.0060033643840446725,
+    "median": 0.0034073529439197056,
+    "median_ci": [
+     0.0016857427094667016,
+     0.010085542867920655
+    ],
+    "n_clusters": 114,
+    "n_samples": 570,
+    "ties": 0,
+    "wins": 570
+   },
+   "pyarrow": {
+    "geomean": 0.26263063533857667,
+    "geomean_ci": [
+     0.16937275023130777,
+     0.41299005576387177
+    ],
+    "losses": 163,
+    "mde": 0.2007090010917466,
+    "median": 0.07722927557030934,
+    "median_ci": [
+     0.06350779776252533,
+     0.34433624516683375
+    ],
+    "n_clusters": 114,
+    "n_samples": 570,
+    "ties": 41,
+    "wins": 406
+   }
+  },
+  "large_input_gap": {
+   "arrow/id:avg": {
+    "duckdb": 0.27414776487752934,
+    "pyarrow": 4.168279618293122
+   },
+   "arrow/id:count": {
+    "duckdb": 0.1638456577213202,
+    "pyarrow": 2.7641650776355218
+   },
+   "arrow/id:max": {
+    "duckdb": 0.17391839097091594,
+    "pyarrow": 2.7235339436236745
+   },
+   "arrow/id:min": {
+    "duckdb": 0.17928994170237342,
+    "pyarrow": 2.730787557007692
+   },
+   "arrow/id:sum": {
+    "duckdb": 0.1625488261451336,
+    "pyarrow": 2.967208242520309
+   },
+   "arrow/score:avg": {
+    "duckdb": 0.17576488064026297,
+    "pyarrow": 2.9940498326515432
+   },
+   "arrow/score:count": {
+    "duckdb": 0.18037468838696252,
+    "pyarrow": 2.9824287387739163
+   },
+   "arrow/score:max": {
+    "duckdb": 0.19208761098423008,
+    "pyarrow": 0.9199322850827586
+   },
+   "arrow/score:min": {
+    "duckdb": 0.18711107040929842,
+    "pyarrow": 0.9337973611849942
+   },
+   "arrow/score:sum": {
+    "duckdb": 0.1734643642686873,
+    "pyarrow": 3.026360095489383
+   },
+   "csv/id:avg": {
+    "duckdb": 0.13237208663876374,
+    "pyarrow": 47.147300640838466
+   },
+   "csv/id:count": {
+    "duckdb": 0.1660123780058655,
+    "pyarrow": 41.34241008874358
+   },
+   "csv/id:max": {
+    "duckdb": 0.15762933601275472,
+    "pyarrow": 47.39529255319149
+   },
+   "csv/id:min": {
+    "duckdb": 0.16370995128134883,
+    "pyarrow": 45.2490126531331
+   },
+   "csv/id:sum": {
+    "duckdb": 0.16329062035701272,
+    "pyarrow": 47.118191405220145
+   },
+   "csv/score:avg": {
+    "duckdb": 0.17560241312034647,
+    "pyarrow": 52.228771010696356
+   },
+   "csv/score:count": {
+    "duckdb": 0.1758697516067115,
+    "pyarrow": 45.162673274270084
+   },
+   "csv/score:max": {
+    "duckdb": 0.17241340537286212,
+    "pyarrow": 15.179172998986829
+   },
+   "csv/score:min": {
+    "duckdb": 0.1777929598185041,
+    "pyarrow": 15.20449113489026
+   },
+   "csv/score:sum": {
+    "duckdb": 0.1687559165752233,
+    "pyarrow": 49.70058606918728
+   },
+   "parquet/id:avg": {
+    "duckdb": 0.32962625100807785,
+    "pyarrow": 2.9181413857677905
+   },
+   "parquet/id:count": {
+    "duckdb": 0.02029589159657047,
+    "pyarrow": 0.18567363602622788
+   },
+   "parquet/id:max": {
+    "duckdb": 0.1584716433262973,
+    "pyarrow": 1.3027221526908637
+   },
+   "parquet/id:min": {
+    "duckdb": 0.16179040391432423,
+    "pyarrow": 1.2590192870673325
+   },
+   "parquet/id:sum": {
+    "duckdb": 0.16048388653428816,
+    "pyarrow": 1.428895336080162
+   },
+   "parquet/score:avg": {
+    "duckdb": 0.17753314739124504,
+    "pyarrow": 1.7634089314940378
+   },
+   "parquet/score:count": {
+    "duckdb": 0.02711108367161092,
+    "pyarrow": 0.25190613664964095
+   },
+   "parquet/score:max": {
+    "duckdb": 0.17690929342825318,
+    "pyarrow": 0.585491155577567
+   },
+   "parquet/score:min": {
+    "duckdb": 0.17966868865913185,
+    "pyarrow": 0.5905240317450882
+   },
+   "parquet/score:sum": {
+    "duckdb": 0.19038035264483627,
+    "pyarrow": 1.8080127594743858
+   }
+  }
+ },
+ "large_input_before_after": {
+  "arrow/id:avg": {
+   "duckdb": {
+    "after": 0.0529800400995361,
+    "before": 0.27414776487752934
+   },
+   "pyarrow": {
+    "after": 0.8231937790403736,
+    "before": 4.168279618293122
+   }
+  },
+  "arrow/id:count": {
+   "duckdb": {
+    "after": 0.04258953724238228,
+    "before": 0.1638456577213202
+   },
+   "pyarrow": {
+    "after": 0.6633174470594015,
+    "before": 2.7641650776355218
+   }
+  },
+  "arrow/id:max": {
+   "duckdb": {
+    "after": 0.053166071151157374,
+    "before": 0.17391839097091594
+   },
+   "pyarrow": {
+    "after": 0.7698560617968697,
+    "before": 2.7235339436236745
+   }
+  },
+  "arrow/id:min": {
+   "duckdb": {
+    "after": 0.053479766399429446,
+    "before": 0.17928994170237342
+   },
+   "pyarrow": {
+    "after": 0.725062370501924,
+    "before": 2.730787557007692
+   }
+  },
+  "arrow/id:sum": {
+   "duckdb": {
+    "after": 0.053680971935305084,
+    "before": 0.1625488261451336
+   },
+   "pyarrow": {
+    "after": 0.880109132091012,
+    "before": 2.967208242520309
+   }
+  },
+  "arrow/score:avg": {
+   "duckdb": {
+    "after": 0.04000111726295404,
+    "before": 0.17576488064026297
+   },
+   "pyarrow": {
+    "after": 0.6072699003510095,
+    "before": 2.9940498326515432
+   }
+  },
+  "arrow/score:count": {
+   "duckdb": {
+    "after": 0.04322128931626783,
+    "before": 0.18037468838696252
+   },
+   "pyarrow": {
+    "after": 0.6613787557569998,
+    "before": 2.9824287387739163
+   }
+  },
+  "arrow/score:max": {
+   "duckdb": {
+    "after": 0.06394259165383846,
+    "before": 0.19208761098423008
+   },
+   "pyarrow": {
+    "after": 0.3102491199566748,
+    "before": 0.9199322850827586
+   }
+  },
+  "arrow/score:min": {
+   "duckdb": {
+    "after": 0.06735129238703515,
+    "before": 0.18711107040929842
+   },
+   "pyarrow": {
+    "after": 0.3093880796291574,
+    "before": 0.9337973611849942
+   }
+  },
+  "arrow/score:sum": {
+   "duckdb": {
+    "after": 0.03992018742365065,
+    "before": 0.1734643642686873
+   },
+   "pyarrow": {
+    "after": 0.6027775826131759,
+    "before": 3.026360095489383
+   }
+  },
+  "csv/id:avg": {
+   "duckdb": {
+    "after": 0.14670886627650884,
+    "before": 0.13237208663876374
+   },
+   "pyarrow": {
+    "after": 39.25294435175189,
+    "before": 47.147300640838466
+   }
+  },
+  "csv/id:count": {
+   "duckdb": {
+    "after": 0.14197017603410894,
+    "before": 0.1660123780058655
+   },
+   "pyarrow": {
+    "after": 35.635366907784,
+    "before": 41.34241008874358
+   }
+  },
+  "csv/id:max": {
+   "duckdb": {
+    "after": 0.14681783950613211,
+    "before": 0.15762933601275472
+   },
+   "pyarrow": {
+    "after": 38.47391680039501,
+    "before": 47.39529255319149
+   }
+  },
+  "csv/id:min": {
+   "duckdb": {
+    "after": 0.14549428204683745,
+    "before": 0.16370995128134883
+   },
+   "pyarrow": {
+    "after": 39.13815194452819,
+    "before": 45.2490126531331
+   }
+  },
+  "csv/id:sum": {
+   "duckdb": {
+    "after": 0.14510251703139598,
+    "before": 0.16329062035701272
+   },
+   "pyarrow": {
+    "after": 42.218269152487174,
+    "before": 47.118191405220145
+   }
+  },
+  "csv/score:avg": {
+   "duckdb": {
+    "after": 0.09349848013672676,
+    "before": 0.17560241312034647
+   },
+   "pyarrow": {
+    "after": 29.85499596255645,
+    "before": 52.228771010696356
+   }
+  },
+  "csv/score:count": {
+   "duckdb": {
+    "after": 0.12696098628898578,
+    "before": 0.1758697516067115
+   },
+   "pyarrow": {
+    "after": 30.786766862997315,
+    "before": 45.162673274270084
+   }
+  },
+  "csv/score:max": {
+   "duckdb": {
+    "after": 0.12242527524803831,
+    "before": 0.17241340537286212
+   },
+   "pyarrow": {
+    "after": 10.258265613673649,
+    "before": 15.179172998986829
+   }
+  },
+  "csv/score:min": {
+   "duckdb": {
+    "after": 0.12946461345205895,
+    "before": 0.1777929598185041
+   },
+   "pyarrow": {
+    "after": 10.257641052333458,
+    "before": 15.20449113489026
+   }
+  },
+  "csv/score:sum": {
+   "duckdb": {
+    "after": 0.12788426194329233,
+    "before": 0.1687559165752233
+   },
+   "pyarrow": {
+    "after": 34.93855188895103,
+    "before": 49.70058606918728
+   }
+  },
+  "parquet/id:avg": {
+   "duckdb": {
+    "after": 0.10310620481775264,
+    "before": 0.32962625100807785
+   },
+   "pyarrow": {
+    "after": 0.8297655684286749,
+    "before": 2.9181413857677905
+   }
+  },
+  "parquet/id:count": {
+   "duckdb": {
+    "after": 0.01397001889764714,
+    "before": 0.02029589159657047
+   },
+   "pyarrow": {
+    "after": 0.1106437969924812,
+    "before": 0.18567363602622788
+   }
+  },
+  "parquet/id:max": {
+   "duckdb": {
+    "after": 0.10123965228927984,
+    "before": 0.1584716433262973
+   },
+   "pyarrow": {
+    "after": 0.7920252562383774,
+    "before": 1.3027221526908637
+   }
+  },
+  "parquet/id:min": {
+   "duckdb": {
+    "after": 0.10090620865266994,
+    "before": 0.16179040391432423
+   },
+   "pyarrow": {
+    "after": 0.7910278250993753,
+    "before": 1.2590192870673325
+   }
+  },
+  "parquet/id:sum": {
+   "duckdb": {
+    "after": 0.10223768259749338,
+    "before": 0.16048388653428816
+   },
+   "pyarrow": {
+    "after": 0.8936086335189474,
+    "before": 1.428895336080162
+   }
+  },
+  "parquet/score:avg": {
+   "duckdb": {
+    "after": 0.06380095431440454,
+    "before": 0.17753314739124504
+   },
+   "pyarrow": {
+    "after": 0.5883930281555257,
+    "before": 1.7634089314940378
+   }
+  },
+  "parquet/score:count": {
+   "duckdb": {
+    "after": 0.012134494400483366,
+    "before": 0.02711108367161092
+   },
+   "pyarrow": {
+    "after": 0.11363692765851843,
+    "before": 0.25190613664964095
+   }
+  },
+  "parquet/score:max": {
+   "duckdb": {
+    "after": 0.1179243876879473,
+    "before": 0.17690929342825318
+   },
+   "pyarrow": {
+    "after": 0.377071325648415,
+    "before": 0.585491155577567
+   }
+  },
+  "parquet/score:min": {
+   "duckdb": {
+    "after": 0.11932549697654206,
+    "before": 0.17966868865913185
+   },
+   "pyarrow": {
+    "after": 0.3835545224320651,
+    "before": 0.5905240317450882
+   }
+  },
+  "parquet/score:sum": {
+   "duckdb": {
+    "after": 0.07209723434467126,
+    "before": 0.19038035264483627
+   },
+   "pyarrow": {
+    "after": 0.691367895065584,
+    "before": 1.8080127594743858
+   }
+  }
+ },
+ "large_input_gap": {
+  "arrow/id:avg": {
+   "duckdb": 0.0529800400995361,
+   "pyarrow": 0.8231937790403736
+  },
+  "arrow/id:count": {
+   "duckdb": 0.04258953724238228,
+   "pyarrow": 0.6633174470594015
+  },
+  "arrow/id:max": {
+   "duckdb": 0.053166071151157374,
+   "pyarrow": 0.7698560617968697
+  },
+  "arrow/id:min": {
+   "duckdb": 0.053479766399429446,
+   "pyarrow": 0.725062370501924
+  },
+  "arrow/id:sum": {
+   "duckdb": 0.053680971935305084,
+   "pyarrow": 0.880109132091012
+  },
+  "arrow/score:avg": {
+   "duckdb": 0.04000111726295404,
+   "pyarrow": 0.6072699003510095
+  },
+  "arrow/score:count": {
+   "duckdb": 0.04322128931626783,
+   "pyarrow": 0.6613787557569998
+  },
+  "arrow/score:max": {
+   "duckdb": 0.06394259165383846,
+   "pyarrow": 0.3102491199566748
+  },
+  "arrow/score:min": {
+   "duckdb": 0.06735129238703515,
+   "pyarrow": 0.3093880796291574
+  },
+  "arrow/score:sum": {
+   "duckdb": 0.03992018742365065,
+   "pyarrow": 0.6027775826131759
+  },
+  "csv/id:avg": {
+   "duckdb": 0.14670886627650884,
+   "pyarrow": 39.25294435175189
+  },
+  "csv/id:count": {
+   "duckdb": 0.14197017603410894,
+   "pyarrow": 35.635366907784
+  },
+  "csv/id:max": {
+   "duckdb": 0.14681783950613211,
+   "pyarrow": 38.47391680039501
+  },
+  "csv/id:min": {
+   "duckdb": 0.14549428204683745,
+   "pyarrow": 39.13815194452819
+  },
+  "csv/id:sum": {
+   "duckdb": 0.14510251703139598,
+   "pyarrow": 42.218269152487174
+  },
+  "csv/score:avg": {
+   "duckdb": 0.09349848013672676,
+   "pyarrow": 29.85499596255645
+  },
+  "csv/score:count": {
+   "duckdb": 0.12696098628898578,
+   "pyarrow": 30.786766862997315
+  },
+  "csv/score:max": {
+   "duckdb": 0.12242527524803831,
+   "pyarrow": 10.258265613673649
+  },
+  "csv/score:min": {
+   "duckdb": 0.12946461345205895,
+   "pyarrow": 10.257641052333458
+  },
+  "csv/score:sum": {
+   "duckdb": 0.12788426194329233,
+   "pyarrow": 34.93855188895103
+  },
+  "parquet/id:avg": {
+   "duckdb": 0.10310620481775264,
+   "pyarrow": 0.8297655684286749
+  },
+  "parquet/id:count": {
+   "duckdb": 0.01397001889764714,
+   "pyarrow": 0.1106437969924812
+  },
+  "parquet/id:max": {
+   "duckdb": 0.10123965228927984,
+   "pyarrow": 0.7920252562383774
+  },
+  "parquet/id:min": {
+   "duckdb": 0.10090620865266994,
+   "pyarrow": 0.7910278250993753
+  },
+  "parquet/id:sum": {
+   "duckdb": 0.10223768259749338,
+   "pyarrow": 0.8936086335189474
+  },
+  "parquet/score:avg": {
+   "duckdb": 0.06380095431440454,
+   "pyarrow": 0.5883930281555257
+  },
+  "parquet/score:count": {
+   "duckdb": 0.012134494400483366,
+   "pyarrow": 0.11363692765851843
+  },
+  "parquet/score:max": {
+   "duckdb": 0.1179243876879473,
+   "pyarrow": 0.377071325648415
+  },
+  "parquet/score:min": {
+   "duckdb": 0.11932549697654206,
+   "pyarrow": 0.3835545224320651
+  },
+  "parquet/score:sum": {
+   "duckdb": 0.07209723434467126,
+   "pyarrow": 0.691367895065584
+  }
+ },
+ "mode": "full",
+ "phase": "30.1 \u2014 large-input fused kernels (Arrow/CSV/Parquet past pyarrow) decision Experiment",
+ "steady_distribution_ns": {
+  "arrow": {
+   "cells": 10,
+   "p50": 34178.0,
+   "p95": 34352.0,
+   "p99": 44426.08000000003
+  },
+  "csv": {
+   "cells": 10,
+   "p50": 1557640.0,
+   "p95": 1601602.8,
+   "p99": 1635659.02
+  },
+  "parquet": {
+   "cells": 10,
+   "p50": 36323.0,
+   "p95": 39776.7,
+   "p99": 44589.98000000001
+  }
+ },
+ "verdict": "PASS"
+}

@@ -389,6 +389,26 @@ against the shipped path and DuckDB but not against pyarrow's vectorized reader 
 large inputs, and incremental observation is correct but pays more index than the
 28.7 gate allowed.
 
+## Phase-30 outcomes (large-input fused kernels; reading, index cost, framing pending)
+
+Phase 30 attacks the four gaps Phase 29 recorded. Plan:
+[phase-30-plan.md](../phases/phase-30-plan.md); results:
+[phase-30-results.md](../phases/phase-30-results.md).
+
+| Item | Question | Outcome |
+|---|---|---|
+| 30.1 Large-input fused kernels | Can the fused kernel close the Phase-29.1 large-input loss to pyarrow on Arrow and CSV (and add Parquet ops)? | **Complete — shipped.** The per-value `Vec`+`Value` decode in the filesystem scanners is replaced by **monomorphized single-pass `push_i64_le::<W,SIGNED>`/`push_f64_le::<W>` folds** (`chunks_exact` alignment, no panic; exact `i128` integer `avg`), a **word-wise bounds-checked validity bitmap** (Arrow), a `PLAIN`+`max_def == 0` fast path (Parquet), and an **allocation-free SWAR CSV field scanner** with bit-identical native parsers. Large `e_large` fused/pyarrow median: **Arrow ≈2.87 → 0.65**, **Parquet ≈1.28 → 0.61** (**every cell `< 1.0`**); **CSV ≈46.2 → 35.5** (improved ≈23 %, still **10.5–42× slower** — the remaining recorded loss). Full-matrix pyarrow median **0.0772 → 0.0461**, W/T/L **406/41/163 → 489/8/81**; vs DuckDB **150/0/0** (large-input) / **570/0/0** (full matrix). Exactness **3/3** · **12/12**, oracle agreement **228/228**. The econ court's `IFS=$'\t'` defect (dash `sh` does not expand it) is fixed to a POSIX `TAB=$(printf '\t')`. `2026-10-12-phase30-1-kernels-2ec78328` (+ `2026-10-12-phase29-1-fused-2ec78328` after-econ; control `…-19d2c372`) |
+| 30.2 Coarse index for reading | Can the natural reading request be served from coarse member spans? | **PENDING** — not started; no implementation/measurement/claim |
+| 30.3 Incremental index cost | Can a dependency-signature-only index reach < 10 % while keeping correctness? | **PENDING** — not started |
+| 30.4 Standing negatives | Detection findings, legacy subset edges, Arrow legacy framing. | **PENDING** — not started |
+
+**Scope note.** 30.1's win is entirely on the **large-input** lane and is a code
+change, not a comparator change; against pyarrow's vectorized C++ reader the large
+**CSV** lane is **still a loss** (a recorded negative, not a capability gap). The
+30.1 court has two lanes: the **`analytical` run (`mode full`) is authoritative**;
+the **`dev` kernel lane (no python3/pyarrow/duckdb) is exactness/structural only**
+and its absolute nanoseconds are **not comparable** to `e_large`.
+
 ## Unmeasured gates
 
 - `N4` (decline-rate threshold): no pre-registered threshold exists, so it is

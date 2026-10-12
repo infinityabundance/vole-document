@@ -121,7 +121,15 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   structural index: three real defects fixed, span closure beats the
   whole-descriptor control **4/4** with a recorded reading-request loss; **29.3**
   revision-aware incremental observation: correct with the semantic edges but
-  **MARGINAL/scoped** on index cost);
+  **MARGINAL/scoped** on index cost),
+  [Phase 30](phases/phase-30-results.md) (closing the measured gaps — **30.1
+  shipped**: the large-input fused kernels take Arrow **≈2.87 → 0.65** and
+  Parquet **≈1.28 → 0.61** past pyarrow (**every cell `< 1.0`**) and improve CSV
+  **≈46.2 → 35.5** (still 10.5–42× slower — the remaining recorded loss), with
+  the full-matrix pyarrow median **0.0772 → 0.0461** (W/T/L **406/41/163 →
+  489/8/81**), exactness **3/3 · 12/12**, and the econ court's `IFS` defect
+  fixed; **30.2** coarse index for reading, **30.3** incremental index cost, and
+  **30.4** standing negatives are **PENDING**),
   **in progress**:
   [Phase 21](phases/phase-21-plan.md) (format programme — **Wave 1 complete**: XLSX,
   PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2

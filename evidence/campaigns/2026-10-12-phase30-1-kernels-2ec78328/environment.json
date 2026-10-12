@@ -1,0 +1,33 @@
+{
+ "arch": "x86_64",
+ "bin": "target/release/vole-document",
+ "bin_sha256": "753a380aa71b257b27deb5026d45c02a4954096b406baad4ee2f2626bcf33e07",
+ "build_args": "--release --locked --all-features",
+ "campaign": "evidence/campaigns/2026-10-12-phase30-1-kernels-2ec78328",
+ "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+ "cargo_lock_sha256": "c9e522887f7fc7ce2e955a81eba93c39d4ebf973cafa912e6c4822574d0b535a",
+ "duckdb_version": "1.5.6",
+ "env_affecting_semantics": {
+  "LC_ALL": "C"
+ },
+ "headline_metric": "in-process steady-state median",
+ "iters": 9,
+ "lanes": [
+  "fused",
+  "current",
+  "pyarrow",
+  "duckdb"
+ ],
+ "measured_commit": "2ec7832895bd232d94f62546581eec8dba3c2f59",
+ "phase": "30.1 \u2014 large-input fused kernels (Arrow/CSV/Parquet past pyarrow) decision Experiment",
+ "profile": "release",
+ "pyarrow_version": "25.0.1",
+ "python": "Python 3.11.2",
+ "reps": 5,
+ "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+ "service": "analytical",
+ "tree_state": " M src/adapter/arrow.rs  M src/adapter/csv.rs  M src/adapter/fused.rs  M src/adapter/parquet.rs  M tools/phase29-1-fused-econ-court.sh ?? evidence/campaigns/2026-10-12-phase29-1-fused-2ec78328/ ?? evidence/campaigns/2026-10-12-phase30-1-kernels-2ec78328/ ?? tools/phase30-1-kernels-court.sh ",
+ "utc": "2026-10-12T23:05:13Z",
+ "vole_substrate": "--profile runtime --packed",
+ "warmup": 3
+}
