@@ -1,0 +1,7 @@
+doc	n	median_ratio	gm_ratio	wins	ties	losses
+nist-epub-0003	32	0.9995	1.0218	1	28	3
+nist-docx-0005	24	0.9999	1.0099	1	20	3
+nist-pdf-0004	24	0.9988	1.0009	1	21	2
+nist-docx-0014	32	1.0006	0.9851	4	24	4
+nist-epub-0009	32	1.0141	1.0139	1	30	1
+nist-pdf-0002	24	0.9978	0.9897	2	20	2

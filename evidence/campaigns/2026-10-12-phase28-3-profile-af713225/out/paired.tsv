@@ -1,0 +1,22 @@
+doc	obs	n	median_ratio	gm_ratio
+nist-epub-0009	--heading 0	8	1.0367	1.0372
+nist-docx-0014	--doc-text	8	0.9633	0.9689
+nist-epub-0009	--block 0	8	1.0298	1.0258
+nist-docx-0005	--doc-text	8	0.9376	1.0412
+nist-docx-0005	--metadata	8	0.9999	0.9841
+nist-epub-0003	--doc-text	8	0.9950	1.0003
+nist-pdf-0002	--metadata	8	0.9952	0.9924
+nist-docx-0014	--metadata	8	0.9907	1.0062
+nist-docx-0005	--block 0	8	1.0082	1.0054
+nist-epub-0003	--metadata	8	1.0015	1.0665
+nist-pdf-0004	--doc-text	8	0.9994	1.0017
+nist-epub-0009	--metadata	8	0.9954	0.9847
+nist-epub-0003	--heading 0	8	1.0126	1.0058
+nist-pdf-0002	--doc-text	8	0.9976	0.9981
+nist-docx-0014	--heading 0	8	0.9900	0.9445
+nist-epub-0003	--block 0	8	1.0012	1.0160
+nist-pdf-0002	--page 1	8	1.0475	0.9786
+nist-epub-0009	--doc-text	8	0.9996	1.0088
+nist-docx-0014	--block 0	8	1.0188	1.0229
+nist-pdf-0004	--page 1	8	1.0006	1.0229
+nist-pdf-0004	--metadata	8	0.9827	0.9787

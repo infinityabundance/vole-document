@@ -3734,7 +3734,7 @@ pub(crate) fn observe_session(
     if prof {
         let s = crate::field::prof::take();
         eprintln!(
-            "[vole-profile-stage] observe_us={} probe_us={} lookup_calls={} index_nodes={} index_read_us={} index_parse_us={} dispatch_us={} materialize_us={}",
+            "[vole-profile-stage] observe_us={} probe_us={} lookup_calls={} index_nodes={} index_read_us={} index_parse_us={} dispatch_us={} materialize_us={} select_us={} source_serve_us={} clone_bytes={} referenced_bytes={} objects_total={} objects_used={} serve_calls={}",
             s.observe_us,
             s.probe_us,
             s.lookup_calls,
@@ -3742,7 +3742,14 @@ pub(crate) fn observe_session(
             s.index_read_us,
             s.index_parse_us,
             s.dispatch_us,
-            s.materialize_us
+            s.materialize_us,
+            s.select_us,
+            s.source_serve_us,
+            s.clone_bytes,
+            s.referenced_bytes,
+            s.objects_total,
+            s.objects_used,
+            s.serve_calls
         );
     }
     result

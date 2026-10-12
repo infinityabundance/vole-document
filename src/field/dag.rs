@@ -148,16 +148,55 @@ fn serve_source_range(
             d.source_len
         )));
     }
+    let t_serve = crate::field::prof::start();
+    // Object lengths come straight off the object table; `ObjectSource::len` never
+    // resolves or copies bytes, so the window can be selected before any object is
+    // materialized. (External objects were rejected above, so every entry is inline.)
+    let object_lens: Vec<u64> = d.objects.iter().map(|o| o.len()).collect();
+    let channel_lens: Vec<u64> = d.channels.iter().map(|c| c.decoded_length).collect();
+    let t_select = crate::field::prof::start();
+    let window = select_ops(&d.program, &object_lens, &channel_lens, offset, end, limits)?;
+    let (objects_used, channels_used) =
+        selection_references(&window.ops, d.objects.len(), d.channels.len());
+    crate::field::prof::add_select(t_select);
+    // Bytes the selected window actually references: the invariant control axis.
+    // Neither branch below changes it, so it must not move between the variants.
+    let referenced_bytes: u64 = objects_used
+        .iter()
+        .enumerate()
+        .filter(|(_, used)| **used)
+        .map(|(id, _)| d.objects[id].len())
+        .sum();
+    let objects_used_n: u64 = objects_used.iter().filter(|u| **u).count() as u64;
+
+    // Phase 28.3 measurement prototype (feature `phase28-3-ablation`, off by
+    // default): choose between the eager full-table clone and a
+    // selection-before-materialization variant. The variant copies only the
+    // referenced objects and leaves the rest as never-dereferenced empty
+    // placeholders, exactly as the seek reader's partial loader already does.
+    #[cfg(feature = "phase28-3-ablation")]
+    let objects: Vec<Vec<u8>> = if super::selective_serve_enabled() {
+        let mut objs: Vec<Vec<u8>> = vec![Vec::new(); d.objects.len()];
+        for (id, used) in objects_used.iter().enumerate() {
+            if *used {
+                objs[id] = d.objects[id].as_inline().unwrap_or(&[]).to_vec();
+            }
+        }
+        objs
+    } else {
+        d.objects
+            .iter()
+            .map(|o| o.as_inline().unwrap_or(&[]).to_vec())
+            .collect()
+    };
+    #[cfg(not(feature = "phase28-3-ablation"))]
     let objects: Vec<Vec<u8>> = d
         .objects
         .iter()
         .map(|o| o.as_inline().unwrap_or(&[]).to_vec())
         .collect();
-    let object_lens: Vec<u64> = objects.iter().map(|o| o.len() as u64).collect();
-    let channel_lens: Vec<u64> = d.channels.iter().map(|c| c.decoded_length).collect();
-    let window = select_ops(&d.program, &object_lens, &channel_lens, offset, end, limits)?;
-    let (objects_used, channels_used) =
-        selection_references(&window.ops, objects.len(), d.channels.len());
+    let clone_bytes: u64 = objects.iter().map(|o| o.len() as u64).sum();
+
     let served = serve_selection(
         &objects,
         &d.channels,
@@ -169,6 +208,13 @@ fn serve_source_range(
         end,
         limits,
     )?;
+    crate::field::prof::add_source_serve(
+        t_serve,
+        clone_bytes,
+        referenced_bytes,
+        d.objects.len() as u64,
+        objects_used_n,
+    );
     Ok(served.bytes)
 }
 
