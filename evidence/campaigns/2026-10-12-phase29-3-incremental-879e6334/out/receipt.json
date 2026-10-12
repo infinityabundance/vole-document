@@ -1,0 +1,133 @@
+{
+   "correctness" : {
+      "cas_diverges_on_semantic" : true,
+      "incremental_equals_full" : true
+   },
+   "court" : "evidence/campaigns/2026-10-12-phase29-3-incremental-879e6334",
+   "exactness" : {
+      "n" : 16,
+      "ok" : true
+   },
+   "families" : [
+      {
+         "cas_diverges" : 0,
+         "change" : "real-draft-edit",
+         "correct" : 1,
+         "family" : "nist-sp800-34",
+         "fmt" : "docx",
+         "incr_nobs" : 1155,
+         "incr_reused" : 0,
+         "n_revs" : 4,
+         "reuse_pct" : 0,
+         "sem_only" : 0
+      },
+      {
+         "cas_diverges" : 1,
+         "change" : "style-table",
+         "correct" : 1,
+         "family" : "docx-style",
+         "fmt" : "docx",
+         "incr_nobs" : 1042,
+         "incr_reused" : 0,
+         "n_revs" : 3,
+         "reuse_pct" : 0,
+         "sem_only" : 1042
+      },
+      {
+         "cas_diverges" : 1,
+         "change" : "shared-string",
+         "correct" : 1,
+         "family" : "xlsx-ss",
+         "fmt" : "xlsx",
+         "incr_nobs" : 32,
+         "incr_reused" : 8,
+         "n_revs" : 3,
+         "reuse_pct" : 25,
+         "sem_only" : 24
+      },
+      {
+         "cas_diverges" : 0,
+         "change" : "text-edit",
+         "correct" : 1,
+         "family" : "csv-text",
+         "fmt" : "csv",
+         "incr_nobs" : 26643,
+         "incr_reused" : 23254,
+         "n_revs" : 3,
+         "reuse_pct" : 87.2799609653568,
+         "sem_only" : 0
+      },
+      {
+         "cas_diverges" : 0,
+         "change" : "text-edit",
+         "correct" : 1,
+         "family" : "json-text",
+         "fmt" : "json",
+         "incr_nobs" : 11643,
+         "incr_reused" : 6895,
+         "n_revs" : 3,
+         "reuse_pct" : 59.2201322683157,
+         "sem_only" : 0
+      }
+   ],
+   "index_fraction_pct" : 27.2901744706474,
+   "kind" : "incremental-observation",
+   "metadata" : {
+      "arch" : "x86_64",
+      "binary" : "target/debug/vole-document",
+      "binary_sha256" : "0f06964e9e312dde7f19ef9ecd64d95587a77b054d49946c59ccdd01abc7e02f",
+      "build_args" : "cargo build --locked --all-features -j 1",
+      "build_env" : "CARGO_PROFILE_DEV_DEBUG=unset (symbols-only; debug info does not affect semantics)",
+      "cargo" : "cargo 1.99.0 (5f94df478 2026-08-27)",
+      "cargo_lock_sha256" : "a388fccdc121a30d1e72a213a7248f7b3da8cac14c8ce6a78b569fba8b91ab36",
+      "generated_utc" : "2026-10-12T19:11:09Z",
+      "git_branch" : "phase29",
+      "git_commit" : "879e6334fa659410273375fd6542d3557543769a",
+      "git_dirty" : "yes",
+      "hash" : "BLAKE3-256 for observation/fragment/output ids (the store's own hash)",
+      "index_entry_model" : "key id 32 B + physical sig 32 B + semantic sig 32 B + output id 32 B",
+      "index_format" : "VOLEINC1 (versioned; 20 B header + 128 B/entry)",
+      "nproc" : "16",
+      "perl" : "This is perl 5, version 36, subversion 0 (v5.36.0) built for x86_64-linux-gnu-thread-multi",
+      "phase28_7_historical_control" : "evidence/campaigns/2026-10-12-phase28-7-revision-reuse-b06a2f76",
+      "root" : "/work",
+      "rustc" : "rustc 1.99.0 (b940084d7 2026-09-28)",
+      "service" : "dev (mem_limit == memswap_limit == 8g, pids_limit 4096)",
+      "substrate" : "field-build --profile runtime --packed"
+   },
+   "phase" : "29.3",
+   "reuse_pct_rev_gt_1" : 49.6239982886574,
+   "short" : "879e6334",
+   "totals" : {
+      "cas" : {
+         "bytes_recomp" : 1337213,
+         "bytes_reused" : 1203254,
+         "index_bytes" : 745108,
+         "latency" : 50072289,
+         "n_obs" : 60771,
+         "persistent" : 1127517,
+         "recomputed" : 29548,
+         "reused" : 31223
+      },
+      "full" : {
+         "bytes_recomp" : 2540635,
+         "latency" : 49980107,
+         "n_obs" : 60771,
+         "recomputed" : 60771
+      },
+      "incremental" : {
+         "bytes_recomp" : 1408687,
+         "bytes_reused" : 1131948,
+         "edges" : 67486,
+         "index_bytes" : 745108,
+         "invalidated" : 10358,
+         "latency" : 110698576,
+         "n_obs" : 60771,
+         "persistent" : 1127517,
+         "recomputed" : 30614,
+         "reused" : 30157,
+         "sem_only" : 1066
+      }
+   },
+   "verdict" : "RESOLVED on correctness+reuse; MARGINAL/NEGATIVE on index cost"
+}

@@ -1,0 +1,2 @@
+request	outcome	units_read	preads	unit_bytes	closure_bytes	manifest_bytes	index_bytes	seed_bytes	dir_bytes	answer_bytes	matches_full	reason
+--byte-range 800050..1062194 --kind exact	planned	1	1	1550025	1550226	0	0	0	201	262144	1	

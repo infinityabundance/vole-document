@@ -112,8 +112,16 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   DuckDB and an in-process steady-state headline, a recorded-negative hot-path
   profiling gate, and the three decision experiments: **28.5** fused Arrow kernel
   RESOLVED POSITIVE, **28.6** fragment locality — coarse structural index
-  justified, **28.7** revision reuse — positive but marginal/scoped; **28.8+** is
-  the winning-mechanisms programme);
+  justified, **28.7** revision reuse — positive but marginal/scoped; the winning
+  mechanisms then ship in Phase 29),
+  [Phase 29](phases/phase-29-results.md) (the winning mechanisms — **29.1** the
+  generalized fused kernel over Arrow/Parquet/CSV/fixed-width: a resolved
+  steady-state win over the shipped path and **every** DuckDB cell, with the
+  large-input pyarrow gap narrowed **6.46× → ~2.7–3.0×**; **29.2** the coarse
+  structural index: three real defects fixed, span closure beats the
+  whole-descriptor control **4/4** with a recorded reading-request loss; **29.3**
+  revision-aware incremental observation: correct with the semantic edges but
+  **MARGINAL/scoped** on index cost);
   **in progress**:
   [Phase 21](phases/phase-21-plan.md) (format programme — **Wave 1 complete**: XLSX,
   PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2

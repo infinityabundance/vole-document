@@ -1025,6 +1025,15 @@ no persisted artifact, and no decoder behavior:
 
 The field CLI flags add `--workers N`, `--packed` (with `--sync=batch|each`),
 and `--promote[=BYTES]`, plus the `observe-batch` command — see the [CLI](cli.md).
+The Phase-29 instruments are also shipped subcommands: **`fused-scan`** (the
+shared versioned, validity-aware generalized fused kernel over Arrow/Parquet/CSV/
+fixed-width with `count`/`sum`/`min`/`max`/`avg`/`grouped`), **`coarse-index`** and
+**`coarse-read`** (the persisted coarse structural directory serving a narrow
+request from real `pread` range reads of the verbatim authority object), and
+**`field-incremental`** (revision-aware incremental observation with a versioned
+physical + semantic dependency index). They never touch the exactness path: a
+query they cannot serve narrows to (or declines into) the full read, never a wrong
+answer. See the [Phase 29 results](../phases/phase-29-results.md).
 `--packed` and `--workers` are the two Phase-15 mechanisms that touch a persisted
 artifact or a runtime path (`--sync` selects the packed writer's durability policy,
 ADR-0053); `--promote` is refuted on the tested corpus and default-off (ADR-0046).

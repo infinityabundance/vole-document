@@ -872,6 +872,160 @@ impl<'a> BinReader<'a> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Fused predicate/aggregate scan (Phase 29.1)
+// ---------------------------------------------------------------------------
+
+const FUSED_BATCH: usize = 4096;
+
+fn trim_ascii(b: &[u8]) -> &[u8] {
+    let s = b.iter().position(|&c| c != b' ').unwrap_or(b.len());
+    let e = b.iter().rposition(|&c| c != b' ').map_or(s, |i| i + 1);
+    &b[s..e]
+}
+
+fn parse_i64_trim(raw: &[u8]) -> Result<Option<i64>> {
+    let s = trim_ascii(raw);
+    if s.is_empty() {
+        return Ok(None);
+    }
+    let text = std::str::from_utf8(s)
+        .map_err(|_| Error::unsupported_feature("non-UTF-8 field in a numeric column"))?;
+    text.parse::<i64>().map(Some).map_err(|_| {
+        Error::unsupported_feature(format!("fixed-width field {text:?} is not an integer"))
+    })
+}
+
+fn parse_f64_trim(raw: &[u8]) -> Result<Option<f64>> {
+    let s = trim_ascii(raw);
+    if s.is_empty() {
+        return Ok(None);
+    }
+    let text = std::str::from_utf8(s)
+        .map_err(|_| Error::unsupported_feature("non-UTF-8 field in a numeric column"))?;
+    text.parse::<f64>().map(Some).map_err(|_| {
+        Error::unsupported_feature(format!("fixed-width field {text:?} is not a number"))
+    })
+}
+
+/// **Fused** predicate/aggregate scan of one numeric fixed-width column.
+///
+/// Streams the records with the shipped fixed-width reader's line splitter, decodes
+/// **only** the addressed column of each data record (whitespace-trimmed) into a
+/// native `i64`/`f64` batch, and folds each batch into the validity-aware
+/// [`Accumulator`](crate::adapter::fused::Accumulator). A blank field is SQL `NULL`;
+/// a non-blank field that does not parse, a record whose width disagrees with the
+/// layout, or `grouped` on a float column is a **typed decline**.
+pub fn fused_scan(
+    source: &[u8],
+    column: &str,
+    kind: crate::adapter::fused::ColumnKind,
+    plan: &crate::adapter::fused::FusedPlan,
+    limits: Limits,
+) -> Result<crate::adapter::fused::FusedAnswer> {
+    use crate::adapter::fused::{Accumulator, ColumnKind};
+    let layout = infer_layout(source, limits)?;
+    let ncols = layout.columns.len();
+    let idx = if let Ok(i) = column.parse::<usize>() {
+        if i < ncols {
+            i
+        } else {
+            return Err(Error::unsupported_feature(format!(
+                "fixed-width column index {i} is out of range ({ncols} columns)"
+            )));
+        }
+    } else {
+        let header = record_at(source, &layout, 0, limits)?;
+        let mut found = None;
+        for (i, f) in header.fields.iter().enumerate() {
+            if decode_field(source, f)?.trim() == column {
+                found = Some(i);
+                break;
+            }
+        }
+        found.ok_or_else(|| {
+            Error::unsupported_feature(format!("no fixed-width column named {column:?}"))
+        })?
+    };
+    if plan.op.needs_int_column() && kind != ColumnKind::Int {
+        return Err(Error::unsupported_feature(
+            "grouped counts require an integer column",
+        ));
+    }
+    let col = layout.columns[idx];
+    let mut acc = Accumulator::new(plan);
+    let mut ivals: Vec<i64> = Vec::with_capacity(FUSED_BATCH);
+    let mut vals: Vec<f64> = Vec::with_capacity(FUSED_BATCH);
+    let mut mask: Vec<bool> = Vec::with_capacity(FUSED_BATCH);
+    let mut any_null = false;
+    let mut rows: u64 = 0;
+    // Skip the header record (record 0); the data records follow.
+    let mut at = layout.bom_len as usize;
+    if let Some((_, _, _, next)) = split_line(source, at) {
+        at = next;
+    }
+    while let Some((start, content_end, _tag, next)) = split_line(source, at) {
+        let len = content_end - start;
+        if len as u64 != layout.width {
+            return Err(corrupt("a record's width differs from the inferred layout"));
+        }
+        rows += 1;
+        if rows > limits.max_fixedwidth_rows as u64 {
+            return Err(Error::resource_limit(format!(
+                "fixed-width table exceeds the {}-record cap",
+                limits.max_fixedwidth_rows
+            )));
+        }
+        let s = (col.start as usize).min(len);
+        let e = (col.end as usize).min(len);
+        let raw = &source[start + s..start + e];
+        match kind {
+            ColumnKind::Int => match parse_i64_trim(raw)? {
+                Some(v) => {
+                    ivals.push(v);
+                    mask.push(true);
+                }
+                None => {
+                    ivals.push(0);
+                    mask.push(false);
+                    any_null = true;
+                }
+            },
+            ColumnKind::Float => match parse_f64_trim(raw)? {
+                Some(v) => {
+                    vals.push(v);
+                    mask.push(true);
+                }
+                None => {
+                    vals.push(0.0);
+                    mask.push(false);
+                    any_null = true;
+                }
+            },
+        }
+        if mask.len() >= FUSED_BATCH {
+            let valid = if any_null { Some(&mask[..]) } else { None };
+            match kind {
+                ColumnKind::Int => acc.push_i64(&ivals, valid),
+                ColumnKind::Float => acc.push_f64(&vals, valid),
+            }
+            ivals.clear();
+            vals.clear();
+            mask.clear();
+            any_null = false;
+        }
+        at = next;
+    }
+    if !mask.is_empty() {
+        let valid = if any_null { Some(&mask[..]) } else { None };
+        match kind {
+            ColumnKind::Int => acc.push_i64(&ivals, valid),
+            ColumnKind::Float => acc.push_f64(&vals, valid),
+        }
+    }
+    Ok(acc.finish(kind))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

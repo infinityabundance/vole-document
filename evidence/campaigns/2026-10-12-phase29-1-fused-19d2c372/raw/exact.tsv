@@ -1,0 +1,13 @@
+fixture	format	vole_ok	len_ok	sha_ok	cmp_ok	mat_us
+e_large.arrow	true	true	true	true	11126
+e_large.csv	true	true	true	true	12666
+e_large.parquet	true	true	true	true	11639
+e_multi.arrow	true	true	true	true	4213
+e_multi.csv	true	true	true	true	4381
+e_multi.parquet	true	true	true	true	4464
+e_null.arrow	true	true	true	true	4014
+e_null.csv	true	true	true	true	3794
+e_null.parquet	true	true	true	true	4041
+e_small.arrow	true	true	true	true	3703
+e_small.csv	true	true	true	true	4295
+e_small.parquet	true	true	true	true	4108

@@ -1,0 +1,29 @@
+PHASE 29.2 DECISION — coarse structural index (real bytes read)
+
+Historical control (Phase 28.6): the closure for a narrow request was the
+WHOLE encoded descriptor in every format; a fragment floor+directory was
+>=10x smaller in 5/5 and beat page-level SQLite in only 3/5.
+
+Realized, persisted coarse index (span = --byte-range over the largest native
+unit; reading = --page/--block/--parquet-cell text), per format:
+  pdf     span: control 3236824 -> units 7091, closure 37552 (index 30461); page-SQLite 28788
+  pdf     reading: control 3245913 -> closure 46545 (WIN)
+  docx    span: control 3285766 -> units 655411, closure 655629 (index 218); page-SQLite 675956
+  docx    reading: control 3290209 -> closure 3296460 (LOSS)
+  odt     span: control 3285310 -> units 655407, closure 655625 (index 218); page-SQLite 680052
+  odt     reading: control 3289667 -> closure 3295639 (LOSS)
+  parquet span: control 4195784 -> units 1550025, closure 1550226 (index 201); page-SQLite 1757300
+  parquet reading: control 4196116 -> closure 8390673 (LOSS)
+
+WIN: the span request's real source bytes are far below the whole-descriptor
+closure in 4/4 formats (PDF 456x, DOCX/ODT 5x, Parquet 2.7x); the closure also
+beats page-level SQLite in 3/4 (PDF loses on closure because its index is
+directory-heavy, ~34 B/object unit, though its source bytes still beat SQLite).
+
+LOSS: reading requests narrow in only 1/4 formats (PDF). The DOCX/ODT/Parquet
+models materialize the whole exact source, so their coarse units are built but
+inert for those requests (Parquet's reading closure is 2.0x its control).
+
+Coarse lane (span): wall 11522-13885 us, peak RSS 12188-14736 kB (runstat, one cold process).
+
+Exactness held: 4/4 formats materialize --exact == source.

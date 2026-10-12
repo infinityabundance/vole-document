@@ -921,6 +921,175 @@ impl<'a> BinReader<'a> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Fused predicate/aggregate scan (Phase 29.1)
+// ---------------------------------------------------------------------------
+
+/// The number of values folded per native chunk (a bounded, cache-friendly batch).
+const FUSED_BATCH: usize = 4096;
+
+/// Strip the surrounding quotes of a quoted token; return the token unchanged when
+/// it is not quoted.
+fn strip_quotes(tok: &[u8], quoted: bool) -> Result<&[u8]> {
+    if !quoted {
+        return Ok(tok);
+    }
+    if tok.len() < 2 || tok[0] != QUOTE || tok[tok.len() - 1] != QUOTE {
+        return Err(corrupt("quoted field is not a well-formed quoted token"));
+    }
+    Ok(&tok[1..tok.len() - 1])
+}
+
+fn trim_ascii(b: &[u8]) -> &[u8] {
+    let s = b
+        .iter()
+        .position(|&c| c != b' ' && c != b'\t')
+        .unwrap_or(b.len());
+    let e = b
+        .iter()
+        .rposition(|&c| c != b' ' && c != b'\t')
+        .map_or(s, |i| i + 1);
+    &b[s..e]
+}
+
+/// Parse an addressed numeric field natively. `Ok(None)` is a NULL (an empty
+/// field); `Err` is a typed decline (a non-numeric, non-empty field).
+fn parse_field_i64(source: &[u8], field: &CsvField, trim: bool) -> Result<Option<i64>> {
+    let tok = field_bytes(source, field)?;
+    let inner = strip_quotes(tok, field.quoted)?;
+    let s = if trim { trim_ascii(inner) } else { inner };
+    if s.is_empty() {
+        return Ok(None);
+    }
+    let text = std::str::from_utf8(s)
+        .map_err(|_| Error::unsupported_feature("non-UTF-8 field in a numeric column"))?;
+    text.parse::<i64>().map(Some).map_err(|_| {
+        Error::unsupported_feature(format!("delimited field {text:?} is not an integer"))
+    })
+}
+
+fn parse_field_f64(source: &[u8], field: &CsvField, trim: bool) -> Result<Option<f64>> {
+    let tok = field_bytes(source, field)?;
+    let inner = strip_quotes(tok, field.quoted)?;
+    let s = if trim { trim_ascii(inner) } else { inner };
+    if s.is_empty() {
+        return Ok(None);
+    }
+    let text = std::str::from_utf8(s)
+        .map_err(|_| Error::unsupported_feature("non-UTF-8 field in a numeric column"))?;
+    text.parse::<f64>().map(Some).map_err(|_| {
+        Error::unsupported_feature(format!("delimited field {text:?} is not a number"))
+    })
+}
+
+/// Resolve a column spec (a 0-based data-column index, or an exact header name).
+fn resolve_column(source: &[u8], header: &RawRecord, spec: &str) -> Result<usize> {
+    let ncols = header.fields.len();
+    if let Ok(i) = spec.parse::<usize>() {
+        if i < ncols {
+            return Ok(i);
+        }
+        return Err(Error::unsupported_feature(format!(
+            "CSV column index {i} is out of range ({ncols} columns)"
+        )));
+    }
+    for (i, f) in header.fields.iter().enumerate() {
+        let name = decode_field(source, f)?;
+        if name == spec {
+            return Ok(i);
+        }
+    }
+    Err(Error::unsupported_feature(format!(
+        "no CSV column named {spec:?}"
+    )))
+}
+
+/// **Fused** predicate/aggregate scan of one numeric CSV/TSV/PSV column.
+///
+/// Streams the records with the shipped delimited reader, decodes **only** the
+/// addressed field of each data record into a native `i64`/`f64` batch (no `Value`,
+/// no per-value allocation, no text), and folds each batch into the validity-aware
+/// [`Accumulator`](crate::adapter::fused::Accumulator). The header record (record 0)
+/// resolves an index-or-name column spec; the data records follow.
+///
+/// The column kind is supplied by the caller (a delimited column has no schema):
+/// `Int` parses each field as `i64`, `Float` as `f64`. A non-empty field that does
+/// not parse, a ragged row, or `grouped` on a float column is a **typed decline**.
+/// An empty field is SQL `NULL`.
+pub fn fused_scan(
+    source: &[u8],
+    column: &str,
+    kind: crate::adapter::fused::ColumnKind,
+    plan: &crate::adapter::fused::FusedPlan,
+    limits: Limits,
+) -> Result<crate::adapter::fused::FusedAnswer> {
+    use crate::adapter::fused::{Accumulator, ColumnKind};
+    let dialect = sniff_dialect(source, limits)?;
+    let mut scanner = Scanner::new(source, dialect, limits);
+    let header = scanner
+        .next_record(false)?
+        .ok_or_else(|| Error::unsupported_feature("CSV table has no header record"))?;
+    let idx = resolve_column(source, &header, column)?;
+    if plan.op.needs_int_column() && kind != ColumnKind::Int {
+        return Err(Error::unsupported_feature(
+            "grouped counts require an integer column",
+        ));
+    }
+    let mut acc = Accumulator::new(plan);
+    let mut vals: Vec<f64> = Vec::with_capacity(FUSED_BATCH);
+    let mut ivals: Vec<i64> = Vec::with_capacity(FUSED_BATCH);
+    let mut mask: Vec<bool> = Vec::with_capacity(FUSED_BATCH);
+    let mut any_null = false;
+    while let Some(rec) = scanner.next_record(false)? {
+        let field = rec.fields.get(idx).ok_or_else(|| {
+            Error::unsupported_feature("CSV data row has fewer columns than the header")
+        })?;
+        match kind {
+            ColumnKind::Int => match parse_field_i64(source, field, false)? {
+                Some(v) => {
+                    ivals.push(v);
+                    mask.push(true);
+                }
+                None => {
+                    ivals.push(0);
+                    mask.push(false);
+                    any_null = true;
+                }
+            },
+            ColumnKind::Float => match parse_field_f64(source, field, false)? {
+                Some(v) => {
+                    vals.push(v);
+                    mask.push(true);
+                }
+                None => {
+                    vals.push(0.0);
+                    mask.push(false);
+                    any_null = true;
+                }
+            },
+        }
+        if mask.len() >= FUSED_BATCH {
+            let valid = if any_null { Some(&mask[..]) } else { None };
+            match kind {
+                ColumnKind::Int => acc.push_i64(&ivals, valid),
+                ColumnKind::Float => acc.push_f64(&vals, valid),
+            }
+            ivals.clear();
+            vals.clear();
+            mask.clear();
+            any_null = false;
+        }
+    }
+    if !mask.is_empty() {
+        let valid = if any_null { Some(&mask[..]) } else { None };
+        match kind {
+            ColumnKind::Int => acc.push_i64(&ivals, valid),
+            ColumnKind::Float => acc.push_f64(&vals, valid),
+        }
+    }
+    Ok(acc.finish(kind))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

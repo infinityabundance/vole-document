@@ -133,6 +133,9 @@ vole-document find         --store DIR --field HEX --text PATTERN [--entropyfs |
 vole-document explain      --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs | --packed]
 vole-document preview      --store DIR --field HEX --page N [--json] [--entropyfs | --packed]
 vole-document materialize  --store DIR --field HEX --exact --output FILE [--entropyfs | --packed]
+vole-document field-incremental --store DIR --field HEX [--lane full|cas|incremental]
+    [--index DIR] [--format auto|csv|json|docx|xlsx] [--verify] [--max-observations N]
+    [--entropyfs | --packed]
 vole-document cache        --store DIR [--clear] [--entropyfs | --packed]
 vole-document field-store-stats --store DIR [--entropyfs | --packed]
 ```
@@ -280,7 +283,16 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
 - `explain --analyze` executes the plan and reports the actual work (bytes read
   by class, nodes executed vs reused, decodes, wall/CPU).
 - `materialize --exact` reconstructs the original bytes from the field alone.
-- `cache --clear` reclaims the disposable derived cache.
+- `field-incremental` is the Phase-29 revision-aware incremental-observation
+  instrument (`src/field/incremental.rs`): it reuses revision N's verified derived
+  observations for revision N+1's field **only** where every **physical and
+  semantic** dependency is unchanged, keyed by a versioned durable index
+  (`VOLEINC1`). `--lane cas` is a physical-only versioned content-addressed
+  **control** (the lane that diverges wrong on a style/shared-string change);
+  `--lane full` rebuilds everything. It emits an answering-integrity JSON receipt
+  and is **observe-only** — it never touches the exactness path. Outside the
+  supported subset (an unparseable container, a non-stored member, an
+  observation count over the bound) it declines typed.
 - `--workers N` parallelizes independently decodable ingest work (`N`=absent or
   `1` is serial, `0` means `available_parallelism`); it requires the **non-default**
   `parallel` feature, is speed-neutral on the tested corpus, and is exactly
@@ -325,6 +337,12 @@ vole-document pdf-make-large DIR [OBJECTS]
 vole-document deflate-stats INPUT...        # only with deflate-replay
 vole-document arrow-fused --store DIR --field HEX --column SPEC --gt N \
     [--evidence-cap K] [--warmup W] [--repeat R] [--also-current]
+vole-document fused-scan --store DIR --field HEX --format FORMAT --column SPEC \
+    --pred PRED --op OP [--kind int|float] [--group-cap K] [--warmup W] \
+    [--repeat R] [--also-current] [--entropyfs | --packed]
+vole-document coarse-index --store DIR --field HEX [--entropyfs | --packed]
+vole-document coarse-read  --store DIR --field HEX [--use-map] --requests FILE [-]
+    [--entropyfs | --packed]
 ```
 
 These generate deterministic corpora and diagnostics for the courts; `pdf-make-large`
@@ -335,6 +353,15 @@ and reports per-iteration microseconds as JSON, and `--also-current` interleaves
 the shipped in-process `observe` path in the same process for the paired ablation.
 A column whose type the kernel does not model (utf8/binary/bool/temporal/
 compressed/nested) declines typed.
+`fused-scan` is the **Phase-29.1 generalized** kernel: `FORMAT` is
+`arrow|parquet|csv|fixedwidth`, `PRED` is `any|gt:K|eq:K|range:LO:HI`, `OP` is
+`count|sum|min|max|avg|grouped`; it is validity-aware (SQL null semantics), decodes
+only the addressed column, and declines typed on any unsupported type/encoding.
+`coarse-index` builds and persists the Phase-29.2 coarse structural directory
+(`VCI1`) for a field; `coarse-read` serves pre-registered narrow requests from
+whole native units of the verbatim authority with real `pread` range reads
+(`--use-map` replays the planned units). Both degrade to the full read, never a
+wrong answer.
 
 ## Exit codes
 

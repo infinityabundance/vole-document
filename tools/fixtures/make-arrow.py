@@ -860,7 +860,38 @@ ECON = {
          for b in range(4)],
     ),
     "e_large.arrow": lambda: f_large(2_000_000),
+    "e_null.arrow": lambda: (
+        [("id", INT64, True, None), ("score", F64, True, None)],
+        [([(INT64, [1, 2, None, 4, None, 6, 7, None, 9, 10]),
+           (F64, [1.5, None, -2.0, 3.25, None, 0.0, 7.5, -1.0, 2.0, None])], 10)],
+    ),
 }
+
+
+def _fmt_cell(v, ts):
+    if v is None:
+        return ""
+    kind = ts["kind"]
+    if kind in ("utf8", "large_utf8"):
+        s = v.decode("utf-8") if isinstance(v, (bytes, bytearray)) else str(v)
+        if any(c in s for c in '",\n\r'):
+            return '"' + s.replace('"', '""') + '"'
+        return s
+    if kind == "float":
+        # Always emit a decimal point so column inference keeps the column a float.
+        return repr(float(v))
+    return str(int(v))
+
+
+def _write_csv(path, fields, batches):
+    with open(path, "w", newline="\n") as f:
+        f.write(",".join(nm for (nm, _t, _n, _d) in fields) + "\n")
+        for columns, n in batches:
+            for i in range(n):
+                cells = []
+                for (nm, ts, _nl, _d), (_cts, cvals) in zip(fields, columns):
+                    cells.append(_fmt_cell(cvals[i], ts))
+                f.write(",".join(cells) + "\n")
 
 
 def emit_econ(out_dir):
@@ -874,10 +905,13 @@ def emit_econ(out_dir):
         with open(p, "rb") as f:
             data = f.read()
         manifest.append((name, len(data), hashlib.sha256(data).hexdigest()))
+        stem = name[: -len(".arrow")]
         # A Parquet projection of the same logical table (an independent columnar
         # comparator; the pyarrow lane reads the `.arrow` file directly).
-        pq = os.path.join(out_dir, name[: -len(".arrow")] + ".parquet")
+        pq = os.path.join(out_dir, stem + ".parquet")
         _write_parquet_projection(mp, pq, fields, batches)
+        # A CSV projection of the same logical table (the delimited comparator).
+        _write_csv(os.path.join(out_dir, stem + ".csv"), fields, batches)
     for name, length, sha in manifest:
         print("%s\t%d\t%s" % (name, length, sha))
     return manifest
@@ -896,6 +930,8 @@ def _write_parquet_projection(mp, path, fields, batches):
             vals.extend(cvals)
         physical, converted = _parquet_map(ts)
         spec = {"name": nm, "physical": physical, "values": vals}
+        if any(v is None for v in vals):
+            spec["optional"] = True
         if converted is not None:
             spec["converted"] = converted
         parquet_cols.append(spec)

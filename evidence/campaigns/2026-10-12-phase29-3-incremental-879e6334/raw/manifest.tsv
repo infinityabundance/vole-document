@@ -1,0 +1,17 @@
+family	fmt	change	rev	path	bytes	sha256
+nist-sp800-34	docx	real-draft-edit	1	evidence/scratch/phase29-3-court/revs/nist-sp800-34-r1.docx	57045	c429c2b93397b318fa14c9718afb564f9162913e1a71a0d964849a5b862a996d
+nist-sp800-34	docx	real-draft-edit	2	evidence/scratch/phase29-3-court/revs/nist-sp800-34-r2.docx	56935	345fa5f2eb4d47d2433e409cf6c0bbef7256be00d475cb337efdfd19194e90dd
+nist-sp800-34	docx	real-draft-edit	3	evidence/scratch/phase29-3-court/revs/nist-sp800-34-r3.docx	42191	34ce81fe417d491b479de92465b5c2673378f6987423d68c649ada1ed84b3522
+nist-sp800-34	docx	real-draft-edit	4	evidence/scratch/phase29-3-court/revs/nist-sp800-34-r4.docx	28783	3fe358f1cf866c3a6208692517e1705b86581c08bfba49000b95998bc0b581a0
+docx-style	docx	style-table	1	evidence/scratch/phase29-3-court/revs/docx-style-r1.docx	57045	c429c2b93397b318fa14c9718afb564f9162913e1a71a0d964849a5b862a996d
+docx-style	docx	style-table	2	evidence/scratch/phase29-3-court/revs/docx-style-r2.docx	52658	af247fee6ad5eb1df0e5c7f4da5e1f620c3584f6be7017164ec16573881fd5b4
+docx-style	docx	style-table	3	evidence/scratch/phase29-3-court/revs/docx-style-r3.docx	52657	2a6d8d6fe10c39a3ddbacecb80c85d0553cf4988d123f6c2bc4db5aae4679023
+xlsx-ss	xlsx	shared-string	1	evidence/scratch/phase29-3-court/revs/xlsx-ss-r1.xlsx	9023	7c9ea2dc47e651b5b95071719cc3f57e5a97e2e5493b7d81e9ed1acd3deab21c
+xlsx-ss	xlsx	shared-string	2	evidence/scratch/phase29-3-court/revs/xlsx-ss-r2.xlsx	7190	b0a6f6a9fa6563c58452b62206bd8eb9e5f64f29d819f8ff0f6661e58458594c
+xlsx-ss	xlsx	shared-string	3	evidence/scratch/phase29-3-court/revs/xlsx-ss-r3.xlsx	7191	36c2fc911fbb6c23764fe1de102956faeca05f3e3e23cb433d9c69957abeb873
+csv-text	csv	text-edit	1	evidence/scratch/phase29-3-court/revs/csv-text-r1.csv	393231	494aab7e8893f370e51a5f02a29ee2e86561dd1829e65c3e22af9db70ec0980b
+csv-text	csv	text-edit	2	evidence/scratch/phase29-3-court/revs/csv-text-r2.csv	393242	38a64f1a4a21c27a54cce3c89281d94e9367bb055f026e892f63e7376156a32c
+csv-text	csv	text-edit	3	evidence/scratch/phase29-3-court/revs/csv-text-r3.csv	393243	0d5e6849502bf27f766083e2e55d80bae0c8fb63ed463ba5479f59f49062726c
+json-text	json	text-edit	1	evidence/scratch/phase29-3-court/revs/json-text-r1.json	393305	5639718cf4782c3706a54a82693d5da7cfc08c850309f587931952d94a5ab9e7
+json-text	json	text-edit	2	evidence/scratch/phase29-3-court/revs/json-text-r2.json	393317	e0e256612cae86a6896c2efff7701627371f593ff5669afcafe1826fcd5658ef
+json-text	json	text-edit	3	evidence/scratch/phase29-3-court/revs/json-text-r3.json	393260	43a1bb05cff0382283b99457a81ad769a62fbcad5d14e31873320c39636cb646

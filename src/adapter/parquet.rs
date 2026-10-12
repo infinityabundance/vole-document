@@ -2087,6 +2087,507 @@ impl<'a> BinReader<'a> {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Fused predicate/aggregate scan (Phase 29.1)
+// ---------------------------------------------------------------------------
+
+/// A native numeric chunk. The fused kernel never builds a [`Value`].
+enum NativeChunk {
+    I(Vec<i64>),
+    F(Vec<f64>),
+}
+
+/// A statistics bound read from a column chunk's `min_value`/`max_value`.
+#[derive(Clone, Copy)]
+enum StatNum {
+    I(i64),
+    F(f64),
+}
+
+/// The numeric [`ColumnKind`](crate::adapter::fused::ColumnKind) of a physical type.
+fn parquet_column_kind(physical: i32) -> Result<crate::adapter::fused::ColumnKind> {
+    use crate::adapter::fused::ColumnKind;
+    match physical {
+        T_INT32 | T_INT64 => Ok(ColumnKind::Int),
+        T_FLOAT | T_DOUBLE => Ok(ColumnKind::Float),
+        other => Err(Error::unsupported_feature(format!(
+            "fused scan supports INT32/INT64/FLOAT/DOUBLE; column is {}",
+            physical_type_name(other)
+        ))),
+    }
+}
+
+/// Decode a PLAIN region of `count` numeric values natively (no `Value`).
+fn native_plain(data: &[u8], physical: i32, count: usize) -> Result<NativeChunk> {
+    match physical {
+        T_INT32 => {
+            let mut out = Vec::with_capacity(count);
+            let mut at = 0usize;
+            for _ in 0..count {
+                out.push(i64::from(read_le_uint(data, &mut at, 4)? as u32 as i32));
+            }
+            Ok(NativeChunk::I(out))
+        }
+        T_INT64 => {
+            let mut out = Vec::with_capacity(count);
+            let mut at = 0usize;
+            for _ in 0..count {
+                out.push(read_le_uint(data, &mut at, 8)? as i64);
+            }
+            Ok(NativeChunk::I(out))
+        }
+        T_FLOAT => {
+            let mut out = Vec::with_capacity(count);
+            let mut at = 0usize;
+            for _ in 0..count {
+                out.push(f64::from(f32::from_bits(
+                    read_le_uint(data, &mut at, 4)? as u32
+                )));
+            }
+            Ok(NativeChunk::F(out))
+        }
+        T_DOUBLE => {
+            let mut out = Vec::with_capacity(count);
+            let mut at = 0usize;
+            for _ in 0..count {
+                out.push(f64::from_bits(read_le_uint(data, &mut at, 8)?));
+            }
+            Ok(NativeChunk::F(out))
+        }
+        other => Err(Error::unsupported_feature(format!(
+            "fused scan cannot decode {} natively",
+            physical_type_name(other)
+        ))),
+    }
+}
+
+/// Decode a dictionary-index region into native values by mapping through `dict`.
+fn native_dictionary(data: &[u8], dict: &NativeChunk, count: usize) -> Result<NativeChunk> {
+    if data.is_empty() {
+        return Err(corrupt("dictionary index stream is empty"));
+    }
+    let width = u32::from(data[0]);
+    if width > 32 {
+        return Err(corrupt("dictionary index bit width is out of range"));
+    }
+    let idx = decode_rle_bitpacked(&data[1..], width, count)?;
+    match dict {
+        NativeChunk::I(d) => {
+            let mut out = Vec::with_capacity(idx.len());
+            for i in idx {
+                out.push(
+                    *d.get(i as usize)
+                        .ok_or_else(|| corrupt("dictionary index is out of range"))?,
+                );
+            }
+            Ok(NativeChunk::I(out))
+        }
+        NativeChunk::F(d) => {
+            let mut out = Vec::with_capacity(idx.len());
+            for i in idx {
+                out.push(
+                    *d.get(i as usize)
+                        .ok_or_else(|| corrupt("dictionary index is out of range"))?,
+                );
+            }
+            Ok(NativeChunk::F(out))
+        }
+    }
+}
+
+/// Read the `(min, max)` statistics bound of a chunk, if present and well-formed.
+fn fused_stats_range(chunk: &ColumnChunkDesc, physical: i32) -> Option<(StatNum, StatNum)> {
+    let lo = stat_value(chunk.min_value.as_deref()?, physical)?;
+    let hi = stat_value(chunk.max_value.as_deref()?, physical)?;
+    Some((lo, hi))
+}
+
+fn stat_value(bytes: &[u8], physical: i32) -> Option<StatNum> {
+    Some(match physical {
+        T_INT32 if bytes.len() >= 4 => StatNum::I(i64::from(i32::from_le_bytes([
+            bytes[0], bytes[1], bytes[2], bytes[3],
+        ]))),
+        T_INT64 if bytes.len() >= 8 => StatNum::I(i64::from_le_bytes([
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+        ])),
+        T_FLOAT if bytes.len() >= 4 => StatNum::F(f64::from(f32::from_bits(u32::from_le_bytes([
+            bytes[0], bytes[1], bytes[2], bytes[3],
+        ])))),
+        T_DOUBLE if bytes.len() >= 8 => StatNum::F(f64::from_bits(u64::from_le_bytes([
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+        ]))),
+        _ => return None,
+    })
+}
+
+/// Could any value in the closed `[lo, hi]` statistics range satisfy `pred`?
+fn predicate_could_match(
+    pred: crate::adapter::fused::FusedPredicate,
+    lo: StatNum,
+    hi: StatNum,
+) -> bool {
+    match (lo, hi) {
+        (StatNum::I(lo), StatNum::I(hi)) => {
+            if hi < lo {
+                return true; // malformed stats: do not skip
+            }
+            match pred {
+                crate::adapter::fused::FusedPredicate::Always => true,
+                crate::adapter::fused::FusedPredicate::Gt(t) => hi > t,
+                crate::adapter::fused::FusedPredicate::Eq(t) => lo <= t && t <= hi,
+                crate::adapter::fused::FusedPredicate::Range { lo: l, hi: h } => {
+                    l.is_none_or(|l| hi >= l) && h.is_none_or(|h| lo <= h)
+                }
+            }
+        }
+        (StatNum::F(lo), StatNum::F(hi)) => {
+            if hi < lo {
+                return true;
+            }
+            match pred {
+                crate::adapter::fused::FusedPredicate::Always => true,
+                crate::adapter::fused::FusedPredicate::Gt(t) => hi > t as f64,
+                crate::adapter::fused::FusedPredicate::Eq(t) => lo <= t as f64 && t as f64 <= hi,
+                crate::adapter::fused::FusedPredicate::Range { lo: l, hi: h } => {
+                    l.is_none_or(|l| hi >= l as f64) && h.is_none_or(|h| lo <= h as f64)
+                }
+            }
+        }
+        // Mixed or absent stats: never skip.
+        _ => true,
+    }
+}
+
+/// Does every value in `[lo, hi]` satisfy `pred`? (Used only for a `count`.)
+fn predicate_all_match(
+    pred: crate::adapter::fused::FusedPredicate,
+    lo: StatNum,
+    hi: StatNum,
+) -> bool {
+    use crate::adapter::fused::FusedPredicate as P;
+    match (lo, hi) {
+        (StatNum::I(lo), StatNum::I(hi)) if hi >= lo => match pred {
+            P::Always => true,
+            P::Gt(t) => lo > t,
+            P::Eq(t) => lo == hi && lo == t,
+            P::Range { lo: l, hi: h } => l.is_none_or(|l| lo >= l) && h.is_none_or(|h| hi <= h),
+        },
+        (StatNum::F(lo), StatNum::F(hi)) if hi >= lo => match pred {
+            P::Always => true,
+            P::Gt(t) => lo > t as f64,
+            P::Eq(t) => lo == hi && lo == t as f64,
+            P::Range { lo: l, hi: h } => {
+                l.is_none_or(|l| lo >= l as f64) && h.is_none_or(|h| hi <= h as f64)
+            }
+        },
+        _ => false,
+    }
+}
+
+/// Decode one data page natively and fold it into `acc`.
+fn fused_decode_data_page(
+    leaf: &LeafColumn,
+    header: &PageHeader,
+    decoded: &[u8],
+    dict: &Option<NativeChunk>,
+    kind: crate::adapter::fused::ColumnKind,
+    acc: &mut crate::adapter::fused::Accumulator,
+) -> Result<()> {
+    use crate::adapter::fused::ColumnKind;
+    let n = header.data_num_values as usize;
+    let mut at = 0usize;
+    if leaf.max_rep > 0 {
+        let (_, used) = decode_levels(
+            &decoded[at..],
+            bit_width(leaf.max_rep),
+            n,
+            header.data_rep_encoding,
+        )?;
+        at += used;
+    }
+    let mut defs: Option<Vec<u32>> = None;
+    if leaf.max_def > 0 {
+        let (levels, used) = decode_levels(
+            &decoded[at..],
+            bit_width(leaf.max_def),
+            n,
+            header.data_def_encoding,
+        )?;
+        at += used;
+        defs = Some(levels);
+    }
+    let present = match &defs {
+        Some(d) => d.iter().filter(|v| **v == leaf.max_def).count(),
+        None => n,
+    };
+    let value_bytes = decoded
+        .get(at..)
+        .ok_or_else(|| corrupt("data page value region is truncated"))?;
+    let values = match header.data_encoding {
+        ENC_PLAIN => native_plain(value_bytes, leaf.physical, present)?,
+        ENC_PLAIN_DICTIONARY | ENC_RLE_DICTIONARY => {
+            let dictionary = dict
+                .as_ref()
+                .ok_or_else(|| corrupt("dictionary-encoded data page has no dictionary page"))?;
+            native_dictionary(value_bytes, dictionary, present)?
+        }
+        other => {
+            return Err(Error::unsupported_feature(format!(
+                "Parquet data encoding {} is not supported",
+                encoding_name(other)
+            )));
+        }
+    };
+    match (kind, values) {
+        (ColumnKind::Int, NativeChunk::I(vals)) => match &defs {
+            Some(defs) => {
+                let (rows, mask) = align_i64(vals, defs, leaf.max_def)?;
+                acc.push_i64(&rows, Some(&mask));
+            }
+            None => acc.push_i64(&vals, None),
+        },
+        (ColumnKind::Float, NativeChunk::F(vals)) => match &defs {
+            Some(defs) => {
+                let (rows, mask) = align_f64(vals, defs, leaf.max_def)?;
+                acc.push_f64(&rows, Some(&mask));
+            }
+            None => acc.push_f64(&vals, None),
+        },
+        _ => return Err(corrupt("column kind disagrees with the decoded chunk")),
+    }
+    Ok(())
+}
+
+fn align_i64(vals: Vec<i64>, defs: &[u32], max_def: u32) -> Result<(Vec<i64>, Vec<bool>)> {
+    let mut rows = Vec::with_capacity(defs.len());
+    let mut mask = Vec::with_capacity(defs.len());
+    let mut vi = 0usize;
+    for d in defs {
+        if *d == max_def {
+            rows.push(
+                *vals
+                    .get(vi)
+                    .ok_or_else(|| corrupt("page has fewer values than levels"))?,
+            );
+            vi += 1;
+            mask.push(true);
+        } else {
+            rows.push(0);
+            mask.push(false);
+        }
+    }
+    if vi != vals.len() {
+        return Err(corrupt("page has more values than levels"));
+    }
+    Ok((rows, mask))
+}
+
+fn align_f64(vals: Vec<f64>, defs: &[u32], max_def: u32) -> Result<(Vec<f64>, Vec<bool>)> {
+    let mut rows = Vec::with_capacity(defs.len());
+    let mut mask = Vec::with_capacity(defs.len());
+    let mut vi = 0usize;
+    for d in defs {
+        if *d == max_def {
+            rows.push(
+                *vals
+                    .get(vi)
+                    .ok_or_else(|| corrupt("page has fewer values than levels"))?,
+            );
+            vi += 1;
+            mask.push(true);
+        } else {
+            rows.push(0.0);
+            mask.push(false);
+        }
+    }
+    if vi != vals.len() {
+        return Err(corrupt("page has more values than levels"));
+    }
+    Ok((rows, mask))
+}
+
+/// Decode only the addressed column chunk of one row group natively, folding into
+/// `acc`. Mirrors [`decode_chunk`] but never builds a [`Value`].
+#[allow(clippy::too_many_arguments)]
+fn fused_decode_chunk(
+    source: &[u8],
+    leaf: &LeafColumn,
+    chunk: &ColumnChunkDesc,
+    kind: crate::adapter::fused::ColumnKind,
+    acc: &mut crate::adapter::fused::Accumulator,
+    limits: Limits,
+    budget: &mut DecodeBudget,
+) -> Result<()> {
+    if !supported_codec(chunk.codec) {
+        return Err(Error::unsupported_feature(format!(
+            "Parquet codec {} is not supported",
+            codec_name(chunk.codec)
+        )));
+    }
+    if chunk.num_values < 0 {
+        return Err(corrupt("column chunk has a negative value count"));
+    }
+    let want = chunk.num_values as u64;
+    budget.add_values(want)?;
+    let start = usize::try_from(chunk.span_start).map_err(|_| corrupt("span overflow"))?;
+    let end = usize::try_from(chunk.span_end).map_err(|_| corrupt("span overflow"))?;
+    if end > source.len() || start > end {
+        return Err(corrupt("column chunk span is outside the file"));
+    }
+    let mut pos = start;
+    let mut produced: u64 = 0;
+    let mut pages: u32 = 0;
+    let mut dict: Option<NativeChunk> = None;
+    while produced < want {
+        if pages >= limits.max_parquet_pages_per_chunk {
+            return Err(Error::resource_limit(format!(
+                "column chunk exceeds the {}-page cap",
+                limits.max_parquet_pages_per_chunk
+            )));
+        }
+        if pos >= end {
+            return Err(corrupt("column chunk ended before all values were read"));
+        }
+        let (header, hlen) = parse_page_header(source, pos)?;
+        let data_start = pos
+            .checked_add(hlen)
+            .ok_or_else(|| corrupt("page header overflows"))?;
+        let data_end = data_start
+            .checked_add(
+                usize::try_from(header.compressed_page_size)
+                    .map_err(|_| corrupt("page size overflows"))?,
+            )
+            .ok_or_else(|| corrupt("page size overflows"))?;
+        if data_end > end || data_end > source.len() {
+            return Err(corrupt("page data is outside the column chunk"));
+        }
+        let payload = &source[data_start..data_end];
+        pages += 1;
+        match header.page_type {
+            PAGE_DICTIONARY => {
+                let decoded = decompress_page(
+                    chunk.codec,
+                    payload,
+                    header.uncompressed_page_size,
+                    limits,
+                    budget,
+                )?;
+                if header.dict_encoding != ENC_PLAIN {
+                    return Err(Error::unsupported_feature(format!(
+                        "Parquet dictionary encoding {} is not supported",
+                        encoding_name(header.dict_encoding)
+                    )));
+                }
+                dict = Some(native_plain(
+                    &decoded,
+                    leaf.physical,
+                    header.dict_num_values as usize,
+                )?);
+            }
+            PAGE_DATA => {
+                let decoded = decompress_page(
+                    chunk.codec,
+                    payload,
+                    header.uncompressed_page_size,
+                    limits,
+                    budget,
+                )?;
+                fused_decode_data_page(leaf, &header, &decoded, &dict, kind, acc)?;
+                produced = produced.saturating_add(header.data_num_values);
+            }
+            PAGE_INDEX => {}
+            PAGE_DATA_V2 => {
+                return Err(Error::unsupported_feature(
+                    "Parquet DATA_PAGE_V2 pages are not supported",
+                ));
+            }
+            other => {
+                return Err(Error::unsupported_feature(format!(
+                    "Parquet page type {} is not supported",
+                    page_type_name(other)
+                )));
+            }
+        }
+        pos = data_end;
+    }
+    if produced != want {
+        return Err(corrupt("column chunk value count disagrees with its pages"));
+    }
+    Ok(())
+}
+
+/// **Fused** predicate/aggregate scan of one numeric Parquet column.
+///
+/// Decodes only the addressed column chunk in each row group, in native form (no
+/// [`Value`], no per-value allocation), folds it into the validity-aware
+/// [`Accumulator`](crate::adapter::fused::Accumulator), and uses the row-group
+/// `min_value`/`max_value` statistics to **skip a row group** whose values cannot
+/// satisfy the predicate (and, for a `count`, to short-circuit a row group where
+/// every value satisfies it). Everything outside the supported subset is a typed
+/// decline.
+pub fn fused_scan(
+    source: &[u8],
+    model: &ParquetModel,
+    leaf_index: u32,
+    plan: &crate::adapter::fused::FusedPlan,
+    limits: Limits,
+) -> Result<crate::adapter::fused::FusedAnswer> {
+    use crate::adapter::fused::{Accumulator, ColumnKind, FusedOp};
+
+    let leaf = model
+        .leaf(leaf_index)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Parquet column {leaf_index}")))?;
+    if leaf.max_rep > 0 {
+        return Err(Error::unsupported_feature(
+            "Parquet repeated (list) columns are not supported",
+        ));
+    }
+    if leaf.max_def > 1 {
+        return Err(Error::unsupported_feature(
+            "Parquet nested optional columns are not supported",
+        ));
+    }
+    let kind = parquet_column_kind(leaf.physical)?;
+    if plan.op.needs_int_column() && kind != ColumnKind::Int {
+        return Err(Error::unsupported_feature(
+            "grouped counts require an integer column",
+        ));
+    }
+    let mut acc = Accumulator::new(plan);
+    let mut budget = DecodeBudget {
+        values_left: limits.max_parquet_values,
+        bytes_left: limits.max_parquet_decompressed_bytes,
+    };
+    for rg in &model.row_groups {
+        let chunk = rg
+            .chunks
+            .iter()
+            .find(|c| c.leaf == leaf_index)
+            .ok_or_else(|| corrupt("row group is missing a column chunk for a leaf"))?;
+        let rows = u64::try_from(rg.num_rows.max(0)).unwrap_or(0);
+        if let Some((lo, hi)) = fused_stats_range(chunk, leaf.physical) {
+            if !predicate_could_match(plan.predicate, lo, hi) {
+                // No value in this row group can satisfy the predicate.
+                let nulls = chunk.null_count.unwrap_or(0).max(0) as u64;
+                acc.skip(rows, nulls);
+                continue;
+            }
+            if plan.op == FusedOp::Count
+                && predicate_all_match(plan.predicate, lo, hi)
+                && let Some(nulls) = chunk.null_count
+            {
+                let nulls = nulls.max(0) as u64;
+                if nulls <= rows {
+                    acc.add_all_matched(rows - nulls, nulls);
+                    continue;
+                }
+            }
+        }
+        fused_decode_chunk(source, leaf, chunk, kind, &mut acc, limits, &mut budget)?;
+    }
+    Ok(acc.finish(kind))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

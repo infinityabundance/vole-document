@@ -1,0 +1,5 @@
+fmt	path	bytes	sha256
+pdf	evidence/scratch/phase29-2-court/corpus/large.pdf	3236057	eee762ce6a1c19616e2cbf733c43e675607b88fc51818fd3be9766a6e13628b6
+docx	evidence/scratch/phase29-2-court/corpus/large.docx	3284935	fbe411d524c42ae4dd9b093b26fa297c7eb944802e1077ae3c553e765fb40c4c
+odt	evidence/scratch/phase29-2-court/corpus/large.odt	3284480	87da55c2c794aa5286699fdbc14232f3cc41f84974587c22bb884a8984a482cb
+parquet	evidence/scratch/phase29-2-court/corpus/large.parquet	4195070	3a9e968577c9d360135a673c1f171a3ff179b856807e191d6d7c50734f143935
