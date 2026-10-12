@@ -83,14 +83,47 @@ vole-document observe      --store DIR --field HEX [--entropyfs | --packed] [--p
     --odp-slide N | --odp-shape N | --odp-notes N | --odp-masters | --odp-media N |
     --odp-tables | --odp-find PATTERN |
     --json-pointer P | --json-node P | --json-find PATTERN |
+    --json5-pointer P | --json5-node P | --json5-comments | --json5-find PATTERN |
+    --cbor-pointer P | --cbor-node P | --cbor-find PATTERN |
+    --msgpack-pointer P | --msgpack-node P | --msgpack-find PATTERN |
+    --config-line N | --config-entry N | --config-section NAME | --config-find PATTERN |
+    --feed-channel | --feed-field NAME | --feed-entry N | --feed-entry-field N:NAME | --feed-find PATTERN |
+    --geojson-type | --geojson-feature N | --geojson-geometry N | --geojson-coordinates N |
+    --geojson-property N:NAME | --geojson-find PATTERN |
+    --gis-root | --gis-field NAME | --gis-record N | --gis-record-field N:NAME | --gis-point N |
+    --gis-find PATTERN |
+    --notebook-nbformat | --notebook-cell N | --notebook-cell-type N | --notebook-cell-source N |
+    --notebook-cell-output N:M | --notebook-find PATTERN |
     --yaml-path P | --yaml-node | --yaml-documents | --yaml-anchor NAME | --yaml-find PATTERN |
     --csv-row N | --csv-cell R:C | --csv-cell R:COLNAME | --csv-header | --csv-range | --csv-find PATTERN |
+    --fixedwidth-row N | --fixedwidth-cell R:C | --fixedwidth-header | --fixedwidth-columns |
+    --fixedwidth-range R1:C1:R2:C2 | --fixedwidth-find PATTERN |
     --md-heading N | --md-block N | --md-code | --md-link N | --md-find PATTERN |
+    --rst-heading N | --rst-block N | --rst-directive N | --rst-inline N | --rst-find PATTERN |
+    --adoc-heading N | --adoc-block N | --adoc-attribute N | --adoc-inline N | --adoc-find PATTERN |
+    --mdx-heading N | --mdx-block N | --mdx-esm N | --mdx-jsx N | --mdx-expression N |
+    --mdx-find PATTERN |
+    --mhtml-root | --mhtml-resource N | --mhtml-location | --mhtml-find PATTERN |
     --xml-path P | --xml-element | --xml-attr NAME | --xml-namespaces | --xml-find PATTERN |
     --html-path P | --html-element | --html-attr NAME | --html-scripts | --html-find PATTERN |
     --toml-path P | --toml-table | --toml-find PATTERN |
     --jsonl-line N | --jsonl-pointer P | --jsonl-find PATTERN |
+    --logstream-line N | --logstream-field N:ROLE | --logstream-find PATTERN |
+    --pkgmeta-section N | --pkgmeta-entry N | --pkgmeta-key SECTION:KEY | --pkgmeta-find PATTERN |
+    --apispec-dialect | --apispec-version | --apispec-object N | --apispec-ref N | --apispec-find PATTERN |
+    --bib-dialect | --bib-entry N | --bib-field N:FIELD | --bib-key KEY | --bib-find PATTERN |
+    --rtf-header | --rtf-group N | --rtf-control N | --rtf-hex N | --rtf-unicode N |
+    --rtf-text N | --rtf-dest NAME[:N] | --rtf-find PATTERN |
+    --container-dialect | --container-entry N | --container-find PATTERN |
+    --hdf-dialect | --hdf-object N | --hdf-dimension N | --hdf-attribute N | --hdf-find PATTERN |
+    --cfbf-dialect | --cfbf-entry N | --cfbf-stream N | --cfbf-find PATTERN |
     --eml-header NAME | --eml-part N | --eml-attachments | --eml-body | --eml-find PATTERN |
+    --doc-fib | --doc-piece N | --doc-body | --doc-section NAME | --doc-find PATTERN |
+    --xls-biff | --xls-sheet N | --xls-cell N | --xls-record N | --xls-text | --xls-find PATTERN |
+    --ppt-document | --ppt-slide N | --ppt-run N | --ppt-record N | --ppt-list NAME |
+    --ppt-text | --ppt-find PATTERN |
+    --msg-summary | --msg-property N | --msg-recipient N | --msg-attachment N | --msg-text |
+    --msg-find PATTERN |
     --parquet-schema | --parquet-column | --parquet-row-group | --parquet-cell |
     --arrow-schema | --arrow-column | --arrow-batch | --arrow-cell)
     --kind KIND
@@ -161,12 +194,75 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
   `--parquet-row-group`, `--parquet-cell`) need the non-default, dependency-free
   `parquet` feature. Unsupported codecs/encodings/types and bombs decline typed.
 - The Arrow selectors (`--arrow-schema`, `--arrow-column`, `--arrow-batch`,
-  `--arrow-cell`) need the non-default, dependency-free `arrow` feature. Nested
-  types, dictionary-encoded fields, big-endian bodies, and `BodyCompression`
-  decline typed.
+  `--arrow-cell`) need the non-default, dependency-free `arrow` feature. The
+  detector admits the Arrow IPC **file** format (`ARROW1` magic with a consistent
+  footer) and the magic-less encapsulated-message **stream** framing; the ordered
+  message inventory (Schema / each batch / end-of-stream, exact spans contiguous
+  from offset 0 and covering the whole source) is served through the common
+  `metadata` observation. Nested types, dictionary-encoded fields, big-endian
+  bodies, and `BodyCompression` decline typed.
 - The analytical formats (Parquet, Arrow IPC) and the tabular CSV/TSV court carry
   the mandatory **DuckDB/Parquet** comparator; it wins the analytical axes, which
   is recorded rather than hidden (ADR-0059).
+- The JSON5/JSONC selectors (`--json5-pointer` RFC 6901, `--json5-node`,
+  `--json5-comments`, `--json5-find`) need `json5 = ["json"]`; CBOR
+  (`--cbor-pointer`, `--cbor-node`, `--cbor-find`) needs `cbor = ["json"]`; and
+  MessagePack (`--msgpack-pointer`, `--msgpack-node`, `--msgpack-find`) needs
+  `msgpack = ["json"]` — all non-default and dependency-free, reusing the JSON
+  match vocabulary. Each preserves its exact encoding form (the JSON5/JSONC
+  dialect, CBOR major type/width/tag, MessagePack format byte/`str`-vs-`bin`).
+- The config selectors (`--config-line`, `--config-entry`, `--config-section`,
+  `--config-find`) need the non-default, dependency-free `config` feature
+  (INI/`.env`/Java properties). The feed selectors (`--feed-channel`,
+  `--feed-field`, `--feed-entry`, `--feed-entry-field`, `--feed-find`) need
+  `feed = ["xml"]`; GeoJSON (`--geojson-type`, `--geojson-feature`,
+  `--geojson-geometry`, `--geojson-coordinates`, `--geojson-property`,
+  `--geojson-find`) needs `geojson = ["json"]`; KML/GPX (`--gis-root`,
+  `--gis-field`, `--gis-record`, `--gis-record-field`, `--gis-point`,
+  `--gis-find`) needs `gis = ["xml"]`; and the Jupyter notebook
+  (`--notebook-nbformat`, `--notebook-cell`, `--notebook-cell-type`,
+  `--notebook-cell-source`, `--notebook-cell-output`, `--notebook-find`) needs
+  `notebook = ["json"]` — all non-default.
+- The fixed-width selectors (`--fixedwidth-row`, `--fixedwidth-cell`,
+  `--fixedwidth-header`, `--fixedwidth-columns`, `--fixedwidth-range`,
+  `--fixedwidth-find`) need the non-default `fixedwidth = ["csv"]` feature; the
+  PSV (pipe) dialect lives inside the existing `csv` feature.
+- The prose-extra selectors need non-default features: reStructuredText
+  (`--rst-heading`, `--rst-block`, `--rst-directive`, `--rst-inline`,
+  `--rst-find`) needs `rst`; AsciiDoc (`--adoc-heading`, `--adoc-block`,
+  `--adoc-attribute`, `--adoc-inline`, `--adoc-find`) needs `asciidoc`; and MDX
+  (`--mdx-heading`, `--mdx-block`, `--mdx-esm`, `--mdx-jsx`, `--mdx-expression`,
+  `--mdx-find`) needs `mdx = ["markdown"]`, reusing the Markdown parser/model.
+  MHTML (`--mhtml-root`, `--mhtml-resource`, `--mhtml-location`, `--mhtml-find`)
+  needs `mhtml = ["eml", "html"]`, reusing the EML MIME layer and the HTML
+  scanner (before the generic EML detector).
+- The line/event-stream selectors (`--logstream-line`, `--logstream-field`,
+  `--logstream-find`) need the non-default, dependency-free `logstream` feature;
+  package metadata (`--pkgmeta-section`, `--pkgmeta-entry`, `--pkgmeta-key`,
+  `--pkgmeta-find`) needs `pkgmeta = ["json", "toml"]`; API/spec
+  (`--apispec-dialect`, `--apispec-version`, `--apispec-object`, `--apispec-ref`,
+  `--apispec-find`) needs `apispec = ["json"]`; and bibliography (`--bib-dialect`,
+  `--bib-entry`, `--bib-field`, `--bib-key`, `--bib-find`) needs
+  `bib = ["json"]`.
+- The word-processor/container selectors: RTF (`--rtf-header`, `--rtf-group`,
+  `--rtf-control`, `--rtf-hex`, `--rtf-unicode`, `--rtf-text`, `--rtf-dest`,
+  `--rtf-find`) needs the non-default, dependency-free `rtf` feature; the
+  archive container (`--container-dialect`, `--container-entry`,
+  `--container-find`) needs `container = ["package"]`; the scientific container
+  (`--hdf-dialect`, `--hdf-object`, `--hdf-dimension`, `--hdf-attribute`,
+  `--hdf-find`) needs `hdf`; and the CFBF/OLE2 physical layer (`--cfbf-dialect`,
+  `--cfbf-entry`, `--cfbf-stream`, `--cfbf-find`) needs `cfbf` — all non-default.
+- The legacy Office/MSG semantic selectors (Phase 26/27) build on `cfbf` and are
+  non-default: `--doc-fib`/`--doc-piece`/`--doc-body`/`--doc-section`/`--doc-find`
+  need `doc`; `--xls-biff`/`--xls-sheet`/`--xls-cell`/`--xls-record`/`--xls-text`/
+  `--xls-find` need `xls`; `--ppt-document`/`--ppt-slide`/`--ppt-run`/
+  `--ppt-record`/`--ppt-list`/`--ppt-text`/`--ppt-find` need `ppt`; and
+  `--msg-summary`/`--msg-property`/`--msg-recipient`/`--msg-attachment`/
+  `--msg-text`/`--msg-find` need `msg` (each `= ["cfbf"]`). `--doc-section NAME`
+  selects one of `main`/`footnote`/`header`/`annotation`/`endnote`/`textbox`/
+  `hdrtextbox`; `--ppt-list NAME` one of `slides`/`masters`/`notes`/`handout`. The
+  native DOC text selector is `--doc-body` (canonical `doc-text`). Each model
+  declines out-of-subset constructs typed and never panics.
 - `field-ingest` inverse-proceduralizes one `.voldoc` into a persistent field
   and prints its field id (`HEX`) and roots. The format is detected from bytes.
 - `observe` / `find` / `explain` / `preview` answer typed observations with
