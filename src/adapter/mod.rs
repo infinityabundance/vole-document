@@ -34,6 +34,13 @@ pub mod epub;
 pub mod feed;
 #[cfg(feature = "fixedwidth")]
 pub mod fixedwidth;
+#[cfg(any(
+    feature = "arrow",
+    feature = "parquet",
+    feature = "csv",
+    feature = "fixedwidth"
+))]
+pub mod fused;
 #[cfg(feature = "geojson")]
 pub mod geojson;
 #[cfg(feature = "gis")]

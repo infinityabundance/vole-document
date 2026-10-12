@@ -2660,6 +2660,142 @@ pub fn fused_numeric_scan(
     Ok(result)
 }
 
+/// **Generalized fused scan** of one numeric Arrow column (Phase 29.1).
+///
+/// The same native-only streaming as [`fused_numeric_scan`], but with the
+/// versioned [`FusedPlan`](crate::adapter::fused::FusedPlan) interface: an
+/// equality/range/any predicate and a `count`/`sum`/`min`/`max`/`avg`/`grouped`
+/// accumulator, all validity-aware (nulls excluded per SQL semantics). Values are
+/// decoded into a reused native `i64`/`f64` scratch buffer per record batch — no
+/// `Value` enum, no per-value allocation, no text, no JSON.
+///
+/// Typed-declining: a non-numeric column, an unindexable layout, body compression,
+/// an unsigned value above the `i64` range, or `grouped` on a float column returns
+/// [`Error::unsupported_feature`], never a wrong answer.
+pub fn fused_scan(
+    source: &[u8],
+    model: &ArrowModel,
+    leaf_index: u32,
+    plan: &crate::adapter::fused::FusedPlan,
+    limits: Limits,
+) -> Result<crate::adapter::fused::FusedAnswer> {
+    use crate::adapter::fused::{Accumulator, ColumnKind};
+
+    let leaf = model
+        .leaf(leaf_index)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {leaf_index}")))?;
+    if !model.indexable {
+        return Err(Error::unsupported_feature(
+            "Arrow batch buffer layout is not statically indexable",
+        ));
+    }
+    if !leaf.supported {
+        return Err(Error::unsupported_feature(format!(
+            "Arrow column {}: {}",
+            leaf.name,
+            leaf.decline.as_deref().unwrap_or("unsupported")
+        )));
+    }
+    if leaf.type_tag != T_INT && leaf.type_tag != T_FLOAT {
+        return Err(Error::unsupported_feature(format!(
+            "fused scan supports integer and floating-point columns; column {} is {}",
+            leaf.name,
+            type_name(leaf.type_tag)
+        )));
+    }
+    let kind = if leaf.type_tag == T_INT {
+        ColumnKind::Int
+    } else {
+        ColumnKind::Float
+    };
+    if plan.op.needs_int_column() && kind != ColumnKind::Int {
+        return Err(Error::unsupported_feature(
+            "grouped counts require an integer column",
+        ));
+    }
+    let width = leaf.width as usize;
+    if width == 0 {
+        return Err(corrupt("fixed-width column has zero width"));
+    }
+    let mut acc = Accumulator::new(plan);
+    let mut budget = DecodeBudget {
+        values_left: limits.max_arrow_values,
+        bytes_left: limits.max_arrow_decompressed_bytes,
+    };
+    let mut ivals: Vec<i64> = Vec::new();
+    let mut fvals: Vec<f64> = Vec::new();
+    let mut mask: Vec<bool> = Vec::new();
+    for desc in &model.batches {
+        if desc.compression >= 0 {
+            return Err(Error::unsupported_feature(
+                "Arrow body compression is not supported",
+            ));
+        }
+        let meta = read_batch_meta(source, desc, limits)?;
+        let rows = usize::try_from(meta.rows.max(0))
+            .map_err(|_| Error::resource_limit("record batch row count is implausible"))?;
+        budget.add_values(rows as u64)?;
+        let validity = match slot(&meta.buffers, leaf.validity_slot).ok() {
+            Some(b) => {
+                let s = buffer_slice(source, desc, b)?;
+                if s.is_empty() {
+                    None
+                } else {
+                    if s.len() < rows.div_ceil(8) {
+                        return Err(corrupt("validity bitmap is too short"));
+                    }
+                    mask.clear();
+                    mask.reserve(rows);
+                    for i in 0..rows {
+                        mask.push(validity_bit(s, i));
+                    }
+                    Some(&mask[..])
+                }
+            }
+            None => None,
+        };
+        let data = slot(&meta.buffers, leaf.data_slot)?;
+        let data_slice = buffer_slice(source, desc, data)?;
+        let need = rows
+            .checked_mul(width)
+            .ok_or_else(|| corrupt("data buffer size overflows"))?;
+        if data_slice.len() < need {
+            return Err(corrupt("data buffer is too short"));
+        }
+        budget.add_bytes(need as u64)?;
+        if kind == ColumnKind::Int {
+            ivals.clear();
+            ivals.reserve(rows);
+            for i in 0..rows {
+                let p = i * width;
+                let cell = &data_slice[p..p + width];
+                if leaf.int_signed {
+                    ivals.push(read_int_le(cell, width)?);
+                } else {
+                    let v = read_uint_le(cell, width)?;
+                    if v > i64::MAX as u64 {
+                        return Err(Error::unsupported_feature(
+                            "unsigned Arrow value exceeds the i64 range",
+                        ));
+                    }
+                    ivals.push(v as i64);
+                }
+            }
+            acc.push_i64(&ivals, validity);
+        } else {
+            fvals.clear();
+            fvals.reserve(rows);
+            for i in 0..rows {
+                let p = i * width;
+                let cell = &data_slice[p..p + width];
+                fvals.push(read_float_le(cell, leaf.float_precision)?);
+            }
+            acc.push_f64(&fvals, validity);
+        }
+    }
+    Ok(acc.finish(kind))
+}
+
 // ---------------------------------------------------------------------------
 // Binary model reader/writer helpers
 // ---------------------------------------------------------------------------

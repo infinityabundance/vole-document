@@ -30,6 +30,23 @@ def now_us():
     return int(time.monotonic() * 1_000_000)
 
 
+def now_ns():
+    return int(time.monotonic() * 1_000_000_000)
+
+
+def steady_state_ns(fn, warmup=3, iters=15):
+    """Like `steady_state`, but in nanoseconds so sub-microsecond kernels are not
+    rounded to zero. Returns the raw per-iteration nanosecond samples."""
+    for _ in range(warmup):
+        fn()
+    out = []
+    for _ in range(iters):
+        t0 = now_ns()
+        fn()
+        out.append(now_ns() - t0)
+    return out
+
+
 def pct(sorted_vals, p):
     """Linear-interpolation percentile over an already-sorted list (numpy default)."""
     n = len(sorted_vals)

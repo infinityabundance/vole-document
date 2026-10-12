@@ -186,6 +186,12 @@ const USAGE_FIELD: &str = "\
         (Phase-28.5 fused predicate/aggregate kernel over the substrate Arrow bytes;
          reports per-iteration microseconds as JSON; --also-current interleaves the
          shipped observe text path in the same process for attribution)
+    vole-document fused-scan --store DIR --field HEX --format FORMAT --column SPEC
+        --pred PRED --op OP [--kind int|float] [--group-cap K] [--warmup W]
+        [--repeat R] [--also-current] [--entropyfs | --packed]
+        (Phase-29.1 generalized fused kernel: FORMAT is arrow|parquet|csv|fixedwidth,
+         PRED is any|gt:K|eq:K|range:LO:HI, OP is count|sum|min|max|avg|grouped;
+         validity-aware, typed-declining; reports per-iteration microseconds as JSON)
     vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs | --packed]
     vole-document preview --store DIR --field HEX --page N [--json] [--entropyfs | --packed]
     vole-document materialize --store DIR --field HEX --exact --output FILE [--entropyfs | --packed]
@@ -354,6 +360,14 @@ fn run(args: &[String]) -> Result<()> {
         "observe-batch" => cmd_field_observe_batch(args, limits),
         #[cfg(all(feature = "field", feature = "arrow"))]
         "arrow-fused" => cmd_arrow_fused(args, limits),
+        #[cfg(all(
+            feature = "field",
+            feature = "arrow",
+            feature = "parquet",
+            feature = "csv",
+            feature = "fixedwidth"
+        ))]
+        "fused-scan" => cmd_fused_scan(args, limits),
         #[cfg(feature = "field")]
         "find" => cmd_field_find(args, limits),
         #[cfg(feature = "field")]
@@ -5984,6 +5998,427 @@ fn cmd_arrow_fused(args: &[String], limits: Limits) -> Result<()> {
         ev,
         us_json(&fused_us),
         us_json(&current_us),
+        opt_uint(current_count),
+        current_decline.is_some(),
+        opt_decline(&current_decline),
+    );
+    Ok(())
+}
+
+/// `fused-scan --store DIR --field HEX --format FORMAT --column SPEC --pred PRED`
+/// `--op OP [--kind int|float] [--group-cap K] [--warmup W] [--repeat R]`
+/// `[--also-current] [--packed|--entropyfs]`.
+///
+/// The Phase-29.1 **generalized fused kernel** decision instrument. It reads the
+/// exact substrate bytes from the VOLE field, parses the addressed format's model
+/// once, then streams only the addressed column through the versioned
+/// [`FusedPlan`](vole_document::adapter::fused::FusedPlan) kernel (equality/range
+/// predicate + count/sum/min/max/avg/grouped accumulator), reporting per-iteration
+/// microseconds as JSON. With `--also-current` it interleaves the shipped
+/// whole-column text observation (Arrow/Parquet) in the same process.
+#[cfg(all(
+    feature = "field",
+    feature = "arrow",
+    feature = "parquet",
+    feature = "csv",
+    feature = "fixedwidth"
+))]
+fn cmd_fused_scan(args: &[String], limits: Limits) -> Result<()> {
+    use vole_document::adapter::fused::{
+        ColumnKind, FusedAnswer, FusedMeasure, FusedOp, FusedPlan, FusedPredicate,
+    };
+    use vole_document::adapter::parquet::ParquetModel;
+    use vole_document::adapter::{arrow, csv, fixedwidth, parquet};
+    use vole_document::field::observe::{ObserveRequest, Representation, Selector};
+    use vole_document::field::promote::PromotePolicy;
+    use vole_document::field::provenance::AnswerValue;
+    use vole_document::field::session::{
+        DEFAULT_MODEL_MEMO_BYTES, DocumentFieldSession, SessionOptions,
+    };
+
+    #[derive(Clone, Copy, PartialEq)]
+    enum Fmt {
+        Arrow,
+        Parquet,
+        Csv,
+        FixedWidth,
+    }
+
+    fn json_number(v: f64) -> String {
+        if v.is_finite() {
+            format!("{v}")
+        } else {
+            "null".to_string()
+        }
+    }
+
+    fn parquet_leaf(model: &ParquetModel, spec: &str) -> Result<u32> {
+        if let Ok(i) = spec.parse::<u32>()
+            && (i as usize) < model.leaves.len()
+        {
+            return Ok(i);
+        }
+        model
+            .leaves
+            .iter()
+            .position(|l| {
+                l.path.last().map(|s| s == spec).unwrap_or(false) || l.path.join(".") == spec
+            })
+            .map(|i| i as u32)
+            .ok_or_else(|| Error::unsupported_feature(format!("no Parquet column {spec:?}")))
+    }
+
+    /// The shipped whole-column text driver's count for an integer predicate.
+    fn count_text_pred(text: &str, pred: FusedPredicate) -> u64 {
+        let mut n = 0u64;
+        for line in text.split('\n') {
+            if line.is_empty() || line == "null" {
+                continue;
+            }
+            if let Ok(v) = line.parse::<i64>()
+                && pred.int_matches(i128::from(v))
+            {
+                n += 1;
+            }
+        }
+        n
+    }
+
+    let mut store: Option<PathBuf> = None;
+    let mut field_hex: Option<String> = None;
+    let mut format: Option<String> = None;
+    let mut column: Option<String> = None;
+    let mut pred: Option<String> = None;
+    let mut op: Option<String> = None;
+    let mut kind_arg: Option<String> = None;
+    let mut group_cap: usize = 4096;
+    let mut packed = false;
+    let mut entropyfs = false;
+    let mut warmup: usize = 3;
+    let mut repeat: usize = 1;
+    let mut also_current = false;
+    let parse_usize = |v: String, flag: &str| -> Result<usize> {
+        v.parse::<usize>()
+            .map_err(|_| Error::usage(format!("{flag} value {v:?} is not a non-negative integer")))
+    };
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        let (flag, inline) = match a.split_once('=') {
+            Some((f, v)) => (f, Some(v)),
+            None => (a, None),
+        };
+        match flag {
+            "--store" => {
+                store = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--store", inline,
+                )?))
+            }
+            "--field" => field_hex = Some(field_arg_value(args, &mut i, "--field", inline)?),
+            "--format" => format = Some(field_arg_value(args, &mut i, "--format", inline)?),
+            "--column" => column = Some(field_arg_value(args, &mut i, "--column", inline)?),
+            "--pred" => pred = Some(field_arg_value(args, &mut i, "--pred", inline)?),
+            "--op" => op = Some(field_arg_value(args, &mut i, "--op", inline)?),
+            "--kind" => kind_arg = Some(field_arg_value(args, &mut i, "--kind", inline)?),
+            "--group-cap" => {
+                group_cap = parse_usize(
+                    field_arg_value(args, &mut i, "--group-cap", inline)?,
+                    "--group-cap",
+                )?
+            }
+            "--warmup" => {
+                warmup = parse_usize(
+                    field_arg_value(args, &mut i, "--warmup", inline)?,
+                    "--warmup",
+                )?
+            }
+            "--repeat" => {
+                repeat = parse_usize(
+                    field_arg_value(args, &mut i, "--repeat", inline)?,
+                    "--repeat",
+                )?
+            }
+            "--also-current" => {
+                also_current = true;
+                i += 1;
+            }
+            "--packed" => {
+                packed = true;
+                i += 1;
+            }
+            "--entropyfs" => {
+                entropyfs = true;
+                i += 1;
+            }
+            other => {
+                return Err(Error::usage(format!(
+                    "unknown fused-scan argument {other:?}"
+                )));
+            }
+        }
+    }
+    if packed && entropyfs {
+        return Err(Error::usage(
+            "--packed and --entropyfs are mutually exclusive seed backends",
+        ));
+    }
+    let store_dir = store.ok_or_else(|| Error::usage("fused-scan requires --store DIR"))?;
+    let field_hex = field_hex.ok_or_else(|| Error::usage("fused-scan requires --field HEX"))?;
+    let column = column.ok_or_else(|| Error::usage("fused-scan requires --column SPEC"))?;
+    let fmt = match format.as_deref() {
+        Some("arrow") => Fmt::Arrow,
+        Some("parquet") => Fmt::Parquet,
+        Some("csv") => Fmt::Csv,
+        Some("fixedwidth") => Fmt::FixedWidth,
+        Some(other) => return Err(Error::usage(format!("unknown --format {other:?}"))),
+        None => return Err(Error::usage("fused-scan requires --format FORMAT")),
+    };
+    let fop = match op.as_deref().unwrap_or("count") {
+        "count" => FusedOp::Count,
+        "sum" => FusedOp::Sum,
+        "min" => FusedOp::Min,
+        "max" => FusedOp::Max,
+        "avg" => FusedOp::Avg,
+        "grouped" => FusedOp::Grouped,
+        other => return Err(Error::usage(format!("unknown --op {other:?}"))),
+    };
+    let fpred = FusedPredicate::parse(pred.as_deref().unwrap_or("any"))?;
+    let explicit_kind = match kind_arg.as_deref() {
+        Some("int") => Some(ColumnKind::Int),
+        Some("float") => Some(ColumnKind::Float),
+        Some(other) => return Err(Error::usage(format!("unknown --kind {other:?}"))),
+        None => None,
+    };
+    if matches!(fmt, Fmt::Csv | Fmt::FixedWidth) && explicit_kind.is_none() {
+        return Err(Error::usage(
+            "--format csv|fixedwidth requires --kind int|float",
+        ));
+    }
+    let repeat = repeat.max(1);
+    let plan = FusedPlan::new(fpred, fop, group_cap);
+
+    let mut session = DocumentFieldSession::open(
+        &store_dir,
+        &field_hex,
+        SessionOptions {
+            entropyfs,
+            packed,
+            model_memo_bytes: DEFAULT_MODEL_MEMO_BYTES,
+            promote: PromotePolicy::default(),
+        },
+    )?;
+    let source = session.source_exact(limits)?;
+    let source_len = source.len();
+    let source_sha = integrity::to_hex(&integrity::sha256(&source));
+
+    let arrow_model = if fmt == Fmt::Arrow {
+        Some(arrow::parse(&source, limits)?)
+    } else {
+        None
+    };
+    let parquet_model = if fmt == Fmt::Parquet {
+        Some(parquet::parse(&source, limits)?)
+    } else {
+        None
+    };
+    let leaf_index = match fmt {
+        Fmt::Arrow => arrow::leaf_index(arrow_model.as_ref().expect("arrow model"), &column)?,
+        Fmt::Parquet => parquet_leaf(parquet_model.as_ref().expect("parquet model"), &column)?,
+        Fmt::Csv | Fmt::FixedWidth => 0,
+    };
+
+    let run_once = |source: &[u8]| -> Result<FusedAnswer> {
+        match fmt {
+            Fmt::Arrow => arrow::fused_scan(
+                source,
+                arrow_model.as_ref().expect("arrow model"),
+                leaf_index,
+                &plan,
+                limits,
+            ),
+            Fmt::Parquet => parquet::fused_scan(
+                source,
+                parquet_model.as_ref().expect("parquet model"),
+                leaf_index,
+                &plan,
+                limits,
+            ),
+            Fmt::Csv => csv::fused_scan(
+                source,
+                &column,
+                explicit_kind.expect("csv kind"),
+                &plan,
+                limits,
+            ),
+            Fmt::FixedWidth => fixedwidth::fused_scan(
+                source,
+                &column,
+                explicit_kind.expect("fixedwidth kind"),
+                &plan,
+                limits,
+            ),
+        }
+    };
+
+    let mut current_req = match fmt {
+        Fmt::Arrow => Some(ObserveRequest::new(
+            Selector::ArrowColumn {
+                spec: column.clone(),
+            },
+            Representation::Text,
+        )),
+        Fmt::Parquet => Some(ObserveRequest::new(
+            Selector::ParquetColumn { index: leaf_index },
+            Representation::Text,
+        )),
+        Fmt::Csv | Fmt::FixedWidth => None,
+    };
+    if let Some(req) = current_req.as_mut() {
+        req.use_cache = false;
+    }
+
+    let mut fused_ns: Vec<u128> = Vec::new();
+    let mut current_ns: Vec<u128> = Vec::new();
+    let mut answer: Option<FusedAnswer> = None;
+    let mut fused_decline: Option<String> = None;
+    let mut current_count: Option<u64> = None;
+    let mut current_decline: Option<String> = None;
+
+    {
+        let mut run = |current_first: bool, record: bool| {
+            let mut current_call = || {
+                let Some(req) = current_req.as_ref() else {
+                    return;
+                };
+                let t0 = std::time::Instant::now();
+                let r = session
+                    .observe(req, limits)
+                    .map(|(ans, _s, _f)| match ans.value {
+                        AnswerValue::Text(t) => t,
+                        _ => String::new(),
+                    });
+                let us = t0.elapsed().as_nanos();
+                if record {
+                    current_ns.push(us);
+                    match r {
+                        Ok(t) => current_count = Some(count_text_pred(&t, fpred)),
+                        Err(e) => current_decline = Some(format!("{}: {e}", e.exit_code())),
+                    }
+                }
+            };
+            if current_first && also_current {
+                current_call();
+            }
+            let t0 = std::time::Instant::now();
+            let fres = run_once(&source);
+            let us = t0.elapsed().as_nanos();
+            if record {
+                fused_ns.push(us);
+                match fres {
+                    Ok(a) => answer = Some(a),
+                    Err(e) => fused_decline = Some(format!("{}: {e}", e.exit_code())),
+                }
+            }
+            if !current_first && also_current {
+                current_call();
+            }
+        };
+        let total = warmup.saturating_add(repeat);
+        let mut it = 0usize;
+        while it < total {
+            run(it % 2 == 1, it >= warmup);
+            it += 1;
+        }
+    }
+    session.sync()?;
+
+    let us_json = |v: &[u128]| -> String {
+        let items: Vec<String> = v.iter().map(|x| x.to_string()).collect();
+        format!("[{}]", items.join(","))
+    };
+    let opt_uint = |v: Option<u64>| -> String {
+        v.map(|x| x.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    };
+    let opt_decline = |v: &Option<String>| -> String {
+        match v {
+            Some(s) => format!("{{\"code\":\"typed\",\"detail\":\"{}\"}}", json_escape(s)),
+            None => "null".to_string(),
+        }
+    };
+    let current_available = current_req.is_some();
+    let (scanned, nulls, matched, kind_name, groups_truncated, measure, declined) = match &answer {
+        Some(a) => {
+            let m = match &a.measure {
+                FusedMeasure::Count(_) => String::new(),
+                FusedMeasure::Sum(v) => format!(",\"sum_int\":\"{v}\""),
+                FusedMeasure::SumF(v) => format!(",\"sum_float\":{}", json_number(*v)),
+                FusedMeasure::MinI(v) => format!(",\"min_int\":{v}"),
+                FusedMeasure::MaxI(v) => format!(",\"max_int\":{v}"),
+                FusedMeasure::MinF(v) => format!(",\"min_float\":{}", json_number(*v)),
+                FusedMeasure::MaxF(v) => format!(",\"max_float\":{}", json_number(*v)),
+                FusedMeasure::Avg(v) => format!(",\"avg\":{}", json_number(*v)),
+                FusedMeasure::Grouped(g) => {
+                    let items: Vec<String> = g.iter().map(|(k, c)| format!("[{k},{c}]")).collect();
+                    format!(",\"groups\":[{}]", items.join(","))
+                }
+                FusedMeasure::Null => ",\"null\":true".to_string(),
+            };
+            (
+                a.scanned,
+                a.nulls,
+                a.matched,
+                a.kind.name(),
+                a.groups_truncated,
+                m,
+                false,
+            )
+        }
+        None => (
+            0,
+            0,
+            0,
+            explicit_kind.map(|k| k.name()).unwrap_or("unknown"),
+            false,
+            String::new(),
+            true,
+        ),
+    };
+
+    println!(
+        concat!(
+            "{{\"ok\":true,\"lane\":\"fused-vole\",",
+            "\"format\":\"{}\",\"column\":\"{}\",\"pred\":\"{}\",\"op\":\"{}\",\"kind\":\"{}\",",
+            "\"source_len\":{},\"source_sha256\":\"{}\",",
+            "\"scanned\":{},\"nulls\":{},\"matched\":{},\"count\":{},\"groups_truncated\":{}",
+            "{}",
+            ",\"declined\":{},\"decline\":{},",
+            "\"fused_ns\":{},\"current_ns\":{},",
+            "\"current_available\":{},\"current_count\":{},\"current_declined\":{},\"current_decline\":{}}}"
+        ),
+        match fmt {
+            Fmt::Arrow => "arrow",
+            Fmt::Parquet => "parquet",
+            Fmt::Csv => "csv",
+            Fmt::FixedWidth => "fixedwidth",
+        },
+        json_escape(&column),
+        json_escape(pred.as_deref().unwrap_or("any")),
+        json_escape(fop.name()),
+        kind_name,
+        source_len,
+        source_sha,
+        scanned,
+        nulls,
+        matched,
+        matched,
+        groups_truncated,
+        measure,
+        declined,
+        opt_decline(&fused_decline),
+        us_json(&fused_ns),
+        us_json(&current_ns),
+        current_available,
         opt_uint(current_count),
         current_decline.is_some(),
         opt_decline(&current_decline),

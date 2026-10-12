@@ -1,0 +1,267 @@
+{
+ "agreement": {
+  "comparisons": 228,
+  "disagreements": 0,
+  "ok": true
+ },
+ "campaign": "evidence/campaigns/2026-10-12-phase29-1-fused-19d2c372",
+ "clusters": 114,
+ "cold": {
+  "overall_ns": {
+   "duckdb": 102363757.5,
+   "fused": 1201180.0,
+   "pyarrow": 75098066.5
+  },
+  "ratios": {
+   "duckdb": {
+    "cells": 114,
+    "geomean": 0.023269462021400848,
+    "median": 0.013994897320608851
+   },
+   "pyarrow": {
+    "cells": 114,
+    "geomean": 0.032898188242809955,
+    "median": 0.016304478134634294
+   }
+  }
+ },
+ "court_status": "PASS",
+ "declines": {},
+ "env": {
+  "arch": "x86_64",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "86d2c41de0aacf325a4db1b184ec3110a6f6947e40828b525fe2d5568bdca286",
+  "build_args": "--release --locked --all-features",
+  "campaign": "evidence/campaigns/2026-10-12-phase29-1-fused-19d2c372",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "a388fccdc121a30d1e72a213a7248f7b3da8cac14c8ce6a78b569fba8b91ab36",
+  "duckdb_version": "1.5.6",
+  "env_affecting_semantics": {
+   "LC_ALL": "C"
+  },
+  "headline_metric": "in-process steady-state median",
+  "iters": 9,
+  "lanes": [
+   "fused",
+   "current",
+   "pyarrow",
+   "duckdb"
+  ],
+  "measured_commit": "19d2c37234625a5fff95075e6f6dbe8b3ce014ce",
+  "phase": "29.1 \u2014 generalized fused kernel (Arrow/Parquet/CSV) decision Experiment 2",
+  "profile": "release",
+  "pyarrow_version": "25.0.1",
+  "python": "Python 3.11.2",
+  "reps": 5,
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "service": "analytical",
+  "tree_state": " M src/adapter/arrow.rs  M src/adapter/csv.rs  M src/adapter/fixedwidth.rs  M src/adapter/mod.rs  M src/adapter/parquet.rs  M src/main.rs  M tools/fixtures/make-arrow.py  M tools/fixtures/phase28-2-harness.py ?? evidence/campaigns/2026-10-12-phase29-1-fused-19d2c372/ ?? src/adapter/fused.rs ?? tests/fused_kernel.rs ?? tools/fixtures/parquet/phase29_nullable.parquet ?? tools/fixtures/phase29-1-fused-econ.py ?? tools/phase29-1-1-fused-court.sh ?? tools/phase29-1-fused-econ-court.sh ",
+  "utc": "2026-10-12T16:23:11Z",
+  "vole_substrate": "--profile runtime --packed",
+  "warmup": 3
+ },
+ "estimator": {
+  "current": {
+   "geomean": 0.024277965839500502,
+   "geomean_ci": [
+    0.013813285844603349,
+    0.038237727743808014
+   ],
+   "losses": 0,
+   "mde": 0.007166111298043168,
+   "median": 0.03405587294103628,
+   "median_ci": [
+    0.028940346316536518,
+    0.03896704117730174
+   ],
+   "n_clusters": 14,
+   "n_samples": 70,
+   "ties": 0,
+   "wins": 70
+  },
+  "duckdb": {
+   "geomean": 0.00683597659930183,
+   "geomean_ci": [
+    0.004569169368185281,
+    0.010266094713060139
+   ],
+   "losses": 0,
+   "mde": 0.0060033643840446725,
+   "median": 0.0034073529439197056,
+   "median_ci": [
+    0.0016857427094667016,
+    0.010085542867920655
+   ],
+   "n_clusters": 114,
+   "n_samples": 570,
+   "ties": 0,
+   "wins": 570
+  },
+  "pyarrow": {
+   "geomean": 0.26263063533857667,
+   "geomean_ci": [
+    0.16937275023130777,
+    0.41299005576387177
+   ],
+   "losses": 163,
+   "mde": 0.2007090010917466,
+   "median": 0.07722927557030934,
+   "median_ci": [
+    0.06350779776252533,
+    0.34433624516683375
+   ],
+   "n_clusters": 114,
+   "n_samples": 570,
+   "ties": 41,
+   "wins": 406
+  }
+ },
+ "exactness": {
+  "n": 12,
+  "ok": 12
+ },
+ "large_input_gap": {
+  "arrow/id:avg": {
+   "duckdb": 0.27414776487752934,
+   "pyarrow": 4.168279618293122
+  },
+  "arrow/id:count": {
+   "duckdb": 0.1638456577213202,
+   "pyarrow": 2.7641650776355218
+  },
+  "arrow/id:max": {
+   "duckdb": 0.17391839097091594,
+   "pyarrow": 2.7235339436236745
+  },
+  "arrow/id:min": {
+   "duckdb": 0.17928994170237342,
+   "pyarrow": 2.730787557007692
+  },
+  "arrow/id:sum": {
+   "duckdb": 0.1625488261451336,
+   "pyarrow": 2.967208242520309
+  },
+  "arrow/score:avg": {
+   "duckdb": 0.17576488064026297,
+   "pyarrow": 2.9940498326515432
+  },
+  "arrow/score:count": {
+   "duckdb": 0.18037468838696252,
+   "pyarrow": 2.9824287387739163
+  },
+  "arrow/score:max": {
+   "duckdb": 0.19208761098423008,
+   "pyarrow": 0.9199322850827586
+  },
+  "arrow/score:min": {
+   "duckdb": 0.18711107040929842,
+   "pyarrow": 0.9337973611849942
+  },
+  "arrow/score:sum": {
+   "duckdb": 0.1734643642686873,
+   "pyarrow": 3.026360095489383
+  },
+  "csv/id:avg": {
+   "duckdb": 0.13237208663876374,
+   "pyarrow": 47.147300640838466
+  },
+  "csv/id:count": {
+   "duckdb": 0.1660123780058655,
+   "pyarrow": 41.34241008874358
+  },
+  "csv/id:max": {
+   "duckdb": 0.15762933601275472,
+   "pyarrow": 47.39529255319149
+  },
+  "csv/id:min": {
+   "duckdb": 0.16370995128134883,
+   "pyarrow": 45.2490126531331
+  },
+  "csv/id:sum": {
+   "duckdb": 0.16329062035701272,
+   "pyarrow": 47.118191405220145
+  },
+  "csv/score:avg": {
+   "duckdb": 0.17560241312034647,
+   "pyarrow": 52.228771010696356
+  },
+  "csv/score:count": {
+   "duckdb": 0.1758697516067115,
+   "pyarrow": 45.162673274270084
+  },
+  "csv/score:max": {
+   "duckdb": 0.17241340537286212,
+   "pyarrow": 15.179172998986829
+  },
+  "csv/score:min": {
+   "duckdb": 0.1777929598185041,
+   "pyarrow": 15.20449113489026
+  },
+  "csv/score:sum": {
+   "duckdb": 0.1687559165752233,
+   "pyarrow": 49.70058606918728
+  },
+  "parquet/id:avg": {
+   "duckdb": 0.32962625100807785,
+   "pyarrow": 2.9181413857677905
+  },
+  "parquet/id:count": {
+   "duckdb": 0.02029589159657047,
+   "pyarrow": 0.18567363602622788
+  },
+  "parquet/id:max": {
+   "duckdb": 0.1584716433262973,
+   "pyarrow": 1.3027221526908637
+  },
+  "parquet/id:min": {
+   "duckdb": 0.16179040391432423,
+   "pyarrow": 1.2590192870673325
+  },
+  "parquet/id:sum": {
+   "duckdb": 0.16048388653428816,
+   "pyarrow": 1.428895336080162
+  },
+  "parquet/score:avg": {
+   "duckdb": 0.17753314739124504,
+   "pyarrow": 1.7634089314940378
+  },
+  "parquet/score:count": {
+   "duckdb": 0.02711108367161092,
+   "pyarrow": 0.25190613664964095
+  },
+  "parquet/score:max": {
+   "duckdb": 0.17690929342825318,
+   "pyarrow": 0.585491155577567
+  },
+  "parquet/score:min": {
+   "duckdb": 0.17966868865913185,
+   "pyarrow": 0.5905240317450882
+  },
+  "parquet/score:sum": {
+   "duckdb": 0.19038035264483627,
+   "pyarrow": 1.8080127594743858
+  }
+ },
+ "phase": "29.1 \u2014 generalized fused kernel (Arrow/Parquet/CSV) decision Experiment 2",
+ "steady_distribution_ns": {
+  "arrow": {
+   "cells": 38,
+   "p50": 936.5,
+   "p95": 1031.0,
+   "p99": 1043.2
+  },
+  "csv": {
+   "cells": 38,
+   "p50": 12723.5,
+   "p95": 13665.4,
+   "p99": 15208.860000000004
+  },
+  "parquet": {
+   "cells": 38,
+   "p50": 656.5,
+   "p95": 749.5,
+   "p99": 932.98
+  }
+ },
+ "verdict": "PASS"
+}
