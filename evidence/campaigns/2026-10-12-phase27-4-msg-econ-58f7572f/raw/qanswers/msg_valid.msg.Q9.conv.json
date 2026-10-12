@@ -1,0 +1,1 @@
+{"decline": {"code": "comparator_absent", "detail": "legacy Outlook message (.msg, MS-OXMSG) has no faithful Python-stdlib decoder, so Lane C declines every question as comparator_absent"}, "declined": true, "detail": {}, "lane": "conv", "native": true, "q": "Q9", "value": null}

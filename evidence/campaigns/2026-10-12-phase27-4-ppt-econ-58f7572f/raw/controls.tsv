@@ -1,0 +1,4 @@
+fixture	expect_fmt	fmt	expect_rc	rc	common_rc	own_rc	foreign_rc	ok
+generic_cfbf.bin	cfbf	cfbf	6	6	0	6	6	true
+ppt_bad_first_record.ppt	cfbf	cfbf	6	6	0	6	6	true
+prose.txt	opaque	opaque	6	6	6	6	6	true

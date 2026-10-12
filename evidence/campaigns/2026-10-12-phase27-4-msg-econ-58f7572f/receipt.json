@@ -1,0 +1,293 @@
+{
+  "campaign": "evidence/campaigns/2026-10-12-phase27-4-msg-econ-58f7572f",
+  "comparators": [
+    "sqlite",
+    "conv"
+  ],
+  "declines": "an out-of-range --msg-property/--msg-recipient/--msg-attachment declines typed (rc 6); a compound file with no root __properties_version1.0 detects as cfbf and a native msg selector on it declines typed (rc 6); a structurally invalid message that detects as msg declines typed InvalidMsgStructure (rc 55); prose stays opaque (rc 6), never a panic",
+  "detection_boundary": "content-only, never a file name: the source must be a CFBF/OLE2 compound file whose root storage carries a __properties_version1.0 stream with a valid 32-byte message header; a generic compound file and a missing-properties file stay cfbf and are never stolen",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "817df7b6c47d3783165d5a8e3012c4c8a09c86ef4219d4cc96a72ff3eae45c1b",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-12-phase27-4-msg-econ-58f7572f",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "10514d8d8b124d76a66c7fe517381d9c4fc76fe635981bc5b9961939f568198a",
+    "controls": "generic_cfbf.bin msg_missing_props.msg prose.txt",
+    "econ_module_sha256": "e7b68eff6426f47e01b209e3856266baed894ab467bdc7b0b5aa4505c4b1d940",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "msg_valid.msg": {
+        "len": 5120,
+        "sha256": "1ad39b5ecde606d5fd5a7eaf199d8b69842836f156ce27a782acdce21750d9be"
+      }
+    },
+    "foreign_selector": "--doc-fib --kind structure",
+    "format": "msg",
+    "generator_sha256": "d8b83f74a95587646b752f1de44d3646bc2ae1aad6249a56eaa45fb14d333b02",
+    "lane_fixtures": "msg_valid.msg",
+    "measured_commit": "58f7572fa040ca7d54126bcb4beef135febc08f8",
+    "own_selector": "--msg-summary --kind structure",
+    "phase": "27.4 \u2014 legacy Outlook message (.msg, MS-OXMSG) economic court",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 4372,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-12-phase27-4-doc-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-msg-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-ppt-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-xls-econ-58f7572f/ ?? tools/fixtures/make-doc.py ?? tools/fixtures/make-msg.py ?? tools/fixtures/make-ppt.py ?? tools/fixtures/make-xls.py ?? tools/phase27-4-doc-econ-court.sh ?? tools/phase27-4-msg-econ-court.sh ?? tools/phase27-4-ppt-econ-court.sh ?? tools/phase27-4-xls-econ-court.sh ",
+    "utc": "2026-10-12T10:09:20Z",
+    "vole_probe_sha256": "a870aa00b706067e25d1dc18bbfee9496bcf8aa2fe40bd9b1fa60870ff6d3648",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q10": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q11": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "equal": 1
+      }
+    },
+    "Q12": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q3": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q4": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q5": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "equal": 1
+      }
+    },
+    "Q7": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q9": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 2141); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 4,
+  "exact_ok": 4,
+  "fixtures": [
+    "msg_valid.msg"
+  ],
+  "format": "msg",
+  "lane_c_absent": [
+    "all",
+    "legacy Outlook message (.msg, MS-OXMSG) has no faithful Python-stdlib decoder, so Lane C declines every question as comparator_absent"
+  ],
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "measured_commit": "58f7572fa040ca7d54126bcb4beef135febc08f8",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native selectors (exact + structure)"
+  ],
+  "phase": "27.4 \u2014 legacy Outlook message (.msg, MS-OXMSG) economic court",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 1.0183826074915183,
+        "geomean_hi": 1.0183826074915183,
+        "geomean_lo": 1.0183826074915183,
+        "losses": 0,
+        "median": 1.0183826074915183,
+        "median_hi": 1.0183826074915183,
+        "median_lo": 1.0183826074915183,
+        "n": 1,
+        "ratio_of_sums": 1.0183826074915183,
+        "ties": 1,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.8029533791898679,
+        "geomean_hi": 0.8029533791898679,
+        "geomean_lo": 0.8029533791898679,
+        "losses": 0,
+        "median": 0.8029533791898679,
+        "median_hi": 0.8029533791898679,
+        "median_lo": 0.8029533791898679,
+        "n": 1,
+        "ratio_of_sums": 0.8029533791898679,
+        "ties": 0,
+        "wins": 1
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.02374656810982048,
+        "geomean_hi": 0.02374656810982048,
+        "geomean_lo": 0.02374656810982048,
+        "losses": 0,
+        "median": 0.023746568109820485,
+        "median_hi": 0.023746568109820485,
+        "median_lo": 0.023746568109820485,
+        "n": 1,
+        "ratio_of_sums": 0.023746568109820485,
+        "ties": 0,
+        "wins": 1
+      },
+      "sqlite": {
+        "geomean": 0.022219528839541435,
+        "geomean_hi": 0.022219528839541435,
+        "geomean_lo": 0.022219528839541435,
+        "losses": 0,
+        "median": 0.022219528839541435,
+        "median_hi": 0.022219528839541435,
+        "median_lo": 0.022219528839541435,
+        "n": 1,
+        "ratio_of_sums": 0.022219528839541435,
+        "ties": 0,
+        "wins": 1
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 120.40322580645162,
+        "geomean_hi": 120.40322580645162,
+        "geomean_lo": 120.40322580645162,
+        "losses": 1,
+        "median": 120.40322580645162,
+        "median_hi": 120.40322580645162,
+        "median_lo": 120.40322580645162,
+        "n": 1,
+        "ratio_of_sums": 120.40322580645162,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 1.2086132923176556,
+        "geomean_hi": 1.2086132923176556,
+        "geomean_lo": 1.2086132923176556,
+        "losses": 1,
+        "median": 1.2086132923176556,
+        "median_hi": 1.2086132923176556,
+        "median_lo": 1.2086132923176556,
+        "n": 1,
+        "ratio_of_sums": 1.2086132923176556,
+        "ties": 0,
+        "wins": 0
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 1.7570093457943925,
+        "geomean_hi": 1.7570093457943925,
+        "geomean_lo": 1.7570093457943925,
+        "losses": 1,
+        "median": 1.7570093457943925,
+        "median_hi": 1.7570093457943925,
+        "median_lo": 1.7570093457943925,
+        "n": 1,
+        "ratio_of_sums": 1.7570093457943925,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.11764705882352941,
+        "geomean_hi": 0.11764705882352941,
+        "geomean_lo": 0.11764705882352941,
+        "losses": 0,
+        "median": 0.11764705882352941,
+        "median_hi": 0.11764705882352941,
+        "median_lo": 0.11764705882352941,
+        "n": 1,
+        "ratio_of_sums": 0.11764705882352941,
+        "ties": 0,
+        "wins": 1
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 55 invalid-msg-structure",
+  "service": "doc-baseline",
+  "surface": "the reused CFBF/OLE2 physical layer plus the Outlook message (MS-OXMSG) semantic model: the __properties_version1.0 header and its fixed-size property entries (tag, id, property name, type, flags, value bytes, span, owner), the __substg1.0_* substreams, the one-level recipient and attachment sub-storages with their own property lists and substreams, and the canonical decoded text",
+  "tree_state": "M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-12-phase27-4-doc-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-msg-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-ppt-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-xls-econ-58f7572f/ ?? tools/fixtures/make-doc.py ?? tools/fixtures/make-msg.py ?? tools/fixtures/make-ppt.py ?? tools/fixtures/make-xls.py ?? tools/phase27-4-doc-econ-court.sh ?? tools/phase27-4-msg-econ-court.sh ?? tools/phase27-4-ppt-econ-court.sh ?? tools/phase27-4-xls-econ-court.sh",
+  "utc": "2026-10-12T10:09:21Z",
+  "verdict": "PASS"
+}

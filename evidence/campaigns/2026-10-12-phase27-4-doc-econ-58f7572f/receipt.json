@@ -1,0 +1,303 @@
+{
+  "campaign": "evidence/campaigns/2026-10-12-phase27-4-doc-econ-58f7572f",
+  "comparators": [
+    "sqlite",
+    "conv"
+  ],
+  "declines": "an out-of-range --doc-piece/--doc-section and a doc selector on a foreign format decline typed (rc 6); a doc with a bad wIdent/nFib detects as cfbf and a native doc selector on it declines typed (rc 6); a compound file whose body is structurally invalid but detects as doc declines typed InvalidDocStructure (rc 52); prose stays opaque (rc 6), never a panic",
+  "detection_boundary": "content-only, never a file name: the source must be a valid CFBF/OLE2 compound file with a WordDocument stream whose FIB carries wIdent 0xA5EC and a plausible Word 97 nFib; a generic compound file and a bad-ident/bad-nFib doc stay cfbf and are never stolen",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "817df7b6c47d3783165d5a8e3012c4c8a09c86ef4219d4cc96a72ff3eae45c1b",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-12-phase27-4-doc-econ-58f7572f",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "10514d8d8b124d76a66c7fe517381d9c4fc76fe635981bc5b9961939f568198a",
+    "controls": "doc_bad_ident.doc doc_bad_nfib.doc generic_cfbf.bin prose.txt",
+    "econ_module_sha256": "e7b68eff6426f47e01b209e3856266baed894ab467bdc7b0b5aa4505c4b1d940",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "doc_0table.doc": {
+        "len": 3584,
+        "sha256": "f3cfb5f3363cb50b883c250f924589dbd8e8e5ebdcf9613f224cbdf80bc19cbc"
+      },
+      "doc_1table.doc": {
+        "len": 3584,
+        "sha256": "fa16790fe5d6920102d8efe611c2976c08fea98f989e48bf5afde6e622c81eb4"
+      },
+      "doc_sections.doc": {
+        "len": 3584,
+        "sha256": "dfd311ce59e1ced6da4ca8f09c8a5810a3b73d6b6cc7c86f20c7985ee4ed904a"
+      }
+    },
+    "foreign_selector": "--xls-biff --kind structure",
+    "format": "doc",
+    "generator_sha256": "4554c3631eb2fba6f93ac0bcfba5a24d4e4fd357ec6292d1bd6dfb826cb77795",
+    "lane_fixtures": "doc_0table.doc doc_1table.doc doc_sections.doc",
+    "measured_commit": "58f7572fa040ca7d54126bcb4beef135febc08f8",
+    "own_selector": "--doc-fib --kind structure",
+    "phase": "27.4 \u2014 legacy Word 97\u20132003 (.doc, MS-DOC) economic court",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 5166,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-12-phase27-4-doc-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-msg-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-ppt-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-xls-econ-58f7572f/ ?? tools/fixtures/make-doc.py ?? tools/fixtures/make-msg.py ?? tools/fixtures/make-ppt.py ?? tools/fixtures/make-xls.py ?? tools/phase27-4-doc-econ-court.sh ?? tools/phase27-4-msg-econ-court.sh ?? tools/phase27-4-ppt-econ-court.sh ?? tools/phase27-4-xls-econ-court.sh ",
+    "utc": "2026-10-12T10:09:00Z",
+    "vole_probe_sha256": "a870aa00b706067e25d1dc18bbfee9496bcf8aa2fe40bd9b1fa60870ff6d3648",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "capability-gap": 3
+      }
+    },
+    "Q10": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "capability-gap": 3
+      }
+    },
+    "Q11": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "equal": 3
+      }
+    },
+    "Q12": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "capability-gap": 3
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "capability-gap": 3
+      }
+    },
+    "Q3": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "capability-gap": 3
+      }
+    },
+    "Q4": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "capability-gap": 3
+      }
+    },
+    "Q5": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "capability-gap": 3
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "equal": 3
+      }
+    },
+    "Q7": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "capability-gap": 3
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "capability-gap": 3
+      }
+    },
+    "Q9": {
+      "conv": {
+        "capability-gap": 3
+      },
+      "sqlite": {
+        "capability-gap": 3
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 2138); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 7,
+  "exact_ok": 7,
+  "fixtures": [
+    "doc_0table.doc",
+    "doc_1table.doc",
+    "doc_sections.doc"
+  ],
+  "format": "doc",
+  "lane_c_absent": [
+    "all",
+    "legacy Word 97\u20132003 (.doc, MS-DOC) has no faithful Python-stdlib decoder, so Lane C declines every question as comparator_absent"
+  ],
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "measured_commit": "58f7572fa040ca7d54126bcb4beef135febc08f8",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native selectors (exact + structure)"
+  ],
+  "phase": "27.4 \u2014 legacy Word 97\u20132003 (.doc, MS-DOC) economic court",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 1.0099660478734107,
+        "geomean_hi": 1.0572448145119322,
+        "geomean_lo": 0.9575510744677329,
+        "losses": 0,
+        "median": 1.017613386173492,
+        "median_hi": 1.0572448145119322,
+        "median_lo": 0.9575510744677329,
+        "n": 3,
+        "ratio_of_sums": 1.0087487404421789,
+        "ties": 3,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.7932429309348263,
+        "geomean_hi": 0.8098589492743042,
+        "geomean_lo": 0.7779571194146289,
+        "losses": 0,
+        "median": 0.7922341996044678,
+        "median_hi": 0.8098589492743042,
+        "median_lo": 0.7779571194146289,
+        "n": 3,
+        "ratio_of_sums": 0.7929125860767632,
+        "ties": 0,
+        "wins": 3
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.02827740422215903,
+        "geomean_hi": 0.03654104771114499,
+        "geomean_lo": 0.02379238988943367,
+        "losses": 0,
+        "median": 0.026007556866792715,
+        "median_hi": 0.036541047711145004,
+        "median_lo": 0.02379238988943367,
+        "n": 3,
+        "ratio_of_sums": 0.029063981530483438,
+        "ties": 0,
+        "wins": 3
+      },
+      "sqlite": {
+        "geomean": 0.027233768947168176,
+        "geomean_hi": 0.035545231656949144,
+        "geomean_lo": 0.021733922331685553,
+        "losses": 0,
+        "median": 0.02614591144916668,
+        "median_hi": 0.03554523165694916,
+        "median_lo": 0.02173392233168554,
+        "n": 3,
+        "ratio_of_sums": 0.028000754633011323,
+        "ties": 0,
+        "wins": 3
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 94.36338909840563,
+        "geomean_hi": 94.86400000000002,
+        "geomean_lo": 93.37007874015747,
+        "losses": 3,
+        "median": 94.864,
+        "median_hi": 94.864,
+        "median_lo": 93.37007874015748,
+        "n": 3,
+        "ratio_of_sums": 94.36074270557029,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 1.4361148116749425,
+        "geomean_hi": 1.4361148116749425,
+        "geomean_lo": 1.4361148116749425,
+        "losses": 3,
+        "median": 1.4361148116749425,
+        "median_hi": 1.4361148116749425,
+        "median_lo": 1.4361148116749425,
+        "n": 3,
+        "ratio_of_sums": 1.4361148116749425,
+        "ties": 0,
+        "wins": 0
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 1.5085877088225421,
+        "geomean_hi": 1.5789473684210527,
+        "geomean_lo": 1.411214953271028,
+        "losses": 3,
+        "median": 1.5408163265306123,
+        "median_hi": 1.5789473684210527,
+        "median_lo": 1.411214953271028,
+        "n": 3,
+        "ratio_of_sums": 1.5066666666666666,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.10084785550187701,
+        "geomean_hi": 0.1075268817204301,
+        "geomean_lo": 0.09544879898862199,
+        "losses": 0,
+        "median": 0.099933818663137,
+        "median_hi": 0.10752688172043011,
+        "median_lo": 0.09544879898862199,
+        "n": 3,
+        "ratio_of_sums": 0.10071301247771836,
+        "ties": 0,
+        "wins": 3
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 52 invalid-doc-structure",
+  "service": "doc-baseline",
+  "surface": "the reused CFBF/OLE2 physical layer plus the Word 97\u20132003 (MS-DOC) semantic model: the FIB (wIdent 0xA5EC, nFib/version, the fWhichTblStm table selection, fcMin/fcMac, the ccp* section counts, fcClx/lcbClx), the piece table (each piece CP range, resolved fc, compressed flag, exact WordDocument-stream byte span, decoded text, and the exact bytes), the CP sections (main/footnote/header/annotation/endnote/textbox/hdrtextbox), and the document text",
+  "tree_state": "M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-12-phase27-4-doc-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-msg-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-ppt-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-xls-econ-58f7572f/ ?? tools/fixtures/make-doc.py ?? tools/fixtures/make-msg.py ?? tools/fixtures/make-ppt.py ?? tools/fixtures/make-xls.py ?? tools/phase27-4-doc-econ-court.sh ?? tools/phase27-4-msg-econ-court.sh ?? tools/phase27-4-ppt-econ-court.sh ?? tools/phase27-4-xls-econ-court.sh",
+  "utc": "2026-10-12T10:09:01Z",
+  "verdict": "PASS"
+}

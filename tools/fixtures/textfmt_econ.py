@@ -56,24 +56,39 @@ if HERE not in sys.path:
 FORMATS = ["config", "feed", "geojson", "gis", "notebook",
            "tabular", "rst", "asciidoc", "mdx",
            "mhtml", "logstream", "pkgmeta", "apispec", "bib", "rtf",
-           "container", "hdf", "cfbf"]
+           "container", "hdf", "cfbf",
+           "doc", "xls", "ppt", "msg"]
 
-# Phase 21.27-21.35: the nine additional text/binary-document families. For these
-# the per-format configuration is declared in the `..._NINE` tables below and the
-# comparator/host-value logic lives in the `_new_*` section.
+# Phase 21.27-21.35 (+27.4): the additional text/binary-document families. For
+# these the per-format configuration is declared in the `..._NINE` tables below
+# and the comparator/host-value logic lives in the `_new_*` section.
 NINE = ["mhtml", "logstream", "pkgmeta", "apispec", "bib", "rtf",
-        "container", "hdf", "cfbf"]
+        "container", "hdf", "cfbf",
+        "doc", "xls", "ppt", "msg"]
 
 # Lane C (the conventional decode-to-host-values load) has NO faithful Python-stdlib
 # decoder for these formats, so it declines every question with the recorded code
 # `comparator_absent`. `all` = the whole format; otherwise the fixture predicate is
-# evaluated per fixture by `_conv_absent`.
+# evaluated per fixture by `_conv_absent`. The four legacy CFBF-backed Office
+# formats (27.4) have no faithful stdlib decoder at all, so their scope is `all`.
 C_ABSENT_NOTE = {
     "cfbf": ("all", "CFBF/OLE2 has no faithful Python-stdlib decoder, so Lane C "
                      "declines every question as comparator_absent"),
     "hdf": ("hdf5", "HDF5 has no faithful Python-stdlib decoder (only the "
                      "NetCDF-classic part is decoded by Lane C), so Lane C "
                      "declines every HDF5-fixture question as comparator_absent"),
+    "doc": ("all", "legacy Word 97–2003 (.doc, MS-DOC) has no faithful "
+                    "Python-stdlib decoder, so Lane C declines every question as "
+                    "comparator_absent"),
+    "xls": ("all", "legacy Excel 97–2003 (.xls, BIFF8) has no faithful "
+                    "Python-stdlib decoder, so Lane C declines every question as "
+                    "comparator_absent"),
+    "ppt": ("all", "legacy PowerPoint 97–2003 (.ppt, MS-PPT) has no faithful "
+                    "Python-stdlib decoder, so Lane C declines every question as "
+                    "comparator_absent"),
+    "msg": ("all", "legacy Outlook message (.msg, MS-OXMSG) has no faithful "
+                    "Python-stdlib decoder, so Lane C declines every question as "
+                    "comparator_absent"),
 }
 
 
@@ -159,6 +174,10 @@ LANE_FIXTURES = {
     "hdf": ["netcdf_cdf1.nc", "netcdf_cdf2.nc", "hdf5_basic.h5",
             "hdf5_userblock.h5"],
     "cfbf": ["cfbf_v3.cfb", "cfbf_v4.cfb"],
+    "doc": ["doc_0table.doc", "doc_1table.doc", "doc_sections.doc"],
+    "xls": ["xls_valid.xls"],
+    "ppt": ["ppt_valid.ppt", "ppt_lists.ppt"],
+    "msg": ["msg_valid.msg"],
 }
 
 # Controls -> the format class each MUST receive (checked at court time).
@@ -202,6 +221,14 @@ CONTROLS = {
     "cfbf": {"prose.txt": "opaque", "sig_only.bin": "opaque",
              "cfbf_badsig.cfb": "opaque", "cfbf_badshift.cfb": "opaque",
              "cfbf_bad_dir_sector.cfb": "opaque"},
+    "doc": {"generic_cfbf.bin": "cfbf", "doc_bad_ident.doc": "cfbf",
+            "doc_bad_nfib.doc": "cfbf", "prose.txt": "opaque"},
+    "xls": {"generic_cfbf.bin": "cfbf", "xls_bad_bof.xls": "cfbf",
+            "xls_bad_type.xls": "cfbf", "prose.txt": "opaque"},
+    "ppt": {"generic_cfbf.bin": "cfbf", "ppt_bad_first_record.ppt": "cfbf",
+            "prose.txt": "opaque"},
+    "msg": {"generic_cfbf.bin": "cfbf", "msg_missing_props.msg": "cfbf",
+            "prose.txt": "opaque"},
 }
 
 # The per-format plan (FROZEN). Slots are named per format; see the qdescs.
@@ -400,6 +427,24 @@ PLANS = {
     "cfbf": {
         "cfbf_v3.cfb": {"entry": 2, "stream": 2, "find": "Large"},
         "cfbf_v4.cfb": {"entry": 2, "stream": 2, "find": "caf"},
+    },
+    "doc": {
+        "doc_0table.doc": {"piece": 0, "section": "main", "find": "Hello"},
+        "doc_1table.doc": {"piece": 1, "section": "footnote", "find": "Hello"},
+        "doc_sections.doc": {"piece": 0, "section": "header", "find": "AAAB"},
+    },
+    "xls": {
+        "xls_valid.xls": {"sheet": 0, "cell": 0, "record": 1, "find": "Alpha"},
+    },
+    "ppt": {
+        "ppt_valid.ppt": {"slide": 0, "run": 0, "record": 0, "list": "slides",
+                          "find": "Hello"},
+        "ppt_lists.ppt": {"slide": 0, "run": 1, "record": 1, "list": "masters",
+                          "find": "Caf"},
+    },
+    "msg": {
+        "msg_valid.msg": {"property": 1, "recipient": 0, "attachment": 0,
+                          "find": "Hello"},
     },
 }
 
@@ -824,6 +869,98 @@ QDESC = {
                 "no faithful extraction -> typed decline", "comparator_absent"),
         "Q11": ("the recorded format (cfbf)", "stored format", "comparator_absent"),
         "Q12": ("a stream's exact data span", "no source span -> typed decline",
+                "comparator_absent"),
+    },
+    "doc": {
+        "Q1": ("a piece's decoded text", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q2": ("a piece's exact source span", "no source span -> typed decline",
+               "comparator_absent"),
+        "Q3": ("the recorded dialect (Word version)",
+               "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q4": ("the piece count", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q5": ("the FIB descriptor (version/table/ccps/spans)",
+               "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q7": ("`doc-find` over piece texts (with spans)",
+               "no source span -> typed decline", "comparator_absent"),
+        "Q8": ("a piece's exact `WordDocument` bytes",
+               "no source bytes -> typed decline", "comparator_absent"),
+        "Q9": ("a CP section's text", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q10": ("a piece's compressed flag",
+                "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q11": ("the recorded format (doc)", "stored format", "comparator_absent"),
+        "Q12": ("a piece's exact stream byte span", "no source span -> typed decline",
+                "comparator_absent"),
+    },
+    "xls": {
+        "Q1": ("a sheet's name", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q2": ("a sheet's exact source span", "no source span -> typed decline",
+               "comparator_absent"),
+        "Q3": ("the recorded dialect (BIFF version)",
+               "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q4": ("the sheet count", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q5": ("a sheet descriptor (name/pos/type/span)",
+               "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q7": ("`xls-find` over sheet names/shared strings (with spans)",
+               "no source span -> typed decline", "comparator_absent"),
+        "Q8": ("a cell's exact record bytes", "no source bytes -> typed decline",
+               "comparator_absent"),
+        "Q9": ("a cell's stored value", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q10": ("a cell descriptor (row/col/kind/span)",
+                "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q11": ("the recorded format (xls)", "stored format", "comparator_absent"),
+        "Q12": ("a BIFF record descriptor (id/len/span)",
+                "no source span -> typed decline", "comparator_absent"),
+    },
+    "ppt": {
+        "Q1": ("a slide's text", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q2": ("a slide's exact source span", "no source span -> typed decline",
+               "comparator_absent"),
+        "Q3": ("the recorded dialect (PowerPoint version)",
+               "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q4": ("the slide count", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q5": ("a slide descriptor (persist/cTexts/list/span)",
+               "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q7": ("`ppt-find` over text runs (with spans)",
+               "no source span -> typed decline", "comparator_absent"),
+        "Q8": ("a text run's exact atom bytes", "no source bytes -> typed decline",
+               "comparator_absent"),
+        "Q9": ("a `SlideListWithText` list's text",
+               "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q10": ("a text run descriptor (slide/kind/type/span)",
+                "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q11": ("the recorded format (ppt)", "stored format", "comparator_absent"),
+        "Q12": ("an MS-PPT record descriptor (id/len/span)",
+                "no source span -> typed decline", "comparator_absent"),
+    },
+    "msg": {
+        "Q1": ("a property's name", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q2": ("a property entry's exact source span",
+               "no source span -> typed decline", "comparator_absent"),
+        "Q3": ("the recorded dialect (MSG version)",
+               "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q4": ("the property count", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q5": ("a recipient/attachment descriptor",
+               "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q7": ("`msg-find` over substream texts (with spans)",
+               "no source span -> typed decline", "comparator_absent"),
+        "Q8": ("a property entry's exact bytes", "no source bytes -> typed decline",
+               "comparator_absent"),
+        "Q9": ("the sub-stream count", "no faithful extraction -> typed decline",
+               "comparator_absent"),
+        "Q10": ("a property descriptor (tag/id/type/span)",
+                "no faithful extraction -> typed decline", "comparator_absent"),
+        "Q11": ("the recorded format (msg)", "stored format", "comparator_absent"),
+        "Q12": ("a property entry's exact byte span", "no source span -> typed decline",
                 "comparator_absent"),
     },
 }
@@ -2365,6 +2502,18 @@ def aggregate(fmt, raw, campaign, env_path=None):
                      "and does it add value by **preserving representation** (source spans, "
                      "exact spelling, attribute/quote/continuation markers, duplicate keys, "
                      "member order)?" % fmt)
+    if fmt in ("doc", "xls", "ppt", "msg"):
+        lines.append("")
+        lines.append("**Lane C is `comparator_absent` for %s.** There is no faithful "
+                     "pure-Python/stdlib decoder for a legacy .%s file in the pinned image, "
+                     "so rather than fabricate one, every Lane-C question is recorded as a "
+                     "typed `comparator_absent` decline (exactly as the HDF5/CFBF courts do). "
+                     "The head-to-head is therefore **limited to a single substantive "
+                     "comparator** — the source-retaining SQLite store (byte authority) — "
+                     "and the source-retaining store itself declines every *structural* "
+                     "question for the same reason. Read the paired ratios below as "
+                     "VOLE-vs-a-bytes-store, not as a full decode-vs-decode comparison."
+                     % (fmt, fmt))
     lines.append("")
     lines.append("Corpus: **%d fixtures**; lanes **%s**; questions **Q1–Q12**; "
                  "bootstrap **%d resamples, seed %d**, cluster-resampled by fixture; "
@@ -2511,6 +2660,27 @@ def aggregate(fmt, raw, campaign, env_path=None):
                      "`comparator_absent` decline, never a silent or fabricated "
                      "answer; VOLE capability is shown as `capability-gap` against it."
                      % (fmt.upper(), C_ABSENT_NOTE[fmt][1]))
+    if fmt in ("doc", "xls", "ppt", "msg"):
+        lines.append("- **Cold is Python-startup-dominated.** Each comparator cold probe is "
+                     "a *fresh* `python3` process, so the cold ratio mostly measures "
+                     "interpreter startup, not query cost; the **warm** column (one resident "
+                     "session) is the honest per-query comparison. Both are reported.")
+        lines.append("- **The median and the ratio of sums can diverge** (the ratio of sums "
+                     "weights by absolute cost; the median treats each fixture equally). "
+                     "Both are reported **separately** and neither is presented as the "
+                     "estimator: the paired per-fixture ratio summarised by the median + "
+                     "geometric mean (with a fixed-seed cluster bootstrap 95% CI) is the "
+                     "stated estimator, and `ratio of sums` is named as such.")
+        lines.append("- **The single substantive comparator limits the comparison.** With "
+                     "Lane C `comparator_absent`, only the source-retaining SQLite store is "
+                     "a real counterpart, and it too stores the bytes rather than decoding "
+                     "them, so the axes on which VOLE is *decisively* cheaper or costlier on "
+                     "a faithful decode are not exercised here.")
+        if len(fixtures) == 1:
+            lines.append("- **Single-fixture corpus (n=1):** the fixed-seed cluster bootstrap "
+                         "is **degenerate** (its 95% CI collapses to the point estimate), so "
+                         "the paired ratio and every derived cost are point estimates over "
+                         "one file, not a population estimate.")
     lines.append("- **Nothing here is run on the host**; every command ran in a pinned "
                  "container.")
     lines.append("")
@@ -2638,6 +2808,7 @@ def _new_model(fmt, raw, name):
         "pkgmeta": _model_pkgmeta, "apispec": _model_apispec,
         "bib": _model_bib, "rtf": _model_rtf, "container": _model_container,
         "hdf": _model_hdf, "cfbf": _model_cfbf,
+        "doc": _model_doc, "xls": _model_xls, "ppt": _model_ppt, "msg": _model_msg,
     }[fmt]
     model = fn(raw, name)
     model["_name"] = name
@@ -3546,10 +3717,62 @@ def _q_cfbf(lane, model, q, plan):
                 "no faithful conventional extraction exists for a CFBF compound file")
 
 
+# --- the four legacy CFBF-backed Office formats (Phase 27.4) -----------------
+#
+# Lane B (the source-retaining SQLite store) keeps the original bytes verbatim
+# (byte authority, so it answers Q6) and records the detected format, but there
+# is no faithful Python-stdlib decoder for `.doc`/`.xls`/`.ppt`/`.msg` in the
+# pinned image, so every *structural* question is a typed decline. Lane C is
+# `comparator_absent` (see `C_ABSENT_NOTE`).
+
+def _model_doc(raw, name):
+    return {"_format": "doc", "dialect": None}
+
+
+def _q_doc(lane, model, q, plan):
+    return _q_legacy(lane, q, "doc")
+
+
+def _model_xls(raw, name):
+    return {"_format": "xls", "dialect": None}
+
+
+def _q_xls(lane, model, q, plan):
+    return _q_legacy(lane, q, "xls")
+
+
+def _model_ppt(raw, name):
+    return {"_format": "ppt", "dialect": None}
+
+
+def _q_ppt(lane, model, q, plan):
+    return _q_legacy(lane, q, "ppt")
+
+
+def _model_msg(raw, name):
+    return {"_format": "msg", "dialect": None}
+
+
+def _q_msg(lane, model, q, plan):
+    return _q_legacy(lane, q, "msg")
+
+
+def _q_legacy(lane, q, fmt):
+    # The only cheaply recoverable fact from the retained bytes is the recorded
+    # format; every structural question needs a faithful decoder that does not
+    # exist in the pinned image. Never fabricate one.
+    if q == "Q11":
+        return _laneless(q, fmt)
+    return decl(q, "no-faithful-extraction",
+                "no faithful conventional extraction exists for a legacy %s file"
+                % fmt)
+
+
 _QNEW = {
     "mhtml": _q_mhtml, "logstream": _q_logstream, "pkgmeta": _q_pkgmeta,
     "apispec": _q_apispec, "bib": _q_bib, "rtf": _q_rtf,
     "container": _q_container, "hdf": _q_hdf, "cfbf": _q_cfbf,
+    "doc": _q_doc, "xls": _q_xls, "ppt": _q_ppt, "msg": _q_msg,
 }
 
 

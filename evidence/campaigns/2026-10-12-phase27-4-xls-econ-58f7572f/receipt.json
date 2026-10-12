@@ -1,0 +1,293 @@
+{
+  "campaign": "evidence/campaigns/2026-10-12-phase27-4-xls-econ-58f7572f",
+  "comparators": [
+    "sqlite",
+    "conv"
+  ],
+  "declines": "an out-of-range --xls-sheet/--xls-cell/--xls-record declines typed (rc 6); an xls with a bad BOF version or an unrecognized substream type detects as cfbf and a native xls selector on it declines typed (rc 6); a structurally invalid workbook that detects as xls declines typed InvalidXlsStructure (rc 53); prose stays opaque (rc 6), never a panic",
+  "detection_boundary": "content-only, never a file name: the source must be a CFBF/OLE2 compound file with a Workbook/Book stream whose first record is a BIFF8 BOF (version 0x0600, globals substream); a generic compound file and a bad-BOF/bad-subtype workbook stay cfbf and are never stolen",
+  "environment": {
+    "arch": "x86_64",
+    "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+    "bin": "target/release/vole-document",
+    "bin_sha256": "817df7b6c47d3783165d5a8e3012c4c8a09c86ef4219d4cc96a72ff3eae45c1b",
+    "build_args": "--release --locked --all-features",
+    "campaign": "evidence/campaigns/2026-10-12-phase27-4-xls-econ-58f7572f",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "cargo_lock_sha256": "10514d8d8b124d76a66c7fe517381d9c4fc76fe635981bc5b9961939f568198a",
+    "controls": "generic_cfbf.bin prose.txt xls_bad_bof.xls xls_bad_type.xls",
+    "econ_module_sha256": "e7b68eff6426f47e01b209e3856266baed894ab467bdc7b0b5aa4505c4b1d940",
+    "env_affecting_semantics": {
+      "LC_ALL": "C"
+    },
+    "fixtures_len_sha256": {
+      "xls_valid.xls": {
+        "len": 2560,
+        "sha256": "3ce72b922da8652ca09506999cc8413b4a029b2288570b6194ddd3801004b706"
+      }
+    },
+    "foreign_selector": "--ppt-document --kind structure",
+    "format": "xls",
+    "generator_sha256": "5056dd95a93f7ca0408526feb08cf9759b1b57904e6d86fc70169602095a5819",
+    "lane_fixtures": "xls_valid.xls",
+    "measured_commit": "58f7572fa040ca7d54126bcb4beef135febc08f8",
+    "own_selector": "--xls-biff --kind structure",
+    "phase": "27.4 \u2014 legacy Excel 97\u20132003 (.xls, BIFF8) economic court",
+    "profile": "release",
+    "python": "Python 3.11.2",
+    "python_startup_us": 5175,
+    "reps": 3,
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "service": "doc-baseline",
+    "sqlite3_cli": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+    "sqlite_module": "sqlite3",
+    "sqlite_version": "3.40.1",
+    "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used (ADR-0049)",
+    "tree_state": " M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-12-phase27-4-doc-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-msg-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-ppt-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-xls-econ-58f7572f/ ?? tools/fixtures/make-doc.py ?? tools/fixtures/make-msg.py ?? tools/fixtures/make-ppt.py ?? tools/fixtures/make-xls.py ?? tools/phase27-4-doc-econ-court.sh ?? tools/phase27-4-msg-econ-court.sh ?? tools/phase27-4-ppt-econ-court.sh ?? tools/phase27-4-xls-econ-court.sh ",
+    "utc": "2026-10-12T10:09:06Z",
+    "vole_probe_sha256": "a870aa00b706067e25d1dc18bbfee9496bcf8aa2fe40bd9b1fa60870ff6d3648",
+    "vole_substrate": "--profile runtime --packed"
+  },
+  "equivalence": {
+    "Q1": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q10": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q11": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "equal": 1
+      }
+    },
+    "Q12": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q2": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q3": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q4": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q5": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q6": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "equal": 1
+      }
+    },
+    "Q7": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q8": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    },
+    "Q9": {
+      "conv": {
+        "capability-gap": 1
+      },
+      "sqlite": {
+        "capability-gap": 1
+      }
+    }
+  },
+  "estimator": "paired per-fixture ratio; median + geometric mean; fixed-seed cluster bootstrap by fixture (10000 resamples, seed 2139); tie band +/-10%; ratio of sums reported separately",
+  "exact_n": 5,
+  "exact_ok": 5,
+  "fixtures": [
+    "xls_valid.xls"
+  ],
+  "format": "xls",
+  "lane_c_absent": [
+    "all",
+    "legacy Excel 97\u20132003 (.xls, BIFF8) has no faithful Python-stdlib decoder, so Lane C declines every question as comparator_absent"
+  ],
+  "lanes": [
+    "vole",
+    "sqlite",
+    "conv"
+  ],
+  "measured_commit": "58f7572fa040ca7d54126bcb4beef135febc08f8",
+  "observations": [
+    "metadata",
+    "text",
+    "search-match",
+    "native selectors (exact + structure)"
+  ],
+  "phase": "27.4 \u2014 legacy Excel 97\u20132003 (.xls, BIFF8) economic court",
+  "ratios": {
+    "build": {
+      "conv": {
+        "geomean": 0.8623957852429188,
+        "geomean_hi": 0.8623957852429188,
+        "geomean_lo": 0.8623957852429188,
+        "losses": 0,
+        "median": 0.8623957852429188,
+        "median_hi": 0.8623957852429188,
+        "median_lo": 0.8623957852429188,
+        "n": 1,
+        "ratio_of_sums": 0.8623957852429188,
+        "ties": 0,
+        "wins": 1
+      },
+      "sqlite": {
+        "geomean": 0.5479801901606529,
+        "geomean_hi": 0.5479801901606529,
+        "geomean_lo": 0.5479801901606529,
+        "losses": 0,
+        "median": 0.5479801901606529,
+        "median_hi": 0.5479801901606529,
+        "median_lo": 0.5479801901606529,
+        "n": 1,
+        "ratio_of_sums": 0.5479801901606529,
+        "ties": 0,
+        "wins": 1
+      }
+    },
+    "cold": {
+      "conv": {
+        "geomean": 0.026556834329214626,
+        "geomean_hi": 0.026556834329214626,
+        "geomean_lo": 0.026556834329214626,
+        "losses": 0,
+        "median": 0.026556834329214622,
+        "median_hi": 0.026556834329214622,
+        "median_lo": 0.026556834329214622,
+        "n": 1,
+        "ratio_of_sums": 0.026556834329214622,
+        "ties": 0,
+        "wins": 1
+      },
+      "sqlite": {
+        "geomean": 0.024620732104710524,
+        "geomean_hi": 0.024620732104710524,
+        "geomean_lo": 0.024620732104710524,
+        "losses": 0,
+        "median": 0.024620732104710524,
+        "median_hi": 0.024620732104710524,
+        "median_lo": 0.024620732104710524,
+        "n": 1,
+        "ratio_of_sums": 0.024620732104710524,
+        "ties": 0,
+        "wins": 1
+      }
+    },
+    "storage": {
+      "conv": {
+        "geomean": 79.11290322580648,
+        "geomean_hi": 79.11290322580648,
+        "geomean_lo": 79.11290322580648,
+        "losses": 1,
+        "median": 79.11290322580645,
+        "median_hi": 79.11290322580645,
+        "median_lo": 79.11290322580645,
+        "n": 1,
+        "ratio_of_sums": 79.11290322580645,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 1.1880828388034395,
+        "geomean_hi": 1.1880828388034395,
+        "geomean_lo": 1.1880828388034395,
+        "losses": 1,
+        "median": 1.1880828388034395,
+        "median_hi": 1.1880828388034395,
+        "median_lo": 1.1880828388034395,
+        "n": 1,
+        "ratio_of_sums": 1.1880828388034395,
+        "ties": 0,
+        "wins": 0
+      }
+    },
+    "warm": {
+      "conv": {
+        "geomean": 1.6422018348623852,
+        "geomean_hi": 1.6422018348623852,
+        "geomean_lo": 1.6422018348623852,
+        "losses": 1,
+        "median": 1.6422018348623852,
+        "median_hi": 1.6422018348623852,
+        "median_lo": 1.6422018348623852,
+        "n": 1,
+        "ratio_of_sums": 1.6422018348623852,
+        "ties": 0,
+        "wins": 0
+      },
+      "sqlite": {
+        "geomean": 0.11118012422360249,
+        "geomean_hi": 0.11118012422360249,
+        "geomean_lo": 0.11118012422360249,
+        "losses": 0,
+        "median": 0.11118012422360249,
+        "median_hi": 0.11118012422360249,
+        "median_lo": 0.11118012422360249,
+        "n": 1,
+        "ratio_of_sums": 0.11118012422360249,
+        "ties": 0,
+        "wins": 1
+      }
+    }
+  },
+  "rc_codes": "0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 53 invalid-xls-structure",
+  "service": "doc-baseline",
+  "surface": "the reused CFBF/OLE2 physical layer plus the Excel 97\u20132003 (BIFF8) semantic model: the BIFF header (version, Workbook/Book stream selection, root substream type, record count, stream span), the BOUNDSHEET inventory (name, BOF stream position, sheet type, visibility state, spans), the cells (kind, row/column, exact record span, exact stored value spelling), the sheet-ordered canonical text, and the ordered BIFF records",
+  "tree_state": "M tools/fixtures/textfmt-court.sh  M tools/fixtures/textfmt-vole.py  M tools/fixtures/textfmt_econ.py ?? evidence/campaigns/2026-10-12-phase27-4-doc-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-msg-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-ppt-econ-58f7572f/ ?? evidence/campaigns/2026-10-12-phase27-4-xls-econ-58f7572f/ ?? tools/fixtures/make-doc.py ?? tools/fixtures/make-msg.py ?? tools/fixtures/make-ppt.py ?? tools/fixtures/make-xls.py ?? tools/phase27-4-doc-econ-court.sh ?? tools/phase27-4-msg-econ-court.sh ?? tools/phase27-4-ppt-econ-court.sh ?? tools/phase27-4-xls-econ-court.sh",
+  "utc": "2026-10-12T10:09:06Z",
+  "verdict": "PASS"
+}

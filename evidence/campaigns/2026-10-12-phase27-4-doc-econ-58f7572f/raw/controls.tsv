@@ -1,0 +1,5 @@
+fixture	expect_fmt	fmt	expect_rc	rc	common_rc	own_rc	foreign_rc	ok
+doc_bad_ident.doc	cfbf	cfbf	6	6	0	6	6	true
+doc_bad_nfib.doc	cfbf	cfbf	6	6	0	6	6	true
+generic_cfbf.bin	cfbf	cfbf	6	6	0	6	6	true
+prose.txt	opaque	opaque	6	6	6	6	6	true
