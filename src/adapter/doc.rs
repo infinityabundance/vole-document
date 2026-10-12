@@ -33,11 +33,14 @@
 //!   **compressed** piece (bit set, `fc = (fcRaw & 0x3FFF_FFFF) / 2`) is CP1252
 //!   single-byte text; an **uncompressed** piece is UTF-16LE. Each piece keeps its
 //!   **exact byte span in the `WordDocument` stream** and its decoded text;
-//! * the **document text** as the concatenation of the piece texts over `[0, ccpText)`.
-//!   The footnote/header/annotation/endnote/textbox sections are recorded by their
-//!   `ccp*` counts and covered by the same piece list (their CP sub-ranges are the
-//!   continuation of the single contiguous CP space), but only the main-text range is
-//!   materialized as a text answer here.
+//! * the **sectioned document text**: the single contiguous CP space is partitioned by
+//!   the cumulative `ccp*` counts into `main`/`footnote`/`header`/`annotation`/
+//!   `endnote`/`textbox`/`hdrtextbox`, and each section is materialized as its own
+//!   span-preserving (`Q_gen`) answer — its CP range, the ordered pieces clipped to it
+//!   (each with the exact `WordDocument` byte span of that portion, the compressed flag,
+//!   and the decoded text), and the section's concatenated decoded text. A section whose
+//!   `ccp*` count is zero is a typed **empty** answer, never an error. The **main text
+//!   over `[0, ccpText)`** is unchanged.
 //!
 //! ## The boundary it cannot cross (honest)
 //!
@@ -205,6 +208,20 @@ impl DocFib {
         }
     }
 
+    /// The CP range `[start, end)` of a section: the cumulative `ccp*` counts before
+    /// it. An empty section (`ccp* == 0`) yields a zero-length range.
+    pub fn section_range(&self, section: DocSection) -> (u64, u64) {
+        let mut start = 0u64;
+        for s in DocSection::ALL {
+            let len = s.ccp(self) as u64;
+            if s == section {
+                return (start, start.saturating_add(len));
+            }
+            start = start.saturating_add(len);
+        }
+        (start, start)
+    }
+
     /// The sum of every `ccp*` section count (the piece table's last CP).
     pub fn total_cp(&self) -> u64 {
         let mut total = 0u64;
@@ -220,6 +237,84 @@ impl DocFib {
             total = total.saturating_add(c as u64);
         }
         total
+    }
+}
+
+/// One of the seven MS-DOC character-position (CP) sections, in the order the piece
+/// table lays them out (the cumulative `ccp*` counts).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DocSection {
+    /// Main document text (`ccpText`), the CP range `[0, ccpText)`.
+    Main,
+    /// Footnote text (`ccpFtn`).
+    Footnote,
+    /// Header/footer text (`ccpHdd`).
+    Header,
+    /// Annotation (comment) text (`ccpAtn`).
+    Annotation,
+    /// Endnote text (`ccpEdn`).
+    Endnote,
+    /// Textbox text (`ccpTxbx`).
+    Textbox,
+    /// Header-textbox text (`ccpHdrTxbx`).
+    HdrTextbox,
+}
+
+impl DocSection {
+    /// Every section, in CP order.
+    pub const ALL: [DocSection; 7] = [
+        DocSection::Main,
+        DocSection::Footnote,
+        DocSection::Header,
+        DocSection::Annotation,
+        DocSection::Endnote,
+        DocSection::Textbox,
+        DocSection::HdrTextbox,
+    ];
+
+    /// The stable lower-case section name.
+    pub const fn name(self) -> &'static str {
+        match self {
+            DocSection::Main => "main",
+            DocSection::Footnote => "footnote",
+            DocSection::Header => "header",
+            DocSection::Annotation => "annotation",
+            DocSection::Endnote => "endnote",
+            DocSection::Textbox => "textbox",
+            DocSection::HdrTextbox => "hdrtextbox",
+        }
+    }
+
+    /// The FIB `ccp*` field this section's character count is read from.
+    pub const fn fib_field(self) -> &'static str {
+        match self {
+            DocSection::Main => "ccpText",
+            DocSection::Footnote => "ccpFtn",
+            DocSection::Header => "ccpHdd",
+            DocSection::Annotation => "ccpAtn",
+            DocSection::Endnote => "ccpEdn",
+            DocSection::Textbox => "ccpTxbx",
+            DocSection::HdrTextbox => "ccpHdrTxbx",
+        }
+    }
+
+    /// Resolve a section by its stable name (`main`, `footnote`, `header`,
+    /// `annotation`, `endnote`, `textbox`, `hdrtextbox`).
+    pub fn from_name(name: &str) -> Option<DocSection> {
+        DocSection::ALL.into_iter().find(|s| s.name() == name)
+    }
+
+    /// This section's declared `ccp*` character count in `fib`.
+    pub const fn ccp(self, fib: &DocFib) -> u32 {
+        match self {
+            DocSection::Main => fib.ccp_text,
+            DocSection::Footnote => fib.ccp_ftn,
+            DocSection::Header => fib.ccp_hdd,
+            DocSection::Annotation => fib.ccp_atn,
+            DocSection::Endnote => fib.ccp_edn,
+            DocSection::Textbox => fib.ccp_txbx,
+            DocSection::HdrTextbox => fib.ccp_hdr_txbx,
+        }
     }
 }
 
@@ -243,6 +338,33 @@ pub struct DocPiece {
 
 impl DocPiece {
     /// The piece's character (CP) count.
+    pub const fn cp_len(&self) -> u64 {
+        (self.cp_end - self.cp_start) as u64
+    }
+}
+
+/// One piece's contribution to a section: a CP range clipped to the section, the exact
+/// byte span of that portion in the `WordDocument` stream, and its decoded text. A
+/// piece that crosses a section boundary appears (clipped) in every section it
+/// overlaps.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocSectionPiece {
+    /// The source piece's index in [`DocModel::pieces`].
+    pub piece: u32,
+    /// The clipped first character position inside the section (inclusive).
+    pub cp_start: u32,
+    /// One past the clipped last character position inside the section.
+    pub cp_end: u32,
+    /// Whether the piece is compressed (CP1252 single-byte; else UTF-16LE).
+    pub compressed: bool,
+    /// `(offset, length)` of the clipped portion's bytes in the `WordDocument` stream.
+    pub span: (u64, u64),
+    /// The decoded text of the clipped portion (UTF-16 code units; exact, never lossy).
+    pub text: Vec<u16>,
+}
+
+impl DocSectionPiece {
+    /// The clipped portion's character (CP) count.
     pub const fn cp_len(&self) -> u64 {
         (self.cp_end - self.cp_start) as u64
     }
@@ -524,6 +646,69 @@ pub fn main_text(model: &DocModel) -> String {
         }
     }
     String::from_utf16_lossy(&units)
+}
+
+/// The ordered pieces that fall in `section`, clipped to the section's CP range.
+/// A piece that crosses a section boundary appears (clipped) in every section it
+/// overlaps; a piece entirely outside the section is omitted. An empty section yields
+/// no pieces (a typed empty answer, not an error).
+pub fn section_pieces(model: &DocModel, section: DocSection) -> Vec<DocSectionPiece> {
+    let (sec_start, sec_end) = model.fib.section_range(section);
+    let mut out = Vec::new();
+    if sec_start >= sec_end {
+        return out;
+    }
+    for (i, p) in model.pieces.iter().enumerate() {
+        let ps = p.cp_start as u64;
+        let pe = p.cp_end as u64;
+        if pe <= sec_start || ps >= sec_end {
+            continue;
+        }
+        let lo = ps.max(sec_start);
+        let hi = pe.min(sec_end);
+        let left = lo - ps;
+        let take = hi - lo;
+        let unit: u64 = if p.compressed { 1 } else { 2 };
+        let span_start = p.span.0.saturating_add(left.saturating_mul(unit));
+        let span_end = span_start.saturating_add(take.saturating_mul(unit));
+        let text = p
+            .text
+            .get(left as usize..(left + take) as usize)
+            .map(<[u16]>::to_vec)
+            .unwrap_or_default();
+        out.push(DocSectionPiece {
+            piece: i as u32,
+            cp_start: lo as u32,
+            cp_end: hi as u32,
+            compressed: p.compressed,
+            span: (span_start, span_end),
+            text,
+        });
+    }
+    out
+}
+
+/// The decoded text of one section's clipped piece (lossy for display only; the model
+/// stores the exact UTF-16 code units).
+pub fn section_piece_text(p: &DocSectionPiece) -> String {
+    String::from_utf16_lossy(&p.text)
+}
+
+/// The concatenated decoded text of a section: its clipped pieces' texts in piece
+/// order.
+pub fn section_text(model: &DocModel, section: DocSection) -> String {
+    let mut units: Vec<u16> = Vec::new();
+    for p in &section_pieces(model, section) {
+        units.extend_from_slice(&p.text);
+    }
+    String::from_utf16_lossy(&units)
+}
+
+/// The `(offset, length)` of a section piece's bytes **in the source** (adding the
+/// `WordDocument` stream's source offset).
+pub fn section_piece_source_span(model: &DocModel, p: &DocSectionPiece) -> (u64, u64) {
+    let base = model.wd_span.0;
+    (base.saturating_add(p.span.0), base.saturating_add(p.span.1))
 }
 
 /// The canonical text rendering of the model (the main document text).
@@ -1163,6 +1348,73 @@ mod tests {
             b"The quick brown fox jumps over the lazy dog.\nPlain prose.\n",
             Limits::DEFAULT
         ));
+    }
+
+    fn fib_with(ccp: [u32; 7]) -> DocFib {
+        DocFib {
+            w_ident: FIB_MAGIC,
+            n_fib: 0x00C1,
+            n_product: 0,
+            lid: 0x0409,
+            pn_next: 0,
+            flags: 0,
+            n_fib_back: 0x00C1,
+            l_key: 0,
+            envr: 0,
+            flags2: 0,
+            fc_min: 0,
+            fc_mac: 0,
+            cb_mac: 0,
+            ccp_text: ccp[0],
+            ccp_ftn: ccp[1],
+            ccp_hdd: ccp[2],
+            ccp_atn: ccp[3],
+            ccp_edn: ccp[4],
+            ccp_txbx: ccp[5],
+            ccp_hdr_txbx: ccp[6],
+            fc_clx: 0,
+            lcb_clx: 0,
+            csw: 14,
+            cslw: 22,
+            cb_rg_fc_lcb: 93,
+        }
+    }
+
+    #[test]
+    fn section_names_and_lookup_are_stable() {
+        assert_eq!(DocSection::ALL.len(), 7);
+        assert_eq!(DocSection::Main.name(), "main");
+        assert_eq!(DocSection::Footnote.name(), "footnote");
+        assert_eq!(DocSection::Header.name(), "header");
+        assert_eq!(DocSection::Annotation.name(), "annotation");
+        assert_eq!(DocSection::Endnote.name(), "endnote");
+        assert_eq!(DocSection::Textbox.name(), "textbox");
+        assert_eq!(DocSection::HdrTextbox.name(), "hdrtextbox");
+        assert_eq!(DocSection::from_name("endnote"), Some(DocSection::Endnote));
+        assert_eq!(DocSection::from_name("nope"), None);
+        assert_eq!(DocSection::Main.fib_field(), "ccpText");
+        assert_eq!(DocSection::HdrTextbox.fib_field(), "ccpHdrTxbx");
+    }
+
+    #[test]
+    fn section_ranges_are_cumulative_and_empty_is_zero_length() {
+        let fib = fib_with([6, 4, 3, 3, 3, 3, 2]);
+        assert_eq!(fib.total_cp(), 24);
+        for (s, want) in [
+            (DocSection::Main, (0, 6)),
+            (DocSection::Footnote, (6, 10)),
+            (DocSection::Header, (10, 13)),
+            (DocSection::Annotation, (13, 16)),
+            (DocSection::Endnote, (16, 19)),
+            (DocSection::Textbox, (19, 22)),
+            (DocSection::HdrTextbox, (22, 24)),
+        ] {
+            assert_eq!(fib.section_range(s), want, "{}", s.name());
+        }
+        // A zero-count section is a zero-length range, not an error.
+        let empty = fib_with([6, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(empty.section_range(DocSection::Footnote), (6, 6));
+        assert_eq!(empty.section_range(DocSection::HdrTextbox), (6, 6));
     }
 
     #[test]

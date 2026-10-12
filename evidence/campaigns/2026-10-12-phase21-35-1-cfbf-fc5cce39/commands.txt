@@ -1,0 +1,14 @@
+docker compose run --rm --no-TTY dev sh tools/phase21-35-1-cfbf-court.sh
+# inside the court:
+#   cargo build --locked --all-features
+#   cargo run --locked --all-features --example cfbf_fixtures -- CORPUS
+#   target/debug/vole-document field-build FIXTURE --store STORE --voldoc F.voldoc
+#   target/debug/vole-document observe --store STORE --field HEX (--metadata|--doc-text|--cfbf-dialect|--cfbf-entry 0|--cfbf-stream 2|--cfbf-find PAT) --kind metadata|text|exact
+#   rm source F.voldoc
+#   target/debug/vole-document materialize --store STORE --field HEX --exact --output OUT ; cmp OUT source
+# Full gate (dev service):
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features   (use CARGO_PROFILE_TEST_DEBUG=0 if the all-features link OOM-kills)
+#   cargo test --locked --features cfbf
+#   MSRV: docker compose run --rm --no-TTY msrv cargo build --locked --all-features

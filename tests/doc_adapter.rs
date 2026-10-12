@@ -11,10 +11,13 @@
 //!    compound file → `Cfbf`; prose → `Opaque`.
 //! 2. **Representation preservation**: the FIB fields, the piece table (a mix of
 //!    compressed and uncompressed pieces), each piece's exact `WordDocument`-stream
-//!    byte span and compressed flag, and the decoded main text — in both a `0Table`
-//!    and a `1Table` variant (the flag is exercised by a decoy in the other table).
-//! 3. **Selectors**: native `doc-fib`/`doc-piece`/`doc-text`/`doc-find` plus common
-//!    `metadata`/`text`/`search-match`.
+//!    byte span and compressed flag, the decoded main text, and the **sectioned**
+//!    footnote/header/annotation/endnote/textbox/hdrtextbox text with pieces that cross
+//!    section boundaries (each clipped piece's exact span, flag, and decoded text) — in
+//!    both a `0Table` and a `1Table` variant (the flag is exercised by a decoy in the
+//!    other table).
+//! 3. **Selectors**: native `doc-fib`/`doc-piece`/`doc-text`/`doc-section`/`doc-find`
+//!    plus common `metadata`/`text`/`search-match`.
 //! 4. **Exactness**: `materialize(field) == original_bytes` (len + SHA-256 + cmp),
 //!    including after the source and the descriptor are deleted.
 //! 5. **Fail closed**: malformed inputs decline typed (bad `wIdent`, out-of-range
@@ -27,6 +30,7 @@
 
 use std::path::PathBuf;
 
+use vole_document::adapter::doc::DocSection;
 use vole_document::container::{Descriptor, ObjectSource};
 use vole_document::dra::{Op, Program};
 use vole_document::error::ErrorClass;
@@ -133,8 +137,7 @@ struct Piece {
 struct Layout {
     text: Vec<u8>,
     pieces: Vec<Piece>,
-    ccp_text: u32,
-    ccp_ftn: u32,
+    ccp: [u32; 7],
 }
 
 fn standard_layout() -> Layout {
@@ -166,9 +169,66 @@ fn standard_layout() -> Layout {
     Layout {
         text,
         pieces,
-        ccp_text,
-        ccp_ftn,
+        ccp: [ccp_text, ccp_ftn, 0, 0, 0, 0, 0],
     }
+}
+
+/// The seven CP sections' character counts for the all-sections fixture:
+/// main 6, footnote 4, header 3, annotation 3, endnote 3, textbox 3, hdrtextbox 0.
+const SECTIONS_CCP: [u32; 7] = [6, 4, 3, 3, 3, 3, 0];
+
+/// The pieces of the all-sections fixture: `(bytes, cp_len, compressed)`, in piece
+/// order. Piece 1 (`BBF1`) is uncompressed and crosses the main/footnote boundary;
+/// pieces 2 and 3 cross the footnote/header and header/annotation boundaries.
+fn section_piece_specs() -> Vec<(Vec<u8>, u32, bool)> {
+    let utf16: Vec<u8> = "BBF1"
+        .encode_utf16()
+        .flat_map(|u| u.to_le_bytes())
+        .collect();
+    vec![
+        (b"AAAB".to_vec(), 4, true),
+        (utf16, 4, false),
+        (b"F2H".to_vec(), 3, true),
+        (b"DRC".to_vec(), 3, true),
+        (b"MT".to_vec(), 2, true),
+        (b"END".to_vec(), 3, true),
+        (b"TBX".to_vec(), 3, true),
+    ]
+}
+
+/// A valid `.doc` whose piece table covers every CP section, with pieces that cross
+/// section boundaries.
+fn build_sections_doc() -> Vec<u8> {
+    let mut text = Vec::new();
+    let mut pieces = Vec::new();
+    let mut base = TEXT_OFF as u32;
+    for (bytes, cp_len, compressed) in section_piece_specs() {
+        let fc = base;
+        base += bytes.len() as u32;
+        text.extend_from_slice(&bytes);
+        pieces.push(Piece {
+            cp_len,
+            compressed,
+            fc,
+        });
+    }
+    let clx_bytes = clx(&pieces, false);
+    let wd = build_word_document(
+        FIB_MAGIC,
+        NFIB_WORD97,
+        false,
+        CLX_OFF,
+        clx_bytes.len() as u32,
+        SECTIONS_CCP,
+        &text,
+    );
+    let mut real_table = vec![0u8; CLX_OFF as usize];
+    real_table.extend_from_slice(&clx_bytes);
+    build_cfbf(&[
+        ("WordDocument", wd),
+        ("0Table", real_table.clone()),
+        ("1Table", real_table),
+    ])
 }
 
 fn clx(pieces: &[Piece], break_monotonic: bool) -> Vec<u8> {
@@ -262,8 +322,7 @@ fn build(kind: Kind, table_1: bool) -> Vec<u8> {
         table_1,
         fc_clx,
         clx_bytes.len() as u32,
-        l.ccp_text,
-        l.ccp_ftn,
+        l.ccp,
         &l.text,
     );
     if kind == Kind::FcminRange {
@@ -285,8 +344,7 @@ fn build_word_document(
     table_1: bool,
     fc_clx: u32,
     lcb_clx: u32,
-    ccp_text: u32,
-    ccp_ftn: u32,
+    ccp: [u32; 7],
     text: &[u8],
 ) -> Vec<u8> {
     let mut wd = vec![0u8; FIB_LEN];
@@ -306,8 +364,19 @@ fn build_word_document(
     wd[62..64].copy_from_slice(&22u16.to_le_bytes()); // cslw
     let rl = 64usize;
     wd[rl..rl + 4].copy_from_slice(&((TEXT_OFF + text.len()) as u32).to_le_bytes());
-    wd[rl + 12..rl + 16].copy_from_slice(&ccp_text.to_le_bytes());
-    wd[rl + 16..rl + 20].copy_from_slice(&ccp_ftn.to_le_bytes());
+    // fibRgLw97 section counts: ccpText, ccpFtn, ccpHdd, (reserved3), ccpAtn, ccpEdn,
+    // ccpTxbx, ccpHdrTxbx.
+    for (delta, v) in [
+        (12usize, ccp[0]),
+        (16, ccp[1]),
+        (20, ccp[2]),
+        (28, ccp[3]),
+        (32, ccp[4]),
+        (36, ccp[5]),
+        (40, ccp[6]),
+    ] {
+        wd[rl + delta..rl + delta + 4].copy_from_slice(&v.to_le_bytes());
+    }
     wd[152..154].copy_from_slice(&93u16.to_le_bytes()); // cbRgFcLcb
     wd[418..422].copy_from_slice(&fc_clx.to_le_bytes()); // fcClx (pair 33)
     wd[422..426].copy_from_slice(&lcb_clx.to_le_bytes());
@@ -798,6 +867,232 @@ fn fib_pieces_spans_and_text_are_preserved() {
 }
 
 #[test]
+fn sectioned_answers_preserve_ranges_pieces_and_text() {
+    let src = build_sections_doc();
+    let mut fx = Fixture::new("sections", &src);
+    let field = fx.report.field;
+
+    // The main-text answer is unchanged: exactly the first section's text, and it
+    // agrees with the native `doc-text` selector and the `main` section answer.
+    let main = answer_text(&observe_ok(
+        &mut fx.store,
+        &field,
+        Selector::Text,
+        Representation::Text,
+    ));
+    assert_eq!(main, "AAABBB");
+    assert_eq!(
+        answer_text(&observe_ok(
+            &mut fx.store,
+            &field,
+            Selector::DocText,
+            Representation::Text,
+        )),
+        main
+    );
+    assert_eq!(
+        answer_text(&observe_ok(
+            &mut fx.store,
+            &field,
+            Selector::DocSection {
+                section: DocSection::Main
+            },
+            Representation::Text,
+        )),
+        main
+    );
+
+    // Per section: the CP range, the ordered clipped pieces (piece index, clipped CP
+    // range, compressed flag, exact WordDocument-stream byte span, decoded text), and
+    // the concatenated decoded text. `span` is relative to the WordDocument stream.
+    #[allow(clippy::type_complexity)]
+    let cases: [(
+        &str,
+        u32,
+        u32,
+        &[(u32, u32, u32, bool, u64, u64, &str)],
+        &str,
+    ); 6] = [
+        (
+            "main",
+            0,
+            6,
+            &[
+                (0, 0, 4, true, 898, 902, "AAAB"),
+                (1, 4, 6, false, 902, 906, "BB"),
+            ],
+            "AAABBB",
+        ),
+        (
+            "footnote",
+            6,
+            10,
+            &[
+                (1, 6, 8, false, 906, 910, "F1"),
+                (2, 8, 10, true, 910, 912, "F2"),
+            ],
+            "F1F2",
+        ),
+        (
+            "header",
+            10,
+            13,
+            &[
+                (2, 10, 11, true, 912, 913, "H"),
+                (3, 11, 13, true, 913, 915, "DR"),
+            ],
+            "HDR",
+        ),
+        (
+            "annotation",
+            13,
+            16,
+            &[
+                (3, 13, 14, true, 915, 916, "C"),
+                (4, 14, 16, true, 916, 918, "MT"),
+            ],
+            "CMT",
+        ),
+        (
+            "endnote",
+            16,
+            19,
+            &[(5, 16, 19, true, 918, 921, "END")],
+            "END",
+        ),
+        (
+            "textbox",
+            19,
+            22,
+            &[(6, 19, 22, true, 921, 924, "TBX")],
+            "TBX",
+        ),
+    ];
+    for (name, cp_start, cp_end, want_pieces, want_text) in cases {
+        let section = DocSection::from_name(name).expect("known section");
+        let answer = observe_ok(
+            &mut fx.store,
+            &field,
+            Selector::DocSection { section },
+            Representation::Metadata,
+        );
+        assert!(
+            answer.provenance.contains(&format!("section={name}")),
+            "{name}"
+        );
+        let json = answer_json(&answer);
+        assert!(json.contains("\"format\":\"doc\""), "{name}: {json}");
+        assert!(
+            json.contains(&format!("\"section\":\"{name}\"")),
+            "{name}: {json}"
+        );
+        assert!(
+            json.contains(&format!("\"cp_start\":{cp_start},\"cp_end\":{cp_end}")),
+            "{name}: {json}"
+        );
+        assert!(json.contains("\"empty\":false"), "{name}: {json}");
+        assert!(
+            json.contains(&format!("\"pieces\":{}", want_pieces.len())),
+            "{name}: {json}"
+        );
+        assert!(
+            json.contains(&format!("\"text\":\"{want_text}\"")),
+            "{name}: {json}"
+        );
+        for (piece, ps, pe, comp, sp0, sp1, ptext) in want_pieces {
+            let frag = format!(
+                "{{\"piece\":{piece},\"cp_start\":{ps},\"cp_end\":{pe},\"compressed\":{comp},\"units\":{},\"span\":[{sp0},{sp1}]",
+                pe - ps
+            );
+            assert!(json.contains(&frag), "{name}: missing {frag} in {json}");
+            assert!(
+                json.contains(&format!("\"text\":\"{ptext}\"}}")),
+                "{name}: missing piece text {ptext} in {json}"
+            );
+        }
+        // The `Text` representation is the section's concatenated decoded text.
+        assert_eq!(
+            answer_text(&observe_ok(
+                &mut fx.store,
+                &field,
+                Selector::DocSection { section },
+                Representation::Text,
+            )),
+            want_text,
+            "{name}"
+        );
+        // The `Structure` representation carries the same section descriptor.
+        let structure = answer_json(&observe_ok(
+            &mut fx.store,
+            &field,
+            Selector::DocSection { section },
+            Representation::Structure,
+        ));
+        assert!(
+            structure.contains(&format!("\"cp_start\":{cp_start},\"cp_end\":{cp_end}")),
+            "{name}: {structure}"
+        );
+    }
+
+    // A section whose `ccp*` count is zero is a typed **empty** answer: not an error,
+    // not an unsupported feature, and with an empty decoded text.
+    let empty = observe_ok(
+        &mut fx.store,
+        &field,
+        Selector::DocSection {
+            section: DocSection::HdrTextbox,
+        },
+        Representation::Metadata,
+    );
+    let empty_json = answer_json(&empty);
+    assert!(
+        empty_json.contains("\"section\":\"hdrtextbox\""),
+        "{empty_json}"
+    );
+    assert!(
+        empty_json.contains("\"cp_start\":22,\"cp_end\":22"),
+        "{empty_json}"
+    );
+    assert!(empty_json.contains("\"empty\":true"), "{empty_json}");
+    assert!(empty_json.contains("\"pieces\":0"), "{empty_json}");
+    assert!(empty_json.contains("\"text\":\"\""), "{empty_json}");
+    assert_eq!(
+        answer_text(&observe_ok(
+            &mut fx.store,
+            &field,
+            Selector::DocSection {
+                section: DocSection::HdrTextbox
+            },
+            Representation::Text,
+        )),
+        ""
+    );
+
+    // A section with an unknown name never resolves.
+    assert!(DocSection::from_name("bogus").is_none());
+
+    // The existing `doc-piece` answers are unchanged: piece 1 is the uncompressed
+    // `BBF1` crossing the main/footnote boundary.
+    let p1 = answer_json(&observe_ok(
+        &mut fx.store,
+        &field,
+        Selector::DocPiece { index: 1 },
+        Representation::Metadata,
+    ));
+    assert!(p1.contains("\"compressed\":false"), "{p1}");
+    assert!(p1.contains("\"units\":4"), "{p1}");
+    assert_eq!(
+        answer_text(&observe_ok(
+            &mut fx.store,
+            &field,
+            Selector::DocPiece { index: 1 },
+            Representation::Text,
+        )),
+        "BBF1"
+    );
+}
+
+#[test]
 fn malformed_inputs_decline_typed() {
     // An out-of-range `fcClx`: detects as `doc`, declines on parse.
     for (kind, label) in [
@@ -882,26 +1177,32 @@ fn removal_then_fresh_process_is_queryable_and_exact() {
 fn doc_model_node_depends_on_the_exact_root() {
     // ADR-0060: the derived DOC model reads the source bytes, so its single
     // dependency must be the exact `DocumentExact` root (keyed by `sha256(source)`).
-    let source = build(Kind::Valid, false);
-    let fx = Fixture::new("adr0060", &source);
-    let field = Field::open(&fx.store, &fx.report.field, Limits::DEFAULT).unwrap();
-    let manifest = field.manifest().clone();
-    let root = manifest.root_node;
-    let root_node = load_node(fx.store.seeds(), &root).unwrap();
-    assert_eq!(root_node.kind, NodeKind::DocumentExact);
+    // The sectioned answers are derived from that same node, so the invariant must
+    // hold for both the ordinary and the all-sections fixtures.
+    for (label, source) in [
+        ("adr0060-valid", build(Kind::Valid, false)),
+        ("adr0060-sections", build_sections_doc()),
+    ] {
+        let fx = Fixture::new(label, &source);
+        let field = Field::open(&fx.store, &fx.report.field, Limits::DEFAULT).unwrap();
+        let manifest = field.manifest().clone();
+        let root = manifest.root_node;
+        let root_node = load_node(fx.store.seeds(), &root).unwrap();
+        assert_eq!(root_node.kind, NodeKind::DocumentExact, "{label}");
 
-    assert!(manifest.has_index());
-    let istore = FsIndexStore::open(fx.store.root()).unwrap();
-    let iroot = NodeId::from_bytes(manifest.index_root);
-    let entries = lookup(&istore, &iroot, &SelectorKey::new(SEL_DOC_MODEL, 0)).unwrap();
-    assert_eq!(entries.len(), 1);
-    let model = load_node(fx.store.seeds(), &entries[0].node_id).unwrap();
-    assert_eq!(model.kind, NodeKind::DocModel);
-    assert_eq!(
-        model.deps,
-        vec![root],
-        "the doc model must depend on exactly the exact root"
-    );
+        assert!(manifest.has_index(), "{label}");
+        let istore = FsIndexStore::open(fx.store.root()).unwrap();
+        let iroot = NodeId::from_bytes(manifest.index_root);
+        let entries = lookup(&istore, &iroot, &SelectorKey::new(SEL_DOC_MODEL, 0)).unwrap();
+        assert_eq!(entries.len(), 1, "{label}");
+        let model = load_node(fx.store.seeds(), &entries[0].node_id).unwrap();
+        assert_eq!(model.kind, NodeKind::DocModel, "{label}");
+        assert_eq!(
+            model.deps,
+            vec![root],
+            "{label}: the doc model must depend on exactly the exact root"
+        );
+    }
 }
 
 #[test]

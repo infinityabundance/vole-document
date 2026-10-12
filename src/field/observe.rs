@@ -111,8 +111,10 @@ use crate::adapter::csv::{
 };
 #[cfg(feature = "doc")]
 use crate::adapter::doc::{
-    DocModel, DocPiece, canonical_text as doc_canonical_text, field_name as doc_field_name,
-    find as doc_find_matches, piece_bytes as doc_piece_bytes, piece_text as doc_piece_text,
+    DocModel, DocPiece, DocSection, canonical_text as doc_canonical_text,
+    field_name as doc_field_name, find as doc_find_matches, piece_bytes as doc_piece_bytes,
+    piece_text as doc_piece_text, section_piece_source_span as doc_section_piece_source_span,
+    section_piece_text as doc_section_piece_text, section_pieces as doc_section_pieces,
     version_name as doc_version_name,
 };
 #[cfg(feature = "docx")]
@@ -2127,6 +2129,19 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// One CP section of a legacy Word 97–2003 (`.doc`, MS-DOC) source (Phase 27.1):
+    /// `main`, `footnote`, `header`, `annotation`, `endnote`, `textbox`, or
+    /// `hdrtextbox`. The section's CP range is the cumulative `ccp*` span over the
+    /// piece table; `Text` returns its concatenated decoded text and `Metadata`/
+    /// `Structure` a descriptor with the CP range and the ordered, span-clipped pieces
+    /// that fall in it (each with its exact `WordDocument` byte span, compressed flag,
+    /// and decoded text). A section whose `ccp*` count is zero is a typed **empty**
+    /// answer, never an error.
+    #[cfg(feature = "doc")]
+    DocSection {
+        /// The CP section to materialize.
+        section: DocSection,
+    },
     /// The legacy Excel 97–2003 (`.xls`, BIFF8) BIFF header (Phase 26.2): the BIFF
     /// version with its name, the `Workbook`/`Book` stream selection, the root substream
     /// type, the record count, and the exact stream span. `Text` returns the BIFF
@@ -2895,6 +2910,8 @@ impl Selector {
             Selector::DocText => "doc-text".to_string(),
             #[cfg(feature = "doc")]
             Selector::DocFind { pattern } => format!("doc-find:{pattern}"),
+            #[cfg(feature = "doc")]
+            Selector::DocSection { section } => format!("doc-section:{}", section.name()),
             #[cfg(feature = "xls")]
             Selector::XlsBiff => "xls-biff".to_string(),
             #[cfg(feature = "xls")]
@@ -5324,6 +5341,10 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "doc")]
             (Selector::DocFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.doc_find(req, pattern)
+            }
+            #[cfg(feature = "doc")]
+            (Selector::DocSection { section }, R::Text | R::Metadata | R::Structure) => {
+                self.doc_section(req, *section)
             }
             #[cfg(feature = "xls")]
             (Selector::XlsBiff, R::Text | R::Metadata | R::Structure) => self.xls_biff(req),
@@ -15363,6 +15384,113 @@ impl<S: SeedStore> Ctx<'_, S> {
             out.join(",")
         ));
         Ok(self.doc_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    /// One CP section (Phase 27.1): the concatenation of the clipped piece texts over
+    /// the section's cumulative `ccp*` CP range. A zero-length section is a typed
+    /// **empty** answer, never an error.
+    fn doc_section(&mut self, req: &ObserveRequest, section: DocSection) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (_, root) = self.doc_source()?;
+        let (cp_start, cp_end) = model.fib.section_range(section);
+        let pieces = doc_section_pieces(&model, section);
+        let empty = cp_start >= cp_end;
+        let mut units: Vec<u16> = Vec::new();
+        for p in &pieces {
+            units.extend_from_slice(&p.text);
+        }
+        let text = String::from_utf16_lossy(&units);
+        // A section answer is only derived text; the budget bounds it like the main text.
+        let span = if empty { None } else { Some(model.wd_span) };
+        if req.representation == Representation::Text {
+            if text.len() as u64 > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "doc section text exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            let provenance = format!(
+                "doc;section={};cp={cp_start}:{cp_end};pieces={};empty={empty}",
+                section.name(),
+                pieces.len()
+            );
+            return Ok(self.doc_answer(
+                req,
+                AnswerValue::Text(text),
+                provenance,
+                span,
+                vec![model_id, root],
+            ));
+        }
+        let json =
+            Self::doc_section_json(&model, section, &pieces, &text, (cp_start, cp_end), empty);
+        if json.len() as u64 > req.budget.max_output_bytes {
+            return Err(Error::resource_limit(format!(
+                "doc section descriptor exceeded the {}-byte budget",
+                req.budget.max_output_bytes
+            )));
+        }
+        let provenance = format!(
+            "doc;section={};cp={cp_start}:{cp_end};pieces={};empty={empty}",
+            section.name(),
+            pieces.len()
+        );
+        Ok(self.doc_answer(
+            req,
+            AnswerValue::Json(json),
+            provenance,
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A section descriptor: the section name and FIB field, its CP range, the ordered
+    /// clipped pieces (piece index, clipped CP range, compressed flag, exact
+    /// `WordDocument`-stream byte span, decoded text), and the concatenated text.
+    fn doc_section_json(
+        model: &DocModel,
+        section: DocSection,
+        pieces: &[crate::adapter::doc::DocSectionPiece],
+        text: &str,
+        cps: (u64, u64),
+        empty: bool,
+    ) -> String {
+        let mut ps: Vec<String> = Vec::with_capacity(pieces.len());
+        for p in pieces {
+            let doc_span = doc_section_piece_source_span(model, p);
+            ps.push(format!(
+                concat!(
+                    "{{\"piece\":{},\"cp_start\":{},\"cp_end\":{},\"compressed\":{},",
+                    "\"units\":{},\"span\":[{},{}],\"doc_span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                p.piece,
+                p.cp_start,
+                p.cp_end,
+                p.compressed,
+                p.text.len(),
+                p.span.0,
+                p.span.1,
+                doc_span.0,
+                doc_span.1,
+                json_escape(&doc_section_piece_text(p)),
+            ));
+        }
+        format!(
+            concat!(
+                "{{\"format\":\"doc\",\"section\":\"{}\",\"fib_field\":\"{}\",",
+                "\"cp_start\":{},\"cp_end\":{},\"empty\":{},\"pieces\":{},",
+                "\"text_units\":{},\"text\":\"{}\",\"section_pieces\":[{}]}}"
+            ),
+            section.name(),
+            section.fib_field(),
+            cps.0,
+            cps.1,
+            empty,
+            pieces.len(),
+            text.encode_utf16().count(),
+            json_escape(text),
+            ps.join(","),
+        )
     }
 
     // -- common -----------------------------------------------------------------

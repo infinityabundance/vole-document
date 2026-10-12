@@ -167,6 +167,8 @@ const USAGE_FIELD: &str = "\
         --ppt-find PATTERN | --ppt-text |
         --msg-summary | --msg-property N | --msg-recipient N | --msg-attachment N |
         --msg-find PATTERN | --msg-text |
+        --doc-fib | --doc-piece N | --doc-body |
+        --doc-section NAME | --doc-find PATTERN |
         --eml-find PATTERN |
         --parquet-schema | --parquet-column N | --parquet-row-group N |
         --parquet-cell R:C |
@@ -2173,6 +2175,11 @@ struct FieldArgs {
     /// text (Phase 26.1).
     #[cfg(feature = "doc")]
     doc_find: Option<String>,
+    /// `--doc-section NAME`: one legacy Word 97–2003 (`.doc`) CP section's text — one of
+    /// `main`/`footnote`/`header`/`annotation`/`endnote`/`textbox`/`hdrtextbox` (Phase
+    /// 27.1). A zero-count section is a typed empty answer.
+    #[cfg(feature = "doc")]
+    doc_section: Option<String>,
     /// `--xls-biff`: the legacy Excel 97–2003 (`.xls`) BIFF header — the version, the
     /// `Workbook`/`Book` stream selection, the root substream type, the record count,
     /// and the exact stream span (Phase 26.2).
@@ -3394,6 +3401,10 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "doc")]
             "--doc-find" => {
                 out.doc_find = Some(field_arg_value(args, &mut i, "--doc-find", inline)?);
+            }
+            #[cfg(feature = "doc")]
+            "--doc-section" => {
+                out.doc_section = Some(field_arg_value(args, &mut i, "--doc-section", inline)?);
             }
             #[cfg(feature = "xls")]
             "--xls-biff" => {
@@ -4629,7 +4640,8 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
     }
     // Legacy Word 97–2003 (`.doc`, MS-DOC): `--doc-fib` the FIB; `--doc-piece N` a piece
     // by 0-based index; `--doc-body` the native document text (canonical `doc-text`);
-    // `--doc-find` a lexical search. Each stands alone (Phase 26.1).
+    // `--doc-section NAME` one CP section's text; `--doc-find` a lexical search. Each
+    // stands alone (Phase 26.1 / 27.1).
     #[cfg(feature = "doc")]
     {
         if out.doc_fib {
@@ -4640,6 +4652,16 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
         }
         if out.doc_body {
             chosen.push(Selector::DocText);
+        }
+        if let Some(name) = &out.doc_section {
+            let section =
+                vole_document::adapter::doc::DocSection::from_name(name).ok_or_else(|| {
+                    Error::usage(format!(
+                        "unknown --doc-section {name:?}; expected one of main, footnote, \
+                         header, annotation, endnote, textbox, hdrtextbox"
+                    ))
+                })?;
+            chosen.push(Selector::DocSection { section });
         }
         if let Some(pattern) = &out.doc_find {
             chosen.push(Selector::DocFind {

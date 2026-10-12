@@ -1,0 +1,19 @@
+{
+  "campaign": "evidence/campaigns/2026-10-12-phase26-1-1-doc-fc5cce39",
+  "phase": "26.1.1 — legacy Word 97–2003 (.doc, MS-DOC) semantic surface + exact closure on the CFBF/OLE2 physical layer",
+  "utc": "2026-10-12T08:50:59Z",
+  "git_commit": "fc5cce397da7403d4bd43163da9823694eb2a658",
+  "git_dirty": " M examples/doc_fixtures.rs  M src/adapter/doc.rs  M src/field/capabilities.rs  M src/field/observe.rs  M src/field/plan.rs  M src/main.rs  M tests/doc_adapter.rs ?? evidence/campaigns/2026-10-12-phase26-1-1-doc-fc5cce39/ ?? evidence/campaigns/2026-10-12-phase27-1-1-doc-section-fc5cce39/ ?? tools/phase27-1-1-doc-section-court.sh ",
+  "arch": "x86_64",
+  "service": "dev",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "10514d8d8b124d76a66c7fe517381d9c4fc76fe635981bc5b9961939f568198a",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "fe34f8700064e814c1b49d62e8555cfb0269a50561705ff9531ec5348bee6293",
+  "profile": "debug",
+  "fixtures_tool": "examples/doc_fixtures.rs (dependency-free .doc/CFBF writer; no python3, no Word/LibreOffice/wvWare, no external OLE tooling)",
+  "external_oracles": "none (the DOC model is validated internally; no external Word parser is invoked)",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}
