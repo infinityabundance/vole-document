@@ -1,6 +1,7 @@
 # Phase 27 — Legacy depth, detection hardening, legacy economics, Arrow streams
 
-> **Status:** planned (frozen contract below). Branch `phase27`.
+> **Status:** shipped (frozen contract below). Branch `phase27`. Results:
+> [phase-27-results.md](phase-27-results.md).
 > Phase 26 delivered the legacy Office/MSG **semantic models**, the stratified
 > real-world **population v2**, and the **pyarrow** Arrow lane — and, in doing so,
 > recorded four honest limitations. Phase 27 closes them. Same rule as every

@@ -2,6 +2,72 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.37] — Phase 27: legacy depth, detection hardening, legacy economics, Arrow streams — *unreleased*
+
+- **27.1 — legacy Word 97–2003 (`.doc`, MS-DOC) depth: the sectioned surface.**
+  The single contiguous CP space of the piece table is partitioned by the
+  cumulative FIB `ccp*` counts into **seven sections**, each a separate
+  span-preserving (`Q_gen`) answer via **`--doc-section`**: `main` (`ccpText`),
+  `footnote` (`ccpFtn`), `header` (`ccpHdd`), `annotation` (`ccpAtn`), `endnote`
+  (`ccpEdn`), `textbox` (`ccpTxbx`), `hdrtextbox` (`ccpHdrTxbx`). Each answer
+  carries the section name and its FIB `ccp*` field, its CP range, the ordered
+  pieces clipped to it (piece index, clipped CP range, exact `WordDocument`-stream
+  byte span, compressed flag, decoded text), and the concatenated text; a
+  boundary-crossing piece is clipped in every section it overlaps, and a
+  zero-count section is a typed **empty** answer. Native `doc-section`;
+  `doc-fib`/`doc-piece`/`doc-text`/`doc-find` and the main text are unchanged.
+  Adapter-court H1 **3/3** exact, 4 structural declines (`InvalidDocStructure` 52),
+  3 CFBF + 1 opaque control, 7/7 sections and 10/10 clipped boundary pieces.
+  `2026-10-12-phase27-1-1-doc-section-fc5cce39`.
+- **27.2 — legacy PowerPoint 97–2003 (`.ppt`, MS-PPT) depth: the list surface.**
+  Every `SlideListWithText` container (`recType 4080`) is materialized by
+  `recInstance` — `slides` (0), `masters` (1), `notes` (2), `handout` (3) — as a
+  separate typed answer via **`--ppt-list`**, with the exact container span, the
+  ordered `SlidePersistAtom` entries, and each entry's ordered
+  `TextCharsAtom`/`TextBytesAtom` runs (exact spans + decoded text); an absent or
+  empty list is a typed **empty** answer. The derived `PptModel` wire **version is
+  2** (the list arena is the source of truth; the slides projection is derived).
+  H1 **2/2** exact, 6 declines (`InvalidPptStructure` 54, incl. a malformed
+  auxiliary list), 2 CFBF + 1 opaque. `2026-10-12-phase27-2-1-ppt-lists-64626a39`.
+- **27.3 — detection hardening.** The stratified real-world population **v2 court**
+  was re-run and re-sealed: findings **32 → 25** (−7), detection agreements
+  **257 → 264**, every sample still **308/308 byte-exact**. The 7 fixes' real root
+  cause was **fragmented CFBF sector chains** (not the variant gap first recorded):
+  the PPT/XLS detectors now read a stream's **header prefix**
+  (`cfbf::stream_leading`; 3 POI `.ppt` + 1 POI `.xls`), the XLS detector matches
+  `Workbook`/`Book` **ASCII-case-insensitively** (1 `.xls`), and the GIS detector
+  claims **GPX 1.0** and a **namespace-less `<kml>`** (2). Regression tests in
+  (`tests/legacy_cfbf_detection.rs` and `gis_adapter`). The other **25 were recorded**
+  with reasons — the 4 bare Arrow streams explicitly **deferred to 27.5** (which then
+  fixed them), the rest typed declines / detector-precedence misclassifications
+  (`tools/realcorpus/findings-v2-reconciliation.tsv`); the final state is **21**.
+- **27.4 — legacy economic courts (doc/xls/ppt/msg).** Lane **B** is a
+  source-retaining SQLite store (byte authority); Lane **C** is
+  **`comparator_absent`** — legacy binary Office/MS-OXMSG has no faithful
+  pure-Python/stdlib decoder, so Lane C records a typed `comparator_absent` decline
+  per question rather than a fabricated answer. VOLE Q6 exactness
+  **7/7 · 5/5 · 5/5 · 4/4**; VOLE builds cheaper than the byte store (paired medians
+  0.79/0.55/0.74/0.80×) and is far cheaper cold/warm, but carries **~1.19–1.44×** the
+  storage of a bytes-only store; cold is Python-startup-dominated; the fixture
+  counts are small (n=1–3) so the bootstrap CIs are degenerate. This **closes the
+  Phase-26 scope note** that recorded no separate legacy economic court.
+  `2026-10-12-phase27-4-{doc,xls,ppt,msg}-econ-58f7572f`.
+- **27.5 — Arrow IPC stream detection.** The Arrow detector now claims the bare,
+  **magic-less** encapsulated-message **stream** framing (a continuation-marked
+  `Schema` message first, then well-formed `RecordBatch`/`DictionaryBatch`
+  messages, ending in an end-of-stream marker) in addition to the file format
+  (`ARROW1` + footer) and the historical magic+padding-prefixed stream; the ordered
+  message inventory carries exact byte spans, contiguous from offset 0 and covering
+  the whole source. The **legacy pre-0.15 no-continuation** framing is deliberately
+  declined. A **spec-conformant** magic-less stream fixture was added
+  (`tools/fixtures/arrow/stream.arrow`). Court exactness **2/2** (5/5 near-miss
+  `Opaque` controls); the stratified-v2 court then dropped **25 → 21** findings
+  (**264 → 268** agreements), still **308/308 byte-exact**. Regression tests
+  `arrow_adapter::stream_framing_is_detected_and_messages_are_ordered_and_exact`,
+  `arrow_adapter::stream_near_misses_decline_to_opaque`.
+  `2026-10-12-phase27-5-1-arrow-stream-efb51887`;
+  `2026-10-12-realformats-stratified-v2-efb51887`.
+
 ## [0.1.0-alpha.36] — Phase 26: legacy Office/MSG semantics, real-world scale, and the Arrow comparator — *unreleased*
 
 - **26.1 — legacy Word 97–2003 (`.doc`, MS-DOC) semantic model.** Non-default

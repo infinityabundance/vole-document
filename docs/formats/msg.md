@@ -32,6 +32,15 @@ typed if that stream is not a well-formed message property list. So:
 - prose stays `Opaque`;
 - `.docx`/`.xlsx`/`.pptx` are OPC ZIPs and never reach the CFBF detector at all.
 
+**Detection hardening (Phase 27.3, shared CFBF layer).** The MSG boundary itself
+is **name-based** on the root storage and is unchanged. The Phase 27.3 hardening
+touched the sibling legacy detectors over the shared CFBF physical layer: the DOC/
+XLS/PPT detectors now read only a stream's **header prefix**
+(`cfbf::stream_leading`), so a **fragmented** CFBF sector chain still detects, and
+the XLS detector matches the `Workbook`/`Book` stream name ASCII-case-insensitively.
+MSG needs neither (its anchor is the root-storage stream name, not a stream
+prefix), and all six real `.msg` samples were already detected as `msg`.
+
 ## Native inverse representation
 
 A bounded MS-OXMSG subset:
@@ -78,10 +87,16 @@ including those the adapter declines to interpret natively, and after the source
 
 ## Honest negatives
 
-- **No separate economic court.** There is no faithful conventional decoder for
-  legacy MS-OXMSG, so — exactly as for HDF5/CFBF — an economic comparison would be
-  `comparator_absent`. The validation is the adapter court plus the stratified
-  real-world population (Phase 26.5), not an economic court.
+- **Economic court (Phase 27.4).** A separate economic court now exists: a
+  source-retaining SQLite lane (**Lane B**, byte authority) is the single
+  substantive comparator, and the conventional decode-to-host-values lane
+  (**Lane C**) is `comparator_absent` — there is no faithful pure-Python/stdlib
+  decoder for legacy MS-OXMSG, so every Lane-C question is a recorded typed
+  decline rather than a fabricated answer. VOLE exactness (Q6) is **4/4**
+  byte-exact; VOLE builds cheaper than the byte store (paired median **0.803×**)
+  and is far cheaper cold/warm, but carries **~1.21×** the storage of a bytes-only
+  store; cold is Python-startup-dominated and the single-fixture CIs are
+  degenerate. Only Q6 is a byte-authority claim.
 - **Not claimed:** constructs outside the modeled surface — the top-level
   `__properties_version1.0`, the `__substg1.0_*` sub-streams, and the
   recipient/attachment sub-storages — are not claimed (named-property streams,
@@ -91,7 +106,8 @@ including those the adapter declines to interpret natively, and after the source
 - **Real-world coverage is positive here.** In the Phase 26.5 population all six
   real `.msg` samples (Apache POI `hsmf` messages) were detected as `msg` — the
   legacy `.doc`/`.xls`/`.ppt` detectors, by contrast, recorded declines on several
-  real files (see their pages).
+  real files that Phase 27.3 then repaired at the detection layer (fragmented CFBF
+  chains; see their pages).
 
 ## Relevant ADRs
 
@@ -104,6 +120,10 @@ including those the adapter declines to interpret natively, and after the source
 
 - Phase 26.4.1 legacy Outlook MSG adapter court (H1 exactness 1/1):
   [2026-10-11-phase26-4-1-msg-966c3fd4](../../evidence/campaigns/2026-10-11-phase26-4-1-msg-966c3fd4/).
-- Stratified real-world population v2 (Phase 26.5):
+- Phase 27.4 legacy Outlook **economic** court (Lane B source-retaining SQLite,
+  Lane C `comparator_absent`; exactness 4/4):
+  [2026-10-12-phase27-4-msg-econ-58f7572f](../../evidence/campaigns/2026-10-12-phase27-4-msg-econ-58f7572f/).
+- Stratified real-world population v2 (Phase 26.5; re-run under 27.3/27.5):
   [2026-10-11-realformats-stratified-v2-703ca5ac](../../evidence/campaigns/2026-10-11-realformats-stratified-v2-703ca5ac/).
-- Results: [phase-26-results.md](../phases/phase-26-results.md).
+- Results: [phase-26-results.md](../phases/phase-26-results.md),
+  [phase-27-results.md](../phases/phase-27-results.md).

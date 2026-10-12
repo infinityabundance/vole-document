@@ -99,10 +99,13 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | scientific-container (NetCDF/HDF5) adapter / economic court | exact 4/4 · 8/8 | `evidence/campaigns/2026-10-10-phase21-34-1-hdf-ea347edb/`, `…/2026-10-11-phase21-34-hdf-econ-372a86e0/` |
 | CFBF/OLE2 adapter / economic court | exact 2/2 · 7/7 | `evidence/campaigns/2026-10-11-phase21-35-1-cfbf-42791bce/`, `…/2026-10-11-phase21-35-cfbf-econ-372a86e0/` |
 | Legacy DOC / XLS / PPT / MSG semantic-model adapter courts (Phase 26.1–26.4) | exact 2/2 · 1/1 · 1/1 · 1/1 | `evidence/campaigns/2026-10-11-phase26-1-1-doc-966c3fd4/`, `…/2026-10-11-phase26-2-1-xls-966c3fd4/`, `…/2026-10-11-phase26-3-1-ppt-966c3fd4/`, `…/2026-10-11-phase26-4-1-msg-966c3fd4/` |
+| Legacy DOC section / PPT list **depth** courts (Phase 27.1–27.2) | DOC exact 3/3 + 7/7 CP sections · PPT exact 2/2 + 4 `SlideListWithText` lists | `evidence/campaigns/2026-10-12-phase27-1-1-doc-section-fc5cce39/`, `…/2026-10-12-phase27-2-1-ppt-lists-64626a39/` |
+| Legacy DOC / XLS / PPT / MSG **economic** courts (Phase 27.4; Lane B source-retaining SQLite, Lane C `comparator_absent`) | exact 7/7 · 5/5 · 5/5 · 4/4 | `evidence/campaigns/2026-10-12-phase27-4-doc-econ-58f7572f/`, `…/2026-10-12-phase27-4-xls-econ-58f7572f/`, `…/2026-10-12-phase27-4-ppt-econ-58f7572f/`, `…/2026-10-12-phase27-4-msg-econ-58f7572f/` |
+| Arrow IPC **stream** detection court (Phase 27.5) | exact 2/2 on the magic-less stream, 5/5 near-miss `Opaque` controls | `evidence/campaigns/2026-10-12-phase27-5-1-arrow-stream-efb51887/` |
 | Cross-field identity court (ADR-0060) | 12/12 | `evidence/campaigns/2026-10-09-identity-3400385/`, re-sealed `…/2026-10-10-identity-7f007e2e/` |
 | Real-format smoke (independently sourced) | 12/12 exact | `evidence/campaigns/2026-10-09-realformats-smoke-3400385/` |
 | Stratified real-world multi-format court v1 (52 real + 8 hostile; historical control) | 60/60 byte-exact | `evidence/campaigns/2026-10-10-realformats-stratified-3529688e/` (prior `…/2026-10-10-realformats-stratified-92edce73/`) |
-| Stratified real-world population **v2** (284 real + 24 hostile, 41 formats; Phase 26.5) | 308/308 byte-exact, 0 skipped/blocked, 32 findings reconciled | `evidence/campaigns/2026-10-11-realformats-stratified-v2-703ca5ac/` |
+| Stratified real-world population **v2** (284 real + 24 hostile, 41 formats; Phase 26.5, re-run 27.3/27.5) | 308/308 byte-exact, 0 skipped/blocked; findings **32 → 25 (27.3) → 21 (27.5)**, detection agreements **257 → 264 → 268** | `evidence/campaigns/2026-10-11-realformats-stratified-v2-703ca5ac/`, re-runs `…/2026-10-12-realformats-stratified-v2-6f6f84d0/`, `…/2026-10-12-realformats-stratified-v2-efb51887/` |
 | JSON comparator repair (modern SQLite+JSONB, span-preserving baseline) | exact 7/7 | `evidence/campaigns/2026-10-09-phase21-5-json-econ-3400385/` |
 | YAML span-preserving comparator (parity with the JSON court) | exact 8/8 | `evidence/campaigns/2026-10-10-phase21-6-yaml-econ-92edce73/` |
 | CSV O(n²)→O(n) metadata fix (`csv_common_metadata`) | large.csv metadata ~16.5 min → ~0.5 s | `evidence/campaigns/2026-10-10-phase21-7-1-csv-3006e56a/`, `…/2026-10-10-phase21-7-csv-econ-3006e56a/` |
@@ -492,16 +495,19 @@ dependency-free**).
 
 | Property | Arrow IPC |
 |---|---|
-| Byte-based detection | Arrow file magic/footer (`ARROW1`) or stream markers + a readable Flatbuffers schema/footer |
+| Byte-based detection | Arrow file magic/footer (`ARROW1`), or a **magic-less encapsulated-message stream** framing (a continuation-marked `Schema` message first, then well-formed `RecordBatch`/`DictionaryBatch` messages, ending in an end-of-stream marker), with a readable Flatbuffers metadata block |
 | Physical authority | the whole source (RAW authority) |
 | `materialize == original` (length + SHA-256 + `cmp`) | ✓, incl. after source + descriptor deletion in a fresh process |
-| Common observations | `metadata`, `text`, `table`, `cell`, `find` |
+| Common observations | `metadata` (with the ordered message inventory), `text`, `table`, `cell`, `find` |
 | Native observations | `arrow-schema`, `arrow-column`, `arrow-batch`, `arrow-cell` |
-| Representation preserved | schema; record batches with exact source spans; decoded primitive/binary buffers (Int all widths, FloatingPoint, Boolean, Date/Time/Timestamp/Duration, Utf8/Binary, FixedSizeBinary) with validity bitmaps; file + stream, multi-batch |
+| Representation preserved | schema; record batches with exact source spans; decoded primitive/binary buffers (Int all widths, FloatingPoint, Boolean, Date/Time/Timestamp/Duration, Utf8/Binary, FixedSizeBinary) with validity bitmaps; file + **stream**, multi-batch; the ordered message inventory (Schema / each batch / end-of-stream) with exact byte spans, contiguous from offset 0 and covering the whole source |
 
 **Declined typed:** `Null`, `Decimal`, `Interval`, every nested type, view types,
 dictionary-encoded fields, big-endian bodies, `BodyCompression`; a bomb declines
-typed. **DuckDB wins the analytical axes** and reads a **Parquet projection** of
+typed. The **legacy pre-0.15 no-continuation** stream framing (a bare `int32`
+metadata size with no `0xFFFFFFFF` token) is deliberately declined — a magic-less
+source has no other anchor, so the file-only detection is the conservative floor.
+**DuckDB wins the analytical axes** and reads a **Parquet projection** of
 the same logical table (the pinned wheel has no Arrow IPC file reader) — the
 substitution is recorded. See [Formats/Arrow](../formats/arrow.md).
 
@@ -854,18 +860,30 @@ build on `cfbf`.
 
 | Format | Feature | Detection (on top of CFBF) | Exact leaf | Common obs. | Native observations |
 |---|---|---|---|---|---|
-| DOC (MS-DOC, Word 97–2003) | `doc = ["cfbf"]` | `WordDocument` opens with the Word FIB `0xA5EC` + plausible `nFib` + a selected table stream | whole source | `metadata`, `text`, `search-match` | `doc-fib`, `doc-piece`, `doc-text`, `doc-find` |
-| XLS (BIFF8, Excel 97–2003) | `xls = ["cfbf"]` | `Workbook`/`Book` opens with a BIFF8 `BOF` (id `0x0809`, version `0x0600`) | whole source | `metadata`, `text`, `search-match` | `xls-biff`, `xls-sheet`, `xls-cell`, `xls-record`, `xls-find` |
-| PPT (MS-PPT, PowerPoint 97–2003) | `ppt = ["cfbf"]` | `PowerPoint Document` opens with a `Document` record (`recVer 0xF`, `recType 1000`) | whole source | `metadata`, `text`, `search-match` | `ppt-document`, `ppt-slide`, `ppt-run`, `ppt-record`, `ppt-find` |
-| MSG (MS-OXMSG, Outlook) | `msg = ["cfbf"]` | root storage has `__properties_version1.0` | whole source | `metadata`, `text`, `search-match` | `msg-summary`, `msg-property`, `msg-recipient`, `msg-attachment`, `msg-find` |
+| DOC (MS-DOC, Word 97–2003) | `doc = ["cfbf"]` | `WordDocument` opens with the Word FIB `0xA5EC` + plausible `nFib` + a selected table stream (read from the stream's **first chunk**, so a fragmented chain still detects) | whole source | `metadata`, `text`, `search-match` | `doc-fib`, `doc-piece`, `doc-text`, `doc-section` (`main`/`footnote`/`header`/`annotation`/`endnote`/`textbox`/`hdrtextbox`), `doc-find` |
+| XLS (BIFF8, Excel 97–2003) | `xls = ["cfbf"]` | `Workbook`/`Book` (matched **ASCII-case-insensitively**) opens with a BIFF8 `BOF` (id `0x0809`, version `0x0600`), read from the stream's first chunk | whole source | `metadata`, `text`, `search-match` | `xls-biff`, `xls-sheet`, `xls-cell`, `xls-record`, `xls-find` |
+| PPT (MS-PPT, PowerPoint 97–2003) | `ppt = ["cfbf"]` | `PowerPoint Document` opens with a `Document` record (`recVer 0xF`, `recType 1000`), read from the stream's first chunk | whole source | `metadata`, `text`, `search-match` | `ppt-document`, `ppt-slide`, `ppt-run`, `ppt-record`, `ppt-list` (`slides`/`masters`/`notes`/`handout`), `ppt-find` |
+| MSG (MS-OXMSG, Outlook) | `msg = ["cfbf"]` | root storage has `__properties_version1.0` (name-based; unchanged by 27.3) | whole source | `metadata`, `text`, `search-match` | `msg-summary`, `msg-property`, `msg-recipient`, `msg-attachment`, `msg-find` |
 
 Each model declines out-of-subset constructs **typed** (`InvalidDocStructure` 52,
 `InvalidXlsStructure` 53, `InvalidPptStructure` 54, `InvalidMsgStructure` 55), never
-guessing and never panicking. Adapter-court H1 exactness: **2/2 · 1/1 · 1/1 · 1/1**.
-The four legacy formats have **no separate economic court** (no faithful
-conventional decoder exists — the same `comparator_absent` situation as HDF5/CFBF).
-See [DOC](../formats/doc.md), [XLS](../formats/xls.md), [PPT](../formats/ppt.md),
-[MSG](../formats/msg.md).
+guessing and never panicking. Phase 27.1/27.2 added **depth**: DOC partitions its
+CP space into the seven `ccp*` sections (each a separate span-preserving answer,
+empty sections typed empty), and PPT models every `SlideListWithText` list by
+`recInstance`. Adapter-court H1 exactness: DOC **3/3**, XLS **1/1**, PPT **2/2**,
+MSG **1/1**.
+
+Phase 27.4 adds the **legacy economic courts** (doc/xls/ppt/msg): a
+source-retaining SQLite lane (**Lane B**, byte authority) is the single substantive
+comparator, and the conventional decode-to-host-values lane (**Lane C**) is
+`comparator_absent` — legacy binary Office/MS-OXMSG has no faithful pure-Python/
+stdlib decoder, so Lane C records a typed decline per question rather than a
+fabricated answer. VOLE Q6 exactness is **7/7 · 5/5 · 5/5 · 4/4**; VOLE builds
+cheaper than the byte store (paired medians 0.79×/0.55×/0.74×/0.80×) and is far
+cheaper cold/warm, but carries **~1.19–1.44×** the storage of a bytes-only store;
+cold is Python-startup-dominated and the CIs are degenerate at the small fixture
+counts. See [DOC](../formats/doc.md), [XLS](../formats/xls.md),
+[PPT](../formats/ppt.md), [MSG](../formats/msg.md).
 
 ## Detection order (Phase 21, frozen)
 
@@ -884,7 +902,7 @@ PDF
       → MSG   (root `__properties_version1.0`; before the generic Cfbf claim)
       → Cfbf  (the generic physical-layer claim)
   → Parquet (PAR1 magic)
-  → Arrow IPC (ARROW1 magic)
+  → Arrow IPC (ARROW1 magic, or the magic-less encapsulated-message stream framing)
   → GeoJSON   (JSON bytes; bounded semantic sub-detection)
   → Notebook  (JSON bytes; bounded semantic sub-detection)
   → Pkgmeta   (JSON/TOML bytes; bounded semantic sub-detection)

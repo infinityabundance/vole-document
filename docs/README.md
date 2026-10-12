@@ -102,7 +102,11 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   [Phase 25](phases/phase-25-results.md) (durability corrections: directory
   ancestry + unpublished-segment recovery),
   [Phase 26](phases/phase-26-results.md) (legacy DOC/XLS/PPT/MSG semantic models +
-  stratified real-world population v2 + the pyarrow Arrow comparator lane);
+  stratified real-world population v2 + the pyarrow Arrow comparator lane),
+  [Phase 27](phases/phase-27-results.md) (legacy DOC CP sections + PPT
+  `SlideListWithText` lists, detection hardening that took the stratified-v2 court
+  from 32 to 21 findings, legacy economic courts with Lane C `comparator_absent`,
+  and magic-less Arrow IPC **stream** detection);
   **in progress**:
   [Phase 21](phases/phase-21-plan.md) (format programme — **Wave 1 complete**: XLSX,
   PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2

@@ -37,23 +37,44 @@ A bounded MS-PPT record-stream subset:
   `recInstance = (w >> 4) & 0x0FFF`, `recType`, `recLen`) with every record's exact
   byte span, stream offset, and nesting depth;
 - the `Document` container (the top-level record);
-- the `SlideListWithText` slides (`persistIdRef`, in order);
+- every `SlideListWithText` container (`recType 4080`), distinguished by
+  `recInstance` — `slides` (0), `masters` (1), `notes` (2), `handout` (3);
+- the ordered `SlidePersistAtom` entries (`persistIdRef`, `cTexts`, exact span);
 - the `TextCharsAtom` (UTF-16LE) and `TextBytesAtom` (CP1252) runs with their exact
-  spans and decoded text;
+  atom/header spans and decoded text;
 - the `Current User` stream's `UserEditAtom` offset when it resolves.
+
+The model is a derived `PptModel` whose wire **version is 2**: the
+`SlideListWithText` list arena is the source of truth, and the `slides`/`runs`
+projection is derived from the `slides` list. The model is derived and never on
+the exactness path.
+
+## List surface (Phase 27.2)
+
+Every `SlideListWithText` container is materialized as its own typed answer via
+`--ppt-list <name>` (`slides`|`masters`|`notes`|`handout`): the exact container
+span, the ordered `SlidePersistAtom` entries, and for each entry the ordered text
+runs with their exact spans and decoded text. An absent list and a
+present-but-empty list are typed **empty** answers (`slides`: 0, `runs`: 0,
+`empty`: true), never errors; a present container still reports its span. The
+slides-list projection (`ppt-slide`/`ppt-run`/`ppt-record`, canonical text) is
+byte-for-byte unchanged.
 
 ## Supported observations
 
 Common selectors: `metadata`, `text`, `search-match`. Native: `ppt-document`,
-`ppt-slide`, `ppt-run`, `ppt-record`, `ppt-find`.
+`ppt-slide`, `ppt-run`, `ppt-record`, `ppt-list`
+(`slides`/`masters`/`notes`/`handout`), `ppt-find`.
 
 ## Declined (typed, never guessed)
 
 A `Document` container whose declared `recLen` is smaller than its children (a
 child overruns its container), a `recLen` that overruns the stream, a truncated
-record header, an odd-length `TextCharsAtom` (a text-atom/`recLen` mismatch), a
-text atom with no preceding `SlidePersistAtom`, and an out-of-range `Current User`
-`UserEditAtom` offset are typed declines (`InvalidPptStructure`, exit 54).
+record header, an odd-length `TextCharsAtom` (a text-atom/`recLen` mismatch) —
+including one inside an **auxiliary** list (`masters`/`notes`/`handout`), which
+Phase 26 silently skipped — a text atom with no preceding `SlidePersistAtom`, and
+an out-of-range `Current User` `UserEditAtom` offset are typed declines
+(`InvalidPptStructure`, exit 54).
 
 A `.ppt` with a plausible `Document` record but a malformed body **is admitted**
 (its whole-source exact leaf is unaffected) and its model then declines typed.
@@ -64,25 +85,32 @@ A `.ppt` with a plausible `Document` record but a malformed body **is admitted**
 including those the adapter declines to interpret natively, and after the source
 **and** descriptor are deleted in a fresh process.
 
-**Adapter-court H1 (byte-exactness):** **1/1** normal fixture byte-exact
-(`ppt_valid`, with its text runs); 5/5 structural declines `InvalidPptStructure`;
-2/2 CFBF controls stay `Cfbf`; 1/1 opaque control stays `Opaque`.
+**Adapter-court H1 (byte-exactness):** **2/2** normal fixtures byte-exact
+(`ppt_valid`, `ppt_lists`); 6/6 structural declines `InvalidPptStructure`; 2/2
+CFBF controls stay `Cfbf`; 1/1 opaque control stays `Opaque`.
 
 ## Honest negatives
 
-- **No separate economic court.** There is no faithful conventional decoder for
-  legacy MS-PPT, so — exactly as for HDF5/CFBF — an economic comparison would be
-  `comparator_absent`. The validation is the adapter court plus the stratified
-  real-world population (Phase 26.5), not an economic court.
+- **Economic court (Phase 27.4).** A separate economic court now exists: a
+  source-retaining SQLite lane (**Lane B**, byte authority) is the single
+  substantive comparator, and the conventional decode-to-host-values lane
+  (**Lane C**) is `comparator_absent` — there is no faithful pure-Python/stdlib
+  decoder for legacy MS-PPT, so every Lane-C question is a recorded typed decline
+  rather than a fabricated answer. VOLE exactness (Q6) is **5/5** byte-exact; VOLE
+  builds cheaper than the byte store (paired median **0.738×**) and is far cheaper
+  cold/warm, but carries **~1.19×** the storage of a bytes-only store; cold is
+  Python-startup-dominated and the CIs are degenerate at n=1–2. Only Q6 is a
+  byte-authority claim.
 - **Not claimed:** the `Current User` stream's *content* beyond the `UserEditAtom`
-  offset, the master/notes `SlideListWithText` lists (only the slides list is
-  modeled), embedded OLE objects, pictures, and the other legacy CFBF semantic
+  offset, embedded OLE objects, pictures, and the other legacy CFBF semantic
   models (see [DOC](doc.md), [XLS](xls.md), [MSG](msg.md)).
-- **Real-world declines are expected.** In the Phase 26.5 population three genuine
-  Apache POI `.ppt` files (`poi-slideshow-54332a.ppt`,
-  `poi-slideshow-basic_test_ppt_file.ppt`, `poi-slideshow-datetime.ppt`) have a
-  `PowerPoint Document` stream whose record variant this bounded detector does not
-  claim, so they stay at the generic `Cfbf` layer — a **recorded** boundary.
+- **Real-world declines were detection, not modeling.** The Phase 26.5 population's
+  three genuine Apache POI `.ppt` files (`poi-slideshow-54332a.ppt`,
+  `poi-slideshow-basic_test_ppt_file.ppt`, `poi-slideshow-datetime.ppt`) stayed at
+  `Cfbf` because their `PowerPoint Document` stream is a **fragmented** CFBF sector
+  chain, not because of a record variant. Phase 27.3 fixed the detector to read
+  only the stream header prefix (`cfbf::stream_leading`), so these files now detect
+  as `ppt`.
 
 ## Relevant ADRs
 
@@ -95,6 +123,13 @@ including those the adapter declines to interpret natively, and after the source
 
 - Phase 26.3.1 legacy PowerPoint adapter court (H1 exactness 1/1):
   [2026-10-11-phase26-3-1-ppt-966c3fd4](../../evidence/campaigns/2026-10-11-phase26-3-1-ppt-966c3fd4/).
-- Stratified real-world population v2 (Phase 26.5):
+- Phase 27.2.1 legacy PowerPoint **list** court (H1 exactness 2/2;
+  slides/masters/notes/handout):
+  [2026-10-12-phase27-2-1-ppt-lists-64626a39](../../evidence/campaigns/2026-10-12-phase27-2-1-ppt-lists-64626a39/).
+- Phase 27.4 legacy PowerPoint **economic** court (Lane B source-retaining SQLite,
+  Lane C `comparator_absent`; exactness 5/5):
+  [2026-10-12-phase27-4-ppt-econ-58f7572f](../../evidence/campaigns/2026-10-12-phase27-4-ppt-econ-58f7572f/).
+- Stratified real-world population v2 (Phase 26.5; re-run under 27.3/27.5):
   [2026-10-11-realformats-stratified-v2-703ca5ac](../../evidence/campaigns/2026-10-11-realformats-stratified-v2-703ca5ac/).
-- Results: [phase-26-results.md](../phases/phase-26-results.md).
+- Results: [phase-26-results.md](../phases/phase-26-results.md),
+  [phase-27-results.md](../phases/phase-27-results.md).
